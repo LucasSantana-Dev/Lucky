@@ -1,4 +1,4 @@
-const dotenv = require('dotenv');
+const dotenv = require('dotenv').config();
 const { Client, Intents } = require('discord.js')
 const client = new Client({
     intents: [Intents.FLAGS.GUILDS,
@@ -8,7 +8,6 @@ const client = new Client({
 })
 const { joinVoiceChannel, createAudioResource } = require('@discordjs/voice');
 const { createAudioPlayer } = require('@discordjs/voice')
-const auth = require('./auth.json')
 const config = require('./config.json')
 const prefix = config.prefix
 const token = process.env.DISCORD_TOKEN;
