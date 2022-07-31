@@ -11,12 +11,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@discordjs/opus": "^0.5.3",
     "@discordjs/voice": "^0.8.0",
     "@distube/spotify": "^1.2.1",
     "ascii-table": "^0.0.9",
     "discord.js": "^13.6.0",
     "distube": "^3.3.3",
+    "dotenv": "^16.0.1",
     "ffmpeg-static": "^4.4.1",
     "glob": "^7.2.0",
     "libsodium-wrappers": "^0.7.10",
