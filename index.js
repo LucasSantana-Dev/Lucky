@@ -10,7 +10,7 @@ const { createAudioPlayer } = require('@discordjs/voice')
 const auth = require('./auth.json')
 const config = require('./config.json')
 const prefix = config.prefix
-const token = auth.token;
+const token = auth.token || DISCORD_TOKEN;
 
 client.login(token)
 
