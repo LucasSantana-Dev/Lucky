@@ -66,7 +66,7 @@ client.on('messageCreate', async message => {
 
         player.play(resource)
         connection.subscribe(player);
-        return interaction.reply({ content: "Tocando áudio.", ephemeral: true })
+        message.channel.send("Tocando áudio!");
     }
 })
 
@@ -92,11 +92,11 @@ client.on('messageCreate', async message => {
 
         player.play(resource)
         connection.subscribe(player);
-        return interaction.reply({ content: "Tocando áudio.", ephemeral: true })
+        message.channel.send("Tocando áudio!");
     }
 })
 
-// Quandale dingle
+// Nyo
 client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
@@ -118,7 +118,7 @@ client.on('messageCreate', async message => {
 
         player.play(resource)
         connection.subscribe(player);
-        return interaction.reply({ content: "Tocando áudio.", ephemeral: true })
+        message.channel.send("Tocando áudio!");
     }
 })
 
