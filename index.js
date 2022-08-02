@@ -96,4 +96,30 @@ client.on('messageCreate', async message => {
     }
 })
 
+// Quandale dingle
+client.on('messageCreate', async message => {
+    function isCommand(command) {
+        return !!message.content.toLowerCase().startsWith(prefix + command);
+    };
+
+    if (isCommand('nyo')) {
+        const channel = message.member.voice.channel;
+        if (!channel)
+            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
+
+        const player = createAudioPlayer();
+        const resource = createAudioResource('sounds/nyo.mp3')
+
+        const connection = joinVoiceChannel({
+            channelId: channel.id,
+            guildId: message.guild.id,
+            adapterCreator: message.guild.voiceAdapterCreator
+        })
+
+        player.play(resource)
+        connection.subscribe(player);
+        return interaction.reply({ content: "Tocando áudio.", ephemeral: true })
+    }
+})
+
 module.exports = client;
