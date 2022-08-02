@@ -66,6 +66,7 @@ client.on('messageCreate', async message => {
 
         player.play(resource)
         connection.subscribe(player);
+        return interaction.reply({ content: "Tocando áudio.", ephemeral: true })
     }
 })
 
@@ -91,6 +92,7 @@ client.on('messageCreate', async message => {
 
         player.play(resource)
         connection.subscribe(player);
+        return interaction.reply({ content: "Tocando áudio.", ephemeral: true })
     }
 })
 
