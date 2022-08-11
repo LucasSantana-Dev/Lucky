@@ -68,7 +68,16 @@ client.on('messageCreate', async message => {
     }
 })
 
-// Denny Esqusito
+// Inactivity checker
+function inactivityConnDestroy() {
+    const subscription = connection.subscribe(player);
+    if (subscription) {
+        // Unsubscribe after 20 seconds (stop playing audio on the voice connection)
+        setTimeout(() => subscription.unsubscribe(), 20_000);
+    }
+}
+
+// Denny Count
 client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
@@ -102,6 +111,8 @@ client.on('messageCreate', async message => {
         player.play(resource)
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
+
+        inactivityConnDestroy()
     }
 })
 
@@ -128,6 +139,8 @@ client.on('messageCreate', async message => {
         player.play(resource)
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
+
+        inactivityConnDestroy()
     }
 })
 
@@ -154,6 +167,8 @@ client.on('messageCreate', async message => {
         player.play(resource)
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
+
+        inactivityConnDestroy()
     }
 })
 
@@ -180,6 +195,8 @@ client.on('messageCreate', async message => {
         player.play(resource)
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
+
+        inactivityConnDestroy()
     }
 })
 
@@ -206,6 +223,8 @@ client.on('messageCreate', async message => {
         player.play(resource)
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
+
+        inactivityConnDestroy()
     }
 })
 
