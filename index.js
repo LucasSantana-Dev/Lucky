@@ -95,11 +95,6 @@ const playAudio = (audio, command) => {
             player.play(resource)
             connection.subscribe(player);
             message.channel.send("Tocando áudio!");
-
-            setTimeout((connection) => {
-                connection.destroy();
-                message.channel.send("Saindo do canal de voz!!")
-            }, 20000)
         }
     })
 }
