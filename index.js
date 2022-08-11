@@ -96,4 +96,30 @@ client.on('messageCreate', async message => {
     }
 })
 
+// Hamoud
+client.on('messageCreate', async message => {
+    function isCommand(command) {
+        return !!message.content.toLowerCase().startsWith(prefix + command);
+    };
+
+    if (isCommand('hamoud')) {
+        const channel = message.member.voice.channel;
+        if (!channel)
+            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
+
+        const player = createAudioPlayer();
+        const resource = createAudioResource('sounds/hamoud.mp3')
+
+        const connection = joinVoiceChannel({
+            channelId: channel.id,
+            guildId: message.guild.id,
+            adapterCreator: message.guild.voiceAdapterCreator
+        })
+
+        player.play(resource)
+        connection.subscribe(player);
+        message.channel.send("Tocando áudio!");
+    }
+})
+
 module.exports = client;
