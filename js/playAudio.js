@@ -7,6 +7,7 @@ const client = new Client({
 })
 const { joinVoiceChannel, createAudioResource } = require('@discordjs/voice');
 const { createAudioPlayer } = require('@discordjs/voice')
+const innactivityChecker = require('./inactivityChecker')
 
 // Play Audio Function
 function playAudio(audio){
@@ -38,4 +39,4 @@ function playAudio(audio){
     })
 }
 
-export function playAudio(connection);
+export function playAudio(audio);
