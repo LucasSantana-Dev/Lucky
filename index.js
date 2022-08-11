@@ -44,6 +44,26 @@ client.on('messageCreate', async message => {
     }
 })
 
+// Flamengo
+client.on('messageCreate', async message => {
+    function isCommand(command) {
+        return !!message.content.toLowerCase().startsWith(prefix + command);
+    };
+
+    if (isCommand('leave')) {
+        const channel = message.member.voice.channel;
+        if (!channel)
+            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
+
+        const connection = getVoiceConnection(message.guild.id)
+
+        if (!connection) return message.channel.send("I'm not in a voice channel!")
+
+        connection.destroy();
+        message.channel.send("Até mais ;-)!");
+    }
+})
+
 // Snore
 client.on('messageCreate', async message => {
     function isCommand(command) {
