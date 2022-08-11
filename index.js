@@ -61,7 +61,7 @@ client.on('messageCreate', async message => {
         if (!channel)
             return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
         connection.destroy();
-        message.channel.send("Até mais :-(!!")
+        message.channel.send("Até mais!!")
     }
 })
 
