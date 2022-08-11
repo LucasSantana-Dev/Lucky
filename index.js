@@ -69,7 +69,7 @@ client.on('messageCreate', async message => {
 })
 
 // Inactivity checker
-function inactivityConnDestroy(connection) {
+function inactivityConnDestroy(connection, player) {
     const subscription = connection.subscribe(player);
     if (subscription) {
         // Unsubscribe after 20 seconds (stop playing audio on the voice connection)
@@ -112,7 +112,7 @@ client.on('messageCreate', async message => {
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
 
-        inactivityConnDestroy(connection)
+        inactivityConnDestroy(connection, player)
     }
 })
 
@@ -140,7 +140,7 @@ client.on('messageCreate', async message => {
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
 
-        inactivityConnDestroy(connection)
+        inactivityConnDestroy(connection, player)
     }
 })
 
@@ -168,7 +168,7 @@ client.on('messageCreate', async message => {
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
 
-        inactivityConnDestroy(connection)
+        inactivityConnDestroy(connection, player)
     }
 })
 
@@ -196,7 +196,7 @@ client.on('messageCreate', async message => {
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
 
-        inactivityConnDestroy(connection)
+        inactivityConnDestroy(connection, player)
     }
 })
 
@@ -224,7 +224,7 @@ client.on('messageCreate', async message => {
         connection.subscribe(player);
         message.channel.send("Tocando áudio!");
 
-        inactivityConnDestroy(connection)
+        inactivityConnDestroy(connection, player)
     }
 })
 
