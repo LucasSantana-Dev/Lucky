@@ -65,6 +65,18 @@ client.on('messageCreate', async message => {
     }
 })
 
+// Denny Esqusito
+client.on('messageCreate', async message => {
+    function isCommand(command) {
+        return !!message.content.toLowerCase().startsWith(prefix + command);
+    };
+    let dennyCount = 0
+    if (isCommand('denny')) {
+        dennyCount++
+        message.channel.send(`O denny já foi incel ${dennyCount} vezes. `)
+    }
+})
+
 // Snore
 client.on('messageCreate', async message => {
     function isCommand(command) {
