@@ -72,7 +72,7 @@ client.on('messageCreate', async message => {
     };
     let dennyCount = 0
     if (isCommand('denny')) {
-        dennyCount++
+        ++dennyCount
         message.channel.send(`O denny já foi incel ${dennyCount} vezes. `)
     }
 })
