@@ -12,6 +12,8 @@ const config = require('./config.json')
 const prefix = config.prefix
 const token = process.env.DISCORD_TOKEN;
 
+const playAudio = require('./js/playAudio')
+
 client.login(token)
 
 client.once("ready", () => {
@@ -68,15 +70,6 @@ client.on('messageCreate', async message => {
     }
 })
 
-// Inactivity checker
-function inactivityConnDestroy(connection, player) {
-    const subscription = connection.subscribe(player);
-    if (subscription) {
-        // Unsubscribe after 20 seconds (stop playing audio on the voice connection)
-        setTimeout(() => subscription.unsubscribe(), 20_000);
-    }
-}
-
 // Denny Count
 client.on('messageCreate', async message => {
     function isCommand(command) {
@@ -89,143 +82,23 @@ client.on('messageCreate', async message => {
 })
 
 // Snore
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand('sleep')) {
-        const channel = message.member.voice.channel;
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource('sounds/snore.mp3')
-
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        player.play(resource)
-        connection.subscribe(player);
-        message.channel.send("Tocando áudio!");
-
-        inactivityConnDestroy(connection, player)
-    }
-})
+let snoreSound = 'sounds/snore.mp3'
+playAudio(snoreSound)
 
 // Nyo
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand('nyo')) {
-        const channel = message.member.voice.channel;
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource('sounds/nyo.mp3')
-
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        player.play(resource)
-        connection.subscribe(player);
-        message.channel.send("Tocando áudio!");
-
-        inactivityConnDestroy(connection, player)
-    }
-})
+let nyoSound = 'sounds/nyo.mp3'
+playAudio(nyoSound)
 
 // Hamoud
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand('hamoud')) {
-        const channel = message.member.voice.channel;
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource('sounds/hamoud.mp3')
-
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        player.play(resource)
-        connection.subscribe(player);
-        message.channel.send("Tocando áudio!");
-
-        inactivityConnDestroy(connection, player)
-    }
-})
+let hamoudSound = 'sounds/hamoud.mp3'
+playAudio(hamoudSound)
 
 // Palmeiras
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand('palmeiras')) {
-        const channel = message.member.voice.channel;
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource('sounds/palmeiras.mp3')
-
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        player.play(resource)
-        connection.subscribe(player);
-        message.channel.send("Tocando áudio!");
-
-        inactivityConnDestroy(connection, player)
-    }
-})
+let palmeirasSound = 'sounds/palmeiras.mp3'
+playAudio(palmeirasSound)
 
 // Flamengo
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand('flamengo')) {
-        const channel = message.member.voice.channel;
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource('sounds/flamengo.mp3')
-
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        player.play(resource)
-        connection.subscribe(player);
-        message.channel.send("Tocando áudio!");
-
-        inactivityConnDestroy(connection, player)
-    }
-})
+let flamengoSound = 'sounds/flamengo.mp3'
+playAudio(flamengoSound)
 
 module.exports = client;
