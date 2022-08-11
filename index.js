@@ -12,8 +12,6 @@ const config = require('./config.json')
 const prefix = config.prefix
 const token = process.env.DISCORD_TOKEN;
 
-const playAudio = require('./js/playAudio')
-
 client.login(token)
 
 client.once("ready", () => {
@@ -21,12 +19,12 @@ client.once("ready", () => {
     client.user.setActivity("Online e roteando!", { type: "WATCHING" })
 })
 
-let dennyCount = 0
+let dennyCount = 575
 
 // Ping Pong
 client.on("messageCreate", (message) => {
-    if (message.content.startsWith("ping")) {
-        message.channel.send("pong!");
+    if (message.content.startsWith("Ping")) {
+        message.channel.send("Pong!");
     }
 });
 
@@ -39,10 +37,10 @@ client.on('messageCreate', async message => {
     if (isCommand('join')) {
         const channel = message.member.voice.channel;
         const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
+        channelId: channel.id,
+        guildId: message.guild.id,
+        adapterCreator: message.guild.voiceAdapterCreator
+    })
 
         if (!channel)
             return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
@@ -57,48 +55,89 @@ client.on('messageCreate', async message => {
 
     if (isCommand('leave')) {
         const channel = message.member.voice.channel;
+        if (!channel)
+            return interaction.reply({ content: "⛔ Eu não estou em um canal de voz.", ephemeral: true })
+
         const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: message.guild.id,
             adapterCreator: message.guild.voiceAdapterCreator
         })
 
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
         connection.destroy();
         message.channel.send("Até mais!!")
     }
 })
+
+// Play Audio Function
+const playAudio = (audio, command) => {
+    client.on('messageCreate', async message => {
+        function isCommand(commandMsg) {
+            return !!message.content.toLowerCase().startsWith(prefix + commandMsg);
+        };
+
+        if (isCommand(command)) {
+            const channel = message.member.voice.channel;
+            const connection = joinVoiceChannel({
+                channelId: channel.id,
+                guildId: message.guild.id,
+                adapterCreator: message.guild.voiceAdapterCreator
+            })
+
+            if (!channel)
+                return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
+
+            const player = createAudioPlayer();
+            const resource = createAudioResource(audio)
+
+            
+
+            player.play(resource)
+            connection.subscribe(player);
+            message.channel.send("Tocando áudio!");
+
+            setTimeout((connection) => {
+                connection.destroy();
+                message.channel.send("Saindo do canal de voz!!")
+            }, 20000)
+        }
+    })
+}
 
 // Denny Count
 client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
     };
+
     if (isCommand('denny')) {
-        ++dennyCount
+        dennyCount++
         message.channel.send(`O denny já foi incel ${dennyCount} vezes. `)
     }
 })
 
 // Snore
-let snoreSound = 'sounds/snore.mp3'
-playAudio.playAudio(snoreSound)
+let snoreCommand = 'sleep'
+let snoreSound = './sounds/snore.mp3'
+playAudio(snoreSound, snoreCommand)
 
 // Nyo
-let nyoSound = 'sounds/nyo.mp3'
-playAudio.playAudio(nyoSound)
+let nyoCommand = 'nyo'
+let nyoSound = './sounds/nyo.mp3'
+playAudio(nyoSound, nyoCommand)
 
 // Hamoud
-let hamoudSound = 'sounds/hamoud.mp3'
-playAudio.playAudio(hamoudSound)
+let hamoudCommand = 'hamoud'
+let hamoudSound = './sounds/hamoud.mp3'
+playAudio(hamoudSound, hamoudCommand)
+
 
 // Palmeiras
-let palmeirasSound = 'sounds/palmeiras.mp3'
-playAudio.playAudio(palmeirasSound)
+let palmeirasCommand = 'palmeiras'
+let palmeirasSound = './sounds/palmeiras.mp3'
+playAudio(palmeirasSound, palmeirasCommand)
 
 // Flamengo
-let flamengoSound = 'sounds/flamengo.mp3'
-playAudio.playAudio(flamengoSound)
-
-module.exports = client;
+let flamengoCommand = 'flamengo'
+let flamengoSound = './sounds/flamengo.mp3'
+playAudio(flamengoSound, flamengoCommand)
