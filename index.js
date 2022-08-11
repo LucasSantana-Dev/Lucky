@@ -18,6 +18,9 @@ client.once("ready", () => {
     console.log("The bot is now online!");
     client.user.setActivity("Online e roteando!", { type: "WATCHING" })
 })
+
+let dennyCount = 0
+
 // Ping Pong
 client.on("messageCreate", (message) => {
     if (message.content.startsWith("ping")) {
@@ -70,7 +73,6 @@ client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
     };
-    let dennyCount = 0
     if (isCommand('denny')) {
         ++dennyCount
         message.channel.send(`O denny já foi incel ${dennyCount} vezes. `)
