@@ -83,22 +83,22 @@ client.on('messageCreate', async message => {
 
 // Snore
 let snoreSound = 'sounds/snore.mp3'
-playAudio(snoreSound)
+playAudio.playAudio(snoreSound)
 
 // Nyo
 let nyoSound = 'sounds/nyo.mp3'
-playAudio(nyoSound)
+playAudio.playAudio(nyoSound)
 
 // Hamoud
 let hamoudSound = 'sounds/hamoud.mp3'
-playAudio(hamoudSound)
+playAudio.playAudio(hamoudSound)
 
 // Palmeiras
 let palmeirasSound = 'sounds/palmeiras.mp3'
-playAudio(palmeirasSound)
+playAudio.playAudio(palmeirasSound)
 
 // Flamengo
 let flamengoSound = 'sounds/flamengo.mp3'
-playAudio(flamengoSound)
+playAudio.playAudio(flamengoSound)
 
 module.exports = client;

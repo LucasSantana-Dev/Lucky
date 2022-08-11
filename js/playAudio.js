@@ -7,10 +7,10 @@ const client = new Client({
 })
 const { joinVoiceChannel, createAudioResource } = require('@discordjs/voice');
 const { createAudioPlayer } = require('@discordjs/voice')
-const innactivityChecker = require('./inactivityChecker')
+const inactivityChecker = require('./inactivityChecker')
 
 // Play Audio Function
-function playAudio(audio){
+exports.playAudio = function (audio){
     client.on('messageCreate', async message => {
         function isCommand(command) {
             return !!message.content.toLowerCase().startsWith(prefix + command);
@@ -34,9 +34,7 @@ function playAudio(audio){
             connection.subscribe(player);
             message.channel.send("Tocando áudio!");
     
-            inactivityConnDestroy(connection, player)
+            inactivityChecker.inactivityConnDestroy(connection, player)
         }
     })
 }
-
-export function playAudio(audio);
