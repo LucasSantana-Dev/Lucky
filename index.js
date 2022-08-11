@@ -44,7 +44,7 @@ client.on('messageCreate', async message => {
     }
 })
 
-// Flamengo
+// Leave
 client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
@@ -52,15 +52,16 @@ client.on('messageCreate', async message => {
 
     if (isCommand('leave')) {
         const channel = message.member.voice.channel;
+        const connection = joinVoiceChannel({
+            channelId: channel.id,
+            guildId: message.guild.id,
+            adapterCreator: message.guild.voiceAdapterCreator
+        })
+
         if (!channel)
             return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-        const connection = getVoiceConnection(message.guild.id)
-
-        if (!connection) return message.channel.send("I'm not in a voice channel!")
-
         connection.destroy();
-        message.channel.send("Até mais ;-)!");
+        message.channel.send("Até mais :-(!!")
     }
 })
 
