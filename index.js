@@ -122,7 +122,7 @@ client.on('messageCreate', async message => {
     }
 })
 
-// Hamoud
+// Palmeiras
 client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
@@ -135,6 +135,32 @@ client.on('messageCreate', async message => {
 
         const player = createAudioPlayer();
         const resource = createAudioResource('sounds/palmeiras.mp3')
+
+        const connection = joinVoiceChannel({
+            channelId: channel.id,
+            guildId: message.guild.id,
+            adapterCreator: message.guild.voiceAdapterCreator
+        })
+
+        player.play(resource)
+        connection.subscribe(player);
+        message.channel.send("Tocando áudio!");
+    }
+})
+
+// Flamengo
+client.on('messageCreate', async message => {
+    function isCommand(command) {
+        return !!message.content.toLowerCase().startsWith(prefix + command);
+    };
+
+    if (isCommand('flamengo')) {
+        const channel = message.member.voice.channel;
+        if (!channel)
+            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
+
+        const player = createAudioPlayer();
+        const resource = createAudioResource('sounds/flamengo.mp3')
 
         const connection = joinVoiceChannel({
             channelId: channel.id,
