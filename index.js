@@ -11,6 +11,7 @@ const { createAudioPlayer } = require('@discordjs/voice')
 const config = require('./config.json')
 const prefix = config.prefix
 const token = process.env.DISCORD_TOKEN;
+let dennyCount = require('./dennyCount')
 
 client.login(token)
 
@@ -18,8 +19,6 @@ client.once("ready", () => {
     console.log("The bot is now online!");
     client.user.setActivity("Online e roteando!", { type: "WATCHING" })
 })
-
-let dennyCount = 575
 
 // Ping Pong
 client.on("messageCreate", (message) => {

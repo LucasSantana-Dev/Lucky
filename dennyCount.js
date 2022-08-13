@@ -1,0 +1,1 @@
+export let dennyCount = 600
