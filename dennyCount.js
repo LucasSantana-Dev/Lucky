@@ -1,1 +1,3 @@
-export let dennyCount = 600
+let dennyCount = 600
+
+exports.dennyCount = dennyCount;
