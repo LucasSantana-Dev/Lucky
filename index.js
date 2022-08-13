@@ -100,14 +100,15 @@ const playAudio = (audio, command) => {
 }
 
 // Denny Count
+let dennyCommand = 'denny'
 client.on('messageCreate', async message => {
     function isCommand(command) {
         return !!message.content.toLowerCase().startsWith(prefix + command);
     };
 
-    if (isCommand('denny')) {
+    if (isCommand(dennyCommand)) {
         dennyCount++
-        message.channel.send(`O denny já foi incel ${dennyCount} vezes. `)
+        message.channel.send(`O ${dennyCommand} já foi incel ${dennyCount} vezes. `)
     }
 })
 
