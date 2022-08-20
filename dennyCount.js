@@ -1,3 +1,3 @@
-let dennyCount = 600
+let dennyCount = 1205
 
 module.exports = dennyCount;
