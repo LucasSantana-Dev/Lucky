@@ -136,3 +136,8 @@ playAudio(palmeirasSound, palmeirasCommand)
 let flamengoCommand = 'flamengo'
 let flamengoSound = './sounds/flamengo.mp3'
 playAudio(flamengoSound, flamengoCommand)
+
+// Brasil
+let brasilCommand = 'brasil'
+let brasilSound = './sounds/brasil.mp3'
+playAudio(brasilSound, brasilCommand)
