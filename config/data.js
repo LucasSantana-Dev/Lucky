@@ -28,7 +28,7 @@
             name: "Flamengo",
             command: "flamengo",
             audio: "./sounds/flamengo.mp3",
-            function: "Toca a vinheta da rádio globo do Palmeiras."
+            function: "Toca a vinheta da rádio globo do Flamengo."
         },
         {
             name: "Brasil",
