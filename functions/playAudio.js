@@ -1,5 +1,6 @@
-import client from '../index.js'
+import { codeBlock } from '@discordjs/builders'
 
+import client from '../index.js'
 import prefix from '../config/prefix.js'
 
 import { joinVoiceChannel, createAudioResource, createAudioPlayer } from '@discordjs/voice'
@@ -18,15 +19,12 @@ const playAudio = (audio, command) => {
                 adapterCreator: message.guild.voiceAdapterCreator
             })
 
-            if (!channel)
-                return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
             const player = createAudioPlayer();
             const resource = createAudioResource(audio)
 
             player.play(resource)
             connection.subscribe(player);
-            message.channel.send("Tocando áudio!");
+            message.channel.send(codeBlock("🔊 Tocando áudio!"));
         }
     })
 }

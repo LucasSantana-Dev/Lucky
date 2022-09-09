@@ -2,8 +2,6 @@ import * as dotenv from 'dotenv'
 dotenv.config()
 import { Client, Intents } from 'discord.js'
 
-import prefix from './config/prefix.js'
-
 const client = new Client({
     intents: [Intents.FLAGS.GUILDS,
     Intents.FLAGS.GUILD_MEMBERS,
@@ -15,8 +13,12 @@ const token = process.env.DISCORD_TOKEN;
 
 export default client;
 
+// Import Functions
 import playAudio from './functions/playAudio.js'
 import commands from './functions/commands.js'
+import leaveChannel from './functions/leave.js'
+
+// Import commands data
 import data from './config/data.js'
 
 client.login(token)
@@ -24,28 +26,6 @@ client.login(token)
 client.once("ready", () => {
     console.log("O LukBot está online e roteando, bebês!!");
     client.user.setActivity("Online e roteando!", { type: "WATCHING" })
-})
-
-// Leave
-client.on('messageCreate', async message => {
-    const isCommand = (commandMsg) => {
-        return message.content.toLowerCase() === (prefix + commandMsg);
-    };
-
-    if (isCommand('leave')) {
-        const channel = message.member.voice.channel;
-        if (!channel)
-            return interaction.reply({ content: "⛔ Eu não estou em um canal de voz.", ephemeral: true })
-
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        connection.destroy();
-        message.channel.send("Até mais!!")
-    }
 })
 
 // Snore
@@ -80,3 +60,7 @@ playAudio(atumalacaCommand.audio, atumalacaCommand.command)
 // Commands
 let helpCommand = "comandos"
 commands(helpCommand)
+
+//Leave
+let leaveCommand = "leave"
+leaveChannel(leaveCommand)
