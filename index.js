@@ -1,55 +1,35 @@
-const dotenv = require('dotenv').config();
-const { Client, Intents } = require('discord.js')
+import * as dotenv from 'dotenv'
+dotenv.config()
+import { Client, Intents } from 'discord.js'
+
+import prefix from './config/prefix.js'
+
 const client = new Client({
     intents: [Intents.FLAGS.GUILDS,
     Intents.FLAGS.GUILD_MEMBERS,
     Intents.FLAGS.GUILD_MESSAGES,
     Intents.FLAGS.GUILD_VOICE_STATES]
 })
-const { joinVoiceChannel, createAudioResource } = require('@discordjs/voice');
-const { createAudioPlayer } = require('@discordjs/voice')
-const config = require('./config.json')
-const prefix = config.prefix
+
 const token = process.env.DISCORD_TOKEN;
-let dennyCount = require('./dennyCount')
+
+export default client;
+
+import playAudio from './functions/playAudio.js'
+import commands from './functions/commands.js'
+import data from './config/data.js'
 
 client.login(token)
 
 client.once("ready", () => {
-    console.log("The bot is now online!");
+    console.log("O LukBot está online e roteando, bebês!!");
     client.user.setActivity("Online e roteando!", { type: "WATCHING" })
-})
-
-// Ping Pong
-client.on("messageCreate", (message) => {
-    if (message.content.startsWith("Ping")) {
-        message.channel.send("Pong!");
-    }
-});
-
-// Join
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand('join')) {
-        const channel = message.member.voice.channel;
-        const connection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator
-        })
-
-        if (!channel)
-            return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-    }
 })
 
 // Leave
 client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
+    const isCommand = (commandMsg) => {
+        return message.content.toLowerCase() === (prefix + commandMsg);
     };
 
     if (isCommand('leave')) {
@@ -68,87 +48,35 @@ client.on('messageCreate', async message => {
     }
 })
 
-// Play Audio Function
-const playAudio = (audio, command) => {
-    client.on('messageCreate', async message => {
-        function isCommand(commandMsg) {
-            return !!message.content.toLowerCase().startsWith(prefix + commandMsg);
-        };
-
-        if (isCommand(command)) {
-            const channel = message.member.voice.channel;
-            const connection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: message.guild.id,
-                adapterCreator: message.guild.voiceAdapterCreator
-            })
-
-            if (!channel)
-                return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
-
-            const player = createAudioPlayer();
-            const resource = createAudioResource(audio)
-
-
-
-            player.play(resource)
-            connection.subscribe(player);
-            message.channel.send("Tocando áudio!");
-        }
-    })
-}
-
-// Denny Count
-let dennyCommand = 'denny'
-client.on('messageCreate', async message => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
-
-    if (isCommand(dennyCommand)) {
-        dennyCount++
-        message.channel.send(`O ${dennyCommand} já foi incel ${dennyCount} vezes. `)
-    }
-})
-
 // Snore
-let snoreCommand = 'sleep'
-let snoreSound = './sounds/snore.mp3'
-playAudio(snoreSound, snoreCommand)
+let snoreCommand = data.filter((command) => command.name === 'Sleep')[0]
+playAudio(snoreCommand.audio, snoreCommand.command)
 
 // Nyo
-let nyoCommand = 'nyo'
-let nyoSound = './sounds/nyo.mp3'
-playAudio(nyoSound, nyoCommand)
+let nyoCommand = data.filter((command) => command.name === 'Nyo')[0]
+playAudio(nyoCommand.audio, nyoCommand.command)
 
 // Hamoud
-let hamoudCommand = 'hamoud'
-let hamoudSound = './sounds/hamoud.mp3'
-playAudio(hamoudSound, hamoudCommand)
+let hamoudCommand = data.filter((command) => command.name === 'Hamoud')[0]
+playAudio(hamoudCommand.audio, hamoudCommand.command)
 
 
 // Palmeiras
-let palmeirasCommand = 'palmeiras'
-let palmeirasSound = './sounds/palmeiras.mp3'
-playAudio(palmeirasSound, palmeirasCommand)
+let palmeirasCommand = data.filter((command) => command.name === 'Palmeiras')[0]
+playAudio(palmeirasCommand.audio, palmeirasCommand.command)
 
 // Flamengo
-let flamengoCommand = 'flamengo'
-let flamengoSound = './sounds/flamengo.mp3'
-playAudio(flamengoSound, flamengoCommand)
+let flamengoCommand = data.filter((command) => command.name === 'Flamengo')[0]
+playAudio(flamengoCommand.audio, flamengoCommand.command)
 
 // Brasil
-let brasilCommand = 'brasil'
-let brasilSound = './sounds/brasil.mp3'
-playAudio(brasilSound, brasilCommand)
+let brasilCommand = data.filter((command) => command.name === 'Brasil')[0]
+playAudio(brasilCommand.audio, brasilCommand.command)
 
-//Commands
-client.on("messageCreate", (message) => {
-    function isCommand(command) {
-        return !!message.content.toLowerCase().startsWith(prefix + command);
-    };
+// Brasil
+let atumalacaCommand = data.filter((command) => command.name === 'Atumalaca')[0]
+playAudio(atumalacaCommand.audio, atumalacaCommand.command)
 
-    if(isCommand("comandos")){
-        message.channel.send(`Comandos: ${snoreCommand}, ${nyoCommand}, ${hamoudCommand}, ${palmeirasCommand}, ${flamengoCommand}, ${brasilCommand}, leave`);
-    }
-});
+// Commands
+let helpCommand = "comandos"
+commands(helpCommand)
