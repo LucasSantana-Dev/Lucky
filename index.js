@@ -149,6 +149,6 @@ client.on("messageCreate", (message) => {
     };
 
     if(isCommand("comandos")){
-        message.channel.send(`Comandos: ${snoreCommand}, ${nyoCommand}, ${hamoudCommand}, ${palmeirasCommand}, ${flamengoCommand}, ${brasilCommand}`);
+        message.channel.send(`Comandos: ${snoreCommand}, ${nyoCommand}, ${hamoudCommand}, ${palmeirasCommand}, ${flamengoCommand}, ${brasilCommand}, leave`);
     }
 });
