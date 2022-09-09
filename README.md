@@ -3,5 +3,4 @@ This is a Discord bot i made to practice Javascript and use it in my personal Di
 <hr>
 
 In this project i used the Javascript library discord.js and discord.js/voice.<br>
-This bot is pretty simple, for now it just plays a snore meme sound when a Discord server member send the command "!sleep
-and answers "pong" whenever a person send the message "ping".<br>
+This bot is pretty simple, for now it just plays some meme sounds whenever a specific command is sent on any text channel of a Discord server that the bot's in.
