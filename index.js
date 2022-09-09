@@ -36,10 +36,10 @@ client.on('messageCreate', async message => {
     if (isCommand('join')) {
         const channel = message.member.voice.channel;
         const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: message.guild.id,
-        adapterCreator: message.guild.voiceAdapterCreator
-    })
+            channelId: channel.id,
+            guildId: message.guild.id,
+            adapterCreator: message.guild.voiceAdapterCreator
+        })
 
         if (!channel)
             return interaction.reply({ content: "⛔ Você deve estar em um canal de voz.", ephemeral: true })
@@ -89,7 +89,7 @@ const playAudio = (audio, command) => {
             const player = createAudioPlayer();
             const resource = createAudioResource(audio)
 
-            
+
 
             player.play(resource)
             connection.subscribe(player);
@@ -141,3 +141,14 @@ playAudio(flamengoSound, flamengoCommand)
 let brasilCommand = 'brasil'
 let brasilSound = './sounds/brasil.mp3'
 playAudio(brasilSound, brasilCommand)
+
+//Commands
+client.on("messageCreate", (message) => {
+    function isCommand(command) {
+        return !!message.content.toLowerCase().startsWith(prefix + command);
+    };
+
+    if(isCommand("comandos")){
+        message.channel.send(`Comandos: ${snoreCommand}, ${nyoCommand}, ${hamoudCommand}, ${palmeirasCommand}, ${flamengoCommand}, ${brasilCommand}`);
+    }
+});
