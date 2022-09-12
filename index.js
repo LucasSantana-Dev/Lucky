@@ -14,9 +14,9 @@ const token = process.env.DISCORD_TOKEN;
 export default client;
 
 // Import Functions
-import playAudio from './functions/playAudio.js'
-import commands from './functions/commands.js'
-import leaveChannel from './functions/leave.js'
+import playAudio from './commands/playAudio.js'
+import commands from './commands/commands.js.js'
+import leaveChannel from './commands/leave.js.js'
 
 // Import commands data
 import data from './config/data.js'
