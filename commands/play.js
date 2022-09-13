@@ -9,7 +9,7 @@ module.exports = {
         .addSubcommand(subcommand => 
             subcommand
                 .setName("search")
-                .setDescription("Search for a song.")
+                .setDescription("🔎 Procura por uma música.")
                 .addStringOption(option => 
                     option
                         .setName("searchterms")
@@ -20,7 +20,7 @@ module.exports = {
         .addSubcommand(subcommand => 
             subcommand
                 .setName("playlist")
-                .setDescription("Plays playlist from YT")
+                .setDescription("▶ Toca uma playlist do Youtube.")
                 .addStringOption(option => 
                     option
                         .setName("url")
@@ -31,7 +31,7 @@ module.exports = {
         .addSubcommand(subcommand => 
             subcommand
                 .setName("song")
-                .setDescription("Plays song from YT")
+                .setDescription("🎵 Toca uma playlist do Youtube.")
                 .addStringOption(option => 
                     option
                         .setName("url")
