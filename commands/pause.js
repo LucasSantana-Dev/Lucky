@@ -12,7 +12,7 @@ module.exports ={
             return;
         }
 
-        queue.setPause(true);
+        queue.setPaused(true);
 
         await interaction.reply("⏸ A música atual foi pausada.")
     }
