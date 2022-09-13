@@ -116,5 +116,12 @@ module.exports = {
         await interaction.reply({
             embeds: [embed]
         })
-    }
+    },
+    execute: async ({client}) =>
+    client.once("ready", () => {
+        console.log("O LukBot está online e roteando, bebês!!");
+        client.user.setPresence({
+            activities: [{ name: `${queue.currentSong}`, type: ActivityType.Listening }]
+        })
+    })
 }
