@@ -69,7 +69,7 @@ module.exports = {
             embed
                 .setDescription(`😏 **[${song.title}](${song.url})** Adicionada à fila.`)
                 .setThumbnail(song.thumbnail)
-                .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: <@${queue.current.requestedBy}>` });
+                .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: <@${queue.current.requestedBy.id}>` });
         } else if (interaction.options.getSubcommand() === "playlist") {
             let url = interaction.options.getString("url");
 
@@ -109,7 +109,7 @@ module.exports = {
             embed
                 .setDescription(`😏 **[${song.title}](${song.url})** Adicionada à fila.`)
                 .setThumbnail(song.thumbnail)
-                .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: <@${queue.current.requestedBy}>` });
+                .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: <@${queue.current.requestedBy.id}>` });
         }
         if(!queue.playing) await queue.play();
 
