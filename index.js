@@ -1,66 +1,117 @@
-import * as dotenv from 'dotenv'
-dotenv.config()
-import { Client, Intents } from 'discord.js'
+require('dotenv').config();
+
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Player } = require("discord-player")
+
+const fs = require('fs');
+const path = require('path');
 
 const client = new Client({
-    intents: [Intents.FLAGS.GUILDS,
-    Intents.FLAGS.GUILD_MEMBERS,
-    Intents.FLAGS.GUILD_MESSAGES,
-    Intents.FLAGS.GUILD_VOICE_STATES]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates]
+});
+
+// List of all commands
+const commands = [];
+client.commands = new Collection();
+
+const commandsPath = path.join(__dirname, "/commands"); // E:\yt\discord bot\js\intro\commands
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+
+    client.commands.set(command.data.name, command);
+    commands.push(command.data.toJSON());
+}
+
+// Add the player on the client
+client.player = new Player(client, {
+    ytdlOptions: {
+        quality: "highestaudio",
+        highWaterMark: 1 << 25
+    }
 })
 
-const token = process.env.DISCORD_TOKEN;
+client.on("ready", () => {
+    // Get all ids of the servers
+    const guild_ids = client.guilds.cache.map(guild => guild.id);
 
-export default client;
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    for (const guildId of guild_ids) {
+        rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
+            { body: commands })
+            .then(() => console.log('Successfully updated commands for guild ' + guildId))
+            .catch(console.error);
+    }
+});
 
-// Import Functions
-import playAudio from './commands/playAudio.js'
-import commands from './commands/commands.js.js'
-import leaveChannel from './commands/leave.js.js'
+client.on("interactionCreate", async interaction => {
+    if (!interaction.isCommand()) return;
 
-// Import commands data
-import data from './config/data.js'
+    const command = client.commands.get(interaction.commandName);
+    if (!command) return;
 
-client.login(token)
+    try {
+        await command.execute({ client, interaction });
+    }
+    catch (error) {
+        console.error(error);
+        await interaction.reply({ content: "Ocorreu um erro ao realizar o comando." });
+    }
+});
+
+client.login(process.env.TOKEN);
 
 client.once("ready", () => {
     console.log("O LukBot está online e roteando, bebês!!");
-    client.user.setActivity("Online e roteando!", { type: "WATCHING" })
+    client.user.setActivity("Online e roteando!", { type: "PLAYING" })
 })
 
-// Snore
-let snoreCommand = data.filter((command) => command.name === 'Sleep')[0]
-playAudio(snoreCommand.audio, snoreCommand.command)
+// export default client;
 
-// Nyo
-let nyoCommand = data.filter((command) => command.name === 'Nyo')[0]
-playAudio(nyoCommand.audio, nyoCommand.command)
+// // Import Functions
+// import playAudio from './commands/playAudio.js'
+// import commands from './commands/commands.js.js'
+// import leaveChannel from './commands/leave.js.js'
 
-// Hamoud
-let hamoudCommand = data.filter((command) => command.name === 'Hamoud')[0]
-playAudio(hamoudCommand.audio, hamoudCommand.command)
+// // Import commands data
+// import data from './config/data.js'
+
+// // Snore
+// let snoreCommand = data.filter((command) => command.name === 'Sleep')[0]
+// playAudio(snoreCommand.audio, snoreCommand.command)
+
+// // Nyo
+// let nyoCommand = data.filter((command) => command.name === 'Nyo')[0]
+// playAudio(nyoCommand.audio, nyoCommand.command)
+
+// // Hamoud
+// let hamoudCommand = data.filter((command) => command.name === 'Hamoud')[0]
+// playAudio(hamoudCommand.audio, hamoudCommand.command)
 
 
-// Palmeiras
-let palmeirasCommand = data.filter((command) => command.name === 'Palmeiras')[0]
-playAudio(palmeirasCommand.audio, palmeirasCommand.command)
+// // Palmeiras
+// let palmeirasCommand = data.filter((command) => command.name === 'Palmeiras')[0]
+// playAudio(palmeirasCommand.audio, palmeirasCommand.command)
 
-// Flamengo
-let flamengoCommand = data.filter((command) => command.name === 'Flamengo')[0]
-playAudio(flamengoCommand.audio, flamengoCommand.command)
+// // Flamengo
+// let flamengoCommand = data.filter((command) => command.name === 'Flamengo')[0]
+// playAudio(flamengoCommand.audio, flamengoCommand.command)
 
-// Brasil
-let brasilCommand = data.filter((command) => command.name === 'Brasil')[0]
-playAudio(brasilCommand.audio, brasilCommand.command)
+// // Brasil
+// let brasilCommand = data.filter((command) => command.name === 'Brasil')[0]
+// playAudio(brasilCommand.audio, brasilCommand.command)
 
-// Brasil
-let atumalacaCommand = data.filter((command) => command.name === 'Atumalaca')[0]
-playAudio(atumalacaCommand.audio, atumalacaCommand.command)
+// // Brasil
+// let atumalacaCommand = data.filter((command) => command.name === 'Atumalaca')[0]
+// playAudio(atumalacaCommand.audio, atumalacaCommand.command)
 
-// Commands
-let helpCommand = "comandos"
-commands(helpCommand)
+// // Commands
+// let helpCommand = "comandos"
+// commands(helpCommand)
 
-//Leave
-let leaveCommand = "leave"
-leaveChannel(leaveCommand)
+// //Leave
+// let leaveCommand = "leave"
+// leaveChannel(leaveCommand)
