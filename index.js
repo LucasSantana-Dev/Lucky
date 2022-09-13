@@ -67,6 +67,6 @@ client.login(process.env.TOKEN);
 client.once("ready", () => {
     console.log("O LukBot está online e roteando, bebês!!");
     client.user.setPresence({
-        activities: [{ name: `Online e roteando, bebês`, type: ActivityType.Watching }]
+        activities: [{ name: `${queue.currentSong}`, type: ActivityType.Listening }]
     })
 })
