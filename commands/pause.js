@@ -1,13 +1,14 @@
-const { SlashCommandBuilder } = require("@discordjs/builders")
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { Command } from './utils/Command.js';
 
-module.exports ={
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("pause")
         .setDescription("✋ Pausa a musica atual."),
-    execute: async ({client, interaction}) => {
+    execute: async ({ client, interaction }) => {
         const queue = client.player.getQueue(interaction.guild);
 
-        if (!queue){
+        if (!queue) {
             await interaction.reply("🤔 Não tem nenhuma música tocando no momento.")
             return;
         }
@@ -16,4 +17,4 @@ module.exports ={
 
         await interaction.reply("⏸ A música atual foi pausada.")
     }
-}
+})

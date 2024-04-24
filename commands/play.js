@@ -1,11 +1,12 @@
-const { SlashCommandBuilder } = require("@discordjs/builders")
-const { EmbedBuilder } = require("discord.js")
-const { QueryType } = require("discord-player")
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { EmbedBuilder } from "discord.js"
+import { QueryType } from "discord-player"
+import { Command } from './utils/Command.js'
 
-module.exports = {
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("play")
-        .setDescription("Play a song.")
+        .setDescription("▶️ Toca uma música")
         .addSubcommand(subcommand => 
             subcommand
                 .setName("search")
@@ -31,7 +32,7 @@ module.exports = {
         .addSubcommand(subcommand => 
             subcommand
                 .setName("song")
-                .setDescription("🎵 Toca uma playlist do Youtube.")
+                .setDescription("🎵 Toca uma música do Youtube.")
                 .addStringOption(option => 
                     option
                         .setName("url")
@@ -117,4 +118,4 @@ module.exports = {
             embeds: [embed]
         })
     }
-}
+})

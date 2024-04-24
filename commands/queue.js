@@ -1,7 +1,8 @@
-const { SlashCommandBuilder } = require("@discordjs/builders")
-const { EmbedBuilder } = require("discord.js")
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { EmbedBuilder } from "discord.js"
+import { Command } from './utils/Command.js';
 
-module.exports = {
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("queue")
         .setDescription("👀 Mostra as 10 primeiras músicas da fila."),
@@ -27,4 +28,4 @@ module.exports = {
                 ]
         })
     }
-}
+})

@@ -1,6 +1,7 @@
-const { SlashCommandBuilder } = require("@discordjs/builders")
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { Command } from './utils/Command.js';
 
-module.exports ={
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("resume")
         .setDescription("✋ Volta a tocar a musica atual."),
@@ -16,4 +17,4 @@ module.exports ={
 
         await interaction.reply("⏸ A música atual voltou a tocar.")
     }
-}
+})

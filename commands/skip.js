@@ -1,14 +1,15 @@
-const { SlashCommandBuilder } = require("@discordjs/builders")
-const { EmbedBuilder } = require("discord.js")
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { EmbedBuilder } from "discord.js"
+import { Command } from './utils/Command.js'
 
-module.exports ={
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("skip")
         .setDescription("🐇 Pula a próxima musica."),
-    execute: async ({client, interaction}) => {
+    execute: async ({ client, interaction }) => {
         const queue = client.player.getQueue(interaction.guild);
 
-        if (!queue){
+        if (!queue) {
             await interaction.reply("🤔 Não tem nenhuma música tocando no momento.")
             return;
         }
@@ -25,4 +26,4 @@ module.exports ={
             ]
         })
     }
-}
+})

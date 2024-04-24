@@ -1,72 +1,30 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config()
+import fs from 'fs';
+import path from 'path';
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v9';
 
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
-const { Client, GatewayIntentBits, Collection, ActivityType } = require('discord.js');
-const { Player } = require("discord-player")
+import {
+    createClient,
+    startClient,
+    mapGuildIds,
+    setClientProperty
+} from './utils/client.js';
+import { executeCommand, setCommands } from './utils/createCommands.js';
+import { createPlayer } from './utils/player.js';
+import { log } from './utils/logs.js';
 
-const fs = require('fs');
-const path = require('path');
+export const client = createClient();
 
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates]
+startClient({ client });
+export const player = createPlayer();
+setClientProperty({
+    client,
+    property: 'player',
+    value: player
 });
+await setCommands({ client });
+mapGuildIds({ client });
 
-// List of all commands
-const commands = [];
-client.commands = new Collection();
-
-const commandsPath = path.join(__dirname, "/commands"); // E:\yt\discord bot\js\intro\commands
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-
-    client.commands.set(command.data.name, command);
-    commands.push(command.data.toJSON());
-}
-
-// Add the player on the client
-client.player = new Player(client, {
-    ytdlOptions: {
-        quality: "highestaudio",
-        highWaterMark: 1 << 25
-    }
-})
-
-client.on("ready", () => {
-    // Get all ids of the servers
-    const guild_ids = client.guilds.cache.map(guild => guild.id);
-
-    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-    for (const guildId of guild_ids) {
-        rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
-            { body: commands })
-            .then(() => console.log('Successfully updated commands for guild ' + guildId))
-            .catch(console.error);
-    }
-});
-
-client.on("interactionCreate", async interaction => {
-    if (!interaction.isCommand()) return;
-
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
-    try {
-        await command.execute({ client, interaction });
-    }
-    catch (error) {
-        console.error(error);
-        await interaction.reply({ content: "Ocorreu um erro ao realizar o comando." });
-    }
-});
-
-client.login(process.env.TOKEN);
-
-client.once("ready", () => {
-    console.log("O LukBot está online e roteando, bebês!!");
-    client.user.setPresence({
-        activities: [{ name: `Online e roteando, bebês`, type: ActivityType.Watching }]
-    })
-})
+await client.on("interactionCreate", async interaction => executeCommand({ interaction, client }))
