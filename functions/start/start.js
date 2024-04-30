@@ -1,7 +1,7 @@
-import { startBot } from "../../start";
+const { startBot } = require("../../start");
 
 // Docs on event and context https://docs.netlify.com/functions/build/#code-your-function-2
-export const handler = async (event) => {
+const handler = async (event) => {
   try {
     await startBot();
     return {
@@ -12,3 +12,5 @@ export const handler = async (event) => {
     return { statusCode: 500, body: error.toString() }
   }
 }
+
+module.exports = { handler };
