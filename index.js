@@ -16,6 +16,11 @@ import { createPlayer } from './utils/player.js';
 import { log } from './utils/logs.js';
 import { startBot } from './start.js';
 
-export const { client, player } = await startBot();
 
-await client.on("interactionCreate", async interaction => executeCommand({ interaction, client }))
+export const { client, player } = (async () => {
+    const { client, player } = await startBot();
+    await client.on("interactionCreate", async interaction => executeCommand({ interaction, client }));
+
+    return { client, player }
+})();
+
