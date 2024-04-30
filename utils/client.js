@@ -5,7 +5,7 @@ import {
 } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v9';
-import { commands } from '../commands/index.js';
+import { commands } from '../commands.js';
 import { log } from './logs.js';
 
 export const createClient = () => (

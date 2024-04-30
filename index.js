@@ -13,7 +13,7 @@ import {
 } from './utils/client.js';
 import { executeCommand, setCommands } from './utils/createCommands.js';
 import { createPlayer } from './utils/player.js';
-import { log } from './utils/logs.js';
+import { log } from './utils/logs.js'; 
 
 export const client = createClient();
 

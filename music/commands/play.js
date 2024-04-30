@@ -1,39 +1,39 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { EmbedBuilder } from "discord.js"
 import { QueryType } from "discord-player"
-import { Command } from './utils/Command.js'
+import { Command } from '../../utils/Command.js';
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("play")
         .setDescription("▶️ Toca uma música")
-        .addSubcommand(subcommand => 
+        .addSubcommand(subcommand =>
             subcommand
                 .setName("search")
                 .setDescription("🔎 Procura por uma música.")
-                .addStringOption(option => 
+                .addStringOption(option =>
                     option
                         .setName("searchterms")
                         .setDescription("search keywords")
                         .setRequired(true)
                 )
         )
-        .addSubcommand(subcommand => 
+        .addSubcommand(subcommand =>
             subcommand
                 .setName("playlist")
                 .setDescription("▶ Toca uma playlist do Youtube.")
-                .addStringOption(option => 
+                .addStringOption(option =>
                     option
                         .setName("url")
                         .setDescription("playlist url")
                         .setRequired(true)
                 )
         )
-        .addSubcommand(subcommand => 
+        .addSubcommand(subcommand =>
             subcommand
                 .setName("song")
                 .setDescription("🎵 Toca uma música do Youtube.")
-                .addStringOption(option => 
+                .addStringOption(option =>
                     option
                         .setName("url")
                         .setDescription("song url")
@@ -112,7 +112,7 @@ export default new Command({
                 .setThumbnail(song.thumbnail)
                 .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: ${interaction.user}` });
         }
-        if(!queue.playing) await queue.play();
+        if (!queue.playing) await queue.play();
 
         await interaction.reply({
             embeds: [embed]

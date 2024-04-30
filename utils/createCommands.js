@@ -1,5 +1,5 @@
 import { Collection } from 'discord.js';
-import { commands } from '../commands/index.js';
+import { commands } from '../commands.js';
 
 export const executeCommand = async ({interaction, client}) => {
     if (!interaction.isCommand()) return;
