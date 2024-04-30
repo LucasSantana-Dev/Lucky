@@ -13,18 +13,9 @@ import {
 } from './utils/client.js';
 import { executeCommand, setCommands } from './utils/createCommands.js';
 import { createPlayer } from './utils/player.js';
-import { log } from './utils/logs.js'; 
+import { log } from './utils/logs.js';
+import { startBot } from './start.js';
 
-export const client = createClient();
-
-startClient({ client });
-export const player = createPlayer();
-setClientProperty({
-    client,
-    property: 'player',
-    value: player
-});
-await setCommands({ client });
-mapGuildIds({ client });
+export const { client, player } = await startBot();
 
 await client.on("interactionCreate", async interaction => executeCommand({ interaction, client }))
