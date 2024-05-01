@@ -1,9 +1,9 @@
-import { SlashCommandBuilder } from '@discordjs/builders'
-import { EmbedBuilder } from "discord.js"
-import { QueryType } from "discord-player"
-import { Command } from '../../utils/Command.js';
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { EmbedBuilder } = require("discord.js");
+const { QueryType } = require("discord-player");
+const { Command } = require('../../utils/Command.js');
 
-export default new Command({
+module.exports = new Command({
     data: new SlashCommandBuilder()
         .setName("play")
         .setDescription("▶️ Toca uma música")
@@ -42,13 +42,13 @@ export default new Command({
         ),
     execute: async ({ client, interaction }) => {
         if (!interaction.member.voice.channel) {
-            await interaction.reply("🤨 Você deve estar em um canal de voz para usar esse comando.")
-            return
+            await interaction.reply("🤨 Você deve estar em um canal de voz para usar esse comando.");
+            return;
         }
 
-        const queue = await client.player.createQueue(interaction.guild)
+        const queue = await client.player.createQueue(interaction.guild);
 
-        if (!queue.connection) await queue.connect(interaction.member.voice.channel)
+        if (!queue.connection) await queue.connect(interaction.member.voice.channel);
 
         let embed = new EmbedBuilder();
         if (interaction.options.getSubcommand() === "song") {
@@ -60,12 +60,12 @@ export default new Command({
             });
 
             if (result.tracks.length === 0) {
-                await interaction.reply("🥱 Nenhum resultado encontrado.")
+                await interaction.reply("🥱 Nenhum resultado encontrado.");
                 return;
             }
 
-            const song = result.tracks[0]
-            await queue.addTrack(song)
+            const song = result.tracks[0];
+            await queue.addTrack(song);
 
             embed
                 .setDescription(`😏 **[${song.title}](${song.url})** Adicionada à fila.`)
@@ -80,12 +80,12 @@ export default new Command({
             });
 
             if (result.tracks.length === 0) {
-                await interaction.reply("🥱 Nenhum resultado encontrado.")
+                await interaction.reply("🥱 Nenhum resultado encontrado.");
                 return;
             }
 
-            const playlist = result.tracks[0]
-            await queue.addTracks(playlist)
+            const playlist = result.tracks[0];
+            await queue.addTracks(playlist);
 
             embed
                 .setDescription(`😏 **[${playlist.title}](${playlist.url})** Adicionada à fila.`)
@@ -100,12 +100,12 @@ export default new Command({
             });
 
             if (result.tracks.length === 0) {
-                await interaction.reply("🥱 Nenhum resultado encontrado.")
+                await interaction.reply("🥱 Nenhum resultado encontrado.");
                 return;
             }
 
-            const song = result.tracks[0]
-            await queue.addTrack(song)
+            const song = result.tracks[0];
+            await queue.addTrack(song);
 
             embed
                 .setDescription(`😏 **[${song.title}](${song.url})** Adicionada à fila.`)
@@ -113,9 +113,10 @@ export default new Command({
                 .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: ${interaction.user}` });
         }
         if (!queue.playing) await queue.play();
+        queue.setVolume(50);
 
         await interaction.reply({
             embeds: [embed]
-        })
+        });
     }
-})
+});

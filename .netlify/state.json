@@ -1,3 +1,20 @@
 {
-	"siteId": "11da6436-5214-47c7-876d-d4a2bc7512fd"
+	"siteId": "11da6436-5214-47c7-876d-d4a2bc7512fd",
+	"geolocation": {
+		"data": {
+			"city": "Goiânia",
+			"country": {
+				"code": "BR",
+				"name": "Brazil"
+			},
+			"subdivision": {
+				"code": "GO",
+				"name": "Goiás"
+			},
+			"timezone": "America/Sao_Paulo",
+			"latitude": -16.561,
+			"longitude": -49.2063
+		},
+		"timestamp": 1714512480565
+	}
 }

@@ -1,9 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { dirname } from 'path';
+const fs = require('fs');
+const path = require('path');
+const { fileURLToPath, pathToFileURL } = require('url');
+const { dirname } = require('path');
 
-export async function getCommandsFromDirectory({ url }) {
+async function getCommandsFromDirectory({ url }) {
   const callerFilename = fileURLToPath(url);
   const callerDirname = dirname(callerFilename);
 
@@ -16,9 +16,13 @@ export async function getCommandsFromDirectory({ url }) {
   for (const file of filteredCommandFiles) {
     if (file === 'index.js') continue; // Skip the index.js file
     const filePath = path.join(callerDirname, file);
-    const command = await import(pathToFileURL(filePath));
+    const command = await require(pathToFileURL(filePath));
     commands.push(command.default);
   }
 
   return commands;
 }
+
+module.exports = {
+  getCommandsFromDirectory
+};

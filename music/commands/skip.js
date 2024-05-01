@@ -1,8 +1,8 @@
-import { SlashCommandBuilder } from '@discordjs/builders'
-import { EmbedBuilder } from "discord.js"
-import { Command } from '../../utils/Command.js'
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { EmbedBuilder } = require("discord.js");
+const { Command } = require('../../utils/Command.js');
 
-export default new Command({
+module.exports = new Command({
     data: new SlashCommandBuilder()
         .setName("skip")
         .setDescription("🐇 Pula a próxima musica."),
@@ -10,7 +10,7 @@ export default new Command({
         const queue = client.player.getQueue(interaction.guild);
 
         if (!queue) {
-            await interaction.reply("🤔 Não tem nenhuma música tocando no momento.")
+            await interaction.reply("🤔 Não tem nenhuma música tocando no momento.");
             return;
         }
 
@@ -24,6 +24,6 @@ export default new Command({
                     .setDescription(`😜 **${currentSong.title}** Pulada!`)
                     .setThumbnail(currentSong.thumbnail)
             ]
-        })
+        });
     }
-})
+});

@@ -1,8 +1,10 @@
-import chalk from 'chalk'
-import { client, player } from "../index.js";
+const chalk = require('chalk');
+const { client, player } = require("../index.js");
 
-export const log = {
+const log = {
   info: (message) => console.info(chalk.yellow(message)),
   error: (message) => console.error(chalk.red(message)),
   success: (message) => console.log(chalk.green(message))
-}
+};
+
+module.exports = { log };

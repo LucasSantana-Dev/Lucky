@@ -1,25 +1,29 @@
-import { Collection } from 'discord.js';
-import { commands } from '../commands.js';
+const { Collection } = require('discord.js');
+const { commands } = require('../commands.js');
 
-export const executeCommand = async ({interaction, client}) => {
-    if (!interaction.isCommand()) return;
+const executeCommand = async ({ interaction, client }) => {
+  if (!interaction.isCommand()) return;
 
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
 
-    try {
-      await command.execute({ client, interaction });
-    }
-    catch (error) {
-      console.error(error);
-      await interaction.reply({ content: "Ocorreu um erro ao realizar o comando." });
-    }
-}
+  try {
+    await command.execute({ client, interaction });
+  } catch (error) {
+    console.error(error);
+    await interaction.reply({ content: "Ocorreu um erro ao realizar o comando." });
+  }
+};
 
-export const setCommands = async ({ client }) => {
+const setCommands = async ({ client }) => {
   client.commands = new Collection();
 
   commands.forEach((command) => {
     client.commands.set(command.data.name, command);
-  })
-}
+  });
+};
+
+module.exports = {
+  executeCommand,
+  setCommands,
+};

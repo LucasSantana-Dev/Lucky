@@ -1,14 +1,10 @@
-import {
-  Client,
-  GatewayIntentBits,
-  ActivityType
-} from 'discord.js';
-import { REST } from '@discordjs/rest';
-import { Routes } from 'discord-api-types/v9';
-import { commands } from '../commands.js';
-import { log } from './logs.js';
+const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
+const { commands } = require('../commands.js');
+const { log } = require('./logs.js');
 
-export const createClient = () => (
+exports.createClient = () => (
   new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -16,9 +12,9 @@ export const createClient = () => (
       GatewayIntentBits.GuildVoiceStates
     ]
   })
-)
+);
 
-export const startClient = ({ client }) => {
+exports.startClient = ({ client }) => {
   client.login(process.env.TOKEN);
 
   client.once("ready", () => {
@@ -28,11 +24,11 @@ export const startClient = ({ client }) => {
         name: `Online e pocando, bebês`,
         type: ActivityType.Watching
       }]
-    })
-  })
-}
+    });
+  });
+};
 
-export const mapGuildIds = ({ client }) => {
+exports.mapGuildIds = ({ client }) => {
   client.on("ready", () => {
     // Get all ids of the servers
     const guild_ids = client.guilds.cache.map(guild => guild.id);
@@ -45,9 +41,8 @@ export const mapGuildIds = ({ client }) => {
         .catch((err) => log.error(err));
     }
   });
-}
+};
 
-export const setClientProperty = ({ client, property, value }) => {
+exports.setClientProperty = ({ client, property, value }) => {
   client[property] = value;
-}
-
+};

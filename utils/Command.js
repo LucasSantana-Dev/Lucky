@@ -1,6 +1,8 @@
-export class Command {
-  constructor ({data, execute}){
+class Command {
+  constructor({ data, execute }) {
     this.data = data;
     this.execute = execute;
   }
 }
+
+module.exports = Command;

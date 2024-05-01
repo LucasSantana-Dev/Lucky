@@ -1,21 +1,21 @@
-import dotenv from 'dotenv';
-dotenv.config()
-import fs from 'fs';
-import path from 'path';
-import { REST } from '@discordjs/rest';
-import { Routes } from 'discord-api-types/v9';
+const fs = require('fs');
+const path = require('path');
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
+const { executeCommand, setCommands } = require('./utils/createCommands.js');
+const { createPlayer } = require('./utils/player.js');
+const { log } = require('./utils/logs.js');
 
-import {
+require('dotenv').config();
+
+const {
   createClient,
   startClient,
   mapGuildIds,
   setClientProperty
-} from './utils/client.js';
-import { executeCommand, setCommands } from './utils/createCommands.js';
-import { createPlayer } from './utils/player.js';
-import { log } from './utils/logs.js';
+} = require('./utils/client.js');
 
-export const startBot = async () => {
+exports.startBot = async () => {
   const client = await createClient();
 
   await startClient({ client });
@@ -28,5 +28,5 @@ export const startBot = async () => {
   await setCommands({ client });
   mapGuildIds({ client });
 
-  return { client, player }
-}
+  return { client, player };
+};

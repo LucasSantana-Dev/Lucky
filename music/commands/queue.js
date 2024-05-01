@@ -1,8 +1,8 @@
-import { SlashCommandBuilder } from '@discordjs/builders'
-import { EmbedBuilder } from "discord.js"
-import { Command } from '../../utils/Command.js';
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { EmbedBuilder } = require("discord.js");
+const { Command } = require('../../utils/Command.js');
 
-export default new Command({
+module.exports = {
     data: new SlashCommandBuilder()
         .setName("queue")
         .setDescription("👀 Mostra as 10 primeiras músicas da fila."),
@@ -10,7 +10,7 @@ export default new Command({
         const queue = client.player.getQueue(interaction.guild);
 
         if (!queue || !queue.playing) {
-            await interaction.reply("🤨 Não tem nenhuma música tocando.")
+            await interaction.reply("🤨 Não tem nenhuma música tocando.");
             return;
         }
 
@@ -25,7 +25,7 @@ export default new Command({
                 new EmbedBuilder()
                     .setDescription(`**Atualmente tocando:**\n\` ${currentSong.title} - <@${currentSong.requestedBy.id}>\n\n**Fila:**\n${queueString}`)
                     .setThumbnail(currentSong.thumbnail)
-                ]
-        })
+            ]
+        });
     }
-})
+};
