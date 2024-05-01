@@ -1,5 +1,5 @@
 const { Collection } = require('discord.js');
-const { commands } = require('../commands.js');
+const { groupCommands } = require('../commands.js');
 
 const executeCommand = async ({ interaction, client }) => {
   if (!interaction.isCommand()) return;
@@ -17,6 +17,8 @@ const executeCommand = async ({ interaction, client }) => {
 
 const setCommands = async ({ client }) => {
   client.commands = new Collection();
+
+  const commands = await groupCommands()
 
   commands.forEach((command) => {
     client.commands.set(command.data.name, command);

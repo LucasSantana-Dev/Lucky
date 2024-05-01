@@ -1,5 +1,5 @@
-const getGeneralCommands = require("./general/commands/index.js");
-const getMusicCommands = require("./music/commands/index.js");
+const { getGeneralCommands } = require("./general/commands");
+const { getMusicCommands } = require("./music/commands");
 
 const groupCommands = async () => {
   const generalCommands = await getGeneralCommands();
@@ -10,7 +10,4 @@ const groupCommands = async () => {
   return commands;
 }
 
-(async () => {
-  const commands = await groupCommands();
-  module.exports = { commands };
-})();
+module.exports = { groupCommands }

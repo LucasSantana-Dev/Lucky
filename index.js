@@ -4,7 +4,6 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const { executeCommand, setCommands } = require('./utils/createCommands.js');
 const { createPlayer } = require('./utils/player.js');
-const { log } = require('./utils/logs.js');
 const { startBot } = require('./start.js');
 
 require('dotenv').config();
