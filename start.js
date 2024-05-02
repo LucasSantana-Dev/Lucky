@@ -1,20 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
-const { executeCommand, setCommands } = require('./utils/createCommands.js');
-const { createPlayer } = require('./utils/player.js');
 
-require('dotenv').config();
+import { createPlayer } from './utils/player.js';
 
-const {
+import {
   createClient,
   startClient,
   mapGuildIds,
   setClientProperty
-} = require('./utils/client.js');
+} from './utils/client.js';
+import { executeCommand, setCommands } from './utils/createCommands.js';
 
-exports.startBot = async () => {
+const startBot = async () => {
   const client = await createClient();
 
   await startClient({ client });
@@ -27,5 +22,9 @@ exports.startBot = async () => {
   await setCommands({ client });
   mapGuildIds({ client });
 
+  await client.on("interactionCreate", async interaction => executeCommand({ interaction, client }));
+
   return { client, player };
 };
+
+export default startBot;

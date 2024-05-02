@@ -1,8 +1,9 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed } = require("discord.js");
-const { Command } = require('../../utils/Command.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import * as discordJs from "discord.js";
+import Command from '../../utils/Command.js';
+const { MessageEmbed } = discordJs;
 
-module.exports = new Command({
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("help")
         .setDescription("☝️ Mostra as comandos do bot."),

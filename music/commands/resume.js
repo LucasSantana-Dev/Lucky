@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const Command = require('../../utils/Command.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import Command from '../../utils/Command.js';
 
-module.exports = new Command({
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("resume")
         .setDescription("✋ Volta a tocar a musica atual."),

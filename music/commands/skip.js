@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require("discord.js");
-const { Command } = require('../../utils/Command.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import { EmbedBuilder } from "discord.js";
+import Command from '../../utils/Command.js';
 
-module.exports = new Command({
+export default new Command({
     data: new SlashCommandBuilder()
         .setName("skip")
         .setDescription("🐇 Pula a próxima musica."),

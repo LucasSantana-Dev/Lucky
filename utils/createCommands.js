@@ -1,7 +1,7 @@
-const { Collection } = require('discord.js');
-const { groupCommands } = require('../commands.js');
+import { Collection } from 'discord.js';
+import commands from '../commands.js';
 
-const executeCommand = async ({ interaction, client }) => {
+export const executeCommand = async ({ interaction, client }) => {
   if (!interaction.isCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -15,17 +15,10 @@ const executeCommand = async ({ interaction, client }) => {
   }
 };
 
-const setCommands = async ({ client }) => {
+export const setCommands = async ({ client }) => {
   client.commands = new Collection();
-
-  const commands = await groupCommands()
 
   commands.forEach((command) => {
     client.commands.set(command.data.name, command);
   });
-};
-
-module.exports = {
-  executeCommand,
-  setCommands,
 };

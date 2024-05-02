@@ -1,9 +1,10 @@
-const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
-const { groupCommands } = require('../commands.js');
+import { Client, GatewayIntentBits, ActivityType } from 'discord.js';
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v9';
+import commands from '../commands.js';
+import { CLIENT_ID, TOKEN } from '../config/env.js';
 
-exports.createClient = () => (
+export const createClient = () => (
   new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -13,8 +14,8 @@ exports.createClient = () => (
   })
 );
 
-exports.startClient = ({ client }) => {
-  client.login(process.env.TOKEN);
+export const startClient = ({ client }) => {
+  client.login(TOKEN);
 
   client.once("ready", () => {
     console.info("O LukBot está online e pocando, bebês!!");
@@ -27,15 +28,14 @@ exports.startClient = ({ client }) => {
   });
 };
 
-exports.mapGuildIds = ({ client }) => {
+export const mapGuildIds = ({ client }) => {
   client.on("ready", async () => {
     // Get all ids of the servers
     const guild_ids = client.guilds.cache.map(guild => guild.id);
 
-    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-    const commands = await groupCommands();
+    const rest = new REST({ version: '10' }).setToken(TOKEN);
     for (const guildId of guild_ids) {
-      rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
+      rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId),
         { body: commands.map(command => command.data) })
         .then(() => console.info('Successfully updated commands for guild ' + guildId))
         .catch((err) => console.error(err));
@@ -43,6 +43,6 @@ exports.mapGuildIds = ({ client }) => {
   });
 };
 
-exports.setClientProperty = ({ client, property, value }) => {
+export const setClientProperty = ({ client, property, value }) => {
   client[property] = value;
 };

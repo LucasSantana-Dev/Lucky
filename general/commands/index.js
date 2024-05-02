@@ -1,8 +1,5 @@
-const { pathToFileURL } = require('url');
-const { getCommandsFromDirectory } = require("../../utils/getCommandsFromDirectory.js");
+import { getCommandsFromDirectory } from "../../utils/getCommandsFromDirectory.js";
 
-const getGeneralCommands = async () => {
-  return generalCommands = await getCommandsFromDirectory({ url: pathToFileURL(__dirname).href });
-}
+const generalCommands = await getCommandsFromDirectory({ url: import.meta.url });
 
-module.exports = { getGeneralCommands };
+export default generalCommands;

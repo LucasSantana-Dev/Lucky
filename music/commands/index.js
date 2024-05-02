@@ -1,9 +1,5 @@
-const { pathToFileURL } = require('url');
-const { getCommandsFromDirectory } = require("../../utils/getCommandsFromDirectory.js");
+import { getCommandsFromDirectory } from "../../utils/getCommandsFromDirectory.js";
 
-const getMusicCommands = async () => {
-  return musicCommands = await getCommandsFromDirectory({ url: pathToFileURL(__dirname).href });
+const musicCommands = await getCommandsFromDirectory({ url: import.meta.url });
 
-}
-
-module.exports = { getMusicCommands };
+export default musicCommands;

@@ -1,13 +1,6 @@
-const { getGeneralCommands } = require("./general/commands");
-const { getMusicCommands } = require("./music/commands");
+import generalCommands from "./general/commands/index.js";
+import musicCommands from "./music/commands/index.js";
 
-const groupCommands = async () => {
-  const generalCommands = await getGeneralCommands();
-  const musicCommands = await getMusicCommands();
+const commands = [...musicCommands, ...generalCommands]
 
-  const commands = [...generalCommands, ...musicCommands];
-
-  return commands;
-}
-
-module.exports = { groupCommands }
+export default commands;
