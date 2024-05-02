@@ -15,32 +15,40 @@ export const createClient = () => (
 );
 
 export const startClient = ({ client }) => {
-  client.login(TOKEN);
+  try {
+    client.login(TOKEN);
 
-  client.once("ready", () => {
-    console.info("O LukBot está online e pocando, bebês!!");
-    client.user.setPresence({
-      activities: [{
-        name: `Online e pocando, bebês`,
-        type: ActivityType.Watching
-      }]
+    client.once("ready", () => {
+      console.info("O LukBot está online e pocando, bebês!!");
+      client.user.setPresence({
+        activities: [{
+          name: `Online e pocando, bebês`,
+          type: ActivityType.Watching
+        }]
+      });
     });
-  });
+  } catch (err) {
+    console.error('Error starting client:', err);
+  }
 };
 
 export const mapGuildIds = ({ client }) => {
-  client.on("ready", async () => {
-    // Get all ids of the servers
-    const guild_ids = client.guilds.cache.map(guild => guild.id);
+  try {
+    client.on("ready", async () => {
+      // Get all ids of the servers
+      const guild_ids = client.guilds.cache.map(guild => guild.id);
 
-    const rest = new REST({ version: '10' }).setToken(TOKEN);
-    for (const guildId of guild_ids) {
-      rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId),
-        { body: commands.map(command => command.data) })
-        .then(() => console.info('Successfully updated commands for guild ' + guildId))
-        .catch((err) => console.error(err));
-    }
-  });
+      const rest = new REST({ version: '10' }).setToken(TOKEN);
+      for (const guildId of guild_ids) {
+        rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId),
+          { body: commands.map(command => command.data) })
+          .then(() => console.info('Successfully updated commands for guild ' + guildId))
+          .catch((err) => console.error(err));
+      }
+    });
+  } catch (err) {
+    console.error('Error mapping guild ids:', err);
+  }
 };
 
 export const setClientProperty = ({ client, property, value }) => {

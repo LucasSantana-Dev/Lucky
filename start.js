@@ -7,24 +7,26 @@ import {
   mapGuildIds,
   setClientProperty
 } from './utils/client.js';
-import { executeCommand, setCommands } from './utils/createCommands.js';
+import { setCommands } from './utils/createCommands.js';
 
 const startBot = async () => {
-  const client = await createClient();
+  try {
+    const client = await createClient();
 
-  await startClient({ client });
-  const player = createPlayer({ client });
-  setClientProperty({
-    client,
-    property: 'player',
-    value: player
-  });
-  await setCommands({ client });
-  mapGuildIds({ client });
+    await startClient({ client });
+    const player = createPlayer({ client });
+    setClientProperty({
+      client,
+      property: 'player',
+      value: player
+    });
+    await setCommands({ client });
+    mapGuildIds({ client });
 
-  await client.on("interactionCreate", async interaction => executeCommand({ interaction, client }));
-
-  return { client, player };
+    return { client, player };
+  } catch (err) {
+    console.error('Error starting bot:', err);
+  }
 };
 
 export default startBot;
