@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import * as discordJs from "discord.js";
 import Command from '../../utils/Command.js';
+import { interactionReply } from '../../handlers/interactionHandler.js';
 const { MessageEmbed } = discordJs;
 
 export default new Command({
@@ -12,11 +13,14 @@ export default new Command({
             return `**/${command.data.name}** - ${command.data.description}`;
         }).join('\n');
 
-        await interaction.reply({
-            embeds: [
-                new MessageEmbed()
-                    .setDescription(commandsString)
-            ]
-        });
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    new MessageEmbed()
+                        .setDescription(commandsString)
+                ]
+            }
+        })
     }
 });

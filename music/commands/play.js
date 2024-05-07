@@ -1,117 +1,43 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { EmbedBuilder } from "discord.js";
-import { QueryType } from "discord-player";
 import Command from '../../utils/Command.js';
+import { handlePlay } from '../handlers/play/handlePlay.js';
+import { createQueue, queueConnect } from '../../handlers/queueHandler.js';
 
 export default new Command({
-    data: new SlashCommandBuilder()
-        .setName("play")
-        .setDescription("▶️ Toca uma música")
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName("search")
-                .setDescription("🔎 Procura por uma música.")
-                .addStringOption(option =>
-                    option
-                        .setName("searchterms")
-                        .setDescription("search keywords")
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName("playlist")
-                .setDescription("▶ Toca uma playlist do Youtube.")
-                .addStringOption(option =>
-                    option
-                        .setName("url")
-                        .setDescription("playlist url")
-                        .setRequired(true)
-                )
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName("song")
-                .setDescription("🎵 Toca uma música do Youtube.")
-                .addStringOption(option =>
-                    option
-                        .setName("url")
-                        .setDescription("song url")
-                        .setRequired(true)
-                )
-        ),
+    data:
+        new SlashCommandBuilder()
+            .setName("play")
+            .setDescription("▶️ Toca uma música ou uma playlist")
+            .addStringOption(option =>
+                option
+                    .setName("pesquisa")
+                    .setDescription("Termos de pesquisa")
+            )
+            .addStringOption(option =>
+                option
+                    .setName("playlist")
+                    .setDescription("URL da Playlist")
+            )
+            .addStringOption(option =>
+                option
+                    .setName("url")
+                    .setDescription("URL da Música")
+            ),
     execute: async ({ client, interaction }) => {
         if (!interaction.member.voice.channel) {
             await interaction.reply("🤨 Você deve estar em um canal de voz para usar esse comando.");
             return;
         }
 
-        const queue = await client.player.createQueue(interaction.guild);
+        const queue = await createQueue({ client, interaction });
 
-        if (!queue.connection) await queue.connect(interaction.member.voice.channel);
+        await queueConnect({ queue, interaction })
 
         let embed = new EmbedBuilder();
-        if (interaction.options.getSubcommand() === "song") {
-            let url = interaction.options.getString("url");
 
-            const result = await client.player.search(url, {
-                requestedBy: interaction.user,
-                searchEngine: QueryType.YOUTUBE_VIDEO,
-            });
+        await handlePlay({ client, interaction, queue, embed });
 
-            if (result.tracks.length === 0) {
-                await interaction.reply("🥱 Nenhum resultado encontrado.");
-                return;
-            }
-
-            const song = result.tracks[0];
-            await queue.addTrack(song);
-
-            embed
-                .setDescription(`😏 **[${song.title}](${song.url})** Adicionada à fila.`)
-                .setThumbnail(song.thumbnail)
-                .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: ${interaction.user}` });
-        } else if (interaction.options.getSubcommand() === "playlist") {
-            let url = interaction.options.getString("url");
-
-            const result = await client.player.search(url, {
-                requestedBy: interaction.user,
-                searchEngine: QueryType.YOUTUBE_PLAYLIST,
-            });
-
-            if (result.tracks.length === 0) {
-                await interaction.reply("🥱 Nenhum resultado encontrado.");
-                return;
-            }
-
-            const playlist = result.tracks[0];
-            await queue.addTracks(playlist);
-
-            embed
-                .setDescription(`😏 **[${playlist.title}](${playlist.url})** Adicionada à fila.`)
-                .setThumbnail(playlist.thumbnail)
-                .setFooter({ text: `Duração: ${playlist.duration}` });
-        } else if (interaction.options.getSubcommand() === "search") {
-            let url = interaction.options.getString("searchterms");
-
-            const result = await client.player.search(url, {
-                requestedBy: interaction.user,
-                searchEngine: QueryType.AUTO,
-            });
-
-            if (result.tracks.length === 0) {
-                await interaction.reply("🥱 Nenhum resultado encontrado.");
-                return;
-            }
-
-            const song = result.tracks[0];
-            await queue.addTrack(song);
-
-            embed
-                .setDescription(`😏 **[${song.title}](${song.url})** Adicionada à fila.`)
-                .setThumbnail(song.thumbnail)
-                .setFooter({ text: `Duração: ${song.duration}\nAdicionada à fila por: ${interaction.user}` });
-        }
         if (!queue.playing) await queue.play();
         queue.setVolume(50);
 

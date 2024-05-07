@@ -5,11 +5,11 @@ import ytdl from 'ytdl-core';
 import fs from 'fs';
 import { deleteContent } from './deleteContent.js';
 
-export const downloadVideo = async ({ url, interaction, videoFileName, outputFileName, outputPath, videoInfo, audioPath }) => {
+export const downloadVideo = async ({ url, interaction, videoFileName, outputPath, outputFileName, videoInfo, audioPath }) => {
   try {
-    const videoPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${videoFileName}.mp4`);
+    const videoPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${videoFileName}`);
 
-    outputPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${outputFileName}.mp4`);
+    outputPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${outputFileName}`);
 
     const videoLength = videoInfo.videoDetails.lengthSeconds;
 

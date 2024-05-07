@@ -1,5 +1,5 @@
 import { Collection } from 'discord.js';
-import commands from '../commands.js';
+import commands from '../utils/commands.js';
 
 export const executeCommand = async ({ interaction, client }) => {
   try {
@@ -26,3 +26,7 @@ export const setCommands = async ({ client }) => {
     client.commands.set(command.data.name, command);
   });
 };
+
+export const groupCommands = ({ commands }) => {
+  return [...commands]
+}

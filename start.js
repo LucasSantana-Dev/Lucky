@@ -1,21 +1,22 @@
 
-import { createPlayer } from './utils/player.js';
+import { createPlayer } from './handlers/playerHandler.js';
 
 import {
   createClient,
   startClient,
   mapGuildIds,
   setClientProperty
-} from './utils/client.js';
-import { setCommands } from './utils/createCommands.js';
+} from './handlers/clientHandler.js';
+
+import { setCommands } from './handlers/commandsHandler.js';
 
 const startBot = async () => {
   try {
     const client = await createClient();
 
     await startClient({ client });
-    const player = createPlayer({ client });
-    setClientProperty({
+    const player = await createPlayer({ client });
+    await setClientProperty({
       client,
       property: 'player',
       value: player

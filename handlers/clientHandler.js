@@ -1,8 +1,8 @@
 import { Client, GatewayIntentBits, ActivityType } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v9';
-import commands from '../commands.js';
-import { CLIENT_ID, TOKEN } from '../config/env.js';
+import commands from '../utils/commands.js';
+import { config } from '../config/config.js';
 
 export const createClient = () => (
   new Client({
@@ -16,7 +16,7 @@ export const createClient = () => (
 
 export const startClient = ({ client }) => {
   try {
-    client.login(TOKEN);
+    client.login(config.TOKEN);
 
     client.once("ready", () => {
       console.info("O LukBot está online e pocando, bebês!!");
@@ -38,9 +38,9 @@ export const mapGuildIds = ({ client }) => {
       // Get all ids of the servers
       const guild_ids = client.guilds.cache.map(guild => guild.id);
 
-      const rest = new REST({ version: '10' }).setToken(TOKEN);
+      const rest = new REST({ version: '10' }).setToken(config().TOKEN);
       for (const guildId of guild_ids) {
-        rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId),
+        rest.put(Routes.applicationGuildCommands(config().CLIENT_ID, guildId),
           { body: commands.map(command => command.data) })
           .then(() => console.info('Successfully updated commands for guild ' + guildId))
           .catch((err) => console.error(err));

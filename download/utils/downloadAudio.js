@@ -5,7 +5,7 @@ import ytdl from 'ytdl-core';
 import fs from 'fs';
 import { deleteContent } from './deleteContent.js';
 
-export const downloadAudio = async ({ url, interaction, videoInfo, outputFileName, audioPath }) => {
+export const downloadAudio = async ({ url, interaction, videoInfo, outputPath, outputFileName, audioPath }) => {
   try {
     const videoLength = videoInfo.videoDetails.lengthSeconds;
 
@@ -17,7 +17,7 @@ export const downloadAudio = async ({ url, interaction, videoInfo, outputFileNam
     }
 
     const audioStream = await ytdl(url, { quality: 'highestaudio', filter: 'audioonly' });
-    const outputPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${outputFileName}.mp3`);
+    outputPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${outputFileName}`);
 
     await new Promise((resolve, reject) => {
       ffmpeg(audioStream)

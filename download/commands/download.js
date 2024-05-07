@@ -1,16 +1,19 @@
-/* eslint-disable no-case-declarations */
 import { SlashCommandBuilder } from '@discordjs/builders';
 import ytdl from 'ytdl-core';
 import fs from 'fs';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from 'ffmpeg-static';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { v4 as uuidv4 } from 'uuid';
 import Command from '../../utils/Command.js';
 import { deleteContent } from '../utils/deleteContent.js';
 import { downloadAudio } from '../utils/downloadAudio.js';
 import { downloadVideo } from '../utils/downloadVideo.js';
+import { searchContentOnYoutube } from '../../utils/searchContentOnYoutube.js';
+import {
+  interactionGetOption,
+  interactionGetSubcommand,
+  interactionReply
+} from '../../handlers/interactionHandler.js';
+import { generateFileName } from '../../utils/generateFileName.js';
 
 export default new Command({
   data: new SlashCommandBuilder()
@@ -26,6 +29,12 @@ export default new Command({
             .setDescription("URL do conteúdo")
             .setRequired(true)
         )
+        .addStringOption(option =>
+          option
+            .setName("pesquisa")
+            .setDescription("Termos de Pesquisa")
+            .setRequired(true)
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -35,31 +44,49 @@ export default new Command({
           option
             .setName("url")
             .setDescription("URL do conteúdo")
-            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option
+            .setName("pesquisa")
+            .setDescription("Termos de Pesquisa")
         )
     ),
-  execute: async ({ interaction }) => {
+  execute: async ({ client, interaction }) => {
     let outputPath = '';
 
     try {
-      ffmpeg.setFfmpegPath(ffmpegPath);
-      let url = interaction.options.getString("url");
-      const videoFileName = uuidv4();
-      const audioFileName = uuidv4();
-      const outputFileName = uuidv4();
+      await interaction.deferReply(); // Send an initial response
+
+      let url = interactionGetOption({ interaction, optionName: "url" });
+      let searchTerms = interactionGetOption({ interaction, optionName: "pesquisa" });
+
+      if (!url && !searchTerms) {
+        await interactionReply({ interaction, content: "🤨 Você deve fornecer uma URL ou termos de pesquisa." })
+        return console.error("No URL or search terms provided.");
+      }
+
+      let searchResult;
+
+      if (searchTerms) {
+        searchResult = await searchContentOnYoutube({ client, searchTerms, interaction });
+        url = searchResult.tracks[0].url;
+      }
+
+      const videoFileName = generateFileName({ fileExt: "mp4" });
+      const audioFileName = generateFileName({ fileExt: "m4a" });
+      const outputFileName = generateFileName({ fileExt: "mp4" });
       const videoInfo = await ytdl.getInfo(url);
       let videoLength;
 
-      const audioPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${audioFileName}.m4a`);
+      const audioPath = path.resolve(fileURLToPath(import.meta.url), `../../content/${audioFileName}`);
 
-      await interaction.deferReply(); // Send an initial response
 
-      switch (interaction.options.getSubcommand()) {
+      switch (interactionGetSubcommand({ interaction })) {
         case "video":
           await downloadVideo({ url, interaction, videoFileName, outputFileName, outputPath, videoInfo, videoLength, audioPath })
           break;
         case "audio":
-          await downloadAudio({ url, interaction, videoInfo, outputFileName, audioPath })
+          await downloadAudio({ url, interaction, videoInfo, outputFileName, outputPath, audioPath })
           break;
       }
     } catch (err) {
