@@ -1,10 +1,8 @@
 /* eslint-disable no-undef */
-import dotenv from 'dotenv'
+import ffmpeg from 'fluent-ffmpeg'
 
 export const config = () => {
-  dotenv.config()
-
-  process.env.FFMPEG_PATH = './node_modules/ffmpeg-static/ffmpeg.exe'
+  ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH)
 
   return {
     TOKEN: process.env.TOKEN,

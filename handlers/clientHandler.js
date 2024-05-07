@@ -3,6 +3,7 @@ import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v9';
 import commands from '../utils/commands.js';
 import { config } from '../config/config.js';
+import { errorLog, infoLog } from '../utils/log.js';
 
 export const createClient = () => (
   new Client({
@@ -19,7 +20,7 @@ export const startClient = ({ client }) => {
     client.login(config.TOKEN);
 
     client.once("ready", () => {
-      console.info("O LukBot está online e pocando, bebês!!");
+      infoLog("O LukBot está online e pocando, bebês!!");
       client.user.setPresence({
         activities: [{
           name: `Online e pocando, bebês`,
@@ -28,7 +29,7 @@ export const startClient = ({ client }) => {
       });
     });
   } catch (err) {
-    console.error('Error starting client:', err);
+    errorLog('Error starting client:', err);
   }
 };
 
@@ -42,12 +43,12 @@ export const mapGuildIds = ({ client }) => {
       for (const guildId of guild_ids) {
         rest.put(Routes.applicationGuildCommands(config().CLIENT_ID, guildId),
           { body: commands.map(command => command.data) })
-          .then(() => console.info('Successfully updated commands for guild ' + guildId))
-          .catch((err) => console.error(err));
+          .then(() => infoLog('Successfully updated commands for guild ' + guildId))
+          .catch((err) => errorLog(err));
       }
     });
   } catch (err) {
-    console.error('Error mapping guild ids:', err);
+    errorLog('Error mapping guild ids:', err);
   }
 };
 

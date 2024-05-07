@@ -1,3 +1,4 @@
+import { errorLog } from "../../../utils/log.js";
 import { searchContentOnYoutube } from "../../../utils/searchContentOnYoutube.js";
 
 export const handlePlay = async ({ client, interaction, queue, embed }) => {
@@ -9,7 +10,7 @@ export const handlePlay = async ({ client, interaction, queue, embed }) => {
 
   if (!searchTerms && !playlistUrl && !songUrl) {
     await interaction.reply("🤔 Você deve fornecer um termo de pesquisa, uma URL de playlist ou uma URL de música.");
-    return console.error('No search terms, playlist URL or song URL provided.');
+    return errorLog('No search terms, playlist URL or song URL provided.');
   }
 
   if (playlistUrl) {

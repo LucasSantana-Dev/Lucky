@@ -1,5 +1,6 @@
 import { Collection } from 'discord.js';
 import commands from '../utils/commands.js';
+import { errorLog } from '../utils/log.js';
 
 export const executeCommand = async ({ interaction, client }) => {
   try {
@@ -11,11 +12,11 @@ export const executeCommand = async ({ interaction, client }) => {
     try {
       await command.execute({ client, interaction });
     } catch (error) {
-      console.error(error);
+      errorLog(error);
       await interaction.reply({ content: "Ocorreu um erro ao realizar o comando." });
     }
   } catch (err) {
-    console.error('Error executing command:', err);
+    errorLog('Error executing command:', err);
   }
 };
 

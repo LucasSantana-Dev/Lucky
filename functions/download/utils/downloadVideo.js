@@ -4,6 +4,7 @@ import path from 'path';
 import ytdl from 'ytdl-core';
 import fs from 'fs';
 import { deleteContent } from './deleteContent.js';
+import { errorLog } from '../../../utils/log.js';
 
 export const downloadVideo = async ({ url, interaction, videoFileName, outputPath, outputFileName, videoInfo, audioPath }) => {
   try {
@@ -17,7 +18,7 @@ export const downloadVideo = async ({ url, interaction, videoFileName, outputPat
       await interaction.editReply({
         content: "Somente vídeos com menos de 10 minutos podem ser baixados.",
       });
-      return console.error('Video length is higher than 10 minutes.')
+      return errorLog('Video length is higher than 10 minutes.')
     }
 
     const videoStream = await ytdl(url, { quality: 'highestvideo' });
@@ -64,6 +65,6 @@ export const downloadVideo = async ({ url, interaction, videoFileName, outputPat
     audioStream.destroy();
     videoStream.destroy();
   } catch (err) {
-    console.error('There was an error downloading the video', err);
+    errorLog('There was an error downloading the video', err);
   }
 }

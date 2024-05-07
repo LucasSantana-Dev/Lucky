@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname } from 'path';
+import { errorLog } from './log.js';
 
 export const getCommandsFromDirectory = async ({ url }) => {
   try {
@@ -23,6 +24,6 @@ export const getCommandsFromDirectory = async ({ url }) => {
 
     return commands;
   } catch (err) {
-    console.error('Error getting commands from directory:', err);
+    errorLog('Error getting commands from directory:', err);
   }
 }

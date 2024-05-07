@@ -9,6 +9,7 @@ import {
 } from './handlers/clientHandler.js';
 
 import { setCommands } from './handlers/commandsHandler.js';
+import { errorLog } from './utils/log.js';
 
 const startBot = async () => {
   try {
@@ -26,7 +27,7 @@ const startBot = async () => {
 
     return { client, player };
   } catch (err) {
-    console.error('Error starting bot:', err);
+    return errorLog('Error starting bot:', err)
   }
 };
 

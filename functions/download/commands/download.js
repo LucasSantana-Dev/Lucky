@@ -14,6 +14,7 @@ import {
   interactionReply
 } from '../../handlers/interactionHandler.js';
 import { generateFileName } from '../../utils/generateFileName.js';
+import { errorLog } from '../../utils/log.js';
 
 export default new Command({
   data: new SlashCommandBuilder()
@@ -62,7 +63,8 @@ export default new Command({
 
       if (!url && !searchTerms) {
         await interactionReply({ interaction, content: "🤨 Você deve fornecer uma URL ou termos de pesquisa." })
-        return console.error("No URL or search terms provided.");
+
+        return errorLog("No URL or search terms provided.");
       }
 
       let searchResult;
@@ -94,7 +96,7 @@ export default new Command({
         content: "Desculpe, ocorreu um erro ao baixar o conteúdo. Por favor, tente novamente."
       });
 
-      console.error(err);
+      errorLog("Error downloading content:", err);
     } finally {
       if (fs.existsSync(outputPath)) await deleteContent(outputPath);
     }
