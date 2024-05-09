@@ -3,18 +3,18 @@ import ytdl from 'ytdl-core';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Command from '../../utils/Command.js';
 import { deleteContent } from '../utils/deleteContent.js';
 import { downloadAudio } from '../utils/downloadAudio.js';
 import { downloadVideo } from '../utils/downloadVideo.js';
-import { searchContentOnYoutube } from '../../utils/searchContentOnYoutube.js';
+import { searchContentOnYoutube } from '../../../utils/searchContentOnYoutube.js';
+import Command from '../../../models/Command.js';
 import {
   interactionGetOption,
   interactionGetSubcommand,
   interactionReply
-} from '../../handlers/interactionHandler.js';
-import { generateFileName } from '../../utils/generateFileName.js';
-import { errorLog } from '../../utils/log.js';
+} from '../../../handlers/interactionHandler.js';
+import { generateFileName } from '../../../utils/generateFileName.js';
+import { errorLog } from '../../../utils/log.js';
 
 export default new Command({
   data: new SlashCommandBuilder()
@@ -64,7 +64,7 @@ export default new Command({
       if (!url && !searchTerms) {
         await interactionReply({ interaction, content: "🤨 Você deve fornecer uma URL ou termos de pesquisa." })
 
-        return errorLog("No URL or search terms provided.");
+        return errorLog({ message: "No URL or search terms provided." });
       }
 
       let searchResult;
@@ -91,12 +91,12 @@ export default new Command({
           await downloadAudio({ url, interaction, videoInfo, outputFileName, outputPath, audioPath })
           break;
       }
-    } catch (err) {
+    } catch (error) {
       await interaction.editReply({ // Edit the initial response
         content: "Desculpe, ocorreu um erro ao baixar o conteúdo. Por favor, tente novamente."
       });
 
-      errorLog("Error downloading content:", err);
+      errorLog({ message: "Error downloading content:", error });
     } finally {
       if (fs.existsSync(outputPath)) await deleteContent(outputPath);
     }

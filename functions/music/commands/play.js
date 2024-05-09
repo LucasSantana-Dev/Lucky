@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { EmbedBuilder } from "discord.js";
-import Command from '../../utils/Command.js';
+import Command from '../../../models/Command.js';
 import { handlePlay } from '../handlers/play/handlePlay.js';
-import { createQueue, queueConnect } from '../../handlers/queueHandler.js';
+import { createQueue, queueConnect } from '../../../handlers/queueHandler.js';
 
 export default new Command({
     data:

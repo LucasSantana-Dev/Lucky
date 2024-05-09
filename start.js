@@ -26,8 +26,8 @@ const startBot = async () => {
     mapGuildIds({ client });
 
     return { client, player };
-  } catch (err) {
-    return errorLog('Error starting bot:', err)
+  } catch (error) {
+    return errorLog({ message: 'Error starting bot:', error })
   }
 };
 

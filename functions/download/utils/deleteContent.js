@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { errorLog, successLog } from '../../../utils/log';
+import { errorLog, successLog } from '../../../utils/log.js';
 
 export const deleteContent = async (path) => {
   try {
@@ -7,10 +7,10 @@ export const deleteContent = async (path) => {
       if (err) {
         throw new Error(err);
       } else {
-        successLog(`Successfully deleted ${path}`);
+        successLog({ message: `Successfully deleted ${path}` });
       }
     });
-  } catch (err) {
-    errorLog(`Error deleting ${path}:`, err);
+  } catch (error) {
+    errorLog({ message: `Error deleting ${path}:`, error });
   }
 }

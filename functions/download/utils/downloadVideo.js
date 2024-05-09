@@ -18,7 +18,7 @@ export const downloadVideo = async ({ url, interaction, videoFileName, outputPat
       await interaction.editReply({
         content: "Somente vídeos com menos de 10 minutos podem ser baixados.",
       });
-      return errorLog('Video length is higher than 10 minutes.')
+      return errorLog({ message: 'Video length is higher than 10 minutes.' })
     }
 
     const videoStream = await ytdl(url, { quality: 'highestvideo' });
@@ -64,7 +64,7 @@ export const downloadVideo = async ({ url, interaction, videoFileName, outputPat
 
     audioStream.destroy();
     videoStream.destroy();
-  } catch (err) {
-    errorLog('There was an error downloading the video', err);
+  } catch (error) {
+    errorLog({ message: 'There was an error downloading the video', error });
   }
 }

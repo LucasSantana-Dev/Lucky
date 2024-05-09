@@ -23,7 +23,7 @@ export const getCommandsFromDirectory = async ({ url }) => {
     }
 
     return commands;
-  } catch (err) {
-    errorLog('Error getting commands from directory:', err);
+  } catch (error) {
+    errorLog({ message: 'Error getting commands from directory:', error });
   }
 }

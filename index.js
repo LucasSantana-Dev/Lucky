@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
-import { config } from './config/config.js';
 await config();
+import { config } from './config/config.js';
 import { handleInteractions } from './handlers/interactionHandler.js';
 import startBot from './start.js';
 

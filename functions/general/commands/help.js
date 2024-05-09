@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import * as discordJs from "discord.js";
-import Command from '../../../utils/Command.js';
+import Command from '../../../models/Command.js';
 import { interactionReply } from '../../../handlers/interactionHandler.js';
 const { MessageEmbed } = discordJs;
 

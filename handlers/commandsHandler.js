@@ -12,11 +12,11 @@ export const executeCommand = async ({ interaction, client }) => {
     try {
       await command.execute({ client, interaction });
     } catch (error) {
-      errorLog(error);
+      errorLog({ error });
       await interaction.reply({ content: "Ocorreu um erro ao realizar o comando." });
     }
-  } catch (err) {
-    errorLog('Error executing command:', err);
+  } catch (error) {
+    errorLog({ message: 'Error executing command:', error });
   }
 };
 
@@ -28,6 +28,4 @@ export const setCommands = async ({ client }) => {
   });
 };
 
-export const groupCommands = ({ commands }) => {
-  return [...commands]
-}
+export const groupCommands = ({ commands }) => ([...commands])

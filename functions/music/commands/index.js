@@ -1,4 +1,4 @@
-import { getCommandsFromDirectory } from "../../utils/getCommandsFromDirectory.js";
+import { getCommandsFromDirectory } from "../../../utils/getCommandsFromDirectory.js";
 
 const musicCommands = await getCommandsFromDirectory({ url: import.meta.url });
 
