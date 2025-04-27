@@ -1,0 +1,1 @@
+{"version":3,"file":"generateFileName.js","sourceRoot":"","sources":["../../src/utils/generateFileName.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAMzC,MAAM,CAAC,MAAM,gBAAgB,GAAG,CAAC,EAAE,OAAO,EAA0B,EAAU,EAAE;IAC9E,OAAO,GAAG,UAAU,EAAE,IAAI,OAAO,EAAE,CAAC;AACtC,CAAC,CAAA"}
