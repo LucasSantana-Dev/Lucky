@@ -1,6 +1,9 @@
 node_modules
 package-lock.json
 .env
+.vscode
+dist
+downloads
 
 # Local Netlify folder
 .netlify
