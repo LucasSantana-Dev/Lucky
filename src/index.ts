@@ -1,14 +1,24 @@
+import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { config } from 'dotenv';
-import { errorLog, infoLog, debugLog, setLogLevel, LogLevel } from './utils/log';
-import { createClient, startClient, mapGuildIds } from './handlers/clientHandler';
-import { createPlayer } from './handlers/playerHandler';
-import { setCommands } from './handlers/commandsHandler';
-import { getCommands } from './utils/commands';
+import { errorLog, infoLog, debugLog, setLogLevel, LogLevel } from '@utils/log';
+import { createClient, startClient, mapGuildIds } from '@handlers/clientHandler';
+import { createPlayer } from '@handlers/playerHandler';
+import { setCommands } from '@handlers/commandsHandler';
+import { getCommands } from '@utils/commands';
 import { Player } from 'discord-player';
-import { setupEventHandlers } from './handlers/eventHandler';
+import handleEvents from '@handlers/eventHandler';
+import { CustomClient } from '@/types';
+import Command from '@models/Command';
 
 // Load environment variables
-config();
+const result = config();
+if (result.error) {
+    errorLog({ message: 'Error loading .env file:', error: result.error });
+    process.exit(1);
+}
+
+debugLog({ message: 'Environment variables loaded' });
+debugLog({ message: `DISCORD_TOKEN exists: ${!!process.env.DISCORD_TOKEN}` });
 
 // Set log level based on environment
 const logLevel = process.env.LOG_LEVEL
@@ -24,6 +34,38 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (error) => {
     errorLog({ message: 'Unhandled Rejection:', error });
 });
+
+// Create Discord client with necessary intents
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+}) as CustomClient;
+
+// Initialize commands collection
+client.commands = new Collection<string, Command>();
+
+// Setup event handlers
+handleEvents(client);
+
+// Login to Discord
+const token = process.env.DISCORD_TOKEN;
+if (!token) {
+    errorLog({ message: 'DISCORD_TOKEN is not defined in environment variables' });
+    process.exit(1);
+}
+
+debugLog({ message: `Token length: ${token.length}` });
+client.login(token)
+    .then(() => {
+        infoLog({ message: 'Bot is ready!' });
+    })
+    .catch((error) => {
+        errorLog({ message: 'Error logging in:', error });
+    });
 
 // Start the bot
 async function start() {
@@ -41,7 +83,7 @@ async function start() {
 
         // Setup event handlers
         const eventSetupStart = Date.now();
-        setupEventHandlers(client);
+        handleEvents(client);
         debugLog({ message: `Event handler setup took ${Date.now() - eventSetupStart}ms` });
 
         // Start the client (this will handle login and event setup)

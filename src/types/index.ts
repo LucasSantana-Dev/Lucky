@@ -1,6 +1,6 @@
 import { Client, Collection, ChatInputCommandInteraction } from 'discord.js';
-import Command from '../models/Command';
 import { Player } from 'discord-player';
+import Command from '@models/Command';
 
 export interface CustomClient extends Client {
     commands: Collection<string, Command>;

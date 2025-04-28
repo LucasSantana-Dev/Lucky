@@ -1,124 +1,84 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { ChatInputCommandInteraction, GuildMember, ChannelType, EmbedBuilder } from 'discord.js';
-import { QueryType, SearchResult } from 'discord-player';
-import { CustomClient } from '../../../types/index';
-import Command from '../../../models/Command';
-import { debugLog, errorLog, infoLog } from '../../../utils/log';
-import { constants } from '../../../config/config';
+import { GuildMember } from 'discord.js';
+import { QueryType } from 'discord-player';
+import { debugLog, errorLog } from '@/utils/log';
+import { constants } from '@/config/config';
+import Command from '@/models/Command';
+import { interactionReply } from '@/handlers/interactionHandler';
+import { errorEmbed, musicEmbed } from '@/utils/embeds';
 
-const command = new Command({
+export default new Command({
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play a song from YouTube or Spotify')
-        .addStringOption(option =>
-            option.setName('query')
-                .setDescription('The song to play (URL or search term)')
-                .setRequired(true)) as SlashCommandBuilder,
-    execute: async ({ client, interaction }: { client: CustomClient; interaction: ChatInputCommandInteraction }): Promise<void> => {
-        if (!interaction.guildId) {
-            await interaction.reply({ 
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor('#FF0000')
-                        .setDescription('❌ This command can only be used in a server!')
-                ],
-                ephemeral: true 
-            });
-            return;
-        }
-
-        const member = interaction.member as GuildMember;
-        debugLog({ message: `Member: ${member.user.username}, ID: ${member.id}` });
-        debugLog({ message: `Voice state: ${JSON.stringify(member.voice)}` });
-        
-        const voiceChannel = member.voice.channel;
-        debugLog({ message: `Voice channel: ${voiceChannel ? voiceChannel.name : 'None'}` });
-
-        if (!voiceChannel) {
-            await interaction.reply({ 
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor('#FF0000')
-                        .setDescription('❌ You need to be in a voice channel!')
-                ],
-                ephemeral: true 
-            });
-            return;
-        }
-
-        if (voiceChannel.type !== ChannelType.GuildVoice) {
-            await interaction.reply({ 
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor('#FF0000')
-                        .setDescription('❌ You need to be in a regular voice channel!')
-                ],
-                ephemeral: true 
-            });
-            return;
-        }
-
-        const query = interaction.options.getString('query', true);
-        debugLog({ message: `Query: ${query}` });
-
+        .setDescription('🎵 Toca uma música do YouTube ou Spotify')
+        .addStringOption(option => option.setName('query')
+            .setDescription('A música para tocar (URL ou termo de busca)')
+            .setRequired(true)) as SlashCommandBuilder,
+    execute: async ({ client, interaction }) => {
         try {
+            if (!interaction.guildId) {
+                await interaction.reply({
+                    embeds: [errorEmbed('Erro', 'Este comando só pode ser usado em um servidor!')]
+                });
+                return;
+            }
+
+            const member = interaction.member as GuildMember;
+            const voiceChannel = member.voice.channel;
+
+            if (!voiceChannel) {
+                await interaction.reply({
+                    embeds: [errorEmbed('Erro', 'Você precisa estar em um canal de voz!')]
+                });
+                return;
+            }
+
+            const query = interaction.options.getString('query', true);
+            debugLog({ message: `Query: ${query}` });
+
             await interaction.deferReply();
 
-            infoLog({ message: `Starting search process for: ${query}` });
-            
-            // Check if the query is a URL
-            const isUrl = /^https?:\/\//.test(query);
-            debugLog({ message: `Query is ${isUrl ? 'a URL' : 'a search term'}` });
-            
-            // Try YouTube search first
-            debugLog({ message: `Using YOUTUBE_SEARCH engine for query: ${query}` });
-            const searchResult = await client.player.search(query, {
-                requestedBy: interaction.user,
-                searchEngine: QueryType.YOUTUBE_SEARCH
-            }) as SearchResult;
+            // Check if the query is a playlist URL or a valid YouTube URL
+            const isPlaylist = query.includes('playlist?list=');
+            const isYouTubeUrl = /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/.test(query);
+            debugLog({ message: `Query is ${isPlaylist ? 'a playlist' : isYouTubeUrl ? 'a YouTube URL' : 'a search term'}` });
 
-            if (!searchResult || !searchResult.tracks.length) {
-                infoLog({ message: `No results found with YOUTUBE_SEARCH for: ${query}` });
-                
-                // Try AUTO search as fallback
-                debugLog({ message: `Trying AUTO search engine as fallback for query: ${query}` });
-                const autoSearchResult = await client.player.search(query, {
+            try {
+                // Search for content with appropriate search engine
+                let searchResult = await client.player.search(query, {
                     requestedBy: interaction.user,
-                    searchEngine: QueryType.AUTO
-                }) as SearchResult;
-                
-                if (!autoSearchResult || !autoSearchResult.tracks.length) {
-                    infoLog({ message: `No results found with AUTO search for: ${query}` });
-                    await interaction.followUp({ 
-                        embeds: [
-                            new EmbedBuilder()
-                                .setColor('#FF0000')
-                                .setDescription(`❌ No results found for: **${query}**\nPlease try a different search term or check if the URL is valid.`)
-                        ],
-                        ephemeral: true 
-                    });
-                    return;
-                }
-                
-                infoLog({ message: `Found ${autoSearchResult.tracks.length} results with AUTO search for: ${query}` });
-                const track = autoSearchResult.tracks[0];
-                infoLog({ 
-                    message: `Selected track: ${track.title} (${track.url})\nDuration: ${track.duration}\nAuthor: ${track.author}` 
+                    searchEngine: isPlaylist ? QueryType.YOUTUBE_PLAYLIST : QueryType.YOUTUBE_SEARCH
                 });
-                
+
+                if (!searchResult || !searchResult.tracks.length) {
+                    // If no results with playlist search, try regular search
+                    if (isPlaylist) {
+                        debugLog({ message: 'No results with playlist search, trying regular search' });
+                        const regularSearch = await client.player.search(query, {
+                            requestedBy: interaction.user,
+                            searchEngine: QueryType.YOUTUBE_SEARCH
+                        });
+
+                        if (regularSearch && regularSearch.tracks.length > 0) {
+                            searchResult = regularSearch;
+                        }
+                    }
+
+                    if (!searchResult || !searchResult.tracks.length) {
+                        await interaction.editReply({
+                            embeds: [errorEmbed('Erro', `Nenhum resultado encontrado para: **${query}**`)]
+                        });
+                        return;
+                    }
+                }
+
                 if (!interaction.guild) {
-                    await interaction.followUp({ 
-                        embeds: [
-                            new EmbedBuilder()
-                                .setColor('#FF0000')
-                                .setDescription('❌ This command can only be used in a server!')
-                        ],
-                        ephemeral: true 
+                    await interaction.editReply({
+                        embeds: [errorEmbed('Erro', 'Este comando só pode ser usado em um servidor!')]
                     });
                     return;
                 }
 
-                infoLog({ message: `Creating queue for guild: ${interaction.guild.name}` });
                 const queue = client.player.nodes.create(interaction.guild, {
                     metadata: {
                         channel: interaction.channel,
@@ -135,197 +95,65 @@ const command = new Command({
 
                 try {
                     if (!queue.connection) {
-                        debugLog({ message: `Connecting to voice channel: ${voiceChannel.name}` });
                         await queue.connect(voiceChannel);
-                        debugLog({ message: `Connected to voice channel: ${voiceChannel.name}` });
                     }
                 } catch (error) {
-                    errorLog({ message: `Error connecting to voice channel: ${error}` });
-                    queue.delete();
-                    await interaction.followUp({ 
-                        embeds: [
-                            new EmbedBuilder()
-                                .setColor('#FF0000')
-                                .setDescription('❌ Could not join your voice channel! Please check if I have the necessary permissions.')
-                        ],
-                        ephemeral: true 
+                    errorLog({ message: 'Error connecting to voice channel:', error });
+                    await interaction.editReply({
+                        embeds: [errorEmbed('Erro de conexão', 'Não foi possível conectar ao canal de voz!')]
                     });
+                    queue.delete();
                     return;
                 }
 
-                infoLog({ message: `Adding track to queue: ${track.title}` });
-                queue.addTrack(track);
+                // Add all tracks from the search result
+                const tracks = searchResult.tracks;
+
+                // Limit the number of tracks to add if it's a large playlist
+                const maxTracks = 100; // Maximum number of tracks to add at once
+                const tracksToAdd = tracks.length > maxTracks ? tracks.slice(0, maxTracks) : tracks;
+
+                queue.addTrack(tracksToAdd);
 
                 if (!queue.isPlaying()) {
-                    infoLog({ message: `Starting playback of: ${track.title}` });
-                    try {
-                        // Add a small delay before playing to ensure everything is ready
-                        setTimeout(async () => {
-                            try {
-                                await queue.node.play();
-                                infoLog({ message: `Successfully started playback of: ${track.title}` });
-                            } catch (playError) {
-                                errorLog({ message: `Error starting playback: ${playError}` });
-                                await interaction.followUp({ 
-                                    embeds: [
-                                        new EmbedBuilder()
-                                            .setColor('#FF0000')
-                                            .setDescription('❌ There was an error starting playback! Please try again or check if the track is available.')
-                                    ],
-                                    ephemeral: true 
-                                });
-                            }
-                        }, 1000);
-                    } catch (error) {
-                        errorLog({ message: `Error starting playback: ${error}` });
-                        await interaction.followUp({ 
-                            embeds: [
-                                new EmbedBuilder()
-                                    .setColor('#FF0000')
-                                    .setDescription('❌ There was an error starting playback! Please try again or check if the track is available.')
-                            ],
-                            ephemeral: true 
-                        });
-                        return;
-                    }
+                    await queue.node.play();
                 }
 
-                const embed = new EmbedBuilder()
-                    .setColor('#00FF00')
-                    .setTitle('🎵 Added to Queue')
-                    .setDescription(`**[${track.title}](${track.url})**`)
-                    .addFields(
-                        { name: '👤 Author', value: track.author, inline: true },
-                        { name: '⏱️ Duration', value: track.duration, inline: true },
-                        { name: '🎵 Requested by', value: interaction.user.toString(), inline: true }
-                    )
-                    .setThumbnail(track.thumbnail || null)
-                    .setFooter({ text: 'Use /queue to see the current queue' });
+                // Create embed with appropriate message based on whether it's a playlist or single track
+                const embed = musicEmbed(
+                    isPlaylist ? 'Playlist adicionada' : 'Música adicionada',
+                    isPlaylist
+                        ? `Adicionada à fila: **${searchResult.playlist?.title || 'Playlist'}** com ${tracksToAdd.length} músicas${tracks.length > maxTracks ? ` (limitado a ${maxTracks} músicas)` : ''}`
+                        : `Adicionado à fila: **${tracksToAdd[0].title}** por **${tracksToAdd[0].author}**`
+                );
+
+                if (tracksToAdd[0].thumbnail) {
+                    embed.setThumbnail(tracksToAdd[0].thumbnail);
+                }
 
                 await interaction.editReply({
-                    content: '🎵 Track added to queue!',
                     embeds: [embed]
                 });
-            }
-
-            infoLog({ message: `Found ${searchResult.tracks.length} results with YOUTUBE_SEARCH for: ${query}` });
-            const track = searchResult.tracks[0];
-            infoLog({ 
-                message: `Selected track: ${track.title} (${track.url})\nDuration: ${track.duration}\nAuthor: ${track.author}` 
-            });
-
-            if (!interaction.guild) {
-                await interaction.followUp({ 
-                    embeds: [
-                        new EmbedBuilder()
-                            .setColor('#FF0000')
-                            .setDescription('❌ This command can only be used in a server!')
-                    ],
-                    ephemeral: true 
+            } catch (searchError) {
+                errorLog({ message: 'Error searching for content:', error: searchError });
+                await interaction.editReply({
+                    embeds: [errorEmbed('Erro de busca', 'Ocorreu um erro ao buscar o conteúdo. Por favor, verifique se a URL é válida ou tente um termo de busca diferente.')]
                 });
-                return;
             }
-
-            infoLog({ message: `Creating queue for guild: ${interaction.guild.name}` });
-            const queue = client.player.nodes.create(interaction.guild, {
-                metadata: {
-                    channel: interaction.channel,
-                    client: interaction.guild.members.me,
-                    requestedBy: interaction.user,
-                },
-                selfDeaf: true,
-                volume: constants.VOLUME,
-                leaveOnEmpty: true,
-                leaveOnEmptyCooldown: 300000,
-                leaveOnEnd: true,
-                leaveOnEndCooldown: 300000,
-            });
-
-            try {
-                if (!queue.connection) {
-                    debugLog({ message: `Connecting to voice channel: ${voiceChannel.name}` });
-                    await queue.connect(voiceChannel);
-                    debugLog({ message: `Connected to voice channel: ${voiceChannel.name}` });
-                }
-            } catch (error) {
-                errorLog({ message: `Error connecting to voice channel: ${error}` });
-                queue.delete();
-                await interaction.followUp({ 
-                    embeds: [
-                        new EmbedBuilder()
-                            .setColor('#FF0000')
-                            .setDescription('❌ Could not join your voice channel! Please check if I have the necessary permissions.')
-                    ],
-                    ephemeral: true 
-                });
-                return;
-            }
-
-            infoLog({ message: `Adding track to queue: ${track.title}` });
-            queue.addTrack(track);
-
-            if (!queue.isPlaying()) {
-                infoLog({ message: `Starting playback of: ${track.title}` });
-                try {
-                    // Add a small delay before playing to ensure everything is ready
-                    setTimeout(async () => {
-                        try {
-                            await queue.node.play();
-                            infoLog({ message: `Successfully started playback of: ${track.title}` });
-                        } catch (playError) {
-                            errorLog({ message: `Error starting playback: ${playError}` });
-                            await interaction.followUp({ 
-                                embeds: [
-                                    new EmbedBuilder()
-                                        .setColor('#FF0000')
-                                        .setDescription('❌ There was an error starting playback! Please try again or check if the track is available.')
-                                ],
-                                ephemeral: true 
-                            });
-                        }
-                    }, 1000);
-                } catch (error) {
-                    errorLog({ message: `Error starting playback: ${error}` });
-                    await interaction.followUp({ 
-                        embeds: [
-                            new EmbedBuilder()
-                                .setColor('#FF0000')
-                                .setDescription('❌ There was an error starting playback! Please try again or check if the track is available.')
-                        ],
-                        ephemeral: true 
-                    });
-                    return;
-                }
-            }
-
-            const embed = new EmbedBuilder()
-                .setColor('#00FF00')
-                .setTitle('🎵 Added to Queue')
-                .setDescription(`**[${track.title}](${track.url})**`)
-                .addFields(
-                    { name: '👤 Author', value: track.author, inline: true },
-                    { name: '⏱️ Duration', value: track.duration, inline: true },
-                    { name: '🎵 Requested by', value: interaction.user.toString(), inline: true }
-                )
-                .setThumbnail(track.thumbnail || null)
-                .setFooter({ text: 'Use /queue to see the current queue' });
-
-            await interaction.editReply({
-                content: '🎵 Track added to queue!',
-                embeds: [embed]
-            });
         } catch (error) {
-            errorLog({ message: `Error in play command: ${error}` });
-            await interaction.followUp({ 
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor('#FF0000')
-                        .setDescription('❌ There was an error while executing this command! Please try again or check if the track is available.')
-                ],
-                ephemeral: true 
-            });
+            errorLog({ message: 'Error in play command:', error });
+            if (!interaction.replied && !interaction.deferred) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [errorEmbed('Erro', 'Ocorreu um erro ao executar o comando. Por favor, tente novamente.')]
+                    }
+                });
+            } else if (interaction.deferred) {
+                await interaction.editReply({
+                    embeds: [errorEmbed('Erro', 'Ocorreu um erro ao executar o comando. Por favor, tente novamente.')]
+                });
+            }
         }
     }
-});
-
-export default command; 
+}); 

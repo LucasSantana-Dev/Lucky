@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction } from 'discord.js';
 import { SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from '@discordjs/builders';
-import { CustomClient } from '../types';
+import { CustomClient } from '@/types';
 
 interface CommandOptions {
   data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;

@@ -1,10 +1,11 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { ChatInputCommandInteraction, EmbedBuilder, AttachmentBuilder } from 'discord.js';
 import play from 'play-dl';
-import Command from '../../../models/Command';
-import { CustomClient } from '../../../types';
-import { errorLog, infoLog, successLog } from '../../../utils/log';
+import Command from '@/models/Command';
+import { CustomClient } from '@/types';
+import { errorLog, infoLog, successLog } from '@/utils/log';
 import { downloadVideo, deleteDownloadedFile } from '../utils/downloadUtils';
+import { interactionReply } from '@/handlers/interactionHandler';
 
 interface CommandExecuteParams {
     client: CustomClient;
@@ -49,7 +50,7 @@ function createProgressEmbed(title: string, progress: number, stage: 'downloadin
         .setTimestamp();
 }
 
-const command = new Command({
+export default new Command({
     data: new SlashCommandBuilder()
         .setName('download')
         .setDescription('🎥 Download a YouTube video')
@@ -65,7 +66,7 @@ const command = new Command({
                     { name: 'Video', value: 'video' },
                     { name: 'Audio', value: 'audio' }
                 )) as SlashCommandBuilder,
-    execute: async ({ interaction }: CommandExecuteParams): Promise<void> => {
+    execute: async ({ client, interaction }: { client: CustomClient; interaction: ChatInputCommandInteraction }): Promise<void> => {
         // Get command options
         const query = interaction.options.get('query')?.value as string;
         const format = interaction.options.get('format')?.value as string;
@@ -73,8 +74,11 @@ const command = new Command({
         // Validate query
         if (!query) {
             infoLog({ message: 'No query provided for download command' });
-            await interaction.reply({
-                content: '❌ Please provide a YouTube URL or search query!'
+            await interactionReply({
+                interaction,
+                content: {
+                    content: '❌ Please provide a YouTube URL or search query!'
+                }
             });
             return;
         }
@@ -257,6 +261,4 @@ function formatDuration(seconds: number): string {
     } else {
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
-}
-
-export default command; 
+} 

@@ -1,4 +1,12 @@
-import { Client, GatewayIntentBits, ActivityType, Events, REST, Routes, Collection } from 'discord.js';
+import {
+  Client,
+  GatewayIntentBits,
+  ActivityType,
+  Events,
+  REST,
+  Routes,
+  Collection
+} from 'discord.js';
 import { getCommands } from '../utils/commands';
 import { config } from '../config/config';
 import { errorLog, infoLog, warnLog, debugLog } from '../utils/log';

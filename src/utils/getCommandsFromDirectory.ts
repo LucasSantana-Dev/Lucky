@@ -23,13 +23,13 @@ export const getCommandsFromDirectory = async ({ url }: GetCommandsParams): Prom
     
     // Get all TypeScript files in the directory
     const commandFiles = fs.readdirSync(absolutePath)
-      .filter(file => file.endsWith('.ts') || file.endsWith(''));
+      .filter(file => file.endsWith('.ts'));
 
     debugLog({ message: `Found ${commandFiles.length} command files in ${absolutePath}` });
     
     // Filter out index files
     const filteredCommandFiles = commandFiles.filter(file => 
-      file !== 'index.ts' && file !== 'index'
+      file !== 'index.ts'
     );
 
     debugLog({ message: `Filtered to ${filteredCommandFiles.length} command files (excluding index files)` });

@@ -1,10 +1,10 @@
 import { Collection } from 'discord.js';
-import { CustomClient } from '../types';
-import { errorLog, infoLog, debugLog } from './log';
 import fs from 'fs';
 import path from 'path';
-import Command from '../models/Command';
-import { groupCommands, setCommands } from '../handlers/commandsHandler';
+import { CustomClient } from '@/types';
+import { errorLog, infoLog, debugLog } from '@utils/log';
+import Command from '@models/Command';
+import { groupCommands, setCommands } from '@handlers/commandsHandler';
 
 export async function loadCommandsFromDir(directoryPath: string): Promise<Command[]> {
     try {        

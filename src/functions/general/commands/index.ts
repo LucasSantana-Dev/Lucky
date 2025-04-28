@@ -1,7 +1,7 @@
-import { getCommandsFromDirectory } from '../../../utils/getCommandsFromDirectory';
 import path from 'path';
-import { infoLog, debugLog } from '../../../utils/log';
-import { getDirname } from '../../../utils/pathUtils';
+import { getCommandsFromDirectory } from '@utils/getCommandsFromDirectory';
+import { infoLog, debugLog } from '@utils/log';
+import { getDirname } from '@utils/pathUtils';
 
 async function getGeneralCommands() {
   try {

@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, Interaction, MessageFlags, EmbedBuilder } from 'discord.js';
-import { CustomClient } from '../types/index';
-import { errorLog, infoLog } from '../utils/log';
+import { CustomClient } from '@/types';
+import { errorLog, infoLog } from '@utils/log';
 
 export const name = 'interactionCreate';
 export const once = false;
@@ -26,11 +26,11 @@ export async function execute(interaction: Interaction) {
         try {
             const errorEmbed = new EmbedBuilder()
                 .setColor('#FF0000')
-                .setTitle('❌ Command Not Found')
-                .setDescription(`The command \`/${chatInteraction.commandName}\` does not exist.`)
+                .setTitle('❌ Comando Não Encontrado')
+                .setDescription(`O comando \`/${chatInteraction.commandName}\` não existe.`)
                 .setTimestamp()
                 .setFooter({ 
-                    text: `Requested by ${chatInteraction.user.tag}`,
+                    text: `Solicitado por ${chatInteraction.user.tag}`,
                     iconURL: chatInteraction.user.displayAvatarURL()
                 });
                 
@@ -46,38 +46,18 @@ export async function execute(interaction: Interaction) {
 
     infoLog({ message: `Executing command: ${chatInteraction.commandName}` });
     try {
-        // Let the command handle everything, including deferring if needed
-        await command.execute({ client, interaction: chatInteraction });
-        infoLog({ message: `Command ${chatInteraction.commandName} executed successfully` });
+        await command.execute({ interaction: chatInteraction, client });
     } catch (error) {
-        console.error(error);
-        errorLog({ message: `Error executing command: '${chatInteraction.commandName}'. Error Info:`, error });
-        
-        // Only try to send an error message if the interaction hasn't been replied to yet
-        if (!chatInteraction.replied && !chatInteraction.deferred) {
-            try {
-                const errorMessage = error instanceof Error ? error.message : 'There was an error while executing this command!';
-                
-                const errorEmbed = new EmbedBuilder()
-                    .setColor('#FF0000')
-                    .setTitle('❌ Command Error')
-                    .setDescription(`An error occurred while executing the \`/${chatInteraction.commandName}\` command.`)
-                    .addFields(
-                        { name: 'Error Details', value: `\`\`\`${errorMessage}\`\`\``, inline: false }
-                    )
-                    .setTimestamp()
-                    .setFooter({ 
-                        text: `Requested by ${chatInteraction.user.tag}`,
-                        iconURL: chatInteraction.user.displayAvatarURL()
-                    });
-                    
+        errorLog({ message: `Error executing command ${chatInteraction.commandName}:`, error });
+        try {
+            if (!chatInteraction.replied && !chatInteraction.deferred) {
                 await chatInteraction.reply({ 
-                    embeds: [errorEmbed],
-                    flags: [MessageFlags.Ephemeral]
+                    content: 'Ocorreu um erro ao executar este comando. Por favor, tente novamente mais tarde.',
+                    ephemeral: true 
                 });
-            } catch (replyError) {
-                errorLog({ message: 'Failed to send error message', error: replyError });
             }
+        } catch (replyError) {
+            errorLog({ message: 'Error sending error message:', error: replyError });
         }
     }
 } 

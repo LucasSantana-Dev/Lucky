@@ -4,7 +4,7 @@ import play from 'play-dl';
 import fs from 'fs';
 import { ChatInputCommandInteraction } from 'discord.js';
 import { deleteContent } from './deleteContent';
-import { errorLog, infoLog } from '../../../utils/log';
+import { errorLog, infoLog } from '@utils/log';
 
 interface DownloadAudioParams {
   url: string;

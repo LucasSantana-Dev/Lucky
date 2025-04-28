@@ -1,4 +1,8 @@
-import { ChatInputCommandInteraction, VoiceChannel, GuildMember } from 'discord.js';
+import {
+  ChatInputCommandInteraction,
+  VoiceChannel,
+  GuildMember
+} from 'discord.js';
 import { GuildQueue } from 'discord-player';
 import { CustomClient } from '../types/index';
 

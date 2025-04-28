@@ -2,6 +2,7 @@ import { Collection, ChatInputCommandInteraction } from 'discord.js';
 import { errorLog, infoLog, debugLog } from '../utils/log';
 import { CustomClient } from '../types';
 import Command from '../models/Command';
+import { interactionReply } from './interactionHandler';
 
 interface ExecuteCommandParams {
   interaction: ChatInputCommandInteraction;
@@ -17,33 +18,31 @@ interface GroupCommandsParams {
   commands: Command[];
 }
 
-export async function executeCommand({ interaction, client }: ExecuteCommandParams): Promise<void> {
+export const executeCommand = async ({ interaction, client }: ExecuteCommandParams): Promise<void> => {
   try {
     const command = client.commands.get(interaction.commandName);
-    
     if (!command) {
-      errorLog({ message: `Command not found: ${interaction.commandName}` });
-      await interaction.reply({ 
-        content: 'This command no longer exists.',
-        ephemeral: true 
-      });
+      debugLog({ message: `Command not found: ${interaction.commandName}` });
       return;
     }
 
     debugLog({ message: `Executing command: ${interaction.commandName}` });
     await command.execute({ interaction, client });
-    
   } catch (error) {
     errorLog({ message: `Error executing command ${interaction.commandName}:`, error });
-    const errorMessage = 'There was an error executing this command.';
-    
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: errorMessage, ephemeral: true });
-    } else {
-      await interaction.reply({ content: errorMessage, ephemeral: true });
+    try {
+      await interactionReply({
+        interaction,
+        content: {
+          content: 'Ocorreu um erro ao executar este comando. Por favor, tente novamente mais tarde.',
+          ephemeral: true
+        }
+      });
+    } catch (error) {
+      errorLog({ message: 'Error sending error message:', error });
     }
   }
-}
+};
 
 export async function setCommands({ client, commands }: SetCommandsParams): Promise<void> {
   try {

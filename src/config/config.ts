@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import { config as dotenvConfig } from 'dotenv';
-import { errorLog } from '../utils/log';
+import { errorLog } from '@utils/log';
 
 // Load environment variables
 dotenvConfig();
@@ -44,4 +44,5 @@ export const clearConfigCache = (): void => {
 
 export const constants = {
   VOLUME: 50,
+  MAX_AUTOPLAY_TRACKS: 50, // Maximum number of tracks to autoplay before resetting
 }

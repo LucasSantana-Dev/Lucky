@@ -1,7 +1,7 @@
 import path from 'path';
-import { getCommandsFromDirectory } from '../../../utils/getCommandsFromDirectory';
-import { infoLog, debugLog } from '../../../utils/log';
-import { getDirname } from '../../../utils/pathUtils';
+import { getCommandsFromDirectory } from '@utils/getCommandsFromDirectory';
+import { infoLog, debugLog } from '@utils/log';
+import { getDirname } from '@utils/pathUtils';
 
 async function getMusicCommands() {
   try {

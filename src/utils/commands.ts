@@ -2,7 +2,7 @@ import downloadCommands from '../functions/download/commands/index';
 import generalCommands from '../functions/general/commands/index';
 import { groupCommands } from '../handlers/commandsHandler';
 import musicCommands from '../functions/music/commands/index';
-import { errorLog, infoLog, debugLog } from './log';
+import { errorLog, debugLog } from './log';
 import Command from '../models/Command';
 
 // Export a function that returns a promise of commands
@@ -33,7 +33,6 @@ export const getCommands = async (): Promise<Command[]> => {
       commands: allCommands
     });
     
-    infoLog({ message: `Successfully loaded ${groupedCommands.length} commands` });
     return groupedCommands;
   } catch (error) {
     errorLog({ message: 'Error loading commands:', error });
