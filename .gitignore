@@ -5,5 +5,7 @@ package-lock.json
 dist
 downloads
 
-# Local Netlify folder
-.netlify
+# FFmpeg binaries
+ffmpeg/bin/ffplay.exe
+ffmpeg/bin/ffmpeg.exe
+ffmpeg/bin/ffprobe.exe
