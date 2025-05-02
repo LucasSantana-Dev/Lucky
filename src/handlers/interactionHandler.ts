@@ -16,8 +16,9 @@ import {
 import { errorLog, debugLog } from '../utils/general/log';
 import { executeCommand } from './commandsHandler';
 import { CustomClient } from '../types';
-import { errorEmbed, infoEmbed } from '../utils/general/embeds';
+import { errorEmbed } from '../utils/general/embeds';
 import { messages } from '../utils/general/messages';
+import { interactionReply } from '../utils/general/interactionReply';
 
 interface HandleInteractionsParams {
   client: CustomClient;
@@ -42,20 +43,6 @@ type ReplyableInteraction =
   | ChannelSelectMenuInteraction 
   | RoleSelectMenuInteraction 
   | MentionableSelectMenuInteraction;
-
-// Helper to check if interaction supports reply methods
-const isReplyableInteraction = (interaction: Interaction): interaction is ReplyableInteraction => {
-  return (
-    interaction.isChatInputCommand() ||
-    interaction.isButton() ||
-    interaction.isModalSubmit() ||
-    interaction.isStringSelectMenu() ||
-    interaction.isUserSelectMenu() ||
-    interaction.isChannelSelectMenu() ||
-    interaction.isRoleSelectMenu() ||
-    interaction.isMentionableSelectMenu()
-  );
-};
 
 // Cache for interaction handlers to avoid recreating them
 const interactionHandlers = new Map<InteractionType, (interaction: Interaction) => Promise<void>>();
