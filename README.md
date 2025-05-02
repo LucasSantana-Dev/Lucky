@@ -2,6 +2,10 @@
 
 A modern Discord bot built with TypeScript that plays music from YouTube and Spotify, and can download YouTube videos.
 
+## Up status
+
+[![CI/CD Pipeline](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml/badge.svg)](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml)
+
 ## Features
 
 - 🎵 Play music from YouTube and Spotify
