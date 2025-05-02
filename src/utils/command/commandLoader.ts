@@ -17,9 +17,9 @@ export async function loadCommandsFromDir(directoryPath: string): Promise<Comman
             return [];
         }
         
-        // Get all TypeScript files in the directory
+        // Get all JavaScript or TypeScript files in the directory, but ignore .d.ts files
         const commandFiles = fs.readdirSync(absolutePath)
-            .filter(file => file.endsWith('.ts') || file.endsWith(''));
+            .filter(file => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
 
         debugLog({ message: `Found ${commandFiles.length} command files in ${absolutePath}` });
         

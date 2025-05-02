@@ -34,7 +34,7 @@ export const getCommandsFromDirectory = async ({ url, category }: GetCommandsPar
     
     // Get all JavaScript or TypeScript files in the directory (support dev and prod)
     const commandFiles = fs.readdirSync(absolutePath)
-      .filter(file => file.endsWith('.js') || file.endsWith('.ts'));
+      .filter(file => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
 
     debugLog({ message: `Found ${commandFiles.length} command files in ${absolutePath}` });
     
