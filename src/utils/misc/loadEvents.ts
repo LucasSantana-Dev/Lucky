@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import { readdirSync } from 'fs';
 import { join } from 'path';
-import { CustomClient } from '@/types';
-import { infoLog, errorLog } from '@utils/log';
+import { CustomClient } from '../../types';
+import { infoLog, errorLog } from '../general/log';
 
 export async function loadEvents(client: CustomClient): Promise<void> {
     try {

@@ -7,9 +7,9 @@ import {
   Routes,
   Collection
 } from 'discord.js';
-import { getCommands } from '../utils/commands';
+import { getCommands } from '../utils/command/commands';
 import { config } from '../config/config';
-import { errorLog, infoLog, warnLog, debugLog } from '../utils/log';
+import { errorLog, infoLog, warnLog, debugLog } from '../utils/general/log';
 import { CustomClient } from '../types/index';
 import Command from '../models/Command';
 import { setCommands } from './commandsHandler';

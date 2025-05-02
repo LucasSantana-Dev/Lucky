@@ -1,6 +1,7 @@
 import { Client, Events, Interaction } from 'discord.js';
-import { errorLog, infoLog, debugLog } from '../utils/log';
+import { errorLog, infoLog, debugLog } from '../utils/general/log';
 import { CustomClient } from '../types';
+import { interactionReply } from '../utils/general/interactionReply';
 
 export default function handleEvents(client: Client) {
     // Client Ready Event
@@ -18,9 +19,12 @@ export default function handleEvents(client: Client) {
             if (!command) {
                 infoLog({ message: `Command ${interaction.commandName} not found` });
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ 
-                        content: 'This command is not available.', 
-                        ephemeral: true 
+                    await interactionReply({ 
+                        interaction,
+                        content: {
+                            content: 'This command is not available.', 
+                            ephemeral: true 
+                        }
                     });
                 }
                 return;
@@ -36,14 +40,20 @@ export default function handleEvents(client: Client) {
                 if (!interaction.isChatInputCommand()) return;
                 
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ 
-                        content: 'There was an error while executing this command!', 
-                        ephemeral: true 
+                    await interactionReply({ 
+                        interaction,
+                        content: {
+                            content: 'There was an error while executing this command!', 
+                            ephemeral: true 
+                        }
                     });
                 } else {
-                    await interaction.followUp({ 
-                        content: 'There was an error while executing this command!', 
-                        ephemeral: true 
+                    await interactionReply({ 
+                        interaction,
+                        content: {
+                            content: 'There was an error while executing this command!', 
+                            ephemeral: true 
+                        }
                     });
                 }
             } catch (followUpError) {

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { errorLog, infoLog, debugLog } from '@utils/log';
-import Command from '@models/Command';
+import { errorLog, infoLog, debugLog } from '../general/log';
+import Command from '../../models/Command';
 
 export async function loadCommandsFromDir(directoryPath: string): Promise<Command[]> {
     try {        

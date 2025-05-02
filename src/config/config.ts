@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import { config as dotenvConfig } from 'dotenv';
-import { errorLog } from '@utils/log';
+import { errorLog } from '../utils/general/log';
 
 // Load environment variables
 dotenvConfig();
@@ -9,6 +9,8 @@ dotenvConfig();
 let configCache: {
   TOKEN: string | undefined;
   CLIENT_ID: string | undefined;
+  COMMANDS_DISABLED: string[];
+  COMMAND_CATEGORIES_DISABLED: string[];
 } | null = null;
 
 export const config = () => {
@@ -20,6 +22,10 @@ export const config = () => {
   const token = process.env.TOKEN || process.env.DISCORD_TOKEN;
   const clientId = process.env.CLIENT_ID;
   
+  // Parse disabled commands and categories from env
+  const commandsDisabled = (process.env.COMMANDS_DISABLED || '').split(',').map(s => s.trim()).filter(Boolean);
+  const commandCategoriesDisabled = (process.env.COMMAND_CATEGORIES_DISABLED || '').split(',').map(s => s.trim()).filter(Boolean);
+
   if (!token) {
     errorLog({ message: 'TOKEN or DISCORD_TOKEN is not defined in environment variables' });
   }
@@ -31,7 +37,9 @@ export const config = () => {
   // Cache the config
   configCache = {
     TOKEN: token,
-    CLIENT_ID: clientId
+    CLIENT_ID: clientId,
+    COMMANDS_DISABLED: commandsDisabled,
+    COMMAND_CATEGORIES_DISABLED: commandCategoriesDisabled
   };
   
   return configCache;

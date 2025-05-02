@@ -13,19 +13,10 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@models/*": ["src/models/*"],
-      "@utils/*": ["src/utils/*"],
-      "@handlers/*": ["src/handlers/*"],
-      "@functions/*": ["src/functions/*"],
-      "@config/*": ["src/config/*"],
-      "@types/*": ["src/types/*"]
-    },
     "allowJs": true,
     "noImplicitAny": false
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/register.ts"],
   "exclude": ["node_modules", "dist"],
   "ts-node": {
     "esm": true,

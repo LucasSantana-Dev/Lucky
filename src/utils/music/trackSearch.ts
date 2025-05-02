@@ -1,6 +1,8 @@
 import { Track, QueryType, GuildQueue, SearchQueryType } from 'discord-player';
-import { debugLog, errorLog } from './log';
+import { User } from 'discord.js';
+import { debugLog, errorLog } from '../general/log';
 import { isDuplicateTrack, getArtistInfo, TrackMetadata } from './duplicateDetection';
+import { youtubePatterns, spotifyPatterns } from '../../config/titlePatterns';
 
 /**
  * Build a search query based on track metadata
@@ -8,12 +10,7 @@ import { isDuplicateTrack, getArtistInfo, TrackMetadata } from './duplicateDetec
 function buildRelatedQuery(metadata: TrackMetadata): string {
   const queryParts: string[] = [];
   
-  // Add artist name
-  if (metadata.artist) {
-    queryParts.push(metadata.artist);
-  }
-  
-  // Add up to 2 genre tags if available
+  // Always include up to 2 genre tags if available
   const genreTags = metadata.tags.filter(tag => 
     ['rock', 'pop', 'jazz', 'blues', 'country', 'folk', 'rap', 'hip hop',
      'metal', 'classical', 'electronic', 'dance', 'reggae', 'samba', 'forro',
@@ -21,6 +18,11 @@ function buildRelatedQuery(metadata: TrackMetadata): string {
   );
   if (genreTags.length > 0) {
     queryParts.push(...genreTags.slice(0, 2));
+  }
+  
+  // 55% chance to include artist if present
+  if (metadata.artist && Math.random() < 0.55) {
+    queryParts.unshift(metadata.artist); // put artist at the start
   }
   
   // Add "ao vivo" or "acustico" if present in tags
@@ -41,14 +43,14 @@ export async function searchTracks(
   queue: GuildQueue, 
   query: string, 
   searchEngine: SearchQueryType = QueryType.YOUTUBE_SEARCH,
-  requestedBy?: any
+  requestedBy?: User
 ): Promise<Track[]> {
   try {
     debugLog({ message: `Searching for tracks with query: ${query}` });
     
     // Search for tracks
     const searchResult = await queue.player.search(query, {
-      requestedBy: requestedBy || (queue.metadata as any).requestedBy,
+      requestedBy: requestedBy || (queue.metadata as { requestedBy?: User }).requestedBy,
       searchEngine
     });
     
@@ -158,8 +160,17 @@ export async function searchRelatedTracks(
       // If same number of common tags, sort by views
       return (b.views || 0) - (a.views || 0);
     });
-    
-    return sortedTracks;
+
+    // Filter out tracks that match any YouTube or Spotify variant pattern in the title
+    const filteredTracks = sortedTracks.filter(track => {
+      const title = track.title.toLowerCase();
+      // Exclude if matches any YouTube or Spotify variant pattern
+      const isVariant = youtubePatterns.some(pattern => pattern.test(title)) ||
+                        spotifyPatterns.some(pattern => pattern.test(title));
+      return !isVariant;
+    });
+
+    return filteredTracks;
   } catch (error) {
     errorLog({ message: 'Error searching for related tracks:', error });
     return [];

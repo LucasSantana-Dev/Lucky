@@ -1,7 +1,7 @@
 import { QueryType } from "discord-player";
 import { ChatInputCommandInteraction } from 'discord.js';
-import { CustomClient } from '@/types';
-import { errorLog, debugLog } from '@utils/log';
+import { CustomClient } from '../../types';
+import { errorLog, debugLog } from '../general/log';
 
 interface SearchContentParams {
   client: CustomClient;

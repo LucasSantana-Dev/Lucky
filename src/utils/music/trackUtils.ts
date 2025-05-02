@@ -1,5 +1,5 @@
 import { Track } from 'discord-player';
-import { debugLog, errorLog } from './log';
+import { errorLog } from '../general/log';
 import { isSimilarTitle } from './titleComparison';
 
 // Type definitions
@@ -32,10 +32,10 @@ const trackInfoCache = new Map<CacheKey, CacheValue>();
  * Type guard to check if a value is a valid track
  */
 function isValidTrack(track: unknown): track is Track {
-    return track !== null && 
-           typeof track === 'object' && 
-           'title' in track && 
-           'duration' in track;
+    return track !== null &&
+        typeof track === 'object' &&
+        'title' in track &&
+        'duration' in track;
 }
 
 /**
@@ -107,7 +107,7 @@ export function formatDuration(duration: string | number): string {
 
     try {
         let totalSeconds: number;
-        
+
         if (typeof duration === 'string') {
             // Handle duration in format "HH:MM:SS" or "MM:SS"
             const parts = duration.split(':').map(Number);
@@ -156,8 +156,8 @@ export function isDuplicateTrack(newTrack: Track, existingTracks: Track[]): bool
     }
 
     try {
-        return existingTracks.some(existingTrack => 
-            isValidTrack(existingTrack) && 
+        return existingTracks.some(existingTrack =>
+            isValidTrack(existingTrack) &&
             isSimilarTitle(newTrack.title || '', existingTrack.title || '')
         );
     } catch (error) {

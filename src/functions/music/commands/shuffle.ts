@@ -1,34 +1,33 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import Command from '../../../models/Command';
 import { interactionReply } from '../../../utils/general/interactionReply';
+import { errorEmbed, successEmbed } from '../../../utils/general/embeds';
+import { requireGuild, requireQueue, requireCurrentTrack } from '../../../utils/command/commandValidations';
 import { CommandExecuteParams } from '../../../types/CommandData';
-import { requireQueue } from '../../../utils/command/commandValidations';
 
 export default new Command({
     data: new SlashCommandBuilder()
-        .setName("pause")
-        .setDescription("⏸️ Pausa a música atual."),
+        .setName('shuffle')
+        .setDescription('🔀 Embaralha a fila de músicas.'),
     execute: async ({ client, interaction }: CommandExecuteParams) => {
+        if (!(await requireGuild(interaction))) return;
         const queue = client.player.nodes.get(interaction.guildId!);
-
         if (!(await requireQueue(queue, interaction))) return;
-
-        if (queue!.node.isPaused()) {
+        if (!(await requireCurrentTrack(queue, interaction))) return;
+        if (queue!.tracks.size < 2) {
             await interactionReply({
                 interaction,
                 content: {
-                    content: "⏸️ A música já está pausada."
+                    embeds: [errorEmbed('Erro', '🔀 A fila precisa ter pelo menos 2 músicas para ser embaralhada!')]
                 }
             });
             return;
         }
-
-        queue!.node.pause();
-
+        queue!.tracks.shuffle();
         await interactionReply({
             interaction,
             content: {
-                content: "⏸️ A música foi pausada."
+                embeds: [successEmbed('Fila embaralhada', '🔀 A fila de músicas foi embaralhada com sucesso!')]
             }
         });
     }

@@ -1,9 +1,9 @@
-import downloadCommands from '../functions/download/commands/index';
-import generalCommands from '../functions/general/commands/index';
-import { groupCommands } from '../handlers/commandsHandler';
-import musicCommands from '../functions/music/commands/index';
-import { errorLog, debugLog } from './log';
-import Command from '../models/Command';
+import downloadCommands from '../../functions/download/commands/index';
+import generalCommands from '../../functions/general/commands/index';
+import { groupCommands } from '../../handlers/commandsHandler';
+import musicCommands from '../../functions/music/commands/index';
+import { errorLog, debugLog } from '../general/log';
+import Command from '../../models/Command';
 
 // Export a function that returns a promise of commands
 export const getCommands = async (): Promise<Command[]> => {
@@ -12,9 +12,9 @@ export const getCommands = async (): Promise<Command[]> => {
     
     // Load commands from each category in parallel
     const [downloadCommandsList, generalCommandsList, musicCommandsList] = await Promise.all([
-      downloadCommands,
-      generalCommands,
-      musicCommands
+      downloadCommands(),
+      generalCommands(),
+      musicCommands()
     ]);
 
     debugLog({ 

@@ -1,7 +1,10 @@
+import { Collection } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
-import { errorLog, infoLog, debugLog } from '@utils/log';
-import Command from '@models/Command';
+import { CustomClient } from '../../types';
+import { errorLog, infoLog, debugLog } from '../general/log';
+import Command from '../../models/Command';
+import { groupCommands, setCommands } from '../../handlers/commandsHandler';
 
 export async function loadCommandsFromDir(directoryPath: string): Promise<Command[]> {
     try {        
@@ -17,33 +20,41 @@ export async function loadCommandsFromDir(directoryPath: string): Promise<Comman
             return [];
         }
         
-        // Get all TypeScript files in the directory
+        // Get all JavaScript files in the directory (ignore .d.ts and other files)
         const commandFiles = fs.readdirSync(absolutePath)
-            .filter(file => file.endsWith('.ts') || file.endsWith(''));
+            .filter(file => file.endsWith('.js'));
 
         debugLog({ message: `Found ${commandFiles.length} command files in ${absolutePath}` });
         
         // Filter out index files
         const filteredCommandFiles = commandFiles.filter(file => 
-            file !== 'index.ts' && file !== 'index'
+            file !== 'index.js' && file !== 'index'
         );
 
         debugLog({ message: `Filtered to ${filteredCommandFiles.length} command files (excluding index files)` });
 
-        // Load commands using dynamic import
+        // Load commands synchronously
         const commands: Command[] = [];
         for (const file of filteredCommandFiles) {
             try {
                 const filePath = path.join(absolutePath, file);
                 debugLog({ message: `Loading command from: ${filePath}` });
                 
-                // Use dynamic import for ESM modules
+                // Pre-import log
+                console.error('About to import:', filePath);
+                // Use dynamic import for both TypeScript and JavaScript files
                 const commandModule = await import(filePath);
-                
-                // Try to get the command from either default export or named export
+                // Debug logging
+                console.error('Imported command module:', commandModule);
                 const command = commandModule.default || commandModule.command;
+                console.error('Extracted command:', command);
                 
-                if (command instanceof Command) {
+                if (
+                  command &&
+                  typeof command === 'object' &&
+                  typeof command.data === 'object' &&
+                  typeof command.execute === 'function'
+                ) {
                     debugLog({ message: `Successfully loaded command: ${command.data.name} from ${file}` });
                     commands.push(command);
                 } else {
@@ -51,13 +62,8 @@ export async function loadCommandsFromDir(directoryPath: string): Promise<Comman
                 }
             } catch (error) {
                 errorLog({ message: `Error loading command from ${file}:`, error });
+                console.error('Error details:', error);
             }
         }
 
-        infoLog({ message: `Successfully loaded ${commands.length} commands from ${absolutePath}` });
-        return commands;
-    } catch (error) {
-        errorLog({ message: 'Error getting commands from directory:', error });
-        return [];
-    }
-} 
+        infoLog({ message: `

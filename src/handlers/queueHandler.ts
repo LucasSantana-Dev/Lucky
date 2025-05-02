@@ -4,7 +4,7 @@ import {
   GuildMember
 } from 'discord.js';
 import { GuildQueue } from 'discord-player';
-import { CustomClient } from '../types/index';
+import { CustomClient } from '../types';
 
 interface CreateQueueParams {
   client: CustomClient;

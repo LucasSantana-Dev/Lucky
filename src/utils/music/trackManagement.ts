@@ -1,8 +1,7 @@
 import { Track, GuildQueue } from 'discord-player';
-import { debugLog, errorLog, infoLog } from './log';
+import { debugLog, errorLog, infoLog } from '../general/log';
 import { 
   isDuplicateTrack, 
-  getArtistInfo, 
   clearHistory,
   recentlyPlayedTracks,
   TrackHistoryEntry
@@ -10,7 +9,6 @@ import {
 import {
   searchRelatedTracks,
   filterDuplicateTracks,
-  sortTracksByViews,
   getCurrentTrackIds
 } from './trackSearch';
 

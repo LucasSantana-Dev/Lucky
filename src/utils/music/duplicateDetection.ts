@@ -1,5 +1,5 @@
 import { Track } from 'discord-player';
-import { debugLog } from './log';
+import { debugLog } from '../general/log';
 
 // Interface for track history entry
 export interface TrackHistoryEntry {

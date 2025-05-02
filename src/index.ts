@@ -1,14 +1,14 @@
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
+import { Player, GuildQueue, Track } from 'discord-player';
 import { config } from 'dotenv';
-import { errorLog, infoLog, debugLog, setLogLevel, LogLevel } from '@utils/log';
-import { createClient, startClient, mapGuildIds } from '@handlers/clientHandler';
-import { createPlayer } from '@handlers/playerHandler';
-import { setCommands } from '@handlers/commandsHandler';
-import { getCommands } from '@utils/commands';
-import { Player } from 'discord-player';
-import handleEvents from '@handlers/eventHandler';
-import { CustomClient } from '@/types';
-import Command from '@models/Command';
+import { errorLog, infoLog, debugLog, setLogLevel, LogLevel } from './utils/general/log';
+import { createClient, startClient, mapGuildIds } from './handlers/clientHandler';
+import { createPlayer } from './handlers/playerHandler';
+import { setCommands } from './handlers/commandsHandler';
+import { getCommands } from './utils/command/commands';
+import handleEvents from './handlers/eventHandler';
+import { CustomClient } from './types';
+import Command from './models/Command';
 
 // Load environment variables
 const result = config();
@@ -59,13 +59,13 @@ if (!token) {
 }
 
 debugLog({ message: `Token length: ${token.length}` });
-client.login(token)
-    .then(() => {
-        infoLog({ message: 'Bot is ready!' });
-    })
-    .catch((error) => {
-        errorLog({ message: 'Error logging in:', error });
-    });
+// client.login(token)
+//     .then(() => {
+//         infoLog({ message: 'Bot is ready!' });
+//     })
+//     .catch((error) => {
+//         errorLog({ message: 'Error logging in:', error });
+//     });
 
 // Start the bot
 async function start() {
@@ -123,44 +123,45 @@ async function start() {
         ]);
 
         // Initialize player events
-        player.events.on('playerStart', (queue: any, track: any) => {
+        player.events.on('playerStart', (queue: GuildQueue, track: Track) => {
             debugLog({ message: `Started playing: ${track.title}` });
         });
 
-        player.events.on('error', (queue: any, error: Error) => {
+        player.events.on('error', (queue: GuildQueue, error: Error) => {
             errorLog({ message: `Player error: ${error.message}` });
         });
 
-        // Set commands in client collection and register with Discord API
-        if (commandList.length > 0) {
-            try {
-                // Set commands in client collection
-                const setCommandsStartTime = Date.now();
-                debugLog({ message: 'Setting commands in client collection...' });
-                await setCommands({ client, commands: commandList });
-                debugLog({ message: `Setting commands took ${Date.now() - setCommandsStartTime}ms` });
+        // Register commands only after client is ready
+        client.once('ready', async () => {
+            if (commandList.length > 0) {
+                try {
+                    // Set commands in client collection
+                    const setCommandsStartTime = Date.now();
+                    debugLog({ message: 'Setting commands in client collection...' });
+                    await setCommands({ client, commands: commandList });
+                    debugLog({ message: `Setting commands took ${Date.now() - setCommandsStartTime}ms` });
 
-                // Register commands with Discord API
-                const registerCommandsStartTime = Date.now();
-                debugLog({ message: 'Registering commands with Discord API...' });
-                await mapGuildIds({ client });
-                debugLog({ message: `Registering commands took ${Date.now() - registerCommandsStartTime}ms` });
+                    // Register commands with Discord API
+                    const registerCommandsStartTime = Date.now();
+                    debugLog({ message: 'Registering commands with Discord API...' });
+                    await mapGuildIds({ client });
+                    debugLog({ message: `Registering commands took ${Date.now() - registerCommandsStartTime}ms` });
 
-                // Verify commands were loaded
-                const commandCount = client.commands.size;
-                infoLog({ message: `Loaded ${commandCount} commands into client collection` });
+                    // Verify commands were loaded
+                    const commandCount = client.commands.size;
+                    infoLog({ message: `Loaded ${commandCount} commands into client collection` });
 
-                if (commandCount === 0) {
-                    errorLog({ message: 'No commands were loaded! This is a critical error.' });
+                    if (commandCount === 0) {
+                        errorLog({ message: 'No commands were loaded! This is a critical error.' });
+                    }
+                } catch (error) {
+                    errorLog({ message: 'Error setting commands:', error });
                 }
-            } catch (error) {
-                errorLog({ message: 'Error setting commands:', error });
+            } else {
+                errorLog({ message: 'No commands were loaded! This is a critical error.' });
             }
-        } else {
-            errorLog({ message: 'No commands were loaded! This is a critical error.' });
-        }
-
-        infoLog({ message: `Bot initialization completed successfully in ${Date.now() - startTime}ms` });
+            infoLog({ message: `Bot initialization completed successfully in ${Date.now() - startTime}ms` });
+        });
     } catch (error) {
         errorLog({ message: 'Critical error starting bot:', error });
         process.exit(1);

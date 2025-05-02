@@ -1,51 +1,40 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { ChatInputCommandInteraction } from 'discord.js';
-import { CustomClient } from '@/types';
-import { debugLog, errorLog } from '@/utils/log';
-import { interactionReply } from '@/utils/interactionReply';
-import Command from '@/models/Command';
-import { errorEmbed, queueEmbed } from '@/utils/embeds';
 import { Track } from 'discord-player';
-import { getTrackInfo } from '@/utils/trackUtils';
-import { isSimilarTitle } from '@/utils/titleComparison';
+import { debugLog, errorLog } from '../../../utils/general/log';
+import { interactionReply } from '../../../utils/general/interactionReply';
+import Command from '../../../models/Command';
+import { createEmbed, EMBED_COLORS, EMOJIS } from '../../../utils/general/embeds';
+import { getTrackInfo } from '../../../utils/music/trackUtils';
+import { isSimilarTitle } from '../../../utils/music/titleComparison';
+import { requireGuild, requireQueue } from '../../../utils/command/commandValidations';
+import { CommandExecuteParams } from '../../../types/CommandData';
+import { messages } from '../../../utils/general/messages';
+import { ColorResolvable } from 'discord.js';
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('queue')
-        .setDescription('📋 Mostra a fila de música atual') as SlashCommandBuilder,
-    execute: async ({ client, interaction }: { client: CustomClient; interaction: ChatInputCommandInteraction }): Promise<void> => {
+        .setDescription('📋 Mostra a fila de música atual'),
+    execute: async ({ client, interaction }: CommandExecuteParams): Promise<void> => {
+        if (!(await requireGuild(interaction))) return;
+
+        const queue = client.player.nodes.get(interaction.guildId!);
+        if (!(await requireQueue(queue, interaction))) return;
+
         try {
-            if (!interaction.guildId) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [errorEmbed('Erro', 'Este comando só pode ser usado em um servidor!')],
-                        ephemeral: true
-                    }
-                });
-                return;
-            }
-
-            const queue = client.player.nodes.get(interaction.guildId);
-            if (!queue) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [errorEmbed('Fila vazia', 'Não há música tocando no momento!')],
-                        ephemeral: true
-                    }
-                });
-                return;
-            }
-
             debugLog({ message: 'Queue status', data: { queueExists: !!queue } });
 
             // Create the queue embed
-            const embed = queueEmbed('Fila de Música');
+            const embed = createEmbed({
+                title: 'Fila de Música',
+                color: EMBED_COLORS.QUEUE as ColorResolvable,
+                emoji: EMOJIS.QUEUE,
+                timestamp: true
+            });
 
             // Add current track information
             try {
-                const currentTrack = queue.currentTrack;
+                const currentTrack = queue!.currentTrack;
                 if (currentTrack) {
                     const trackInfo = getTrackInfo(currentTrack);
                     const isAutoplay = currentTrack.requestedBy?.id === client.user?.id;
@@ -53,7 +42,7 @@ export default new Command({
                     
                     // Get next track information
                     let nextTrackInfo = '';
-                    const nextTrack = queue.tracks.at(0);
+                    const nextTrack = queue!.tracks.at(0);
                     if (nextTrack) {
                         const nextTrackData = getTrackInfo(nextTrack);
                         const isNextAutoplay = nextTrack.requestedBy?.id === client.user?.id;
@@ -75,7 +64,7 @@ export default new Command({
                 errorLog({ message: 'Error processing current track:', error: currentTrackError });
                 embed.addFields({
                     name: '▶️ Tocando Agora',
-                    value: 'Erro ao processar a música atual'
+                    value: messages.error.noTrack
                 });
             }
 
@@ -87,10 +76,10 @@ export default new Command({
                 const autoplayTracks: Track[] = [];
 
                 // Safely iterate through tracks
-                if (queue.tracks) {
+                if (queue!.tracks) {
                     try {
                         // Use the correct method to get tracks
-                        const trackArray = queue.tracks.toArray();
+                        const trackArray = queue!.tracks.toArray();
                         debugLog({ message: 'Track array length', data: { length: trackArray.length } });
                         
                         // First, separate tracks into manual and autoplay
@@ -133,16 +122,16 @@ export default new Command({
                         }
 
                         // Clear the current queue
-                        queue.tracks.clear();
+                        queue!.tracks.clear();
 
                         // Add manual tracks first
                         for (const track of manualTracks) {
-                            queue.tracks.add(track);
+                            queue!.tracks.add(track);
                         }
 
                         // Then add autoplay tracks
                         for (const track of autoplayTracks) {
-                            queue.tracks.add(track);
+                            queue!.tracks.add(track);
                         }
 
                     } catch (arrayError) {
@@ -219,9 +208,9 @@ export default new Command({
 
                 // Add queue statistics
                 try {
-                    const repeatMode = queue.repeatMode ? 'Ativado' : 'Desativado';
-                    const volume = queue.node.volume || 100;
-                    const trackCount = queue.tracks?.size || 0;
+                    const repeatMode = queue!.repeatMode ? 'Ativado' : 'Desativado';
+                    const volume = queue!.node.volume || 100;
+                    const trackCount = queue!.tracks?.size || 0;
                     const manualCount = manualTracks.length;
                     const autoplayCount = autoplayTracks.length;
 
@@ -236,7 +225,7 @@ export default new Command({
                 errorLog({ message: 'Error processing tracks list:', error: tracksError });
                 embed.addFields({
                     name: '📑 Próximas Músicas',
-                    value: 'Erro ao processar a lista de músicas'
+                    value: messages.error.noTrack
                 });
             }
 
@@ -246,15 +235,20 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [embed]
-                }
+                    embeds: [embed],
+                },
             });
         } catch (error) {
             errorLog({ message: 'Error in queue command:', error });
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Erro', 'Ocorreu um erro ao tentar mostrar a fila!')],
+                    embeds: [createEmbed({
+                        title: 'Erro',
+                        description: messages.error.noQueue,
+                        color: EMBED_COLORS.ERROR as ColorResolvable,
+                        emoji: EMOJIS.ERROR
+                    })],
                     ephemeral: true
                 }
             });

@@ -1,6 +1,6 @@
 import { Client } from 'discord.js';
 import chalk from 'chalk';
-import { infoLog } from '../utils/log';
+import { infoLog } from '../utils/general/log';
 
 export const name = 'ready';
 export const once = true;

@@ -1,15 +1,13 @@
-import { ChatInputCommandInteraction } from 'discord.js';
-import { SlashCommandBuilder, SlashCommandSubcommandsOnlyBuilder } from '@discordjs/builders';
-import { CustomClient } from '@/types';
+import { CommandData, CommandExecute } from '../types/CommandData';
 
 interface CommandOptions {
-  data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
-  execute: (options: { client: CustomClient; interaction: ChatInputCommandInteraction }) => Promise<void>;
+  data: CommandData;
+  execute: CommandExecute;
 }
 
 export default class Command {
-  data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
-  execute: (options: { client: CustomClient; interaction: ChatInputCommandInteraction }) => Promise<void>;
+  data: CommandData;
+  execute: CommandExecute;
 
   constructor(options: CommandOptions) {
     this.data = options.data;

@@ -10,24 +10,17 @@ import {
   ChannelSelectMenuInteraction,
   RoleSelectMenuInteraction,
   MentionableSelectMenuInteraction,
-  InteractionType
+  InteractionType,
+  EmbedBuilder
 } from 'discord.js';
-import { errorLog, debugLog } from '../utils/log';
+import { errorLog, debugLog } from '../utils/general/log';
 import { executeCommand } from './commandsHandler';
 import { CustomClient } from '../types';
-import { errorEmbed, infoEmbed } from '../utils/embeds';
+import { errorEmbed, infoEmbed } from '../utils/general/embeds';
+import { messages } from '../utils/general/messages';
 
 interface HandleInteractionsParams {
   client: CustomClient;
-}
-
-interface InteractionReplyOptions {
-  interaction: Interaction;
-  content: {
-    content?: string;
-    ephemeral?: boolean;
-    embeds?: any[];
-  };
 }
 
 interface InteractionGetOptionParams {
@@ -98,40 +91,6 @@ export const handleInteractions = async ({ client }: HandleInteractionsParams): 
   }
 };
 
-export const interactionReply = async ({ interaction, content }: InteractionReplyOptions): Promise<void> => {
-  try {
-    if (!isReplyableInteraction(interaction)) {
-      debugLog({ message: 'Interaction does not support reply methods' });
-      return;
-    }
-
-    // Convert plain text content to embed if no embeds are provided
-    if (content.content && (!content.embeds || content.embeds.length === 0)) {
-      // Create appropriate embed based on content
-      const embed = content.content.toLowerCase().includes('erro') 
-        ? errorEmbed('Erro', content.content)
-        : infoEmbed('Informação', content.content);
-      
-      content.embeds = [embed];
-      content.content = ''; // Clear the content since we're using an embed
-    }
-
-    if (interaction.isChatInputCommand()) {
-      if (interaction.replied) {
-        await interaction.followUp(content);
-      } else if (interaction.deferred) {
-        await interaction.editReply(content);
-      } else {
-        await interaction.reply(content);
-      }
-    } else {
-      await interaction.reply(content);
-    }
-  } catch (error) {
-    errorLog({ message: 'Error sending interaction reply:', error });
-  }
-};
-
 export const interactionGetAllOptions = async ({ interaction }: { interaction: ChatInputCommandInteraction }): Promise<Omit<CommandInteractionOptionResolver, "getMessage" | "getFocused">> => {
   try {
     return interaction.options;
@@ -171,7 +130,7 @@ export async function handleInteraction(interaction: Interaction, client: Custom
         await interactionReply({
           interaction,
           content: {
-            embeds: [errorEmbed('Erro', 'Ocorreu um erro ao executar este comando. Por favor, tente novamente mais tarde.')],
+            embeds: [errorEmbed('Erro', messages.error.generic)],
             ephemeral: true
           }
         });

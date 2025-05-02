@@ -1,7 +1,7 @@
 import { Player, Track, GuildQueue } from "discord-player";
 import { YoutubeiExtractor } from "discord-player-youtubei";
 import { CustomClient } from '../types/index';
-import { errorLog, infoLog, debugLog } from '../utils/log';
+import { errorLog, infoLog, debugLog } from '../utils/general/log';
 import { constants } from '../config/config';
 import { QueueRepeatMode } from "discord-player";
 import { QueryType } from "discord-player";
@@ -11,12 +11,14 @@ import {
   isDuplicateTrack, 
   getArtistInfo, 
   clearHistory 
-} from '../utils/duplicateDetection';
+} from '../utils/music/duplicateDetection';
 import {
   addTrackToQueue,
   addTracksToQueue,
   replenishQueue
-} from '../utils/trackManagement';
+} from '../utils/music/trackManagement';
+import { createEmbed, EMBED_COLORS, EMOJIS } from '../utils/general/embeds';
+import { ColorResolvable } from 'discord.js';
 
 // Define the metadata interface
 interface QueueMetadata {
@@ -316,36 +318,27 @@ export const createPlayer = ({ client }: CreatePlayerParams): Player => {
       try {
         const metadata = queue.metadata as QueueMetadata;
         if (metadata && metadata.channel) {
-          const embed = new EmbedBuilder()
-            .setColor('#3F51B5')
-            .setTitle('🎵 Tocando Agora')
-            .setDescription(`**${track.title}** por **${track.author}**`)
-            .setTimestamp();
-            
-            if (track.thumbnail) {
-              embed.setThumbnail(track.thumbnail);
-            }
-            
-            // Check if this is an autoplay track
-            const isAutoplay = queue.repeatMode === QueueRepeatMode.AUTOPLAY && 
-                              autoplayCounters.has(queue.guild.id) && 
-                              autoplayCounters.get(queue.guild.id)! > 0;
-            
-            if (isAutoplay) {
-              embed.setFooter({ 
-                text: `Autoplay • ${autoplayCounters.get(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS || 50} músicas` 
-              });
-            }
-            
-            // Always send a new message
-            const message = await metadata.channel.send({ embeds: [embed] });
-            
-            // Store the message ID and channel ID for reference
-            const guildId = queue.guild.id;
-            songInfoMessages.set(guildId, {
-              messageId: message.id,
-              channelId: metadata.channel.id
-            });
+          const isAutoplay = track.requestedBy?.id === client.user?.id;
+
+          const embed = createEmbed({
+            title: 'Tocando Agora',
+            description: `[**${track.title}**](${track.url}) por **${track.author}**`,
+            color: EMBED_COLORS.MUSIC as ColorResolvable,
+            emoji: EMOJIS.MUSIC,
+            thumbnail: track.thumbnail,
+            timestamp: true,
+            footer: isAutoplay ? `Autoplay • ${autoplayCounters.get(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS || 50} músicas` : undefined
+          });
+          
+          // Always send a new message
+          const message = await metadata.channel.send({ embeds: [embed] });
+          
+          // Store the message ID and channel ID for reference
+          const guildId = queue.guild.id;
+          songInfoMessages.set(guildId, {
+            messageId: message.id,
+            channelId: metadata.channel.id
+          });
         }
       } catch (error) {
         errorLog({ message: 'Error sending track message:', error });

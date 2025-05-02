@@ -1,4 +1,5 @@
-import { errorLog } from './log';
+import { Track } from 'discord-player';
+import { errorLog } from '../general/log';
 
 // Helper function to format duration
 export const formatDuration = (duration: string): string => {
@@ -17,7 +18,7 @@ export const formatDuration = (duration: string): string => {
 };
 
 // Helper function to safely get track properties
-export const getTrackInfo = (track: any) => {
+export const getTrackInfo = (track: Track) => {
     try {
         return {
             title: track?.title || 'Música desconhecida',

@@ -1,8 +1,9 @@
 import { Collection, ChatInputCommandInteraction } from 'discord.js';
-import { errorLog, infoLog, debugLog } from '../utils/log';
+import { errorLog, infoLog, debugLog } from '../utils/general/log';
 import { CustomClient } from '../types';
 import Command from '../models/Command';
-import { interactionReply } from './interactionHandler';
+import { interactionReply } from '../utils/general/interactionReply';
+import { messages } from '../utils/general/messages';
 
 interface ExecuteCommandParams {
   interaction: ChatInputCommandInteraction;
@@ -34,7 +35,7 @@ export const executeCommand = async ({ interaction, client }: ExecuteCommandPara
       await interactionReply({
         interaction,
         content: {
-          content: 'Ocorreu um erro ao executar este comando. Por favor, tente novamente mais tarde.',
+          content: messages.error.generic,
           ephemeral: true
         }
       });

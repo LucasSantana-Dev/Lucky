@@ -1,8 +1,10 @@
 import { Track } from "discord-player";
 import { ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { errorLog } from '../../../../utils/log';
-import { searchContentOnYoutube } from '../../../../utils/searchContentOnYoutube';
+import { errorLog } from '../../../../utils/general/log';
+import { searchContentOnYoutube } from '../../../../utils/search/searchContentOnYoutube';
 import { CustomClient } from '../../../../types';
+import { messages } from '../../../../utils/general/messages';
+import { interactionReply } from '../../../../utils/general/interactionReply';
 
 interface Queue {
   addTrack: (track: Track<unknown>) => void;
@@ -37,12 +39,15 @@ export const handlePlay = async ({
   errorLog({message: `Query: ${query}`});
 
   if (!query) {
-    await interaction.editReply({
-      embeds: [
-        embed
-          .setColor("Red")
-          .setDescription("❌ Você precisa fornecer um termo de busca ou URL.")
-      ]
+    await interactionReply({
+      interaction,
+      content: {
+        embeds: [
+          embed
+            .setColor("Red")
+            .setDescription(messages.error.noQuery)
+        ]
+      }
     });
     return;
   }
@@ -56,12 +61,15 @@ export const handlePlay = async ({
     });
 
     if (!searchResult || !searchResult.tracks || searchResult.tracks.length === 0) {
-      await interaction.editReply({
-        embeds: [
-          embed
-            .setColor("Red")
-            .setDescription("❌ Nenhum resultado encontrado.")
-        ]
+      await interactionReply({
+        interaction,
+        content: {
+          embeds: [
+            embed
+              .setColor("Red")
+              .setDescription(messages.error.noResult)
+          ]
+        }
       });
       return;
     }
@@ -81,15 +89,21 @@ export const handlePlay = async ({
       .setDescription(`✅ Adicionado à fila: **${track.title}**`)
       .setThumbnail(track.thumbnail);
 
-    await interaction.editReply({ embeds: [embed] });
+    await interactionReply({
+      interaction,
+      content: { embeds: [embed] }
+    });
   } catch (error) {
     errorLog({message: `Error in handlePlay: ${error}`});
-    await interaction.editReply({
-      embeds: [
-        embed
-          .setColor("Red")
-          .setDescription("❌ Ocorreu um erro ao processar sua solicitação.")
-      ]
+    await interactionReply({
+      interaction,
+      content: {
+        embeds: [
+          embed
+            .setColor("Red")
+            .setDescription(messages.error.generic)
+        ]
+      }
     });
   }
 }; 

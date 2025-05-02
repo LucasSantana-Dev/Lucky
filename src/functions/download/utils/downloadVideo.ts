@@ -4,7 +4,8 @@ import play from 'play-dl';
 import fs from 'fs';
 import { ChatInputCommandInteraction } from 'discord.js';
 import { deleteContent } from './deleteContent';
-import { errorLog, infoLog } from '@utils/log';
+import { errorLog, infoLog } from '../../../utils/general/log';
+import { interactionReply } from '../../../utils/general/interactionReply';
 
 interface DownloadVideoParams {
   url: string;
@@ -34,9 +35,7 @@ export const downloadVideo = async ({
     const videoLength = videoInfo.videoDetails.lengthSeconds;
 
     if (videoLength > 600) {
-      await interaction.editReply({
-        content: "Only videos under 10 minutes can be downloaded.",
-      });
+      await interactionReply({ interaction, content: { content: "Only videos under 10 minutes can be downloaded." } });
       return errorLog({ message: 'Video length is higher than 10 minutes.', error: null });
     }
 
@@ -177,10 +176,7 @@ export const downloadVideo = async ({
     if (fs.existsSync(videoPath)) await deleteContent(videoPath);
     if (fs.existsSync(audioPath)) await deleteContent(audioPath);
 
-    await interaction.editReply({
-      content: "Downloading the video...",
-      files: [outputPath]
-    });
+    await interactionReply({ interaction, content: { content: "Downloading the video...", files: [outputPath] } });
 
     // Clean up streams
     audioStream.stream.destroy();

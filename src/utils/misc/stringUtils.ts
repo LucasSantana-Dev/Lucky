@@ -1,4 +1,4 @@
-import { debugLog, errorLog } from './log';
+import { debugLog, errorLog } from '../general/log';
 
 // Type definitions
 type CacheKey = string;
@@ -62,38 +62,38 @@ export function calculateSimilarity(str1: string, str2: string): number {
  * Calculates Levenshtein distance between two strings
  * Optimized with space complexity O(min(m,n))
  */
-function levenshteinDistance(str1: string, str2: string): number {
-    const m = str1.length;
-    const n = str2.length;
+function levenshteinDistance(sourceString: string, targetString: string): number {
+    let sourceLength = sourceString.length;
+    let targetLength = targetString.length;
     
     // Use the shorter string for the dp array to save space
-    if (m < n) {
-        [str1, str2] = [str2, str1];
-        [m, n] = [n, m];
+    if (sourceLength < targetLength) {
+        [sourceString, targetString] = [targetString, sourceString];
+        [sourceLength, targetLength] = [targetLength, sourceLength];
     }
 
-    let prev = Array(n + 1).fill(0);
-    let curr = Array(n + 1).fill(0);
+    let previousRow = Array(targetLength + 1).fill(0);
+    let currentRow = Array(targetLength + 1).fill(0);
 
-    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let j = 0; j <= targetLength; j++) previousRow[j] = j;
 
-    for (let i = 1; i <= m; i++) {
-        curr[0] = i;
-        for (let j = 1; j <= n; j++) {
-            if (str1[i - 1] === str2[j - 1]) {
-                curr[j] = prev[j - 1];
+    for (let i = 1; i <= sourceLength; i++) {
+        currentRow[0] = i;
+        for (let j = 1; j <= targetLength; j++) {
+            if (sourceString[i - 1] === targetString[j - 1]) {
+                currentRow[j] = previousRow[j - 1];
             } else {
-                curr[j] = Math.min(
-                    prev[j - 1] + 1, // substitution
-                    prev[j] + 1,     // deletion
-                    curr[j - 1] + 1  // insertion
+                currentRow[j] = Math.min(
+                    previousRow[j - 1] + 1, // substitution
+                    previousRow[j] + 1,     // deletion
+                    currentRow[j - 1] + 1  // insertion
                 );
             }
         }
-        [prev, curr] = [curr, prev];
+        [previousRow, currentRow] = [currentRow, previousRow];
     }
 
-    return prev[n];
+    return previousRow[targetLength];
 }
 
 /**

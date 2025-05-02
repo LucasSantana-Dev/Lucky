@@ -13,13 +13,15 @@ export const EMBED_COLORS = {
 };
 
 // Emoji constants for different types of messages
-export const EMBED_EMOJIS = {
+export const EMOJIS = {
   SUCCESS: '✅',
   ERROR: '❌',
   INFO: 'ℹ️',
   WARNING: '⚠️',
   NEUTRAL: '⚪',
   MUSIC: '🎵',
+  AUDIO: '🎧',
+  VIDEO: '🎥',
   QUEUE: '📋',
   AUTOPLAY: '🔄',
   PLAY: '▶️',
@@ -94,7 +96,7 @@ export function successEmbed(title: string, description?: string): EmbedBuilder 
     title,
     description,
     color: EMBED_COLORS.SUCCESS as ColorResolvable,
-    emoji: EMBED_EMOJIS.SUCCESS
+    emoji: EMOJIS.SUCCESS
   });
 }
 
@@ -106,7 +108,7 @@ export function errorEmbed(title: string, description?: string): EmbedBuilder {
     title,
     description,
     color: EMBED_COLORS.ERROR as ColorResolvable,
-    emoji: EMBED_EMOJIS.ERROR
+    emoji: EMOJIS.ERROR
   });
 }
 
@@ -118,7 +120,7 @@ export function infoEmbed(title: string, description?: string): EmbedBuilder {
     title,
     description,
     color: EMBED_COLORS.INFO as ColorResolvable,
-    emoji: EMBED_EMOJIS.INFO
+    emoji: EMOJIS.INFO
   });
 }
 
@@ -130,7 +132,7 @@ export function warningEmbed(title: string, description?: string): EmbedBuilder 
     title,
     description,
     color: EMBED_COLORS.WARNING as ColorResolvable,
-    emoji: EMBED_EMOJIS.WARNING
+    emoji: EMOJIS.WARNING
   });
 }
 
@@ -142,7 +144,7 @@ export function musicEmbed(title: string, description?: string): EmbedBuilder {
     title,
     description,
     color: EMBED_COLORS.MUSIC as ColorResolvable,
-    emoji: EMBED_EMOJIS.MUSIC
+    emoji: EMOJIS.MUSIC
   });
 }
 
@@ -154,7 +156,7 @@ export function queueEmbed(title: string, description?: string): EmbedBuilder {
     title,
     description,
     color: EMBED_COLORS.QUEUE as ColorResolvable,
-    emoji: EMBED_EMOJIS.QUEUE
+    emoji: EMOJIS.QUEUE
   });
 }
 
@@ -166,6 +168,6 @@ export function autoplayEmbed(title: string, description?: string): EmbedBuilder
     title,
     description,
     color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
-    emoji: EMBED_EMOJIS.AUTOPLAY
+    emoji: EMOJIS.AUTOPLAY
   });
 } 
