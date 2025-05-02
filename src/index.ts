@@ -13,8 +13,11 @@ import Command from './models/Command';
 // Load environment variables
 const result = config();
 if (result.error) {
-    errorLog({ message: 'Error loading .env file:', error: result.error });
-    process.exit(1);
+    if ((result.error as any).code !== 'ENOENT') {
+        errorLog({ message: 'Error loading .env file:', error: result.error });
+        process.exit(1);
+    }
+    // else: do nothing, missing .env is fine
 }
 
 debugLog({ message: 'Environment variables loaded' });
