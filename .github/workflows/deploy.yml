@@ -100,7 +100,7 @@ jobs:
           npm ci --omit=dev --no-audit
           
           # Setup PM2 config
-          cat > ecosystem.config.js << 'EOCF'
+          cat > ecosystem.config.cjs << 'EOCF'
           module.exports = {
             apps: [{
               name: "lukbot",
@@ -173,7 +173,7 @@ jobs:
           ps aux | grep node >> $LOG_FILE
           
           # Restart PM2
-          pm2 resurrect || pm2 start ~/app/ecosystem.config.js --env production
+          pm2 resurrect || pm2 start ~/app/ecosystem.config.cjs --env production
           EOHC
           
           chmod +x ~/scripts/handle_node_crash.sh
@@ -184,7 +184,7 @@ jobs:
           # Deploy with PM2
           echo "Starting application with PM2"
           pm2 delete lukbot >/dev/null 2>&1 || true
-          pm2 start ecosystem.config.js --env production
+          pm2 start ecosystem.config.cjs --env production
           
           # Save PM2 configuration and setup startup
           pm2 save
@@ -202,7 +202,7 @@ jobs:
           #!/bin/bash
           if ! pm2 pid lukbot >/dev/null 2>&1; then
             echo "Lukbot down at $(date), attempting restart" >> ~/app/logs/monitor.log
-            cd ~/app && pm2 start ecosystem.config.js --env production
+            cd ~/app && pm2 start ecosystem.config.cjs --env production
           fi
           EOMS
           
