@@ -13,7 +13,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '22.x'
+          node-version: '18.x'
 
       - name: Install dependencies
         run: npm install
@@ -21,13 +21,29 @@ jobs:
       - name: Run build
         run: npm run build
 
-      - name: Deploy to Render
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
-            curl -X POST "$RENDER_DEPLOY_HOOK_URL"
-          else
-            echo "RENDER_DEPLOY_HOOK_URL secret not set. Skipping deployment."
-          fi 
+      - name: Archive production artifacts
+        run: tar -czf bot.tar.gz .
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "bot.tar.gz"
+          target: "~/"
+
+      - name: SSH and deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            tar -xzf ~/bot.tar.gz -C ~/bot
+            cd ~/bot
+            npm install --omit=dev
+            pm2 delete all || true
+            pm2 start npm --name "lukbot" -- start
