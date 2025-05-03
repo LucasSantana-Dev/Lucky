@@ -67,8 +67,8 @@ jobs:
             set -e
             set -x
             cd ~
-            mkdir -p bot
             rm -rf ~/bot/*
+            mkdir -p bot
             tar -xzf ~/bot.tar.gz -C ~/bot
             cd ~/bot
             npm install --omit=dev
