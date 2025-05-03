@@ -45,10 +45,14 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            mkdir -p ~/bot
+            set -e
+            set -x
+            cd ~
+            mkdir -p bot
             tar -xzf ~/bot.tar.gz -C ~/bot
             cd ~/bot
             npm install --omit=dev
             sudo npm install -g pm2
-            pm2 delete all || true
+            pm2 delete lukbot || true
             pm2 start npm --name "lukbot" -- start
+            pm2 save
