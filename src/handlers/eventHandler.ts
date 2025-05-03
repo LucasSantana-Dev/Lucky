@@ -76,4 +76,18 @@ export default function handleEvents(client: Client) {
     client.on(Events.Debug, (debug) => {
         debugLog({ message: 'Discord client debug:', data: debug });
     });
+
+    // Guild Delete Event - clean up all per-guild caches to prevent memory leaks
+    client.on(Events.GuildDelete, (guild) => {
+        // Clean up music caches
+        try {
+            // Import here to avoid circular dependencies if needed
+            const { clearHistory, clearAllGuildCaches } = require('../utils/music/duplicateDetection');
+            clearHistory(guild.id);
+            clearAllGuildCaches(guild.id);
+        } catch (err) {
+            errorLog({ message: 'Error clearing history on guild delete:', error: err });
+        }
+        // Add any other per-guild cache cleanup here
+    });
 } 

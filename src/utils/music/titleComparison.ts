@@ -1,6 +1,7 @@
 import { debugLog, errorLog } from '../general/log';
 import { artistTitlePatterns, youtubePatterns, artistPatterns } from '../../config/titlePatterns';
 import { applyPatterns, calculateSimilarity, normalizeString } from '../misc/stringUtils';
+import { safeSetInterval } from '../utils/timerManager';
 
 // Type definitions
 interface ArtistTitle {
@@ -11,8 +12,37 @@ interface ArtistTitle {
 type CacheKey = string;
 type CacheValue = ArtistTitle;
 
-// Cache for extracted artist/title pairs
-const artistTitleCache = new Map<CacheKey, CacheValue>();
+// LRU cache for extracted artist/title pairs
+class LRUCache<K, V> {
+    private maxSize: number;
+    private cache: Map<K, V>;
+    constructor(maxSize: number) {
+        this.maxSize = maxSize;
+        this.cache = new Map();
+    }
+    get(key: K): V | undefined {
+        if (!this.cache.has(key)) return undefined;
+        const value = this.cache.get(key)!;
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+    set(key: K, value: V): void {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.maxSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(key, value);
+    }
+    clear(): void {
+        this.cache.clear();
+    }
+}
+
+const ARTIST_TITLE_CACHE_SIZE = 2000;
+const artistTitleCache = new LRUCache<CacheKey, CacheValue>(ARTIST_TITLE_CACHE_SIZE);
 
 /**
  * Type guard to check if a value is a valid title
@@ -30,7 +60,7 @@ export function extractArtistAndTitle(trackTitle: string): ArtistTitle {
     }
 
     // Check cache first
-    if (artistTitleCache.has(trackTitle)) {
+    if (artistTitleCache.get(trackTitle)) {
         return artistTitleCache.get(trackTitle)!;
     }
 
@@ -128,6 +158,6 @@ export function isSimilarTitle(firstTitle: string, secondTitle: string): boolean
 }
 
 // Clear caches periodically to prevent memory leaks
-setInterval(() => {
+safeSetInterval(() => {
     artistTitleCache.clear();
 }, 1000 * 60 * 60); // Clear every hour 

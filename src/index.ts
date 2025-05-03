@@ -11,6 +11,7 @@ import { getCommands } from './utils/command/commands';
 import handleEvents from './handlers/eventHandler';
 import { CustomClient } from './types';
 import Command from './models/Command';
+import { clearAllTimers } from './utils/timerManager';
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -46,10 +47,27 @@ setLogLevel(logLevel);
 // Global error handlers
 process.on('uncaughtException', (error) => {
     errorLog({ message: 'Uncaught Exception:', error });
+    clearAllTimers();
+    process.exit(1);
 });
 
 process.on('unhandledRejection', (error) => {
     errorLog({ message: 'Unhandled Rejection:', error });
+    clearAllTimers();
+    process.exit(1);
+});
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+    infoLog({ message: 'Received SIGINT, shutting down gracefully...' });
+    clearAllTimers();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    infoLog({ message: 'Received SIGTERM, shutting down gracefully...' });
+    clearAllTimers();
+    process.exit(0);
 });
 
 // Create Discord client with necessary intents

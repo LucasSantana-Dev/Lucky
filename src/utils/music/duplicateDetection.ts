@@ -263,4 +263,16 @@ export function clearHistory(guildId: string): void {
   trackIdSet.delete(guildId);
   lastPlayedTracks.delete(guildId);
   debugLog({ message: `Cleared history for guild ${guildId}` });
+}
+
+/**
+ * Clear all per-guild caches for a given guildId
+ */
+export function clearAllGuildCaches(guildId: string): void {
+  recentlyPlayedTracks.delete(guildId);
+  trackIdSet.delete(guildId);
+  lastPlayedTracks.delete(guildId);
+  // Remove all artistGenreMap entries for this guild's tracks
+  // (Assumes track IDs are unique per guild, otherwise skip this step)
+  // If you have a way to get all track IDs for this guild, remove them from artistGenreMap
 } 

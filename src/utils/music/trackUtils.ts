@@ -1,6 +1,7 @@
 import { Track } from 'discord-player';
 import { errorLog } from '../general/log';
 import { isSimilarTitle } from './titleComparison';
+import { safeSetInterval } from '../utils/timerManager';
 
 // Type definitions
 interface TrackInfo {
@@ -25,8 +26,37 @@ interface TrackCategories {
 type CacheKey = string;
 type CacheValue = TrackInfo;
 
-// Cache for track info
-const trackInfoCache = new Map<CacheKey, CacheValue>();
+// LRU cache for track info
+class LRUCache<K, V> {
+    private maxSize: number;
+    private cache: Map<K, V>;
+    constructor(maxSize: number) {
+        this.maxSize = maxSize;
+        this.cache = new Map();
+    }
+    get(key: K): V | undefined {
+        if (!this.cache.has(key)) return undefined;
+        const value = this.cache.get(key)!;
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+    set(key: K, value: V): void {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.maxSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(key, value);
+    }
+    clear(): void {
+        this.cache.clear();
+    }
+}
+
+const TRACK_INFO_CACHE_SIZE = 2000;
+const trackInfoCache = new LRUCache<CacheKey, CacheValue>(TRACK_INFO_CACHE_SIZE);
 
 /**
  * Type guard to check if a value is a valid track
@@ -73,7 +103,7 @@ export function getTrackInfo(track: Track | null | undefined): TrackInfo {
 
     // Generate cache key from track properties
     const cacheKey = generateCacheKey(track);
-    if (trackInfoCache.has(cacheKey)) {
+    if (trackInfoCache.get(cacheKey)) {
         return trackInfoCache.get(cacheKey)!;
     }
 
@@ -190,6 +220,6 @@ export function separateTracks(tracks: Track[]): TrackCategories {
 }
 
 // Clear caches periodically to prevent memory leaks
-setInterval(() => {
+safeSetInterval(() => {
     trackInfoCache.clear();
 }, 1000 * 60 * 60); // Clear every hour 

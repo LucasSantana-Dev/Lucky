@@ -1,12 +1,44 @@
 import { debugLog, errorLog } from '../general/log';
+import { safeSetInterval } from '../utils/timerManager';
 
 // Type definitions
 type CacheKey = string;
 type CacheValue = string;
 type PatternArray = readonly RegExp[];
 
-// Cache for memoized functions
-const memoizedResults = new Map<CacheKey, CacheValue>();
+// LRU cache for memoized functions
+class LRUCache<K, V> {
+    private maxSize: number;
+    private cache: Map<K, V>;
+    constructor(maxSize: number) {
+        this.maxSize = maxSize;
+        this.cache = new Map();
+    }
+    get(key: K): V | undefined {
+        if (!this.cache.has(key)) return undefined;
+        const value = this.cache.get(key)!;
+        // Move to end to show as recently used
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+    set(key: K, value: V): void {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.maxSize) {
+            // Remove least recently used
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(key, value);
+    }
+    clear(): void {
+        this.cache.clear();
+    }
+}
+
+const MEMO_CACHE_SIZE = 5000;
+const memoizedResults = new LRUCache<CacheKey, CacheValue>(MEMO_CACHE_SIZE);
 
 /**
  * Type guard to check if a value is a valid string
@@ -31,7 +63,7 @@ export function applyPatterns(text: string, patterns: PatternArray): string {
     }
 
     const cacheKey = `${text}-${patterns.map(p => p.toString()).join('|')}`;
-    if (memoizedResults.has(cacheKey)) {
+    if (memoizedResults.get(cacheKey)) {
         return memoizedResults.get(cacheKey)!;
     }
 
@@ -108,6 +140,6 @@ export function normalizeString(str: string): string {
 }
 
 // Clear memoization cache periodically to prevent memory leaks
-setInterval(() => {
+safeSetInterval(() => {
     memoizedResults.clear();
 }, 1000 * 60 * 60); // Clear every hour 
