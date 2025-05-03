@@ -89,6 +89,14 @@ jobs:
         with:
           name: bot-artifact
 
+      - name: Write deploy script
+        run: |
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          # ... (your deploy script contents go here) ...
+          EOF
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
