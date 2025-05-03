@@ -13,7 +13,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: '22.x'
 
       - name: Install dependencies
         run: npm install
@@ -45,6 +45,16 @@ jobs:
           echo "COMMAND_CATEGORIES_DISABLED=${{ env.COMMAND_CATEGORIES_DISABLED }}" >> .env
           echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env
           echo "LOG_LEVEL=${{ env.LOG_LEVEL }}" >> .env
+
+      - name: Remove old .env on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            rm -rf ~/bot/.env
 
       - name: Upload .env to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -80,3 +90,22 @@ jobs:
             pm2 save
             pm2 list
             pm2 logs lukbot --lines 20
+
+      - name: Validate EC2 environment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            echo 'Node.js version:'
+            node -v
+            echo 'npm version:'
+            npm -v
+            echo 'Current user:'
+            whoami
+            echo 'Bot directory permissions:'
+            ls -ld ~/bot
+            echo 'Disk space:'
+            df -h
