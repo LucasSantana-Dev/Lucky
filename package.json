@@ -22,6 +22,7 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
+		"@aws-sdk/client-cloudwatch-logs": "^3.800.0",
 		"@discordjs/builders": "^1.7.0",
 		"@sentry/node": "^9.15.0",
 		"@sentry/profiling-node": "^9.15.0",

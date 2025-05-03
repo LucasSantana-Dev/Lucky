@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import * as Sentry from "@sentry/node";
+import { logToCloudWatch } from "./cloudwatchLog";
 
 // Log levels
 export enum LogLevel {
@@ -44,6 +45,8 @@ export const errorLog = ({ message, error, level = LogLevel.ERROR, data }: LogPa
         Sentry.captureMessage(message, { level: 'error', extra: { error, data } });
       }
     }
+    // Send error to CloudWatch (buffered, only for errors)
+    logToCloudWatch('ERROR', message, { error: error?.message || error, data });
   }
 }
 
