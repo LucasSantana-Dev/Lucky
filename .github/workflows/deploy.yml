@@ -50,9 +50,12 @@ jobs:
             cd ~
             mkdir -p bot
             tar -xzf ~/bot.tar.gz -C ~/bot
+            # Ensure .env is present (upload it if needed)
             cd ~/bot
             npm install --omit=dev
             sudo npm install -g pm2
             pm2 delete lukbot || true
-            pm2 start npm --name "lukbot" -- start
+            pm2 start $(which npm) --name "lukbot" -- start
             pm2 save
+            pm2 list
+            pm2 logs lukbot --lines 20
