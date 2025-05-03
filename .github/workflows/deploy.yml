@@ -54,7 +54,9 @@ jobs:
             cd ~/bot
             npm install --omit=dev
             sudo npm install -g pm2
-            pm2 delete lukbot || true
+            pm2 delete all || true
+            pm2 unstartup || true
+            rm -f ~/.pm2/dump.pm2
             pm2 start dist/index.js --name "lukbot" --env production
             pm2 save
             pm2 list
