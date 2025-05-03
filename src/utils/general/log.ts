@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 // Log levels
 export enum LogLevel {
@@ -19,6 +20,12 @@ if (process.env.SENTRY_DSN) {
     dsn: process.env.SENTRY_DSN,
     tracesSampleRate: 1.0,
     environment: process.env.NODE_ENV || 'development',
+    integrations: [
+      nodeProfilingIntegration(),
+    ],
+    profileSessionSampleRate: 1.0,
+    profileLifecycle: 'trace',
+    sendDefaultPii: true,
   });
 }
 

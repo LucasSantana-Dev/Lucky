@@ -43,6 +43,8 @@ DISCORD_TOKEN=your_discord_bot_token_here
 CLIENT_ID=discord_client_id
 TOKEN=your_token_here
 COMMAND_CATEGORIES_DISABLED=disabled_commands_categories
+SENTRY_DSN=your_sentry_dsn_here
+LOG_LEVEL=desired_log_level
 ```
 
 ## Available Scripts
@@ -54,35 +56,3 @@ COMMAND_CATEGORIES_DISABLED=disabled_commands_categories
 - `npm run lint` - Run ESLint to check code quality
 - `npm run lint:fix` - Fix ESLint issues automatically
 - `npm run type:check` - Run TypeScript type checking
-
-## Project Structure
-
-```
-src/
-├── config/     # Configuration files
-├── events/     # Discord event handlers
-├── functions/  # Utility functions
-├── handlers/   # Command and event handlers
-├── models/     # Data models and interfaces
-├── types/      # TypeScript type definitions
-├── utils/      # Helper utilities
-├── index.ts    # Main entry point
-└── register.ts # Command registration
-```
-
-## Development
-
-The project uses:
-- TypeScript for type safety
-- ESLint and Prettier for code formatting
-- Module aliases for clean imports
-- Hot reloading for faster development
-
-To start development:
-```bash
-npm run dev:watch
-```
-
-## License
-
-ISC
