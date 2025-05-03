@@ -26,7 +26,7 @@ export default new Command({
 
         if (!(await requireQueue(queue, interaction))) return;
 
-        let repeatMode = QueueRepeatMode.OFF;
+        let repeatMode: QueueRepeatMode = QueueRepeatMode.OFF;
 
         if (mode === 'track') repeatMode = QueueRepeatMode.TRACK;
         else if (mode === 'queue') repeatMode = QueueRepeatMode.QUEUE;
