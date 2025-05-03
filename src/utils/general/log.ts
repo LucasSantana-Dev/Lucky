@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 // Log levels
 export enum LogLevel {
@@ -13,21 +12,6 @@ export enum LogLevel {
 
 // Current log level - can be changed at runtime
 let currentLogLevel = LogLevel.DEBUG;
-
-// Initialize Sentry if DSN is provided
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    tracesSampleRate: 1.0,
-    environment: process.env.NODE_ENV || 'development',
-    integrations: [
-      nodeProfilingIntegration(),
-    ],
-    profileSessionSampleRate: 1.0,
-    profileLifecycle: 'trace',
-    sendDefaultPii: true,
-  });
-}
 
 interface LogParams {
   message: string;

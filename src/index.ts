@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { Player, GuildQueue, Track } from 'discord-player';
 import { config } from 'dotenv';
@@ -9,6 +11,18 @@ import { getCommands } from './utils/command/commands';
 import handleEvents from './handlers/eventHandler';
 import { CustomClient } from './types';
 import Command from './models/Command';
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 1.0,
+    environment: process.env.NODE_ENV || 'development',
+    integrations: [nodeProfilingIntegration()],
+    profileSessionSampleRate: 1.0,
+    profileLifecycle: 'trace',
+    sendDefaultPii: true,
+  });
+}
 
 // Load environment variables
 const result = config();
