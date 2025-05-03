@@ -58,4 +58,36 @@ export const errorLog = ({ message, error, level = LogLevel.ERROR, data }: LogPa
 
 export const infoLog = ({ message, level = LogLevel.INFO, data }: LogParams): void => {
   if (shouldLog(level)) {
-    console.info(chalk.blue(`${message}\n`
+    console.info(chalk.blue(`${message}\n`));
+    if (data) { 
+      console.info(chalk.blue(data));
+    }
+  }
+}
+
+export const successLog = ({ message, level = LogLevel.SUCCESS, data }: LogParams): void => {
+  if (shouldLog(level)) {
+    console.log(chalk.green(`${message}\n`));
+    if (data) {
+      console.log(chalk.green(data));
+    }
+  }
+}
+
+export const warnLog = ({ message, level = LogLevel.WARN, data }: LogParams): void => {
+  if (shouldLog(level)) {
+    console.warn(chalk.yellow(`${message}\n`));
+    if (data) {
+      console.warn(chalk.yellow(data));
+    }
+  }
+}
+
+export const debugLog = ({ message, level = LogLevel.DEBUG, data }: LogParams): void => {
+  if (shouldLog(level)) {
+    console.debug(chalk.gray(`${message}\n`));
+    if (data) {
+      console.debug(chalk.gray(data));
+    }
+  }
+}
