@@ -19,6 +19,7 @@ async function getGeneralCommands() {
     const commandsPath = isProd
       ? path.join(process.cwd(), 'dist/functions/general/commands')
       : normalizePath(__dirname);
+    debugLog({ message: `Loading general commands from path: ${commandsPath}` });
     const commands = await getCommandsFromDirectory({ url: commandsPath, category: 'general' });
 
     debugLog({ message: `Loaded ${commands.length} general commands` });

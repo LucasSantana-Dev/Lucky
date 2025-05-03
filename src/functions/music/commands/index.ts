@@ -19,6 +19,7 @@ async function getMusicCommands() {
     const commandsPath = isProd
       ? path.join(process.cwd(), 'dist/functions/music/commands')
       : normalizePath(__dirname);
+    debugLog({ message: `Loading music commands from path: ${commandsPath}` });
     const commands = await getCommandsFromDirectory({ url: commandsPath, category: 'music' });
 
     debugLog({ message: `Loaded ${commands.length} music commands` });

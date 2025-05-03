@@ -42,6 +42,7 @@ export const getCommandsFromDirectory = async ({ url, category }: GetCommandsPar
     const filteredCommandFiles = commandFiles.filter(file => !file.startsWith('index.'));
 
     debugLog({ message: `Filtered to ${filteredCommandFiles.length} command files (excluding index files)` });
+    debugLog({ message: `Filtered command files: ${JSON.stringify(filteredCommandFiles)}` });
 
     // Load commands using dynamic imports
     const commands: Command[] = [];

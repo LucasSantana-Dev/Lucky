@@ -25,6 +25,7 @@ async function getDownloadCommands() {
     const commandsPath = isProd
       ? path.join(process.cwd(), 'dist/functions/download/commands')
       : normalizePath(__dirname);
+    debugLog({ message: `Loading download commands from path: ${commandsPath}` });
     const commands = await getCommandsFromDirectory({ url: commandsPath, category: 'download' });
 
     debugLog({ message: `Loaded ${commands.length} download commands` });
