@@ -49,8 +49,8 @@ jobs:
             set -x
             cd ~
             mkdir -p bot
+            rm -rf ~/bot/*
             tar -xzf ~/bot.tar.gz -C ~/bot
-            # Ensure .env is present (upload it if needed)
             cd ~/bot
             npm install --omit=dev
             sudo npm install -g pm2
