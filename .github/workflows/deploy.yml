@@ -37,6 +37,25 @@ jobs:
           source: "bot.tar.gz"
           target: "~/"
 
+      - name: Create .env file from secrets
+        run: |
+          echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" > .env
+          echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
+          echo "TOKEN=${{ secrets.TOKEN }}" >> .env
+          echo "COMMAND_CATEGORIES_DISABLED=${{ env.COMMAND_CATEGORIES_DISABLED }}" >> .env
+          echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env
+          echo "LOG_LEVEL=${{ env.LOG_LEVEL }}" >> .env
+
+      - name: Upload .env to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: ".env"
+          target: "~/bot/.env"
+
       - name: SSH and deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
