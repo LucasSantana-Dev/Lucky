@@ -2,71 +2,262 @@ name: CI/CD Pipeline
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]  # Added PR validation
+
+env:
+  NODE_VERSION: '22.x'
+  PM2_APP_NAME: 'lukbot'
 
 jobs:
-  build-and-deploy:
+  lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v4
+      
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
-
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
       - name: Install dependencies
-        run: npm install
-
+        run: npm ci
+      
       - name: Lint code
         run: npm run lint
+      
+      - name: Run unit tests
+        run: npm test
+        
+      - name: Run security audit
+        run: npm audit --audit-level=high
+        continue-on-error: true  # Don't fail the build, but report issues
+        
+      - name: Check for outdated dependencies
+        run: npm outdated || true  # Just for information
+      
+  build-and-deploy:
+    needs: lint-and-test  # Only deploy if tests pass
+    if: github.event_name != 'pull_request'  # Don't deploy on PRs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Create version file
+        run: |
+          mkdir -p dist
+          echo "{
+            \"version\": \"${GITHUB_SHA:0:7}\",
+            \"buildDate\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",
+            \"buildNumber\": \"$GITHUB_RUN_NUMBER\",
+            \"branch\": \"${GITHUB_REF#refs/heads/}\"
+          }" > version.json
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run build
         run: npm run build
 
-      - name: Archive production artifacts
-        run: tar -czf bot.tar.gz dist package.json package-lock.json
+      - name: Copy version file to dist
+        run: cp version.json dist/
 
-      - name: Copy files to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          source: "bot.tar.gz"
-          target: "~/"
-
-      - name: Create .env file from secrets
+      - name: Write deploy script
         run: |
-          echo "DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}" > .env
-          echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
-          echo "TOKEN=${{ secrets.TOKEN }}" >> .env
-          echo "COMMAND_CATEGORIES_DISABLED=${{ env.COMMAND_CATEGORIES_DISABLED }}" >> .env
-          echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> .env
-          echo "LOG_LEVEL=${{ env.LOG_LEVEL }}" >> .env
+          cat > deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Create directory structure
+          mkdir -p ~/app/logs
+          mkdir -p ~/deployment/backup
+          
+          # Backup current deployment
+          if [ -d ~/app/dist ]; then
+            echo "Backing up current deployment"
+            BACKUP_DIR=~/deployment/backup/app-$(date +%Y%m%d%H%M%S)
+            mkdir -p $BACKUP_DIR
+            cp -r ~/app/* $BACKUP_DIR/ 2>/dev/null || true
+          fi
+          
+          # Extract new deployment
+          echo "Extracting new deployment"
+          tar -xzf ~/bot.tar.gz -C ~/app
+          [ -f ~/.env ] && cp ~/.env ~/app/ || cp ~/deployment/.env ~/app/
+          
+          # Install dependencies
+          cd ~/app
+          npm ci --omit=dev --no-audit
+          
+          # Setup PM2 config
+          cat > ecosystem.config.js << 'EOCF'
+          module.exports = {
+            apps: [{
+              name: "lukbot",
+              script: "dist/index.js",
+              env_production: {
+                NODE_ENV: "production",
+              },
+              max_memory_restart: "200M",
+              restart_delay: 3000,
+              exp_backoff_restart_delay: 100,
+              max_restarts: 10,
+              watch: false,
+              error_file: "logs/err.log",
+              out_file: "logs/out.log",
+              log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+              merge_logs: true,
+              node_args: "--max-old-space-size=150"
+            }]
+          };
+          EOCF
+          
+          # Setup log rotation
+          mkdir -p ~/scripts
+          cat > ~/scripts/rotate_logs.sh << 'EORS'
+          #!/bin/bash
+          LOG_DIR=~/app/logs
+          MAX_SIZE_MB=50
+          
+          for logfile in $LOG_DIR/*.log; do
+            if [ -f "$logfile" ]; then
+              size_kb=$(du -k "$logfile" | cut -f1)
+              size_mb=$((size_kb / 1024))
+              
+              if [ $size_mb -gt $MAX_SIZE_MB ]; then
+                timestamp=$(date +%Y%m%d%H%M%S)
+                mv "$logfile" "${logfile}.${timestamp}"
+                gzip "${logfile}.${timestamp}"
+                touch "$logfile"
+                echo "Rotated $logfile (${size_mb}MB)"
+              fi
+            fi
+          done
+          
+          # Keep only the 5 most recent archived logs for each log file
+          find $LOG_DIR -name "*.log.*.gz" | sort -r | awk 'BEGIN{prev=""}{ if(prev!=$0) {prev=$0; i=0} i++; if(i>5) {print $0} }' | xargs rm -f
+          EORS
+          
+          chmod +x ~/scripts/rotate_logs.sh
+          
+          # Add log rotation to crontab if not already there
+          if ! crontab -l 2>/dev/null | grep -q "rotate_logs"; then
+            (crontab -l 2>/dev/null; echo "0 * * * * ~/scripts/rotate_logs.sh") | crontab -
+          fi
+          
+          # Ensure PM2 is installed globally
+          if ! command -v pm2 &> /dev/null; then
+            echo "Installing PM2 globally"
+            sudo npm install -g pm2
+          fi
+          
+          # Create node crash file handler
+          cat > ~/scripts/handle_node_crash.sh << 'EOHC'
+          #!/bin/bash
+          LOG_FILE=~/app/logs/crash-$(date +%Y%m%d%H%M%S).log
+          echo "Node.js crash detected at $(date)" > $LOG_FILE
+          echo "System info:" >> $LOG_FILE
+          free -m >> $LOG_FILE
+          df -h >> $LOG_FILE
+          echo "Process list:" >> $LOG_FILE
+          ps aux | grep node >> $LOG_FILE
+          
+          # Restart PM2
+          pm2 resurrect || pm2 start ~/app/ecosystem.config.js --env production
+          EOHC
+          
+          chmod +x ~/scripts/handle_node_crash.sh
+          
+          # Stop the current application gracefully
+          pm2 describe lukbot >/dev/null 2>&1 && pm2 stop lukbot || true
+          
+          # Deploy with PM2
+          echo "Starting application with PM2"
+          pm2 delete lukbot >/dev/null 2>&1 || true
+          pm2 start ecosystem.config.js --env production
+          
+          # Save PM2 configuration and setup startup
+          pm2 save
+          pm2 startup | tail -n 1 | bash || true
+          
+          # Display running processes
+          pm2 list
+          
+          # Cleanup old deployments (keep only 3 most recent backups)
+          cd ~/deployment/backup
+          ls -t | tail -n +4 | xargs rm -rf -- || true
+          
+          # Setup simple health monitoring
+          cat > ~/scripts/monitor.sh << 'EOMS'
+          #!/bin/bash
+          if ! pm2 pid lukbot >/dev/null 2>&1; then
+            echo "Lukbot down at $(date), attempting restart" >> ~/app/logs/monitor.log
+            cd ~/app && pm2 start ecosystem.config.js --env production
+          fi
+          EOMS
+          
+          chmod +x ~/scripts/monitor.sh
+          
+          # Add monitoring to crontab if not already there
+          if ! crontab -l | grep -q "monitor.sh"; then
+            (crontab -l 2>/dev/null; echo "*/5 * * * * ~/scripts/monitor.sh") | crontab -
+          fi
+          
+          echo "Deployment completed successfully at $(date)"
+          EOF
+          
+          chmod +x deploy.sh
 
-      - name: Remove old .env on EC2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Prepare deployment package
+        run: |
+          tar -czf bot.tar.gz dist package.json package-lock.json version.json
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            rm -rf ~/bot/.env
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Upload .env to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          source: ".env"
-          target: "~/bot/"
+      - name: Create deployment directory on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ~/deployment"
 
-      - name: SSH and deploy on EC2
+      - name: Copy deployment package and scripts to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no bot.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/
+          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deployment/
+
+      - name: Generate .env file
+        run: |
+          cat > .env << EOF
+          DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
+          CLIENT_ID=${{ secrets.CLIENT_ID }}
+          TOKEN=${{ secrets.TOKEN }}
+          COMMAND_CATEGORIES_DISABLED=${{ vars.COMMAND_CATEGORIES_DISABLED }}
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          LOG_LEVEL=${{ vars.LOG_LEVEL }}
+          NODE_ENV=production
+          # Added for better error tracking
+          COMMIT_SHA=${GITHUB_SHA}
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          EOF
+
+      - name: Copy .env to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deployment/
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "chmod 600 ~/deployment/.env"
+
+      - name: Run deploy script on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -75,23 +266,28 @@ jobs:
           port: 22
           script: |
             set -e
-            set -x
-            cd ~
-            rm -rf ~/bot/*
-            mkdir -p bot
-            tar -xzf ~/bot.tar.gz -C ~/bot
-            cd ~/bot
-            npm install --omit=dev
-            sudo npm install -g pm2
-            pm2 delete all || true
-            pm2 unstartup || true
-            rm -f ~/.pm2/dump.pm2
-            pm2 start dist/index.js --name "lukbot" --env production
-            pm2 save
-            pm2 list
-            pm2 logs lukbot --lines 20
+            echo '=== Running deploy script ==='
+            bash ~/deployment/deploy.sh > ~/deployment/deploy-log-$(date +%Y%m%d%H%M%S).log 2>&1 || { echo 'Deploy script failed! Check logs.'; exit 1; }
+            echo "Exit code: $?"
+            # Clean up old tarballs and scripts
+            rm -f ~/bot.tar.gz ~/deployment/deploy.sh
+            echo 'Cleaned up old tarballs and deploy script.'
 
-      - name: Validate EC2 environment
+      # (Optional) Slack/Discord notification step (uncomment and configure as needed)
+      # - name: Notify Slack
+      #   uses: rtCamp/action-slack-notify@v2
+      #   env:
+      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      #     SLACK_MESSAGE: 'LukBot deployed successfully to EC2!'
+      #     SLACK_COLOR: good
+      #
+      # - name: Notify Discord
+      #   uses: Ilshidur/action-discord@master
+      #   with:
+      #     webhook: ${{ secrets.DISCORD_WEBHOOK }}
+      #     message: 'LukBot deployed successfully to EC2!'
+
+      - name: Validate deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -99,13 +295,32 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            echo 'Node.js version:'
-            node -v
-            echo 'npm version:'
-            npm -v
-            echo 'Current user:'
-            whoami
-            echo 'Bot directory permissions:'
-            ls -ld ~/bot
-            echo 'Disk space:'
-            df -h
+            set -e
+            # Wait a moment for the process to stabilize
+            sleep 5
+            
+            # Check if process is running
+            if ! pm2 pid lukbot > /dev/null; then
+              echo "Application failed to start!"
+              pm2 logs lukbot --lines 50
+              cat ~/deployment/deploy-log-*.log | tail -n 50
+              exit 1
+            fi
+            
+            # Display version info
+            if [ -f ~/app/dist/version.json ]; then
+              echo "=== Version Info ==="
+              cat ~/app/dist/version.json
+            fi
+            
+            echo "=== Process Status ==="
+            pm2 show lukbot
+            
+            echo "=== System Resources ==="
+            df -h | grep -v "tmpfs\|udev"
+            free -m
+            
+            echo "=== Recent Logs ==="
+            pm2 logs lukbot --lines 10
+            
+            echo "Deployment validation successful"
