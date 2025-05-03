@@ -38,9 +38,8 @@ jobs:
       - name: Check for outdated dependencies
         run: npm outdated || true  # Just for information
       
-  build-and-deploy:
-    needs: lint  # Only deploy if tests pass
-    if: github.event_name != 'pull_request'  # Don't deploy on PRs
+  build:
+    needs: lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -56,12 +55,7 @@ jobs:
       - name: Create version file
         run: |
           mkdir -p dist
-          echo "{
-            \"version\": \"${GITHUB_SHA:0:7}\",
-            \"buildDate\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",
-            \"buildNumber\": \"$GITHUB_RUN_NUMBER\",
-            \"branch\": \"${GITHUB_REF#refs/heads/}\"
-          }" > version.json
+          echo "{\n  \"version\": \"${GITHUB_SHA:0:7}\",\n  \"buildDate\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\",\n  \"buildNumber\": \"$GITHUB_RUN_NUMBER\",\n  \"branch\": \"${GITHUB_REF#refs/heads/}\"\n}" > version.json
 
       - name: Install dependencies
         run: npm ci
@@ -72,155 +66,28 @@ jobs:
       - name: Copy version file to dist
         run: cp version.json dist/
 
-      - name: Write deploy script
-        run: |
-          cat > deploy.sh << 'EOF'
-          #!/bin/bash
-          set -e
-          
-          # Create directory structure
-          mkdir -p ~/app/logs
-          mkdir -p ~/deployment/backup
-          
-          # Backup current deployment
-          if [ -d ~/app/dist ]; then
-            echo "Backing up current deployment"
-            BACKUP_DIR=~/deployment/backup/app-$(date +%Y%m%d%H%M%S)
-            mkdir -p $BACKUP_DIR
-            cp -r ~/app/* $BACKUP_DIR/ 2>/dev/null || true
-          fi
-          
-          # Extract new deployment
-          echo "Extracting new deployment"
-          tar -xzf ~/bot.tar.gz -C ~/app
-          [ -f ~/.env ] && cp ~/.env ~/app/ || cp ~/deployment/.env ~/app/
-          
-          # Install dependencies
-          cd ~/app
-          npm ci --omit=dev --no-audit
-          
-          # Setup PM2 config
-          cat > ecosystem.config.cjs << 'EOCF'
-          module.exports = {
-            apps: [{
-              name: "lukbot",
-              script: "dist/index.js",
-              env_production: {
-                NODE_ENV: "production",
-              },
-              max_memory_restart: "200M",
-              restart_delay: 3000,
-              exp_backoff_restart_delay: 100,
-              max_restarts: 10,
-              watch: false,
-              error_file: "logs/err.log",
-              out_file: "logs/out.log",
-              log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-              merge_logs: true,
-              node_args: "--max-old-space-size=150"
-            }]
-          };
-          EOCF
-          
-          # Setup log rotation
-          mkdir -p ~/scripts
-          cat > ~/scripts/rotate_logs.sh << 'EORS'
-          #!/bin/bash
-          LOG_DIR=~/app/logs
-          MAX_SIZE_MB=50
-          
-          for logfile in $LOG_DIR/*.log; do
-            if [ -f "$logfile" ]; then
-              size_kb=$(du -k "$logfile" | cut -f1)
-              size_mb=$((size_kb / 1024))
-              
-              if [ $size_mb -gt $MAX_SIZE_MB ]; then
-                timestamp=$(date +%Y%m%d%H%M%S)
-                mv "$logfile" "${logfile}.${timestamp}"
-                gzip "${logfile}.${timestamp}"
-                touch "$logfile"
-                echo "Rotated $logfile (${size_mb}MB)"
-              fi
-            fi
-          done
-          
-          # Keep only the 5 most recent archived logs for each log file
-          find $LOG_DIR -name "*.log.*.gz" | sort -r | awk 'BEGIN{prev=""}{ if(prev!=$0) {prev=$0; i=0} i++; if(i>5) {print $0} }' | xargs rm -f
-          EORS
-          
-          chmod +x ~/scripts/rotate_logs.sh
-          
-          # Add log rotation to crontab if not already there
-          if ! crontab -l 2>/dev/null | grep -q "rotate_logs"; then
-            (crontab -l 2>/dev/null; echo "0 * * * * ~/scripts/rotate_logs.sh") | crontab -
-          fi
-          
-          # Ensure PM2 is installed globally
-          if ! command -v pm2 &> /dev/null; then
-            echo "Installing PM2 globally"
-            sudo npm install -g pm2
-          fi
-          
-          # Create node crash file handler
-          cat > ~/scripts/handle_node_crash.sh << 'EOHC'
-          #!/bin/bash
-          LOG_FILE=~/app/logs/crash-$(date +%Y%m%d%H%M%S).log
-          echo "Node.js crash detected at $(date)" > $LOG_FILE
-          echo "System info:" >> $LOG_FILE
-          free -m >> $LOG_FILE
-          df -h >> $LOG_FILE
-          echo "Process list:" >> $LOG_FILE
-          ps aux | grep node >> $LOG_FILE
-          
-          # Restart PM2
-          pm2 resurrect || pm2 start ~/app/ecosystem.config.cjs --env production
-          EOHC
-          
-          chmod +x ~/scripts/handle_node_crash.sh
-          
-          # Stop the current application gracefully
-          pm2 describe lukbot >/dev/null 2>&1 && pm2 stop lukbot || true
-          
-          # Deploy with PM2
-          echo "Starting application with PM2"
-          pm2 delete lukbot >/dev/null 2>&1 || true
-          pm2 start ecosystem.config.cjs --env production
-          
-          # Save PM2 configuration and setup startup
-          pm2 save
-          pm2 startup | tail -n 1 | bash || true
-          
-          # Display running processes
-          pm2 list
-          
-          # Cleanup old deployments (keep only 3 most recent backups)
-          cd ~/deployment/backup
-          ls -t | tail -n +4 | xargs rm -rf -- || true
-          
-          # Setup simple health monitoring
-          cat > ~/scripts/monitor.sh << 'EOMS'
-          #!/bin/bash
-          if ! pm2 pid lukbot >/dev/null 2>&1; then
-            echo "Lukbot down at $(date), attempting restart" >> ~/app/logs/monitor.log
-            cd ~/app && pm2 start ecosystem.config.cjs --env production
-          fi
-          EOMS
-          
-          chmod +x ~/scripts/monitor.sh
-          
-          # Add monitoring to crontab if not already there
-          if ! crontab -l | grep -q "monitor.sh"; then
-            (crontab -l 2>/dev/null; echo "*/5 * * * * ~/scripts/monitor.sh") | crontab -
-          fi
-          
-          echo "Deployment completed successfully at $(date)"
-          EOF
-          
-          chmod +x deploy.sh
-
       - name: Prepare deployment package
         run: |
           tar -czf bot.tar.gz dist package.json package-lock.json version.json
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-artifact
+          path: |
+            bot.tar.gz
+            version.json
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bot-artifact
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
@@ -271,6 +138,26 @@ jobs:
             # Clean up old tarballs and scripts
             rm -f ~/bot.tar.gz ~/deployment/deploy.sh
             echo 'Cleaned up old tarballs and deploy script.'
+
+      - name: Start/Restart bot with PM2 on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd ~/app
+            echo 'Stopping existing PM2 process (if any)...'
+            pm2 describe lukbot >/dev/null 2>&1 && pm2 stop lukbot || true
+            echo 'Starting application with PM2...'
+            pm2 delete lukbot >/dev/null 2>&1 || true
+            pm2 start ecosystem.config.cjs --env production
+            pm2 save
+            pm2 startup | tail -n 1 | bash || true
+            pm2 list
+            echo 'PM2 start/restart complete.'
 
       # (Optional) Slack/Discord notification step (uncomment and configure as needed)
       # - name: Notify Slack
