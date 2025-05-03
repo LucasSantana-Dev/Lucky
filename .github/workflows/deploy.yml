@@ -64,7 +64,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           source: ".env"
-          target: "~/bot/.env"
+          target: "~/bot/"
 
       - name: SSH and deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
