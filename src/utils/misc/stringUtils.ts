@@ -1,5 +1,5 @@
 import { debugLog, errorLog } from '../general/log';
-import { safeSetInterval } from '../utils/timerManager';
+import { safeSetInterval } from '../timerManager';
 
 // Type definitions
 type CacheKey = string;

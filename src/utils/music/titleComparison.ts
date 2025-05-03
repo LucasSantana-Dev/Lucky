@@ -1,7 +1,7 @@
 import { debugLog, errorLog } from '../general/log';
 import { artistTitlePatterns, youtubePatterns, artistPatterns } from '../../config/titlePatterns';
 import { applyPatterns, calculateSimilarity, normalizeString } from '../misc/stringUtils';
-import { safeSetInterval } from '../utils/timerManager';
+import { safeSetInterval } from '../timerManager';
 
 // Type definitions
 interface ArtistTitle {

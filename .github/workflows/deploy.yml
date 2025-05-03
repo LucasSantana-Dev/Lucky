@@ -68,7 +68,8 @@ jobs:
 
       - name: Prepare deployment package
         run: |
-          tar -czf bot.tar.gz dist package.json package-lock.json version.json
+          # Only include necessary files in the tarball
+          tar --exclude='**/*.map' --exclude='**/test*' -czf bot.tar.gz dist package.json package-lock.json version.json ecosystem.config.cjs
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -117,9 +118,9 @@ jobs:
           DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
           CLIENT_ID=${{ secrets.CLIENT_ID }}
           TOKEN=${{ secrets.TOKEN }}
-          COMMAND_CATEGORIES_DISABLED=${{ vars.COMMAND_CATEGORIES_DISABLED }}
+          COMMAND_CATEGORIES_DISABLED=${{ env.COMMAND_CATEGORIES_DISABLED }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          LOG_LEVEL=${{ vars.LOG_LEVEL }}
+          LOG_LEVEL=${{ env.LOG_LEVEL }}
           NODE_ENV=production
           # Added for better error tracking
           COMMIT_SHA=${GITHUB_SHA}
@@ -141,6 +142,16 @@ jobs:
           script: |
             set -e
             echo '=== Running deploy script ==='
+            # Clean up old app directory before unpacking
+            rm -rf ~/app
+            mkdir -p ~/app
+            # Extract tarball with no-same-owner for speed and safety
+            tar --no-same-owner -xzf ~/bot.tar.gz -C ~/app
+            # Install production dependencies only if needed
+            if [ -f ~/app/package.json ]; then
+              cd ~/app
+              NODE_ENV=production npm ci --omit=dev || true
+            fi
             bash ~/deployment/deploy.sh > ~/deployment/deploy-log-$(date +%Y%m%d%H%M%S).log 2>&1 || { echo 'Deploy script failed! Check logs.'; exit 1; }
             echo "Exit code: $?"
             # Clean up old tarballs and scripts
@@ -157,15 +168,12 @@ jobs:
           script: |
             set -e
             cd ~/app
-            echo 'Stopping existing PM2 process (if any)...'
-            pm2 describe lukbot >/dev/null 2>&1 && pm2 stop lukbot || true
-            echo 'Starting application with PM2...'
-            pm2 delete lukbot >/dev/null 2>&1 || true
-            pm2 start ecosystem.config.cjs --env production
+            echo 'Reloading application with PM2...'
+            pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
             pm2 save
             pm2 startup | tail -n 1 | bash || true
             pm2 list
-            echo 'PM2 start/restart complete.'
+            echo 'PM2 reload/start complete.'
 
       # (Optional) Slack/Discord notification step (uncomment and configure as needed)
       # - name: Notify Slack

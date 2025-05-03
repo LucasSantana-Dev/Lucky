@@ -1,7 +1,7 @@
 import { Track } from 'discord-player';
 import { errorLog } from '../general/log';
 import { isSimilarTitle } from './titleComparison';
-import { safeSetInterval } from '../utils/timerManager';
+import { safeSetInterval } from '../timerManager';
 
 // Type definitions
 interface TrackInfo {
