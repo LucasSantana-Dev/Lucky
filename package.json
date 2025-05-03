@@ -23,6 +23,7 @@
 	"license": "ISC",
 	"dependencies": {
 		"@discordjs/builders": "^1.7.0",
+		"@sentry/node": "^9.15.0",
 		"bgutils-js": "^3.2.0",
 		"chalk": "^5.3.0",
 		"discord-player": "^6.1.1",
