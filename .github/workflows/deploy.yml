@@ -18,11 +18,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Lint code
+        run: npm run lint
+
       - name: Run build
         run: npm run build
 
       - name: Archive production artifacts
-        run: tar -czf bot.tar.gz .
+        run: tar --exclude=bot.tar.gz -czf bot.tar.gz .
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.7
