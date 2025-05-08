@@ -10,8 +10,7 @@ on:
 env:
   NODE_VERSION: '22.x'
   AWS_REGION: 'us-east-1'
-  S3_BUCKET: 'lukbot-deployments'
-
+  S3_BUCKET: 'lukbot-deployments--use1-az4--x-s3'
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -107,17 +106,55 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Create S3 bucket if it doesn't exist
+      - name: Create and configure S3 bucket
         run: |
-          aws s3api create-bucket \
-            --bucket ${{ env.S3_BUCKET }} \
-            --region ${{ env.AWS_REGION }} \
-            --create-bucket-configuration LocationConstraint=${{ env.AWS_REGION }} \
-            || true
+          # Check if bucket exists
+          if ! aws s3api head-bucket --bucket ${{ env.S3_BUCKET }} 2>/dev/null; then
+            echo "Creating S3 bucket ${{ env.S3_BUCKET }}..."
+            aws s3api create-bucket \
+              --bucket ${{ env.S3_BUCKET }} \
+              --region ${{ env.AWS_REGION }} \
+              --create-bucket-configuration LocationConstraint=${{ env.AWS_REGION }}
+            
+            # Wait for bucket to be available
+            echo "Waiting for bucket to be available..."
+            aws s3api wait bucket-exists --bucket ${{ env.S3_BUCKET }}
+            
+            # Set bucket policy for Lambda access
+            echo "Setting bucket policy..."
+            aws s3api put-bucket-policy \
+              --bucket ${{ env.S3_BUCKET }} \
+              --policy '{
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Sid": "AllowLambdaAccess",
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "lambda.amazonaws.com"
+                    },
+                    "Action": [
+                      "s3:GetObject"
+                    ],
+                    "Resource": "arn:aws:s3:::'${{ env.S3_BUCKET }}'/*"
+                  }
+                ]
+              }'
+            
+            # Enable versioning
+            echo "Enabling versioning..."
+            aws s3api put-bucket-versioning \
+              --bucket ${{ env.S3_BUCKET }} \
+              --versioning-configuration Status=Enabled
+          else
+            echo "Bucket ${{ env.S3_BUCKET }} already exists"
+          fi
 
       - name: Upload deployment package to S3
         run: |
+          echo "Uploading deployment package to S3..."
           aws s3 cp function.zip s3://${{ env.S3_BUCKET }}/function-${{ github.sha }}.zip
+          echo "Upload complete"
 
       - name: Create Lambda function
         run: |
