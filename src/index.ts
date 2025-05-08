@@ -86,10 +86,11 @@ async function start() {
 
         // Create and initialize client
         const clientCreationStart = Date.now();
-        client = createClient();
-        if (!client.login) {
+        const newClient = createClient();
+        if (!newClient || !newClient.login) {
             throw new Error('Failed to create Discord client');
         }
+        client = newClient;
         debugLog({ message: `Client creation took ${Date.now() - clientCreationStart}ms` });
 
         // Setup event handlers
@@ -107,6 +108,7 @@ async function start() {
             (async () => {
                 const playerStartTime = Date.now();
                 try {
+                    if (!client) throw new Error('Client is null');
                     const player = createPlayer({ client });
                     client.player = player;
                     debugLog({ message: `Player initialization took ${Date.now() - playerStartTime}ms` });
@@ -115,7 +117,7 @@ async function start() {
                     errorLog({ message: 'Error creating player:', error });
                     // Create a minimal player to prevent null reference errors
                     const player = {} as Player;
-                    client.player = player;
+                    if (client) client.player = player;
                     return player;
                 }
             })(),
@@ -143,23 +145,25 @@ async function start() {
         });
 
         // Register commands only after client is ready
-        client.once('ready', async () => {
+        if (!client) throw new Error('Client is null');
+        const finalClient = client; // Create a non-null reference for the event handler
+        finalClient.once('ready', async () => {
             if (commandList.length > 0) {
                 try {
                     // Set commands in client collection
                     const setCommandsStartTime = Date.now();
                     debugLog({ message: 'Setting commands in client collection...' });
-                    await setCommands({ client, commands: commandList });
+                    await setCommands({ client: finalClient, commands: commandList });
                     debugLog({ message: `Setting commands took ${Date.now() - setCommandsStartTime}ms` });
 
                     // Register commands with Discord API
                     const registerCommandsStartTime = Date.now();
                     debugLog({ message: 'Registering commands with Discord API...' });
-                    await mapGuildIds({ client });
+                    await mapGuildIds({ client: finalClient });
                     debugLog({ message: `Registering commands took ${Date.now() - registerCommandsStartTime}ms` });
 
                     // Verify commands were loaded
-                    const commandCount = client.commands.size;
+                    const commandCount = finalClient.commands.size;
                     infoLog({ message: `Loaded ${commandCount} commands into client collection` });
 
                     if (commandCount === 0) {
