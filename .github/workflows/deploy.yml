@@ -10,7 +10,7 @@ on:
 env:
   NODE_VERSION: '22.x'
   AWS_REGION: 'us-east-1'
-  S3_BUCKET: 'lukbot-deployments--use1-az4--x-s3'
+  S3_BUCKET: 'lukbot-deployments'
 
 jobs:
   lint:
