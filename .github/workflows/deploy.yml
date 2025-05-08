@@ -8,7 +8,7 @@ on:
     branches: [ main, master ]
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.x'
   AWS_REGION: 'us-east-1'
 
 jobs:

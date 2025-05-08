@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+# Load nvm if available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Get the git root directory
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# Change to project directory
+cd "$PROJECT_ROOT"
+
+# Ensure dependencies are installed
+if [ ! -d "node_modules" ]; then
+  echo "Installing dependencies..."
+  npm install
+fi
+
+echo "🔍 Running pre-commit checks..."
+
+# Check for outdated dependencies
+echo "📦 Checking for outdated dependencies..."
+npm exec ncu --errorLevel 2
+
+# Run depcheck
+echo "🔎 Running dependency check..."
+if ! npm exec depcheck > /dev/null 2>&1; then
+  echo "⚠️  Dependency check failed, skipping..."
+else
+  echo "✅ Dependency check passed"
+fi
+
+# Run linting with auto-fix
+echo "🔧 Running linting with auto-fix..."
+npm run lint:fix
+
+# Run linting
+echo "🧹 Running linting..."
+npm run lint
+
+# Run type checking
+echo "📝 Running type checking..."
+npm run type:check
+
+# Check if we're in the middle of a commit
+if [ -z "$HUSKY" ]; then
+  echo "💡 Tip: Use 'npm run commit' for conventional commit messages"
+fi 

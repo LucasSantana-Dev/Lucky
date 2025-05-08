@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Load nvm if available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Get the git root directory
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# Change to project directory
+cd "$PROJECT_ROOT"
+
+# Ensure dependencies are installed
+if [ ! -d "node_modules" ]; then
+  echo "Installing dependencies..."
+  npm install
+fi
+
+# Get the commit message file path
+COMMIT_MSG_FILE="$1"
+
+# Run commitlint with explicit config file
+npx commitlint --edit "$COMMIT_MSG_FILE" --config commitlint.config.cjs 

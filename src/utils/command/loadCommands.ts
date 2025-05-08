@@ -66,4 +66,10 @@ export async function loadCommandsFromDir(directoryPath: string): Promise<Comman
             }
         }
 
-        infoLog({ message: `
+        infoLog({ message: `Successfully loaded ${commands.length} commands from ${absolutePath}` });
+        return commands;
+    } catch (error) {
+        errorLog({ message: `Error loading commands from directory ${directoryPath}:`, error });
+        return [];
+    }
+}

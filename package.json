@@ -11,7 +11,21 @@
 		"dev:watch": "cross-env NODE_ENV=development tsx watch src/index.ts",
 		"lint": "eslint . -c eslint.config.js",
 		"lint:fix": "eslint . -c eslint.config.js --fix",
-		"type:check": "tsc --noEmit"
+		"type:check": "tsc --noEmit",
+		"check:deps": "depcheck",
+		"check:outdated": "ncu",
+		"update:deps": "ncu -u && npm install",
+		"prepare": "husky install",
+		"commit": "git-cz",
+		"commit:retry": "git-cz --retry"
+	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/cz-conventional-changelog"
+		}
+	},
+	"engines": {
+		"node": ">=22.x"
 	},
 	"keywords": [
 		"discord",
@@ -37,13 +51,20 @@
 		"play-dl": "^1.9.7"
 	},
 	"devDependencies": {
+		"@commitlint/cli": "^19.2.1",
+		"@commitlint/config-conventional": "^19.1.0",
 		"@eslint/js": "^9.25.1",
 		"@types/fluent-ffmpeg": "^2.1.27",
 		"@types/node": "^22.15.3",
+		"commitizen": "^4.3.0",
 		"cross-env": "^7.0.3",
+		"cz-conventional-changelog": "^3.3.0",
+		"depcheck": "^1.4.7",
 		"eslint": "^9.26.0",
 		"eslint-config-prettier": "^10.1.2",
 		"globals": "^16.0.0",
+		"husky": "^9.0.11",
+		"npm-check-updates": "^16.14.20",
 		"tsup": "^8.4.0",
 		"tsx": "^4.19.3",
 		"typescript": "^5.3.3"
