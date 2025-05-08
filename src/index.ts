@@ -13,6 +13,7 @@ import { CustomClient } from './types';
 import Command from './models/Command';
 import { clearAllTimers } from './utils/timerManager';
 
+// Initialize Sentry if DSN is provided
 if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
@@ -32,7 +33,6 @@ if (result.error) {
         errorLog({ message: 'Error loading .env file:', error: result.error });
         process.exit(1);
     }
-    // else: do nothing, missing .env is fine
 }
 
 debugLog({ message: 'Environment variables loaded' });
@@ -70,47 +70,23 @@ process.on('SIGTERM', () => {
     process.exit(0);
 });
 
-// Create Discord client with necessary intents
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-}) as CustomClient;
-
-// Initialize commands collection
-client.commands = new Collection<string, Command>();
-
-// Setup event handlers
-handleEvents(client);
-
-// Login to Discord
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-    errorLog({ message: 'DISCORD_TOKEN is not defined in environment variables' });
-    process.exit(1);
-}
-
-debugLog({ message: `Token length: ${token.length}` });
-// client.login(token)
-//     .then(() => {
-//         infoLog({ message: 'Bot is ready!' });
-//     })
-//     .catch((error) => {
-//         errorLog({ message: 'Error logging in:', error });
-//     });
+let client: CustomClient | null = null;
+let isInitialized = false;
 
 // Start the bot
 async function start() {
+    if (isInitialized) {
+        infoLog({ message: 'Bot already initialized, skipping initialization' });
+        return;
+    }
+
     const startTime = Date.now();
     try {
         infoLog({ message: 'Starting bot initialization...' });
 
         // Create and initialize client
         const clientCreationStart = Date.now();
-        const client = createClient();
+        client = createClient();
         if (!client.login) {
             throw new Error('Failed to create Discord client');
         }
@@ -197,11 +173,34 @@ async function start() {
             }
             infoLog({ message: `Bot initialization completed successfully in ${Date.now() - startTime}ms` });
         });
+
+        isInitialized = true;
     } catch (error) {
-        errorLog({ message: 'Critical error starting bot:', error });
-        process.exit(1);
+        errorLog({ message: 'Error during bot initialization:', error });
+        throw error;
     }
 }
 
-// Start the bot
-start(); 
+// Lambda handler
+export const handler = async (event: any, context: any) => {
+    try {
+        await start();
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Bot initialized successfully',
+                timestamp: new Date().toISOString()
+            })
+        };
+    } catch (error) {
+        errorLog({ message: 'Error in Lambda handler:', error });
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                message: 'Error initializing bot',
+                error: error instanceof Error ? error.message : 'Unknown error',
+                timestamp: new Date().toISOString()
+            })
+        };
+    }
+}; 

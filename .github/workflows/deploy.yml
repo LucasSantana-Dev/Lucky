@@ -5,11 +5,11 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-    branches: [ main, master ]  # Added PR validation
+    branches: [ main, master ]
 
 env:
-  NODE_VERSION: '22.x'
-  PM2_APP_NAME: 'lukbot'
+  NODE_VERSION: '18.x'
+  AWS_REGION: 'us-east-1'
 
 jobs:
   lint:
@@ -33,10 +33,10 @@ jobs:
         
       - name: Run security audit
         run: npm audit --audit-level=high
-        continue-on-error: true  # Don't fail the build, but report issues
+        continue-on-error: true
         
       - name: Check for outdated dependencies
-        run: npm outdated || true  # Just for information
+        run: npm outdated || true
       
   build:
     needs: lint
@@ -66,18 +66,26 @@ jobs:
       - name: Copy version file to dist
         run: cp version.json dist/
 
-      - name: Prepare deployment package
+      - name: Prepare Lambda deployment package
         run: |
-          # Only include necessary files in the tarball
-          tar --exclude='**/*.map' --exclude='**/test*' -czf bot.tar.gz dist package.json package-lock.json version.json ecosystem.config.cjs
+          # Create a new directory for Lambda package
+          mkdir -p lambda-package
+          # Copy necessary files
+          cp -r dist/* lambda-package/
+          cp package.json lambda-package/
+          cp version.json lambda-package/
+          # Install production dependencies
+          cd lambda-package
+          npm ci --omit=dev
+          # Create deployment package
+          zip -r ../function.zip .
+          cd ..
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bot-artifact
-          path: |
-            bot.tar.gz
-            version.json
+          name: lambda-package
+          path: function.zip
 
   deploy:
     needs: build
@@ -88,141 +96,70 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: bot-artifact
+          name: lambda-package
 
-      - name: Write deploy script
-        run: |
-          cat > deploy.sh << 'EOF'
-          #!/bin/bash
-          set -e
-          # ... (your deploy script contents go here) ...
-          EOF
-
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Create deployment directory on EC2
+      - name: Create Lambda function
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ~/deployment"
+          # Create Lambda function if it doesn't exist
+          aws lambda create-function \
+            --function-name lukbot \
+            --runtime nodejs18.x \
+            --handler dist/index.handler \
+            --role ${{ secrets.AWS_LAMBDA_ROLE_ARN }} \
+            --zip-file fileb://function.zip \
+            --environment "Variables={DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }},CLIENT_ID=${{ secrets.CLIENT_ID }},TOKEN=${{ secrets.TOKEN }},SENTRY_DSN=${{ secrets.SENTRY_DSN }},NODE_ENV=production,COMMIT_SHA=${GITHUB_SHA},BUILD_NUMBER=${GITHUB_RUN_NUMBER}}" \
+            --timeout 300 \
+            --memory-size 128 \
+            || true
 
-      - name: Copy deployment package and scripts to EC2
+      - name: Update Lambda function
         run: |
-          scp -o StrictHostKeyChecking=no bot.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/
-          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deployment/
+          # Update existing Lambda function
+          aws lambda update-function-code \
+            --function-name lukbot \
+            --zip-file fileb://function.zip
 
-      - name: Generate .env file
+          aws lambda update-function-configuration \
+            --function-name lukbot \
+            --environment "Variables={DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }},CLIENT_ID=${{ secrets.CLIENT_ID }},TOKEN=${{ secrets.TOKEN }},SENTRY_DSN=${{ secrets.SENTRY_DSN }},NODE_ENV=production,COMMIT_SHA=${GITHUB_SHA},BUILD_NUMBER=${GITHUB_RUN_NUMBER}}" \
+            --timeout 300 \
+            --memory-size 128
+
+      - name: Set up EventBridge rule
         run: |
-          cat > .env << EOF
-          DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }}
-          CLIENT_ID=${{ secrets.CLIENT_ID }}
-          TOKEN=${{ secrets.TOKEN }}
-          COMMAND_CATEGORIES_DISABLED=${{ env.COMMAND_CATEGORIES_DISABLED }}
-          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          LOG_LEVEL=${{ env.LOG_LEVEL }}
-          NODE_ENV=production
-          # Added for better error tracking
-          COMMIT_SHA=${GITHUB_SHA}
-          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
-          EOF
+          # Create EventBridge rule if it doesn't exist
+          aws events put-rule \
+            --name lukbot-schedule \
+            --schedule-expression "rate(1 hour)" \
+            --state ENABLED \
+            || true
 
-      - name: Copy .env to EC2
+          # Get the rule ARN
+          RULE_ARN=$(aws events describe-rule --name lukbot-schedule --query 'Arn' --output text)
+
+          # Add Lambda as target
+          aws events put-targets \
+            --rule lukbot-schedule \
+            --targets "Id"="1","Arn"="arn:aws:lambda:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:function:lukbot"
+
+      - name: Add Lambda permission for EventBridge
         run: |
-          scp -o StrictHostKeyChecking=no .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deployment/
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "chmod 600 ~/deployment/.env"
-
-      - name: Run deploy script on EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            set -e
-            echo '=== Running deploy script ==='
-            # Clean up old app directory before unpacking
-            rm -rf ~/app
-            mkdir -p ~/app
-            # Extract tarball with no-same-owner for speed and safety
-            tar --no-same-owner -xzf ~/bot.tar.gz -C ~/app
-            # Install production dependencies only if needed
-            if [ -f ~/app/package.json ]; then
-              cd ~/app
-              NODE_ENV=production npm ci --omit=dev || true
-            fi
-            bash ~/deployment/deploy.sh > ~/deployment/deploy-log-$(date +%Y%m%d%H%M%S).log 2>&1 || { echo 'Deploy script failed! Check logs.'; exit 1; }
-            echo "Exit code: $?"
-            # Clean up old tarballs and scripts
-            rm -f ~/bot.tar.gz ~/deployment/deploy.sh
-            echo 'Cleaned up old tarballs and deploy script.'
-
-      - name: Start/Restart bot with PM2 on EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            set -e
-            cd ~/app
-            echo 'Reloading application with PM2...'
-            pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
-            pm2 save
-            pm2 startup | tail -n 1 | bash || true
-            pm2 list
-            echo 'PM2 reload/start complete.'
-
-      # (Optional) Slack/Discord notification step (uncomment and configure as needed)
-      # - name: Notify Slack
-      #   uses: rtCamp/action-slack-notify@v2
-      #   env:
-      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      #     SLACK_MESSAGE: 'LukBot deployed successfully to EC2!'
-      #     SLACK_COLOR: good
-      #
-      # - name: Notify Discord
-      #   uses: Ilshidur/action-discord@master
-      #   with:
-      #     webhook: ${{ secrets.DISCORD_WEBHOOK }}
-      #     message: 'LukBot deployed successfully to EC2!'
+          aws lambda add-permission \
+            --function-name lukbot \
+            --statement-id EventBridgeInvoke \
+            --action lambda:InvokeFunction \
+            --principal events.amazonaws.com \
+            --source-arn "arn:aws:events:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:rule/lukbot-schedule" \
+            || true
 
       - name: Validate deployment
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            set -e
-            # Wait a moment for the process to stabilize
-            sleep 5
-            
-            # Check if process is running
-            if ! pm2 pid lukbot > /dev/null; then
-              echo "Application failed to start!"
-              pm2 logs lukbot --lines 50
-              cat ~/deployment/deploy-log-*.log | tail -n 50
-              exit 1
-            fi
-            
-            # Display version info
-            if [ -f ~/app/dist/version.json ]; then
-              echo "=== Version Info ==="
-              cat ~/app/dist/version.json
-            fi
-            
-            echo "=== Process Status ==="
-            pm2 show lukbot
-            
-            echo "=== System Resources ==="
-            df -h | grep -v "tmpfs\|udev"
-            free -m
-            
-            echo "=== Recent Logs ==="
-            pm2 logs lukbot --lines 10
-            
-            echo "Deployment validation successful"
+        run: |
+          aws lambda get-function --function-name lukbot
+          aws events describe-rule --name lukbot-schedule
