@@ -10,6 +10,7 @@ on:
 env:
   NODE_VERSION: '22.x'
   AWS_REGION: 'us-east-1'
+  S3_BUCKET: 'lukbot-deployments'
 
 jobs:
   lint:
@@ -106,6 +107,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Create S3 bucket if it doesn't exist
+        run: |
+          aws s3api create-bucket \
+            --bucket ${{ env.S3_BUCKET }} \
+            --region ${{ env.AWS_REGION }} \
+            --create-bucket-configuration LocationConstraint=${{ env.AWS_REGION }} \
+            || true
+
+      - name: Upload deployment package to S3
+        run: |
+          aws s3 cp function.zip s3://${{ env.S3_BUCKET }}/function-${{ github.sha }}.zip
+
       - name: Create Lambda function
         run: |
           # Create Lambda function if it doesn't exist
@@ -114,7 +127,7 @@ jobs:
             --runtime nodejs18.x \
             --handler dist/index.handler \
             --role ${{ secrets.AWS_LAMBDA_ROLE_ARN }} \
-            --zip-file fileb://function.zip \
+            --code S3Bucket=${{ env.S3_BUCKET }},S3Key=function-${{ github.sha }}.zip \
             --environment "Variables={DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }},CLIENT_ID=${{ secrets.CLIENT_ID }},TOKEN=${{ secrets.TOKEN }},SENTRY_DSN=${{ secrets.SENTRY_DSN }},NODE_ENV=production,COMMIT_SHA=${GITHUB_SHA},BUILD_NUMBER=${GITHUB_RUN_NUMBER}}" \
             --timeout 300 \
             --memory-size 128 \
@@ -125,7 +138,8 @@ jobs:
           # Update existing Lambda function
           aws lambda update-function-code \
             --function-name lukbot \
-            --zip-file fileb://function.zip
+            --s3-bucket ${{ env.S3_BUCKET }} \
+            --s3-key function-${{ github.sha }}.zip
 
           aws lambda update-function-configuration \
             --function-name lukbot \
@@ -164,3 +178,10 @@ jobs:
         run: |
           aws lambda get-function --function-name lukbot
           aws events describe-rule --name lukbot-schedule
+
+      - name: Clean up old deployment packages
+        run: |
+          # List all deployment packages
+          aws s3 ls s3://${{ env.S3_BUCKET }}/function- | sort -r | tail -n +6 | awk '{print $4}' | while read -r file; do
+            aws s3 rm "s3://${{ env.S3_BUCKET }}/$file"
+          done
