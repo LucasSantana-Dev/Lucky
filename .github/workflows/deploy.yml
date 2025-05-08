@@ -73,10 +73,11 @@ jobs:
           # Copy necessary files
           cp -r dist/* lambda-package/
           cp package.json lambda-package/
+          cp package-lock.json lambda-package/
           cp version.json lambda-package/
           # Install production dependencies
           cd lambda-package
-          npm ci --omit=dev
+          npm install --omit=dev --no-package-lock
           # Create deployment package
           zip -r ../function.zip .
           cd ..
