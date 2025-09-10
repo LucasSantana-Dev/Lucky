@@ -101,9 +101,15 @@ src/
 
 ### 🐳 Docker Setup (Recommended)
 
-The easiest way to run LukBot is using Docker. This ensures all dependencies are properly installed and configured.
+The easiest way to run LukBot is using Docker. This ensures all dependencies are properly installed and configured with a unified management interface.
 
-#### Quick Docker Start
+#### Prerequisites
+
+- **Docker** (version 20.10 or higher)
+- **Docker Compose** (version 2.0 or higher)
+- **Discord Bot Token** and **Client ID**
+
+#### Quick Start
 
 1. **Clone the repository**:
 
@@ -123,49 +129,75 @@ The easiest way to run LukBot is using Docker. This ensures all dependencies are
 
     ```bash
     # Production
-    ./scripts/docker.sh build-prod
-    ./scripts/docker.sh start-prod
+    npm run build
+    npm run start
 
     # Development (with hot reloading)
-    ./scripts/docker.sh build-dev
-    ./scripts/docker.sh start-dev
+    npm run build:dev
+    npm run dev
     ```
 
 4. **View logs**:
     ```bash
-    ./scripts/docker.sh logs prod  # or logs dev
+    npm run logs        # Production logs
+    npm run logs:dev    # Development logs
     ```
 
-#### Docker Management
+#### Unified Management Commands
+
+LukBot uses a unified management script that provides both Docker and local development operations:
 
 ```bash
-# Build images
-./scripts/docker.sh build-prod    # Production image
-./scripts/docker.sh build-dev     # Development image
+# 🐳 DOCKER COMMANDS (Primary Application Operations)
+npm run build          # Build production Docker image
+npm run build:dev      # Build development Docker image
+npm run start          # Start production container
+npm run dev            # Start development container
+npm run dev:watch      # Start with hot reloading (local)
+npm run stop           # Stop all containers/processes
+npm run restart        # Restart production container
+npm run restart:dev    # Restart development container
+npm run logs           # View production logs
+npm run logs:dev       # View development logs
+npm run status         # Show container status
+npm run clean          # Clean up Docker resources and workspace
 
-# Start containers
-./scripts/docker.sh start-prod    # Production
-./scripts/docker.sh start-dev     # Development
+# 🛠️ LOCAL DEVELOPMENT COMMANDS (Code Quality & Tools)
+npm run quality        # Run all quality checks (lint, type-check, build)
+npm run format         # Format code with Prettier
+npm run lint:fix       # Fix linting issues
+npm run install        # Install dependencies
+npm run update:deps    # Update dependencies
+npm run check:deps     # Check for outdated dependencies
+npm run audit          # Run security audit
 
-# Stop containers
-./scripts/docker.sh stop
-
-# View logs
-./scripts/docker.sh logs prod     # Production logs
-./scripts/docker.sh logs dev      # Development logs
-
-# Restart containers
-./scripts/docker.sh restart prod  # Restart production
-./scripts/docker.sh restart dev   # Restart development
-
-# Clean up
-./scripts/docker.sh clean
-
-# Check status
-./scripts/docker.sh status
+# ℹ️ UTILITIES
+npm run help           # Show help message
 ```
 
-For detailed Docker documentation, see [README-Docker.md](README-Docker.md).
+#### Docker Features
+
+**Production Image (`Dockerfile`)**
+
+- **Base**: Node.js 22 Alpine
+- **Dependencies**: Python3, FFmpeg, yt-dlp
+- **Security**: Non-root user (bot:1001)
+- **Optimization**: Production dependencies only
+- **Health Check**: 30s interval with 3 retries
+
+**Development Image (`Dockerfile.dev`)**
+
+- **Base**: Node.js 22 Alpine
+- **Dependencies**: All development dependencies included
+- **Hot Reloading**: Volume mounting for live code changes
+- **Debugging**: Full source code access
+
+**Container Features**
+
+- **Environment Variables**: NODE_ENV, DISCORD_TOKEN, CLIENT_ID, etc.
+- **Volume Mounts**: Persistent downloads and logs storage
+- **Network**: Custom bridge network with health monitoring
+- **Security**: Non-root execution with minimal attack surface
 
 - (Optional) Sentry DSN for error tracking
 
@@ -222,14 +254,66 @@ npm install
 # Start development mode with hot reloading
 npm run dev:watch
 
-# Run linting
-npm run lint
+# Run quality checks
+npm run quality
+
+# Format code
+npm run format
 
 # Fix linting issues
 npm run lint:fix
 
 # Type checking
 npm run type:check
+```
+
+### 🔍 Troubleshooting
+
+#### Common Issues
+
+**1. Docker Not Available**
+
+```bash
+# If Docker is not installed, the script will fallback to local operations
+npm run dev:watch  # Uses local development mode
+npm run quality    # Runs local quality checks
+```
+
+**2. Permission Errors**
+
+```bash
+# Fix volume permissions (if using Docker)
+sudo chown -R 1001:1001 downloads logs
+```
+
+**3. Environment File Missing**
+
+```bash
+# Create .env file
+cp env.example .env
+# Edit with your Discord credentials
+nano .env
+```
+
+**4. Container Won't Start**
+
+```bash
+# Check logs
+npm run logs
+
+# Check status
+npm run status
+
+# Restart container
+npm run restart
+```
+
+**5. Build Failures**
+
+```bash
+# Clean and rebuild
+npm run clean
+npm run build
 ```
 
 ### Production Deployment
@@ -310,12 +394,11 @@ git checkout -b feature/your-feature
 npm run dev:watch
 
 # Run quality checks
-npm run lint
-npm run type:check
+npm run quality
 
 # Build and test
 npm run build
-npm start
+npm run start
 
 # Commit with conventional commits
 npm run commit
@@ -379,8 +462,7 @@ git checkout -b feature/your-feature
 npm run dev:watch
 
 # Run quality checks
-npm run lint
-npm run type:check
+npm run quality
 
 # Commit with conventional commits
 npm run commit
@@ -439,13 +521,16 @@ The project uses several code quality tools to maintain high standards:
 
 ### Quality Reports
 
-Quality checks are available through npm scripts:
+Quality checks are available through the unified management system:
 
+- **Quality Suite**: `npm run quality` - Run all quality checks (lint, type-check, build)
 - **Linting**: `npm run lint` - Check code quality
 - **Lint Fix**: `npm run lint:fix` - Auto-fix linting issues
+- **Format**: `npm run format` - Format code with Prettier
 - **Type Check**: `npm run type:check` - TypeScript validation
 - **Dependency Check**: `npm run check:deps` - Check for unused dependencies
 - **Update Dependencies**: `npm run check:outdated` - Check for outdated packages
+- **Security Audit**: `npm run audit` - Run security audit
 
 ---
 
