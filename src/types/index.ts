@@ -1,13 +1,18 @@
-import { Client, Collection, ChatInputCommandInteraction } from 'discord.js';
-import { Player } from 'discord-player';
-import Command from '../models/Command';
+import type {
+    Client,
+    Collection,
+    ChatInputCommandInteraction,
+} from "discord.js"
+import type { Player } from "discord-player"
+import type Command from "../models/Command"
 
-export interface CustomClient extends Client {
-    commands: Collection<string, Command>;
-    player: Player;
+export interface ICustomClient extends Client {
+    commands: Collection<string, Command>
+    player: Player
 }
 
-export interface CommandType {
-    data: any;
-    execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+export interface ICommandType {
+    data: unknown
+
+    execute: (_interaction: ChatInputCommandInteraction) => Promise<void>
 }

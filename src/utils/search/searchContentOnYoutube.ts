@@ -1,44 +1,79 @@
-import { QueryType } from "discord-player";
-import { ChatInputCommandInteraction } from 'discord.js';
-import { CustomClient } from '../../types';
-import { errorLog, debugLog } from '../general/log';
+import type { ChatInputCommandInteraction } from "discord.js"
+import type { ICustomClient } from "../../types"
+import { errorLog, debugLog } from "../general/log"
+import {
+    enhancedYouTubeSearch,
+    enhancedAutoSearch,
+} from "../music/enhancedSearch"
+import {
+    logYouTubeError,
+    isRecoverableYouTubeError,
+} from "../music/youtubeErrorHandler"
 
-interface SearchContentParams {
-  client: CustomClient;
-  searchTerms: string;
-  interaction: ChatInputCommandInteraction;
-  isPlaylist?: boolean;
+interface ISearchContentParams {
+    client: ICustomClient
+    searchTerms: string
+    interaction: ChatInputCommandInteraction
+    isPlaylist?: boolean
 }
 
-export const searchContentOnYoutube = async ({ 
-  client, 
-  searchTerms, 
-  interaction, 
-  isPlaylist = false 
-}: SearchContentParams) => {
-  try {
-    debugLog({ message: `Searching for: ${searchTerms}` });
-    
-    // Try YouTube search first
-    const result = await client.player.search(searchTerms, {
-      requestedBy: interaction.user,
-      searchEngine: isPlaylist ? QueryType.YOUTUBE_PLAYLIST : QueryType.YOUTUBE_SEARCH,
-    });
-    
-    debugLog({ message: `Search result: ${result ? 'Found' : 'Not found'}` });
-    
-    // If no results, try AUTO search as fallback
-    if (!result || !result.tracks || result.tracks.length === 0) {
-      debugLog({ message: 'No results with YouTube search, trying AUTO search' });
-      return await client.player.search(searchTerms, {
-        requestedBy: interaction.user,
-        searchEngine: QueryType.AUTO,
-      });
+export const searchContentOnYoutube = async ({
+    client,
+    searchTerms,
+    interaction,
+    isPlaylist = false,
+}: ISearchContentParams) => {
+    try {
+        debugLog({ message: `Searching for: ${searchTerms}` })
+
+        // Use enhanced search for better error handling
+        const enhancedResult = await enhancedYouTubeSearch(
+            client.player,
+            searchTerms,
+            interaction.user,
+            isPlaylist,
+        )
+
+        if (enhancedResult.success && enhancedResult.result) {
+            debugLog({
+                message: `Search result: Found ${enhancedResult.result.tracks.length} tracks`,
+            })
+            return enhancedResult.result
+        }
+
+        // If enhanced search failed, try auto search as final fallback
+        debugLog({
+            message:
+                "Enhanced YouTube search failed, trying AUTO search as final fallback",
+        })
+
+        const autoResult = await enhancedAutoSearch(
+            client.player,
+            searchTerms,
+            interaction.user,
+        )
+
+        if (autoResult.success && autoResult.result) {
+            debugLog({
+                message: `Auto search result: Found ${autoResult.result.tracks.length} tracks`,
+            })
+            return autoResult.result
+        }
+
+        // If all searches failed, throw the error from enhanced search
+        throw new Error(enhancedResult.error ?? "Nenhum resultado encontrado")
+    } catch (error) {
+        const errorObj = error as Error
+
+        // Log YouTube-specific errors with enhanced logging
+        if (isRecoverableYouTubeError(errorObj)) {
+            logYouTubeError(errorObj, "searchContentOnYoutube")
+        } else {
+            errorLog({
+                message: `Error searching for content: ${errorObj.message}`,
+            })
+        }
+
+        throw error
     }
-    
-    return result;
-  } catch (error) {
-    errorLog({ message: `Error searching for content: ${error}` });
-    throw error;
-  }
-} 
+}

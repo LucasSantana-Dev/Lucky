@@ -1,16 +1,20 @@
-import { CommandData, CommandExecute } from '../types/CommandData';
+import type { CommandCategory } from "src/config/constants"
+import type { TCommandData, TCommandExecute } from "../types/CommandData"
 
-interface CommandOptions {
-  data: CommandData;
-  execute: CommandExecute;
+interface ICommandOptions {
+    data: TCommandData
+    execute: TCommandExecute
+    category: CommandCategory
 }
 
 export default class Command {
-  data: CommandData;
-  execute: CommandExecute;
+    data: TCommandData
+    execute: TCommandExecute
+    category: CommandCategory
 
-  constructor(options: CommandOptions) {
-    this.data = options.data;
-    this.execute = options.execute;
-  }
-} 
+    constructor(options: ICommandOptions) {
+        this.data = options.data
+        this.execute = options.execute
+        this.category = options.category
+    }
+}

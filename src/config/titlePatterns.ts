@@ -1,16 +1,14 @@
-// Artist-title separation patterns
 export const artistTitlePatterns = [
-    /^(.+?)\s*[-–]\s*(.+)$/,  // Artist - Title
-    /^(.+?)\s*:\s*(.+)$/,     // Artist: Title
-    /^(.+?)\s*by\s*(.+)$/,    // Title by Artist
-    /^(.+?)\s*from\s*(.+)$/,  // Title from Artist
-    /^(.+?)\s*\((.+?)\)/,     // Title (Artist)
-    /^\[(.+?)\]\s*(.+)$/,     // [Artist] Title
-    /^(.+?)\s*ft\.?\s*(.+)$/, // Artist ft. Title
-    /^(.+?)\s*feat\.?\s*(.+)$/ // Artist feat. Title
-];
+    /^(.+?)\s*[-–]\s*(.+)$/,
+    /^(.+?)\s*:\s*(.+)$/,
+    /^(.+?)\s*by\s*(.+)$/,
+    /^(.+?)\s*from\s*(.+)$/,
+    /^(.+?)\s*\((.+?)\)/,
+    /^\[(.+?)\]\s*(.+)$/,
+    /^(.+?)\s*ft\.?\s*(.+)$/,
+    /^(.+?)\s*feat\.?\s*(.+)$/,
+]
 
-// YouTube title cleanup patterns
 export const youtubePatterns = [
     /\s*\(official\s*(music\s*)?video\)/gi,
     /\s*\(lyrics?\)/gi,
@@ -65,10 +63,9 @@ export const youtubePatterns = [
     /\s*instrumental\s*/gi,
     /\s*karaoke\s*/gi,
     /\s*lyric(s)?\s*/gi,
-    /\s*version\s*/gi
-];
+    /\s*version\s*/gi,
+]
 
-// Artist name cleanup patterns
 export const artistPatterns = [
     /\s*-\s*by\s*/gi,
     /\s*by\s*/gi,
@@ -76,23 +73,19 @@ export const artistPatterns = [
     /\s*feat\.?\s*/gi,
     /\s*featuring\s*/gi,
     /\s*prod\.?\s*/gi,
-    /\s*produced\s*by\s*/gi
-];
+    /\s*produced\s*by\s*/gi,
+]
 
-// Duration format patterns
 export const durationPatterns = {
-    timeFormat: /^(\d+):(\d+)$/  // MM:SS format
-};
+    timeFormat: /^(\d+):(\d+)$/,
+}
 
-// Spotify title cleanup patterns (for variant detection)
-// Note: Acoustic is intentionally NOT filtered out, as per user preference
 export const spotifyPatterns = [
     /\s*-\s*remix( version)?/i,
     /\s*\(remix( version)?\)/i,
     /\s*-\s*live( at [^)]+)?/i,
     /\s*\(live( at [^)]+)?\)/i,
-    // /\s*-\s*acoustic( version)?/i, // acoustic is allowed
-    // /\s*\(acoustic( version)?\)/i, // acoustic is allowed
+
     /\s*-\s*radio edit/i,
     /\s*\(radio edit\)/i,
     /\s*-\s*extended( mix)?/i,
@@ -116,5 +109,5 @@ export const spotifyPatterns = [
     /\s*-\s*explicit/i,
     /\s*\(explicit\)/i,
     /\s*-\s*[a-z]+ version/i,
-    /\s*\([a-z]+ version\)/i
-]; 
+    /\s*\([a-z]+ version\)/i,
+]
