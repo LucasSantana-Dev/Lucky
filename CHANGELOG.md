@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Unified management script (`scripts/lukbot.sh`) combining Docker and development operations
+- **BREAKING**: Renamed project from LukBot to DiscordBot for generic use
+- Unified management script (`scripts/discord-bot.sh`) combining Docker and development operations
 - Comprehensive depcheck configuration (`depcheck.config.cjs`) for cleaner dependency management
 - Docker-first approach for all application operations
 - Enhanced script organization with clear command categorization
+- Bot customization options via environment variables (BOT_NAME, BOT_DESCRIPTION, BOT_AVATAR_URL, etc.)
+- Generic Docker container names and network configuration
 
 ### Changed
 
-- **BREAKING**: Consolidated `docker.sh` and `dev.sh` into single `lukbot.sh` script
+- **BREAKING**: Consolidated `docker.sh` and `dev.sh` into single `discord-bot.sh` script
 - **BREAKING**: Updated all package.json scripts to use unified script interface
 - Improved Docker integration with fallback to local operations when Docker unavailable
 - Enhanced help system with categorized commands (Docker vs Local Development)

@@ -1,11 +1,11 @@
 version: "3.8"
 
 services:
-    lukbot-dev:
+    discord-bot-dev:
         build:
             context: .
             dockerfile: Dockerfile.dev
-        container_name: lukbot-discord-dev
+        container_name: discord-bot-dev
         restart: unless-stopped
         environment:
             - NODE_ENV=development
@@ -20,7 +20,7 @@ services:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
         networks:
-            - lukbot-network
+            - discord-bot-network
         healthcheck:
             test: ["CMD", "node", "-e", "console.log('Bot is running')"]
             interval: 30s
@@ -34,5 +34,5 @@ services:
                 max-file: "3"
 
 networks:
-    lukbot-network:
+    discord-bot-network:
         driver: bridge

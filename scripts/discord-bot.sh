@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# LukBot Unified Management Script
-# Usage: ./scripts/lukbot.sh <command>
+# DiscordBot Unified Management Script
+# Usage: ./scripts/discord-bot.sh <command>
 
 set -e
 
@@ -66,7 +66,7 @@ check_docker() {
 build() {
     print_status "Building production Docker image..."
     check_docker || exit 1
-    docker build -t lukbot:latest .
+    docker build -t discord-bot:latest .
     print_success "Production image built successfully!"
 }
 
@@ -74,7 +74,7 @@ build() {
 build_dev() {
     print_status "Building development Docker image..."
     check_docker || exit 1
-    docker build -f Dockerfile.dev -t lukbot:dev .
+    docker build -f Dockerfile.dev -t discord-bot:dev .
     print_success "Development image built successfully!"
 }
 
@@ -100,7 +100,7 @@ dev() {
 
 # Function to start development mode with watch (local)
 dev_watch() {
-    print_status "Starting LukBot in development mode with watch..."
+    print_status "Starting DiscordBot in development mode with watch..."
     check_env || exit 1
     npm run dev:watch
 }
@@ -256,9 +256,9 @@ audit() {
 
 # Function to show help
 help() {
-    echo "LukBot Unified Management Script"
+    echo "DiscordBot Unified Management Script"
     echo ""
-    echo "Usage: ./scripts/lukbot.sh <command>"
+    echo "Usage: ./scripts/discord-bot.sh <command>"
     echo ""
     echo "🐳 DOCKER COMMANDS (Primary Application Operations):"
     echo "  build          Build production Docker image"
@@ -285,11 +285,11 @@ help() {
     echo "  help           Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/lukbot.sh build"
-    echo "  ./scripts/lukbot.sh dev"
-    echo "  ./scripts/lukbot.sh logs dev"
-    echo "  ./scripts/lukbot.sh quality"
-    echo "  ./scripts/lukbot.sh restart prod"
+    echo "  ./scripts/discord-bot.sh build"
+    echo "  ./scripts/discord-bot.sh dev"
+    echo "  ./scripts/discord-bot.sh logs dev"
+    echo "  ./scripts/discord-bot.sh quality"
+    echo "  ./scripts/discord-bot.sh restart prod"
 }
 
 # =============================================================================

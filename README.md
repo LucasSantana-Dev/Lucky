@@ -1,6 +1,6 @@
-# 🎵 LukBot - Discord Music Bot
+# 🎵 DiscordBot - Modern Discord Music Bot
 
-A modern Discord bot built with TypeScript that plays music from YouTube and Spotify, and can download YouTube videos with advanced features like duplicate detection, queue management, and comprehensive logging.
+A modern Discord bot built with TypeScript that plays music from YouTube and Spotify, and can download YouTube videos with advanced features like duplicate detection, queue management, and comprehensive logging. Fully customizable and ready to use!
 
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3.3-blue.svg)](https://www.typescriptlang.org/)
@@ -101,7 +101,7 @@ src/
 
 ### 🐳 Docker Setup (Recommended)
 
-The easiest way to run LukBot is using Docker. This ensures all dependencies are properly installed and configured with a unified management interface.
+The easiest way to run DiscordBot is using Docker. This ensures all dependencies are properly installed and configured with a unified management interface.
 
 #### Prerequisites
 
@@ -145,7 +145,7 @@ The easiest way to run LukBot is using Docker. This ensures all dependencies are
 
 #### Unified Management Commands
 
-LukBot uses a unified management script that provides both Docker and local development operations:
+DiscordBot uses a unified management script that provides both Docker and local development operations:
 
 ```bash
 # 🐳 DOCKER COMMANDS (Primary Application Operations)
@@ -198,6 +198,29 @@ npm run help           # Show help message
 - **Volume Mounts**: Persistent downloads and logs storage
 - **Network**: Custom bridge network with health monitoring
 - **Security**: Non-root execution with minimal attack surface
+
+### 🎨 Bot Customization
+
+DiscordBot is fully customizable! You can personalize your bot's appearance and information through environment variables:
+
+```env
+# Bot Customization (optional)
+BOT_NAME=DiscordBot
+BOT_DESCRIPTION=A modern Discord bot for music playback and downloads
+BOT_AVATAR_URL=https://example.com/avatar.png
+BOT_COLOR=0x5865F2
+BOT_WEBSITE=https://your-website.com
+BOT_SUPPORT_SERVER=https://discord.gg/your-server
+```
+
+**Customization Options:**
+
+- **BOT_NAME**: Your bot's display name
+- **BOT_DESCRIPTION**: Bot description for help commands
+- **BOT_AVATAR_URL**: Custom avatar URL (optional)
+- **BOT_COLOR**: Embed color (hex format)
+- **BOT_WEBSITE**: Your website URL
+- **BOT_SUPPORT_SERVER**: Discord server invite link
 
 - (Optional) Sentry DSN for error tracking
 
