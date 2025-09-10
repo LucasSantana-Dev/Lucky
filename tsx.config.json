@@ -1,4 +1,4 @@
 {
-  "tsconfig": "tsconfig.json",
-  "experimentalSpecifierResolution": "node"
-} 
+    "tsconfig": "tsconfig.json",
+    "experimentalSpecifierResolution": "node"
+}
