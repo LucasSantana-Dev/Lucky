@@ -1,9 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto"
 
 interface GenerateFileNameParams {
-  fileExt: string;
+    fileExt: string
 }
 
-export const generateFileName = ({ fileExt }: GenerateFileNameParams): string => {
-  return `${randomUUID()}.${fileExt}`;
-} 
+export const generateFileName = ({
+    fileExt,
+}: GenerateFileNameParams): string => {
+    return `${randomUUID()}.${fileExt}`
+}

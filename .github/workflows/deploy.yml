@@ -1,181 +1,72 @@
 name: CI/CD Pipeline
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    workflow_dispatch:
+    push:
+        branches: [main, master]
+    pull_request:
+        branches: [main, master]
 
 env:
-  NODE_VERSION: '22.x'
-  AWS_REGION: 'us-east-1'
-  S3_BUCKET: 'lukbot-deployments'
+    NODE_VERSION: "22.x"
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Lint code
-        run: npm run lint
-        
-      - name: Run security audit
-        run: npm audit --audit-level=high
-        continue-on-error: true
-        
-      - name: Check for outdated dependencies
-        run: npm outdated || true
-      
-  build:
-    needs: lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    lint:
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: "npm"
 
-      - name: Create version file
-        run: |
-          mkdir -p dist
-          echo "{\n  \"version\": \"${GITHUB_SHA:0:7}\",\n  \"buildDate\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\",\n  \"buildNumber\": \"$GITHUB_RUN_NUMBER\",\n  \"branch\": \"${GITHUB_REF#refs/heads/}\"\n}" > version.json
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Lint code
+              run: npm run lint
 
-      - name: Run build
-        run: npm run build
+            - name: Run security audit
+              run: npm audit --audit-level=high
+              continue-on-error: true
 
-      - name: Copy version file to dist
-        run: cp version.json dist/
+            - name: Check for outdated dependencies
+              run: npm outdated || true
 
-      - name: Prepare Lambda deployment package
-        run: |
-          # Create a new directory for Lambda package
-          mkdir -p lambda-package
-          # Copy necessary files
-          cp -r dist/* lambda-package/
-          cp package.json lambda-package/
-          cp package-lock.json lambda-package/
-          cp version.json lambda-package/
-          # Install production dependencies
-          cd lambda-package
-          npm install --omit=dev --no-package-lock
-          # Create deployment package
-          zip -r ../function.zip .
-          cd ..
+    build:
+        needs: lint
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lambda-package
-          path: function.zip
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: "npm"
 
-  deploy:
-    needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-package
+            - name: Create version file
+              run: |
+                  mkdir -p dist
+                  echo "{\n  \"version\": \"${GITHUB_SHA:0:7}\",\n  \"buildDate\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\",\n  \"buildNumber\": \"$GITHUB_RUN_NUMBER\",\n  \"branch\": \"${GITHUB_REF#refs/heads/}\"\n}" > version.json
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Upload deployment package to S3
-        run: |
-          echo "Uploading deployment package to S3..."
-          aws s3 cp function.zip s3://${{ env.S3_BUCKET }}/function-${{ github.sha }}.zip
-          echo "Upload complete"
+            - name: Run build
+              run: npm run build
 
-      - name: Create Lambda function
-        run: |
-          # Create Lambda function if it doesn't exist
-          aws lambda create-function \
-            --function-name lukbot \
-            --runtime nodejs18.x \
-            --handler dist/index.handler \
-            --role ${{ secrets.AWS_LAMBDA_ROLE_ARN }} \
-            --code S3Bucket=${{ env.S3_BUCKET }},S3Key=function-${{ github.sha }}.zip \
-            --environment "Variables={DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }},CLIENT_ID=${{ secrets.CLIENT_ID }},TOKEN=${{ secrets.TOKEN }},SENTRY_DSN=${{ secrets.SENTRY_DSN }},NODE_ENV=production,COMMIT_SHA=${GITHUB_SHA},BUILD_NUMBER=${GITHUB_RUN_NUMBER}}" \
-            --timeout 300 \
-            --memory-size 128 \
-            || true
+            - name: Copy version file to dist
+              run: cp version.json dist/
 
-      - name: Update Lambda function
-        run: |
-          # Update existing Lambda function
-          aws lambda update-function-code \
-            --function-name lukbot \
-            --s3-bucket ${{ env.S3_BUCKET }} \
-            --s3-key function-${{ github.sha }}.zip
-
-          aws lambda update-function-configuration \
-            --function-name lukbot \
-            --environment "Variables={DISCORD_TOKEN=${{ secrets.DISCORD_TOKEN }},CLIENT_ID=${{ secrets.CLIENT_ID }},TOKEN=${{ secrets.TOKEN }},SENTRY_DSN=${{ secrets.SENTRY_DSN }},NODE_ENV=production,COMMIT_SHA=${GITHUB_SHA},BUILD_NUMBER=${GITHUB_RUN_NUMBER}}" \
-            --timeout 300 \
-            --memory-size 128
-
-      - name: Set up EventBridge rule
-        run: |
-          # Create EventBridge rule if it doesn't exist
-          aws events put-rule \
-            --name lukbot-schedule \
-            --schedule-expression "rate(1 hour)" \
-            --state ENABLED \
-            || true
-
-          # Get the rule ARN
-          RULE_ARN=$(aws events describe-rule --name lukbot-schedule --query 'Arn' --output text)
-
-          # Add Lambda as target
-          aws events put-targets \
-            --rule lukbot-schedule \
-            --targets "Id"="1","Arn"="arn:aws:lambda:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:function:lukbot"
-
-      - name: Add Lambda permission for EventBridge
-        run: |
-          aws lambda add-permission \
-            --function-name lukbot \
-            --statement-id EventBridgeInvoke \
-            --action lambda:InvokeFunction \
-            --principal events.amazonaws.com \
-            --source-arn "arn:aws:events:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:rule/lukbot-schedule" \
-            || true
-
-      - name: Validate deployment
-        run: |
-          aws lambda get-function --function-name lukbot
-          aws events describe-rule --name lukbot-schedule
-
-      - name: Clean up old deployment packages
-        run: |
-          # List all deployment packages
-          aws s3 ls s3://${{ env.S3_BUCKET }}/function- | sort -r | tail -n +6 | awk '{print $4}' | while read -r file; do
-            aws s3 rm "s3://${{ env.S3_BUCKET }}/$file"
-          done
+            - name: Upload build artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: dist-package
+                  path: dist/

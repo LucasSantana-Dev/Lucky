@@ -1,129 +1,135 @@
-import { 
-  ChatInputCommandInteraction, 
-  CommandInteractionOptionResolver, 
-  Events, 
-  Interaction,
-  ButtonInteraction,
-  ModalSubmitInteraction,
-  StringSelectMenuInteraction,
-  UserSelectMenuInteraction,
-  ChannelSelectMenuInteraction,
-  RoleSelectMenuInteraction,
-  MentionableSelectMenuInteraction,
-  InteractionType,
-  EmbedBuilder
-} from 'discord.js';
-import { errorLog, debugLog } from '../utils/general/log';
-import { executeCommand } from './commandsHandler';
-import { CustomClient } from '../types';
-import { errorEmbed } from '../utils/general/embeds';
-import { messages } from '../utils/general/messages';
-import { interactionReply } from '../utils/general/interactionReply';
+import type {
+    ChatInputCommandInteraction,
+    CommandInteractionOptionResolver,
+    Interaction,
+    InteractionType,
+} from "discord.js"
+import { Events } from "discord.js"
+import { errorLog, debugLog } from "../utils/general/log"
+import { executeCommand } from "./commandsHandler"
+import type { ICustomClient } from "../types"
+import { errorEmbed } from "../utils/general/embeds"
+import { interactionReply } from "../utils/general/interactionReply"
+import { monitorInteractionHandling } from "../utils/monitoring"
+import { createUserFriendlyError } from "../utils/general/errorSanitizer"
 
 interface HandleInteractionsParams {
-  client: CustomClient;
+    client: ICustomClient
 }
 
 interface InteractionGetOptionParams {
-  interaction: ChatInputCommandInteraction;
-  optionName: string;
+    interaction: ChatInputCommandInteraction
+    optionName: string
 }
 
 interface InteractionGetSubcommandParams {
-  interaction: ChatInputCommandInteraction;
+    interaction: ChatInputCommandInteraction
 }
 
-// Type for interactions that support reply methods
-type ReplyableInteraction = 
-  | ChatInputCommandInteraction 
-  | ButtonInteraction 
-  | ModalSubmitInteraction 
-  | StringSelectMenuInteraction 
-  | UserSelectMenuInteraction 
-  | ChannelSelectMenuInteraction 
-  | RoleSelectMenuInteraction 
-  | MentionableSelectMenuInteraction;
+const interactionHandlers = new Map<
+    InteractionType,
+    (interaction: Interaction) => Promise<void>
+>()
 
-// Cache for interaction handlers to avoid recreating them
-const interactionHandlers = new Map<InteractionType, (interaction: Interaction) => Promise<void>>();
-
-export const handleInteractions = async ({ client }: HandleInteractionsParams): Promise<void> => {
-  try {
-    // Set up a single event listener for all interactions
-    client.on(Events.InteractionCreate, async (interaction: Interaction) => {
-      try {
-        // Use cached handler if available, otherwise create a new one
-        const handlerKey = interaction.type;
-        let handler = interactionHandlers.get(handlerKey);
-        
-        if (!handler) {
-          handler = async (interaction: Interaction) => {
-            if (interaction.isChatInputCommand()) {
-              await handleInteraction(interaction, client);
-            }
-          };
-          interactionHandlers.set(handlerKey, handler);
-        }
-        
-        await handler(interaction);
-      } catch (error) {
-        errorLog({ message: 'Error handling interaction:', error });
-        // Don't try to respond to the interaction here, as it might already be handled
-      }
-    });
-    
-    debugLog({ message: 'Interaction handler set up successfully' });
-  } catch (error) {
-    errorLog({ message: 'Error setting up interaction handler:', error });
-  }
-};
-
-export const interactionGetAllOptions = async ({ interaction }: { interaction: ChatInputCommandInteraction }): Promise<Omit<CommandInteractionOptionResolver, "getMessage" | "getFocused">> => {
-  try {
-    return interaction.options;
-  } catch (error) {
-    errorLog({ message: 'Error getting interaction options:', error });
-    throw error;
-  }
-};
-
-export const interactionGetOption = async ({ interaction, optionName }: InteractionGetOptionParams) => {
-  try {
-    return interaction.options.get(optionName);
-  } catch (error) {
-    errorLog({ message: 'Error getting interaction option:', error });
-    throw error;
-  }
-};
-
-export const interactionGetSubcommand = async ({ interaction }: InteractionGetSubcommandParams): Promise<string> => {
-  try {
-    return interaction.options.getSubcommand();
-  } catch (error) {
-    errorLog({ message: 'Error getting interaction subcommand:', error });
-    throw error;
-  }
-};
-
-export async function handleInteraction(interaction: Interaction, client: CustomClient): Promise<void> {
-  try {
-    if (interaction.isChatInputCommand()) {
-      await executeCommand({ interaction, client });
-    }
-  } catch (error) {
-    errorLog({ message: 'Error handling interaction:', error });
+export const handleInteractions = async ({
+    client,
+}: HandleInteractionsParams): Promise<void> => {
     try {
-      if (interaction.isChatInputCommand() && !interaction.replied && !interaction.deferred) {
-        await interactionReply({
-          interaction,
-          content: {
-            embeds: [errorEmbed('Erro', messages.error.generic)],
-            ephemeral: true
-          }
-        });
-      }
+        client.on(
+            Events.InteractionCreate,
+            async (interaction: Interaction) => {
+                try {
+                    const handlerKey = interaction.type
+                    let handler = interactionHandlers.get(handlerKey)
+
+                    if (!handler) {
+                        handler = async (_interaction: Interaction) => {
+                            if (interaction.isChatInputCommand()) {
+                                await handleInteraction(interaction, client)
+                            }
+                        }
+                        interactionHandlers.set(handlerKey, handler)
+                    }
+
+                    await handler(interaction)
+                } catch (error) {
+                    errorLog({ message: "Error handling interaction:", error })
+                }
+            },
+        )
+
+        debugLog({ message: "Interaction handler set up successfully" })
     } catch (error) {
-      errorLog({ message: 'Error sending error message:', error });
+        errorLog({ message: "Error setting up interaction handler:", error })
     }
-  }
-} 
+}
+
+export const interactionGetAllOptions = async ({
+    interaction,
+}: {
+    interaction: ChatInputCommandInteraction
+}): Promise<
+    Omit<CommandInteractionOptionResolver, "getMessage" | "getFocused">
+> => {
+    try {
+        return interaction.options
+    } catch (error) {
+        errorLog({ message: "Error getting interaction options:", error })
+        throw error
+    }
+}
+
+export const interactionGetOption = async ({
+    interaction,
+    optionName,
+}: InteractionGetOptionParams) => {
+    try {
+        return interaction.options.get(optionName)
+    } catch (error) {
+        errorLog({ message: "Error getting interaction option:", error })
+        throw error
+    }
+}
+
+export const interactionGetSubcommand = async ({
+    interaction,
+}: InteractionGetSubcommandParams): Promise<string> => {
+    try {
+        return interaction.options.getSubcommand()
+    } catch (error) {
+        errorLog({ message: "Error getting interaction subcommand:", error })
+        throw error
+    }
+}
+
+export async function handleInteraction(
+    interaction: Interaction,
+    client: ICustomClient,
+): Promise<void> {
+    await monitorInteractionHandling(interaction, client, async () => {
+        if (interaction.isChatInputCommand()) {
+            await executeCommand({ interaction, client })
+        }
+    }).catch(async (error) => {
+        errorLog({ message: "Error handling interaction:", error })
+
+        try {
+            if (
+                interaction.isChatInputCommand() &&
+                !interaction.replied &&
+                !interaction.deferred
+            ) {
+                const userFriendlyError = createUserFriendlyError(error)
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [errorEmbed("Erro", userFriendlyError)],
+                        ephemeral: true,
+                    },
+                })
+            }
+        } catch (error) {
+            errorLog({ message: "Error sending error message:", error })
+        }
+    })
+}

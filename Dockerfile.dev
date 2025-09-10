@@ -1,0 +1,43 @@
+# Use Node.js 22 Alpine as base image
+FROM node:22-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    ffmpeg \
+    git \
+    && rm -rf /var/cache/apk/*
+
+# Install yt-dlp using pipx for isolated installation
+RUN pip3 install --break-system-packages yt-dlp
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci --ignore-scripts
+
+# Create downloads and logs directories
+RUN mkdir -p downloads logs
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S bot -u 1001
+
+# Change ownership of the app directory
+RUN chown -R bot:nodejs /app
+USER bot
+
+# Expose port (if needed for health checks)
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "console.log('Bot is running')" || exit 1
+
+# Start the bot in development mode with hot reloading
+CMD ["npm", "run", "dev"]
