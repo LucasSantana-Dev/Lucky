@@ -58,44 +58,54 @@ check_docker() {
     return 0
 }
 
+# Function to check if we're in development mode
+is_development() {
+    local env="${NODE_ENV:-production}"
+    case "$env" in
+        "development"|"dev"|"local")
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # =============================================================================
 # DOCKER COMMANDS (Primary Application Operations)
 # =============================================================================
 
-# Function to build production Docker image
+# Function to build Docker image (production or development based on NODE_ENV)
 build() {
-    print_status "Building production Docker image..."
-    check_docker || exit 1
-    docker build -t discord-bot:latest .
-    print_success "Production image built successfully!"
+    if is_development; then
+        print_status "Building development Docker image..."
+        check_docker || exit 1
+        docker build -f Dockerfile.dev -t discord-bot:dev .
+        print_success "Development image built successfully!"
+    else
+        print_status "Building production Docker image..."
+        check_docker || exit 1
+        docker build -t discord-bot:latest .
+        print_success "Production image built successfully!"
+    fi
 }
 
-# Function to build development Docker image
-build_dev() {
-    print_status "Building development Docker image..."
-    check_docker || exit 1
-    docker build -f Dockerfile.dev -t discord-bot:dev .
-    print_success "Development image built successfully!"
-}
-
-# Function to start production container
+# Function to start container (production or development based on NODE_ENV)
 start() {
     check_env
-    print_status "Starting production container..."
-    check_docker || exit 1
-    docker-compose up -d
-    print_success "Production container started!"
-    print_status "Use 'npm run logs' to view logs"
-}
-
-# Function to start development container
-dev() {
-    check_env
-    print_status "Starting development container..."
-    check_docker || exit 1
-    docker-compose -f docker-compose.dev.yml up -d
-    print_success "Development container started!"
-    print_status "Use 'npm run logs:dev' to view logs"
+    if is_development; then
+        print_status "Starting development container..."
+        check_docker || exit 1
+        docker-compose -f docker-compose.dev.yml up -d
+        print_success "Development container started!"
+        print_status "Use 'npm run logs:dev' to view logs"
+    else
+        print_status "Starting production container..."
+        check_docker || exit 1
+        docker-compose up -d
+        print_success "Production container started!"
+        print_status "Use 'npm run logs' to view logs"
+    fi
 }
 
 # Function to start development mode with watch (local)
@@ -120,19 +130,15 @@ stop() {
     fi
 }
 
-# Function to restart containers
+# Function to restart containers (uses NODE_ENV to determine environment)
 restart() {
     stop
-    if [ "$1" = "dev" ]; then
-        dev
-    else
-        start
-    fi
+    start
 }
 
-# Function to view logs
+# Function to view logs (production or development based on NODE_ENV)
 logs() {
-    if [ "$1" = "dev" ]; then
+    if is_development; then
         print_status "Showing development logs..."
         if check_docker; then
             docker-compose -f docker-compose.dev.yml logs -f
@@ -243,14 +249,13 @@ help() {
     echo "Usage: ./scripts/discord-bot.sh <command>"
     echo ""
     echo "🐳 DOCKER COMMANDS (Primary Application Operations):"
-    echo "  build          Build production Docker image"
-    echo "  build:dev      Build development Docker image"
-    echo "  start          Start production container"
-    echo "  dev            Start development container"
-    echo "  dev:watch      Start with hot reloading (local)"
+    echo "  build          Build Docker image (production/development based on NODE_ENV)"
+    echo "  start          Start container (production/development based on NODE_ENV)"
+    echo "  dev            Start development container (NODE_ENV=development)"
+    echo "  dev:watch      Start with hot reloading (local development)"
     echo "  stop           Stop all containers/processes"
-    echo "  restart [env]  Restart containers (env: prod or dev)"
-    echo "  logs [env]     Show logs (env: prod or dev)"
+    echo "  restart        Restart containers (environment based on NODE_ENV)"
+    echo "  logs           Show logs (environment based on NODE_ENV)"
     echo "  status         Show container status"
     echo "  clean          Clean up Docker resources and workspace"
     echo ""
@@ -266,9 +271,13 @@ help() {
     echo "Examples:"
     echo "  ./scripts/discord-bot.sh build"
     echo "  ./scripts/discord-bot.sh dev"
-    echo "  ./scripts/discord-bot.sh logs dev"
+    echo "  ./scripts/discord-bot.sh logs"
     echo "  ./scripts/discord-bot.sh quality"
-    echo "  ./scripts/discord-bot.sh restart prod"
+    echo "  ./scripts/discord-bot.sh restart"
+    echo ""
+    echo "Environment-based usage:"
+    echo "  NODE_ENV=development ./scripts/discord-bot.sh build  # Build dev image"
+    echo "  NODE_ENV=production ./scripts/discord-bot.sh build   # Build prod image"
 }
 
 # =============================================================================
@@ -280,14 +289,11 @@ case "${1:-help}" in
     "build")
         build
         ;;
-    "build:dev")
-        build_dev
-        ;;
     "start")
         start
         ;;
     "dev")
-        dev
+        start
         ;;
     "dev:watch")
         dev_watch
@@ -296,10 +302,10 @@ case "${1:-help}" in
         stop
         ;;
     "restart")
-        restart "$2"
+        restart
         ;;
     "logs")
-        logs "$2"
+        logs
         ;;
     "status")
         status
