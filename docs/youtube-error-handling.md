@@ -1,6 +1,6 @@
 # YouTube.js Parser Error Handling
 
-This document describes the comprehensive solution implemented to handle YouTube.js parser errors in the LukBot Discord music bot.
+This document describes the comprehensive solution implemented to handle YouTube.js parser errors in the DiscordBot Discord music bot.
 
 ## Problem
 

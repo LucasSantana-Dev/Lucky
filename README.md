@@ -1,6 +1,8 @@
 # 🎵 DiscordBot - Modern Discord Music Bot
 
-A modern Discord bot built with TypeScript that plays music from YouTube and Spotify, and can download YouTube videos with advanced features like duplicate detection, queue management, and comprehensive logging. Fully customizable and ready to use!
+A modern Discord bot built with TypeScript that plays music from YouTube and Spotify, and can download YouTube videos with advanced features like duplicate detection, queue management, and comprehensive logging.
+
+**🎨 Fully customizable** - Personalize your bot's name, description, avatar, colors, and more through simple environment variables. **🚀 Ready to use** - Generic naming and structure make it perfect for anyone to deploy and customize for their own Discord server!
 
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3.3-blue.svg)](https://www.typescriptlang.org/)
@@ -98,6 +100,27 @@ src/
 - FFmpeg installed on your system
 - A Discord Bot Token
 - (Optional) Spotify API credentials
+
+### ⚡ 30-Second Setup
+
+```bash
+# 1. Clone and setup
+git clone <repository-url>
+cd discord-bot
+cp env.example .env
+
+# 2. Configure your bot
+nano .env  # Add your DISCORD_TOKEN and CLIENT_ID
+
+# 3. Customize (optional)
+# Edit BOT_NAME, BOT_DESCRIPTION, BOT_COLOR, etc. in .env
+
+# 4. Build and run
+npm run build
+npm run start
+```
+
+**That's it!** Your bot is now running and ready to use in your Discord server.
 
 ### 🐳 Docker Setup (Recommended)
 
@@ -221,6 +244,14 @@ BOT_SUPPORT_SERVER=https://discord.gg/your-server
 - **BOT_COLOR**: Embed color (hex format)
 - **BOT_WEBSITE**: Your website URL
 - **BOT_SUPPORT_SERVER**: Discord server invite link
+
+### 🆕 What's New in v2.1.0
+
+- **🎨 Complete Customization**: Personalize every aspect of your bot through environment variables
+- **🔄 Generic Naming**: Renamed from LukBot to DiscordBot for universal use
+- **📦 Updated Structure**: All Docker containers, networks, and scripts use generic naming
+- **📚 Enhanced Documentation**: Comprehensive guides and examples for customization
+- **🚀 Ready to Deploy**: No personal branding - perfect for anyone to use and customize
 
 - (Optional) Sentry DSN for error tracking
 

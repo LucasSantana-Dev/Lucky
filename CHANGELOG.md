@@ -37,6 +37,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package-lock.json tracking issues (moved to .gitignore)
 - Script command organization and maintainability
 
+## [2.1.0] - 2024-12-19
+
+### Added
+
+- **Bot Customization System**: Complete personalization via environment variables
+    - `BOT_NAME`: Custom bot display name
+    - `BOT_DESCRIPTION`: Bot description for help commands
+    - `BOT_AVATAR_URL`: Custom avatar URL (optional)
+    - `BOT_COLOR`: Embed color (hex format)
+    - `BOT_WEBSITE`: Website URL
+    - `BOT_SUPPORT_SERVER`: Discord server invite link
+- **Generic Project Structure**: Renamed from LukBot to DiscordBot for universal use
+- **Enhanced Documentation**: Comprehensive customization guide and examples
+- **Docker Configuration**: Updated container and network names for generic use
+
+### Changed
+
+- **BREAKING**: Project renamed from LukBot to DiscordBot
+- **BREAKING**: Package name changed from `lukbot` to `discord-bot`
+- **BREAKING**: Script renamed from `lukbot.sh` to `discord-bot.sh`
+- **BREAKING**: Docker images renamed to `discord-bot:latest` and `discord-bot:dev`
+- **BREAKING**: Container names changed to `discord-bot` and `discord-bot-dev`
+- **BREAKING**: Network names changed to `discord-bot-network`
+- Updated all documentation to reflect generic naming
+- Enhanced env.example with comprehensive customization options
+
+### Removed
+
+- Personal branding references throughout the codebase
+- LukBot-specific naming in favor of generic DiscordBot naming
+
+### Fixed
+
+- All script references updated to use new naming convention
+- Documentation consistency across all files
+- Docker configuration alignment with new naming scheme
+
 ## [2.0.0] - 2024-09-10
 
 ### Added
@@ -93,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **v2.1.0**: Generic naming and customization system - renamed to DiscordBot with full personalization options
 - **v2.0.0**: Complete rewrite with modern architecture, Docker support, and advanced features
 - **v1.0.0**: Initial release with basic functionality
 
@@ -103,15 +141,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. **Update dependencies**: Run `npm install` to get new dependencies
 2. **Update environment variables**: Check `env.example` for new required variables
 3. **Docker setup**: Consider using Docker for consistent environments
-4. **Script changes**: Use new unified `lukbot.sh` script instead of separate scripts
+4. **Script changes**: Use new unified `discord-bot.sh` script instead of separate scripts
 5. **Configuration**: Update any custom configurations to match new structure
+
+### From v2.0.0 to v2.1.0
+
+1. **Update script references**: Change any references from `lukbot.sh` to `discord-bot.sh`
+2. **Update Docker commands**: Use new container names (`discord-bot` instead of `lukbot-discord`)
+3. **Add customization**: Configure `BOT_NAME`, `BOT_DESCRIPTION`, etc. in your `.env` file
+4. **Update documentation**: All references now use DiscordBot naming
 
 ### Breaking Changes
 
-- **Script consolidation**: `docker.sh` and `dev.sh` merged into `lukbot.sh`
+- **Script consolidation**: `docker.sh` and `dev.sh` merged into `discord-bot.sh`
 - **Package.json scripts**: All scripts now use unified interface
 - **Docker-first approach**: Primary operations now use Docker by default
 - **Test removal**: Test support removed from development scripts
+- **Project renaming**: LukBot → DiscordBot (v2.1.0)
+- **Docker naming**: All container and network names updated for generic use
 
 ## Contributing
 
