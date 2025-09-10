@@ -17,6 +17,7 @@
         "logs:dev": "./scripts/discord-bot.sh logs dev",
         "status": "./scripts/discord-bot.sh status",
         "clean": "./scripts/discord-bot.sh clean",
+        "help": "./scripts/discord-bot.sh help",
         "format": "prettier . --write",
         "lint": "eslint . -c eslint.config.js",
         "lint:fix": "eslint . -c eslint.config.js --fix",
@@ -26,13 +27,10 @@
         "check:deps": "depcheck --config depcheck.config.cjs",
         "check:outdated": "ncu",
         "update:deps": "ncu -u && npm install",
-        "install": "./scripts/discord-bot.sh install",
-        "audit:high": "npm audit --level high",
-        "audit:critical": "npm audit --level critical",
+        "audit:high": "npm audit --audit-level high",
+        "audit:critical": "npm audit --audit-level critical",
         "prepare": "husky",
-        "commit": "git-cz",
-        "commit:retry": "git-cz --retry",
-        "help": "./scripts/discord-bot.sh help"
+        "commit": "git-cz"
     },
     "lint-staged": {
         "*.{ts,tsx}": [
