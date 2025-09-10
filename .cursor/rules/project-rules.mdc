@@ -59,11 +59,23 @@ This document is the canonical ruleset for **TypeScript projects** managed by th
 ## 3. Documentation-First Rule
 
 * Always consult the official documentation for any language, library or API used before making a decision or writing code. Prefer official docs over blogs.
-* **Required references** in PRs and code comments for non-trivial logic:
+* **Required references** in PRs and code comments for non-trivial logic (add link + ≤25-word quote when behavior matters):
 
   * TypeScript: `https://www.typescriptlang.org/docs/`
-  * MDN: JavaScript reference
-  * React: official React docs
+  * MDN (JavaScript): `https://developer.mozilla.org/docs/Web/JavaScript/Reference`
+  * Node.js: `https://nodejs.org/docs/latest/api/`
+  * npm CLI: `https://docs.npmjs.com/`
+  * React: `https://react.dev/` (or legacy `https://reactjs.org/` where applicable)
+  * Discord.js: `https://discord.js.org/#/docs/main/stable/general/welcome`
+  * Discord Player: `https://discord-player.js.org/`
+  * ESLint: `https://eslint.org/docs/latest/`
+  * Prettier: `https://prettier.io/docs/en/`
+  * Jest: `https://jestjs.io/docs/getting-started`
+  * tsup: `https://tsup.egoist.dev/`
+  * tsx: `https://github.com/esbuild-kit/tsx`
+  * Docker: `https://docs.docker.com/` and Docker Compose: `https://docs.docker.com/compose/`
+  * OpenTelemetry: `https://opentelemetry.io/docs/`
+  * OWASP ASVS/Cheat Sheets: `https://cheatsheetseries.owasp.org/`
 
 Agent behavior: before assuming behavior of an API, include the doc link you used and a one-line quote (<= 25 words) when the change relies on it.
 
@@ -141,15 +153,35 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
 * For external data (HTTP, DB), always validate/sanitize input and use type guards or schema validators (zod/yup/ajv).
 
+**Code patterns & practices**
+
+* Prefer named exports over default exports to enable easier refactors and tree-shaking.
+* Avoid `enum` for new code. Prefer union literal types or `as const` objects. If an enum is required (interop), document why.
+* Avoid non-null assertions (`!`). Use type guards or early returns to prove correctness.
+* Never throw strings. Throw `Error` (or subclasses) with actionable messages. Include causal error as `cause` when available.
+* Handle async errors at boundaries. Avoid unhandled rejections and floating promises.
+* Use ESM conventions (project uses `type: module`). Avoid CommonJS-only patterns unless interop is required.
+* Prefer pure functions and immutability. Contain side effects at edges (I/O, network, storage).
+* Time & dates: avoid ad-hoc parsing. Prefer `Intl` APIs or lightweight libs (e.g., date-fns). Document timezone assumptions.
+* When narrowing complex unions, extract user-defined type guards for readability and reuse.
+* Avoid deep nesting. Use guard clauses and early returns.
+* Prefer small modules (≤ ~300 LOC) and cohesive responsibilities. Extract helpers for clarity.
+
 ---
 
 ## 6. React / Frontend Rules
 
 * Use **functional components with hooks**. Avoid class components.
-* Keep components focused (single responsibility). Extract complex logic into hooks or helpers.
-* Keep state as local as possible. Use Context/Zustand/Redux only when needed.
-* Performance patterns: `React.memo`, `useMemo`, `useCallback` for expensive calculations; virtualization for long lists.
-* Accessibility: follow basic a11y checks — semantic HTML, proper `aria-*` attributes, keyboard navigation.
+* Keep components focused (single responsibility). Extract complex logic into custom hooks.
+* Keep state local when possible. Lift state only when necessary. Avoid prop drilling with context only for truly global concerns.
+* Derived data: compute via `useMemo` rather than storing duplicate state. Avoid syncing props to state.
+* Effects: follow `exhaustive-deps`. Keep effects minimal and idempotent. Prefer event handlers over effects when possible.
+* Handlers: stabilize with `useCallback` when passing to memoized children or event-heavy flows.
+* Lists: always provide stable `key`s. Avoid index keys for reordering lists.
+* Performance: `React.memo` for pure components; list virtualization for large collections; lazy-load heavy routes/components.
+* Error handling: use error boundaries for asynchronous and rendering errors.
+* Accessibility: semantic HTML, labels, focus management, keyboard navigation, and basic color contrast.
+* Styling: prefer co-located styles or CSS-in-JS with clear scoping. Avoid global leaks.
 
 ---
 
@@ -160,20 +192,24 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 * Avoid dead code. Remove unused functions and imports.
 * Keep consistent formatting (Prettier) and linting (ESLint).
 * SRP: If a function/class does more than one thing, refactor.
+* Avoid TODO comments. Implement changes or open an issue with a clear owner and timeframe.
+* Prefer composition over inheritance. Extract small, reusable utilities over deep class hierarchies.
 
 ---
 
 ## 8. Dependency Injection & Patterns
 
 * Prefer constructor injection for classes that require dependencies.
-* Avoid global mutable singletons unless necessary.
+* Avoid global mutable singletons unless necessary. If used, keep them stateless or documented.
 * Use explicit interfaces for external dependencies to make testing easier.
+* Favor composition and small modules. Extract adapters for external services (HTTP clients, storage) behind interfaces.
+* Use configuration objects with sensible defaults. Avoid boolean flags; favor descriptive options.
 
 ---
 
 ## 9. Testing & Quality Gates
 
-* Use `Jest` + `@testing-library/react` for unit tests and component tests.
+* Use `Jest` (or Vitest) + `@testing-library/react` for unit tests and component tests.
 * Add integration tests where appropriate (e.g., database interactions).
 * Minimum recommended coverage threshold: **80%** (raise per project risk).
 * Use `@testing-library` to test behavior (not implementation details).
@@ -184,6 +220,13 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
   * E2E: placed under `tests/e2e/`
 
 **CI must run:** lint → build → test → quality checks.
+
+**Testing practices**
+
+* Keep tests fast, deterministic, and isolated. Avoid hidden global state.
+* Mock I/O and network boundaries. Prefer real units over over-mocking internals.
+* Use factory helpers/builders for complex fixtures. Name fixtures descriptively.
+* For Node services, add smoke tests for health endpoints and startup.
 
 ---
 
@@ -207,6 +250,15 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 **Never use direct commands in automation or agents** unless those scripts don't exist, and this fallback must be documented in the PR.
 
 **Agent rule:** If an agent must run terminal work, it must prefer script calls and include the exact command used in the PR description.
+
+**Cross-platform & CI-friendly scripting**
+
+* Use `cross-env` for environment variables in `package.json` scripts.
+* Use `rimraf` instead of `rm -rf` for deletions.
+* Pass non-interactive flags by default in automation (e.g., `--yes`, `--ci`). Avoid commands that prompt for input.
+* Avoid OS-specific commands. Prefer Node/JS scripts for complex logic or portable CLIs.
+* Prefer environment-based flows (e.g., `NODE_ENV=development`) over duplicating `:dev` commands.
+* Ensure logs are stream-friendly (no pagers). When a pager might be used, pipe to `cat`.
 
 ---
 
@@ -235,7 +287,7 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 **Pre-commit hooks & validation**
 
 * Use `commitlint` + Husky to enforce commit message format.
-* Run `npm run lint:fix` and tests before allowing commit (via husky pre-commit hooks).
+* Run `npm run lint:fix` and fast tests (or type-check) before allowing commit (via husky pre-commit hooks).
 
 **PR rules**
 
@@ -260,6 +312,7 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 **Release**
 
 * Use semantic-release or manual changelog flows driven from commit messages.
+* Tag releases with semantic versions. Generate release notes from commit history.
 
 ---
 
@@ -278,6 +331,9 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 * Dependency update bot (Dependabot/renovate) configured with PR templates and tests.
 * SAST / secrets scan (e.g., GitHub CodeQL, Snyk) on PRs.
 * Publish artifacts (Docker images, NPM packages) only from protected pipeline steps.
+* Enable caching for node_modules and build artifacts to speed up workflows.
+* Fail fast on critical steps (lint/typecheck) to shorten feedback loops.
+* Enforce `commitlint` and conventional commits in CI for all PRs.
 
 ---
 
@@ -292,19 +348,26 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
 ## 14. Security & Secrets
 
-* Never hardcode secrets. Load secrets from environment variables or a secrets manager.
-* Add secrets scanning in CI. Block PRs that leak credentials.
-* Validate input thoroughly to avoid injection.
-* Use HTTPS and secure cookie attributes.
+* Never hardcode secrets. Load from environment variables or a secrets manager. Do not log secrets.
+* Add secrets scanning in CI. Block PRs that leak credentials (tokens, keys, passwords).
+* Validate and sanitize all external input (HTTP, Discord events, DB). Enforce strict schemas using zod/yup/ajv.
+* Outbound HTTP: set timeouts, retries with backoff, and circuit breakers for resilience.
+* Avoid dangerous features: `eval`, dynamic `Function`, unsafely parsing JSON, and insecure deserialization.
+* Prevent SSRF and path traversal: validate URLs/paths and whitelist allowed hosts and directories.
+* Keep dependencies updated. Run `npm audit` regularly. Track and remediate high/critical vulnerabilities.
+* Use HTTPS/TLS. For web apps, set secure cookie attributes and CSRF protections.
 
 ---
 
 ## 15. Performance, Monitoring & Observability
 
-* Add basic metrics and health endpoints in backend services.
-* Use logging standards (structured logs, include correlation IDs).
-* Add performance budgets for frontend bundles.
-* Monitor common regression signals: cold-start latency, critical path render time, DB query p95/99.
+* Logging: structured logs (JSON where appropriate), include correlation/request IDs, and avoid logging PII.
+* Metrics: standard request metrics (RPS, latency percentiles, error rates). Track resource usage.
+* Tracing: instrument critical paths with OpenTelemetry when feasible.
+* Health & readiness: expose `/health` and `/ready` (or equivalent). Include dependency checks where appropriate, but keep health endpoints fast and lightweight.
+* Graceful shutdown: handle `SIGTERM`/`SIGINT`, stop accepting new work, flush queues, and exit cleanly.
+* Frontend: define performance budgets for bundles and critical path rendering.
+* Monitor regressions: cold-start latency, TTFB, FCP/LCP, and DB query p95/p99.
 
 ---
 
@@ -320,7 +383,7 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
 This section defines mandatory behavior for any coding agent operating on this repository.
 
-1. **Documentation-first:** Before making changes, list the official docs consulted. Embed one-line justification.
+1. **Documentation-first:** Before making changes, list the official docs consulted. Embed one-line justification with a link and ≤25-word quote when relevant.
 2. **Use scripts:** call `./scripts/dev.sh ...` for any local operations. If script not present, suggest a script and add it to the PR.
 3. **Commit conventions:** produce commit messages that follow Angular rules. If multiple changes, squash logical changes into coherent commits.
 4. **Generate tests:** for any functional change, the agent must include unit tests (and integration tests when DB or network behavior is affected).
@@ -330,7 +393,8 @@ This section defines mandatory behavior for any coding agent operating on this r
 8. **Security checks:** run a dependency vulnerability scan and include the results in PR; if a high severity issue appears, block the PR and propose remediation.
 9. **PR Templates & Checklist:** fill required checkboxes automatically when actions are performed.
 10. **Documentation updates:** ALWAYS update CHANGELOG.md and README.md when making any changes to the application, scripts, configuration, or functionality. Keep documentation in sync with code changes.
-11. **Ask only when necessary:** prefer making a best-effort implementation and document the choices rather than stalling — include the steps a human must validate.
+11. **Agent guardrails:** Avoid redundant comments, over-explaining trivial code, introducing `any`, or skipping tests for functional changes. Prefer small, reviewable edits and clear commit history.
+12. **Ask only when necessary:** prefer making a best-effort implementation and document the choices rather than stalling — include the steps a human must validate.
 
 ---
 
