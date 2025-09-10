@@ -185,8 +185,8 @@ clean() {
     fi
     
     # Always clean local build artifacts
-    rm -rf dist/
-    rm -rf node_modules/.cache/
+    npx rimraf dist/
+    npx rimraf node_modules/.cache/
     print_success "Local workspace cleaned!"
 }
 
@@ -231,24 +231,6 @@ install() {
     print_success "Dependencies installed"
 }
 
-# Function to update dependencies
-update_deps() {
-    print_status "Updating dependencies..."
-    npm run update:deps
-    print_success "Dependencies updated"
-}
-
-# Function to check for outdated dependencies
-check_deps() {
-    print_status "Checking for outdated dependencies..."
-    npm run check:outdated
-}
-
-# Function to run security audit
-audit() {
-    print_status "Running security audit..."
-    npm audit
-}
 
 # =============================================================================
 # HELP AND UTILITIES
@@ -277,9 +259,6 @@ help() {
     echo "  format         Format code with Prettier"
     echo "  lint:fix       Fix linting issues"
     echo "  install        Install dependencies"
-    echo "  update:deps    Update dependencies"
-    echo "  check:deps     Check for outdated dependencies"
-    echo "  audit          Run security audit"
     echo ""
     echo "ℹ️  UTILITIES:"
     echo "  help           Show this help message"
@@ -341,15 +320,6 @@ case "${1:-help}" in
         ;;
     "install")
         install
-        ;;
-    "update:deps")
-        update_deps
-        ;;
-    "check:deps")
-        check_deps
-        ;;
-    "audit")
-        audit
         ;;
     
     # Utilities
