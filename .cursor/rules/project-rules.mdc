@@ -1,0 +1,425 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Ultimate Cursor Rules for TypeScript Projects
+
+> A single, opinionated `.mdc` ruleset that consolidates project rules you've already built across projects (`project-rules.mdc`, `commit.mdc`, `scripts.mdc`, `user_rules.md`, etc.) and fills the most useful gaps for an autonomous coding agent.
+
+---
+
+## Table of Contents
+
+1. Purpose & Scope
+2. How to use this file (for humans & agents)
+3. Documentation-First Rule
+4. Architecture & Project Structure
+5. TypeScript & JavaScript Rules
+6. React / Frontend Rules
+7. Clean Code & Naming Conventions
+8. Dependency Injection / Patterns
+9. Testing & Quality Gates
+10. Scripts & Terminal Rules (project `./scripts/` priority)
+11. Commit, PR & Release Rules (Angular commit pattern + examples)
+12. CI / CD and Automation
+13. Database & Migrations
+14. Security & Secrets
+15. Performance, Monitoring & Observability
+16. Accessibility, i18n & Openness
+17. Agent-specific rules (how a coding agent must behave)
+18. Enforcement & Automation
+19. Templates & Examples
+20. Glossary & Useful Conventions
+21. Changelog / Versioning the ruleset
+
+---
+
+## 1. Purpose & Scope
+
+This document is the canonical ruleset for **TypeScript projects** managed by the team and enforced by tooling/agents. It:
+
+* **Consolidates** the project's existing rules across other `.mdc` files you provided.
+* **Defines** behaviour expected from coding agents (local LLM helpers, CI bots, automation agents).
+* **Provides** concrete templates and examples to reduce ambiguity.
+
+**Scope:** all TypeScript/React services, frontend apps, shared libraries, scripts, CI pipelines and developer automation. Non-TS projects should follow the spirit of this doc where applicable.
+
+---
+
+## 2. How to use this file (humans & agents)
+
+* **Humans:** Read top-level sections relevant to your change. Follow the templates in section 19 when opening PRs or commits.
+* **Agents:** Treat this file as *executable policy*. When performing code changes, generate code + tests + script usage + commit messages that adhere to the rules. If the agent cannot fully comply it must document assumptions and open a draft PR.
+
+**Always include** a small header in automated outputs with `timestamp` and `path` (see Templates section).
+
+---
+
+## 3. Documentation-First Rule
+
+* Always consult the official documentation for any language, library or API used before making a decision or writing code. Prefer official docs over blogs.
+* **Required references** in PRs and code comments for non-trivial logic:
+
+  * TypeScript: `https://www.typescriptlang.org/docs/`
+  * MDN: JavaScript reference
+  * React: official React docs
+
+Agent behavior: before assuming behavior of an API, include the doc link you used and a one-line quote (<= 25 words) when the change relies on it.
+
+---
+
+## 4. Architecture & Project Structure
+
+**Layered architecture (backend-like projects)**
+
+* `controller` / `routes` - HTTP surface. No business logic.
+* `service` - Business logic.
+* `repository` / `db` - Data access.
+* `model` / `entities` - Domain models.
+* `dto` - Data transfer objects (immutable where appropriate).
+
+**Frontend / React structure**
+
+* `components/` - UI components (one component per file)
+* `hooks/` - custom hooks
+* `features/<feature>/` - feature folders (component, styles, tests, types)
+* `lib/` - shared utilities
+* `pages/` or `routes/` - route-level components (if applicable)
+
+**General rules**
+
+* Prefer feature grouping over technical grouping for larger apps.
+* Use `index.ts` only to re-export a small module surface.
+* Keep files under \~300 LOC. If larger, split logic into helpers.
+
+---
+
+## 5. TypeScript & JavaScript Rules
+
+**Compiler options (recommended `tsconfig.json` base)**
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+**Typing rules**
+
+* `noAny`: avoid `any`. If unavoidable, use `unknown + type guards` and justify in code comment.
+* Prefer `interface` for public shapes, `type` for unions & utility types.
+* Use TypeScript utility types (`Partial`, `Pick`, `Omit`, `Readonly`, `Record`) rather than ad-hoc `any`.
+* **Naming:**
+
+  * Interfaces: `I{Name}` (PascalCase with `I` prefix). ✅ (project rule)
+  * Types/Aliases: `T{Name}` (PascalCase with `T` prefix). ✅
+  * Components: `PascalCase`
+  * Variables & functions: `camelCase`
+  * Constants: `UPPER_SNAKE_CASE`
+
+**Imports & ordering**
+
+* Group imports in this order: `react` (if present) → third-party → absolute aliases → relative (`../` then `./`).
+* Alphabetize within groups.
+
+**Runtime checks**
+
+* For external data (HTTP, DB), always validate/sanitize input and use type guards or schema validators (zod/yup/ajv).
+
+---
+
+## 6. React / Frontend Rules
+
+* Use **functional components with hooks**. Avoid class components.
+* Keep components focused (single responsibility). Extract complex logic into hooks or helpers.
+* Keep state as local as possible. Use Context/Zustand/Redux only when needed.
+* Performance patterns: `React.memo`, `useMemo`, `useCallback` for expensive calculations; virtualization for long lists.
+* Accessibility: follow basic a11y checks — semantic HTML, proper `aria-*` attributes, keyboard navigation.
+
+---
+
+## 7. Clean Code & Naming Conventions
+
+* Use clear, expressive names; prefer verbs for functions.
+* No redundant comments — code should explain itself. Use comments to explain *why*, not *what*.
+* Avoid dead code. Remove unused functions and imports.
+* Keep consistent formatting (Prettier) and linting (ESLint).
+* SRP: If a function/class does more than one thing, refactor.
+
+---
+
+## 8. Dependency Injection & Patterns
+
+* Prefer constructor injection for classes that require dependencies.
+* Avoid global mutable singletons unless necessary.
+* Use explicit interfaces for external dependencies to make testing easier.
+
+---
+
+## 9. Testing & Quality Gates
+
+* Use `Jest` + `@testing-library/react` for unit tests and component tests.
+* Add integration tests where appropriate (e.g., database interactions).
+* Minimum recommended coverage threshold: **80%** (raise per project risk).
+* Use `@testing-library` to test behavior (not implementation details).
+* Test file naming conventions:
+
+  * Unit: `*.unit.test.ts` or `*.test.ts`
+  * Integration: `*.integration.test.ts`
+  * E2E: placed under `tests/e2e/`
+
+**CI must run:** lint → build → test → quality checks.
+
+---
+
+## 10. Scripts & Terminal Rules (Scripts Priority)
+
+**Main rule:** ALWAYS use scripts in `/scripts/` for terminal operations. Prefer `./scripts/dev.sh <command>`.
+
+**Priority commands (examples):**
+
+```bash
+./scripts/dev.sh start    # start application
+./scripts/dev.sh dev      # dev shell
+./scripts/dev.sh build    # build project
+./scripts/dev.sh test     # run tests
+./scripts/dev.sh quality  # run lint/static analysis
+./scripts/dev.sh logs     # view logs
+./scripts/dev.sh stop     # stop services
+./scripts/dev.sh clean    # clean workspace
+```
+
+**Never use direct commands in automation or agents** unless those scripts don't exist, and this fallback must be documented in the PR.
+
+**Agent rule:** If an agent must run terminal work, it must prefer script calls and include the exact command used in the PR description.
+
+---
+
+## 11. Commit, PR & Release Rules
+
+**Commit message format:** Angular commit convention (strict):
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Allowed types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`, `revert`.
+
+**Scope suggestions:** `auth`, `users`, `profile`, `transactions`, `categories`, `goals`, `reports`, `api`, `db`, `config`, `security`, `ui`, `test`, `docs`, `scripts`, `deps`.
+
+**Subject rules:** imperative, lower-case start, max 50 chars, no trailing period.
+
+**Body rules:** explain what and why, not how. Lines <= 72 chars.
+
+**Footer:** reference issues, breaking changes, release notes.
+
+**Pre-commit hooks & validation**
+
+* Use `commitlint` + Husky to enforce commit message format.
+* Run `npm run lint:fix` and tests before allowing commit (via husky pre-commit hooks).
+
+**PR rules**
+
+* Branch name: `<type>/<scope>-short-desc` (e.g., `feat/transactions-add-reconciliation`).
+* PR title: same format as single commit subject for small PRs. If multiple commits, pick a clear summary.
+* Minimum one approving reviewer for non-trivial changes; two reviewers for security/critical modules.
+* PR Checklist (must be ticked):
+
+  * [ ] Tests added/updated
+  * [ ] Lint and build pass
+  * [ ] Commits follow commit rules (use `npx commitlint --from <base> --to <head>`)
+  * [ ] Scripts used where applicable
+  * [ ] CHANGELOG.md updated with changes
+  * [ ] README.md updated if behavior changed
+  * [ ] Documentation kept in sync with code changes
+
+**Merge rules**
+
+* Use `Squash and merge` for small, single-purpose PRs, otherwise `Rebase & merge` when preserving commits matters.
+* No direct pushes to `main` or protected branches. No force-push on protected branches.
+
+**Release**
+
+* Use semantic-release or manual changelog flows driven from commit messages.
+
+---
+
+## 12. CI / CD and Automation
+
+**CI pipeline must include:**
+
+1. `setup` (node install, environment)
+2. `lint` (ESLint + TypeScript typecheck)
+3. `build` (production build)
+4. `test` (unit + integration) + coverage report
+5. `quality` (static analysis, vulnerability scan)
+
+**Optional (recommended):**
+
+* Dependency update bot (Dependabot/renovate) configured with PR templates and tests.
+* SAST / secrets scan (e.g., GitHub CodeQL, Snyk) on PRs.
+* Publish artifacts (Docker images, NPM packages) only from protected pipeline steps.
+
+---
+
+## 13. Database & Migrations
+
+* Use Flyway / Prisma / TypeORM migrations with versioned scripts.
+* Place migrations in `src/db/migrations` or `db/migration`.
+* Migration file naming: `V{version}__{short_description}.sql`.
+* Test migrations in a disposable environment before applying to staging/production.
+
+---
+
+## 14. Security & Secrets
+
+* Never hardcode secrets. Load secrets from environment variables or a secrets manager.
+* Add secrets scanning in CI. Block PRs that leak credentials.
+* Validate input thoroughly to avoid injection.
+* Use HTTPS and secure cookie attributes.
+
+---
+
+## 15. Performance, Monitoring & Observability
+
+* Add basic metrics and health endpoints in backend services.
+* Use logging standards (structured logs, include correlation IDs).
+* Add performance budgets for frontend bundles.
+* Monitor common regression signals: cold-start latency, critical path render time, DB query p95/99.
+
+---
+
+## 16. Accessibility, i18n & Openness
+
+* Provide accessible UI components (semantic HTML + ARIA where necessary).
+* Plan for i18n from start for multi-language projects (strings extraction, locale fallback).
+* Respect OSS licenses for third party code and declare license in repo.
+
+---
+
+## 17. Agent-specific rules (WHAT an automation/coding agent MUST do)
+
+This section defines mandatory behavior for any coding agent operating on this repository.
+
+1. **Documentation-first:** Before making changes, list the official docs consulted. Embed one-line justification.
+2. **Use scripts:** call `./scripts/dev.sh ...` for any local operations. If script not present, suggest a script and add it to the PR.
+3. **Commit conventions:** produce commit messages that follow Angular rules. If multiple changes, squash logical changes into coherent commits.
+4. **Generate tests:** for any functional change, the agent must include unit tests (and integration tests when DB or network behavior is affected).
+5. **Run local checks:** run `lint`, `build`, `test` and include a CI log (or summary) in the PR description (timestamp + commands used).
+6. **Explain assumptions:** if any behavior is guessed, the agent must add a `ASSUMPTIONS.md` section in the PR describing them.
+7. **No direct main pushes:** always create a branch and a PR; never push directly to protected branches.
+8. **Security checks:** run a dependency vulnerability scan and include the results in PR; if a high severity issue appears, block the PR and propose remediation.
+9. **PR Templates & Checklist:** fill required checkboxes automatically when actions are performed.
+10. **Documentation updates:** ALWAYS update CHANGELOG.md and README.md when making any changes to the application, scripts, configuration, or functionality. Keep documentation in sync with code changes.
+11. **Ask only when necessary:** prefer making a best-effort implementation and document the choices rather than stalling — include the steps a human must validate.
+
+---
+
+## 18. Enforcement & Automation
+
+**Automated gates**
+
+* Pre-commit: Prettier -> ESLint autofix -> Type-check -> Tests (fast subset)
+* CI: full lint -> type-check -> build -> test -> coverage -> security scans
+* PR protection: must pass CI + at least 1 reviewer
+
+**Tooling suggestions**
+
+* `ESLint` with `@typescript-eslint` rules
+* `Prettier` for formatting
+* `Husky` + `lint-staged` for pre-commit hooks
+* `Commitlint` for commit message policy
+* `Dependabot` or `Renovate` for dependency updates
+* `Snyk` / `CodeQL` for security scanning
+* `semantic-release` for automated changelogs & releases
+
+---
+
+## 19. Templates & Examples
+
+**Commit example**
+
+```
+feat(transactions): add transaction reconciliation
+
+- Implement automatic reconciliation algorithm
+- Add reconciliation status field to Transaction entity
+- Add unit tests for reconciliation edge cases
+
+Closes #123
+```
+
+**Branch naming**
+
+```
+feat/transactions-add-reconciliation
+fix/auth-csrf-token
+chore/scripts-add-db-backup
+```
+
+**Sample PR checklist**
+
+* [ ] Commits follow Angular conventional commits
+* [ ] All tests pass locally and in CI
+* [ ] `./scripts/dev.sh quality` ran successfully (or equivalent)
+* [ ] Scripts used for build/test where applicable
+* [ ] CHANGELOG.md updated with all changes
+* [ ] README.md updated if behavior changed
+* [ ] Documentation kept in sync with code changes
+* [ ] Security scan completed
+
+**Response header template (agent/human automation)**
+
+```
+Timestamp: 2025-09-09T21:00:00-03:00
+Path: /src/features/transactions/reconciliation.ts
+Command: ./scripts/dev.sh test
+Summary: added reconciliation algorithm + tests
+```
+
+---
+
+## 20. Glossary & Conventions
+
+* **SRP:** Single Responsibility Principle
+* **SLR:** Service / Layer / Repository architecture
+* **DTO:** Data Transfer Object
+* **API Response:** standardized success/error shapes (see project docs)
+
+---
+
+## 21. Changelog / Versioning this ruleset
+
+* Version this file using semantic version notes at the top of the file when updates are made.
+* Use Git tags on the ruleset repo if maintained separately.
+
+---
+
+## Final notes & Ownership
+
+* The rules collected here are intentionally opinionated to drive consistency and automation.
+* If a rule has an operational cost (e.g., raising coverage to 95%), discuss in a PR and propose a phased rollout.
+* **Owner**: the project tech lead or `#engineering-guidelines` team channel (update this line to match project reality).
+
+---
+
+*This `.mdc` consolidates the rules you provided and expands them with agent-focused behavior, CI checks, and templates. Update this file as processes evolve.*

@@ -13,4 +13,5 @@ ffmpeg/bin/ffmpeg.exe
 ffmpeg/bin/ffprobe.exe
 
 .cursor/
+!.cursor/rules/
 .vscode/
