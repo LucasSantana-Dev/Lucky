@@ -61,9 +61,9 @@ This document is the canonical ruleset for **TypeScript projects** managed by th
 * Always consult the official documentation for any language, library or API used before making a decision or writing code. Prefer official docs over blogs.
 * **Required references** in PRs and code comments for non-trivial logic:
 
-  * TypeScript: `https://www.typescriptlang.org/docs/`
-  * MDN: JavaScript reference
-  * React: official React docs
+  * TypeScript (official docs)
+  * MDN (JavaScript reference)
+  * Official docs for any runtime/framework/libraries used (e.g., Node.js, React) as applicable
 
 Agent behavior: before assuming behavior of an API, include the doc link you used and a one-line quote (<= 25 words) when the change relies on it.
 
@@ -134,8 +134,7 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
 **Imports & ordering**
 
-* Group imports in this order: `react` (if present) → third-party → absolute aliases → relative (`../` then `./`).
-* Alphabetize within groups.
+* Prefer consistent import grouping/order within the project. Keep third-party imports separate from local imports.
 
 **Runtime checks**
 
@@ -209,6 +208,15 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
 **Agent rule:** If an agent must run terminal work, it must prefer script calls and include the exact command used in the PR description.
 
+**Cross-platform & CI-friendly scripting**
+
+* Use cross-platform environment handling in scripts.
+* Use cross-platform deletion utilities instead of OS-specific `rm -rf`.
+* Pass non-interactive flags by default in automation (e.g., `--yes`, `--ci`). Avoid commands that prompt for input.
+* Avoid OS-specific commands. Prefer Node/JS scripts for complex logic or portable CLIs.
+* Prefer environment-based flows over duplicating environment-specific commands.
+* Ensure logs are stream-friendly (no pagers). When a pager might be used, pipe to `cat`.
+
 ---
 
 ## 11. Commit, PR & Release Rules
@@ -235,8 +243,8 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
 **Pre-commit hooks & validation**
 
-* Use `commitlint` + Husky to enforce commit message format.
-* Run `npm run lint:fix` and tests before allowing commit (via husky pre-commit hooks).
+* Enforce conventional commit message format.
+* Run lint and fast checks (e.g., type-check) before allowing commit.
 
 **PR rules**
 
@@ -247,7 +255,7 @@ Agent behavior: before assuming behavior of an API, include the doc link you use
 
   * [ ] Tests added/updated
   * [ ] Lint and build pass
-  * [ ] Commits follow commit rules (use `npx commitlint --from <base> --to <head>`)
+  * [ ] Commits follow conventional commit rules (subject, body, footer)
   * [ ] Scripts used where applicable
   * [ ] CHANGELOG.md updated with changes
   * [ ] README.md updated if behavior changed
@@ -345,13 +353,12 @@ This section defines mandatory behavior for any coding agent operating on this r
 
 **Tooling suggestions (JS/TS stack)**
 
-* `ESLint` with `@typescript-eslint` rules
-* `Prettier` for formatting
-* `Husky` + `lint-staged` for pre-commit hooks
-* `Commitlint` for commit message policy
-* `Dependabot` or `Renovate` for dependency updates
-* `Snyk` / `CodeQL` for security scanning
-* `semantic-release` for automated changelogs & releases
+* Linting and formatting tools appropriate to the project
+* Pre-commit hooks to run fast checks
+* Commit message policy enforcement (conventional commits)
+* Dependency update automation
+* Security scanning (SAST/secrets)
+* Automated changelogs & releases
 
 ---
 
