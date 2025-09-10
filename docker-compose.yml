@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+    lukbot:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: lukbot-discord
+        restart: unless-stopped
+        environment:
+            - NODE_ENV=production
+            - DISCORD_TOKEN=${DISCORD_TOKEN}
+            - CLIENT_ID=${CLIENT_ID}
+            - COMMANDS_DISABLED=${COMMANDS_DISABLED:-}
+            - COMMAND_CATEGORIES_DISABLED=${COMMAND_CATEGORIES_DISABLED:-}
+            - SENTRY_DSN=${SENTRY_DSN:-}
+        volumes:
+            - ./downloads:/app/downloads
+            - ./logs:/app/logs
+        networks:
+            - lukbot-network
+        healthcheck:
+            test: ["CMD", "node", "-e", "console.log('Bot is running')"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+networks:
+    lukbot-network:
+        driver: bridge
