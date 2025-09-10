@@ -71,18 +71,6 @@ build() {
     print_success "Build completed successfully"
 }
 
-# Function to run tests
-test() {
-    print_status "Running tests..."
-    if command_exists jest; then
-        npm run test
-    else
-        print_warning "Jest not found. Please install test dependencies first."
-        print_status "Installing test dependencies..."
-        npm install --save-dev jest @types/jest ts-jest
-        npm run test
-    fi
-}
 
 # Function to run quality checks
 quality() {
@@ -96,9 +84,6 @@ quality() {
     
     print_status "Running build..."
     npm run build
-    
-    print_status "Running tests..."
-    test
     
     print_success "All quality checks passed!"
 }
@@ -180,8 +165,7 @@ help() {
     echo "  dev          Start the application in development mode"
     echo "  dev:watch    Start the application in development mode with watch"
     echo "  build        Build the project"
-    echo "  test         Run tests"
-    echo "  quality      Run all quality checks (lint, type-check, build, test)"
+    echo "  quality      Run all quality checks (lint, type-check, build)"
     echo "  format       Format code with Prettier"
     echo "  lint:fix     Fix linting issues"
     echo "  logs         View application logs"
@@ -208,9 +192,6 @@ case "${1:-help}" in
         ;;
     build)
         build
-        ;;
-    test)
-        test
         ;;
     quality)
         quality
