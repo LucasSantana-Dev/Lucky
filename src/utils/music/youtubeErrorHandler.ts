@@ -1,6 +1,8 @@
 import { errorLog, warnLog } from "../general/log"
 import type { QueryType } from "discord-player"
 import { youtubeConfig } from "../../config/youtubeConfig"
+import { YouTubeError, type ErrorMetadata } from "../../types/errors"
+import { createCorrelationId } from "../error/errorHandler"
 
 export interface YouTubeErrorInfo {
     isParserError: boolean
@@ -95,21 +97,38 @@ export function isRecoverableYouTubeError(error: Error): boolean {
 }
 
 /**
- * Logs YouTube-specific errors with appropriate level and context
+ * Creates a structured YouTube error from an unknown error
  */
-export function logYouTubeError(
-    error: Error,
+export function createYouTubeError(
+    error: unknown,
     context: string = "YouTube search",
-): void {
-    const errorInfo = analyzeYouTubeError(error)
+    metadata: Partial<ErrorMetadata> = {},
+): YouTubeError {
+    const errorInfo = analyzeYouTubeError(
+        error instanceof Error ? error : new Error(String(error)),
+    )
 
-    if (errorInfo.isParserError) {
-        const logLevel = youtubeConfig.errorHandling.logParserErrorsAsWarnings
-            ? warnLog
-            : errorLog
-        logLevel({
-            message: `YouTube parser error in ${context}`,
-            data: {
+    let userMessage: string = youtubeConfig.errorMessages.generalError
+
+    if (
+        errorInfo.isCompositeVideoError ||
+        errorInfo.isHypePointsError ||
+        errorInfo.isGridShelfViewError ||
+        errorInfo.isSectionHeaderViewError
+    ) {
+        userMessage = youtubeConfig.errorMessages.compositeVideoError
+    } else if (errorInfo.isTypeMismatchError) {
+        userMessage = youtubeConfig.errorMessages.typeMismatchError
+    } else if (errorInfo.isParserError) {
+        userMessage = youtubeConfig.errorMessages.parserError
+    }
+
+    const structuredError = new YouTubeError(
+        userMessage,
+        {
+            correlationId: createCorrelationId(),
+            retryable: errorInfo.shouldRetry,
+            details: {
                 errorType: errorInfo.isCompositeVideoError
                     ? "CompositeVideoPrimaryInfo"
                     : errorInfo.isHypePointsError
@@ -122,13 +141,45 @@ export function logYouTubeError(
                             ? "TypeMismatch"
                             : "Parser",
                 shouldRetry: errorInfo.shouldRetry,
-                originalError: error.message,
+                originalError:
+                    error instanceof Error ? error.message : String(error),
+                context,
             },
+            ...metadata,
+        },
+        error instanceof Error ? error : undefined,
+    )
+
+    return structuredError
+}
+
+/**
+ * Logs YouTube-specific errors with appropriate level and context
+ */
+export function logYouTubeError(
+    error: unknown,
+    context: string = "YouTube search",
+    metadata: Partial<ErrorMetadata> = {},
+): YouTubeError {
+    const structuredError = createYouTubeError(error, context, metadata)
+
+    if (
+        structuredError.metadata.details?.errorType &&
+        youtubeConfig.errorHandling.logParserErrorsAsWarnings
+    ) {
+        warnLog({
+            message: `YouTube parser error in ${context}`,
+            error: structuredError,
+            correlationId: structuredError.metadata.correlationId,
+            data: structuredError.metadata.details,
         })
     } else {
         errorLog({
-            message: `Error in ${context}`,
-            error,
+            message: `YouTube error in ${context}`,
+            error: structuredError,
+            correlationId: structuredError.metadata.correlationId,
         })
     }
+
+    return structuredError
 }

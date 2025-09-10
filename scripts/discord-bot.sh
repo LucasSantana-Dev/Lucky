@@ -2,8 +2,11 @@
 
 # DiscordBot Unified Management Script
 # Usage: ./scripts/discord-bot.sh <command>
+# 
+# This script follows structured error handling patterns and provides
+# comprehensive logging and error recovery mechanisms.
 
-set -e
+set -euo pipefail  # Enhanced error handling: exit on error, undefined vars, pipe failures
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,21 +15,46 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
+# Script configuration
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly LOG_FILE="${PROJECT_ROOT}/logs/script.log"
+
+# Create logs directory if it doesn't exist
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# Function to log messages with timestamp
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+}
+
+# Function to print colored output with logging
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    local message="$1"
+    echo -e "${BLUE}[INFO]${NC} $message"
+    log_message "INFO" "$message"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    local message="$1"
+    echo -e "${GREEN}[SUCCESS]${NC} $message"
+    log_message "SUCCESS" "$message"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    local message="$1"
+    echo -e "${YELLOW}[WARNING]${NC} $message"
+    log_message "WARNING" "$message"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    local message="$1"
+    echo -e "${RED}[ERROR]${NC} $message" >&2
+    log_message "ERROR" "$message"
 }
 
 # Function to check if command exists
@@ -34,27 +62,70 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to check if .env file exists
+# Function to check if .env file exists with structured error handling
 check_env() {
-    if [ ! -f ".env" ]; then
-        print_error ".env file not found!"
+    local env_file="${PROJECT_ROOT}/.env"
+    
+    if [ ! -f "$env_file" ]; then
+        print_error "Environment file not found at: $env_file"
         print_warning "Please create a .env file with your Discord bot configuration:"
+        echo ""
         echo "DISCORD_TOKEN=your_discord_token_here"
         echo "CLIENT_ID=your_client_id_here"
         echo "COMMANDS_DISABLED="
         echo "COMMAND_CATEGORIES_DISABLED="
+        echo ""
+        print_status "You can copy from env.example: cp env.example .env"
         exit 1
     fi
+    
+    # Validate required environment variables
+    local required_vars=("DISCORD_TOKEN" "CLIENT_ID")
+    local missing_vars=()
+    
+    for var in "${required_vars[@]}"; do
+        if ! grep -q "^${var}=" "$env_file" || [ -z "$(grep "^${var}=" "$env_file" | cut -d'=' -f2- | tr -d ' ')" ]; then
+            missing_vars+=("$var")
+        fi
+    done
+    
+    if [ ${#missing_vars[@]} -gt 0 ]; then
+        print_error "Missing required environment variables: ${missing_vars[*]}"
+        print_warning "Please set these variables in your .env file"
+        exit 1
+    fi
+    
+    print_success "Environment configuration validated"
 }
 
-# Function to check if Docker is available
+# Function to check if Docker is available with enhanced error handling
 check_docker() {
     if ! command_exists docker; then
         print_error "Docker is not installed or not in PATH!"
         print_warning "Please install Docker Desktop to use Docker commands."
         print_status "You can still use local development commands (format, lint, quality, etc.)"
+        log_message "ERROR" "Docker command not found in PATH"
         return 1
     fi
+
+    if ! docker info >/dev/null 2>&1; then
+        print_error "Docker daemon is not running!"
+        print_warning "Please start Docker Desktop"
+        log_message "ERROR" "Docker daemon not accessible"
+        return 1
+    fi
+
+    # Check Docker version compatibility
+    local docker_version
+    docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local required_version="20.10"
+    
+    if [ "$(printf '%s\n' "$required_version" "$docker_version" | sort -V | head -n1)" != "$required_version" ]; then
+        print_warning "Docker version $docker_version detected. Recommended version: $required_version or higher"
+        log_message "WARNING" "Docker version $docker_version may not be fully compatible"
+    fi
+
+    print_success "Docker is available and running"
     return 0
 }
 
@@ -67,6 +138,47 @@ is_development() {
             ;;
         *)
             return 1
+            ;;
+    esac
+}
+
+# Function to cleanup resources on script exit
+cleanup() {
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        print_error "Script exited with error code: $exit_code"
+        log_message "ERROR" "Script cleanup triggered with exit code: $exit_code"
+    else
+        print_success "Script completed successfully"
+        log_message "SUCCESS" "Script completed successfully"
+    fi
+}
+
+# Set up cleanup trap
+trap cleanup EXIT
+
+# Function to handle script errors with structured logging
+handle_script_error() {
+    local error_code=$1
+    local error_message="$2"
+    local context="${3:-unknown}"
+    
+    print_error "Error in $context: $error_message"
+    log_message "ERROR" "Script error in $context: $error_message (code: $error_code)"
+    
+    # Provide helpful suggestions based on error type
+    case $error_code in
+        1)
+            print_warning "This is usually a configuration or permission issue"
+            ;;
+        2)
+            print_warning "This might be a dependency or environment issue"
+            ;;
+        3)
+            print_warning "This could be a network or service availability issue"
+            ;;
+        *)
+            print_warning "Check the logs for more details: $LOG_FILE"
             ;;
     esac
 }

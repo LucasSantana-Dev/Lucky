@@ -1,17 +1,27 @@
 import type { ChatInputCommandInteraction, GuildMember } from "discord.js"
 import type { GuildQueue } from "discord-player"
 import { errorEmbed } from "../general/embeds"
-import { messages } from "../general/messages"
 import { interactionReply } from "../general/interactionReply"
+import { handleError, createUserErrorMessage } from "../error/errorHandler"
 
 export async function requireGuild(
     interaction: ChatInputCommandInteraction,
 ): Promise<boolean> {
     if (!interaction.guildId) {
+        const error = handleError(
+            new Error("Command can only be used in a guild/server"),
+            "guild validation",
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+                channelId: interaction.channelId,
+            },
+        )
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", messages.error.guildOnly)],
+                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
             },
         })
         return false
@@ -24,10 +34,20 @@ export async function requireVoiceChannel(
 ): Promise<boolean> {
     const member = interaction.member as GuildMember
     if (!member?.voice?.channel) {
+        const error = handleError(
+            new Error("User must be in a voice channel"),
+            "voice channel validation",
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+                channelId: interaction.channelId,
+            },
+        )
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", messages.error.voiceChannel)],
+                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
             },
         })
         return false
@@ -40,10 +60,20 @@ export async function requireQueue(
     interaction: ChatInputCommandInteraction,
 ): Promise<boolean> {
     if (!queue) {
+        const error = handleError(
+            new Error("No music queue found"),
+            "queue validation",
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+                channelId: interaction.channelId,
+            },
+        )
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", messages.error.noQueue)],
+                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
             },
         })
         return false
@@ -56,10 +86,20 @@ export async function requireCurrentTrack(
     interaction: ChatInputCommandInteraction,
 ): Promise<boolean> {
     if (!queue?.currentTrack) {
+        const error = handleError(
+            new Error("No track is currently playing"),
+            "current track validation",
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+                channelId: interaction.channelId,
+            },
+        )
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", messages.error.noTrack)],
+                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
             },
         })
         return false
@@ -72,10 +112,20 @@ export async function requireIsPlaying(
     interaction: ChatInputCommandInteraction,
 ): Promise<boolean> {
     if (!queue?.isPlaying()) {
+        const error = handleError(
+            new Error("No music is currently playing"),
+            "is playing validation",
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+                channelId: interaction.channelId,
+            },
+        )
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", messages.error.notPlaying)],
+                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
             },
         })
         return false
@@ -88,10 +138,24 @@ export async function requireInteractionOptions(
     options: string[],
 ) {
     if (!options.includes(interaction.options.getSubcommand())) {
+        const error = handleError(
+            new Error("Invalid interaction option"),
+            "interaction options validation",
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+                channelId: interaction.channelId,
+                details: {
+                    providedOption: interaction.options.getSubcommand(),
+                    validOptions: options,
+                },
+            },
+        )
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", messages.error.invalidOption)],
+                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
             },
         })
         return false

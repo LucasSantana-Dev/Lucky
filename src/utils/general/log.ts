@@ -17,6 +17,7 @@ interface LogParams {
     error?: unknown
     level?: LogLevel
     data?: unknown
+    correlationId?: string
 }
 
 export const setLogLevel = (level: LogLevel): void => {

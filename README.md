@@ -42,11 +42,12 @@ A modern Discord bot built with TypeScript that plays music from YouTube and Spo
 ### 🔧 Technical Features
 
 - **TypeScript**: Full TypeScript support with strict type checking
-- **Modular architecture**: Clean, maintainable code structure
-- **Error handling**: Comprehensive error handling and recovery
-- **Logging system**: Multi-level logging with Sentry integration
-- **Performance monitoring**: Sentry integration for error tracking
+- **Modular architecture**: Clean, maintainable code structure following SOLID principles
+- **Structured error handling**: Comprehensive error handling with descriptive messages, error codes, and correlation IDs
+- **Logging system**: Multi-level logging with Sentry integration and structured error tracking
+- **Performance monitoring**: Sentry integration for error tracking and performance metrics
 - **Hot reloading**: Development mode with automatic reloading
+- **Code quality**: ESLint, Prettier, and automated quality checks
 
 ## 🏗️ Architecture
 
@@ -85,12 +86,13 @@ src/
 
 ### Design Patterns
 
-- **Modular Architecture**: Separated concerns with clear module boundaries
+- **Modular Architecture**: Separated concerns with clear module boundaries following SOLID principles
 - **Handler Pattern**: Centralized event and command handling
 - **Factory Pattern**: Client and player creation factories
 - **Utility Pattern**: Reusable utility functions for common operations
 - **Configuration Pattern**: Centralized configuration management
-- **Logging Pattern**: Structured logging with multiple levels
+- **Structured Error Handling**: Comprehensive error management with error codes, correlation IDs, and user-friendly messages
+- **Logging Pattern**: Structured logging with multiple levels and correlation tracking
 
 ## 🚀 Quick Start
 
@@ -425,9 +427,10 @@ npm start
 - **TypeScript**: Strict mode with comprehensive type checking
 - **ESLint**: Code quality enforcement with Prettier integration
 - **ES Modules**: Modern JavaScript module system
-- **Clean Code**: Self-documenting code with meaningful names
-- **Error Handling**: Comprehensive error handling and logging
+- **Clean Code**: Self-documenting code with meaningful names following SOLID principles
+- **Structured Error Handling**: Comprehensive error handling with error codes, correlation IDs, and user-friendly messages
 - **Performance**: Optimized for memory and CPU usage
+- **Documentation-First**: All non-trivial changes include proper documentation
 
 ### Architecture Guidelines
 

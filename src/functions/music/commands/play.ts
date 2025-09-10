@@ -27,6 +27,10 @@ import {
     logYouTubeError,
     isRecoverableYouTubeError,
 } from "../../../utils/music/youtubeErrorHandler"
+import {
+    handleError,
+    createUserErrorMessage,
+} from "../../../utils/error/errorHandler"
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -219,16 +223,22 @@ export default new Command({
                     await queue.connect(voiceChannel)
                 }
             } catch (error) {
-                errorLog({
-                    message: "Error connecting to voice channel:",
+                const structuredError = handleError(
                     error,
-                })
+                    "voice channel connection",
+                    {
+                        guildId: interaction.guild?.id,
+                        channelId: voiceChannel?.id,
+                        userId: interaction.user.id,
+                    },
+                )
+
                 await interaction.editReply({
                     embeds: [
                         createEmbed({
                             title: "Erro de conexão",
                             description:
-                                "Não foi possível conectar ao canal de voz!",
+                                createUserErrorMessage(structuredError),
                             color: EMBED_COLORS.ERROR as ColorResolvable,
                             emoji: EMOJIS.ERROR,
                         }),
@@ -321,13 +331,19 @@ export default new Command({
         } catch (searchError) {
             const errorObj = searchError as Error
 
-            // Log YouTube-specific errors with enhanced logging
+            // Handle YouTube-specific errors with structured approach
+            let structuredError
             if (isRecoverableYouTubeError(errorObj)) {
-                logYouTubeError(errorObj, "play command")
+                structuredError = logYouTubeError(errorObj, "play command", {
+                    guildId: interaction.guild?.id,
+                    userId: interaction.user.id,
+                    query: interaction.options.getString("query", true),
+                })
             } else {
-                errorLog({
-                    message: "Error searching for content:",
-                    error: searchError,
+                structuredError = handleError(searchError, "music search", {
+                    guildId: interaction.guild?.id,
+                    userId: interaction.user.id,
+                    query: interaction.options.getString("query", true),
                 })
             }
 
@@ -337,19 +353,27 @@ export default new Command({
                         createEmbed({
                             title: "Erro de busca",
                             description:
-                                typeof searchError === "string"
-                                    ? searchError
-                                    : errorObj.message ||
-                                      messages.error.noTrack,
+                                createUserErrorMessage(structuredError),
                             color: EMBED_COLORS.ERROR as ColorResolvable,
                             emoji: EMOJIS.ERROR,
                         }),
                     ],
                 })
             } catch (replyError) {
+                const replyStructuredError = handleError(
+                    replyError,
+                    "error reply",
+                    {
+                        guildId: interaction.guild?.id,
+                        userId: interaction.user.id,
+                        originalError: structuredError.code,
+                    },
+                )
+
                 errorLog({
-                    message: "Failed to send error reply to interaction:",
-                    error: replyError,
+                    message: "Failed to send error reply to interaction",
+                    error: replyStructuredError,
+                    correlationId: replyStructuredError.metadata.correlationId,
                 })
             }
         }

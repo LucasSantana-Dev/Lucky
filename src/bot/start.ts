@@ -8,6 +8,7 @@ import {
 import { createPlayer } from "../handlers/playerHandler"
 import { setCommands } from "../handlers/commandsHandler"
 import { getCommands } from "../utils/command/commands"
+import type Command from "../models/Command"
 import handleEvents from "../handlers/eventHandler"
 import type { ICustomClient } from "../types"
 
