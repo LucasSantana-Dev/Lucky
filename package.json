@@ -26,7 +26,7 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "quality": "./scripts/dev.sh quality",
-        "check:deps": "depcheck --ignores \"cross-env,@commitlint/cli,@commitlint/config-conventional,youtubei.js\"",
+        "check:deps": "depcheck --config depcheck.config.cjs",
         "check:outdated": "ncu",
         "update:deps": "ncu -u && npm install",
         "install": "./scripts/dev.sh install",
