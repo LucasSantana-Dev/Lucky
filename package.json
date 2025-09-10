@@ -18,7 +18,6 @@
         "format": "prettier . --write",
         "lint": "eslint . -c eslint.config.js",
         "lint:fix": "eslint . -c eslint.config.js --fix",
-        "lint:format": "npm run lint:fix && npm run format",
         "type:check": "tsc --noEmit",
         "quality": "./scripts/discord-bot.sh quality",
         "check:deps": "depcheck --config depcheck.config.cjs",
