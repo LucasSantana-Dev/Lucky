@@ -6,7 +6,7 @@ import { interactionReply } from "../utils/general/interactionReply"
 import { createUserFriendlyError } from "../utils/general/errorSanitizer"
 
 export default function handleEvents(client: Client) {
-    client.once("ready", () => {
+    client.once("clientReady", () => {
         infoLog({ message: `Logged in as ${client.user?.tag}!` })
         debugLog({
             message: `Bot is ready with ${(client as ICustomClient).commands.size} commands loaded`,

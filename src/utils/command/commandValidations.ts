@@ -21,7 +21,7 @@ export async function requireGuild(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
+                embeds: [errorEmbed("Error", createUserErrorMessage(error))],
             },
         })
         return false
@@ -47,7 +47,7 @@ export async function requireVoiceChannel(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
+                embeds: [errorEmbed("Error", createUserErrorMessage(error))],
             },
         })
         return false
@@ -73,7 +73,7 @@ export async function requireQueue(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
+                embeds: [errorEmbed("Error", createUserErrorMessage(error))],
             },
         })
         return false
@@ -99,7 +99,7 @@ export async function requireCurrentTrack(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
+                embeds: [errorEmbed("Error", createUserErrorMessage(error))],
             },
         })
         return false
@@ -125,7 +125,7 @@ export async function requireIsPlaying(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
+                embeds: [errorEmbed("Error", createUserErrorMessage(error))],
             },
         })
         return false
@@ -155,7 +155,7 @@ export async function requireInteractionOptions(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed("Erro", createUserErrorMessage(error))],
+                embeds: [errorEmbed("Error", createUserErrorMessage(error))],
             },
         })
         return false

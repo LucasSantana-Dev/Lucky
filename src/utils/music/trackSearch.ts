@@ -223,9 +223,8 @@ export async function searchRelatedTracks(
         // Search for related tracks using enhanced search
         const enhancedResult = await enhancedSearch(queue.player, {
             query: searchQuery,
-            requestedBy:
-                requestedBy ??
-                (queue.metadata as { requestedBy?: unknown }).requestedBy,
+            requestedBy: (requestedBy ??
+                (queue.metadata as { requestedBy?: User }).requestedBy) as User,
             preferredEngine: QueryType.YOUTUBE_SEARCH,
             maxRetries: 2,
             enableFallbacks: true,

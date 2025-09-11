@@ -6,6 +6,8 @@ import type { ChatInputCommandInteraction, Interaction } from "discord.js"
 import type { ICustomClient } from "../../types"
 import { getCommandCategory } from "../command/commandCategory"
 
+type SpanAttributeValue = string | number | boolean | undefined
+
 /**
  * Capture an exception in Sentry
  * @param error The error to capture
@@ -95,7 +97,7 @@ export async function withSentryMonitoring<T>(
         return fn()
     }
 
-    let result: T
+    let result: T | undefined
     let error: unknown
 
     await Sentry.startSpan(
@@ -109,7 +111,7 @@ export async function withSentryMonitoring<T>(
                     typeof value === "object" && value !== null
                         ? JSON.stringify(value)
                         : value
-                span.setAttribute(key, attributeValue)
+                span.setAttribute(key, attributeValue as SpanAttributeValue)
             })
 
             try {
@@ -136,6 +138,13 @@ export async function withSentryMonitoring<T>(
     // Re-throw the error if one occurred
     if (error) {
         throw error
+    }
+
+    // At this point, result should be defined since no error occurred
+    if (result === undefined) {
+        throw new Error(
+            "Function execution completed but no result was returned",
+        )
     }
 
     return result
@@ -171,7 +180,10 @@ export function createSpan(
                     typeof value === "object" && value !== null
                         ? JSON.stringify(value)
                         : value
-                innerSpan.setAttribute(key, attributeValue)
+                innerSpan.setAttribute(
+                    key,
+                    attributeValue as SpanAttributeValue,
+                )
             })
             return innerSpan
         },

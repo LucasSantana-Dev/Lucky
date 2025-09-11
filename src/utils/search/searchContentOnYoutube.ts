@@ -9,6 +9,7 @@ import {
     logYouTubeError,
     isRecoverableYouTubeError,
 } from "../music/youtubeErrorHandler"
+import { YouTubeError } from "../../types/errors"
 
 interface ISearchContentParams {
     client: ICustomClient
@@ -61,7 +62,12 @@ export const searchContentOnYoutube = async ({
         }
 
         // If all searches failed, throw the error from enhanced search
-        throw new Error(enhancedResult.error ?? "Nenhum resultado encontrado")
+        throw new YouTubeError(enhancedResult.error ?? "No results found", {
+            guildId: interaction.guild?.id,
+            userId: interaction.user.id,
+            query: searchTerms,
+            originalError: enhancedResult.error,
+        })
     } catch (error) {
         const errorObj = error as Error
 

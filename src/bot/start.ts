@@ -1,4 +1,5 @@
 import type { Player, GuildQueue, Track } from "discord-player"
+import { Events } from "discord.js"
 import { debugLog, errorLog, infoLog } from "../utils/general/log"
 import {
     createClient,
@@ -11,6 +12,7 @@ import { getCommands } from "../utils/command/commands"
 import type Command from "../models/Command"
 import handleEvents from "../handlers/eventHandler"
 import type { ICustomClient } from "../types"
+import { ConfigurationError } from "../types/errors"
 
 let client: ICustomClient | null = null
 let isInitialized = false
@@ -27,7 +29,9 @@ export async function initializeBot() {
         const clientCreationStart = Date.now()
         const newClient = createClient()
         if (!newClient?.login) {
-            throw new Error("Failed to create Discord client")
+            throw new ConfigurationError("Failed to create Discord client", {
+                details: { clientCreation: "failed" },
+            })
         }
         client = newClient
         debugLog({
@@ -41,9 +45,9 @@ export async function initializeBot() {
         })
 
         const clientStartTime = Date.now()
-        startClient({ client })
+        await startClient({ client })
         debugLog({
-            message: `Client start process initiated in ${Date.now() - clientStartTime}ms`,
+            message: `Client start process completed in ${Date.now() - clientStartTime}ms`,
         })
 
         const [player, commandList] = await Promise.all([
@@ -53,8 +57,36 @@ export async function initializeBot() {
 
         setupPlayerEvents(player)
 
-        if (!client) throw new Error("Client is null")
-        setupCommandRegistration(client, commandList)
+        if (!client)
+            throw new ConfigurationError("Client is null", {
+                details: { initialization: "failed" },
+            })
+
+        // Wait for client to be ready, then register commands
+        debugLog({ message: "Waiting for client to be ready..." })
+        await new Promise<void>((resolve) => {
+            if (client?.isReady()) {
+                debugLog({ message: "Client is already ready" })
+                resolve()
+            } else if (client) {
+                debugLog({
+                    message:
+                        "Client not ready, waiting for ClientReady event...",
+                })
+                client.once(Events.ClientReady, () => {
+                    debugLog({ message: "ClientReady event fired!" })
+                    resolve()
+                })
+            } else {
+                debugLog({ message: "Client is null, resolving anyway" })
+                resolve() // If client is null, just resolve
+            }
+        })
+        debugLog({
+            message: "Client ready, proceeding with command registration...",
+        })
+
+        await setupCommandRegistration(client, commandList)
 
         isInitialized = true
         return client
@@ -67,7 +99,10 @@ export async function initializeBot() {
 async function initializePlayer(client: ICustomClient) {
     const playerStartTime = Date.now()
     try {
-        if (!client) throw new Error("Client is null")
+        if (!client)
+            throw new ConfigurationError("Client is null", {
+                details: { playerInitialization: "failed" },
+            })
         const player = createPlayer({ client })
         client.player = player
         debugLog({
@@ -122,54 +157,52 @@ function setupPlayerEvents(player: Player) {
     })
 }
 
-function setupCommandRegistration(
+async function setupCommandRegistration(
     client: ICustomClient,
     commandList: unknown[],
 ) {
-    client.once("ready", async () => {
-        if (commandList.length > 0) {
-            try {
-                const setCommandsStartTime = Date.now()
-                await setCommands({
-                    client,
-                    commands: commandList as Command[],
-                })
-                debugLog({
-                    message: `Setting commands took ${Date.now() - setCommandsStartTime}ms`,
-                })
-
-                const registerCommandsStartTime = Date.now()
-                debugLog({
-                    message: "Registering commands with Discord API...",
-                })
-                const { registerCommands } = await import(
-                    "../handlers/clientHandler"
-                )
-                await registerCommands(commandList as Command[])
-                debugLog({
-                    message: `Registering commands took ${Date.now() - registerCommandsStartTime}ms`,
-                })
-
-                await mapGuildIds({ client })
-
-                const commandCount = client.commands.size
-                infoLog({
-                    message: `Loaded ${commandCount} commands into client collection`,
-                })
-
-                if (commandCount === 0) {
-                    errorLog({
-                        message:
-                            "No commands were loaded! This is a critical error.",
-                    })
-                }
-            } catch (error) {
-                errorLog({ message: "Error setting commands:", error })
-            }
-        } else {
-            errorLog({
-                message: "No commands were loaded! This is a critical error.",
+    if (commandList.length > 0) {
+        try {
+            const setCommandsStartTime = Date.now()
+            await setCommands({
+                client,
+                commands: commandList as Command[],
             })
+            debugLog({
+                message: `Setting commands took ${Date.now() - setCommandsStartTime}ms`,
+            })
+
+            const registerCommandsStartTime = Date.now()
+            debugLog({
+                message: "Registering commands with Discord API...",
+            })
+            const { registerCommands } = await import(
+                "../handlers/clientHandler"
+            )
+            await registerCommands(commandList as Command[])
+            debugLog({
+                message: `Registering commands took ${Date.now() - registerCommandsStartTime}ms`,
+            })
+
+            await mapGuildIds({ client })
+
+            const commandCount = client.commands.size
+            infoLog({
+                message: `Loaded ${commandCount} commands into client collection`,
+            })
+
+            if (commandCount === 0) {
+                errorLog({
+                    message:
+                        "No commands were loaded! This is a critical error.",
+                })
+            }
+        } catch (error) {
+            errorLog({ message: "Error setting commands:", error })
         }
-    })
+    } else {
+        errorLog({
+            message: "No commands were loaded! This is a critical error.",
+        })
+    }
 }

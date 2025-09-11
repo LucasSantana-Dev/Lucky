@@ -75,7 +75,7 @@ export const handlePlay = async ({
 
         embed
             .setColor("Green")
-            .setDescription(`✅ Adicionado à fila: **${track.title}**`)
+            .setDescription(`✅ Added to queue: **${track.title}**`)
             .setThumbnail(track.thumbnail)
 
         await interactionReply({

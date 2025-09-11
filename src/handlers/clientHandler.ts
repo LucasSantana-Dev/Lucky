@@ -92,7 +92,7 @@ export function createClient(): ICustomClient {
     return client
 }
 
-export const startClient = ({ client }: StartClientParams): void => {
+export const startClient = ({ client }: StartClientParams): Promise<void> => {
     try {
         const token = process.env.DISCORD_TOKEN
         if (!token) {
@@ -100,12 +100,12 @@ export const startClient = ({ client }: StartClientParams): void => {
                 message:
                     "DISCORD_TOKEN is not defined in environment variables",
             })
-            return
+            return Promise.resolve()
         }
 
         if (client.isReady()) {
             debugLog({ message: "Client is already logged in, skipping login" })
-            return
+            return Promise.resolve()
         }
 
         debugLog({ message: "Attempting to log in to Discord..." })
@@ -119,21 +119,7 @@ export const startClient = ({ client }: StartClientParams): void => {
             debugLog({ message: "Promise:", data: promise })
         })
 
-        debugLog({ message: "About to call client.login with token" })
-        client
-            .login(token)
-            .then(() => {
-                debugLog({ message: "Login promise resolved successfully" })
-            })
-            .catch((error: Error) => {
-                errorLog({ message: "Error logging in to Discord:", error })
-                if (error instanceof Error) {
-                    errorLog({ message: "Error name:", data: error.name })
-                    errorLog({ message: "Error message:", data: error.message })
-                    errorLog({ message: "Error stack:", data: error.stack })
-                }
-            })
-
+        // Set up event handlers before login
         client.once(Events.ClientReady, async () => {
             try {
                 client.user?.setPresence({
@@ -157,8 +143,25 @@ export const startClient = ({ client }: StartClientParams): void => {
         client.on(Events.Warn, (warning: string) => {
             warnLog({ message: `Discord client warning: ${warning}` })
         })
+
+        debugLog({ message: "About to call client.login with token" })
+        return client
+            .login(token)
+            .then(() => {
+                debugLog({ message: "Login promise resolved successfully" })
+            })
+            .catch((error: Error) => {
+                errorLog({ message: "Error logging in to Discord:", error })
+                if (error instanceof Error) {
+                    errorLog({ message: "Error name:", data: error.name })
+                    errorLog({ message: "Error message:", data: error.message })
+                    errorLog({ message: "Error stack:", data: error.stack })
+                }
+                throw error
+            })
     } catch (error) {
         errorLog({ message: "Error starting client:", error })
+        return Promise.reject(error)
     }
 }
 

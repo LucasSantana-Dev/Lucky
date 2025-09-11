@@ -123,7 +123,7 @@ export async function handleInteraction(
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [errorEmbed("Erro", userFriendlyError)],
+                        embeds: [errorEmbed("Error", userFriendlyError)],
                         ephemeral: true,
                     },
                 })

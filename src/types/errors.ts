@@ -95,9 +95,42 @@ export class BotError extends Error implements StructuredError {
 
     /**
      * Creates a user-friendly error message for Discord embeds
+     * These messages are generic and don't expose technical details
      */
     getUserMessage(): string {
-        return this.message
+        // Map error codes to user-friendly messages
+        switch (this.code) {
+            case ErrorCode.AUTH_PERMISSION_DENIED:
+                return "❌ Insufficient permissions to execute this action."
+
+            case ErrorCode.NETWORK_CONNECTION_FAILED:
+                return "🌐 Connection error. Check your internet and try again."
+
+            case ErrorCode.MUSIC_PLAYBACK_FAILED:
+                return "🎵 Music playback error. Please try again."
+
+            case ErrorCode.MUSIC_QUEUE_EMPTY:
+                return "📋 Queue error. Please try again."
+
+            case ErrorCode.YOUTUBE_PARSER_ERROR:
+                return "🎵 Error processing YouTube content. Try again or use a different link."
+
+            case ErrorCode.MUSIC_DOWNLOAD_FAILED:
+                return "📥 Error downloading YouTube content. Please try again."
+
+            case ErrorCode.VALIDATION_INVALID_INPUT:
+            case ErrorCode.VALIDATION_MISSING_REQUIRED_FIELD:
+            case ErrorCode.VALIDATION_OUT_OF_RANGE:
+                return "❌ Invalid data provided. Check the parameters and try again."
+
+            case ErrorCode.CONFIG_MISSING_ENV_VAR:
+            case ErrorCode.CONFIG_INVALID_VALUE:
+                return "⚙️ Configuration error. Contact the administrator."
+
+            case ErrorCode.UNKNOWN_ERROR:
+            default:
+                return "❌ An unexpected error occurred. Please try again later."
+        }
     }
 
     /**

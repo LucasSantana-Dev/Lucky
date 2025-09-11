@@ -5,6 +5,7 @@ import type {
 } from "discord.js"
 import type { GuildQueue } from "discord-player"
 import type { ICustomClient } from "../types"
+import { ValidationError } from "../types/errors"
 
 interface CreateQueueParams {
     client: ICustomClient
@@ -21,9 +22,18 @@ export const createQueue = async ({
     interaction,
 }: CreateQueueParams): Promise<GuildQueue> => {
     if (!interaction.guild) {
-        throw new Error("Guild not found in interaction")
+        throw new ValidationError("Guild not found in interaction", {
+            userId: interaction.user?.id,
+            channelId: interaction.channel?.id,
+        })
     }
-    return client.player.nodes.create(interaction.guild)
+
+    const queue = client.player.nodes.create(interaction.guild)
+
+    // Enable autoplay by default
+    queue.setRepeatMode(3) // QueueRepeatMode.AUTOPLAY
+
+    return queue
 }
 
 export const queueConnect = async ({

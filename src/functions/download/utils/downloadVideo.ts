@@ -7,13 +7,19 @@ import { deleteContent } from "./deleteContent"
 import { errorLog, infoLog } from "../../../utils/general/log"
 import { interactionReply } from "../../../utils/general/interactionReply"
 
+interface VideoInfo {
+    videoDetails: {
+        lengthSeconds: string
+    }
+}
+
 interface DownloadVideoParams {
     url: string
     interaction: ChatInputCommandInteraction
     videoFileName: string
     outputPath: string
     outputFileName: string
-    videoInfo: unknown
+    videoInfo: VideoInfo
     audioPath: string
 }
 
@@ -33,7 +39,7 @@ export const downloadVideo = async ({
         )
         outputPath = path.resolve(__dirname, `../../content/${outputFileName}`)
 
-        const videoLength = videoInfo.videoDetails.lengthSeconds
+        const videoLength = parseInt(videoInfo.videoDetails.lengthSeconds, 10)
 
         if (videoLength > 600) {
             await interactionReply({
