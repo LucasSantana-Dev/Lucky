@@ -1,17 +1,17 @@
 {
     "name": "discord-bot",
-    "version": "2.0.0",
+    "version": "1.0.0",
     "description": "A modern Discord bot for music playback and downloads with advanced features",
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "build": "./scripts/discord-bot.sh build",
-        "start": "cross-env NODE_ENV=production ./scripts/discord-bot.sh start",
-        "dev": "cross-env NODE_ENV=development ./scripts/discord-bot.sh start",
-        "dev:watch": "cross-env NODE_ENV=development ./scripts/discord-bot.sh dev:watch",
+        "build": "tsup",
+        "build:docker": "./scripts/discord-bot.sh build",
+        "start": "./scripts/discord-bot.sh start",
+        "dev": "tsx watch src/index.ts",
         "stop": "./scripts/discord-bot.sh stop",
-        "restart": "cross-env NODE_ENV=production ./scripts/discord-bot.sh restart",
-        "logs": "cross-env NODE_ENV=production ./scripts/discord-bot.sh logs",
+        "restart": "./scripts/discord-bot.sh restart",
+        "logs": "./scripts/discord-bot.sh logs",
         "status": "./scripts/discord-bot.sh status",
         "clean": "./scripts/discord-bot.sh clean",
         "help": "./scripts/discord-bot.sh help",
@@ -45,6 +45,9 @@
     "engines": {
         "node": ">=22.x"
     },
+    "optionalDependencies": {
+        "@discordjs/opus": "^0.10.0"
+    },
     "keywords": [
         "discord",
         "bot",
@@ -67,6 +70,7 @@
         "ffmpeg-static": "^5.2.0",
         "fluent-ffmpeg": "^2.1.3",
         "module-alias": "^2.2.3",
+        "opusscript": "^0.1.1",
         "play-dl": "^1.9.7",
         "prettier": "^3.6.2",
         "uuid": "^13.0.0",

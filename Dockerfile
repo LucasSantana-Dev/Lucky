@@ -1,12 +1,17 @@
 # Use Node.js 22 Alpine as base image
 FROM node:22-alpine
 
-# Install system dependencies
+# Install system dependencies including opus libraries
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
     git \
+    opus \
+    opus-dev \
+    opus-tools \
+    build-base \
+    python3-dev \
     && rm -rf /var/cache/apk/*
 
 # Install yt-dlp using pipx for isolated installation
@@ -18,14 +23,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install Node.js dependencies (skip husky in production)
-RUN npm ci --omit=dev --ignore-scripts
+# Install all dependencies with proper opus support
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application using tsup
 RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --omit=dev
 
 # Create downloads directory
 RUN mkdir -p downloads
@@ -45,5 +53,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node -e "console.log('Bot is running')" || exit 1
 
-# Start the bot
-CMD ["npm", "start"]
+# Start the bot directly
+CMD ["node", "dist/index.js"]
