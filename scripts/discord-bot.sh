@@ -2,7 +2,7 @@
 
 # DiscordBot Unified Management Script
 # Usage: ./scripts/discord-bot.sh <command>
-# 
+#
 # This script follows structured error handling patterns and provides
 # comprehensive logging and error recovery mechanisms.
 
@@ -62,14 +62,38 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to load environment variables from .env file
+load_env() {
+    local env_file="${PROJECT_ROOT}/.env"
+
+    if [ -f "$env_file" ]; then
+        # Export variables from .env file (skip comments and empty lines)
+        set -a  # automatically export all variables
+        # Use a safer method to source the .env file
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Skip comments and empty lines
+            case "$line" in
+                \#*|'') continue ;;
+            esac
+            # Export the variable
+            export "$line"
+        done < "$env_file"
+        set +a  # disable automatic export
+        print_status "Environment variables loaded from .env"
+    else
+        print_warning "No .env file found, using system environment variables"
+    fi
+}
+
 # Function to check if .env file exists with structured error handling
 check_env() {
     local env_file="${PROJECT_ROOT}/.env"
-    
+
     if [ ! -f "$env_file" ]; then
         print_error "Environment file not found at: $env_file"
         print_warning "Please create a .env file with your Discord bot configuration:"
         echo ""
+        echo "NODE_ENV=production"
         echo "DISCORD_TOKEN=your_discord_token_here"
         echo "CLIENT_ID=your_client_id_here"
         echo "COMMANDS_DISABLED="
@@ -78,23 +102,26 @@ check_env() {
         print_status "You can copy from env.example: cp env.example .env"
         exit 1
     fi
-    
+
+    # Load environment variables
+    load_env
+
     # Validate required environment variables
     local required_vars=("DISCORD_TOKEN" "CLIENT_ID")
     local missing_vars=()
-    
+
     for var in "${required_vars[@]}"; do
         if ! grep -q "^${var}=" "$env_file" || [ -z "$(grep "^${var}=" "$env_file" | cut -d'=' -f2- | tr -d ' ')" ]; then
             missing_vars+=("$var")
         fi
     done
-    
+
     if [ ${#missing_vars[@]} -gt 0 ]; then
         print_error "Missing required environment variables: ${missing_vars[*]}"
         print_warning "Please set these variables in your .env file"
         exit 1
     fi
-    
+
     print_success "Environment configuration validated"
 }
 
@@ -119,7 +146,7 @@ check_docker() {
     local docker_version
     docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
     local required_version="20.10"
-    
+
     if [ "$(printf '%s\n' "$required_version" "$docker_version" | sort -V | head -n1)" != "$required_version" ]; then
         print_warning "Docker version $docker_version detected. Recommended version: $required_version or higher"
         log_message "WARNING" "Docker version $docker_version may not be fully compatible"
@@ -131,6 +158,11 @@ check_docker() {
 
 # Function to check if we're in development mode
 is_development() {
+    # Load environment variables if not already loaded
+    if [ -z "${NODE_ENV:-}" ]; then
+        load_env
+    fi
+
     local env="${NODE_ENV:-production}"
     case "$env" in
         "development"|"dev"|"local")
@@ -162,10 +194,10 @@ handle_script_error() {
     local error_code=$1
     local error_message="$2"
     local context="${3:-unknown}"
-    
+
     print_error "Error in $context: $error_message"
     log_message "ERROR" "Script error in $context: $error_message (code: $error_code)"
-    
+
     # Provide helpful suggestions based on error type
     case $error_code in
         1)
@@ -208,31 +240,24 @@ start() {
     if is_development; then
         print_status "Starting development container..."
         check_docker || exit 1
-        docker-compose -f docker-compose.dev.yml up -d
+        docker compose -f docker-compose.dev.yml up -d
         print_success "Development container started!"
-        print_status "Use 'npm run logs:dev' to view logs"
+        print_status "Use 'npm run logs' to view logs"
     else
         print_status "Starting production container..."
         check_docker || exit 1
-        docker-compose up -d
+        docker compose up -d
         print_success "Production container started!"
         print_status "Use 'npm run logs' to view logs"
     fi
-}
-
-# Function to start development mode with watch (local)
-dev_watch() {
-    print_status "Starting DiscordBot in development mode with watch..."
-    check_env || exit 1
-    npm run dev:watch
 }
 
 # Function to stop containers
 stop() {
     print_status "Stopping containers..."
     if check_docker; then
-        docker-compose down
-        docker-compose -f docker-compose.dev.yml down
+        docker compose down
+        docker compose -f docker-compose.dev.yml down
         print_success "All containers stopped!"
     else
         print_status "Stopping local processes..."
@@ -253,7 +278,7 @@ logs() {
     if is_development; then
         print_status "Showing development logs..."
         if check_docker; then
-            docker-compose -f docker-compose.dev.yml logs -f
+            docker compose -f docker-compose.dev.yml logs -f
         else
             print_warning "Docker not available. Checking local logs..."
             if [ -f "logs/app.log" ]; then
@@ -265,7 +290,7 @@ logs() {
     else
         print_status "Showing production logs..."
         if check_docker; then
-            docker-compose logs -f
+            docker compose logs -f
         else
             print_warning "Docker not available. Checking local logs..."
             if [ -f "logs/app.log" ]; then
@@ -283,10 +308,10 @@ status() {
     if check_docker; then
         echo ""
         echo "Production containers:"
-        docker-compose ps
+        docker compose ps
         echo ""
         echo "Development containers:"
-        docker-compose -f docker-compose.dev.yml ps
+        docker compose -f docker-compose.dev.yml ps
     else
         print_warning "Docker not available. Cannot show container status."
     fi
@@ -296,12 +321,12 @@ status() {
 clean() {
     print_status "Cleaning up resources..."
     if check_docker; then
-        docker-compose down --volumes --remove-orphans
-        docker-compose -f docker-compose.dev.yml down --volumes --remove-orphans
+        docker compose down --volumes --remove-orphans
+        docker compose -f docker-compose.dev.yml down --volumes --remove-orphans
         docker system prune -f
         print_success "Docker resources cleaned up!"
     fi
-    
+
     # Always clean local build artifacts
     npx rimraf dist/
     npx rimraf node_modules/.cache/
@@ -315,16 +340,19 @@ clean() {
 # Function to run quality checks
 quality() {
     print_status "Running quality checks..."
-    
+
+    print_status "Formatting code..."
+    npm run format
+
     print_status "Running linter..."
     npm run lint
-    
+
     print_status "Running type check..."
     npm run type:check
-    
+
     print_status "Running build..."
     npm run build
-    
+
     print_success "All quality checks passed!"
 }
 
@@ -388,8 +416,9 @@ help() {
     echo "  ./scripts/discord-bot.sh restart"
     echo ""
     echo "Environment-based usage:"
-    echo "  NODE_ENV=development ./scripts/discord-bot.sh build  # Build dev image"
-    echo "  NODE_ENV=production ./scripts/discord-bot.sh build   # Build prod image"
+    echo "  # Set NODE_ENV in .env file to control behavior"
+    echo "  echo 'NODE_ENV=development' > .env  # Development mode"
+    echo "  echo 'NODE_ENV=production' > .env   # Production mode"
 }
 
 # =============================================================================
@@ -425,7 +454,7 @@ case "${1:-help}" in
     "clean")
         clean
         ;;
-    
+
     # Local Development Commands
     "quality")
         quality
@@ -439,7 +468,7 @@ case "${1:-help}" in
     "install")
         install
         ;;
-    
+
     # Utilities
     "help"|"--help"|"-h")
         help

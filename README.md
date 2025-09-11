@@ -58,10 +58,27 @@ A modern Discord bot built with TypeScript that plays music from YouTube and Spo
 - **Discord API**: Discord.js 14.14.1 with slash commands
 - **Music Engine**: Discord Player 7.1.0 with YouTube/Spotify support
 - **Audio Processing**: FFmpeg for audio/video manipulation
-- **Build Tool**: tsup for fast TypeScript bundling
+- **Build Tool**: tsup for fast TypeScript bundling with tree shaking and minification
 - **Development**: tsx for fast development with hot reloading
+- **Unified Build System**: Consistent tooling across development and production
 - **Code Quality**: ESLint with Prettier integration
 - **Monitoring & Logging**: Sentry for centralized error tracking, performance monitoring, and logging
+
+### Build System
+
+DiscordBot uses a **unified build system** for consistency and performance:
+
+- **Production Build**: `tsup` - Fast TypeScript bundling with tree shaking, minification, and code splitting
+- **Development**: `tsx` - Fast development with hot reloading and TypeScript execution
+- **Type Checking**: `tsc` - TypeScript compiler for type validation only
+
+**Benefits:**
+
+- ⚡ **Faster builds** - tsup is ~10x faster than tsc
+- 🎯 **Better optimization** - Tree shaking and minification in production
+- 🔄 **Hot reloading** - Instant development feedback with tsx
+- 📦 **Code splitting** - Optimized bundle sizes
+- 🎨 **Consistent tooling** - Same tools across development and production
 
 ### Project Structure
 
@@ -117,12 +134,37 @@ nano .env  # Add your DISCORD_TOKEN and CLIENT_ID
 # 3. Customize (optional)
 # Edit BOT_NAME, BOT_DESCRIPTION, BOT_COLOR, etc. in .env
 
-# 4. Build and run
+# 4. Configure environment
+# Edit NODE_ENV, DISCORD_TOKEN, CLIENT_ID, etc. in .env
+
+# 5. Build and run
 npm run build
 npm run start
 ```
 
 **That's it!** Your bot is now running and ready to use in your Discord server.
+
+### ⚙️ Environment Configuration
+
+DiscordBot uses a `.env` file for all configuration. The environment mode is controlled by the `NODE_ENV` variable:
+
+```bash
+# Production mode (default)
+NODE_ENV=production
+
+# Development mode
+NODE_ENV=development
+```
+
+**Key Environment Variables:**
+
+- `NODE_ENV` - Controls development vs production behavior
+- `DISCORD_TOKEN` - Your Discord bot token (required)
+- `CLIENT_ID` - Your Discord application client ID (required)
+- `BOT_NAME` - Custom bot display name
+- `BOT_DESCRIPTION` - Bot description for help commands
+- `BOT_COLOR` - Embed color (hex format)
+- `SENTRY_DSN` - Error tracking (optional)
 
 ### 🐳 Docker Setup (Recommended)
 
@@ -153,13 +195,16 @@ The easiest way to run DiscordBot is using Docker. This ensures all dependencies
 3. **Build and start**:
 
     ```bash
+    # Set NODE_ENV in .env file first
+    echo "NODE_ENV=production" >> .env
+
     # Production
     npm run build
     npm run start
 
     # Development (with hot reloading)
-    npm run build:dev
-    npm run dev
+    echo "NODE_ENV=development" > .env
+    npm run dev:watch
     ```
 
 4. **View logs**:
@@ -174,8 +219,8 @@ DiscordBot uses a unified management script that provides both Docker and local 
 
 ```bash
 # 🐳 DOCKER COMMANDS (Primary Application Operations)
-npm run build          # Build production Docker image
-npm run build:dev      # Build development Docker image
+npm run build          # Build application with tsup
+npm run build:docker   # Build Docker image
 npm run start          # Start production container
 npm run dev            # Start development container
 npm run dev:watch      # Start with hot reloading (local)

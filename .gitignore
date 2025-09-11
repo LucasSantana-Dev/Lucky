@@ -14,3 +14,5 @@ ffmpeg/bin/ffprobe.exe
 
 .cursor/
 .vscode/
+
+logs/
