@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Permanent Opus Fix**: Resolved Docker opus encoder issues by adding proper system dependencies (opus, opus-dev, opus-tools, build-base) to Alpine Linux containers
+- **Improved Opus Module Installation**: Moved @discordjs/opus to optionalDependencies and removed fragile post-install workarounds
+- **Enhanced Docker Build Process**: Streamlined npm install process without ignoring scripts, ensuring proper native module compilation
+- **Autoplay Functionality**: Fixed autoplay track identification and queue replenishment to properly show autoplay songs in queue display
+
+### Changed
+
+- **Complete English Translation**: Translated all user-facing text from Portuguese to English throughout the entire codebase
+    - Queue display: "Tocando Agora" → "Now Playing", "Próxima música" → "Next song"
+    - Music commands: All error messages, success messages, and descriptions translated
+    - Track formatting: "Duração" → "Duration", "Solicitado por" → "Requested by"
+    - Statistics: "Ativado/Desativado" → "Enabled/Disabled", "músicas" → "songs"
+    - Error messages: "Erro" → "Error", "Música não encontrada" → "Song not found"
+    - Command parameters: "para" → "to", "de" → "from", "posicao" → "position", "modo" → "mode", "vezes" → "times"
+    - Volume messages: "Volume atual" → "Current volume", "Volume alterado" → "Volume changed"
+    - Queue status: "Fila vazia" → "Empty queue", "A fila está vazia" → "The queue is empty"
+
 ### Added
 
 - **BREAKING**: Renamed project from LukBot to DiscordBot for generic use
@@ -21,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Correlation Tracking**: UUID-based correlation IDs for error tracking across the application
 - **Retry Mechanisms**: Intelligent retry logic with exponential backoff for recoverable errors
 - **User-Friendly Error Messages**: Automatic mapping of technical errors to user-friendly Discord embed messages
+- **Unified Build System**: Consistent build tooling using tsup for production builds and tsx for development
 
 ### Changed
 
@@ -32,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Enhanced Error Handling**: Updated existing error handling to use structured approach with correlation IDs
 - **Improved Logging**: Enhanced logging system with structured error information and correlation tracking
 - **Updated Documentation**: Enhanced README.md and documentation to reflect new error handling capabilities
+- **Build System Optimization**: Replaced mixed tsc/tsup/tsx usage with unified tsup for production and tsx for development
 
 ### Removed
 
@@ -45,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package-lock.json tracking issues (moved to .gitignore)
 - Script command organization and maintainability
 
-## [2.1.0] - 2024-12-19
+## [1.0.0] - 2024-12-19
 
 ### Added
 
@@ -82,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation consistency across all files
 - Docker configuration alignment with new naming scheme
 
-## [2.0.0] - 2024-09-10
+## [0.2.0] - 2024-09-10
 
 ### Added
 
@@ -91,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **YouTube and Spotify** music streaming support
 - **Advanced download system** with yt-dlp integration
 - **Comprehensive logging** with Sentry integration
-- **TypeScript 5.9.2** with strict type checking
+- **TypeScript 5.2.2** with strict type checking
 - **Docker support** for both development and production
 - **Hot reloading** for development workflow
 - **Queue management** with shuffle, repeat, and history
@@ -124,7 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Download Commands**: download, download-audio, download-video
 - **General Commands**: ping, help, exit
 
-## [1.0.0] - 2024-01-01
+## [0.1.0] - 2024-01-01
 
 ### Added
 
@@ -138,26 +159,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
-- **v2.1.0**: Generic naming and customization system - renamed to DiscordBot with full personalization options
-- **v2.0.0**: Complete rewrite with modern architecture, Docker support, and advanced features
-- **v1.0.0**: Initial release with basic functionality
+- **v1.0.0**: Generic naming and customization system - renamed to DiscordBot with full personalization options and unified build system
+- **v0.2.0**: Complete rewrite with modern architecture, Docker support, and advanced features
+- **v0.1.0**: Initial release with basic functionality
 
 ## Migration Guide
 
-### From v1.x to v2.0.0
+### From v0.2.x to v1.0.0
 
 1. **Update dependencies**: Run `npm install` to get new dependencies
 2. **Update environment variables**: Check `env.example` for new required variables
 3. **Docker setup**: Consider using Docker for consistent environments
 4. **Script changes**: Use new unified `discord-bot.sh` script instead of separate scripts
 5. **Configuration**: Update any custom configurations to match new structure
-
-### From v2.0.0 to v2.1.0
-
-1. **Update script references**: Change any references from `lukbot.sh` to `discord-bot.sh`
-2. **Update Docker commands**: Use new container names (`discord-bot` instead of `lukbot-discord`)
-3. **Add customization**: Configure `BOT_NAME`, `BOT_DESCRIPTION`, etc. in your `.env` file
-4. **Update documentation**: All references now use DiscordBot naming
+6. **Build system**: Now uses unified tsup/tsx build system for better performance
+7. **Add customization**: Configure `BOT_NAME`, `BOT_DESCRIPTION`, etc. in your `.env` file
+8. **Update documentation**: All references now use DiscordBot naming
 
 ### Breaking Changes
 
@@ -165,8 +182,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Package.json scripts**: All scripts now use unified interface
 - **Docker-first approach**: Primary operations now use Docker by default
 - **Test removal**: Test support removed from development scripts
-- **Project renaming**: LukBot → DiscordBot (v2.1.0)
+- **Project renaming**: LukBot → DiscordBot (v1.0.0)
 - **Docker naming**: All container and network names updated for generic use
+- **Build system**: Unified tsup/tsx build system replaces mixed tsc/tsup/tsx usage
 
 ## Contributing
 
