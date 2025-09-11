@@ -1,10 +1,12 @@
 import type { Track, GuildQueue } from "discord-player"
+import type { User } from "discord.js"
 import { debugLog, errorLog, infoLog } from "../general/log"
 import type { TrackHistoryEntry } from "./duplicateDetection"
 import {
     isDuplicateTrack,
     clearHistory,
     recentlyPlayedTracks,
+    addTrackToHistory,
 } from "./duplicateDetection"
 import {
     searchRelatedTracks,
@@ -12,6 +14,12 @@ import {
     getCurrentTrackIds,
 } from "./trackSearch"
 import { getAutoplayCount, incrementAutoplayCount } from "./autoplayManager"
+
+interface IQueueMetadata {
+    channel: unknown
+    client: { user: User } | undefined
+    requestedBy: User | undefined
+}
 
 /**
  * Add a track to the queue with duplicate checking
@@ -70,8 +78,21 @@ export function addTracksToQueue(queue: GuildQueue, tracks: Track[]): void {
 /**
  * Replenish the queue with related tracks
  */
-export async function replenishQueue(queue: GuildQueue): Promise<void> {
+export async function replenishQueue(
+    queue: GuildQueue,
+    forceReplenish: boolean = false,
+): Promise<void> {
     try {
+        debugLog({
+            message: "replenishQueue called",
+            data: {
+                guildId: queue.guild.id,
+                repeatMode: queue.repeatMode,
+                queueSize: queue.tracks.size,
+                forceReplenish,
+            },
+        })
+
         // Check if autoplay is enabled
         const isAutoplayEnabled = queue.repeatMode === 3 // QueueRepeatMode.AUTOPLAY
 
@@ -79,6 +100,7 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             debugLog({
                 message:
                     "Autoplay is not enabled, skipping queue replenishment",
+                data: { repeatMode: queue.repeatMode },
             })
             return
         }
@@ -96,10 +118,12 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             return
         }
 
-        // If queue has less than 2 tracks, try to add more
-        if (queue.tracks.size < 2) {
+        // If queue has less than 2 tracks OR force replenish is true, try to add more
+        if (queue.tracks.size < 2 || forceReplenish) {
             debugLog({
-                message: "Queue has less than 2 tracks, replenishing...",
+                message: forceReplenish
+                    ? "Force replenishing queue with related tracks..."
+                    : "Queue has less than 2 tracks, replenishing...",
             })
 
             // Get the last played track to use for related search
@@ -111,21 +135,45 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
                 return
             }
 
+            // Ensure the track is added to history first so we can get metadata
+            addTrackToHistory(lastTrack, guildId)
+
             if (!lastTrack.id) {
                 debugLog({
                     message:
                         "Last track has no ID, cannot search for related tracks",
+                    data: {
+                        trackTitle: lastTrack.title,
+                        trackUrl: lastTrack.url,
+                    },
                 })
                 return
             }
 
             // Search for related tracks using metadata
+            debugLog({
+                message: "Searching for related tracks",
+                data: {
+                    trackId: lastTrack.id,
+                    trackTitle: lastTrack.title,
+                    trackAuthor: lastTrack.author,
+                },
+            })
+
             const relatedTracks = await searchRelatedTracks(
                 queue,
                 lastTrack.id,
                 lastTrack.requestedBy ??
                     (queue.metadata as { requestedBy?: unknown })?.requestedBy,
             )
+
+            debugLog({
+                message: "Related tracks search completed",
+                data: {
+                    foundTracks: relatedTracks?.length || 0,
+                    trackTitles: relatedTracks?.map((t) => t.title) || [],
+                },
+            })
 
             if (!relatedTracks?.length) {
                 debugLog({ message: "No related tracks found" })
@@ -142,6 +190,16 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
                 currentTrackIds,
             )
 
+            debugLog({
+                message: "Filtered tracks for autoplay",
+                data: {
+                    originalTracks: relatedTracks.length,
+                    filteredTracks: filteredTracks.length,
+                    currentQueueSize: queue.tracks.size,
+                    currentAutoplayCount,
+                },
+            })
+
             // Add tracks to queue until we have at least 2, but respect autoplay limit
             const remainingSlots = Math.min(
                 2 - queue.tracks.size,
@@ -149,7 +207,24 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             )
             const tracksToAdd = filteredTracks.slice(0, remainingSlots)
 
+            debugLog({
+                message: "Calculated tracks to add",
+                data: {
+                    remainingSlots,
+                    tracksToAdd: tracksToAdd.length,
+                    trackTitles: tracksToAdd.map((t) => t.title),
+                },
+            })
+
             if (tracksToAdd.length > 0) {
+                // Mark tracks as requested by the bot for autoplay
+                const botUser = (queue.metadata as IQueueMetadata)?.client?.user
+                tracksToAdd.forEach((track) => {
+                    if (botUser) {
+                        track.requestedBy = botUser
+                    }
+                })
+
                 queue.addTrack(tracksToAdd)
 
                 // Update autoplay counter
@@ -157,7 +232,10 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
 
                 debugLog({
                     message: `Added ${tracksToAdd.length} related tracks to queue (autoplay: ${currentAutoplayCount + tracksToAdd.length}/${maxAutoplayTracks})`,
-                    data: { tracks: tracksToAdd.map((t) => t.title) },
+                    data: {
+                        tracks: tracksToAdd.map((t) => t.title),
+                        requestedBy: tracksToAdd.map((t) => t.requestedBy?.id),
+                    },
                 })
             }
         }

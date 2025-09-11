@@ -5,10 +5,10 @@ import type { ICustomClient } from "../types/index"
 import { errorLog, infoLog, debugLog } from "../utils/general/log"
 import { constants } from "../config/config"
 import { QueryType } from "discord-player"
-import type { TextChannel } from "discord.js"
+import type { TextChannel, User, ChatInputCommandInteraction } from "discord.js"
 import { addTrackToHistory } from "../utils/music/duplicateDetection"
 import { replenishQueue } from "../utils/music/trackManagement"
-import { createEmbed, EMBED_COLORS, EMOJIS } from "../utils/general/embeds"
+import { createEmbed, EMBED_COLORS } from "../utils/general/embeds"
 import type { ColorResolvable } from "discord.js"
 import {
     getAutoplayCount,
@@ -23,7 +23,8 @@ import { youtubeConfig } from "../config/youtubeConfig"
 interface IQueueMetadata {
     channel: TextChannel
     client: unknown
-    requestedBy: unknown
+    requestedBy: User | undefined
+    interaction?: ChatInputCommandInteraction // Store the interaction for reply editing
 }
 
 interface ICreatePlayerParams {
@@ -417,36 +418,117 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
                 })
             }
 
-            // Update the message in the channel to show the current track
+            // Replenish queue with autoplay tracks when a track starts
+            try {
+                await replenishQueue(queue)
+                debugLog({
+                    message: "Queue replenished after track start",
+                    data: {
+                        trackTitle: track.title,
+                        guildId: queue.guild.id,
+                        queueSize: queue.tracks.size,
+                    },
+                })
+            } catch (error) {
+                errorLog({
+                    message: "Error replenishing queue after track start:",
+                    error,
+                })
+            }
+
+            // Check if this is an autoplay track - if so, we need to send a message
+            // For manual tracks, the play command already handled the reply
+            if (isAutoplay) {
+                debugLog({
+                    message: "Autoplay track started, sending playing message",
+                    data: { trackTitle: track.title, guildId: queue.guild.id },
+                })
+            } else {
+                debugLog({
+                    message:
+                        "Manual track started, skipping message (already handled by play command)",
+                    data: { trackTitle: track.title, guildId: queue.guild.id },
+                })
+                return // Skip sending message for manual tracks
+            }
+
+            // Update the message to show the current track (only for autoplay)
             try {
                 const metadata = queue.metadata as IQueueMetadata
-                if (metadata?.channel) {
-                    const embed = createEmbed({
-                        title: "Tocando Agora",
-                        description: `[**${track.title}**](${track.url}) por **${track.author}**`,
-                        color: EMBED_COLORS.MUSIC as ColorResolvable,
-                        emoji: EMOJIS.MUSIC,
-                        thumbnail: track.thumbnail,
-                        timestamp: true,
-                        footer: isAutoplay
-                            ? `Autoplay • ${getAutoplayCount(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} músicas`
-                            : undefined,
-                    })
 
-                    // Always send a new message
+                // Format duration
+                const formatDuration = (duration: string) => {
+                    if (!duration || duration === "0:00")
+                        return "Unknown duration"
+                    return duration
+                }
+
+                // Determine source
+                const getSource = (url: string) => {
+                    if (url.includes("youtube.com") || url.includes("youtu.be"))
+                        return "YouTube"
+                    if (url.includes("spotify.com")) return "Spotify"
+                    if (url.includes("soundcloud.com")) return "SoundCloud"
+                    return "Unknown"
+                }
+
+                // Get requester info
+                const requester = track.requestedBy
+                const requesterInfo = requester
+                    ? `Added by **${requester.username}**`
+                    : "Added automatically"
+
+                const embed = createEmbed({
+                    title: "🎵 Now Playing",
+                    description: `[**${track.title}**](${track.url}) by **${track.author}**`,
+                    color: EMBED_COLORS.MUSIC as ColorResolvable,
+                    thumbnail: track.thumbnail,
+                    timestamp: true,
+                    fields: [
+                        {
+                            name: "⏱️ Duration",
+                            value: formatDuration(track.duration),
+                            inline: true,
+                        },
+                        {
+                            name: "🌐 Source",
+                            value: getSource(track.url),
+                            inline: true,
+                        },
+                        {
+                            name: "👤 Requested",
+                            value: requesterInfo,
+                            inline: true,
+                        },
+                    ],
+                    footer: `Autoplay • ${getAutoplayCount(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`,
+                })
+
+                // Send autoplay message to channel
+                if (metadata?.channel) {
                     const message = await metadata.channel.send({
                         embeds: [embed],
                     })
 
-                    // Store the message ID and channel ID for reference
                     const guildId = queue.guild.id
                     songInfoMessages.set(guildId, {
                         messageId: message.id,
                         channelId: metadata.channel.id,
                     })
+
+                    debugLog({
+                        message: "Sent autoplay track message to channel",
+                        data: {
+                            guildId: queue.guild.id,
+                            trackTitle: track.title,
+                        },
+                    })
                 }
             } catch (error) {
-                errorLog({ message: "Error sending track message:", error })
+                errorLog({
+                    message: "Error sending autoplay track message:",
+                    error,
+                })
             }
         })
 
