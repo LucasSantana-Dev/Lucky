@@ -7,7 +7,7 @@ import { requireQueue } from "../../../utils/command/commandValidations"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("resume")
-        .setDescription("▶️ Retoma a música pausada."),
+        .setDescription("▶️ Resume the paused music."),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
         const queue = client.player.nodes.get(interaction.guildId ?? "")
@@ -18,7 +18,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    content: "▶️ A música já está tocando.",
+                    content: "▶️ Music is already playing.",
                 },
             })
             return
@@ -29,7 +29,7 @@ export default new Command({
         await interactionReply({
             interaction,
             content: {
-                content: "▶️ A música foi retomada.",
+                content: "▶️ Music has been resumed.",
             },
         })
     },

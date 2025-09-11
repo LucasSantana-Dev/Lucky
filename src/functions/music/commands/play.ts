@@ -11,11 +11,7 @@ import {
     EMBED_COLORS,
     EMOJIS,
 } from "../../../utils/general/embeds"
-import {
-    requireGuild,
-    requireVoiceChannel,
-    requireQueue,
-} from "../../../utils/command/commandValidations"
+import { requireQueue } from "../../../utils/command/commandValidations"
 import type { ICommandExecuteParams } from "../../../types/CommandData"
 import { messages } from "../../../utils/general/messages"
 import type { ColorResolvable } from "discord.js"
@@ -31,37 +27,65 @@ import {
     handleError,
     createUserErrorMessage,
 } from "../../../utils/error/errorHandler"
+import { MusicError, YouTubeError, ErrorCode } from "../../../types/errors"
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("play")
-        .setDescription("🎵 Toca uma música do YouTube ou Spotify")
+        .setDescription("🎵 Play a song from YouTube or Spotify")
         .addStringOption((option) =>
             option
                 .setName("query")
-                .setDescription("A música para tocar (URL ou termo de busca)")
+                .setDescription("The song to play (URL or search term)")
                 .setRequired(true),
         )
         .addBooleanOption((option) =>
             option
                 .setName("next")
-                .setDescription("Tocar imediatamente após a música atual"),
+                .setDescription("Play immediately after the current song"),
         ),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
         try {
-            if (!(await requireGuild(interaction))) return
-            if (!(await requireVoiceChannel(interaction))) return
+            // Defer the interaction first to prevent timeout
+            await interaction.deferReply()
+
+            // Inline validation to avoid interaction issues
+            if (!interaction.guildId) {
+                await interaction.editReply({
+                    embeds: [
+                        createEmbed({
+                            title: "Error",
+                            description:
+                                "This command can only be used in a server!",
+                            color: EMBED_COLORS.ERROR as ColorResolvable,
+                            emoji: EMOJIS.ERROR,
+                        }),
+                    ],
+                })
+                return
+            }
 
             const member = interaction.member as GuildMember
+            if (!member?.voice?.channel) {
+                await interaction.editReply({
+                    embeds: [
+                        createEmbed({
+                            title: "Error",
+                            description: "You need to be in a voice channel!",
+                            color: EMBED_COLORS.ERROR as ColorResolvable,
+                            emoji: EMOJIS.ERROR,
+                        }),
+                    ],
+                })
+                return
+            }
+
             const voiceChannel = member.voice.channel
 
             const query = interaction.options.getString("query", true)
             const playNext = interaction.options.getBoolean("next", false)
             debugLog({ message: `Query: ${query}` })
-
-            // Defer the interaction to prevent timeout
-            await interaction.deferReply()
 
             const spotifyTrackRegex =
                 /https?:\/\/(open\.)?spotify\.com\/track\/[a-zA-Z0-9]+/
@@ -86,7 +110,15 @@ export default new Command({
             if (isSpotifyTrack) {
                 const spData = await play.spotify(query)
                 if (!spData || spData.type !== "track")
-                    throw new Error("Spotify track não encontrado")
+                    throw new MusicError(
+                        ErrorCode.MUSIC_TRACK_NOT_FOUND,
+                        "Spotify track not found",
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                        },
+                    )
                 const artistName =
                     "artists" in spData &&
                     Array.isArray(spData.artists) &&
@@ -101,22 +133,42 @@ export default new Command({
                     },
                 )
                 if (!searchResult?.tracks.length)
-                    throw new Error(
-                        "Nenhum resultado encontrado no YouTube para a música do Spotify",
+                    throw new YouTubeError(
+                        "No YouTube results found for the Spotify song",
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                            originalError: "Spotify track not found on YouTube",
+                        },
                     )
                 tracksToAdd = [searchResult.tracks[0]]
                 playlistTitle = spData.name
             } else if (isSpotifyPlaylist) {
                 const spData = await play.spotify(query)
                 if (!spData || spData.type !== "playlist")
-                    throw new Error("Spotify playlist não encontrada")
+                    throw new MusicError(
+                        ErrorCode.MUSIC_PLAYLIST_NOT_FOUND,
+                        "Spotify playlist not found",
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                        },
+                    )
                 const tracks =
                     "tracks" in spData && Array.isArray(spData.tracks)
                         ? spData.tracks
                         : []
                 if (!tracks || tracks.length === 0)
-                    throw new Error(
-                        "Nenhuma música encontrada na playlist do Spotify",
+                    throw new MusicError(
+                        ErrorCode.MUSIC_PLAYLIST_NOT_FOUND,
+                        "No songs found in the Spotify playlist",
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                        },
                     )
                 const limitedTracks = tracks.slice(0, 50)
                 const foundTracks: Track[] = []
@@ -139,8 +191,15 @@ export default new Command({
                     }
                 }
                 if (foundTracks.length === 0)
-                    throw new Error(
-                        "Nenhuma música da playlist do Spotify foi encontrada no YouTube",
+                    throw new YouTubeError(
+                        "No Spotify playlist songs were found on YouTube",
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                            originalError:
+                                "Spotify playlist songs not found on YouTube",
+                        },
                     )
                 tracksToAdd = foundTracks
                 playlistTitle = spData.name
@@ -157,9 +216,15 @@ export default new Command({
                     !enhancedResult.success ||
                     !enhancedResult.result?.tracks.length
                 ) {
-                    throw new Error(
+                    throw new YouTubeError(
                         enhancedResult.error ??
-                            "Nenhuma música encontrada na playlist do YouTube",
+                            "No songs found in the YouTube playlist",
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                            originalError: enhancedResult.error,
+                        },
                     )
                 }
 
@@ -178,9 +243,15 @@ export default new Command({
                     !enhancedResult.success ||
                     !enhancedResult.result?.tracks.length
                 ) {
-                    throw new Error(
+                    throw new YouTubeError(
                         enhancedResult.error ??
-                            `Nenhum resultado encontrado para: **${query}**`,
+                            `No results found for: **${query}**`,
+                        {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            query,
+                            originalError: enhancedResult.error,
+                        },
                     )
                 }
 
@@ -192,7 +263,7 @@ export default new Command({
                 await interaction.editReply({
                     embeds: [
                         createEmbed({
-                            title: "Erro",
+                            title: "Error",
                             description: messages.error.guildOnly,
                             color: EMBED_COLORS.ERROR as ColorResolvable,
                             emoji: EMOJIS.ERROR,
@@ -236,7 +307,7 @@ export default new Command({
                 await interaction.editReply({
                     embeds: [
                         createEmbed({
-                            title: "Erro de conexão",
+                            title: "Connection error",
                             description:
                                 createUserErrorMessage(structuredError),
                             color: EMBED_COLORS.ERROR as ColorResolvable,
@@ -292,12 +363,10 @@ export default new Command({
             // Only send a reply when music is already playing (to avoid duplication with playerStart event)
             if (wasPlaying) {
                 const embed = createEmbed({
-                    title: isPlaylist
-                        ? "Playlist adicionada"
-                        : "Música adicionada",
+                    title: isPlaylist ? "Playlist added" : "Song added",
                     description: isPlaylist
-                        ? `Adicionada à fila: [**${playlistTitle}**](${query}) com ${tracksToAdd.length} músicas${tracksToAdd.length === 50 ? " (limitado a 50 músicas)" : ""}`
-                        : `Adicionado à fila: [**${playlistTitle}**](${tracksToAdd[0].url})`,
+                        ? `Added to queue: [**${playlistTitle}**](${query}) with ${tracksToAdd.length} songs${tracksToAdd.length === 50 ? " (limited to 50 songs)" : ""}`
+                        : `Added to queue: [**${playlistTitle}**](${tracksToAdd[0].url})`,
                     color: EMBED_COLORS.MUSIC as ColorResolvable,
                     emoji: EMOJIS.MUSIC,
                     thumbnail: tracksToAdd[0].thumbnail,
@@ -315,15 +384,79 @@ export default new Command({
                     })
                 }
             } else {
-                // For new tracks, just acknowledge the interaction without sending a message
-                // The playerStart event will handle the "Tocando Agora" message
+                // For new tracks, we'll handle the reply directly here
+                // since we know the track will start playing immediately
                 try {
+                    // Create the playing embed immediately
+                    const track = tracksToAdd[0]
+
+                    // Format duration
+                    const formatDuration = (duration: string) => {
+                        if (!duration || duration === "0:00")
+                            return "Unknown duration"
+                        return duration
+                    }
+
+                    // Determine source
+                    const getSource = (url: string) => {
+                        if (
+                            url.includes("youtube.com") ||
+                            url.includes("youtu.be")
+                        )
+                            return "YouTube"
+                        if (url.includes("spotify.com")) return "Spotify"
+                        if (url.includes("soundcloud.com")) return "SoundCloud"
+                        return "Unknown"
+                    }
+
+                    // Get requester info
+                    const requester = track.requestedBy
+                    const requesterInfo = requester
+                        ? `Added by **${requester.username}**`
+                        : "Added automatically"
+
+                    const embed = createEmbed({
+                        title: "🎵 Now Playing",
+                        description: `[**${track.title}**](${track.url}) by **${track.author}**`,
+                        color: EMBED_COLORS.MUSIC as ColorResolvable,
+                        thumbnail: track.thumbnail,
+                        timestamp: true,
+                        fields: [
+                            {
+                                name: "⏱️ Duration",
+                                value: formatDuration(track.duration),
+                                inline: true,
+                            },
+                            {
+                                name: "🌐 Source",
+                                value: getSource(track.url),
+                                inline: true,
+                            },
+                            {
+                                name: "👤 Requisitado",
+                                value: requesterInfo,
+                                inline: true,
+                            },
+                        ],
+                    })
+
+                    // Send the embed as the interaction reply
                     await interaction.editReply({
-                        content: "✅",
+                        embeds: [embed],
+                    })
+
+                    debugLog({
+                        message: "Sent playing embed as interaction reply",
+                        data: {
+                            guildId: interaction.guild?.id,
+                            userId: interaction.user.id,
+                            trackTitle: track.title,
+                        },
                     })
                 } catch (replyError) {
                     errorLog({
-                        message: "Failed to acknowledge interaction:",
+                        message:
+                            "Failed to send playing embed as interaction reply:",
                         error: replyError,
                     })
                 }
@@ -351,7 +484,7 @@ export default new Command({
                 await interaction.editReply({
                     embeds: [
                         createEmbed({
-                            title: "Erro de busca",
+                            title: "Search error",
                             description:
                                 createUserErrorMessage(structuredError),
                             color: EMBED_COLORS.ERROR as ColorResolvable,

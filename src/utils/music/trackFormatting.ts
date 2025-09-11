@@ -13,7 +13,7 @@ export const formatDuration = (duration: string): string => {
         return duration
     } catch (error) {
         errorLog({ message: "Error formatting duration:", error })
-        return "Desconhecida"
+        return "Unknown"
     }
 }
 
@@ -21,19 +21,19 @@ export const formatDuration = (duration: string): string => {
 export const getTrackInfo = (track: Track) => {
     try {
         return {
-            title: track?.title ?? "Música desconhecida",
+            title: track?.title ?? "Unknown song",
             duration: track?.duration
                 ? formatDuration(track.duration)
-                : "Desconhecida",
-            requestedBy: track?.requestedBy?.username ?? "Desconhecido",
+                : "Unknown",
+            requestedBy: track?.requestedBy?.username ?? "Unknown",
             url: track?.url ?? "",
         }
     } catch (error) {
         errorLog({ message: "Error getting track info:", error })
         return {
-            title: "Música desconhecida",
-            duration: "Desconhecida",
-            requestedBy: "Desconhecido",
+            title: "Unknown song",
+            duration: "Unknown",
+            requestedBy: "Unknown",
             url: "",
         }
     }

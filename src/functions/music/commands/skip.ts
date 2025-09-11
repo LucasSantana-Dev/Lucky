@@ -14,7 +14,7 @@ import type { ICommandExecuteParams } from "../../../types/CommandData"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("skip")
-        .setDescription("⏭️ Pula a música atual."),
+        .setDescription("⏭️ Skip the current song."),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
@@ -31,8 +31,8 @@ export default new Command({
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Erro",
-                            "🤔 Não há música tocando no momento.",
+                            "Error",
+                            "🤔 There's no music playing at the moment.",
                         ),
                     ],
                 },
@@ -61,8 +61,8 @@ export default new Command({
                 content: {
                     embeds: [
                         successEmbed(
-                            "⏭️ Música pulada",
-                            "A música atual foi pulada.",
+                            "⏭️ Song skipped",
+                            "The current song has been skipped.",
                         ),
                     ],
                 },
@@ -74,8 +74,8 @@ export default new Command({
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Erro",
-                            "Ocorreu um erro ao tentar pular a música.",
+                            "Error",
+                            "An error occurred while trying to skip the song.",
                         ),
                     ],
                 },

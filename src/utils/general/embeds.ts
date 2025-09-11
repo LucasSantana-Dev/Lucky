@@ -325,8 +325,8 @@ export function createQueueEmbed(
     }
 
     fields.push({
-        name: `📋 Fila (${tracks.length} músicas)`,
-        value: trackList || "Fila vazia",
+        name: `📋 Queue (${tracks.length} songs)`,
+        value: trackList || "Empty queue",
         inline: false,
     })
 

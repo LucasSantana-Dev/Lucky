@@ -13,7 +13,7 @@ import {
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("volume")
-        .setDescription("🔊 Define ou mostra o volume da reprodução.")
+        .setDescription("🔊 Set or show the playback volume.")
         .addIntegerOption((option) =>
             option.setName("value").setDescription("Volume (1-100)"),
         ),
@@ -27,15 +27,15 @@ export default new Command({
         if (!(await requireCurrentTrack(queue, interaction))) return
         if (!(await requireIsPlaying(queue, interaction))) return
 
-        const value = interaction.options.getInteger("valor")
+        const value = interaction.options.getInteger("value")
         if (value === null) {
             await interactionReply({
                 interaction,
                 content: {
                     embeds: [
                         successEmbed(
-                            "Volume atual",
-                            `🔊 O volume está em ${queue?.node.volume ?? 100}%`,
+                            "Current volume",
+                            `🔊 Volume is at ${queue?.node.volume ?? 100}%`,
                         ),
                     ],
                 },
@@ -48,8 +48,8 @@ export default new Command({
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Erro",
-                            "🔊 O volume deve ser entre 1 e 100!",
+                            "Error",
+                            "🔊 Volume must be between 1 and 100!",
                         ),
                     ],
                 },
@@ -62,8 +62,8 @@ export default new Command({
             content: {
                 embeds: [
                     successEmbed(
-                        "Volume alterado",
-                        `🔊 O volume foi definido para ${value}%`,
+                        "Volume changed",
+                        `🔊 Volume set to ${value}%`,
                     ),
                 ],
             },

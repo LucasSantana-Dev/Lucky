@@ -12,11 +12,11 @@ import type { ICommandExecuteParams } from "../../../types/CommandData"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("remove")
-        .setDescription("❌ Remove uma música da fila pelo número.")
+        .setDescription("❌ Remove a song from the queue by number.")
         .addIntegerOption((option) =>
             option
-                .setName("posicao")
-                .setDescription("Posição da música na fila (1 = próxima)")
+                .setName("position")
+                .setDescription("Position of the song in the queue (1 = next)")
                 .setRequired(true),
         ),
     category: "music",
@@ -26,13 +26,13 @@ export default new Command({
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 
-        const pos = interaction.options.getInteger("posicao", true) - 1
+        const pos = interaction.options.getInteger("position", true) - 1
 
         if (queue?.tracks.size === 0) {
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", "A fila está vazia!")],
+                    embeds: [errorEmbed("Error", "The queue is empty!")],
                 },
             })
             return
@@ -42,7 +42,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", "Posição inválida!")],
+                    embeds: [errorEmbed("Error", "Invalid position!")],
                 },
             })
             return
@@ -53,7 +53,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", "Música não encontrada!")],
+                    embeds: [errorEmbed("Error", "Song not found!")],
                 },
             })
             return
@@ -66,8 +66,8 @@ export default new Command({
             content: {
                 embeds: [
                     successEmbed(
-                        "Música removida",
-                        `Removida: **${removed.title}** de ${removed.author}`,
+                        "Song removed",
+                        `Removed: **${removed.title}** by ${removed.author}`,
                     ),
                 ],
             },

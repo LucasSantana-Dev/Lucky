@@ -15,29 +15,27 @@ const guildRepeatCounts = new Map<
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("repeat")
-        .setDescription(
-            "🔁 Define o modo de repetição com opções de tempo ou infinito.",
-        )
+        .setDescription("🔁 Set the repeat mode with time or infinite options.")
         .addStringOption((option) =>
             option
-                .setName("modo")
-                .setDescription("Tipo de repetição")
+                .setName("mode")
+                .setDescription("Repeat type")
                 .setRequired(true)
                 .addChoices(
-                    { name: "off - Desligar", value: "off" },
-                    { name: "track - Repetir música atual", value: "track" },
-                    { name: "queue - Repetir fila", value: "queue" },
+                    { name: "off - Turn off", value: "off" },
+                    { name: "track - Repeat current song", value: "track" },
+                    { name: "queue - Repeat queue", value: "queue" },
                     {
-                        name: "infinite - Repetir infinitamente",
+                        name: "infinite - Repeat infinitely",
                         value: "infinite",
                     },
                 ),
         )
         .addIntegerOption((option) =>
             option
-                .setName("vezes")
+                .setName("times")
                 .setDescription(
-                    "Número de vezes para repetir (1-100, apenas para track/queue)",
+                    "Number of times to repeat (1-100, only for track/queue)",
                 )
                 .setMinValue(1)
                 .setMaxValue(100)
@@ -46,8 +44,8 @@ export default new Command({
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
         const queue = client.player.nodes.get(interaction.guildId ?? "")
-        const mode = interaction.options.getString("modo", true)
-        const times = interaction.options.getInteger("vezes", false)
+        const mode = interaction.options.getString("mode", true)
+        const times = interaction.options.getInteger("times", false)
 
         if (!(await requireQueue(queue, interaction))) return
 
@@ -61,7 +59,7 @@ export default new Command({
 
         if (mode === "off") {
             repeatMode = QueueRepeatMode.OFF
-            description = "Repetição **desligada**"
+            description = "Repeat **turned off**"
         } else if (mode === "track") {
             repeatMode = QueueRepeatMode.TRACK
             if (times && times > 1) {
@@ -69,9 +67,9 @@ export default new Command({
                     count: times,
                     originalMode: repeatMode,
                 })
-                description = `Repetindo música atual **${times} vezes**`
+                description = `Repeating current song **${times} times**`
             } else {
-                description = "Repetindo música atual **infinitamente**"
+                description = "Repeating current song **infinitely**"
             }
         } else if (mode === "queue") {
             repeatMode = QueueRepeatMode.QUEUE
@@ -80,13 +78,13 @@ export default new Command({
                     count: times,
                     originalMode: repeatMode,
                 })
-                description = `Repetindo fila **${times} vezes**`
+                description = `Repeating queue **${times} times**`
             } else {
-                description = "Repetindo fila **infinitamente**"
+                description = "Repeating queue **infinitely**"
             }
         } else if (mode === "infinite") {
             repeatMode = QueueRepeatMode.AUTOPLAY
-            description = "Repetição **infinita** ativada (autoplay contínuo)"
+            description = "**Infinite** repeat activated (continuous autoplay)"
         }
 
         queue?.setRepeatMode(repeatMode)
@@ -94,7 +92,7 @@ export default new Command({
         await interactionReply({
             interaction,
             content: {
-                embeds: [successEmbed("🔁 Modo de repetição", description)],
+                embeds: [successEmbed("🔁 Repeat mode", description)],
             },
         })
     },

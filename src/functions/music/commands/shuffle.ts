@@ -12,7 +12,7 @@ import type { ICommandExecuteParams } from "../../../types/CommandData"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("shuffle")
-        .setDescription("🔀 Embaralha a fila de músicas."),
+        .setDescription("🔀 Shuffle the music queue."),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
@@ -25,8 +25,8 @@ export default new Command({
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Erro",
-                            "🔀 A fila precisa ter pelo menos 2 músicas para ser embaralhada!",
+                            "Error",
+                            "🔀 The queue needs at least 2 songs to be shuffled!",
                         ),
                     ],
                 },
@@ -39,8 +39,8 @@ export default new Command({
             content: {
                 embeds: [
                     successEmbed(
-                        "Fila embaralhada",
-                        "🔀 A fila de músicas foi embaralhada com sucesso!",
+                        "Queue shuffled",
+                        "🔀 The music queue has been shuffled successfully!",
                     ),
                 ],
             },

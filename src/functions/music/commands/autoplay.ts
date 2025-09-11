@@ -6,7 +6,7 @@ import {
     EMBED_COLORS,
     EMOJIS,
 } from "../../../utils/general/embeds"
-import { errorLog } from "../../../utils/general/log"
+import { errorLog, debugLog } from "../../../utils/general/log"
 import { QueueRepeatMode } from "discord-player"
 import {
     requireGuild,
@@ -15,12 +15,13 @@ import {
 import type { ICommandExecuteParams } from "../../../types/CommandData"
 import { messages } from "../../../utils/general/messages"
 import type { ColorResolvable } from "discord.js"
+import { replenishQueue } from "../../../utils/music/trackManagement"
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("autoplay")
         .setDescription(
-            "🔄 Ativa ou desativa a reprodução automática de músicas relacionadas.",
+            "🔄 Enable or disable automatic playback of related music.",
         ),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
@@ -32,30 +33,76 @@ export default new Command({
         try {
             const isAutoplayEnabled =
                 queue?.repeatMode === QueueRepeatMode.AUTOPLAY
-            queue?.setRepeatMode(
-                isAutoplayEnabled
-                    ? QueueRepeatMode.OFF
-                    : QueueRepeatMode.AUTOPLAY,
-            )
 
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        createEmbed({
-                            title: isAutoplayEnabled
-                                ? "Reprodução automática desativada"
-                                : "Reprodução automática ativada",
-                            description: isAutoplayEnabled
-                                ? "A reprodução automática foi desativada. O bot não irá mais adicionar músicas relacionadas automaticamente."
-                                : "A reprodução automática foi ativada. O bot irá adicionar músicas relacionadas automaticamente quando a fila estiver vazia.",
-                            color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
-                            emoji: EMOJIS.AUTOPLAY,
-                            timestamp: true,
-                        }),
-                    ],
-                },
-            })
+            if (isAutoplayEnabled) {
+                // Disable autoplay
+                queue?.setRepeatMode(QueueRepeatMode.OFF)
+
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createEmbed({
+                                title: "Autoplay disabled",
+                                description:
+                                    "Autoplay has been disabled. The bot will no longer automatically add related songs.",
+                                color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                                emoji: EMOJIS.AUTOPLAY,
+                                timestamp: true,
+                            }),
+                        ],
+                    },
+                })
+            } else {
+                // Enable autoplay
+                queue?.setRepeatMode(QueueRepeatMode.AUTOPLAY)
+
+                // If there's a current track, try to populate the queue with related tracks
+                if (queue?.currentTrack) {
+                    debugLog({
+                        message:
+                            "Autoplay enabled, attempting to populate queue with related tracks",
+                        data: {
+                            guildId: interaction.guildId,
+                            currentTrack: queue.currentTrack.title,
+                        },
+                    })
+
+                    try {
+                        await replenishQueue(queue, true) // Force replenish when autoplay is enabled
+                        debugLog({
+                            message:
+                                "Queue replenished after enabling autoplay",
+                            data: {
+                                guildId: interaction.guildId,
+                                queueSize: queue.tracks.size,
+                            },
+                        })
+                    } catch (replenishError) {
+                        errorLog({
+                            message:
+                                "Error replenishing queue after enabling autoplay:",
+                            error: replenishError,
+                        })
+                    }
+                }
+
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createEmbed({
+                                title: "Autoplay enabled",
+                                description:
+                                    "Autoplay has been enabled. The bot will automatically add related songs when the queue is empty.",
+                                color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                                emoji: EMOJIS.AUTOPLAY,
+                                timestamp: true,
+                            }),
+                        ],
+                    },
+                })
+            }
         } catch (error) {
             errorLog({ message: "Error in autoplay command:", error })
             await interactionReply({
@@ -63,7 +110,7 @@ export default new Command({
                 content: {
                     embeds: [
                         createEmbed({
-                            title: "Erro",
+                            title: "Error",
                             description: messages.error.notPlaying,
                             color: EMBED_COLORS.ERROR as ColorResolvable,
                             emoji: EMOJIS.ERROR,

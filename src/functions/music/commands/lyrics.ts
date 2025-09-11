@@ -9,12 +9,10 @@ export default new Command({
     data: new SlashCommandBuilder()
         .setName("lyrics")
         .setDescription(
-            "📄 Mostra a letra da música atual ou de uma música especificada.",
+            "📄 Show the lyrics of the current song or a specified song.",
         )
         .addStringOption((option) =>
-            option
-                .setName("musica")
-                .setDescription("Nome da música (opcional)"),
+            option.setName("musica").setDescription("Song name (optional)"),
         ),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
@@ -29,9 +27,9 @@ export default new Command({
 
             title = track?.title ?? "Unknown"
         }
-        const lyrics = `Letra de **${title}** não encontrada ou não implementada.`
+        const lyrics = `Lyrics for **${title}** not found or not implemented.`
 
-        const embed = musicEmbed("Letra", lyrics)
+        const embed = musicEmbed("Lyrics", lyrics)
         await interactionReply({
             interaction,
             content: { embeds: [embed] },

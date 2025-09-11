@@ -11,7 +11,7 @@ import {
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("help")
-        .setDescription("📚 Mostra todos os comandos disponíveis."),
+        .setDescription("📚 Show all available commands."),
     category: "general",
     execute: async ({ client, interaction }) => {
         try {
@@ -31,12 +31,12 @@ export default new Command({
 
             const embed = new EmbedBuilder()
                 .setColor("#0099ff")
-                .setTitle("📚 Ajuda do Bot — Comandos por Categoria")
-                .setDescription("Comandos disponíveis do LukBot.")
+                .setTitle("📚 Bot Help — Commands by Category")
+                .setDescription("Available DiscordBot commands.")
                 .setThumbnail(client.user?.displayAvatarURL() ?? "")
                 .setTimestamp()
                 .setFooter({
-                    text: `Solicitado por ${interaction.user.tag}`,
+                    text: `Requested by ${interaction.user.tag}`,
                     iconURL: interaction.user.displayAvatarURL(),
                 })
 
@@ -59,7 +59,7 @@ export default new Command({
                     interaction,
                     content: {
                         content:
-                            "❌ Ocorreu um erro ao exibir os comandos de ajuda.",
+                            "❌ An error occurred while displaying the help commands.",
                     },
                 })
             } catch (editError) {

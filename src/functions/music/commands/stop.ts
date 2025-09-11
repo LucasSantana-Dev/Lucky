@@ -7,7 +7,7 @@ import { requireQueue } from "../../../utils/command/commandValidations"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("stop")
-        .setDescription("⏹️ Para a reprodução e limpa a fila."),
+        .setDescription("⏹️ Stop playback and clear the queue."),
     category: "music",
     execute: async ({ client, interaction }: ICommandExecuteParams) => {
         const queue = client.player.nodes.get(interaction.guildId ?? "")

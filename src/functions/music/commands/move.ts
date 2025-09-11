@@ -12,17 +12,17 @@ import type { ICommandExecuteParams } from "../../../types/CommandData"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("move")
-        .setDescription("🔀 Move uma música para outra posição na fila.")
+        .setDescription("🔀 Move a song to another position in the queue.")
         .addIntegerOption((option) =>
             option
-                .setName("de")
-                .setDescription("Posição atual (1 = próxima)")
+                .setName("from")
+                .setDescription("Current position (1 = next)")
                 .setRequired(true),
         )
         .addIntegerOption((option) =>
             option
-                .setName("para")
-                .setDescription("Nova posição (1 = próxima)")
+                .setName("to")
+                .setDescription("New position (1 = next)")
                 .setRequired(true),
         ),
     category: "music",
@@ -32,14 +32,14 @@ export default new Command({
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 
-        const from = interaction.options.getInteger("de", true) - 1
-        const to = interaction.options.getInteger("para", true) - 1
+        const from = interaction.options.getInteger("from", true) - 1
+        const to = interaction.options.getInteger("to", true) - 1
 
         if (queue?.tracks.size === 0) {
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", "A fila está vazia!")],
+                    embeds: [errorEmbed("Error", "The queue is empty!")],
                 },
             })
             return
@@ -54,7 +54,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", "Posição inválida!")],
+                    embeds: [errorEmbed("Error", "Invalid position!")],
                 },
             })
             return
@@ -71,8 +71,8 @@ export default new Command({
             content: {
                 embeds: [
                     successEmbed(
-                        "Música movida",
-                        `Movida: **${moved.title}** para a posição ${to + 1}`,
+                        "Song moved",
+                        `Moved: **${moved.title}** to position ${to + 1}`,
                     ),
                 ],
             },

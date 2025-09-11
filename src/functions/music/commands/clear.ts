@@ -12,7 +12,7 @@ import type { ICommandExecuteParams } from "../../../types/CommandData"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("clear")
-        .setDescription("🗑️ Limpa a fila de músicas"),
+        .setDescription("🗑️ Clear the music queue"),
     category: "music",
     execute: async ({
         client,
@@ -30,8 +30,8 @@ export default new Command({
                     content: {
                         embeds: [
                             errorEmbed(
-                                "Fila vazia",
-                                "🗑️ A fila já está vazia!",
+                                "Empty queue",
+                                "🗑️ The queue is already empty!",
                             ),
                         ],
                         ephemeral: true,
@@ -53,8 +53,8 @@ export default new Command({
                 content: {
                     embeds: [
                         successEmbed(
-                            "Fila limpa",
-                            `🗑️ Removidas ${trackCount} músicas da fila!`,
+                            "Queue cleared",
+                            `🗑️ Removed ${trackCount} songs from the queue!`,
                         ),
                     ],
                 },
@@ -66,8 +66,8 @@ export default new Command({
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Erro",
-                            "🔄 Ocorreu um erro ao limpar a fila!",
+                            "Error",
+                            "🔄 An error occurred while clearing the queue!",
                         ),
                     ],
                     ephemeral: true,

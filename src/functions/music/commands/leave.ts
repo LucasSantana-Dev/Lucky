@@ -50,8 +50,8 @@ export default new Command({
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Erro",
-                            "Ocorreu um erro ao tentar sair do canal de voz!",
+                            "Error",
+                            "An error occurred while trying to leave the voice channel!",
                         ),
                     ],
                 },

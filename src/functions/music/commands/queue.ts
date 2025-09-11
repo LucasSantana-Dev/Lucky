@@ -21,7 +21,7 @@ import type { ColorResolvable } from "discord.js"
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("queue")
-        .setDescription("📋 Mostra a fila de música atual"),
+        .setDescription("📋 Show the current music queue"),
     category: "music",
     execute: async ({
         client,
@@ -40,9 +40,8 @@ export default new Command({
 
             // Create the queue embed
             const embed = createEmbed({
-                title: "Fila de Música",
+                title: "📄 Music Queue",
                 color: EMBED_COLORS.QUEUE as ColorResolvable,
-                emoji: EMOJIS.QUEUE,
                 timestamp: true,
             })
 
@@ -65,17 +64,17 @@ export default new Command({
                         const nextTag = isNextAutoplay
                             ? "🤖 Autoplay"
                             : "👤 Manual"
-                        nextTrackInfo = `\n\n⏭️ Próxima música:\n**${nextTrackData.title}**\nDuração: ${nextTrackData.duration}\nSolicitado por: ${nextTrackData.requester}\n${nextTag}`
+                        nextTrackInfo = `\n\n⏭️ Next song:\n**${nextTrackData.title}**\nDuration: ${nextTrackData.duration}\nRequested by: ${nextTrackData.requester}\n${nextTag}`
                     }
 
                     embed.addFields({
-                        name: "▶️ Tocando Agora",
-                        value: `**${trackInfo.title}**\nDuração: ${trackInfo.duration}\nSolicitado por: ${trackInfo.requester}\n${tag}${nextTrackInfo}`,
+                        name: "▶️ Now Playing",
+                        value: `**${trackInfo.title}**\nDuration: ${trackInfo.duration}\nRequested by: ${trackInfo.requester}\n${tag}${nextTrackInfo}`,
                     })
                 } else {
                     embed.addFields({
-                        name: "▶️ Tocando Agora",
-                        value: "Nenhuma música está tocando no momento",
+                        name: "▶️ Now Playing",
+                        value: "No music is currently playing",
                     })
                 }
             } catch (currentTrackError) {
@@ -84,7 +83,7 @@ export default new Command({
                     error: currentTrackError,
                 })
                 embed.addFields({
-                    name: "▶️ Tocando Agora",
+                    name: "▶️ Now Playing",
                     value: messages.error.noTrack,
                 })
             }
@@ -202,23 +201,21 @@ export default new Command({
 
                             const trackInfo = getTrackInfo(track)
                             manualTracksList.push(
-                                `${i + 1}. **${trackInfo.title}**\n   Duração: ${trackInfo.duration} | Solicitado por: ${trackInfo.requester} 👤 Manual`,
+                                `${i + 1}. **${trackInfo.title}**\n   Duration: ${trackInfo.duration} | Requested by: ${trackInfo.requester} 👤 Manual`,
                             )
                         } catch (trackError) {
                             errorLog({
                                 message: `Error processing manual track ${i}:`,
                                 error: trackError,
                             })
-                            manualTracksList.push(
-                                `${i + 1}. **Música desconhecida**`,
-                            )
+                            manualTracksList.push(`${i + 1}. **Unknown song**`)
                         }
                     }
 
                     const manualList = manualTracksList.join("\n\n")
                     if (manualList) {
                         embed.addFields({
-                            name: "👤 Músicas Manuais (Prioridade)",
+                            name: "👤 Manual Songs (Priority)",
                             value: manualList,
                         })
                     }
@@ -236,7 +233,7 @@ export default new Command({
 
                             const trackInfo = getTrackInfo(track)
                             autoplayTracksList.push(
-                                `${i + 1}. **${trackInfo.title}**\n   Duração: ${trackInfo.duration} | Solicitado por: ${trackInfo.requester} 🤖 Autoplay`,
+                                `${i + 1}. **${trackInfo.title}**\n   Duration: ${trackInfo.duration} | Requested by: ${trackInfo.requester} 🤖 Autoplay`,
                             )
                         } catch (trackError) {
                             errorLog({
@@ -244,7 +241,7 @@ export default new Command({
                                 error: trackError,
                             })
                             autoplayTracksList.push(
-                                `${i + 1}. **Música desconhecida**`,
+                                `${i + 1}. **Unknown song**`,
                             )
                         }
                     }
@@ -252,7 +249,7 @@ export default new Command({
                     const autoplayList = autoplayTracksList.join("\n\n")
                     if (autoplayList) {
                         embed.addFields({
-                            name: "🤖 Músicas do Autoplay",
+                            name: "🤖 Autoplay Songs",
                             value: autoplayList,
                         })
                     }
@@ -270,41 +267,41 @@ export default new Command({
                     )
 
                     if (remainingManual > 0 || remainingAutoplay > 0) {
-                        let remainingText = "E mais "
+                        let remainingText = "And "
                         if (remainingManual > 0) {
-                            remainingText += `${remainingManual} músicas manuais`
+                            remainingText += `${remainingManual} more manual songs`
                         }
                         if (remainingAutoplay > 0) {
-                            if (remainingManual > 0) remainingText += " e "
-                            remainingText += `${remainingAutoplay} músicas do autoplay`
+                            if (remainingManual > 0) remainingText += " and "
+                            remainingText += `${remainingAutoplay} more autoplay songs`
                         }
-                        remainingText += " na fila..."
+                        remainingText += " in queue..."
 
                         embed.addFields({
-                            name: "📝 Mais músicas",
+                            name: "📝 More songs",
                             value: remainingText,
                         })
                     }
                 } else {
                     embed.addFields({
-                        name: "📑 Próximas Músicas",
-                        value: "Não há músicas na fila",
+                        name: "📑 Next Songs",
+                        value: "No songs in the queue",
                     })
                 }
 
                 // Add queue statistics
                 try {
                     const repeatMode = queue?.repeatMode
-                        ? "Ativado"
-                        : "Desativado"
+                        ? "Enabled"
+                        : "Disabled"
                     const volume = queue?.node.volume ?? 100
                     const trackCount = queue?.tracks?.size ?? 0
                     const manualCount = manualTracks.length
                     const autoplayCount = autoplayTracks.length
 
                     embed.addFields({
-                        name: "📊 Estatísticas da Fila",
-                        value: `Total de músicas: ${trackCount}\nMúsicas manuais: ${manualCount}\nMúsicas do autoplay: ${autoplayCount}\nModo de repetição: ${repeatMode}\nVolume: ${volume}%`,
+                        name: "📊 Queue Statistics",
+                        value: `Total songs: ${trackCount}\nManual songs: ${manualCount}\nAutoplay songs: ${autoplayCount}\nRepeat mode: ${repeatMode}\nVolume: ${volume}%`,
                     })
                 } catch (statsError) {
                     errorLog({
@@ -318,7 +315,7 @@ export default new Command({
                     error: tracksError,
                 })
                 embed.addFields({
-                    name: "📑 Próximas Músicas",
+                    name: "📑 Next Songs",
                     value: messages.error.noTrack,
                 })
             }
@@ -339,7 +336,7 @@ export default new Command({
                 content: {
                     embeds: [
                         createEmbed({
-                            title: "Erro",
+                            title: "Error",
                             description: messages.error.noQueue,
                             color: EMBED_COLORS.ERROR as ColorResolvable,
                             emoji: EMOJIS.ERROR,
