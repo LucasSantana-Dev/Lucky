@@ -12,11 +12,11 @@ export default new Command({
             '📄 Show the lyrics of the current song or a specified song.',
         )
         .addStringOption((option) =>
-            option.setName('musica').setDescription('Song name (optional)'),
+            option.setName("song").setDescription("Song name (optional)"),
         ),
-    category: 'music',
-    execute: async ({ client, interaction }: CommandExecuteParams) => {
-        const query = interaction.options.getString('musica')
+    category: "music",
+    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+        const query = interaction.options.getString("song")
         let title = query
 
         if (title === null || title === '') {
