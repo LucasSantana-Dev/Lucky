@@ -75,8 +75,13 @@ load_env() {
             case "$line" in
                 \#*|'') continue ;;
             esac
-            # Export the variable
-            export "$line"
+            # Only export if line contains an equals sign and doesn't start with special characters
+            if [[ "$line" == *"="* ]] && [[ ! "$line" =~ ^[[:space:]]*[^A-Za-z_] ]]; then
+                # Use eval to properly handle the export, but sanitize the line first
+                eval "export $line" 2>/dev/null || {
+                    print_warning "Skipping invalid environment variable: ${line%%=*}"
+                }
+            fi
         done < "$env_file"
         set +a  # disable automatic export
         print_status "Environment variables loaded from .env"

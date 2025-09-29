@@ -24,7 +24,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies with proper opus support
-RUN npm ci
+RUN npm install
 
 # Copy source code and scripts
 COPY . .
