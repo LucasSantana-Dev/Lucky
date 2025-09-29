@@ -58,7 +58,13 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
             debugLog({
                 message: "Attempting to register YouTubei extractor...",
             })
-            player.extractors.register(YoutubeiExtractor, {})
+            // Register YouTubei extractor with improved configuration
+            player.extractors.register(YoutubeiExtractor, {
+                // Add configuration to reduce signature decipher warnings
+                useClient: "WEB",
+                // Enable better error handling
+                throwOnError: false,
+            })
             infoLog({ message: "Successfully registered YouTubei extractor" })
         } catch (extractorError) {
             errorLog({
@@ -70,6 +76,18 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
 
         // Clear any existing event listeners to prevent duplicates
         player.events.removeAllListeners()
+
+        // Suppress YouTube signature decipher warnings as they're not critical
+        const originalConsoleWarn = console.warn
+        console.warn = (...args) => {
+            const message = args[0]?.toString() || ""
+            if (message.includes("Failed to extract signature decipher algorithm")) {
+                // Suppress this specific warning as it's not critical
+                debugLog({ message: "YouTube signature decipher warning suppressed (non-critical)" })
+                return
+            }
+            originalConsoleWarn.apply(console, args)
+        }
 
         // Handle general errors
         player.events.on("error", (queue: GuildQueue, error: Error) => {

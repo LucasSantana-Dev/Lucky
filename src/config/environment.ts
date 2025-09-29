@@ -46,6 +46,14 @@ export function loadEnvironment() {
         message: `Loaded environment from ${loadedFile} (NODE_ENV: ${process.env.NODE_ENV ?? "not set"})`,
     })
 
+    if (process.env.DISCORD_TOKEN) {
+        process.env.DISCORD_TOKEN = process.env.DISCORD_TOKEN.trim()
+    }
+
+    if (process.env.CLIENT_ID) {
+        process.env.CLIENT_ID = process.env.CLIENT_ID.trim()
+    }
+
     if (!process.env.DISCORD_TOKEN) {
         debugLog({
             message:
