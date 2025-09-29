@@ -1,6 +1,7 @@
 import type { Track, GuildQueue } from "discord-player"
 import { Player } from "discord-player"
 import { YoutubeiExtractor } from "discord-player-youtubei"
+import { AttachmentExtractor } from "@discord-player/extractor"
 import type { ICustomClient } from "../types/index"
 import { errorLog, infoLog, debugLog } from "../utils/general/log"
 import { constants } from "../config/config"
@@ -56,22 +57,32 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
 
         try {
             debugLog({
-                message: "Attempting to register YouTubei extractor...",
+                message: "Attempting to register extractors...",
             })
+            
             // Register YouTubei extractor with improved configuration
             player.extractors.register(YoutubeiExtractor, {
                 // Add configuration to reduce signature decipher warnings
                 useClient: "WEB",
                 // Enable better error handling
                 throwOnError: false,
+                // Add retry configuration
+                retryOnFailure: true,
+                maxRetries: 3,
             })
             infoLog({ message: "Successfully registered YouTubei extractor" })
+            
+            // Register Attachment extractor as fallback
+            player.extractors.register(AttachmentExtractor, {})
+            infoLog({ message: "Successfully registered Attachment extractor" })
+            
         } catch (extractorError) {
             errorLog({
-                message: "Failed to register YouTubei extractor:",
+                message: "Failed to register extractors:",
                 error: extractorError,
             })
-            throw extractorError // Re-throw to be caught by outer try-catch
+            // Don't throw error, continue with available extractors
+            debugLog({ message: "Continuing with available extractors" })
         }
 
         // Clear any existing event listeners to prevent duplicates

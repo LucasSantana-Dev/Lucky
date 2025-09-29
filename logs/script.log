@@ -35,3 +35,32 @@
 [2025-09-28 21:42:44] [INFO] Use 'npm run logs' to view logs
 [2025-09-28 21:42:44] [SUCCESS] Script completed successfully
 [2025-09-28 21:42:44] [SUCCESS] Script completed successfully
+[2025-09-28 23:13:07] [INFO] Stopping containers...
+[2025-09-28 23:13:08] [SUCCESS] Docker is available and running
+[2025-09-28 23:13:08] [SUCCESS] Script completed successfully
+[2025-09-28 23:13:08] [SUCCESS] Script completed successfully
+[2025-09-28 23:13:09] [SUCCESS] All containers stopped!
+[2025-09-28 23:13:09] [SUCCESS] Script completed successfully
+[2025-09-28 23:13:09] [SUCCESS] Script completed successfully
+[2025-09-28 23:13:10] [INFO] Environment variables loaded from .env
+[2025-09-28 23:13:10] [INFO] Building production Docker image...
+[2025-09-28 23:13:10] [SUCCESS] Docker is available and running
+[2025-09-28 23:14:46] [ERROR] Script exited with error code: 1
+[2025-09-28 23:14:46] [ERROR] Script cleanup triggered with exit code: 1
+[2025-09-28 23:15:01] [INFO] Environment variables loaded from .env
+[2025-09-28 23:15:01] [INFO] Building production Docker image...
+[2025-09-28 23:15:01] [SUCCESS] Docker is available and running
+[2025-09-28 23:17:07] [SUCCESS] Production image built successfully!
+[2025-09-28 23:17:07] [SUCCESS] Script completed successfully
+[2025-09-28 23:17:07] [SUCCESS] Script completed successfully
+[2025-09-28 23:17:09] [INFO] Environment variables loaded from .env
+[2025-09-28 23:17:09] [SUCCESS] Environment configuration validated
+[2025-09-28 23:17:09] [INFO] Starting production container...
+[2025-09-28 23:17:10] [SUCCESS] Docker is available and running
+[2025-09-28 23:17:11] [SUCCESS] Production container started!
+[2025-09-28 23:17:11] [INFO] Use 'npm run logs' to view logs
+[2025-09-28 23:17:11] [SUCCESS] Script completed successfully
+[2025-09-28 23:17:11] [SUCCESS] Script completed successfully
+[2025-09-28 23:17:14] [INFO] Environment variables loaded from .env
+[2025-09-28 23:17:14] [INFO] Showing production logs...
+[2025-09-28 23:17:14] [SUCCESS] Docker is available and running

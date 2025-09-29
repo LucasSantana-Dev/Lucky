@@ -27,6 +27,7 @@ export default defineConfig({
     minify: process.env.NODE_ENV === "production", // Only minify in production
     target: "es2022", // Target modern Node.js
     outExtension: () => ({ js: ".js" }),
+    external: ["unfetch", "isomorphic-unfetch"], // Mark unfetch as external
     esbuildOptions(options) {
         options.plugins = [
             ...(options.plugins || []),
