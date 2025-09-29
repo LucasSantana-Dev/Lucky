@@ -2,6 +2,9 @@ version: '3.8'
 
 services:
   lukbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: lukbot:latest
     container_name: discord-bot
     restart: unless-stopped

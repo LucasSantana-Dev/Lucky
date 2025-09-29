@@ -25,6 +25,9 @@ version: '3.8'
 
 services:
   lukbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: lukbot:latest
     container_name: discord-bot
     restart: unless-stopped
@@ -44,6 +47,8 @@ services:
       retries: 3
       start_period: 40s
 ```
+
+**Note**: The stack now includes a `build` section that builds the Docker image locally from the Dockerfile, eliminating the need for a pre-built image on Docker Hub.
 
 ### 2. Portainer API Deployment
 
@@ -176,17 +181,22 @@ Store sensitive data in Portainer's environment variables:
 
 ### Common Issues
 
-1. **Container Won't Start**:
+1. **"pull access denied for lukbot" Error**:
+   - **Cause**: Portainer trying to pull non-existent image from Docker Hub
+   - **Solution**: Use the updated `portainer-stack.yml` with build configuration
+   - **Fix**: Ensure the stack includes `build` section with local Dockerfile
+
+2. **Container Won't Start**:
    - Check environment variables
    - Verify Discord token validity
    - Check container logs
 
-2. **Deployment Failed**:
+3. **Deployment Failed**:
    - Verify Portainer API access
    - Check webhook configuration
    - Review deployment logs
 
-3. **Network Issues**:
+4. **Network Issues**:
    - Check network configuration
    - Verify container connectivity
    - Review firewall settings
