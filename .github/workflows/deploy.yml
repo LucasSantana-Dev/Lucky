@@ -1,72 +1,57 @@
-name: CI/CD Pipeline
+name: Deploy LukBot
 
 on:
-    workflow_dispatch:
-    push:
-        branches: [main, master]
-    pull_request:
-        branches: [main, master]
-
-env:
-    NODE_VERSION: "22.x"
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
-    lint:
-        runs-on: ubuntu-latest
-        timeout-minutes: 5
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Set up Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: "npm"
-
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Lint code
-              run: npm run lint
-
-            - name: Run security audit
-              run: npm audit --audit-level=high
-              continue-on-error: true
-
-            - name: Check for outdated dependencies
-              run: npm outdated || true
-
-    build:
-        needs: lint
-        runs-on: ubuntu-latest
-        timeout-minutes: 5
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Set up Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: ${{ env.NODE_VERSION }}
-                  cache: "npm"
-
-            - name: Create version file
-              run: |
-                  mkdir -p dist
-                  echo "{\n  \"version\": \"${GITHUB_SHA:0:7}\",\n  \"buildDate\": \"$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")\",\n  \"buildNumber\": \"$GITHUB_RUN_NUMBER\",\n  \"branch\": \"${GITHUB_REF#refs/heads/}\"\n}" > version.json
-
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Run build
-              run: npm run build
-
-            - name: Copy version file to dist
-              run: cp version.json dist/
-
-            - name: Upload build artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: dist-package
-                  path: dist/
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Deploy to server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          cd /home/luk-server/LukBot
+          
+          # Pull latest changes
+          echo "Pulling latest changes..."
+          git pull origin main
+          
+          # Build new Docker image
+          echo "Building new Docker image..."
+          docker build -t lukbot:latest .
+          
+          # Stop the current container
+          echo "Stopping current container..."
+          ./scripts/discord-bot.sh stop
+          
+          # Start the container with new image
+          echo "Starting container with new image..."
+          ./scripts/discord-bot.sh start
+          
+          # Wait a moment and check status
+          sleep 5
+          echo "Checking container status..."
+          ./scripts/discord-bot.sh status
+          
+          echo "Deployment completed!"
+        EOF
+        
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ Deployment successful!"
+        else
+          echo "❌ Deployment failed!"
+        fi

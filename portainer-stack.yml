@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  lukbot:
+    image: lukbot:latest
+    container_name: discord-bot
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - lukbot-network
+    labels:
+      - "traefik.enable=false"
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  lukbot-network:
+    driver: bridge
+    name: lukbot-network
+
+volumes:
+  lukbot-logs:
+    driver: local
+  lukbot-data:
+    driver: local
