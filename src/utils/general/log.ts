@@ -2,17 +2,19 @@
 import chalk from "chalk"
 import { addBreadcrumb, captureException, captureMessage } from "../monitoring"
 
-export enum LogLevel {
-    ERROR = 0,
-    WARN = 1,
-    INFO = 2,
-    SUCCESS = 3,
-    DEBUG = 4,
-}
+export const LogLevel = {
+    ERROR: 0,
+    WARN: 1,
+    INFO: 2,
+    SUCCESS: 3,
+    DEBUG: 4,
+} as const
 
-let currentLogLevel = LogLevel.DEBUG
+export type LogLevel = (typeof LogLevel)[keyof typeof LogLevel]
 
-interface LogParams {
+let currentLogLevel: LogLevel = LogLevel.DEBUG
+
+type LogParams = {
     message: string
     error?: unknown
     level?: LogLevel

@@ -1,9 +1,13 @@
 import type { Track, GuildQueue } from "discord-player"
 import { Player } from "discord-player"
 import { YoutubeiExtractor } from "discord-player-youtubei"
-import { AttachmentExtractor } from "@discord-player/extractor"
-import type { ICustomClient } from "../types/index"
-import { errorLog, infoLog, debugLog } from "../utils/general/log"
+import {
+    AttachmentExtractor,
+    SpotifyExtractor,
+    SoundCloudExtractor,
+} from "@discord-player/extractor"
+import type { CustomClient } from "../types/index"
+import { errorLog, infoLog, debugLog, warnLog } from "../utils/general/log"
 import { constants } from "../config/config"
 import { QueryType } from "discord-player"
 import type { TextChannel, User, ChatInputCommandInteraction } from "discord.js"
@@ -21,20 +25,20 @@ import {
 } from "../utils/music/youtubeErrorHandler"
 import { youtubeConfig } from "../config/youtubeConfig"
 
-interface IQueueMetadata {
+type QueueMetadata = {
     channel: TextChannel
     client: unknown
     requestedBy: User | undefined
     interaction?: ChatInputCommandInteraction // Store the interaction for reply editing
 }
 
-interface ICreatePlayerParams {
-    client: ICustomClient
+type CreatePlayerParams = {
+    client: CustomClient
 }
 
 export const lastPlayedTracks = new Map<string, Track>()
 
-interface ITrackHistoryEntry {
+type TrackHistoryEntry = {
     url: string
     title: string
     author: string
@@ -42,14 +46,14 @@ interface ITrackHistoryEntry {
     timestamp: number
 }
 
-export const recentlyPlayedTracks = new Map<string, ITrackHistoryEntry[]>()
+export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()
 
 const songInfoMessages = new Map<
     string,
     { messageId: string; channelId: string }
 >()
 
-export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
+export const createPlayer = ({ client }: CreatePlayerParams): Player => {
     try {
         infoLog({ message: "Creating player..." })
 
@@ -59,23 +63,76 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
             debugLog({
                 message: "Attempting to register extractors...",
             })
-            
+
             // Register YouTubei extractor with improved configuration
-            player.extractors.register(YoutubeiExtractor, {
-                // Add configuration to reduce signature decipher warnings
-                useClient: "WEB",
-                // Enable better error handling
-                throwOnError: false,
-                // Add retry configuration
-                retryOnFailure: true,
-                maxRetries: 3,
-            })
-            infoLog({ message: "Successfully registered YouTubei extractor" })
-            
-            // Register Attachment extractor as fallback
-            player.extractors.register(AttachmentExtractor, {})
-            infoLog({ message: "Successfully registered Attachment extractor" })
-            
+            try {
+                player.extractors.register(YoutubeiExtractor, {})
+                infoLog({
+                    message: "Successfully registered YouTubei extractor",
+                })
+            } catch (youtubeError) {
+                errorLog({
+                    message: "Failed to register YouTubei extractor:",
+                    error: youtubeError,
+                })
+            }
+
+            // Register fallback extractors
+            try {
+                player.extractors.register(AttachmentExtractor, {})
+                infoLog({
+                    message: "Successfully registered Attachment extractor",
+                })
+            } catch (attachmentError) {
+                errorLog({
+                    message: "Failed to register Attachment extractor:",
+                    error: attachmentError,
+                })
+            }
+
+            try {
+                // Register Spotify extractor with credentials if available
+                const spotifyConfig: Record<string, string> = {}
+                if (
+                    process.env.SPOTIFY_CLIENT_ID &&
+                    process.env.SPOTIFY_CLIENT_SECRET
+                ) {
+                    spotifyConfig.clientId = process.env.SPOTIFY_CLIENT_ID
+                    spotifyConfig.clientSecret =
+                        process.env.SPOTIFY_CLIENT_SECRET
+                    infoLog({
+                        message:
+                            "Registering Spotify extractor with credentials",
+                    })
+                } else {
+                    warnLog({
+                        message:
+                            "Spotify credentials not found, registering without authentication",
+                    })
+                }
+
+                player.extractors.register(SpotifyExtractor, spotifyConfig)
+                infoLog({
+                    message: "Successfully registered Spotify extractor",
+                })
+            } catch (spotifyError) {
+                errorLog({
+                    message: "Failed to register Spotify extractor:",
+                    error: spotifyError,
+                })
+            }
+
+            try {
+                player.extractors.register(SoundCloudExtractor, {})
+                infoLog({
+                    message: "Successfully registered SoundCloud extractor",
+                })
+            } catch (soundcloudError) {
+                errorLog({
+                    message: "Failed to register SoundCloud extractor:",
+                    error: soundcloudError,
+                })
+            }
         } catch (extractorError) {
             errorLog({
                 message: "Failed to register extractors:",
@@ -88,17 +145,12 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
         // Clear any existing event listeners to prevent duplicates
         player.events.removeAllListeners()
 
-        // Suppress YouTube signature decipher warnings as they're not critical
-        const originalConsoleWarn = console.warn
-        console.warn = (...args) => {
-            const message = args[0]?.toString() || ""
-            if (message.includes("Failed to extract signature decipher algorithm")) {
-                // Suppress this specific warning as it's not critical
-                debugLog({ message: "YouTube signature decipher warning suppressed (non-critical)" })
-                return
-            }
-            originalConsoleWarn.apply(console, args)
-        }
+        // Note: YouTube parser errors are expected and non-critical
+        // The youtubei.js library has known issues with YouTube's changing API structure
+        // These errors don't affect music playback functionality
+        debugLog({
+            message: "YouTube parser errors are expected and non-critical",
+        })
 
         // Handle general errors
         player.events.on("error", (queue: GuildQueue, error: Error) => {
@@ -215,7 +267,7 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
                                 {
                                     requestedBy:
                                         currentTrack.requestedBy ??
-                                        (queue.metadata as IQueueMetadata)
+                                        (queue.metadata as QueueMetadata)
                                             .requestedBy,
                                     searchEngine: QueryType.YOUTUBE_SEARCH,
                                 },
@@ -310,7 +362,7 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
                                 {
                                     requestedBy:
                                         currentTrack.requestedBy ??
-                                        (queue.metadata as IQueueMetadata)
+                                        (queue.metadata as QueueMetadata)
                                             .requestedBy,
                                     searchEngine: QueryType.YOUTUBE_SEARCH,
                                 },
@@ -433,6 +485,18 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
             // Log the download URL for debugging
             debugLog({ message: `Track URL: ${track.url}` })
 
+            // Add voice connection debugging
+            debugLog({
+                message: "Voice connection status during playback",
+                data: {
+                    connected: !!queue.connection,
+                    connectionState: queue.connection?.state?.status,
+                    nodeState: queue.node?.isPlaying() ? "playing" : "idle",
+                    isPlaying: queue.node?.isPlaying(),
+                    volume: queue.node?.volume,
+                },
+            })
+
             // Ensure volume is set correctly
             if (queue.node.volume !== constants.VOLUME) {
                 queue.node.setVolume(constants.VOLUME)
@@ -441,7 +505,7 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
             // Reset autoplay counter if this is a manual track (not autoplay)
             const isAutoplay = track.requestedBy?.id === client.user?.id
             if (!isAutoplay) {
-                resetAutoplayCount(queue.guild.id)
+                await resetAutoplayCount(queue.guild.id)
                 debugLog({
                     message: `Reset autoplay counter for guild ${queue.guild.id} - manual track played`,
                 })
@@ -483,7 +547,7 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
 
             // Update the message to show the current track (only for autoplay)
             try {
-                const metadata = queue.metadata as IQueueMetadata
+                const metadata = queue.metadata as QueueMetadata
 
                 // Format duration
                 const formatDuration = (duration: string) => {
@@ -567,7 +631,7 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
                 // Store the last played track
                 if (queue.currentTrack) {
                     // Add track to history using the utility function
-                    addTrackToHistory(queue.currentTrack, queue.guild.id)
+                    await addTrackToHistory(queue.currentTrack, queue.guild.id)
                 }
 
                 // Check and replenish the queue
@@ -584,7 +648,7 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
 
                 // Add the skipped track to history using the utility function
                 if (queue.currentTrack) {
-                    addTrackToHistory(queue.currentTrack, queue.guild.id)
+                    await addTrackToHistory(queue.currentTrack, queue.guild.id)
                 }
 
                 // Check and replenish the queue
@@ -595,19 +659,34 @@ export const createPlayer = ({ client }: ICreatePlayerParams): Player => {
         })
 
         // Add track add event handler
-        player.events.on("audioTracksAdd", (queue: GuildQueue, tracks) => {
-            if (Array.isArray(tracks) && tracks.length > 0) {
-                infoLog({
-                    message: `Added "${tracks[0].title}" to queue in ${queue.guild.name}`,
-                })
-            }
-        })
+        player.events.on(
+            "audioTracksAdd",
+            (queue: GuildQueue, tracks: Track[]) => {
+                if (Array.isArray(tracks) && tracks.length > 0) {
+                    infoLog({
+                        message: `Added "${tracks[0].title}" to queue in ${queue.guild.name}`,
+                    })
+                }
+            },
+        )
 
         // Add connection create event handler
         player.events.on("connection", (queue: GuildQueue) => {
             infoLog({
                 message: `Created connection to voice channel in ${queue.guild.name}`,
             })
+
+            // Add additional voice connection debugging
+            if (queue.connection) {
+                debugLog({
+                    message: "Voice connection details",
+                    data: {
+                        state: queue.connection.state?.status,
+                        joinConfig: queue.connection.joinConfig,
+                        ready: queue.connection.state?.status === "ready",
+                    },
+                })
+            }
         })
 
         // Add connection destroy event handler

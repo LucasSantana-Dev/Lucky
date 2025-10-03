@@ -69,7 +69,7 @@ export function loadEnvironment() {
     }
 
     const logLevel = process.env.LOG_LEVEL
-        ? parseInt(process.env.LOG_LEVEL)
+        ? (parseInt(process.env.LOG_LEVEL) as LogLevel)
         : LogLevel.INFO
     setLogLevel(logLevel)
 

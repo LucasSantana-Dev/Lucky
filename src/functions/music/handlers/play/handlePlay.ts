@@ -2,14 +2,10 @@ import type { Track } from "discord-player"
 import type { ChatInputCommandInteraction, EmbedBuilder } from "discord.js"
 import { errorLog } from "../../../../utils/general/log"
 import { searchContentOnYoutube } from "../../../../utils/search/searchContentOnYoutube"
-import type { ICustomClient } from "../../../../types"
+import type { CustomClient } from "../../../../types"
 import { messages } from "../../../../utils/general/messages"
 import { interactionReply } from "../../../../utils/general/interactionReply"
 import { createUserFriendlyError } from "../../../../utils/general/errorSanitizer"
-
-interface IQueue {
-    addTrack: (_track: Track<unknown>) => void
-}
 
 // interface ISearchResult {
 //     tracks: ISearchTrack[]
@@ -21,9 +17,9 @@ export const handlePlay = async ({
     queue,
     embed,
 }: {
-    client: ICustomClient
+    client: CustomClient
     interaction: ChatInputCommandInteraction
-    queue: IQueue
+    queue: { addTrack: (track: Track<unknown>) => void }
     embed: EmbedBuilder
 }) => {
     const query = interaction.options.getString("query")

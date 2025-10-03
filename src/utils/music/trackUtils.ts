@@ -4,21 +4,21 @@ import { isSimilarTitle } from "./titleComparison"
 import { safeSetInterval } from "../timerManager"
 
 // Type definitions
-interface ITrackInfo {
+type TrackInfo = {
     title: string
     duration: string
     requester: string
     isAutoplay: boolean
 }
 
-interface ITrackCacheKey {
+type TrackCacheKey = {
     id: string
     title: string
     duration: string | number
     requesterId?: string
 }
 
-interface ITrackCategories {
+type TrackCategories = {
     manualTracks: Track[]
     autoplayTracks: Track[]
 }
@@ -59,7 +59,7 @@ class LRUCache<K, V> {
 }
 
 const TRACK_INFO_CACHE_SIZE = 2000
-const trackInfoCache = new LRUCache<string, ITrackInfo>(TRACK_INFO_CACHE_SIZE)
+const trackInfoCache = new LRUCache<string, TrackInfo>(TRACK_INFO_CACHE_SIZE)
 
 /**
  * Type guard to check if a value is a valid track
@@ -84,7 +84,7 @@ function isValidDuration(duration: unknown): duration is string | number {
  * Generates a cache key for a track
  */
 function generateCacheKey(track: Track): string {
-    const key: ITrackCacheKey = {
+    const key: TrackCacheKey = {
         id: track.id || "",
         title: track.title || "",
         duration: track.duration || "",
@@ -96,7 +96,7 @@ function generateCacheKey(track: Track): string {
 /**
  * Gets information about a track with caching
  */
-export function getTrackInfo(track: Track | null | undefined): ITrackInfo {
+export function getTrackInfo(track: Track | null | undefined): TrackInfo {
     if (!isValidTrack(track)) {
         return {
             title: "Unknown Track",
@@ -119,7 +119,7 @@ export function getTrackInfo(track: Track | null | undefined): ITrackInfo {
         const requester = track.requestedBy?.username ?? "Unknown"
         const isAutoplay = Boolean(track.requestedBy?.bot)
 
-        const info: ITrackInfo = { title, duration, requester, isAutoplay }
+        const info: TrackInfo = { title, duration, requester, isAutoplay }
         trackInfoCache.set(cacheKey, info)
         return info
     } catch (error) {
@@ -213,14 +213,14 @@ export function isDuplicateTrack(
 /**
  * Separates tracks into manual and autoplay categories
  */
-export function separateTracks(tracks: Track[]): ITrackCategories {
+export function separateTracks(tracks: Track[]): TrackCategories {
     if (!Array.isArray(tracks) || tracks.length === 0) {
         return { manualTracks: [], autoplayTracks: [] }
     }
 
     try {
         return tracks.reduce(
-            (acc: ITrackCategories, track) => {
+            (acc: TrackCategories, track) => {
                 if (isValidTrack(track) && track.requestedBy?.bot) {
                     acc.autoplayTracks.push(track)
                 } else if (isValidTrack(track)) {

@@ -1,164 +1,183 @@
-// import { debugLog, errorLog } from "../general/log" // Unused imports
-import { safeSetInterval } from "../timerManager"
+/**
+ * String utility functions for text processing and normalization
+ */
 
-// Type definitions
-type CacheKey = string
-type CacheValue = string
-type PatternArray = readonly RegExp[]
+/**
+ * Normalizes a string by removing special characters and converting to lowercase
+ */
+export function normalizeString(str: string): string {
+    return str
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .trim()
+}
 
-// LRU cache for memoized functions
-class LRUCache<K, V> {
-    private maxSize: number
-    private cache: Map<K, V>
-    constructor(maxSize: number) {
-        this.maxSize = maxSize
-        this.cache = new Map()
-    }
-    get(key: K): V | undefined {
-        if (!this.cache.has(key)) return undefined
-        const value = this.cache.get(key)
-        if (value === undefined) return undefined
-        // Move to end to show as recently used
-        this.cache.delete(key)
-        this.cache.set(key, value)
-        return value
-    }
-    set(key: K, value: V): void {
-        if (this.cache.has(key)) {
-            this.cache.delete(key)
-        } else if (this.cache.size >= this.maxSize) {
-            // Remove least recently used
-            const firstKey = this.cache.keys().next().value
-            if (firstKey !== undefined) {
-                this.cache.delete(firstKey)
+/**
+ * Cleans a string by removing extra whitespace and normalizing spaces
+ */
+export function cleanString(str: string): string {
+    return str.trim().replace(/\s+/g, " ")
+}
+
+/**
+ * Extracts artist and title from a string in various formats
+ */
+export function extractArtistTitle(input: string): {
+    artist: string
+    title: string
+} {
+    const cleaned = cleanString(input)
+
+    // Try different separators
+    const separators = [" - ", ": ", " | "]
+
+    for (const separator of separators) {
+        if (cleaned.includes(separator)) {
+            const parts = cleaned.split(separator)
+            if (parts.length >= 2) {
+                return {
+                    artist: parts[0].trim(),
+                    title: parts.slice(1).join(separator).trim(),
+                }
             }
         }
-        this.cache.set(key, value)
     }
-    clear(): void {
-        this.cache.clear()
+
+    // If no separator found, treat as title only
+    return {
+        artist: "",
+        title: cleaned,
     }
 }
 
-const MEMO_CACHE_SIZE = 5000
-const memoizedResults = new LRUCache<CacheKey, CacheValue>(MEMO_CACHE_SIZE)
-
 /**
- * Type guard to check if a value is a valid string
+ * Checks if two titles are similar (case-insensitive, normalized)
  */
-function isValidString(value: unknown): value is string {
-    return typeof value === "string" && value.length > 0
+export function isSimilarTitle(title1: string, title2: string): boolean {
+    if (!title1 || !title2) return title1 === title2
+
+    const normalized1 = normalizeString(title1)
+    const normalized2 = normalizeString(title2)
+
+    return normalized1 === normalized2
 }
 
 /**
- * Type guard to check if a value is a valid pattern array
+ * Removes common prefixes and suffixes from track titles
  */
-function isValidPatternArray(value: unknown): value is PatternArray {
-    return (
-        Array.isArray(value) &&
-        value.every((pattern) => pattern instanceof RegExp)
+export function cleanTrackTitle(title: string): string {
+    return title
+        .replace(
+            /^(official video|official audio|official|music video|mv|lyrics|lyric video|audio|video)\s*/i,
+            "",
+        )
+        .replace(
+            /\s*(official video|official audio|official|music video|mv|lyrics|lyric video|audio|video)$/i,
+            "",
+        )
+        .replace(/\[.*?\]/g, "") // Remove [brackets]
+        .replace(/\(.*?\)/g, "") // Remove (parentheses)
+        .trim()
+}
+
+/**
+ * Extracts year from a string
+ */
+export function extractYear(str: string): number | null {
+    const yearMatch = str.match(/\b(19|20)\d{2}\b/)
+    return yearMatch ? parseInt(yearMatch[0], 10) : null
+}
+
+/**
+ * Checks if a string contains only alphanumeric characters
+ */
+export function isAlphanumeric(str: string): boolean {
+    return /^[a-zA-Z0-9]+$/.test(str)
+}
+
+/**
+ * Truncates a string to a maximum length with ellipsis
+ */
+export function truncateString(str: string, maxLength: number): string {
+    if (str.length <= maxLength) return str
+    return str.substring(0, maxLength - 3) + "..."
+}
+
+/**
+ * Converts a string to title case
+ */
+export function toTitleCase(str: string): string {
+    return str.replace(
+        /\w\S*/g,
+        (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(),
     )
 }
 
 /**
- * Applies multiple regex patterns to a string with memoization
+ * Removes diacritics from a string
  */
-export function applyPatterns(text: string, patterns: PatternArray): string {
-    if (!isValidString(text) || !isValidPatternArray(patterns)) {
-        return text
-    }
-
-    const cacheKey = `${text}-${patterns.map((p) => p.toString()).join("|")}`
-    const cachedResult = memoizedResults.get(cacheKey)
-    if (cachedResult) {
-        return cachedResult
-    }
-
-    const result = patterns.reduce(
-        (result, pattern) => result.replace(pattern, ""),
-        text,
-    )
-    memoizedResults.set(cacheKey, result)
-    return result
+export function removeDiacritics(str: string): string {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 }
 
 /**
- * Calculates similarity between two strings using Levenshtein distance
- * Optimized with early returns for common cases
+ * Checks if two strings are similar using Levenshtein distance
  */
-export function calculateSimilarity(str1: string, str2: string): number {
-    if (!isValidString(str1) || !isValidString(str2)) {
-        return 0
-    }
-
-    // Early returns for common cases
-    if (str1 === str2) return 1
-    if (str1.length === 1 && str2.length === 1) return str1 === str2 ? 1 : 0
-
+export function isStringSimilar(
+    str1: string,
+    str2: string,
+    threshold: number = 0.8,
+): boolean {
+    const distance = levenshteinDistance(str1.toLowerCase(), str2.toLowerCase())
     const maxLength = Math.max(str1.length, str2.length)
-    const distance = levenshteinDistance(str1, str2)
-    return 1 - distance / maxLength
+    const similarity = 1 - distance / maxLength
+    return similarity >= threshold
 }
 
 /**
  * Calculates Levenshtein distance between two strings
- * Optimized with space complexity O(min(m,n))
  */
-function levenshteinDistance(
-    sourceString: string,
-    targetString: string,
-): number {
-    let sourceLength = sourceString.length
-    let targetLength = targetString.length
+function levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1)
+        .fill(null)
+        .map(() => Array(str1.length + 1).fill(null))
 
-    // Use the shorter string for the dp array to save space
-    if (sourceLength < targetLength) {
-        ;[sourceString, targetString] = [targetString, sourceString]
-        ;[sourceLength, targetLength] = [targetLength, sourceLength]
-    }
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j
 
-    let previousRow = Array(targetLength + 1).fill(0)
-    let currentRow = Array(targetLength + 1).fill(0)
-
-    for (let j = 0; j <= targetLength; j++) previousRow[j] = j
-
-    for (let i = 1; i <= sourceLength; i++) {
-        currentRow[0] = i
-        for (let j = 1; j <= targetLength; j++) {
-            if (sourceString[i - 1] === targetString[j - 1]) {
-                currentRow[j] = previousRow[j - 1]
-            } else {
-                currentRow[j] = Math.min(
-                    previousRow[j - 1] + 1, // substitution
-                    previousRow[j] + 1, // deletion
-                    currentRow[j - 1] + 1, // insertion
-                )
-            }
+    for (let j = 1; j <= str2.length; j++) {
+        for (let i = 1; i <= str1.length; i++) {
+            const cost = str1[i - 1] === str2[j - 1] ? 0 : 1
+            matrix[j][i] = Math.min(
+                matrix[j][i - 1] + 1, // deletion
+                matrix[j - 1][i] + 1, // insertion
+                matrix[j - 1][i - 1] + cost, // substitution
+            )
         }
-        ;[previousRow, currentRow] = [currentRow, previousRow]
     }
 
-    return previousRow[targetLength]
+    return matrix[str2.length][str1.length]
 }
 
 /**
- * Normalizes a string by removing special characters and extra spaces
- * Optimized with a single regex pass
+ * Applies regex patterns to a string and returns the cleaned result
  */
-export function normalizeString(str: string): string {
-    if (!isValidString(str)) {
-        return ""
+export function applyPatterns(str: string, patterns: RegExp[]): string {
+    let result = str
+    for (const pattern of patterns) {
+        result = result.replace(pattern, "")
     }
-    return str
-        .toLowerCase()
-        .replace(/[^\w\s]|\s+/g, " ")
-        .trim()
+    return result.trim()
 }
 
-// Clear memoization cache periodically to prevent memory leaks
-safeSetInterval(
-    () => {
-        memoizedResults.clear()
-    },
-    1000 * 60 * 60,
-) // Clear every hour
+/**
+ * Calculates similarity between two strings using Levenshtein distance
+ */
+export function calculateSimilarity(str1: string, str2: string): number {
+    if (str1 === str2) return 1
+    if (!str1 || !str2) return 0
+
+    const distance = levenshteinDistance(str1, str2)
+    const maxLength = Math.max(str1.length, str2.length)
+    return 1 - distance / maxLength
+}
