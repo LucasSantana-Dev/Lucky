@@ -7,27 +7,22 @@ export default defineConfig({
         "src/functions/general/commands/*.ts",
         "src/functions/music/commands/*.ts",
         "src/utils/**/*.ts",
-    ],
+    ], // Bundle main entry point and all command files
     outDir: "dist",
     format: ["esm"],
-    dts:
-        process.env.NODE_ENV === "production"
-            ? {
-                  // Only generate DTS for main entry point to speed up builds
-                  entry: ["src/index.ts"],
-                  // Use faster DTS generation
-                  resolve: true,
-              }
-            : false,
-    splitting: true, // Enable code splitting for better performance
-    sourcemap: process.env.NODE_ENV === "development", // Only in dev
+    dts: false, // Disable DTS generation for faster builds
+    splitting: false, // Disable code splitting
+    sourcemap: false, // Disable sourcemaps for production
     clean: true,
     shims: false,
-    treeshake: true, // Enable tree shaking for smaller bundles
-    minify: process.env.NODE_ENV === "production", // Only minify in production
-    target: "es2022", // Target modern Node.js
+    treeshake: false, // Disable tree shaking to avoid issues
+    minify: false, // Disable minification to avoid issues
+    target: "es2022",
     outExtension: () => ({ js: ".js" }),
-    external: ["unfetch", "isomorphic-unfetch"], // Mark unfetch as external
+    external: [
+        // Mark all node_modules as external to avoid bundling issues
+        /^[^./]/, // Externalize all node_modules
+    ],
     esbuildOptions(options) {
         options.plugins = [
             ...(options.plugins || []),
