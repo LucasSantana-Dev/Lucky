@@ -12,6 +12,9 @@ export default [
             "*.config.js",
             "*.config.ts",
             "**/*.d.ts",
+            "tests/**/*",
+            "**/*.test.ts",
+            "**/*.spec.ts",
         ],
     },
     {
@@ -25,7 +28,7 @@ export default [
     pluginJs.configs.recommended,
     eslintConfigPrettier,
     {
-        files: ["**/*.ts", "**/*.tsx"],
+        files: ["src/**/*.ts"],
         languageOptions: {
             parser: parserTs,
             parserOptions: {
@@ -56,6 +59,7 @@ export default [
             "@typescript-eslint/no-non-null-assertion": "error",
             "@typescript-eslint/consistent-type-imports": "error",
             "@typescript-eslint/consistent-type-exports": "error",
+            "no-redeclare": "off", // Allow const + type with same name
 
             // General code quality rules
             "prefer-const": "error",
