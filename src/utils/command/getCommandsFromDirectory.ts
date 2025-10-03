@@ -4,7 +4,7 @@ import { errorLog, debugLog } from "../general/log"
 import type Command from "../../models/Command"
 import { config } from "../../config/config"
 
-interface GetCommandsParams {
+type GetCommandsParams = {
     url: string
     category?: string
 }

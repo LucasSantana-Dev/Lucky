@@ -13,6 +13,8 @@ ffmpeg/bin/ffmpeg.exe
 ffmpeg/bin/ffprobe.exe
 
 .cursor/
+.cursorignore
 .vscode/
 
 logs/
+*.log

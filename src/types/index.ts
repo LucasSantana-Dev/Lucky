@@ -6,13 +6,12 @@ import type {
 import type { Player } from "discord-player"
 import type Command from "../models/Command"
 
-export interface ICustomClient extends Client {
+export type CustomClient = Client & {
     commands: Collection<string, Command>
     player: Player
 }
 
-export interface ICommandType {
+export type CommandType = {
     data: unknown
-
     execute: (_interaction: ChatInputCommandInteraction) => Promise<void>
 }

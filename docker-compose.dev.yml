@@ -1,10 +1,33 @@
 services:
+    redis:
+        image: redis:7-alpine
+        container_name: discord-bot-redis-dev
+        restart: unless-stopped
+        command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+        volumes:
+            - redis_dev_data:/data
+        networks:
+            - discord-bot-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+
     discord-bot-dev:
         build:
             context: .
             dockerfile: Dockerfile.dev
         container_name: discord-bot-dev
         restart: unless-stopped
+        depends_on:
+            redis:
+                condition: service_healthy
         environment:
             - NODE_ENV=development
             - DISCORD_TOKEN=${DISCORD_TOKEN}
@@ -12,6 +35,43 @@ services:
             - COMMANDS_DISABLED=${COMMANDS_DISABLED:-}
             - COMMAND_CATEGORIES_DISABLED=${COMMAND_CATEGORIES_DISABLED:-}
             - SENTRY_DSN=${SENTRY_DSN:-}
+            - REDIS_HOST=${REDIS_HOST:-redis}
+            - REDIS_PORT=${REDIS_PORT:-6379}
+            - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+            - REDIS_DB=${REDIS_DB:-0}
+            - TIKTOK_API_HOSTNAME=${TIKTOK_API_HOSTNAME:-api16-normal-c-useast1a.tiktokv.com}
+            - TIKTOK_REFERER_URL=${TIKTOK_REFERER_URL:-https://www.tiktok.com/}
+            - TIKTOK_EXTRACTOR_RETRIES=${TIKTOK_EXTRACTOR_RETRIES:-3}
+            - TIKTOK_FRAGMENT_RETRIES=${TIKTOK_FRAGMENT_RETRIES:-3}
+            - TIKTOK_SLEEP_INTERVAL=${TIKTOK_SLEEP_INTERVAL:-1}
+            - TIKTOK_MAX_SLEEP_INTERVAL=${TIKTOK_MAX_SLEEP_INTERVAL:-3}
+            - YOUTUBE_CONNECTION_TIMEOUT=${YOUTUBE_CONNECTION_TIMEOUT:-120000}
+            - YOUTUBE_MAX_RETRIES=${YOUTUBE_MAX_RETRIES:-3}
+            - YOUTUBE_RETRY_DELAY=${YOUTUBE_RETRY_DELAY:-1000}
+            - YOUTUBE_MAX_EXTRACTORS=${YOUTUBE_MAX_EXTRACTORS:-5}
+            - YOUTUBE_USER_AGENT=${YOUTUBE_USER_AGENT:-Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36}
+            - RATE_LIMIT_COMMAND_WINDOW_MS=${RATE_LIMIT_COMMAND_WINDOW_MS:-60000}
+            - RATE_LIMIT_COMMAND_MAX_REQUESTS=${RATE_LIMIT_COMMAND_MAX_REQUESTS:-5}
+            - RATE_LIMIT_MUSIC_COMMAND_WINDOW_MS=${RATE_LIMIT_MUSIC_COMMAND_WINDOW_MS:-30000}
+            - RATE_LIMIT_MUSIC_COMMAND_MAX_REQUESTS=${RATE_LIMIT_MUSIC_COMMAND_MAX_REQUESTS:-3}
+            - RATE_LIMIT_DOWNLOAD_WINDOW_MS=${RATE_LIMIT_DOWNLOAD_WINDOW_MS:-300000}
+            - RATE_LIMIT_DOWNLOAD_MAX_REQUESTS=${RATE_LIMIT_DOWNLOAD_MAX_REQUESTS:-2}
+            - USER_SESSION_TTL=${USER_SESSION_TTL:-86400}
+            - QUEUE_SESSION_TTL=${QUEUE_SESSION_TTL:-7200}
+            - COMMAND_HISTORY_LIMIT=${COMMAND_HISTORY_LIMIT:-10}
+            - CACHE_TRACK_INFO_SIZE=${CACHE_TRACK_INFO_SIZE:-2000}
+            - CACHE_ARTIST_TITLE_SIZE=${CACHE_ARTIST_TITLE_SIZE:-2000}
+            - CACHE_MEMO_SIZE=${CACHE_MEMO_SIZE:-5000}
+            - CACHE_TTL_HOURS=${CACHE_TTL_HOURS:-1}
+            - PLAYER_LEAVE_ON_EMPTY_COOLDOWN=${PLAYER_LEAVE_ON_EMPTY_COOLDOWN:-300000}
+            - PLAYER_LEAVE_ON_END_COOLDOWN=${PLAYER_LEAVE_ON_END_COOLDOWN:-300000}
+            - PLAYER_CONNECTION_TIMEOUT=${PLAYER_CONNECTION_TIMEOUT:-5000}
+            - DOWNLOAD_TIMEOUT=${DOWNLOAD_TIMEOUT:-10000}
+            - DOWNLOAD_MAX_RETRIES=${DOWNLOAD_MAX_RETRIES:-3}
+            - DOWNLOAD_RETRY_DELAY=${DOWNLOAD_RETRY_DELAY:-1000}
+            - SEARCH_TIMEOUT=${SEARCH_TIMEOUT:-15000}
+            - SEARCH_RETRY_DELAY=${SEARCH_RETRY_DELAY:-5000}
+            - LOG_LEVEL=${LOG_LEVEL:-1}
         volumes:
             - .:/app
             - /app/node_modules
@@ -30,6 +90,9 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
+
+volumes:
+    redis_dev_data:
 
 networks:
     discord-bot-network:

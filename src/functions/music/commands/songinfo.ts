@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from "@discordjs/builders"
 import Command from "../../../models/Command"
 import { interactionReply } from "../../../utils/general/interactionReply"
 import { musicEmbed } from "../../../utils/general/embeds"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import {
     requireQueue,
     requireCurrentTrack,
@@ -15,7 +15,7 @@ export default new Command({
             "🎶 Mostra informações da música que está tocando agora.",
         ),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         const queue = client.player.nodes.get(interaction.guildId ?? "")
         const track = queue?.currentTrack
 

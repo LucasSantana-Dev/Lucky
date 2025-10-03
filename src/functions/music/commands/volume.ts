@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from "@discordjs/builders"
 import Command from "../../../models/Command"
 import { interactionReply } from "../../../utils/general/interactionReply"
 import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import {
     requireGuild,
     requireQueue,
@@ -18,7 +18,7 @@ export default new Command({
             option.setName("value").setDescription("Volume (1-100)"),
         ),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
         const queue = client.player.nodes.get(interaction.guildId ?? "")

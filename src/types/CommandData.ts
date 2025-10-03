@@ -3,7 +3,7 @@ import type {
     SlashCommandSubcommandsOnlyBuilder,
     SlashCommandOptionsOnlyBuilder,
 } from "@discordjs/builders"
-import type { ICustomClient } from "./index"
+import type { CustomClient } from "./index"
 import type { ChatInputCommandInteraction } from "discord.js"
 
 export type TCommandData =
@@ -11,9 +11,9 @@ export type TCommandData =
     | SlashCommandSubcommandsOnlyBuilder
     | SlashCommandOptionsOnlyBuilder
 
-export interface ICommandExecuteParams {
-    client: ICustomClient
+export type CommandExecuteParams = {
+    client: CustomClient
     interaction: ChatInputCommandInteraction
 }
 
-export type TCommandExecute = (_options: ICommandExecuteParams) => Promise<void>
+export type TCommandExecute = (_options: CommandExecuteParams) => Promise<void>

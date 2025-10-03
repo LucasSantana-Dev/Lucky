@@ -8,7 +8,7 @@ import {
     deleteDownloadedFile,
 } from "../../../functions/download/utils/downloadUtils"
 import { requireGuild } from "../../../utils/command/commandValidations"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import {
     createErrorEmbed,
     isYouTubeUrl,
@@ -50,7 +50,7 @@ export default new Command({
                 ),
         ),
     category: "download",
-    execute: async ({ interaction }: ICommandExecuteParams): Promise<void> => {
+    execute: async ({ interaction }: CommandExecuteParams): Promise<void> => {
         try {
             if (!(await requireGuild(interaction))) return
             const query = interaction.options.get("query")?.value as string

@@ -7,7 +7,7 @@ import { deleteContent } from "./deleteContent"
 import { errorLog, infoLog } from "../../../utils/general/log"
 import { interactionReply } from "../../../utils/general/interactionReply"
 
-interface IDownloadAudioParams {
+type DownloadAudioParams = {
     url: string
     interaction: ChatInputCommandInteraction
     videoInfo: unknown
@@ -23,7 +23,7 @@ export const downloadAudio = async ({
     outputPath,
     outputFileName,
     audioPath,
-}: IDownloadAudioParams): Promise<void> => {
+}: DownloadAudioParams): Promise<void> => {
     try {
         const videoLength = (
             videoInfo as { videoDetails: { lengthSeconds: number } }

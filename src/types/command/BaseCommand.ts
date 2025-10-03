@@ -9,7 +9,7 @@ import type {
 import type { CommandCategory } from "../../config/constants"
 import type { BotError } from "../errors"
 
-export interface CommandContext {
+export type CommandContext = {
     readonly interaction: ChatInputCommandInteraction
     readonly guildId: string | null
     readonly userId: string
@@ -18,23 +18,23 @@ export interface CommandContext {
     readonly data?: unknown
 }
 
-export interface CommandResult {
+export type CommandResult = {
     readonly success: boolean
     readonly error?: BotError
     readonly data?: unknown
 }
 
-export interface CommandValidator {
+export type CommandValidator = {
     readonly name: string
     validate(context: CommandContext): Promise<CommandResult>
 }
 
-export interface CommandExecutor {
+export type CommandExecutor = {
     readonly name: string
     execute(context: CommandContext): Promise<CommandResult>
 }
 
-export interface CommandHandler {
+export type CommandHandler = {
     readonly name: string
     readonly category: CommandCategory
     readonly data: SlashCommandBuilder
@@ -44,6 +44,6 @@ export interface CommandHandler {
     handle(interaction: ChatInputCommandInteraction): Promise<void>
 }
 
-export interface CommandFactory {
+export type CommandFactory = {
     createCommand(name: string): CommandHandler
 }

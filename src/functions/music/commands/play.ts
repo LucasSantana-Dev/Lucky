@@ -5,6 +5,7 @@ import { QueryType, QueueRepeatMode } from "discord-player"
 import play from "play-dl"
 import { debugLog, errorLog } from "../../../utils/general/log"
 import { constants } from "../../../config/config"
+import { ENVIRONMENT_CONFIG } from "../../../config/environmentConfig"
 import Command from "../../../models/Command"
 import {
     createEmbed,
@@ -12,7 +13,7 @@ import {
     EMOJIS,
 } from "../../../utils/general/embeds"
 import { requireQueue } from "../../../utils/command/commandValidations"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import { messages } from "../../../utils/general/messages"
 import type { ColorResolvable } from "discord.js"
 import {
@@ -45,7 +46,7 @@ export default new Command({
                 .setDescription("Play immediately after the current song"),
         ),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         try {
             // Defer the interaction first to prevent timeout
             await interaction.deferReply()
@@ -282,9 +283,11 @@ export default new Command({
                 selfDeaf: true,
                 volume: constants.VOLUME,
                 leaveOnEmpty: true,
-                leaveOnEmptyCooldown: 300000,
+                leaveOnEmptyCooldown:
+                    ENVIRONMENT_CONFIG.PLAYER.LEAVE_ON_EMPTY_COOLDOWN,
                 leaveOnEnd: true,
-                leaveOnEndCooldown: 300000,
+                leaveOnEndCooldown:
+                    ENVIRONMENT_CONFIG.PLAYER.LEAVE_ON_END_COOLDOWN,
             })
 
             if (!(await requireQueue(queue, interaction))) return

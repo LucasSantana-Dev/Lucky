@@ -1,4 +1,5 @@
 import { QueryType } from "discord-player"
+import { ENVIRONMENT_CONFIG } from "./environmentConfig"
 
 /**
  * Configuration for YouTube.js error handling and fallback mechanisms
@@ -7,10 +8,10 @@ export const youtubeConfig = {
     // Error handling settings
     errorHandling: {
         // Maximum number of retries for YouTube searches
-        maxRetries: 3,
+        maxRetries: ENVIRONMENT_CONFIG.YOUTUBE.MAX_RETRIES,
 
         // Delay between retries in milliseconds
-        retryDelay: 1000,
+        retryDelay: ENVIRONMENT_CONFIG.YOUTUBE.RETRY_DELAY,
 
         // Whether to enable fallback search engines
         enableFallbacks: true,
@@ -69,17 +70,16 @@ export const youtubeConfig = {
     // Player configuration overrides for better YouTube.js compatibility
     playerOverrides: {
         // Increased timeout for YouTube operations
-        connectionTimeout: 120000,
+        connectionTimeout: ENVIRONMENT_CONFIG.YOUTUBE.CONNECTION_TIMEOUT,
 
         // More retries for downloads
-        downloadRetries: 3,
+        downloadRetries: ENVIRONMENT_CONFIG.YOUTUBE.MAX_RETRIES,
 
         // Increased extractor count for better fallback
-        maxExtractors: 5,
+        maxExtractors: ENVIRONMENT_CONFIG.YOUTUBE.MAX_EXTRACTORS,
 
         // User agent for better compatibility
-        userAgent:
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        userAgent: ENVIRONMENT_CONFIG.YOUTUBE.USER_AGENT,
     },
 } as const
 

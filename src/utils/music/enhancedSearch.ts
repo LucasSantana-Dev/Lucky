@@ -10,7 +10,7 @@ import {
 } from "./youtubeErrorHandler"
 import { youtubeConfig } from "../../config/youtubeConfig"
 
-export interface EnhancedSearchOptions {
+export type EnhancedSearchOptions = {
     query: string
     requestedBy: User
     preferredEngine?: QueryType
@@ -18,7 +18,7 @@ export interface EnhancedSearchOptions {
     enableFallbacks?: boolean
 }
 
-export interface EnhancedSearchResult {
+export type EnhancedSearchResult = {
     success: boolean
     result?: SearchResult
     error?: string

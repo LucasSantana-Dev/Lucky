@@ -38,7 +38,7 @@ export const EMOJIS = {
     EXIT: "🚪",
 }
 
-interface CreateEmbedOptions {
+type CreateEmbedOptions = {
     title?: string
     description?: string
     color?: ColorResolvable
@@ -52,7 +52,7 @@ interface CreateEmbedOptions {
     url?: string
 }
 
-interface EmbedField {
+type EmbedField = {
     name: string
     value: string
     inline?: boolean
@@ -163,6 +163,46 @@ export function errorEmbed(title: string, description?: string): EmbedBuilder {
         description,
         color: EMBED_COLORS.ERROR as ColorResolvable,
         emoji: EMOJIS.ERROR,
+    })
+}
+
+/**
+ * Creates a success embed (alias for successEmbed)
+ */
+export function createSuccessEmbed(
+    title: string,
+    description?: string,
+): EmbedBuilder {
+    return successEmbed(title, description)
+}
+
+/**
+ * Creates a warning embed
+ */
+export function createWarningEmbed(
+    title: string,
+    description?: string,
+): EmbedBuilder {
+    return createEmbed({
+        title,
+        description,
+        color: EMBED_COLORS.WARNING as ColorResolvable,
+        emoji: EMOJIS.WARNING,
+    })
+}
+
+/**
+ * Creates an info embed
+ */
+export function createInfoEmbed(
+    title: string,
+    description?: string,
+): EmbedBuilder {
+    return createEmbed({
+        title,
+        description,
+        color: EMBED_COLORS.INFO as ColorResolvable,
+        emoji: EMOJIS.INFO,
     })
 }
 

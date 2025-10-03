@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js"
-import type { ICustomClient } from "../../types"
+import type { CustomClient } from "../../types"
 import { errorLog, debugLog } from "../general/log"
 import {
     enhancedYouTubeSearch,
@@ -11,8 +11,8 @@ import {
 } from "../music/youtubeErrorHandler"
 import { YouTubeError } from "../../types/errors"
 
-interface ISearchContentParams {
-    client: ICustomClient
+type SearchContentParams = {
+    client: CustomClient
     searchTerms: string
     interaction: ChatInputCommandInteraction
     isPlaylist?: boolean
@@ -23,7 +23,7 @@ export const searchContentOnYoutube = async ({
     searchTerms,
     interaction,
     isPlaylist = false,
-}: ISearchContentParams) => {
+}: SearchContentParams) => {
     try {
         debugLog({ message: `Searching for: ${searchTerms}` })
 

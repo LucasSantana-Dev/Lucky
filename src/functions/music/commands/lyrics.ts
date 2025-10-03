@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from "@discordjs/builders"
 import Command from "../../../models/Command"
 import { interactionReply } from "../../../utils/general/interactionReply"
 import { musicEmbed } from "../../../utils/general/embeds"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import { requireCurrentTrack } from "../../../utils/command/commandValidations"
 
 export default new Command({
@@ -15,7 +15,7 @@ export default new Command({
             option.setName("musica").setDescription("Song name (optional)"),
         ),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         const query = interaction.options.getString("musica")
         let title = query
 

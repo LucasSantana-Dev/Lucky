@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from "@discordjs/builders"
 import { EmbedBuilder } from "discord.js"
 import Command from "../../../models/Command"
 import { debugLog, infoLog, errorLog } from "../../../utils/general/log"
-import { interactionReply } from "src/utils/general/interactionReply"
+import { interactionReply } from "../../../utils/general/interactionReply"
 import {
     getCommandCategory,
     getAllCategories,

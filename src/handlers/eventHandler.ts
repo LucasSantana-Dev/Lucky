@@ -1,6 +1,6 @@
 import type { Client, Interaction } from "discord.js"
 import { Events } from "discord.js"
-import type { ICustomClient } from "../types"
+import type { CustomClient } from "../types"
 import { errorLog, infoLog, debugLog } from "../utils/general/log"
 import { interactionReply } from "../utils/general/interactionReply"
 import { createUserFriendlyError } from "../utils/general/errorSanitizer"
@@ -9,7 +9,7 @@ export default function handleEvents(client: Client) {
     client.once("clientReady", () => {
         infoLog({ message: `Logged in as ${client.user?.tag}!` })
         debugLog({
-            message: `Bot is ready with ${(client as ICustomClient).commands.size} commands loaded`,
+            message: `Bot is ready with ${(client as CustomClient).commands.size} commands loaded`,
         })
     })
 
@@ -17,7 +17,7 @@ export default function handleEvents(client: Client) {
         try {
             if (!interaction.isChatInputCommand()) return
 
-            const command = (client as ICustomClient).commands.get(
+            const command = (client as CustomClient).commands.get(
                 interaction.commandName,
             )
             if (!command) {
@@ -37,7 +37,7 @@ export default function handleEvents(client: Client) {
             }
 
             await command.execute({
-                client: client as ICustomClient,
+                client: client as CustomClient,
                 interaction,
             })
         } catch (error) {

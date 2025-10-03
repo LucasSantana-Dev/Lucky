@@ -64,3 +64,105 @@
 [2025-09-28 23:17:14] [INFO] Environment variables loaded from .env
 [2025-09-28 23:17:14] [INFO] Showing production logs...
 [2025-09-28 23:17:14] [SUCCESS] Docker is available and running
+[2025-09-28 23:20:31] [INFO] Environment variables loaded from .env
+[2025-09-28 23:20:31] [INFO] Showing production logs...
+[2025-09-28 23:20:31] [SUCCESS] Docker is available and running
+[2025-09-28 23:21:33] [INFO] Stopping containers...
+[2025-09-28 23:21:33] [SUCCESS] Docker is available and running
+[2025-09-28 23:21:34] [SUCCESS] Script completed successfully
+[2025-09-28 23:21:34] [SUCCESS] Script completed successfully
+[2025-09-28 23:21:34] [SUCCESS] Script completed successfully
+[2025-09-28 23:21:34] [SUCCESS] Script completed successfully
+[2025-09-28 23:21:34] [SUCCESS] All containers stopped!
+[2025-09-28 23:21:34] [SUCCESS] Script completed successfully
+[2025-09-28 23:21:34] [SUCCESS] Script completed successfully
+[2025-09-28 23:21:36] [INFO] Environment variables loaded from .env
+[2025-09-28 23:21:36] [INFO] Building production Docker image...
+[2025-09-28 23:21:36] [SUCCESS] Docker is available and running
+[2025-09-28 23:23:25] [SUCCESS] Production image built successfully!
+[2025-09-28 23:23:25] [SUCCESS] Script completed successfully
+[2025-09-28 23:23:25] [SUCCESS] Script completed successfully
+[2025-09-28 23:23:28] [INFO] Environment variables loaded from .env
+[2025-09-28 23:23:28] [SUCCESS] Environment configuration validated
+[2025-09-28 23:23:28] [INFO] Starting production container...
+[2025-09-28 23:23:29] [SUCCESS] Docker is available and running
+[2025-09-28 23:23:30] [SUCCESS] Production container started!
+[2025-09-28 23:23:30] [INFO] Use 'npm run logs' to view logs
+[2025-09-28 23:23:30] [SUCCESS] Script completed successfully
+[2025-09-28 23:23:30] [SUCCESS] Script completed successfully
+[2025-09-28 23:23:33] [INFO] Environment variables loaded from .env
+[2025-09-28 23:23:33] [INFO] Showing production logs...
+[2025-09-28 23:23:33] [SUCCESS] Docker is available and running
+[2025-09-28 23:25:10] [INFO] Stopping containers...
+[2025-09-28 23:25:10] [SUCCESS] Docker is available and running
+[2025-09-28 23:25:11] [SUCCESS] Script completed successfully
+[2025-09-28 23:25:11] [SUCCESS] Script completed successfully
+[2025-09-28 23:25:11] [SUCCESS] All containers stopped!
+[2025-09-28 23:25:11] [SUCCESS] Script completed successfully
+[2025-09-28 23:25:11] [SUCCESS] Script completed successfully
+[2025-09-28 23:25:13] [INFO] Environment variables loaded from .env
+[2025-09-28 23:25:13] [INFO] Building production Docker image...
+[2025-09-28 23:25:13] [SUCCESS] Docker is available and running
+[2025-09-28 23:26:49] [SUCCESS] Production image built successfully!
+[2025-09-28 23:26:49] [SUCCESS] Script completed successfully
+[2025-09-28 23:26:49] [SUCCESS] Script completed successfully
+[2025-09-28 23:26:51] [INFO] Environment variables loaded from .env
+[2025-09-28 23:26:51] [SUCCESS] Environment configuration validated
+[2025-09-28 23:26:51] [INFO] Starting production container...
+[2025-09-28 23:26:52] [SUCCESS] Docker is available and running
+[2025-09-28 23:26:53] [SUCCESS] Production container started!
+[2025-09-28 23:26:53] [INFO] Use 'npm run logs' to view logs
+[2025-09-28 23:26:53] [SUCCESS] Script completed successfully
+[2025-09-28 23:26:53] [SUCCESS] Script completed successfully
+[2025-09-28 23:26:55] [INFO] Environment variables loaded from .env
+[2025-09-28 23:26:55] [INFO] Showing production logs...
+[2025-09-28 23:26:56] [SUCCESS] Docker is available and running
+[2025-09-28 23:27:46] [INFO] Environment variables loaded from .env
+[2025-09-28 23:27:46] [INFO] Showing production logs...
+[2025-09-28 23:27:46] [SUCCESS] Docker is available and running
+[2025-09-28 23:28:59] [INFO] Environment variables loaded from .env
+[2025-09-28 23:28:59] [INFO] Showing production logs...
+[2025-09-28 23:29:00] [SUCCESS] Docker is available and running
+[2025-09-28 23:31:15] [INFO] Stopping containers...
+[2025-09-28 23:31:15] [SUCCESS] Docker is available and running
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] All containers stopped!
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:31:18] [INFO] Environment variables loaded from .env
+[2025-09-28 23:31:18] [INFO] Building production Docker image...
+[2025-09-28 23:31:19] [SUCCESS] Docker is available and running
+[2025-09-28 23:32:55] [SUCCESS] Production image built successfully!
+[2025-09-28 23:32:55] [SUCCESS] Script completed successfully
+[2025-09-28 23:32:55] [SUCCESS] Script completed successfully
+[2025-09-28 23:33:14] [INFO] Environment variables loaded from .env
+[2025-09-28 23:33:14] [SUCCESS] Environment configuration validated
+[2025-09-28 23:33:14] [INFO] Starting production container...
+[2025-09-28 23:33:14] [SUCCESS] Docker is available and running
+[2025-09-28 23:33:16] [SUCCESS] Production container started!
+[2025-09-28 23:33:16] [INFO] Use 'npm run logs' to view logs
+[2025-09-28 23:33:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:33:16] [SUCCESS] Script completed successfully
+[2025-09-28 23:33:18] [INFO] Environment variables loaded from .env
+[2025-09-28 23:33:18] [INFO] Showing production logs...
+[2025-09-28 23:33:18] [SUCCESS] Docker is available and running
+[2025-09-28 23:50:45] [SUCCESS] Script completed successfully
+[2025-09-28 23:50:45] [SUCCESS] Script completed successfully
+[2025-09-29 18:42:00] [WARNING] Skipping invalid environment variable: YOUTUBE_USER_AGENT
+[2025-09-29 18:42:00] [INFO] Environment variables loaded from .env
+[2025-09-29 18:42:00] [SUCCESS] Environment configuration validated
+[2025-09-29 18:42:00] [INFO] Starting production container...
+[2025-09-29 18:42:00] [SUCCESS] Docker is available and running
+[2025-09-29 18:44:28] [SUCCESS] Production container started!
+[2025-09-29 18:44:28] [INFO] Use 'npm run logs' to view logs
+[2025-09-29 18:44:28] [SUCCESS] Script completed successfully
+[2025-09-29 18:44:28] [SUCCESS] Script completed successfully
+[2025-09-29 18:44:30] [INFO] Container status:
+[2025-09-29 18:44:31] [SUCCESS] Docker is available and running
+[2025-09-29 18:44:31] [SUCCESS] Script completed successfully
+[2025-09-29 18:44:31] [SUCCESS] Script completed successfully

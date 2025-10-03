@@ -4,7 +4,7 @@ import { youtubeConfig } from "../../config/youtubeConfig"
 import { YouTubeError, type ErrorMetadata } from "../../types/errors"
 import { createCorrelationId } from "../error/errorHandler"
 
-export interface YouTubeErrorInfo {
+export type YouTubeErrorInfo = {
     isParserError: boolean
     isCompositeVideoError: boolean
     isHypePointsError: boolean

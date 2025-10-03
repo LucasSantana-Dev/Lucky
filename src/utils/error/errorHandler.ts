@@ -19,7 +19,7 @@ import { captureException } from "../monitoring"
 /**
  * Error handler configuration
  */
-interface ErrorHandlerConfig {
+type ErrorHandlerConfig = {
     logErrors: boolean
     logStackTraces: boolean
     includeCorrelationId: boolean

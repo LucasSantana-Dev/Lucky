@@ -1,24 +1,24 @@
 import type { ChatInputCommandInteraction } from "discord.js"
 import { Collection } from "discord.js"
 import { errorLog, debugLog } from "../utils/general/log"
-import type { ICustomClient } from "../types"
+import type { CustomClient } from "../types"
 import type Command from "../models/Command"
 import { interactionReply } from "../utils/general/interactionReply"
 // import { messages } from "../utils/general/messages"
 import { monitorCommandExecution } from "../utils/monitoring"
 import { createUserFriendlyError } from "../utils/general/errorSanitizer"
 
-interface ExecuteCommandParams {
+type ExecuteCommandParams = {
     interaction: ChatInputCommandInteraction
-    client: ICustomClient
+    client: CustomClient
 }
 
-interface SetCommandsParams {
-    client: ICustomClient
+type SetCommandsParams = {
+    client: CustomClient
     commands: Command[]
 }
 
-interface GroupCommandsParams {
+type GroupCommandsParams = {
     commands: Command[]
 }
 

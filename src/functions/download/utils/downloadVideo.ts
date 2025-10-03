@@ -7,13 +7,13 @@ import { deleteContent } from "./deleteContent"
 import { errorLog, infoLog } from "../../../utils/general/log"
 import { interactionReply } from "../../../utils/general/interactionReply"
 
-interface VideoInfo {
+type VideoInfo = {
     videoDetails: {
         lengthSeconds: string
     }
 }
 
-interface DownloadVideoParams {
+type DownloadVideoParams = {
     url: string
     interaction: ChatInputCommandInteraction
     videoFileName: string

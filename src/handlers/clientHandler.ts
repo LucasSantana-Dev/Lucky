@@ -9,15 +9,15 @@ import {
 } from "discord.js"
 // import { config } from "../config/config"
 import { errorLog, infoLog, warnLog, debugLog } from "../utils/general/log"
-import type { ICustomClient } from "../types/index"
+import type { CustomClient } from "../types/index"
 import type Command from "../models/Command"
 
-interface StartClientParams {
-    client: ICustomClient
+type StartClientParams = {
+    client: CustomClient
 }
 
-interface MapGuildIdsParams {
-    client: ICustomClient
+type MapGuildIdsParams = {
+    client: CustomClient
 }
 
 export async function registerCommands(commandsList: Command[]): Promise<void> {
@@ -71,7 +71,7 @@ export async function registerCommands(commandsList: Command[]): Promise<void> {
     }
 }
 
-export function createClient(): ICustomClient {
+export function createClient(): CustomClient {
     const client = new Client({
         intents: [
             GatewayIntentBits.Guilds,
@@ -79,7 +79,7 @@ export function createClient(): ICustomClient {
             GatewayIntentBits.MessageContent,
             GatewayIntentBits.GuildVoiceStates,
         ],
-    }) as ICustomClient
+    }) as CustomClient
 
     const clientId = process.env.CLIENT_ID
     if (!clientId) {

@@ -7,7 +7,7 @@ import {
     requireGuild,
     requireQueue,
 } from "../../../utils/command/commandValidations"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -17,7 +17,7 @@ export default new Command({
     execute: async ({
         client,
         interaction,
-    }: ICommandExecuteParams): Promise<void> => {
+    }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
         const queue = client.player.nodes.get(interaction.guildId ?? "")

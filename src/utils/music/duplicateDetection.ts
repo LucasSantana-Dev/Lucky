@@ -1,34 +1,19 @@
 import type { Track } from "discord-player"
 import { debugLog } from "../general/log"
+import {
+    trackHistoryService,
+    type TrackHistoryEntry,
+    type TrackMetadata,
+} from "../../services/TrackHistoryService"
 
-// Interface for track history entry
-export interface TrackHistoryEntry {
-    url: string
-    title: string
-    author: string
-    thumbnail?: string
-    timestamp: number
-}
-
-// Map to store recently played tracks for each guild (to avoid repeats)
+// Legacy in-memory maps for backward compatibility (fallback when Redis is unavailable)
 export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()
-const MAX_HISTORY_SIZE = 50 // Maximum number of tracks to remember
-
-// Map to store track IDs for faster duplicate checking
 export const trackIdSet = new Map<string, Set<string>>()
-
-// Map to store the last played track for each guild
 export const lastPlayedTracks = new Map<string, Track>()
-
-// Map to store artist and genre information for autoplay
-export interface TrackMetadata {
-    artist: string
-    genre?: string
-    tags: string[]
-    views: number
-}
-
 export const artistGenreMap = new Map<string, TrackMetadata>()
+
+// Re-export types for backward compatibility
+export type { TrackHistoryEntry, TrackMetadata }
 
 /**
  * Extract tags from track title and description
@@ -42,7 +27,7 @@ function extractTags(track: Track): string[] {
             .toLowerCase()
             .replace(/[^\w\s]/g, " ")
             .split(/\s+/)
-            .filter((word) => word.length > 3) // Filter out short words
+            .filter((word: string) => word.length > 3) // Filter out short words
 
         // Common music genres and styles
         const genreKeywords = [
@@ -70,7 +55,7 @@ function extractTags(track: Track): string[] {
         ]
 
         // Add genre tags
-        titleWords.forEach((word) => {
+        titleWords.forEach((word: string) => {
             if (genreKeywords.some((genre) => word.includes(genre))) {
                 tags.add(word)
             }
@@ -106,10 +91,17 @@ function extractTags(track: Track): string[] {
 
 /**
  * Add a track to the history to prevent it from being played again soon
+ * Uses Redis service with in-memory fallback
  */
-export function addTrackToHistory(track: Track, guildId: string): void {
+export async function addTrackToHistory(
+    track: Track,
+    guildId: string,
+): Promise<void> {
     try {
-        // Update recently played tracks
+        // Try Redis first
+        await trackHistoryService.addTrackToHistory(track, guildId)
+
+        // Also update in-memory maps for backward compatibility
         const guildHistory = recentlyPlayedTracks.get(guildId) ?? []
         guildHistory.unshift({
             url: track.url,
@@ -120,7 +112,7 @@ export function addTrackToHistory(track: Track, guildId: string): void {
         })
 
         // Limit history size
-        if (guildHistory.length > MAX_HISTORY_SIZE) {
+        if (guildHistory.length > 50) {
             guildHistory.pop()
         }
 
@@ -211,13 +203,25 @@ function cleanTitle(title: string): string {
 
 /**
  * Check if a track is a duplicate or too similar to recently played tracks
+ * Uses Redis service with in-memory fallback
  */
-export function isDuplicateTrack(
+export async function isDuplicateTrack(
     track: Track,
     guildId: string,
     currentTrackIds: Set<string>,
-): boolean {
+): Promise<boolean> {
     try {
+        // Try Redis first
+        const isRedisDuplicate = await trackHistoryService.isDuplicateTrack(
+            track,
+            guildId,
+            currentTrackIds,
+        )
+        if (isRedisDuplicate) {
+            return true
+        }
+
+        // Fallback to in-memory checking for backward compatibility
         // Skip tracks without IDs
         if (!track.id) return true
 
@@ -290,15 +294,39 @@ export function isDuplicateTrack(
 
 /**
  * Get the artist information for a track
+ * Uses Redis service with in-memory fallback
  */
-export function getArtistInfo(trackId: string): TrackMetadata | undefined {
+export async function getArtistInfo(
+    trackId: string,
+): Promise<TrackMetadata | undefined> {
+    try {
+        // Try Redis first
+        const redisMetadata =
+            await trackHistoryService.getTrackMetadata(trackId)
+        if (redisMetadata) {
+            return redisMetadata
+        }
+    } catch (error) {
+        debugLog({ message: "Error getting artist info from Redis:", error })
+    }
+
+    // Fallback to in-memory map
     return artistGenreMap.get(trackId)
 }
 
 /**
  * Clear the history for a guild
+ * Uses Redis service with in-memory fallback
  */
-export function clearHistory(guildId: string): void {
+export async function clearHistory(guildId: string): Promise<void> {
+    try {
+        // Clear Redis first
+        await trackHistoryService.clearGuildHistory(guildId)
+    } catch (error) {
+        debugLog({ message: "Error clearing Redis history:", error })
+    }
+
+    // Also clear in-memory maps
     recentlyPlayedTracks.delete(guildId)
     trackIdSet.delete(guildId)
     lastPlayedTracks.delete(guildId)
@@ -307,8 +335,17 @@ export function clearHistory(guildId: string): void {
 
 /**
  * Clear all per-guild caches for a given guildId
+ * Uses Redis service with in-memory fallback
  */
-export function clearAllGuildCaches(guildId: string): void {
+export async function clearAllGuildCaches(guildId: string): Promise<void> {
+    try {
+        // Clear Redis first
+        await trackHistoryService.clearGuildHistory(guildId)
+    } catch (error) {
+        debugLog({ message: "Error clearing Redis caches:", error })
+    }
+
+    // Also clear in-memory maps
     recentlyPlayedTracks.delete(guildId)
     trackIdSet.delete(guildId)
     lastPlayedTracks.delete(guildId)

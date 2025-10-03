@@ -122,20 +122,28 @@ export async function searchTracks(
 /**
  * Filter tracks to remove duplicates
  */
-export function filterDuplicateTracks(
+export async function filterDuplicateTracks(
     tracks: Track[],
     guildId: string,
     currentTrackIds: Set<string>,
-): Track[] {
+): Promise<Track[]> {
     try {
         debugLog({
             message: `Filtering ${tracks.length} tracks for duplicates`,
         })
 
-        // Filter out duplicates
-        const filteredTracks = tracks.filter(
-            (track) => !isDuplicateTrack(track, guildId, currentTrackIds),
-        )
+        // Filter out duplicates using async function
+        const filteredTracks: Track[] = []
+        for (const track of tracks) {
+            const isDuplicate = await isDuplicateTrack(
+                track,
+                guildId,
+                currentTrackIds,
+            )
+            if (!isDuplicate) {
+                filteredTracks.push(track)
+            }
+        }
 
         debugLog({
             message: `Filtered to ${filteredTracks.length} non-duplicate tracks`,
@@ -176,7 +184,7 @@ export async function searchRelatedTracks(
 ): Promise<Track[]> {
     try {
         // Get track metadata
-        const metadata = getArtistInfo(trackId)
+        const metadata = await getArtistInfo(trackId)
 
         let searchQuery: string
 
@@ -240,24 +248,9 @@ export async function searchRelatedTracks(
 
         const searchResult = enhancedResult.result
 
-        // Sort tracks by relevance and views
+        // Sort tracks by relevance and views (simplified for now)
         const sortedTracks = searchResult.tracks.sort((a, b) => {
-            const aMetadata = getArtistInfo(a.id)
-            const bMetadata = getArtistInfo(b.id)
-
-            // Prioritize tracks with same tags
-            const aCommonTags =
-                aMetadata?.tags.filter((tag) => metadata?.tags?.includes(tag))
-                    .length ?? 0
-            const bCommonTags =
-                bMetadata?.tags.filter((tag) => metadata?.tags?.includes(tag))
-                    .length ?? 0
-
-            if (aCommonTags !== bCommonTags) {
-                return bCommonTags - aCommonTags
-            }
-
-            // If same number of common tags, sort by views
+            // Sort by views for now (can be enhanced later with metadata)
             return (b.views || 0) - (a.views || 0)
         })
 

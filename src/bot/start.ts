@@ -11,10 +11,11 @@ import { setCommands } from "../handlers/commandsHandler"
 import { getCommands } from "../utils/command/commands"
 import type Command from "../models/Command"
 import handleEvents from "../handlers/eventHandler"
-import type { ICustomClient } from "../types"
+import type { CustomClient } from "../types"
 import { ConfigurationError } from "../types/errors"
+import { redisInitializationService } from "../services/RedisInitializationService"
 
-let client: ICustomClient | null = null
+let client: CustomClient | null = null
 let isInitialized = false
 
 export async function initializeBot() {
@@ -25,6 +26,20 @@ export async function initializeBot() {
 
     try {
         infoLog({ message: "Starting bot initialization..." })
+
+        // Initialize Redis services first
+        const redisInitStart = Date.now()
+        const redisInitialized = await redisInitializationService.initialize()
+        if (!redisInitialized) {
+            errorLog({
+                message:
+                    "Redis initialization failed, continuing with in-memory fallback",
+            })
+        } else {
+            debugLog({
+                message: `Redis initialization took ${Date.now() - redisInitStart}ms`,
+            })
+        }
 
         const clientCreationStart = Date.now()
         const newClient = createClient()
@@ -96,7 +111,7 @@ export async function initializeBot() {
     }
 }
 
-async function initializePlayer(client: ICustomClient) {
+async function initializePlayer(client: CustomClient) {
     const playerStartTime = Date.now()
     try {
         if (!client)
@@ -158,7 +173,7 @@ function setupPlayerEvents(player: Player) {
 }
 
 async function setupCommandRegistration(
-    client: ICustomClient,
+    client: CustomClient,
     commandList: unknown[],
 ) {
     if (commandList.length > 0) {

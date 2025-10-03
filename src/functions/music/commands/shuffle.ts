@@ -7,14 +7,14 @@ import {
     requireQueue,
     requireCurrentTrack,
 } from "../../../utils/command/commandValidations"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName("shuffle")
         .setDescription("🔀 Shuffle the music queue."),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
         const queue = client.player.nodes.get(interaction.guildId ?? "")
         if (!(await requireQueue(queue, interaction))) return

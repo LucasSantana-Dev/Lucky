@@ -12,7 +12,7 @@ import {
 import { safeSetInterval } from "../timerManager"
 
 // Type definitions
-interface ArtistTitle {
+type ArtistTitle = {
     artist: string
     title: string
 }

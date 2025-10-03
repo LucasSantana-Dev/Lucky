@@ -1,7 +1,7 @@
 import type { CommandCategory } from "src/config/constants"
 import type { TCommandData, TCommandExecute } from "../types/CommandData"
 
-interface ICommandOptions {
+type CommandOptions = {
     data: TCommandData
     execute: TCommandExecute
     category: CommandCategory
@@ -12,7 +12,7 @@ export default class Command {
     execute: TCommandExecute
     category: CommandCategory
 
-    constructor(options: ICommandOptions) {
+    constructor(options: CommandOptions) {
         this.data = options.data
         this.execute = options.execute
         this.category = options.category

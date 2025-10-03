@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/node"
 import { nodeProfilingIntegration } from "@sentry/profiling-node"
 import { SpanStatusCode } from "@opentelemetry/api"
 import type { ChatInputCommandInteraction, Interaction } from "discord.js"
-import type { ICustomClient } from "../../types"
+import type { CustomClient } from "../../types"
 import { getCommandCategory } from "../command/commandCategory"
 
 type SpanAttributeValue = string | number | boolean | undefined
@@ -222,7 +222,7 @@ export function setUserContext(
  */
 export async function monitorInteractionHandling(
     interaction: Interaction,
-    _client: ICustomClient,
+    _client: CustomClient,
     handlerFn: () => Promise<void>,
 ): Promise<void> {
     if (!process.env.SENTRY_DSN || process.env.NODE_ENV === "development") {
@@ -310,7 +310,7 @@ export function addBreadcrumb(
  */
 export async function monitorCommandExecution(
     interaction: ChatInputCommandInteraction,
-    client: ICustomClient,
+    client: CustomClient,
     executeCommandFn: () => Promise<void>,
 ): Promise<void> {
     if (!process.env.SENTRY_DSN || process.env.NODE_ENV === "development") {

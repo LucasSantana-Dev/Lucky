@@ -4,15 +4,15 @@ import type {
     GuildMember,
 } from "discord.js"
 import type { GuildQueue } from "discord-player"
-import type { ICustomClient } from "../types"
+import type { CustomClient } from "../types"
 import { ValidationError } from "../types/errors"
 
-interface CreateQueueParams {
-    client: ICustomClient
+type CreateQueueParams = {
+    client: CustomClient
     interaction: ChatInputCommandInteraction
 }
 
-interface QueueConnectParams {
+type QueueConnectParams = {
     queue: GuildQueue
     interaction: ChatInputCommandInteraction
 }

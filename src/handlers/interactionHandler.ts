@@ -7,22 +7,22 @@ import type {
 import { Events } from "discord.js"
 import { errorLog, debugLog } from "../utils/general/log"
 import { executeCommand } from "./commandsHandler"
-import type { ICustomClient } from "../types"
+import type { CustomClient } from "../types"
 import { errorEmbed } from "../utils/general/embeds"
 import { interactionReply } from "../utils/general/interactionReply"
 import { monitorInteractionHandling } from "../utils/monitoring"
 import { createUserFriendlyError } from "../utils/general/errorSanitizer"
 
-interface HandleInteractionsParams {
-    client: ICustomClient
+type HandleInteractionsParams = {
+    client: CustomClient
 }
 
-interface InteractionGetOptionParams {
+type InteractionGetOptionParams = {
     interaction: ChatInputCommandInteraction
     optionName: string
 }
 
-interface InteractionGetSubcommandParams {
+type InteractionGetSubcommandParams = {
     interaction: ChatInputCommandInteraction
 }
 
@@ -104,7 +104,7 @@ export const interactionGetSubcommand = async ({
 
 export async function handleInteraction(
     interaction: Interaction,
-    client: ICustomClient,
+    client: CustomClient,
 ): Promise<void> {
     await monitorInteractionHandling(interaction, client, async () => {
         if (interaction.isChatInputCommand()) {

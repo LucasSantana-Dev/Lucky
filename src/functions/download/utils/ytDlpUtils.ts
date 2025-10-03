@@ -3,8 +3,9 @@ import { unlink } from "fs/promises"
 import { debugLog } from "../../../utils/general/log"
 import { existsSync } from "fs"
 import ffmpeg from "ffmpeg-static"
+import { ENVIRONMENT_CONFIG } from "../../../config/environmentConfig"
 
-interface YtDlpDownloadResult {
+type YtDlpDownloadResult = {
     success: boolean
     filePath?: string
     error?: string
@@ -127,22 +128,34 @@ async function downloadWithYtDlpInternal(
                 "--user-agent",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             )
-            args.push("--referer", "https://www.tiktok.com/")
+            args.push("--referer", ENVIRONMENT_CONFIG.TIKTOK.REFERER_URL)
             args.push("--no-check-certificates")
 
             if (!browser) {
                 args.push(
                     "--extractor-args",
-                    "tiktok:api_hostname=api16-normal-c-useast1a.tiktokv.com",
+                    `tiktok:api_hostname=${ENVIRONMENT_CONFIG.TIKTOK.API_HOSTNAME}`,
                 )
-                args.push("--extractor-retries", "3")
-                args.push("--fragment-retries", "3")
-                args.push("--sleep-interval", "1")
-                args.push("--max-sleep-interval", "3")
+                args.push(
+                    "--extractor-retries",
+                    ENVIRONMENT_CONFIG.TIKTOK.EXTRACTOR_RETRIES.toString(),
+                )
+                args.push(
+                    "--fragment-retries",
+                    ENVIRONMENT_CONFIG.TIKTOK.FRAGMENT_RETRIES.toString(),
+                )
+                args.push(
+                    "--sleep-interval",
+                    ENVIRONMENT_CONFIG.TIKTOK.SLEEP_INTERVAL.toString(),
+                )
+                args.push(
+                    "--max-sleep-interval",
+                    ENVIRONMENT_CONFIG.TIKTOK.MAX_SLEEP_INTERVAL.toString(),
+                )
             } else {
                 args.push(
                     "--extractor-args",
-                    "tiktok:api_hostname=api16-normal-c-useast1a.tiktokv.com",
+                    `tiktok:api_hostname=${ENVIRONMENT_CONFIG.TIKTOK.API_HOSTNAME}`,
                 )
             }
 
@@ -162,7 +175,8 @@ async function downloadWithYtDlpInternal(
         if (format === "audio") {
             args.push("-x", "--audio-format", "mp3")
         } else {
-            args.push("-f", "mp4")
+            // Use modern format selection instead of deprecated -f mp4
+            args.push("-f", "best[ext=mp4]/best")
         }
 
         debugLog({

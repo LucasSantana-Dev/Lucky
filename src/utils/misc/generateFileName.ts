@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 
-interface GenerateFileNameParams {
+type GenerateFileNameParams = {
     fileExt: string
 }
 

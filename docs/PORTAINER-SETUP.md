@@ -14,38 +14,38 @@ Deploy using Portainer's stack feature with the provided `portainer-stack.yml` c
 2. **Create Stack**: Go to "Stacks" → "Add stack"
 3. **Upload Configuration**: Copy the contents of `portainer-stack.yml`
 4. **Configure Environment Variables**:
-   - `DISCORD_TOKEN`: Your Discord bot token
-   - `CLIENT_ID`: Your Discord application client ID
+    - `DISCORD_TOKEN`: Your Discord bot token
+    - `CLIENT_ID`: Your Discord application client ID
 5. **Deploy**: Click "Deploy the stack"
 
 #### Stack Configuration:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
-  lukbot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: lukbot:latest
-    container_name: discord-bot
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - CLIENT_ID=${CLIENT_ID}
-    volumes:
-      - ./logs:/app/logs
-      - ./data:/app/data
-    networks:
-      - lukbot-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "process.exit(0)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    lukbot:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: lukbot:latest
+        container_name: discord-bot
+        restart: unless-stopped
+        environment:
+            - NODE_ENV=production
+            - DISCORD_TOKEN=${DISCORD_TOKEN}
+            - CLIENT_ID=${CLIENT_ID}
+        volumes:
+            - ./logs:/app/logs
+            - ./data:/app/data
+        networks:
+            - lukbot-network
+        healthcheck:
+            test: ["CMD", "node", "-e", "process.exit(0)"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 40s
 ```
 
 **Note**: The stack now includes a `build` section that builds the Docker image locally from the Dockerfile, eliminating the need for a pre-built image on Docker Hub.
@@ -97,21 +97,22 @@ export WEBHOOK_SECRET="your-secret-key"
 ### Stack Management
 
 1. **Create Stack**:
-   - Name: `lukbot`
-   - Build method: `Web editor`
-   - Stack file: Copy contents of `portainer-stack.yml`
+    - Name: `lukbot`
+    - Build method: `Web editor`
+    - Stack file: Copy contents of `portainer-stack.yml`
 
 2. **Environment Variables**:
-   - `DISCORD_TOKEN`: Your Discord bot token
-   - `CLIENT_ID`: Your Discord application client ID
+    - `DISCORD_TOKEN`: Your Discord bot token
+    - `CLIENT_ID`: Your Discord application client ID
 
 3. **Volumes**:
-   - `./logs:/app/logs`: Log files
-   - `./data:/app/data`: Bot data
+    - `./logs:/app/logs`: Log files
+    - `./data:/app/data`: Bot data
 
 ### Network Configuration
 
 The stack creates a dedicated network:
+
 - **Network Name**: `lukbot-network`
 - **Driver**: `bridge`
 - **Purpose**: Isolated network for the bot
@@ -119,6 +120,7 @@ The stack creates a dedicated network:
 ### Health Checks
 
 The stack includes health checks:
+
 - **Test**: Node.js process check
 - **Interval**: 30 seconds
 - **Timeout**: 10 seconds
@@ -146,6 +148,7 @@ The stack includes health checks:
 ### Environment Variables
 
 Store sensitive data in Portainer's environment variables:
+
 - **DISCORD_TOKEN**: Discord bot token
 - **CLIENT_ID**: Discord application client ID
 - **NODE_ENV**: Environment (production/development)
@@ -182,24 +185,24 @@ Store sensitive data in Portainer's environment variables:
 ### Common Issues
 
 1. **"pull access denied for lukbot" Error**:
-   - **Cause**: Portainer trying to pull non-existent image from Docker Hub
-   - **Solution**: Use the updated `portainer-stack.yml` with build configuration
-   - **Fix**: Ensure the stack includes `build` section with local Dockerfile
+    - **Cause**: Portainer trying to pull non-existent image from Docker Hub
+    - **Solution**: Use the updated `portainer-stack.yml` with build configuration
+    - **Fix**: Ensure the stack includes `build` section with local Dockerfile
 
 2. **Container Won't Start**:
-   - Check environment variables
-   - Verify Discord token validity
-   - Check container logs
+    - Check environment variables
+    - Verify Discord token validity
+    - Check container logs
 
 3. **Deployment Failed**:
-   - Verify Portainer API access
-   - Check webhook configuration
-   - Review deployment logs
+    - Verify Portainer API access
+    - Check webhook configuration
+    - Review deployment logs
 
 4. **Network Issues**:
-   - Check network configuration
-   - Verify container connectivity
-   - Review firewall settings
+    - Check network configuration
+    - Verify container connectivity
+    - Review firewall settings
 
 ### Debug Commands
 

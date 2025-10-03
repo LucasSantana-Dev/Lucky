@@ -12,7 +12,7 @@ import {
     requireGuild,
     requireQueue,
 } from "../../../utils/command/commandValidations"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import { messages } from "../../../utils/general/messages"
 import type { ColorResolvable } from "discord.js"
 import { replenishQueue } from "../../../utils/music/trackManagement"
@@ -24,7 +24,7 @@ export default new Command({
             "🔄 Enable or disable automatic playback of related music.",
         ),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
         const queue = client.player.nodes.get(interaction.guildId ?? "")

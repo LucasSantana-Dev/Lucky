@@ -166,6 +166,69 @@ NODE_ENV=development
 - `BOT_COLOR` - Embed color (hex format)
 - `SENTRY_DSN` - Error tracking (optional)
 
+**Redis Configuration (Optional):**
+
+- `REDIS_HOST` - Redis server host (default: localhost)
+- `REDIS_PORT` - Redis server port (default: 6379)
+- `REDIS_PASSWORD` - Redis password (optional)
+- `REDIS_DB` - Redis database number (default: 0)
+
+**TikTok Configuration (Optional):**
+
+- `TIKTOK_API_HOSTNAME` - TikTok API hostname (default: api16-normal-c-useast1a.tiktokv.com)
+- `TIKTOK_REFERER_URL` - TikTok referer URL (default: https://www.tiktok.com/)
+- `TIKTOK_EXTRACTOR_RETRIES` - TikTok extractor retries (default: 3)
+- `TIKTOK_FRAGMENT_RETRIES` - TikTok fragment retries (default: 3)
+- `TIKTOK_SLEEP_INTERVAL` - TikTok sleep interval (default: 1)
+- `TIKTOK_MAX_SLEEP_INTERVAL` - TikTok max sleep interval (default: 3)
+
+**YouTube Configuration (Optional):**
+
+- `YOUTUBE_CONNECTION_TIMEOUT` - YouTube connection timeout (default: 120000)
+- `YOUTUBE_MAX_RETRIES` - YouTube max retries (default: 3)
+- `YOUTUBE_RETRY_DELAY` - YouTube retry delay (default: 1000)
+- `YOUTUBE_MAX_EXTRACTORS` - YouTube max extractors (default: 5)
+- `YOUTUBE_USER_AGENT` - YouTube user agent (default: Mozilla/5.0...)
+
+**Rate Limiting Configuration (Optional):**
+
+- `RATE_LIMIT_COMMAND_WINDOW_MS` - Command rate limit window (default: 60000)
+- `RATE_LIMIT_COMMAND_MAX_REQUESTS` - Command max requests (default: 5)
+- `RATE_LIMIT_MUSIC_COMMAND_WINDOW_MS` - Music command window (default: 30000)
+- `RATE_LIMIT_MUSIC_COMMAND_MAX_REQUESTS` - Music command max requests (default: 3)
+- `RATE_LIMIT_DOWNLOAD_WINDOW_MS` - Download rate limit window (default: 300000)
+- `RATE_LIMIT_DOWNLOAD_MAX_REQUESTS` - Download max requests (default: 2)
+
+**Session Configuration (Optional):**
+
+- `USER_SESSION_TTL` - User session TTL in seconds (default: 86400)
+- `QUEUE_SESSION_TTL` - Queue session TTL in seconds (default: 7200)
+- `COMMAND_HISTORY_LIMIT` - Command history limit (default: 10)
+
+**Cache Configuration (Optional):**
+
+- `CACHE_TRACK_INFO_SIZE` - Track info cache size (default: 2000)
+- `CACHE_ARTIST_TITLE_SIZE` - Artist title cache size (default: 2000)
+- `CACHE_MEMO_SIZE` - Memo cache size (default: 5000)
+- `CACHE_TTL_HOURS` - Cache TTL in hours (default: 1)
+
+**Player Configuration (Optional):**
+
+- `PLAYER_LEAVE_ON_EMPTY_COOLDOWN` - Leave on empty cooldown (default: 300000)
+- `PLAYER_LEAVE_ON_END_COOLDOWN` - Leave on end cooldown (default: 300000)
+- `PLAYER_CONNECTION_TIMEOUT` - Player connection timeout (default: 5000)
+
+**Download Configuration (Optional):**
+
+- `DOWNLOAD_TIMEOUT` - Download timeout (default: 10000)
+- `DOWNLOAD_MAX_RETRIES` - Download max retries (default: 3)
+- `DOWNLOAD_RETRY_DELAY` - Download retry delay (default: 1000)
+
+**Search Configuration (Optional):**
+
+- `SEARCH_TIMEOUT` - Search timeout (default: 15000)
+- `SEARCH_RETRY_DELAY` - Search retry delay (default: 5000)
+
 ### 🐳 Docker Setup (Recommended)
 
 The easiest way to run DiscordBot is using Docker. This ensures all dependencies are properly installed and configured with a unified management interface.

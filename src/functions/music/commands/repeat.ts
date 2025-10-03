@@ -3,7 +3,7 @@ import { QueueRepeatMode } from "discord-player"
 import Command from "../../../models/Command"
 import { interactionReply } from "../../../utils/general/interactionReply"
 import { successEmbed } from "../../../utils/general/embeds"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import { requireQueue } from "../../../utils/command/commandValidations"
 
 // Store repeat counts for each guild
@@ -42,7 +42,7 @@ export default new Command({
                 .setRequired(false),
         ),
     category: "music",
-    execute: async ({ client, interaction }: ICommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         const queue = client.player.nodes.get(interaction.guildId ?? "")
         const mode = interaction.options.getString("mode", true)
         const times = interaction.options.getInteger("times", false)

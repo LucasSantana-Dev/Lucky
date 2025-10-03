@@ -1,10 +1,10 @@
 import chalk from "chalk"
 import { readdirSync } from "fs"
 import { join } from "path"
-import type { ICustomClient } from "../../types"
+import type { CustomClient } from "../../types"
 import { infoLog, errorLog } from "../general/log"
 
-export async function loadEvents(client: ICustomClient): Promise<void> {
+export async function loadEvents(client: CustomClient): Promise<void> {
     try {
         const eventsPath = join(process.cwd(), "src", "events")
         const eventFiles = readdirSync(eventsPath).filter((file) =>

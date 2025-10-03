@@ -14,7 +14,7 @@ import {
     requireGuild,
     requireQueue,
 } from "../../../utils/command/commandValidations"
-import type { ICommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from "../../../types/CommandData"
 import { messages } from "../../../utils/general/messages"
 import type { ColorResolvable } from "discord.js"
 
@@ -26,7 +26,7 @@ export default new Command({
     execute: async ({
         client,
         interaction,
-    }: ICommandExecuteParams): Promise<void> => {
+    }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
         const queue = client.player.nodes.get(interaction.guildId ?? "")

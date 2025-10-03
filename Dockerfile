@@ -35,15 +35,16 @@ RUN npm run build
 # Remove dev dependencies after build
 RUN npm prune --omit=dev
 
-# Create downloads directory
+# Create downloads directory with proper permissions
 RUN mkdir -p downloads
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S bot -u 1001
 
-# Change ownership of the app directory
+# Change ownership of the app directory and downloads
 RUN chown -R bot:nodejs /app
+RUN chmod -R 755 /app/downloads
 USER bot
 
 # Expose port (if needed for health checks)

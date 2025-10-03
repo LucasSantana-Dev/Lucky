@@ -24,7 +24,7 @@ export type ReplyableInteraction =
     | RoleSelectMenuInteraction
     | MentionableSelectMenuInteraction
 
-interface InteractionReplyOptions {
+type InteractionReplyOptions = {
     interaction: Interaction
     content: Omit<DjsInteractionReplyOptions, "flags"> & { ephemeral?: boolean }
 }
