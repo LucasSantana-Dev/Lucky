@@ -81,26 +81,26 @@ import {
     infoLog,
     successLog,
     debugLog,
-} from "../utils/general/log"
+} from '../utils/general/log'
 
 // Log an error with optional error object and data
 errorLog({
-    message: "Failed to process command",
-    error: new Error("Invalid input"),
-    data: { commandName: "play" },
+    message: 'Failed to process command',
+    error: new Error('Invalid input'),
+    data: { commandName: 'play' },
 })
 
 // Log a warning
-warnLog({ message: "Rate limit approaching", data: { remaining: 5 } })
+warnLog({ message: 'Rate limit approaching', data: { remaining: 5 } })
 
 // Log info
-infoLog({ message: "Command executed successfully" })
+infoLog({ message: 'Command executed successfully' })
 
 // Log success
-successLog({ message: "Music playback started" })
+successLog({ message: 'Music playback started' })
 
 // Log debug information
-debugLog({ message: "Processing options", data: { options } })
+debugLog({ message: 'Processing options', data: { options } })
 ```
 
 ### Performance Monitoring
@@ -113,11 +113,11 @@ import {
     createSpan,
     setUserContext,
     addBreadcrumb,
-} from "../utils/monitoring"
+} from '../utils/monitoring'
 
 // Monitor a function's performance
 await withSentryMonitoring(
-    "searchYouTube",
+    'searchYouTube',
     async () => {
         // Your code here
         return await searchForVideos(query)
@@ -126,12 +126,12 @@ await withSentryMonitoring(
 )
 
 // Create a span for a specific operation
-const span = createSpan("processQueue", { guildId })
+const span = createSpan('processQueue', { guildId })
 try {
     // Your code here
-    span?.setStatus("ok")
+    span?.setStatus('ok')
 } catch (error) {
-    span?.setStatus("error")
+    span?.setStatus('error')
     throw error
 } finally {
     span?.finish()
@@ -141,7 +141,7 @@ try {
 setUserContext(user.id, user.username, { isAdmin: user.isAdmin })
 
 // Add breadcrumb for tracking user actions
-addBreadcrumb("music", "User skipped track", "info", { trackName })
+addBreadcrumb('music', 'User skipped track', 'info', { trackName })
 ```
 
 ## Best Practices

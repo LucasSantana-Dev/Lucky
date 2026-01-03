@@ -21,7 +21,7 @@ Deploy using Portainer's stack feature with the provided `portainer-stack.yml` c
 #### Stack Configuration:
 
 ```yaml
-version: "3.8"
+version: '3.8'
 
 services:
     lukbot:
@@ -41,7 +41,7 @@ services:
         networks:
             - lukbot-network
         healthcheck:
-            test: ["CMD", "node", "-e", "process.exit(0)"]
+            test: ['CMD', 'node', '-e', 'process.exit(0)']
             interval: 30s
             timeout: 10s
             retries: 3

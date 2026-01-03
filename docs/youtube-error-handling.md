@@ -133,11 +133,11 @@ When YouTube search fails, the system tries these engines in order:
 ### Basic Search with Error Handling
 
 ```typescript
-import { enhancedYouTubeSearch } from "../utils/music/enhancedSearch"
+import { enhancedYouTubeSearch } from '../utils/music/enhancedSearch'
 
 const result = await enhancedYouTubeSearch(
     player,
-    "search query",
+    'search query',
     user,
     false, // isPlaylist
 )
@@ -152,7 +152,7 @@ if (result.success) {
 ### Error Analysis
 
 ```typescript
-import { analyzeYouTubeError } from "../utils/music/youtubeErrorHandler"
+import { analyzeYouTubeError } from '../utils/music/youtubeErrorHandler'
 
 const errorInfo = analyzeYouTubeError(error)
 if (errorInfo.isParserError) {
@@ -165,7 +165,7 @@ if (errorInfo.isParserError) {
 A test function is available to verify error handling:
 
 ```typescript
-import { testYouTubeErrorHandling } from "../utils/music/testYouTubeErrorHandling"
+import { testYouTubeErrorHandling } from '../utils/music/testYouTubeErrorHandling'
 
 testYouTubeErrorHandling()
 ```
