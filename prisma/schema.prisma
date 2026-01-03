@@ -1,0 +1,272 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User Management
+model User {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  username  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sessions     UserSession[]
+  preferences  UserPreferences?
+  commandUsage CommandUsage[]
+
+  @@map("users")
+}
+
+model UserPreferences {
+  id       String @id @default(cuid())
+  userId   String @unique
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Music preferences
+  preferredVolume    Int     @default(50)
+  autoPlayEnabled    Boolean @default(true)
+  repeatMode         Int     @default(0) // 0: off, 1: queue, 2: track
+  shuffleEnabled     Boolean @default(false)
+
+  // UI preferences
+  embedColor        String? @default("0x5865F2")
+  showLyrics        Boolean @default(true)
+  showThumbnails    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+// Guild Management
+model Guild {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  name      String
+  icon      String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  settings     GuildSettings?
+  sessions     GuildSession[]
+  userSessions UserSession[]
+  trackHistory TrackHistory[]
+  commandUsage CommandUsage[]
+
+  @@map("guilds")
+}
+
+model GuildSettings {
+  id       String @id @default(cuid())
+  guildId  String @unique
+  guild    Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  // Music settings
+  defaultVolume    Int     @default(50)
+  maxQueueSize     Int     @default(100)
+  autoPlayEnabled  Boolean @default(true)
+  repeatMode       Int     @default(0)
+  shuffleEnabled   Boolean @default(false)
+
+  // Bot settings
+  prefix           String? @default("/")
+  embedColor       String? @default("0x5865F2")
+  language         String  @default("en")
+
+  // Permissions
+  allowDownloads   Boolean @default(true)
+  allowPlaylists   Boolean @default(true)
+  allowSpotify     Boolean @default(true)
+
+  // Rate limiting
+  commandCooldown  Int @default(3) // seconds
+  downloadCooldown Int @default(10) // seconds
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("guild_settings")
+}
+
+// Session Management
+model UserSession {
+  id        String   @id @default(cuid())
+  userId    String
+  guildId   String
+  user      User     @relation(fields: [userId], references: [discordId], onDelete: Cascade)
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+
+  // Session data
+  lastActivity    DateTime @default(now())
+  commandHistory  String[] @default([])
+  preferences     Json?    // User-specific preferences for this guild
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, guildId])
+  @@map("user_sessions")
+}
+
+model GuildSession {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  // Queue session data
+  currentTrack    Json?    // Current playing track
+  queuePosition   Int      @default(0)
+  isPlaying       Boolean  @default(false)
+  isPaused        Boolean  @default(false)
+  volume          Int      @default(50)
+  repeatMode      Int      @default(0)
+  shuffleEnabled  Boolean  @default(false)
+
+  // Queue data
+  queue          Json?    // Full queue as JSON
+  queueHistory  Json?    // Recently played tracks
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("guild_sessions")
+}
+
+// Track History & Analytics
+model TrackHistory {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  // Track data
+  trackId       String
+  title         String
+  author        String
+  duration      String
+  url           String
+  thumbnail     String?
+  source        String // youtube, spotify, etc.
+
+  // Playback data
+  playedAt      DateTime @default(now())
+  playedBy      String? // Discord user ID
+  playDuration  Int?    // How long it was played (seconds)
+  skipped       Boolean @default(false)
+
+  // Metadata
+  isAutoplay    Boolean @default(false)
+  isPlaylist    Boolean @default(false)
+  playlistName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, playedAt])
+  @@index([trackId])
+  @@map("track_history")
+}
+
+// Command Usage Analytics
+model CommandUsage {
+  id        String   @id @default(cuid())
+  userId    String?
+  guildId   String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guild     Guild?   @relation(fields: [guildId], references: [id], onDelete: SetNull)
+
+  command   String
+  category  String
+  success   Boolean
+  errorCode String?
+  duration  Int?     // Execution time in milliseconds
+
+  createdAt DateTime @default(now())
+
+  @@index([command, createdAt])
+  @@index([guildId, createdAt])
+  @@map("command_usage")
+}
+
+// Rate Limiting
+model RateLimit {
+  id        String   @id @default(cuid())
+  key       String   // Unique identifier (user:guild:command)
+  count     Int      @default(1)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([key])
+  @@index([resetAt])
+  @@map("rate_limits")
+}
+
+// Download Management
+model Download {
+  id        String   @id @default(cuid())
+  userId    String
+  guildId   String
+
+  // Download data
+  url       String
+  title     String
+  format    String // video, audio
+  quality   String
+  status    String // pending, processing, completed, failed
+
+  // File data
+  filename  String?
+  fileSize  BigInt?
+  filePath  String?
+
+  // Metadata
+  progress  Int      @default(0) // 0-100
+  error     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("downloads")
+}
+
+// Music Recommendations
+model Recommendation {
+  id        String   @id @default(cuid())
+  guildId   String
+
+  // Recommendation data
+  trackId       String
+  title         String
+  author        String
+  url           String
+  thumbnail     String?
+
+  // Recommendation metadata
+  algorithm     String // collaborative, content-based, hybrid
+  confidence    Float  // 0.0 - 1.0
+  reason        String?
+
+  // User interaction
+  isAccepted    Boolean?
+  isRejected    Boolean?
+  feedback      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, createdAt])
+  @@map("recommendations")
+}

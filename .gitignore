@@ -18,3 +18,5 @@ ffmpeg/bin/ffprobe.exe
 
 logs/
 *.log
+
+/src/generated
