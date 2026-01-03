@@ -1,6 +1,6 @@
-import fs from "fs"
-import { promisify } from "util"
-import { errorLog, successLog } from "../../../utils/general/log"
+import fs from 'fs'
+import { promisify } from 'util'
+import { errorLog, successLog } from '../../../utils/general/log'
 
 const unlinkAsync = promisify(fs.unlink)
 

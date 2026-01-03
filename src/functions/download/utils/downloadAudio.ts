@@ -1,11 +1,14 @@
-import ffmpeg from "fluent-ffmpeg"
-import path from "path"
-import play from "play-dl"
-import fs from "fs"
-import type { ChatInputCommandInteraction } from "discord.js"
-import { deleteContent } from "./deleteContent"
-import { errorLog, infoLog } from "../../../utils/general/log"
-import { interactionReply } from "../../../utils/general/interactionReply"
+import ffmpeg from 'fluent-ffmpeg'
+import path from 'path'
+import play from 'play-dl'
+import fs from 'fs'
+import type { ChatInputCommandInteraction } from 'discord.js'
+import { deleteContent } from './deleteContent'
+import { errorLog, infoLog } from '../../../utils/general/log'
+import { interactionReply } from '../../../utils/general/interactionReply'
+
+// NodeJS types are available via @types/node
+import type { Readable } from 'stream'
 
 type DownloadAudioParams = {
     url: string
@@ -14,6 +17,99 @@ type DownloadAudioParams = {
     outputPath: string
     outputFileName: string
     audioPath: string
+}
+
+function validateVideoLength(videoInfo: unknown): number {
+    return (videoInfo as { videoDetails: { lengthSeconds: number } })
+        .videoDetails.lengthSeconds
+}
+
+async function checkVideoLength(
+    videoLength: number,
+    interaction: ChatInputCommandInteraction,
+): Promise<boolean> {
+    if (videoLength > 600) {
+        await interactionReply({
+            interaction,
+            content: {
+                content: 'Only videos under 10 minutes can be downloaded.',
+            },
+        })
+        errorLog({
+            message: 'Video length is higher than 10 minutes.',
+            error: null,
+        })
+        return false
+    }
+    return true
+}
+
+function createContentDirectory(): void {
+    const contentDir = path.resolve(__dirname, `../../content`)
+    if (!fs.existsSync(contentDir)) {
+        fs.mkdirSync(contentDir, { recursive: true })
+    }
+}
+
+async function downloadAudioStream(url: string): Promise<unknown> {
+    infoLog({ message: 'Starting audio download' })
+    return await play.stream(url, { quality: 0 })
+}
+
+async function saveStreamToTempFile(
+    audioStream: unknown,
+    outputFileName: string,
+): Promise<string> {
+    const tempAudioPath = path.resolve(
+        __dirname,
+        `../../content/temp_${outputFileName}`,
+    )
+    const writeStream = fs.createWriteStream(tempAudioPath)
+
+    // Type guard for audioStream
+    if (
+        audioStream === null ||
+        audioStream === undefined ||
+        typeof audioStream !== 'object' ||
+        !('stream' in audioStream)
+    ) {
+        throw new Error('Invalid audio stream')
+    }
+
+    const { stream } = audioStream as { stream: Readable }
+
+    await new Promise<void>((resolve, reject) => {
+        stream.pipe(writeStream)
+        writeStream.on('finish', resolve)
+        writeStream.on('error', reject)
+    })
+
+    return tempAudioPath
+}
+
+async function convertToMp3(
+    tempAudioPath: string,
+    outputPath: string,
+): Promise<void> {
+    infoLog({ message: 'Converting audio to MP3' })
+
+    await new Promise<void>((resolve, reject) => {
+        ffmpeg(tempAudioPath)
+            .audioCodec('libmp3lame')
+            .audioBitrate('128k')
+            .output(outputPath)
+            .on('end', () => resolve())
+            .on('error', (err) => reject(err))
+            .run()
+    })
+}
+
+async function cleanupFiles(
+    tempAudioPath: string,
+    audioPath: string,
+): Promise<void> {
+    if (fs.existsSync(tempAudioPath)) await deleteContent(tempAudioPath)
+    if (fs.existsSync(audioPath)) await deleteContent(audioPath)
 }
 
 export const downloadAudio = async ({
@@ -25,76 +121,54 @@ export const downloadAudio = async ({
     audioPath,
 }: DownloadAudioParams): Promise<void> => {
     try {
-        const videoLength = (
-            videoInfo as { videoDetails: { lengthSeconds: number } }
-        ).videoDetails.lengthSeconds
+        const videoLength = validateVideoLength(videoInfo)
 
-        if (videoLength > 600) {
-            await interactionReply({
-                interaction,
-                content: {
-                    content: "Only videos under 10 minutes can be downloaded.",
-                },
-            })
-            return errorLog({
-                message: "Video length is higher than 10 minutes.",
-                error: null,
-            })
+        if (!(await checkVideoLength(videoLength, interaction))) {
+            return
         }
 
-        // Create content directory if it doesn't exist
-        const contentDir = path.resolve(__dirname, `../../content`)
-        if (!fs.existsSync(contentDir)) {
-            fs.mkdirSync(contentDir, { recursive: true })
-        }
+        createContentDirectory()
 
-        // Download audio stream
-        infoLog({ message: "Starting audio download" })
-        const audioStream = await play.stream(url, { quality: 0 }) // 0 for audio only
+        const audioStream = await downloadAudioStream(url)
         outputPath = path.resolve(__dirname, `../../content/${outputFileName}`)
 
-        // Create a temporary file for the audio stream
-        const tempAudioPath = path.resolve(
-            __dirname,
-            `../../content/temp_${outputFileName}`,
+        const tempAudioPath = await saveStreamToTempFile(
+            audioStream,
+            outputFileName,
         )
-        const writeStream = fs.createWriteStream(tempAudioPath)
-
-        await new Promise<void>((resolve, reject) => {
-            audioStream.stream.pipe(writeStream)
-            writeStream.on("finish", resolve)
-            writeStream.on("error", reject)
-        })
-
-        // Now use the temporary file with ffmpeg
-        infoLog({ message: "Converting audio to MP3" })
-
-        await new Promise<void>((resolve, reject) => {
-            ffmpeg(tempAudioPath)
-                .audioCodec("libmp3lame")
-                .audioBitrate("128k")
-                .output(outputPath)
-                .on("end", () => resolve())
-                .on("error", (err) => reject(err))
-                .run()
-        })
-
-        // Clean up the temporary file
-        if (fs.existsSync(tempAudioPath)) await deleteContent(tempAudioPath)
-        if (fs.existsSync(audioPath)) await deleteContent(audioPath)
+        await convertToMp3(tempAudioPath, outputPath)
+        await cleanupFiles(tempAudioPath, audioPath)
 
         await interactionReply({
             interaction,
             content: {
-                content: "Downloading the audio...",
+                content: 'Downloading the audio...',
                 files: [outputPath],
             },
         })
 
-        // Clean up stream
-        audioStream.stream.destroy()
+        if (
+            audioStream !== null &&
+            audioStream !== undefined &&
+            typeof audioStream === 'object' &&
+            'stream' in audioStream
+        ) {
+            const streamObj = audioStream as {
+                stream: { destroy?: () => void }
+            }
+            if (
+                streamObj.stream &&
+                typeof streamObj.stream.destroy === 'function'
+            ) {
+                try {
+                    streamObj.stream.destroy()
+                } catch (_destroyError) {
+                    // Ignore destroy errors
+                }
+            }
+        }
     } catch (error) {
-        errorLog({ message: "There was an error downloading the audio", error })
+        errorLog({ message: 'There was an error downloading the audio', error })
         throw error
     }
 }
