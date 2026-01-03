@@ -15,6 +15,7 @@ export default [
             "tests/**/*",
             "**/*.test.ts",
             "**/*.spec.ts",
+            "src/generated/**/*",
         ],
     },
     {
@@ -51,27 +52,28 @@ export default [
                     ignoreRestSiblings: true,
                 },
             ],
-            "no-unused-vars": "off", // Turn off base rule as it can conflict with @typescript-eslint/no-unused-vars
-            "@typescript-eslint/no-explicit-any": "error",
-            "@typescript-eslint/prefer-nullish-coalescing": "error",
-            "@typescript-eslint/prefer-optional-chain": "error",
-            "@typescript-eslint/no-unnecessary-type-assertion": "error",
-            "@typescript-eslint/no-non-null-assertion": "error",
-            "@typescript-eslint/consistent-type-imports": "error",
-            "@typescript-eslint/consistent-type-exports": "error",
-            "no-redeclare": "off", // Allow const + type with same name
+            "no-unused-vars": "off",
 
-            // General code quality rules
+            "@typescript-eslint/no-explicit-any": "error",
+            "@typescript-eslint/no-non-null-assertion": "error",
+            "@typescript-eslint/no-unsafe-assignment": "error",
+            "@typescript-eslint/no-unsafe-call": "error",
+            "@typescript-eslint/no-unsafe-member-access": "error",
+            "@typescript-eslint/no-unsafe-return": "error",
+
             "prefer-const": "error",
             "no-var": "error",
-            "no-console": "warn",
-            "no-debugger": "error",
-            "no-alert": "error",
+            "no-duplicate-imports": "error",
+            "no-useless-return": "error",
             "no-eval": "error",
             "no-implied-eval": "error",
             "no-new-func": "error",
-            "no-script-url": "error",
-            "no-undef": "off", // TypeScript handles this
+            "no-alert": "error",
+            "no-debugger": "error",
+            "no-console": "warn",
+            "complexity": ["warn", 15],
+            "max-depth": ["warn", 6],
+            "max-params": ["warn", 6],
         },
     },
     {
