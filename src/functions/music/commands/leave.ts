@@ -1,26 +1,26 @@
-import { SlashCommandBuilder } from "@discordjs/builders"
-import { debugLog, errorLog, infoLog } from "../../../utils/general/log"
-import Command from "../../../models/Command"
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { debugLog, errorLog, infoLog } from '../../../utils/general/log'
+import Command from '../../../models/Command'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
 import {
     requireGuild,
     requireQueue,
-} from "../../../utils/command/commandValidations"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+} from '../../../utils/command/commandValidations'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 
 export default new Command({
     data: new SlashCommandBuilder()
-        .setName("leave")
-        .setDescription("🚪 Sai do canal de voz e limpa a fila"),
-    category: "music",
+        .setName('leave')
+        .setDescription('🚪 Sai do canal de voz e limpa a fila'),
+    category: 'music',
     execute: async ({
         client,
         interaction,
     }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
-        const queue = client.player.nodes.get(interaction.guildId ?? "")
+        const queue = client.player.nodes.get(interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
         try {
@@ -28,7 +28,7 @@ export default new Command({
                 message: `Executing leave command for ${interaction.user.tag}`,
             })
             debugLog({
-                message: "Exiting voice channel",
+                message: 'Exiting voice channel',
                 data: { guildId: interaction.guildId },
             })
             queue?.delete()
@@ -37,21 +37,21 @@ export default new Command({
                 content: {
                     embeds: [
                         successEmbed(
-                            "👋 Até logo!",
-                            "Desconectei do canal de voz e limpei a fila.",
+                            '👋 Até logo!',
+                            'Desconectei do canal de voz e limpei a fila.',
                         ),
                     ],
                 },
             })
         } catch (error) {
-            errorLog({ message: "Error in leave command:", error })
+            errorLog({ message: 'Error in leave command:', error })
             await interactionReply({
                 interaction,
                 content: {
                     embeds: [
                         errorEmbed(
-                            "Error",
-                            "An error occurred while trying to leave the voice channel!",
+                            'Error',
+                            'An error occurred while trying to leave the voice channel!',
                         ),
                     ],
                 },

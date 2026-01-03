@@ -1,35 +1,35 @@
-import { SlashCommandBuilder } from "@discordjs/builders"
-import Command from "../../../models/Command"
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { musicEmbed } from "../../../utils/general/embeds"
-import type { CommandExecuteParams } from "../../../types/CommandData"
-import { requireCurrentTrack } from "../../../utils/command/commandValidations"
+import { SlashCommandBuilder } from '@discordjs/builders'
+import Command from '../../../models/Command'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { musicEmbed } from '../../../utils/general/embeds'
+import type { CommandExecuteParams } from '../../../types/CommandData'
+import { requireCurrentTrack } from '../../../utils/command/commandValidations'
 
 export default new Command({
     data: new SlashCommandBuilder()
-        .setName("lyrics")
+        .setName('lyrics')
         .setDescription(
-            "📄 Show the lyrics of the current song or a specified song.",
+            '📄 Show the lyrics of the current song or a specified song.',
         )
         .addStringOption((option) =>
-            option.setName("musica").setDescription("Song name (optional)"),
+            option.setName('musica').setDescription('Song name (optional)'),
         ),
-    category: "music",
+    category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        const query = interaction.options.getString("musica")
+        const query = interaction.options.getString('musica')
         let title = query
 
-        if (!title) {
-            const queue = client.player.nodes.get(interaction.guildId ?? "")
+        if (title === null || title === '') {
+            const queue = client.player.nodes.get(interaction.guildId ?? '')
             const track = queue?.currentTrack
 
             if (!(await requireCurrentTrack(queue, interaction))) return
 
-            title = track?.title ?? "Unknown"
+            title = track?.title ?? 'Unknown'
         }
         const lyrics = `Lyrics for **${title}** not found or not implemented.`
 
-        const embed = musicEmbed("Lyrics", lyrics)
+        const embed = musicEmbed('Lyrics', lyrics)
         await interactionReply({
             interaction,
             content: { embeds: [embed] },
