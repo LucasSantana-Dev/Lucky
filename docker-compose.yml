@@ -1,4 +1,27 @@
 services:
+    postgres:
+        image: postgres:15-alpine
+        container_name: discord-bot-postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: discordbot
+            POSTGRES_USER: discordbot
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-discordbot123}
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - discord-bot-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+
     redis:
         image: redis:7-alpine
         container_name: discord-bot-redis
@@ -26,6 +49,8 @@ services:
         container_name: discord-bot
         restart: unless-stopped
         depends_on:
+            postgres:
+                condition: service_healthy
             redis:
                 condition: service_healthy
         environment:
@@ -35,6 +60,7 @@ services:
             - COMMANDS_DISABLED=${COMMANDS_DISABLED:-}
             - COMMAND_CATEGORIES_DISABLED=${COMMAND_CATEGORIES_DISABLED:-}
             - SENTRY_DSN=${SENTRY_DSN:-}
+            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD:-discordbot123}@postgres:5432/discordbot
             - REDIS_HOST=redis
             - REDIS_PORT=${REDIS_PORT:-6379}
             - REDIS_PASSWORD=${REDIS_PASSWORD:-}
@@ -94,6 +120,7 @@ services:
                 max-file: "3"
 
 volumes:
+    postgres_data:
     redis_data:
 
 networks:

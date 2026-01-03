@@ -16,24 +16,83 @@ indent_size = 4
 [*.{ts,tsx,js,jsx}]
 indent_size = 4
 max_line_length = 80
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 # JSON files
 [*.json]
 indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 # Markdown files
 [*.md]
 trim_trailing_whitespace = false
 max_line_length = off
+insert_final_newline = true
 
 # YAML files
 [*.{yml,yaml}]
 indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 # Package files
 [package.json]
 indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 # Config files
 [*.{config.js,config.cjs,config.ts}]
 indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Docker files
+[Dockerfile*]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Shell scripts
+[*.{sh,bash}]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ESLint config files
+[*.{eslintrc.js,eslintrc.json,eslint.config.js}]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Prettier config files
+[*.{prettierrc,prettierrc.json,prettierrc.js}]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# TypeScript config files
+[tsconfig*.json]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Jest config files
+[jest.config.*]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Husky config files
+[.huskyrc*]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Commitizen config files
+[.czrc]
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true

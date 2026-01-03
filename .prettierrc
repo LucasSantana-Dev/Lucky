@@ -2,14 +2,20 @@
     "semi": false,
     "tabWidth": 4,
     "printWidth": 80,
-    "singleQuote": false,
+    "singleQuote": true,
     "trailingComma": "all",
     "endOfLine": "lf",
     "arrowParens": "always",
     "bracketSpacing": true,
     "quoteProps": "as-needed",
-    "jsxSingleQuote": false,
+    "jsxSingleQuote": true,
     "useTabs": false,
     "htmlWhitespaceSensitivity": "css",
-    "embeddedLanguageFormatting": "auto"
+    "embeddedLanguageFormatting": "auto",
+    "insertPragma": false,
+    "requirePragma": false,
+    "proseWrap": "preserve",
+    "bracketSameLine": false,
+    "singleAttributePerLine": false,
+    "experimentalTernaries": false
 }
