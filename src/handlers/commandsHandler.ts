@@ -1,12 +1,10 @@
-import type { ChatInputCommandInteraction } from "discord.js"
-import { Collection } from "discord.js"
-import { errorLog, debugLog } from "../utils/general/log"
-import type { CustomClient } from "../types"
-import type Command from "../models/Command"
-import { interactionReply } from "../utils/general/interactionReply"
-// import { messages } from "../utils/general/messages"
-import { monitorCommandExecution } from "../utils/monitoring"
-import { createUserFriendlyError } from "../utils/general/errorSanitizer"
+import { Collection, type ChatInputCommandInteraction } from 'discord.js'
+import { errorLog, debugLog } from '../utils/general/log'
+import type { CustomClient } from '../types'
+import type Command from '../models/Command'
+import { interactionReply } from '../utils/general/interactionReply'
+import { monitorCommandExecution } from '../utils/monitoring'
+import { createUserFriendlyError } from '../utils/general/errorSanitizer'
 
 type ExecuteCommandParams = {
     interaction: ChatInputCommandInteraction
@@ -26,7 +24,13 @@ export const executeCommand = async ({
     interaction,
     client,
 }: ExecuteCommandParams): Promise<void> => {
-    await monitorCommandExecution(interaction, client, async () => {
+    monitorCommandExecution(
+        interaction.commandName,
+        interaction.user.id,
+        interaction.guild?.id,
+    )
+
+    try {
         const command = client.commands.get(interaction.commandName)
         if (!command) {
             debugLog({
@@ -37,7 +41,7 @@ export const executeCommand = async ({
 
         debugLog({ message: `Executing command: ${interaction.commandName}` })
         await command.execute({ interaction, client })
-    }).catch(async (error) => {
+    } catch (error) {
         errorLog({
             message: `Error executing command ${interaction.commandName}:`,
             error,
@@ -52,9 +56,9 @@ export const executeCommand = async ({
                 },
             })
         } catch (error) {
-            errorLog({ message: "Error sending error message:", error })
+            errorLog({ message: 'Error sending error message:', error })
         }
-    })
+    }
 }
 
 export async function setCommands({
@@ -62,7 +66,7 @@ export async function setCommands({
     commands,
 }: SetCommandsParams): Promise<void> {
     try {
-        debugLog({ message: "Setting commands in client collection..." })
+        debugLog({ message: 'Setting commands in client collection...' })
 
         client.commands = new Collection()
 
@@ -74,7 +78,7 @@ export async function setCommands({
 
         debugLog({ message: `Loaded ${client.commands.size} commands` })
     } catch (error) {
-        errorLog({ message: "Error setting commands:", error })
+        errorLog({ message: 'Error setting commands:', error })
         throw error
     }
 }
@@ -84,7 +88,7 @@ export const groupCommands = ({ commands }: GroupCommandsParams): Command[] => {
         const validCommands = commands.filter((cmd) => {
             if (!cmd?.data?.name || !cmd?.execute) {
                 errorLog({
-                    message: `Invalid command found during grouping: ${cmd?.data?.name || "unknown"}`,
+                    message: `Invalid command found during grouping: ${cmd?.data?.name || 'unknown'}`,
                 })
                 return false
             }
@@ -93,7 +97,7 @@ export const groupCommands = ({ commands }: GroupCommandsParams): Command[] => {
 
         return validCommands
     } catch (error) {
-        errorLog({ message: "Error grouping commands:", error })
+        errorLog({ message: 'Error grouping commands:', error })
         return []
     }
 }
