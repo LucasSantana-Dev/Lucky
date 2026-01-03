@@ -1,8 +1,8 @@
-import type { Client } from "discord.js"
-import chalk from "chalk"
-import { infoLog } from "../utils/general/log"
+import type { Client } from 'discord.js'
+import chalk from 'chalk'
+import { infoLog } from '../utils/general/log'
 
-export const name = "clientReady"
+export const name = 'clientReady'
 export const once = true
 
 export function execute(client: Client): void {
