@@ -1,13 +1,13 @@
-import { SlashCommandBuilder } from "@discordjs/builders"
-import Command from "../../../models/Command"
-import { infoLog } from "../../../utils/general/log"
-import { interactionReply } from "../../../utils/general/interactionReply"
+import { SlashCommandBuilder } from '@discordjs/builders'
+import Command from '../../../models/Command'
+import { infoLog } from '../../../utils/general/log'
+import { interactionReply } from '../../../utils/general/interactionReply'
 
 export default new Command({
     data: new SlashCommandBuilder()
-        .setName("ping")
-        .setDescription("🏓 Mostra o ping do bot."),
-    category: "general",
+        .setName('ping')
+        .setDescription('🏓 Mostra o ping do bot.'),
+    category: 'general',
     execute: async ({ interaction }) => {
         infoLog({
             message: `Executing ping command for ${interaction.user.tag}`,
@@ -16,7 +16,7 @@ export default new Command({
         await interactionReply({
             interaction,
             content: {
-                content: "🏓 Pinging...",
+                content: '🏓 Pinging...',
             },
         })
         const sent = await interaction.fetchReply()
