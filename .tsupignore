@@ -1,0 +1,19 @@
+# Test files
+**/*.spec.ts
+**/*.test.ts
+**/tests/**
+**/__tests__/**
+**/test/**
+
+# Development files
+**/*.dev.ts
+**/*.development.ts
+
+# Documentation
+**/*.md
+**/docs/**
+
+# Build artifacts
+**/dist/**
+**/build/**
+**/coverage/**
