@@ -1,5 +1,5 @@
-import { QueryType } from "discord-player"
-import { ENVIRONMENT_CONFIG } from "./environmentConfig"
+import { QueryType } from 'discord-player'
+import { ENVIRONMENT_CONFIG } from './environmentConfig'
 
 /**
  * Configuration for YouTube.js error handling and fallback mechanisms
@@ -43,28 +43,28 @@ export const youtubeConfig = {
     // Error messages for different types of YouTube errors
     errorMessages: {
         compositeVideoError:
-            "YouTube está temporariamente indisponível devido a mudanças em sua API. Tente novamente em alguns minutos.",
+            'YouTube está temporariamente indisponível devido a mudanças em sua API. Tente novamente em alguns minutos.',
         hypePointsError:
-            "YouTube está temporariamente indisponível devido a mudanças em sua API. Tente novamente em alguns minutos.",
+            'YouTube está temporariamente indisponível devido a mudanças em sua API. Tente novamente em alguns minutos.',
         typeMismatchError:
-            "Erro temporário ao processar informações do vídeo. Tente novamente.",
+            'Erro temporário ao processar informações do vídeo. Tente novamente.',
         parserError:
-            "Erro temporário no processamento do YouTube. Tente novamente.",
-        generalError: "Erro desconhecido ao processar o vídeo.",
-        noResults: "Nenhum resultado encontrado para a busca.",
-        allEnginesFailed: "Todos os mecanismos de busca falharam.",
+            'Erro temporário no processamento do YouTube. Tente novamente.',
+        generalError: 'Erro desconhecido ao processar o vídeo.',
+        noResults: 'Nenhum resultado encontrado para a busca.',
+        allEnginesFailed: 'Todos os mecanismos de busca falharam.',
     },
 
     // Debug filter patterns for YouTube.js parser errors
     debugFilterPatterns: [
-        "Unable to find matching run for command run",
-        "CompositeVideoPrimaryInfo not found",
-        "HypePointsFactoid not found",
-        "GridShelfView not found",
-        "SectionHeaderView not found",
-        "Type mismatch",
-        "InnertubeError",
-        "ParsingError",
+        'Unable to find matching run for command run',
+        'CompositeVideoPrimaryInfo not found',
+        'HypePointsFactoid not found',
+        'GridShelfView not found',
+        'SectionHeaderView not found',
+        'Type mismatch',
+        'InnertubeError',
+        'ParsingError',
     ],
 
     // Player configuration overrides for better YouTube.js compatibility

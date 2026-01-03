@@ -9,5 +9,5 @@ type Config = {
 
 export function config(): Config {
     // Implementation moved to config.ts
-    throw new Error("Use config() from config.ts instead")
+    throw new Error('Use config() from config.ts instead')
 }
