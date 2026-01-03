@@ -1,5 +1,5 @@
-import type { CommandCategory } from "src/config/constants"
-import type { TCommandData, TCommandExecute } from "../types/CommandData"
+import type { CommandCategory } from 'src/config/constants'
+import type { TCommandData, TCommandExecute } from '../types/CommandData'
 
 type CommandOptions = {
     data: TCommandData

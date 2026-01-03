@@ -5,9 +5,8 @@
 import type {
     ChatInputCommandInteraction,
     SlashCommandBuilder,
-} from "discord.js"
-import type { CommandCategory } from "../../config/constants"
-import type { BotError } from "../errors"
+} from 'discord.js'
+import type { CommandCategory } from '../../config/constants'
 
 export type CommandContext = {
     readonly interaction: ChatInputCommandInteraction
@@ -20,7 +19,7 @@ export type CommandContext = {
 
 export type CommandResult = {
     readonly success: boolean
-    readonly error?: BotError
+    readonly error?: Error
     readonly data?: unknown
 }
 

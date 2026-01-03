@@ -3,26 +3,26 @@ import { defineConfig } from "tsup"
 export default defineConfig({
     entry: [
         "src/index.ts",
-        "src/functions/download/commands/*.ts",
-        "src/functions/general/commands/*.ts",
-        "src/functions/music/commands/*.ts",
+        "src/functions/**/*.ts",
         "src/utils/**/*.ts",
-    ], // Bundle main entry point and all command files
+        "src/services/**/*.ts",
+        "src/handlers/**/*.ts",
+        "src/bot/**/*.ts",
+        "src/config/**/*.ts",
+        "src/types/**/*.ts",
+    ],
     outDir: "dist",
     format: ["esm"],
-    dts: false, // Disable DTS generation for faster builds
-    splitting: false, // Disable code splitting
-    sourcemap: false, // Disable sourcemaps for production
+    dts: false,
+    splitting: false,
+    sourcemap: false,
     clean: true,
     shims: false,
-    treeshake: false, // Disable tree shaking to avoid issues
-    minify: false, // Disable minification to avoid issues
+    treeshake: false,
+    minify: false,
     target: "es2022",
     outExtension: () => ({ js: ".js" }),
-    external: [
-        // Mark all node_modules as external to avoid bundling issues
-        /^[^./]/, // Externalize all node_modules
-    ],
+    external: [/^[^./]/], // Externalize all node_modules
     esbuildOptions(options) {
         options.plugins = [
             ...(options.plugins || []),
