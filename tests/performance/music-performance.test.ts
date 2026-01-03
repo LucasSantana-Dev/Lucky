@@ -3,13 +3,13 @@
  * Testing response times and resource usage
  */
 
-import { describe, it, expect, beforeEach, jest } from "@jest/globals"
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock dependencies
-jest.mock("../../src/utils/music/enhancedSearch")
-jest.mock("../../src/handlers/queueHandler")
+jest.mock('../../src/utils/music/enhancedSearch')
+jest.mock('../../src/handlers/queueHandler')
 
-describe("Music Performance Tests", () => {
+describe('Music Performance Tests', () => {
     let mockInteraction: any
     let mockClient: any
     let mockQueue: any
@@ -20,14 +20,14 @@ describe("Music Performance Tests", () => {
 
         // Mock interaction
         mockInteraction = {
-            user: { id: "user123", username: "TestUser" },
-            guild: { id: "guild123" },
-            channel: { id: "channel123" },
+            user: { id: 'user123', username: 'TestUser' },
+            guild: { id: 'guild123' },
+            channel: { id: 'channel123' },
             member: {
-                voice: { channel: { id: "voice123" } },
+                voice: { channel: { id: 'voice123' } },
             },
             options: {
-                getString: jest.fn().mockReturnValue("test query"),
+                getString: jest.fn().mockReturnValue('test query'),
             },
             deferReply: jest.fn().mockResolvedValue({}),
             editReply: jest.fn().mockResolvedValue({}),
@@ -36,7 +36,7 @@ describe("Music Performance Tests", () => {
 
         // Mock client
         mockClient = {
-            user: { id: "bot123" },
+            user: { id: 'bot123' },
             player: {
                 search: jest.fn(),
                 play: jest.fn(),
@@ -54,9 +54,9 @@ describe("Music Performance Tests", () => {
                 setVolume: jest.fn(),
             },
             tracks: [],
-            guild: { id: "guild123" },
+            guild: { id: 'guild123' },
             metadata: {
-                channel: { id: "channel123" },
+                channel: { id: 'channel123' },
                 client: mockClient,
                 requestedBy: mockInteraction.user,
             },
@@ -64,20 +64,20 @@ describe("Music Performance Tests", () => {
 
         // Mock track
         mockTrack = {
-            title: "Test Song",
-            author: "Test Artist",
-            url: "https://youtube.com/watch?v=test",
-            duration: "3:45",
-            thumbnail: "https://img.youtube.com/test.jpg",
+            title: 'Test Song',
+            author: 'Test Artist',
+            url: 'https://youtube.com/watch?v=test',
+            duration: '3:45',
+            thumbnail: 'https://img.youtube.com/test.jpg',
         }
     })
 
-    describe("Search Performance", () => {
-        it("should complete YouTube search within 5 seconds", async () => {
+    describe('Search Performance', () => {
+        it('should complete YouTube search within 5 seconds', async () => {
             const startTime = Date.now()
 
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockImplementation(
                 async () => {
@@ -91,12 +91,12 @@ describe("Music Performance Tests", () => {
             )
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -110,9 +110,9 @@ describe("Music Performance Tests", () => {
             expect(duration).toBeLessThan(5000) // 5 seconds
         })
 
-        it("should handle multiple concurrent searches", async () => {
+        it('should handle multiple concurrent searches', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockImplementation(
                 async () => {
@@ -125,12 +125,12 @@ describe("Music Performance Tests", () => {
             )
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             // Run 10 concurrent searches
@@ -149,7 +149,7 @@ describe("Music Performance Tests", () => {
             expect(duration).toBeLessThan(2000) // 2 seconds for 10 concurrent searches
         })
 
-        it("should handle search with large result sets", async () => {
+        it('should handle search with large result sets', async () => {
             const largeTrackList = Array.from({ length: 100 }, (_, i) => ({
                 ...mockTrack,
                 title: `Track ${i}`,
@@ -157,7 +157,7 @@ describe("Music Performance Tests", () => {
             }))
 
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
                 success: true,
@@ -165,12 +165,12 @@ describe("Music Performance Tests", () => {
             })
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             const startTime = Date.now()
@@ -185,8 +185,8 @@ describe("Music Performance Tests", () => {
         })
     })
 
-    describe("Queue Performance", () => {
-        it("should handle large queue operations efficiently", async () => {
+    describe('Queue Performance', () => {
+        it('should handle large queue operations efficiently', async () => {
             const largeQueue = Array.from({ length: 1000 }, (_, i) => ({
                 ...mockTrack,
                 title: `Track ${i}`,
@@ -196,12 +196,12 @@ describe("Music Performance Tests", () => {
             mockQueue.tracks = largeQueue
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const queueCommand = await import(
-                "../../src/functions/music/commands/queue"
+                '../../src/functions/music/commands/queue'
             )
 
             const startTime = Date.now()
@@ -215,7 +215,7 @@ describe("Music Performance Tests", () => {
             expect(duration).toBeLessThan(2000) // 2 seconds for large queue
         })
 
-        it("should handle queue shuffling efficiently", async () => {
+        it('should handle queue shuffling efficiently', async () => {
             const largeQueue = Array.from({ length: 500 }, (_, i) => ({
                 ...mockTrack,
                 title: `Track ${i}`,
@@ -226,12 +226,12 @@ describe("Music Performance Tests", () => {
             mockQueue.shuffle = jest.fn()
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const shuffleCommand = await import(
-                "../../src/functions/music/commands/shuffle"
+                '../../src/functions/music/commands/shuffle'
             )
 
             const startTime = Date.now()
@@ -247,10 +247,10 @@ describe("Music Performance Tests", () => {
         })
     })
 
-    describe("Memory Performance", () => {
-        it("should not leak memory during repeated operations", async () => {
+    describe('Memory Performance', () => {
+        it('should not leak memory during repeated operations', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
                 success: true,
@@ -258,12 +258,12 @@ describe("Music Performance Tests", () => {
             })
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             // Run 100 operations to test for memory leaks
@@ -278,7 +278,7 @@ describe("Music Performance Tests", () => {
             expect(true).toBe(true)
         })
 
-        it("should handle memory efficiently with large playlists", async () => {
+        it('should handle memory efficiently with large playlists', async () => {
             const largePlaylist = Array.from({ length: 1000 }, (_, i) => ({
                 ...mockTrack,
                 title: `Track ${i}`,
@@ -286,7 +286,7 @@ describe("Music Performance Tests", () => {
             }))
 
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
                 success: true,
@@ -294,12 +294,12 @@ describe("Music Performance Tests", () => {
             })
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             const startTime = Date.now()
@@ -314,10 +314,10 @@ describe("Music Performance Tests", () => {
         })
     })
 
-    describe("Network Performance", () => {
-        it("should handle slow network responses gracefully", async () => {
+    describe('Network Performance', () => {
+        it('should handle slow network responses gracefully', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockImplementation(
                 async () => {
@@ -331,12 +331,12 @@ describe("Music Performance Tests", () => {
             )
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             const startTime = Date.now()
@@ -350,20 +350,20 @@ describe("Music Performance Tests", () => {
             expect(duration).toBeLessThan(10000) // 10 seconds max for slow network
         })
 
-        it("should handle network timeouts appropriately", async () => {
+        it('should handle network timeouts appropriately', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockImplementation(
                 async () => {
                     // Simulate timeout
                     await new Promise((resolve) => setTimeout(resolve, 15000))
-                    throw new Error("Network timeout")
+                    throw new Error('Network timeout')
                 },
             )
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             const startTime = Date.now()
@@ -378,10 +378,10 @@ describe("Music Performance Tests", () => {
         })
     })
 
-    describe("Concurrent Operations Performance", () => {
-        it("should handle multiple users simultaneously", async () => {
+    describe('Concurrent Operations Performance', () => {
+        it('should handle multiple users simultaneously', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockImplementation(
                 async () => {
@@ -394,12 +394,12 @@ describe("Music Performance Tests", () => {
             )
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             // Simulate 50 concurrent users

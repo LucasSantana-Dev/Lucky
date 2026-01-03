@@ -3,14 +3,14 @@
  * Testing complete music workflows and interactions
  */
 
-import { describe, it, expect, beforeEach, jest } from "@jest/globals"
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock dependencies
-jest.mock("../src/utils/music/enhancedSearch")
-jest.mock("../src/utils/search/searchContentOnYoutube")
-jest.mock("../src/handlers/queueHandler")
+jest.mock('../../src/utils/music/enhancedSearch')
+jest.mock('../../src/utils/search/searchContentOnYoutube')
+jest.mock('../../src/handlers/queueHandler')
 
-describe("Music Integration Tests", () => {
+describe('Music Integration Tests', () => {
     let mockInteraction: any
     let mockClient: any
     let mockQueue: any
@@ -21,21 +21,21 @@ describe("Music Integration Tests", () => {
 
         // Mock interaction
         mockInteraction = {
-            user: { id: "user123", username: "TestUser" },
-            guild: { id: "guild123" },
-            channel: { id: "channel123" },
-            commandName: "play",
+            user: { id: 'user123', username: 'TestUser' },
+            guild: { id: 'guild123' },
+            channel: { id: 'channel123' },
+            commandName: 'play',
             options: {
-                getString: jest.fn().mockReturnValue("test query"),
+                getString: jest.fn().mockReturnValue('test query'),
             },
-            deferReply: jest.fn().mockResolvedValue({}),
-            editReply: jest.fn().mockResolvedValue({}),
-            followUp: jest.fn().mockResolvedValue({}),
+            deferReply: jest.fn().mockResolvedValue(undefined),
+            editReply: jest.fn().mockResolvedValue(undefined),
+            followUp: jest.fn().mockResolvedValue(undefined),
         }
 
         // Mock client
         mockClient = {
-            user: { id: "bot123" },
+            user: { id: 'bot123' },
             player: {
                 search: jest.fn(),
                 play: jest.fn(),
@@ -48,9 +48,9 @@ describe("Music Integration Tests", () => {
             node: {
                 play: jest.fn(),
             },
-            guild: { id: "guild123" },
+            guild: { id: 'guild123' },
             metadata: {
-                channel: { id: "channel123" },
+                channel: { id: 'channel123' },
                 client: mockClient,
                 requestedBy: mockInteraction.user,
             },
@@ -58,16 +58,16 @@ describe("Music Integration Tests", () => {
 
         // Mock track
         mockTrack = {
-            title: "Test Song",
-            author: "Test Artist",
-            url: "https://youtube.com/watch?v=test",
-            duration: "3:45",
-            thumbnail: "https://img.youtube.com/test.jpg",
+            title: 'Test Song',
+            author: 'Test Artist',
+            url: 'https://youtube.com/watch?v=test',
+            duration: '3:45',
+            thumbnail: 'https://img.youtube.com/test.jpg',
         }
     })
 
-    describe("Play Command Integration", () => {
-        it("should handle successful track search and play", async () => {
+    describe('Play Command Integration', () => {
+        it('should handle successful track search and play', async () => {
             // Mock successful search
             const mockSearchResult = {
                 success: true,
@@ -77,19 +77,19 @@ describe("Music Integration Tests", () => {
             }
 
             const { enhancedYouTubeSearch } = await import(
-                "../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue(
                 mockSearchResult,
             )
 
             // Mock queue creation
-            const { createQueue } = await import("../src/handlers/queueHandler")
+            const { createQueue } = await import('../../src/handlers/queueHandler')
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             // Test play command
             const playCommand = await import(
-                "../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -100,28 +100,28 @@ describe("Music Integration Tests", () => {
             expect(mockInteraction.deferReply).toHaveBeenCalled()
             expect(enhancedYouTubeSearch).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    query: "test query",
+                    query: 'test query',
                     requestedBy: mockInteraction.user,
                 }),
                 mockClient.player,
             )
         })
 
-        it("should handle search failures gracefully", async () => {
+        it('should handle search failures gracefully', async () => {
             const mockSearchResult = {
                 success: false,
-                error: "Search failed",
+                error: 'Search failed',
             }
 
             const { enhancedYouTubeSearch } = await import(
-                "../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue(
                 mockSearchResult,
             )
 
             const playCommand = await import(
-                "../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -134,7 +134,7 @@ describe("Music Integration Tests", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -142,13 +142,13 @@ describe("Music Integration Tests", () => {
             )
         })
 
-        it("should handle different query types", async () => {
+        it('should handle different query types', async () => {
             const testCases = [
-                { query: "https://youtube.com/watch?v=test", type: "URL" },
-                { query: "search term", type: "Search" },
+                { query: 'https://youtube.com/watch?v=test', type: 'URL' },
+                { query: 'search term', type: 'Search' },
                 {
-                    query: "https://open.spotify.com/track/test",
-                    type: "Spotify URL",
+                    query: 'https://open.spotify.com/track/test',
+                    type: 'Spotify URL',
                 },
             ]
 
@@ -158,7 +158,7 @@ describe("Music Integration Tests", () => {
                 )
 
                 const { enhancedYouTubeSearch } = await import(
-                    "../src/utils/music/enhancedSearch"
+                    '../../src/utils/music/enhancedSearch'
                 )
                 ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
                     success: true,
@@ -166,12 +166,12 @@ describe("Music Integration Tests", () => {
                 })
 
                 const { createQueue } = await import(
-                    "../src/handlers/queueHandler"
+                    '../../src/handlers/queueHandler'
                 )
                 ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
                 const playCommand = await import(
-                    "../src/functions/music/commands/play"
+                    '../../src/functions/music/commands/play'
                 )
 
                 await playCommand.default.execute({
@@ -189,9 +189,9 @@ describe("Music Integration Tests", () => {
         })
     })
 
-    describe("Queue Management Integration", () => {
-        it("should handle queue creation and track addition", async () => {
-            const { createQueue } = await import("../src/handlers/queueHandler")
+    describe('Queue Management Integration', () => {
+        it('should handle queue creation and track addition', async () => {
+            const { createQueue } = await import('../../src/handlers/queueHandler')
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const queue = await createQueue({
@@ -206,10 +206,10 @@ describe("Music Integration Tests", () => {
             })
         })
 
-        it("should handle queue connection failures", async () => {
-            const { createQueue } = await import("../src/handlers/queueHandler")
+        it('should handle queue connection failures', async () => {
+            const { createQueue } = await import('../../src/handlers/queueHandler')
             ;(createQueue as jest.Mock).mockRejectedValue(
-                new Error("Queue creation failed"),
+                new Error('Queue creation failed'),
             )
 
             await expect(
@@ -217,21 +217,21 @@ describe("Music Integration Tests", () => {
                     client: mockClient,
                     interaction: mockInteraction,
                 }),
-            ).rejects.toThrow("Queue creation failed")
+            ).rejects.toThrow('Queue creation failed')
         })
     })
 
-    describe("Error Handling Integration", () => {
-        it("should handle network timeouts in music operations", async () => {
+    describe('Error Handling Integration', () => {
+        it('should handle network timeouts in music operations', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockRejectedValue(
-                new Error("Network timeout"),
+                new Error('Network timeout'),
             )
 
             const playCommand = await import(
-                "../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -244,7 +244,7 @@ describe("Music Integration Tests", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -252,11 +252,11 @@ describe("Music Integration Tests", () => {
             )
         })
 
-        it("should handle invalid guild context", async () => {
+        it('should handle invalid guild context', async () => {
             mockInteraction.guild = null
 
             const playCommand = await import(
-                "../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -269,7 +269,7 @@ describe("Music Integration Tests", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -278,42 +278,42 @@ describe("Music Integration Tests", () => {
         })
     })
 
-    describe("Music Search Integration", () => {
-        it("should handle YouTube search integration", async () => {
+    describe('Music Search Integration', () => {
+        it('should handle YouTube search integration', async () => {
             const { searchContentOnYoutube } = await import(
-                "../src/utils/search/searchContentOnYoutube"
+                '../../src/utils/search/searchContentOnYoutube'
             )
             ;(searchContentOnYoutube as jest.Mock).mockResolvedValue(undefined)
 
             await searchContentOnYoutube({
                 client: mockClient,
-                searchTerms: "test query",
+                searchTerms: 'test query',
                 interaction: mockInteraction,
             })
 
             expect(searchContentOnYoutube).toHaveBeenCalledWith({
                 client: mockClient,
-                searchTerms: "test query",
+                searchTerms: 'test query',
                 interaction: mockInteraction,
             })
         })
 
-        it("should handle playlist search", async () => {
+        it('should handle playlist search', async () => {
             const { searchContentOnYoutube } = await import(
-                "../src/utils/search/searchContentOnYoutube"
+                '../../src/utils/search/searchContentOnYoutube'
             )
             ;(searchContentOnYoutube as jest.Mock).mockResolvedValue(undefined)
 
             await searchContentOnYoutube({
                 client: mockClient,
-                searchTerms: "playlist query",
+                searchTerms: 'playlist query',
                 interaction: mockInteraction,
                 isPlaylist: true,
             })
 
             expect(searchContentOnYoutube).toHaveBeenCalledWith({
                 client: mockClient,
-                searchTerms: "playlist query",
+                searchTerms: 'playlist query',
                 interaction: mockInteraction,
                 isPlaylist: true,
             })

@@ -9,17 +9,17 @@ import {
     beforeEach,
     afterEach,
     jest,
-} from "@jest/globals"
-import { Client } from "discord.js"
-import { Player } from "discord-player"
+} from '@jest/globals'
+import { Client } from 'discord.js'
+import { Player } from 'discord-player'
 
 // Mock all external dependencies
-jest.mock("discord.js")
-jest.mock("discord-player")
-jest.mock("../../../src/config/redis")
-jest.mock("../../../src/utils/monitoring")
+jest.mock('discord.js')
+jest.mock('discord-player')
+jest.mock('../../../src/config/redis')
+jest.mock('../../../src/utils/monitoring')
 
-describe("Bot Initialization", () => {
+describe('Bot Initialization', () => {
     let mockClient: jest.Mocked<Client>
     let mockPlayer: jest.Mocked<Player>
 
@@ -29,9 +29,9 @@ describe("Bot Initialization", () => {
 
         // Setup mock client
         mockClient = {
-            login: jest.fn().mockResolvedValue({}),
+            login: jest.fn(),
             on: jest.fn(),
-            user: { id: "test-bot-id", username: "TestBot" },
+            user: { id: 'test-bot-id', username: 'TestBot' },
             commands: new Map(),
             player: {} as any,
         } as any
@@ -58,10 +58,10 @@ describe("Bot Initialization", () => {
         jest.restoreAllMocks()
     })
 
-    describe("Bot startup process", () => {
-        it("should initialize bot with correct configuration", async () => {
+    describe('Bot startup process', () => {
+        it('should initialize bot with correct configuration', async () => {
             // Import after mocks are set up
-            const { initializeBot } = await import("../../../src/bot/start")
+            const { initializeBot } = await import('../../../src/bot/start')
 
             await initializeBot()
 
@@ -73,40 +73,40 @@ describe("Bot Initialization", () => {
             )
         })
 
-        it("should register event handlers", async () => {
-            const { initializeBot } = await import("../../../src/bot/start")
+        it('should register event handlers', async () => {
+            const { initializeBot } = await import('../../../src/bot/start')
 
             await initializeBot()
 
             expect(mockClient.on).toHaveBeenCalledWith(
-                "ready",
+                'ready',
                 expect.any(Function),
             )
             expect(mockClient.on).toHaveBeenCalledWith(
-                "interactionCreate",
+                'interactionCreate',
                 expect.any(Function),
             )
         })
 
-        it("should handle startup errors gracefully", async () => {
+        it('should handle startup errors gracefully', async () => {
             const consoleSpy = jest
-                .spyOn(console, "error")
+                .spyOn(console, 'error')
                 .mockImplementation(() => {})
 
-            mockClient.login.mockRejectedValue(new Error("Login failed"))
+            mockClient.login.mockRejectedValue(new Error('Login failed'))
 
-            const { initializeBot } = await import("../../../src/bot/start")
+            const { initializeBot } = await import('../../../src/bot/start')
 
-            await expect(initializeBot()).rejects.toThrow("Login failed")
+            await expect(initializeBot()).rejects.toThrow('Login failed')
 
             consoleSpy.mockRestore()
         })
     })
 
-    describe("Player initialization", () => {
-        it("should create player with correct configuration", async () => {
+    describe('Player initialization', () => {
+        it('should create player with correct configuration', async () => {
             const { createPlayer } = await import(
-                "../../../src/handlers/playerHandler"
+                '../../../src/handlers/playerHandler'
             )
 
             const player = createPlayer({ client: mockClient as any })
@@ -115,9 +115,9 @@ describe("Bot Initialization", () => {
             expect(player).toBeDefined()
         })
 
-        it("should register extractors", async () => {
+        it('should register extractors', async () => {
             const { createPlayer } = await import(
-                "../../../src/handlers/playerHandler"
+                '../../../src/handlers/playerHandler'
             )
 
             createPlayer({ client: mockClient as any })
@@ -126,20 +126,20 @@ describe("Bot Initialization", () => {
         })
     })
 
-    describe("Environment configuration", () => {
-        it("should load environment variables correctly", () => {
-            expect(process.env.DISCORD_TOKEN).toBe("test-token")
-            expect(process.env.CLIENT_ID).toBe("test-client-id")
-            expect(process.env.REDIS_HOST).toBe("localhost")
+    describe('Environment configuration', () => {
+        it('should load environment variables correctly', () => {
+            expect(process.env.DISCORD_TOKEN).toBe('test-token')
+            expect(process.env.CLIENT_ID).toBe('test-client-id')
+            expect(process.env.REDIS_HOST).toBe('localhost')
         })
 
-        it("should handle missing environment variables", () => {
+        it('should handle missing environment variables', () => {
             const originalToken = process.env.DISCORD_TOKEN
             delete process.env.DISCORD_TOKEN
 
             // Should not throw during import
             expect(() => {
-                require("../../../src/config/environment")
+                require('../../../src/config/environment')
             }).not.toThrow()
 
             // Restore
@@ -147,28 +147,28 @@ describe("Bot Initialization", () => {
         })
     })
 
-    describe("Error handling during startup", () => {
-        it("should handle Redis connection failures", async () => {
+    describe('Error handling during startup', () => {
+        it('should handle Redis connection failures', async () => {
             const { loadEnvironment } = await import(
-                "../../../src/config/environment"
+                '../../../src/config/environment'
             )
 
             // Should not throw even if Redis is unavailable
             expect(() => loadEnvironment()).not.toThrow()
         })
 
-        it("should handle missing configuration gracefully", () => {
+        it('should handle missing configuration gracefully', () => {
             const originalEnv = { ...process.env }
 
             // Clear environment
             Object.keys(process.env).forEach((key) => {
-                if (key.startsWith("DISCORD_") || key.startsWith("REDIS_")) {
+                if (key.startsWith('DISCORD_') || key.startsWith('REDIS_')) {
                     delete process.env[key]
                 }
             })
 
             expect(() => {
-                require("../../../src/config/environmentConfig")
+                require('../../../src/config/environmentConfig')
             }).not.toThrow()
 
             // Restore environment

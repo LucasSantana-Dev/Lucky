@@ -3,15 +3,15 @@
  * Testing complete download workflows
  */
 
-import { describe, it, expect, beforeEach, jest } from "@jest/globals"
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock dependencies
-jest.mock("../../src/utils/download/ytDlpUtils")
-jest.mock("../../src/utils/download/downloadVideo")
-jest.mock("../../src/utils/download/downloadAudio")
-jest.mock("../../src/utils/misc/generateFileName")
+jest.mock('../../src/utils/download/ytDlpUtils')
+jest.mock('../../src/functions/download/utils/downloadVideo')
+jest.mock('../../src/functions/download/utils/downloadAudio')
+jest.mock('../../src/utils/misc/generateFileName')
 
-describe("Download Commands Integration", () => {
+describe('Download Commands Integration', () => {
     let mockInteraction: any
     let mockClient: any
 
@@ -20,50 +20,50 @@ describe("Download Commands Integration", () => {
 
         // Mock interaction
         mockInteraction = {
-            user: { id: "user123", username: "TestUser" },
-            guild: { id: "guild123" },
-            channel: { id: "channel123" },
+            user: { id: 'user123', username: 'TestUser' },
+            guild: { id: 'guild123' },
+            channel: { id: 'channel123' },
             options: {
                 getString: jest.fn(),
                 getBoolean: jest.fn(),
             },
-            deferReply: jest.fn().mockResolvedValue({}),
-            editReply: jest.fn().mockResolvedValue({}),
-            followUp: jest.fn().mockResolvedValue({}),
+            deferReply: jest.fn().mockResolvedValue(undefined),
+            editReply: jest.fn().mockResolvedValue(undefined),
+            followUp: jest.fn().mockResolvedValue(undefined),
         }
 
         // Mock client
         mockClient = {
-            user: { id: "bot123" },
+            user: { id: 'bot123' },
         }
     })
 
-    describe("Download Command Integration", () => {
-        it("should handle successful video download", async () => {
-            mockInteraction.commandName = "download"
+    describe('Download Command Integration', () => {
+        it('should handle successful video download', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false) // Audio only = false
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: true,
-                filePath: "/downloads/test.mp4",
+                filePath: '/downloads/test.mp4',
             })
 
             const { generateFileName } = await import(
-                "../../src/utils/misc/generateFileName"
+                '../../src/utils/misc/generateFileName'
             )
-            ;(generateFileName as jest.Mock).mockReturnValue("test.mp4")
+            ;(generateFileName as jest.MockedFunction<typeof generateFileName>).mockReturnValue('test.mp4')
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -72,31 +72,31 @@ describe("Download Commands Integration", () => {
             expect(downloadVideo).toHaveBeenCalled()
         })
 
-        it("should handle successful audio download", async () => {
-            mockInteraction.commandName = "download"
+        it('should handle successful audio download', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(true) // Audio only = true
 
             const { downloadAudio } = await import(
-                "../../src/utils/download/downloadAudio"
+                '../../src/functions/download/utils/downloadAudio'
             )
-            ;(downloadAudio as jest.Mock).mockResolvedValue({
+            ;(downloadAudio as jest.MockedFunction<typeof downloadAudio>).mockResolvedValue({
                 success: true,
-                filePath: "/downloads/test.mp3",
+                filePath: '/downloads/test.mp3',
             })
 
             const { generateFileName } = await import(
-                "../../src/utils/misc/generateFileName"
+                '../../src/utils/misc/generateFileName'
             )
-            ;(generateFileName as jest.Mock).mockReturnValue("test.mp3")
+            ;(generateFileName as jest.Mock).mockReturnValue('test.mp3')
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -105,26 +105,26 @@ describe("Download Commands Integration", () => {
             expect(downloadAudio).toHaveBeenCalled()
         })
 
-        it("should handle download failures", async () => {
-            mockInteraction.commandName = "download"
+        it('should handle download failures', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: false,
-                error: "Download failed",
+                error: 'Download failed',
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -134,7 +134,7 @@ describe("Download Commands Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -142,15 +142,15 @@ describe("Download Commands Integration", () => {
             )
         })
 
-        it("should handle invalid URLs", async () => {
-            mockInteraction.commandName = "download"
-            mockInteraction.options.getString.mockReturnValue("invalid-url")
+        it('should handle invalid URLs', async () => {
+            mockInteraction.commandName = 'download'
+            mockInteraction.options.getString.mockReturnValue('invalid-url')
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -161,7 +161,7 @@ describe("Download Commands Integration", () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 description:
-                                    expect.stringContaining("Invalid URL"),
+                                    expect.stringContaining('Invalid URL'),
                             }),
                         }),
                     ]),
@@ -169,57 +169,57 @@ describe("Download Commands Integration", () => {
             )
         })
 
-        it("should handle YouTube playlist downloads", async () => {
-            mockInteraction.commandName = "download"
+        it('should handle YouTube playlist downloads', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/playlist?list=test",
+                'https://youtube.com/playlist?list=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: true,
-                filePath: "/downloads/playlist.zip",
+                filePath: '/downloads/playlist.zip',
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
 
             expect(downloadVideo).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    url: "https://youtube.com/playlist?list=test",
+                    url: 'https://youtube.com/playlist?list=test',
                 }),
             )
         })
 
-        it("should handle Spotify URL downloads", async () => {
-            mockInteraction.commandName = "download"
+        it('should handle Spotify URL downloads', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://open.spotify.com/track/test",
+                'https://open.spotify.com/track/test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: true,
-                filePath: "/downloads/spotify-track.mp4",
+                filePath: '/downloads/spotify-track.mp4',
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -228,28 +228,28 @@ describe("Download Commands Integration", () => {
         })
     })
 
-    describe("Download Progress Integration", () => {
-        it("should show download progress", async () => {
-            mockInteraction.commandName = "download"
+    describe('Download Progress Integration', () => {
+        it('should show download progress', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
             ;(downloadVideo as jest.Mock).mockImplementation(async () => {
                 // Simulate progress updates
                 await new Promise((resolve) => setTimeout(resolve, 100))
-                return { success: true, filePath: "/downloads/test.mp4" }
+                return { success: true, filePath: '/downloads/test.mp4' }
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -260,7 +260,7 @@ describe("Download Commands Integration", () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 description:
-                                    expect.stringContaining("Downloading"),
+                                    expect.stringContaining('Downloading'),
                             }),
                         }),
                     ]),
@@ -269,27 +269,27 @@ describe("Download Commands Integration", () => {
         })
     })
 
-    describe("File Management Integration", () => {
-        it("should handle file size limits", async () => {
-            mockInteraction.commandName = "download"
+    describe('File Management Integration', () => {
+        it('should handle file size limits', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: false,
-                error: "File too large",
+                error: 'File too large',
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -300,7 +300,7 @@ describe("Download Commands Integration", () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 description:
-                                    expect.stringContaining("File too large"),
+                                    expect.stringContaining('File too large'),
                             }),
                         }),
                     ]),
@@ -308,26 +308,26 @@ describe("Download Commands Integration", () => {
             )
         })
 
-        it("should handle storage space issues", async () => {
-            mockInteraction.commandName = "download"
+        it('should handle storage space issues', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: false,
-                error: "Insufficient storage space",
+                error: 'Insufficient storage space',
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -338,7 +338,7 @@ describe("Download Commands Integration", () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 description:
-                                    expect.stringContaining("storage space"),
+                                    expect.stringContaining('storage space'),
                             }),
                         }),
                     ]),
@@ -347,26 +347,26 @@ describe("Download Commands Integration", () => {
         })
     })
 
-    describe("Error Handling Integration", () => {
-        it("should handle network timeouts", async () => {
-            mockInteraction.commandName = "download"
+    describe('Error Handling Integration', () => {
+        it('should handle network timeouts', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockRejectedValue(
-                new Error("Network timeout"),
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockRejectedValue(
+                new Error('Network timeout'),
             )
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -376,7 +376,7 @@ describe("Download Commands Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -384,26 +384,26 @@ describe("Download Commands Integration", () => {
             )
         })
 
-        it("should handle yt-dlp errors", async () => {
-            mockInteraction.commandName = "download"
+        it('should handle yt-dlp errors', async () => {
+            mockInteraction.commandName = 'download'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/watch?v=test",
+                'https://youtube.com/watch?v=test',
             )
             mockInteraction.options.getBoolean.mockReturnValue(false)
 
             const { downloadVideo } = await import(
-                "../../src/utils/download/downloadVideo"
+                '../../src/functions/download/utils/downloadVideo'
             )
-            ;(downloadVideo as jest.Mock).mockResolvedValue({
+            ;(downloadVideo as jest.MockedFunction<typeof downloadVideo>).mockResolvedValue({
                 success: false,
-                error: "yt-dlp: Video unavailable",
+                error: 'yt-dlp: Video unavailable',
             })
 
             const downloadCommand = await import(
-                "../../src/functions/download/commands/download"
+                '../../src/functions/download/commands/download'
             )
 
-            await downloadCommand.default.execute({
+            await downloadCommand.default.executeDownload({
                 client: mockClient,
                 interaction: mockInteraction,
             })
@@ -415,7 +415,7 @@ describe("Download Commands Integration", () => {
                             data: expect.objectContaining({
                                 description:
                                     expect.stringContaining(
-                                        "Video unavailable",
+                                        'Video unavailable',
                                     ),
                             }),
                         }),

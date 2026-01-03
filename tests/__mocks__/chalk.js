@@ -60,7 +60,7 @@ const createChalkMock = () => {
             // Add string conversion for Jest stringMatching
             match: (regex) => stringValue.match(regex),
             // Add string conversion for Jest stringContaining matcher
-            [Symbol.toStringTag]: "String",
+            [Symbol.toStringTag]: 'String',
         }
 
         // Make it behave like a string for Jest matchers
@@ -68,7 +68,7 @@ const createChalkMock = () => {
         return chainable
     }
 
-    return createChainableChalk("")
+    return createChainableChalk('')
 }
 
 const mockChalk = createChalkMock()

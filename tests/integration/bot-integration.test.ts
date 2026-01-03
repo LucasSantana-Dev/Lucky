@@ -3,15 +3,15 @@
  * Testing complete workflows and system interactions
  */
 
-import { describe, it, expect, beforeEach, jest } from "@jest/globals"
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock all external dependencies
-jest.mock("discord.js")
-jest.mock("discord-player")
-jest.mock("../src/config/redis")
-jest.mock("../src/utils/monitoring")
+jest.mock('discord.js')
+jest.mock('discord-player')
+jest.mock('../../src/config/redis')
+jest.mock('../../src/utils/monitoring')
 
-describe("Bot Integration Tests", () => {
+describe('Bot Integration Tests', () => {
     let mockClient: any
     let mockPlayer: any
 
@@ -20,9 +20,9 @@ describe("Bot Integration Tests", () => {
 
         // Setup mock client
         mockClient = {
-            login: jest.fn().mockResolvedValue({}),
+            login: jest.fn(),
             on: jest.fn(),
-            user: { id: "test-bot-id", username: "TestBot" },
+            user: { id: 'test-bot-id', username: 'TestBot' },
             commands: new Map(),
             player: {},
         }
@@ -37,10 +37,10 @@ describe("Bot Integration Tests", () => {
         }
     })
 
-    describe("Bot Initialization", () => {
-        it("should initialize bot with correct configuration", async () => {
-            const { Client } = await import("discord.js")
-            const { Player } = await import("discord-player")
+    describe('Bot Initialization', () => {
+        it('should initialize bot with correct configuration', async () => {
+            const { Client } = await import('discord.js')
+            const { Player } = await import('discord-player')
 
             // Mock constructors
             ;(Client as jest.MockedClass<any>).mockImplementation(
@@ -51,7 +51,7 @@ describe("Bot Integration Tests", () => {
             )
 
             // Test bot initialization
-            const { initializeBot } = await import("../src/bot/start")
+            const { initializeBot } = await import('../../src/bot/start')
 
             await expect(initializeBot()).resolves.not.toThrow()
 
@@ -63,26 +63,26 @@ describe("Bot Integration Tests", () => {
             )
         })
 
-        it("should register event handlers during initialization", async () => {
-            const { initializeBot } = await import("../src/bot/start")
+        it('should register event handlers during initialization', async () => {
+            const { initializeBot } = await import('../../src/bot/start')
 
             await initializeBot()
 
             expect(mockClient.on).toHaveBeenCalledWith(
-                "ready",
+                'ready',
                 expect.any(Function),
             )
             expect(mockClient.on).toHaveBeenCalledWith(
-                "interactionCreate",
+                'interactionCreate',
                 expect.any(Function),
             )
         })
     })
 
-    describe("Player Integration", () => {
-        it("should create player with correct configuration", async () => {
+    describe('Player Integration', () => {
+        it('should create player with correct configuration', async () => {
             const { createPlayer } = await import(
-                "../src/handlers/playerHandler"
+                '../../src/handlers/playerHandler'
             )
 
             const player = createPlayer({ client: mockClient })
@@ -91,9 +91,9 @@ describe("Bot Integration Tests", () => {
             expect(mockPlayer.extractors.register).toHaveBeenCalled()
         })
 
-        it("should register extractors during player creation", async () => {
+        it('should register extractors during player creation', async () => {
             const { createPlayer } = await import(
-                "../src/handlers/playerHandler"
+                '../../src/handlers/playerHandler'
             )
 
             createPlayer({ client: mockClient })
@@ -102,19 +102,19 @@ describe("Bot Integration Tests", () => {
         })
     })
 
-    describe("Environment Configuration", () => {
-        it("should load environment variables correctly", () => {
-            expect(process.env.DISCORD_TOKEN).toBe("test-token")
-            expect(process.env.CLIENT_ID).toBe("test-client-id")
-            expect(process.env.REDIS_HOST).toBe("localhost")
+    describe('Environment Configuration', () => {
+        it('should load environment variables correctly', () => {
+            expect(process.env.DISCORD_TOKEN).toBe('test-token')
+            expect(process.env.CLIENT_ID).toBe('test-client-id')
+            expect(process.env.REDIS_HOST).toBe('localhost')
         })
 
-        it("should handle missing environment variables gracefully", () => {
+        it('should handle missing environment variables gracefully', () => {
             const originalToken = process.env.DISCORD_TOKEN
             delete process.env.DISCORD_TOKEN
 
             expect(() => {
-                require("../src/config/environment")
+                require('../../src/config/environment')
             }).not.toThrow()
 
             // Restore
@@ -122,24 +122,24 @@ describe("Bot Integration Tests", () => {
         })
     })
 
-    describe("Error Handling Integration", () => {
-        it("should handle startup errors gracefully", async () => {
+    describe('Error Handling Integration', () => {
+        it('should handle startup errors gracefully', async () => {
             const consoleSpy = jest
-                .spyOn(console, "error")
+                .spyOn(console, 'error')
                 .mockImplementation(() => {})
 
-            mockClient.login.mockRejectedValue(new Error("Login failed"))
+            mockClient.login.mockRejectedValue(new Error('Login failed'))
 
-            const { initializeBot } = await import("../src/bot/start")
+            const { initializeBot } = await import('../../src/bot/start')
 
-            await expect(initializeBot()).rejects.toThrow("Login failed")
+            await expect(initializeBot()).rejects.toThrow('Login failed')
 
             consoleSpy.mockRestore()
         })
 
-        it("should handle Redis connection failures", async () => {
+        it('should handle Redis connection failures', async () => {
             const { loadEnvironment } = await import(
-                "../src/config/environment"
+                '../../src/config/environment'
             )
 
             // Should not throw even if Redis is unavailable
@@ -147,28 +147,28 @@ describe("Bot Integration Tests", () => {
         })
     })
 
-    describe("Command Integration", () => {
-        it("should handle command execution workflow", async () => {
+    describe('Command Integration', () => {
+        it('should handle command execution workflow', async () => {
             const mockInteraction = {
-                user: { id: "user123", username: "TestUser" },
-                guild: { id: "guild123" },
-                channel: { id: "channel123" },
-                commandName: "play",
+                user: { id: 'user123', username: 'TestUser' },
+                guild: { id: 'guild123' },
+                channel: { id: 'channel123' },
+                commandName: 'play',
                 options: {
-                    getString: jest.fn().mockReturnValue("test query"),
+                    getString: jest.fn().mockReturnValue('test query'),
                 },
-                deferReply: jest.fn().mockResolvedValue({}),
-                editReply: jest.fn().mockResolvedValue({}),
+                deferReply: jest.fn(),
+                editReply: jest.fn(),
             }
 
             // Mock command execution
             const { executeCommand } = await import(
-                "../src/handlers/commandsHandler"
+                '../../src/handlers/commandsHandler'
             )
 
             await expect(
                 executeCommand({
-                    interaction: mockInteraction,
+                    interaction: mockInteraction as any,
                     client: mockClient,
                 }),
             ).resolves.not.toThrow()

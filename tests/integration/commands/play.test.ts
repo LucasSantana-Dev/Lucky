@@ -2,16 +2,16 @@
  * Integration tests for play command
  */
 
-import { describe, it, expect, beforeEach, jest } from "@jest/globals"
-import { ChatInputCommandInteraction } from "discord.js"
-import { Track, GuildQueue } from "discord-player"
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { ChatInputCommandInteraction } from 'discord.js'
+import { Track, GuildQueue } from 'discord-player'
 
 // Mock dependencies
-jest.mock("../../../src/utils/music/enhancedSearch")
-jest.mock("../../../src/utils/search/searchContentOnYoutube")
-jest.mock("../../../src/handlers/queueHandler")
+jest.mock('../../../src/utils/music/enhancedSearch')
+jest.mock('../../../src/utils/search/searchContentOnYoutube')
+jest.mock('../../../src/handlers/queueHandler')
 
-describe("Play Command Integration", () => {
+describe('Play Command Integration', () => {
     let mockInteraction: jest.Mocked<ChatInputCommandInteraction>
     let mockClient: any
     let mockQueue: jest.Mocked<GuildQueue>
@@ -22,21 +22,21 @@ describe("Play Command Integration", () => {
 
         // Mock interaction
         mockInteraction = {
-            user: { id: "user123", username: "TestUser" },
-            guild: { id: "guild123" },
-            channel: { id: "channel123" },
-            commandName: "play",
+            user: { id: 'user123', username: 'TestUser' },
+            guild: { id: 'guild123' },
+            channel: { id: 'channel123' },
+            commandName: 'play',
             options: {
-                getString: jest.fn().mockReturnValue("test query"),
+                getString: jest.fn().mockReturnValue('test query'),
             },
-            deferReply: jest.fn().mockResolvedValue({}),
-            editReply: jest.fn().mockResolvedValue({}),
-            followUp: jest.fn().mockResolvedValue({}),
+            deferReply: jest.fn(),
+            editReply: jest.fn(),
+            followUp: jest.fn(),
         } as any
 
         // Mock client
         mockClient = {
-            user: { id: "bot123" },
+            user: { id: 'bot123' },
             player: {
                 search: jest.fn(),
                 play: jest.fn(),
@@ -49,9 +49,9 @@ describe("Play Command Integration", () => {
             node: {
                 play: jest.fn(),
             },
-            guild: { id: "guild123" },
+            guild: { id: 'guild123' },
             metadata: {
-                channel: { id: "channel123" },
+                channel: { id: 'channel123' },
                 client: mockClient,
                 requestedBy: mockInteraction.user,
             },
@@ -59,16 +59,16 @@ describe("Play Command Integration", () => {
 
         // Mock track
         mockTrack = {
-            title: "Test Song",
-            author: "Test Artist",
-            url: "https://youtube.com/watch?v=test",
-            duration: "3:45",
-            thumbnail: "https://img.youtube.com/test.jpg",
+            title: 'Test Song',
+            author: 'Test Artist',
+            url: 'https://youtube.com/watch?v=test',
+            duration: '3:45',
+            thumbnail: 'https://img.youtube.com/test.jpg',
         } as any
     })
 
-    describe("Play command execution", () => {
-        it("should handle successful track search and play", async () => {
+    describe('Play command execution', () => {
+        it('should handle successful track search and play', async () => {
             // Mock successful search
             const mockSearchResult = {
                 success: true,
@@ -78,21 +78,21 @@ describe("Play Command Integration", () => {
             }
 
             const { enhancedYouTubeSearch } = await import(
-                "../../../src/utils/music/enhancedSearch"
+                '../../../src/utils/music/enhancedSearch'
             )
-            ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue(
+            ;(enhancedYouTubeSearch as any).mockResolvedValue(
                 mockSearchResult,
             )
 
             // Mock queue creation
             const { createQueue } = await import(
-                "../../../src/handlers/queueHandler"
+                '../../../src/handlers/queueHandler'
             )
-            ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
+            ;(createQueue as any).mockResolvedValue(mockQueue)
 
             // Import and execute play command
             const playCommand = await import(
-                "../../../src/functions/music/commands/play"
+                '../../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -102,29 +102,28 @@ describe("Play Command Integration", () => {
 
             expect(mockInteraction.deferReply).toHaveBeenCalled()
             expect(enhancedYouTubeSearch).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    query: "test query",
-                    requestedBy: mockInteraction.user,
-                }),
                 mockClient.player,
+                'test query',
+                mockInteraction.user,
+                false,
             )
         })
 
-        it("should handle search failures gracefully", async () => {
+        it('should handle search failures gracefully', async () => {
             const mockSearchResult = {
                 success: false,
-                error: "Search failed",
+                error: 'Search failed',
             }
 
             const { enhancedYouTubeSearch } = await import(
-                "../../../src/utils/music/enhancedSearch"
+                '../../../src/utils/music/enhancedSearch'
             )
-            ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue(
+            ;(enhancedYouTubeSearch as any).mockResolvedValue(
                 mockSearchResult,
             )
 
             const playCommand = await import(
-                "../../../src/functions/music/commands/play"
+                '../../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -137,7 +136,7 @@ describe("Play Command Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -145,16 +144,16 @@ describe("Play Command Integration", () => {
             )
         })
 
-        it("should handle queue creation failures", async () => {
+        it('should handle queue creation failures', async () => {
             const { createQueue } = await import(
-                "../../../src/handlers/queueHandler"
+                '../../../src/handlers/queueHandler'
             )
-            ;(createQueue as jest.Mock).mockRejectedValue(
-                new Error("Queue creation failed"),
+            ;(createQueue as any).mockRejectedValue(
+                new Error('Queue creation failed'),
             )
 
             const playCommand = await import(
-                "../../../src/functions/music/commands/play"
+                '../../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -167,7 +166,7 @@ describe("Play Command Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -175,13 +174,13 @@ describe("Play Command Integration", () => {
             )
         })
 
-        it("should handle different query types", async () => {
+        it('should handle different query types', async () => {
             const testCases = [
-                { query: "https://youtube.com/watch?v=test", type: "URL" },
-                { query: "search term", type: "Search" },
+                { query: 'https://youtube.com/watch?v=test', type: 'URL' },
+                { query: 'search term', type: 'Search' },
                 {
-                    query: "https://open.spotify.com/track/test",
-                    type: "Spotify URL",
+                    query: 'https://open.spotify.com/track/test',
+                    type: 'Spotify URL',
                 },
             ]
 
@@ -191,20 +190,20 @@ describe("Play Command Integration", () => {
                 )
 
                 const { enhancedYouTubeSearch } = await import(
-                    "../../../src/utils/music/enhancedSearch"
+                    '../../../src/utils/music/enhancedSearch'
                 )
-                ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
-                    success: true,
-                    result: { tracks: [mockTrack] },
-                })
+            ;(enhancedYouTubeSearch as any).mockResolvedValue({
+                success: true,
+                result: { tracks: [mockTrack] },
+            })
 
                 const { createQueue } = await import(
-                    "../../../src/handlers/queueHandler"
+                    '../../../src/handlers/queueHandler'
                 )
-                ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
+                ;(createQueue as any).mockResolvedValue(mockQueue)
 
                 const playCommand = await import(
-                    "../../../src/functions/music/commands/play"
+                    '../../../src/functions/music/commands/play'
                 )
 
                 await playCommand.default.execute({
@@ -213,26 +212,26 @@ describe("Play Command Integration", () => {
                 })
 
                 expect(enhancedYouTubeSearch).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        query: testCase.query,
-                    }),
                     mockClient.player,
+                    testCase.query,
+                    mockInteraction.user,
+                    false,
                 )
             }
         })
     })
 
-    describe("Error handling", () => {
-        it("should handle network timeouts", async () => {
+    describe('Error handling', () => {
+        it('should handle network timeouts', async () => {
             const { enhancedYouTubeSearch } = await import(
-                "../../../src/utils/music/enhancedSearch"
+                '../../../src/utils/music/enhancedSearch'
             )
-            ;(enhancedYouTubeSearch as jest.Mock).mockRejectedValue(
-                new Error("Network timeout"),
+            ;(enhancedYouTubeSearch as any).mockRejectedValue(
+                new Error('Network timeout'),
             )
 
             const playCommand = await import(
-                "../../../src/functions/music/commands/play"
+                '../../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -245,7 +244,7 @@ describe("Play Command Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -253,11 +252,11 @@ describe("Play Command Integration", () => {
             )
         })
 
-        it("should handle invalid guild context", async () => {
-            mockInteraction.guild = null
+        it('should handle invalid guild context', async () => {
+            ;(mockInteraction as any).guild = null
 
             const playCommand = await import(
-                "../../../src/functions/music/commands/play"
+                '../../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -270,7 +269,7 @@ describe("Play Command Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -279,12 +278,12 @@ describe("Play Command Integration", () => {
         })
     })
 
-    describe("Command validation", () => {
-        it("should validate required parameters", async () => {
+    describe('Command validation', () => {
+        it('should validate required parameters', async () => {
             mockInteraction.options.getString.mockReturnValue(null)
 
             const playCommand = await import(
-                "../../../src/functions/music/commands/play"
+                '../../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -297,7 +296,7 @@ describe("Play Command Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),

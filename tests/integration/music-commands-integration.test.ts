@@ -3,14 +3,14 @@
  * Testing complete music command workflows
  */
 
-import { describe, it, expect, beforeEach, jest } from "@jest/globals"
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock dependencies
-jest.mock("../../src/utils/music/enhancedSearch")
-jest.mock("../../src/handlers/queueHandler")
-jest.mock("../../src/utils/command/commandValidations")
+jest.mock('../../src/utils/music/enhancedSearch')
+jest.mock('../../src/handlers/queueHandler')
+jest.mock('../../src/utils/command/commandValidations')
 
-describe("Music Commands Integration", () => {
+describe('Music Commands Integration', () => {
     let mockInteraction: any
     let mockClient: any
     let mockQueue: any
@@ -21,11 +21,11 @@ describe("Music Commands Integration", () => {
 
         // Mock interaction
         mockInteraction = {
-            user: { id: "user123", username: "TestUser" },
-            guild: { id: "guild123" },
-            channel: { id: "channel123" },
+            user: { id: 'user123', username: 'TestUser' },
+            guild: { id: 'guild123' },
+            channel: { id: 'channel123' },
             member: {
-                voice: { channel: { id: "voice123" } },
+                voice: { channel: { id: 'voice123' } },
             },
             options: {
                 getString: jest.fn(),
@@ -33,14 +33,14 @@ describe("Music Commands Integration", () => {
                 getBoolean: jest.fn(),
                 getNumber: jest.fn(),
             },
-            deferReply: jest.fn().mockResolvedValue({}),
-            editReply: jest.fn().mockResolvedValue({}),
-            followUp: jest.fn().mockResolvedValue({}),
+            deferReply: jest.fn().mockResolvedValue(undefined),
+            editReply: jest.fn().mockResolvedValue(undefined),
+            followUp: jest.fn().mockResolvedValue(undefined),
         }
 
         // Mock client
         mockClient = {
-            user: { id: "bot123" },
+            user: { id: 'bot123' },
             player: {
                 search: jest.fn(),
                 play: jest.fn(),
@@ -58,9 +58,9 @@ describe("Music Commands Integration", () => {
                 setVolume: jest.fn(),
             },
             tracks: [],
-            guild: { id: "guild123" },
+            guild: { id: 'guild123' },
             metadata: {
-                channel: { id: "channel123" },
+                channel: { id: 'channel123' },
                 client: mockClient,
                 requestedBy: mockInteraction.user,
             },
@@ -68,21 +68,21 @@ describe("Music Commands Integration", () => {
 
         // Mock track
         mockTrack = {
-            title: "Test Song",
-            author: "Test Artist",
-            url: "https://youtube.com/watch?v=test",
-            duration: "3:45",
-            thumbnail: "https://img.youtube.com/test.jpg",
+            title: 'Test Song',
+            author: 'Test Artist',
+            url: 'https://youtube.com/watch?v=test',
+            duration: '3:45',
+            thumbnail: 'https://img.youtube.com/test.jpg',
         }
     })
 
-    describe("Play Command Integration", () => {
-        it("should handle successful track play", async () => {
-            mockInteraction.commandName = "play"
-            mockInteraction.options.getString.mockReturnValue("test query")
+    describe('Play Command Integration', () => {
+        it('should handle successful track play', async () => {
+            mockInteraction.commandName = 'play'
+            mockInteraction.options.getString.mockReturnValue('test query')
 
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
                 success: true,
@@ -90,12 +90,12 @@ describe("Music Commands Integration", () => {
             })
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -107,14 +107,14 @@ describe("Music Commands Integration", () => {
             expect(enhancedYouTubeSearch).toHaveBeenCalled()
         })
 
-        it("should handle playlist play", async () => {
-            mockInteraction.commandName = "play"
+        it('should handle playlist play', async () => {
+            mockInteraction.commandName = 'play'
             mockInteraction.options.getString.mockReturnValue(
-                "https://youtube.com/playlist?list=test",
+                'https://youtube.com/playlist?list=test',
             )
 
             const { enhancedYouTubeSearch } = await import(
-                "../../src/utils/music/enhancedSearch"
+                '../../src/utils/music/enhancedSearch'
             )
             ;(enhancedYouTubeSearch as jest.Mock).mockResolvedValue({
                 success: true,
@@ -122,12 +122,12 @@ describe("Music Commands Integration", () => {
             })
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockResolvedValue(mockQueue)
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -139,18 +139,18 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Queue Command Integration", () => {
-        it("should display current queue", async () => {
-            mockInteraction.commandName = "queue"
+    describe('Queue Command Integration', () => {
+        it('should display current queue', async () => {
+            mockInteraction.commandName = 'queue'
             mockQueue.tracks = [mockTrack, mockTrack]
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const queueCommand = await import(
-                "../../src/functions/music/commands/queue"
+                '../../src/functions/music/commands/queue'
             )
 
             await queueCommand.default.execute({
@@ -163,7 +163,7 @@ describe("Music Commands Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Queue"),
+                                title: expect.stringContaining('Queue'),
                             }),
                         }),
                     ]),
@@ -171,17 +171,17 @@ describe("Music Commands Integration", () => {
             )
         })
 
-        it("should handle empty queue", async () => {
-            mockInteraction.commandName = "queue"
+        it('should handle empty queue', async () => {
+            mockInteraction.commandName = 'queue'
             mockQueue.tracks = []
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const queueCommand = await import(
-                "../../src/functions/music/commands/queue"
+                '../../src/functions/music/commands/queue'
             )
 
             await queueCommand.default.execute({
@@ -194,7 +194,7 @@ describe("Music Commands Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                description: expect.stringContaining("empty"),
+                                description: expect.stringContaining('empty'),
                             }),
                         }),
                     ]),
@@ -203,17 +203,17 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Skip Command Integration", () => {
-        it("should skip current track", async () => {
-            mockInteraction.commandName = "skip"
+    describe('Skip Command Integration', () => {
+        it('should skip current track', async () => {
+            mockInteraction.commandName = 'skip'
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const skipCommand = await import(
-                "../../src/functions/music/commands/skip"
+                '../../src/functions/music/commands/skip'
             )
 
             await skipCommand.default.execute({
@@ -224,17 +224,17 @@ describe("Music Commands Integration", () => {
             expect(mockQueue.node.skip).toHaveBeenCalled()
         })
 
-        it("should handle skip with no next track", async () => {
-            mockInteraction.commandName = "skip"
+        it('should handle skip with no next track', async () => {
+            mockInteraction.commandName = 'skip'
             mockQueue.tracks = []
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const skipCommand = await import(
-                "../../src/functions/music/commands/skip"
+                '../../src/functions/music/commands/skip'
             )
 
             await skipCommand.default.execute({
@@ -248,7 +248,7 @@ describe("Music Commands Integration", () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 description:
-                                    expect.stringContaining("No more tracks"),
+                                    expect.stringContaining('No more tracks'),
                             }),
                         }),
                     ]),
@@ -257,17 +257,17 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Pause/Resume Command Integration", () => {
-        it("should pause music", async () => {
-            mockInteraction.commandName = "pause"
+    describe('Pause/Resume Command Integration', () => {
+        it('should pause music', async () => {
+            mockInteraction.commandName = 'pause'
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const pauseCommand = await import(
-                "../../src/functions/music/commands/pause"
+                '../../src/functions/music/commands/pause'
             )
 
             await pauseCommand.default.execute({
@@ -278,16 +278,16 @@ describe("Music Commands Integration", () => {
             expect(mockQueue.node.pause).toHaveBeenCalled()
         })
 
-        it("should resume music", async () => {
-            mockInteraction.commandName = "resume"
+        it('should resume music', async () => {
+            mockInteraction.commandName = 'resume'
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const resumeCommand = await import(
-                "../../src/functions/music/commands/resume"
+                '../../src/functions/music/commands/resume'
             )
 
             await resumeCommand.default.execute({
@@ -299,18 +299,18 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Volume Command Integration", () => {
-        it("should set volume", async () => {
-            mockInteraction.commandName = "volume"
+    describe('Volume Command Integration', () => {
+        it('should set volume', async () => {
+            mockInteraction.commandName = 'volume'
             mockInteraction.options.getInteger.mockReturnValue(75)
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const volumeCommand = await import(
-                "../../src/functions/music/commands/volume"
+                '../../src/functions/music/commands/volume'
             )
 
             await volumeCommand.default.execute({
@@ -321,17 +321,17 @@ describe("Music Commands Integration", () => {
             expect(mockQueue.node.setVolume).toHaveBeenCalledWith(75)
         })
 
-        it("should handle invalid volume", async () => {
-            mockInteraction.commandName = "volume"
+        it('should handle invalid volume', async () => {
+            mockInteraction.commandName = 'volume'
             mockInteraction.options.getInteger.mockReturnValue(150) // Invalid
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const volumeCommand = await import(
-                "../../src/functions/music/commands/volume"
+                '../../src/functions/music/commands/volume'
             )
 
             await volumeCommand.default.execute({
@@ -345,7 +345,7 @@ describe("Music Commands Integration", () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 description:
-                                    expect.stringContaining("Invalid volume"),
+                                    expect.stringContaining('Invalid volume'),
                             }),
                         }),
                     ]),
@@ -354,18 +354,18 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Shuffle Command Integration", () => {
-        it("should shuffle queue", async () => {
-            mockInteraction.commandName = "shuffle"
+    describe('Shuffle Command Integration', () => {
+        it('should shuffle queue', async () => {
+            mockInteraction.commandName = 'shuffle'
             mockQueue.tracks = [mockTrack, mockTrack, mockTrack]
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const shuffleCommand = await import(
-                "../../src/functions/music/commands/shuffle"
+                '../../src/functions/music/commands/shuffle'
             )
 
             await shuffleCommand.default.execute({
@@ -377,18 +377,18 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Clear Command Integration", () => {
-        it("should clear queue", async () => {
-            mockInteraction.commandName = "clear"
+    describe('Clear Command Integration', () => {
+        it('should clear queue', async () => {
+            mockInteraction.commandName = 'clear'
             mockQueue.tracks = [mockTrack, mockTrack, mockTrack]
 
             const { requireQueue } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireQueue as jest.Mock).mockReturnValue({ success: true })
 
             const clearCommand = await import(
-                "../../src/functions/music/commands/clear"
+                '../../src/functions/music/commands/clear'
             )
 
             await clearCommand.default.execute({
@@ -400,17 +400,17 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Leave Command Integration", () => {
-        it("should leave voice channel", async () => {
-            mockInteraction.commandName = "leave"
+    describe('Leave Command Integration', () => {
+        it('should leave voice channel', async () => {
+            mockInteraction.commandName = 'leave'
 
             const { requireGuild } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireGuild as jest.Mock).mockReturnValue({ success: true })
 
             const leaveCommand = await import(
-                "../../src/functions/music/commands/leave"
+                '../../src/functions/music/commands/leave'
             )
 
             await leaveCommand.default.execute({
@@ -422,21 +422,21 @@ describe("Music Commands Integration", () => {
         })
     })
 
-    describe("Error Handling Integration", () => {
-        it("should handle validation failures", async () => {
-            mockInteraction.commandName = "play"
+    describe('Error Handling Integration', () => {
+        it('should handle validation failures', async () => {
+            mockInteraction.commandName = 'play'
             mockInteraction.guild = null // Invalid guild
 
             const { requireGuild } = await import(
-                "../../src/utils/command/commandValidations"
+                '../../src/utils/command/commandValidations'
             )
             ;(requireGuild as jest.Mock).mockReturnValue({
                 success: false,
-                error: "This command must be used in a server",
+                error: 'This command must be used in a server',
             })
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -449,7 +449,7 @@ describe("Music Commands Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
@@ -457,18 +457,18 @@ describe("Music Commands Integration", () => {
             )
         })
 
-        it("should handle queue creation failures", async () => {
-            mockInteraction.commandName = "play"
+        it('should handle queue creation failures', async () => {
+            mockInteraction.commandName = 'play'
 
             const { createQueue } = await import(
-                "../../src/handlers/queueHandler"
+                '../../src/handlers/queueHandler'
             )
             ;(createQueue as jest.Mock).mockRejectedValue(
-                new Error("Queue creation failed"),
+                new Error('Queue creation failed'),
             )
 
             const playCommand = await import(
-                "../../src/functions/music/commands/play"
+                '../../src/functions/music/commands/play'
             )
 
             await playCommand.default.execute({
@@ -481,7 +481,7 @@ describe("Music Commands Integration", () => {
                     embeds: expect.arrayContaining([
                         expect.objectContaining({
                             data: expect.objectContaining({
-                                title: expect.stringContaining("Error"),
+                                title: expect.stringContaining('Error'),
                             }),
                         }),
                     ]),
