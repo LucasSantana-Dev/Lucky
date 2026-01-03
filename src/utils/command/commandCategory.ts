@@ -1,7 +1,9 @@
-import type Command from "../../models/Command"
-import path from "path"
-import type { CommandCategory } from "../../config/constants"
-import { COMMAND_CATEGORIES } from "../../config/constants"
+import type Command from '../../models/Command'
+import path from 'path'
+import {
+    COMMAND_CATEGORIES,
+    type CommandCategory,
+} from '../../config/constants'
 
 /**
  * Determines the category of a command based on its name
@@ -24,7 +26,7 @@ export function getCategoryFromCommandName(
     }
 
     // Default category if no match is found
-    return "general"
+    return 'general'
 }
 
 /**
@@ -33,17 +35,17 @@ export function getCategoryFromCommandName(
  */
 export function getCategoryFromFilePath(filePath: string): CommandCategory {
     const parts = filePath.split(path.sep)
-    const functionsIndex = parts.findIndex((part) => part === "functions")
+    const functionsIndex = parts.findIndex((part) => part === 'functions')
 
     if (functionsIndex >= 0 && functionsIndex + 1 < parts.length) {
         const category = parts[functionsIndex + 1]
-        if (["music", "download", "general"].includes(category)) {
+        if (['music', 'download', 'general'].includes(category)) {
             return category as CommandCategory
         }
     }
 
     const fileName = path.basename(filePath)
-    const commandName = fileName.split(".")[0].toLowerCase()
+    const commandName = fileName.split('.')[0].toLowerCase()
     return getCategoryFromCommandName(commandName)
 }
 
@@ -53,7 +55,7 @@ export function getCategoryFromFilePath(filePath: string): CommandCategory {
  */
 export function getCommandCategory(command: Command): CommandCategory {
     if (!command?.data?.name) {
-        return "general"
+        return 'general'
     }
 
     return getCategoryFromCommandName(command.data.name.toLowerCase())
@@ -65,7 +67,7 @@ export function getCommandCategory(command: Command): CommandCategory {
  * @returns The emoji for the category or a default emoji if not found
  */
 export function getCategoryEmoji(category: CommandCategory): string {
-    return COMMAND_CATEGORIES[category]?.emoji || "📋"
+    return COMMAND_CATEGORIES[category]?.emoji || '📋'
 }
 
 /**
@@ -74,7 +76,7 @@ export function getCategoryEmoji(category: CommandCategory): string {
  * @returns The label for the category or a default label if not found
  */
 export function getCategoryLabel(category: CommandCategory): string {
-    return COMMAND_CATEGORIES[category]?.label || "📋 Outros"
+    return COMMAND_CATEGORIES[category]?.label || '📋 Outros'
 }
 
 /**

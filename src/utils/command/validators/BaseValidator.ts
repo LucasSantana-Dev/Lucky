@@ -2,14 +2,27 @@
  * Base validator class following SOLID principles
  */
 
-import type { ChatInputCommandInteraction } from "discord.js"
+import type { ChatInputCommandInteraction } from 'discord.js'
 import type {
     CommandContext,
     CommandResult,
     CommandValidator,
-} from "../../../types/command/BaseCommand"
-import { ValidationError, ErrorCode } from "../../../types/errors"
-import { createCorrelationId } from "../../error/errorHandler"
+} from '../../../types/command/BaseCommand'
+import { VALIDATION_ERROR_CODES } from '../../../types/errors/validation'
+
+type ErrorCode =
+    (typeof VALIDATION_ERROR_CODES)[keyof typeof VALIDATION_ERROR_CODES]
+import { createCorrelationId } from '../../error/errorHandler'
+
+class ValidationError extends Error {
+    constructor(
+        message: string,
+        public code?: string,
+    ) {
+        super(message)
+        this.name = 'ValidationError'
+    }
+}
 
 export abstract class BaseValidator implements CommandValidator {
     public readonly name: string
@@ -34,14 +47,11 @@ export abstract class BaseValidator implements CommandValidator {
 
     protected createErrorResult(
         message: string,
-        _code: ErrorCode = ErrorCode.VALIDATION_INVALID_INPUT,
+        _code: ErrorCode = VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT,
     ): CommandResult {
         return {
             success: false,
-            error: new ValidationError(message, {
-                correlationId: createCorrelationId(),
-                details: { validator: this.name },
-            }),
+            error: new ValidationError(message, _code),
         }
     }
 

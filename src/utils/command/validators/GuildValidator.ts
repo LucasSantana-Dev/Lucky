@@ -5,16 +5,16 @@
 import type {
     CommandContext,
     CommandResult,
-} from "../../../types/command/BaseCommand"
-import { BaseValidator } from "./BaseValidator"
-import { ErrorCode } from "../../../types/errors"
-import { errorEmbed } from "../../general/embeds"
-import { messages } from "../../general/messages"
-import { interactionReply } from "../../general/interactionReply"
+} from '../../../types/command/BaseCommand'
+import { BaseValidator } from './BaseValidator'
+import { VALIDATION_ERROR_CODES } from '../../../types/errors/validation'
+import { errorEmbed } from '../../general/embeds'
+import { messages } from '../../general/messages'
+import { interactionReply } from '../../general/interactionReply'
 
 export class GuildValidator extends BaseValidator {
     constructor() {
-        super("GuildValidator")
+        super('GuildValidator')
     }
 
     async validate(context: CommandContext): Promise<CommandResult> {
@@ -22,13 +22,13 @@ export class GuildValidator extends BaseValidator {
             await interactionReply({
                 interaction: context.interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", messages.error.guildOnly)],
+                    embeds: [errorEmbed('Erro', messages.error.guildOnly)],
                 },
             })
 
             return this.createErrorResult(
-                "Command can only be used in a guild/server",
-                ErrorCode.DISCORD_GUILD_NOT_FOUND,
+                'Command can only be used in a guild/server',
+                VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT,
             )
         }
 

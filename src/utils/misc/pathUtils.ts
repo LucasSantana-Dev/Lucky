@@ -1,5 +1,5 @@
-import { fileURLToPath } from "url"
-import { dirname } from "path"
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
 
 export function getDirname(importMetaUrl: string): string {
     return dirname(fileURLToPath(importMetaUrl))
@@ -15,7 +15,7 @@ export function getFilename(importMetaUrl: string): string {
  * @returns The normalized path
  */
 export function normalizePath(p: string): string {
-    if (process.platform === "win32" && p.startsWith("/")) {
+    if (process.platform === 'win32' && p.startsWith('/')) {
         return p.slice(1)
     }
     return p

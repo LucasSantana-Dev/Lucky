@@ -1,69 +1,87 @@
-import chalk from "chalk"
-import { readdirSync } from "fs"
-import { join } from "path"
-import type { CustomClient } from "../../types"
-import { infoLog, errorLog } from "../general/log"
+import chalk from 'chalk'
+import { readdirSync } from 'fs'
+import { join } from 'path'
+import type { CustomClient } from '../../types'
+import { infoLog, errorLog } from '../general/log'
+
+function getEventFiles(): string[] {
+    const eventsPath = join(process.cwd(), 'src', 'events')
+    return readdirSync(eventsPath).filter((file) => file.endsWith('.ts'))
+}
+
+function validateEvent(event: unknown, filePath: string): boolean {
+    const eventObj = event as { name?: string; execute?: Function }
+    if (!eventObj.name || !eventObj.execute) {
+        errorLog({
+            message: `Event at ${filePath} is missing required properties (name or execute)`,
+        })
+        return false
+    }
+    return true
+}
+
+async function loadEventFromFile(filePath: string): Promise<unknown | null> {
+    try {
+        const event = await import(filePath) as { name?: string; execute?: Function }
+
+        if (!validateEvent(event, filePath)) {
+            return null
+        }
+
+        return event
+    } catch (error) {
+        errorLog({
+            message: `Error loading event from ${filePath}:`,
+            error,
+        })
+        return null
+    }
+}
+
+function createEventHandler(event: unknown): (...args: unknown[]) => void {
+    const eventObj = event as { name: string; execute: (...args: unknown[]) => unknown }
+    return (...args: unknown[]) => {
+        try {
+            if (eventObj.name === 'interactionCreate' && args[0]) {
+                return eventObj.execute(args[0])
+            }
+            return eventObj.execute(...args)
+        } catch (error) {
+            errorLog({
+                message: `Error executing event ${eventObj.name}:`,
+                error,
+            })
+        }
+    }
+}
+
+function registerEvent(client: CustomClient, event: unknown): void {
+    const eventObj = event as { name: string; once?: boolean }
+    const handler = createEventHandler(event)
+
+    if (eventObj.once) {
+        client.once(eventObj.name, handler)
+    } else {
+        client.on(eventObj.name, handler)
+    }
+}
 
 export async function loadEvents(client: CustomClient): Promise<void> {
     try {
-        const eventsPath = join(process.cwd(), "src", "events")
-        const eventFiles = readdirSync(eventsPath).filter((file) =>
-            file.endsWith(".ts"),
-        )
+        const eventFiles = getEventFiles()
 
         for (const file of eventFiles) {
-            try {
-                const filePath = join(eventsPath, file)
-                const event = await import(filePath)
+            const filePath = join(process.cwd(), 'src', 'events', file)
+            const event = await loadEventFromFile(filePath)
 
-                if (!event.name || !event.execute) {
-                    errorLog({
-                        message: `Event at ${filePath} is missing required properties (name or execute)`,
-                    })
-                    continue
-                }
-
-                if (event.once) {
-                    client.once(event.name, (...args: unknown[]) => {
-                        try {
-                            if (event.name === "interactionCreate" && args[0]) {
-                                return event.execute(args[0])
-                            }
-                            return event.execute(...args)
-                        } catch (error) {
-                            errorLog({
-                                message: `Error executing event ${event.name}:`,
-                                error,
-                            })
-                        }
-                    })
-                } else {
-                    client.on(event.name, (...args: unknown[]) => {
-                        try {
-                            if (event.name === "interactionCreate" && args[0]) {
-                                return event.execute(args[0])
-                            }
-                            return event.execute(...args)
-                        } catch (error) {
-                            errorLog({
-                                message: `Error executing event ${event.name}:`,
-                                error,
-                            })
-                        }
-                    })
-                }
-
-                infoLog({ message: `Loaded event: ${chalk.white(event.name)}` })
-            } catch (error) {
-                errorLog({
-                    message: `Error loading event from ${file}:`,
-                    error,
+            if (event) {
+                registerEvent(client, event)
+                infoLog({
+                    message: `Loaded event: ${chalk.white((event as { name: string }).name)}`,
                 })
-                // Continue loading other events
             }
         }
     } catch (error) {
-        errorLog({ message: "Error loading events:", error })
-        // Don't throw the error, just log it and continue
+        errorLog({ message: 'Error loading events:', error })
     }
 }

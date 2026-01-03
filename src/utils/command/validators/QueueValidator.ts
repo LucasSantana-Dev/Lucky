@@ -2,20 +2,20 @@
  * Queue validation following Single Responsibility Principle
  */
 
-import type { GuildQueue } from "discord-player"
+import type { GuildQueue } from 'discord-player'
 import type {
     CommandContext,
     CommandResult,
-} from "../../../types/command/BaseCommand"
-import { BaseValidator } from "./BaseValidator"
-import { ErrorCode } from "../../../types/errors"
-import { errorEmbed } from "../../general/embeds"
-import { messages } from "../../general/messages"
-import { interactionReply } from "../../general/interactionReply"
+} from '../../../types/command/BaseCommand'
+import { BaseValidator } from './BaseValidator'
+import { VALIDATION_ERROR_CODES } from '../../../types/errors/validation'
+import { errorEmbed } from '../../general/embeds'
+import { messages } from '../../general/messages'
+import { interactionReply } from '../../general/interactionReply'
 
 export class QueueValidator extends BaseValidator {
     constructor() {
-        super("QueueValidator")
+        super('QueueValidator')
     }
 
     async validate(context: CommandContext): Promise<CommandResult> {
@@ -26,13 +26,13 @@ export class QueueValidator extends BaseValidator {
             await interactionReply({
                 interaction: context.interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", messages.error.noQueue)],
+                    embeds: [errorEmbed('Erro', messages.error.noQueue)],
                 },
             })
 
             return this.createErrorResult(
-                "No music queue found",
-                ErrorCode.MUSIC_QUEUE_EMPTY,
+                'No music queue found',
+                VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT,
             )
         }
 
@@ -42,7 +42,7 @@ export class QueueValidator extends BaseValidator {
 
 export class CurrentTrackValidator extends BaseValidator {
     constructor() {
-        super("CurrentTrackValidator")
+        super('CurrentTrackValidator')
     }
 
     async validate(context: CommandContext): Promise<CommandResult> {
@@ -52,13 +52,13 @@ export class CurrentTrackValidator extends BaseValidator {
             await interactionReply({
                 interaction: context.interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", messages.error.noTrack)],
+                    embeds: [errorEmbed('Erro', messages.error.noTrack)],
                 },
             })
 
             return this.createErrorResult(
-                "No track is currently playing",
-                ErrorCode.MUSIC_TRACK_NOT_FOUND,
+                'No track is currently playing',
+                VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT,
             )
         }
 
@@ -71,7 +71,7 @@ export class CurrentTrackValidator extends BaseValidator {
 
 export class IsPlayingValidator extends BaseValidator {
     constructor() {
-        super("IsPlayingValidator")
+        super('IsPlayingValidator')
     }
 
     async validate(context: CommandContext): Promise<CommandResult> {
@@ -81,13 +81,13 @@ export class IsPlayingValidator extends BaseValidator {
             await interactionReply({
                 interaction: context.interaction,
                 content: {
-                    embeds: [errorEmbed("Erro", messages.error.notPlaying)],
+                    embeds: [errorEmbed('Erro', messages.error.notPlaying)],
                 },
             })
 
             return this.createErrorResult(
-                "No music is currently playing",
-                ErrorCode.MUSIC_PLAYBACK_FAILED,
+                'No music is currently playing',
+                VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT,
             )
         }
 

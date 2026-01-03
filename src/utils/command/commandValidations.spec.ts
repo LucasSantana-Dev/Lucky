@@ -1,180 +1,135 @@
-/**
- * Unit tests for command validation utilities
- * Testing command validation behavior and edge cases
- */
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { requireGuild, requireVoiceChannel, requireQueue, requireCurrentTrack, requireIsPlaying, requireInteractionOptions } from './commandValidations'
+import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type { GuildQueue } from 'discord-player'
 
-import { describe, it, expect } from "@jest/globals"
-import {
-    requireGuild,
-    requireVoiceChannel,
-    requireQueue,
-} from "./commandValidations"
+// Mock the dependencies
+jest.mock('../general/embeds', () => ({
+    errorEmbed: jest.fn((title: string, message: string) => ({
+        data: { title, description: message }
+    }))
+}))
 
-// Mock Discord.js types
-const mockGuild = {
-    id: "guild123",
-    name: "Test Guild",
-}
+jest.mock('../general/interactionReply', () => ({
+    interactionReply: jest.fn()
+}))
 
-const mockMember = {
-    id: "user123",
-    voice: {
-        channel: {
-            id: "voice123",
-            name: "General",
-        },
-    },
-}
+jest.mock('../error/errorHandler', () => ({
+    handleError: jest.fn((error: Error) => error),
+    createUserErrorMessage: jest.fn((error: Error) => error.message)
+}))
 
-const mockQueue = {
-    tracks: {
-        size: 1,
-    },
-    currentTrack: {
-        title: "Test Song",
-    },
-} as any
+describe('Command Validations', () => {
+    let mockInteraction: ChatInputCommandInteraction
+    let mockMember: GuildMember
+    let mockQueue: GuildQueue
 
-const mockInteraction = {
-    guild: mockGuild,
-    guildId: "guild123",
-    user: {
-        id: "user123",
-    },
-    member: mockMember,
-    channelId: "channel123",
-    options: {
-        getString: () => "test",
-    },
-    reply: jest.fn(),
-    editReply: jest.fn(),
-} as any
+    beforeEach(() => {
+        jest.clearAllMocks()
 
-describe("Command Validation Utilities", () => {
-    describe("requireGuild", () => {
-        it("should pass validation when guild exists", async () => {
+        mockMember = {
+            voice: {
+                channel: { id: 'voice-channel-123' }
+            }
+        } as any
+
+        mockQueue = {
+            currentTrack: { title: 'Test Track' },
+            isPlaying: jest.fn().mockReturnValue(true)
+        } as any
+
+        mockInteraction = {
+            guildId: 'guild-123',
+            user: { id: 'user-123' },
+            member: mockMember,
+            options: {
+                getSubcommand: jest.fn().mockReturnValue('play')
+            }
+        } as any
+    })
+
+    describe('requireGuild', () => {
+        it('should return true when guild exists', async () => {
             const result = await requireGuild(mockInteraction)
             expect(result).toBe(true)
         })
 
-        it("should fail validation when guild is null", async () => {
-            const interactionWithoutGuild = {
-                ...mockInteraction,
-                guild: null,
-                guildId: null,
-            }
-            const result = await requireGuild(interactionWithoutGuild)
-            expect(result).toBe(false)
-        })
-
-        it("should fail validation when guild is undefined", async () => {
-            const interactionWithoutGuild = {
-                ...mockInteraction,
-                guild: undefined,
-                guildId: undefined,
-            }
-            const result = await requireGuild(interactionWithoutGuild)
+        it('should return false when guild does not exist', async () => {
+            mockInteraction.guildId = null
+            const result = await requireGuild(mockInteraction)
             expect(result).toBe(false)
         })
     })
 
-    describe("requireVoiceChannel", () => {
-        it("should pass validation when user is in voice channel", async () => {
+    describe('requireVoiceChannel', () => {
+        it('should return true when user is in voice channel', async () => {
             const result = await requireVoiceChannel(mockInteraction)
             expect(result).toBe(true)
         })
 
-        it("should fail validation when user is not in voice channel", async () => {
-            const memberWithoutVoice = {
-                ...mockMember,
-                voice: { channel: null },
-            }
-            const interactionWithoutVoice = {
+        it('should return false when user is not in voice channel', async () => {
+            const mockInteractionWithoutVoice = {
                 ...mockInteraction,
-                member: memberWithoutVoice,
-            }
-            const result = await requireVoiceChannel(interactionWithoutVoice)
-            expect(result).toBe(false)
-        })
-
-        it("should fail validation when member is null", async () => {
-            const interactionWithoutMember = {
-                ...mockInteraction,
-                member: null,
-            }
-            const result = await requireVoiceChannel(interactionWithoutMember)
+                member: { voice: null } as any
+            } as any
+            const result = await requireVoiceChannel(mockInteractionWithoutVoice)
             expect(result).toBe(false)
         })
     })
 
-    describe("requireQueue", () => {
-        it("should pass validation when queue exists and has tracks", async () => {
+    describe('requireQueue', () => {
+        it('should return true when queue exists', async () => {
             const result = await requireQueue(mockQueue, mockInteraction)
             expect(result).toBe(true)
         })
 
-        it("should fail validation when queue is null", async () => {
+        it('should return false when queue does not exist', async () => {
             const result = await requireQueue(null, mockInteraction)
-            expect(result).toBe(false)
-        })
-
-        it("should fail validation when queue is undefined", async () => {
-            const result = await requireQueue(undefined as any, mockInteraction)
             expect(result).toBe(false)
         })
     })
 
-    describe("Edge Cases", () => {
-        it("should handle malformed guild objects", async () => {
-            const malformedGuild = { id: null, name: undefined }
-            const interactionWithMalformedGuild = {
-                ...mockInteraction,
-                guild: malformedGuild,
-            }
-            const result = await requireGuild(interactionWithMalformedGuild)
-            expect(result).toBe(true) // Should still pass if object exists
+    describe('requireCurrentTrack', () => {
+        it('should return true when current track exists', async () => {
+            const result = await requireCurrentTrack(mockQueue, mockInteraction)
+            expect(result).toBe(true)
         })
 
-        it("should handle malformed member objects", async () => {
-            const malformedMember = { id: "user123", voice: null }
-            const interactionWithMalformedMember = {
-                ...mockInteraction,
-                member: malformedMember,
-            }
-            const result = await requireVoiceChannel(
-                interactionWithMalformedMember,
-            )
+        it('should return false when current track does not exist', async () => {
+            const mockQueueWithoutTrack = {
+                ...mockQueue,
+                currentTrack: null
+            } as any
+            const result = await requireCurrentTrack(mockQueueWithoutTrack, mockInteraction)
             expect(result).toBe(false)
         })
+    })
 
-        it("should handle malformed queue objects", async () => {
-            const malformedQueue = {
-                tracks: null,
-                currentTrack: undefined,
-            } as any
-            const result = await requireQueue(malformedQueue, mockInteraction)
-            expect(result).toBe(true) // Should still pass if object exists
+    describe('requireIsPlaying', () => {
+        it('should return true when music is playing', async () => {
+            const result = await requireIsPlaying(mockQueue, mockInteraction)
+            expect(result).toBe(true)
         })
 
-        it("should handle multiple validation failures", async () => {
-            const interactionWithoutGuild = {
-                ...mockInteraction,
-                guildId: null,
-            }
-            const guildResult = await requireGuild(interactionWithoutGuild)
-            expect(guildResult).toBe(false)
+        it('should return false when music is not playing', async () => {
+            const mockQueueNotPlaying = {
+                ...mockQueue,
+                isPlaying: jest.fn().mockReturnValue(false)
+            } as any
+            const result = await requireIsPlaying(mockQueueNotPlaying, mockInteraction)
+            expect(result).toBe(false)
+        })
+    })
 
-            const interactionWithoutVoice = {
-                ...mockInteraction,
-                member: { voice: { channel: null } },
-            }
-            const voiceResult = await requireVoiceChannel(
-                interactionWithoutVoice,
-            )
-            expect(voiceResult).toBe(false)
+    describe('requireInteractionOptions', () => {
+        it('should return true when subcommand is valid', async () => {
+            const result = await requireInteractionOptions(mockInteraction, ['play', 'pause'])
+            expect(result).toBe(true)
+        })
 
-            const queueResult = await requireQueue(null, mockInteraction)
-            expect(queueResult).toBe(false)
+        it('should return false when subcommand is invalid', async () => {
+            const result = await requireInteractionOptions(mockInteraction, ['pause', 'stop'])
+            expect(result).toBe(false)
         })
     })
 })

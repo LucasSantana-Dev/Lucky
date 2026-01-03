@@ -1,8 +1,8 @@
 import type {
     ChatInputCommandInteraction,
     InteractionReplyOptions as DjsInteractionReplyOptions,
-} from "discord.js"
-import { errorLog } from "./log"
+} from 'discord.js'
+import { errorLog } from './log'
 
 /**
  * Helper function to reply to a deferred interaction
@@ -10,7 +10,7 @@ import { errorLog } from "./log"
  */
 export const deferredInteractionReply = async (
     interaction: ChatInputCommandInteraction,
-    options: Omit<DjsInteractionReplyOptions, "flags">,
+    options: Omit<DjsInteractionReplyOptions, 'flags'>,
 ): Promise<void> => {
     try {
         if (!interaction.deferred && !interaction.replied) {
@@ -31,7 +31,7 @@ export const deferredInteractionReply = async (
         }
     } catch (error) {
         errorLog({
-            message: "Error sending deferred interaction reply:",
+            message: 'Error sending deferred interaction reply:',
             error,
         })
     }

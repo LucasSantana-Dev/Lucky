@@ -1,13 +1,13 @@
-const intervals: NodeJS.Timeout[] = []
-const timeouts: NodeJS.Timeout[] = []
+const intervals: ReturnType<typeof setInterval>[] = []
+const timeouts: ReturnType<typeof setTimeout>[] = []
 
-export function safeSetInterval(fn: () => void, ms: number): NodeJS.Timeout {
+export function safeSetInterval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
     const id = setInterval(fn, ms)
     intervals.push(id)
     return id
 }
 
-export function safeSetTimeout(fn: () => void, ms: number): NodeJS.Timeout {
+export function safeSetTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
     const id = setTimeout(fn, ms)
     timeouts.push(id)
     return id
