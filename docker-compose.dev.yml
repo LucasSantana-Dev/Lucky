@@ -22,7 +22,11 @@ services:
     discord-bot-dev:
         build:
             context: .
-            dockerfile: Dockerfile.dev
+            dockerfile: Dockerfile
+            target: development
+            args:
+                SERVICE: bot
+                NODE_ENV: development
         container_name: discord-bot-dev
         restart: unless-stopped
         depends_on:
@@ -72,6 +76,33 @@ services:
             - SEARCH_TIMEOUT=${SEARCH_TIMEOUT:-15000}
             - SEARCH_RETRY_DELAY=${SEARCH_RETRY_DELAY:-5000}
             - LOG_LEVEL=${LOG_LEVEL:-1}
+            # Feature Toggles
+            - FEATURE_DOWNLOAD_VIDEO=${FEATURE_DOWNLOAD_VIDEO:-true}
+            - FEATURE_DOWNLOAD_AUDIO=${FEATURE_DOWNLOAD_AUDIO:-true}
+            - FEATURE_MUSIC_RECOMMENDATIONS=${FEATURE_MUSIC_RECOMMENDATIONS:-true}
+            - FEATURE_AUTOPLAY=${FEATURE_AUTOPLAY:-true}
+            - FEATURE_LYRICS=${FEATURE_LYRICS:-true}
+            - FEATURE_QUEUE_MANAGEMENT=${FEATURE_QUEUE_MANAGEMENT:-true}
+            - FEATURE_REACTION_ROLES=${FEATURE_REACTION_ROLES:-true}
+            - FEATURE_ROLE_MANAGEMENT=${FEATURE_ROLE_MANAGEMENT:-true}
+            # Unleash Configuration
+            - UNLEASH_URL=${UNLEASH_URL:-}
+            - UNLEASH_API_TOKEN=${UNLEASH_API_TOKEN:-}
+            - UNLEASH_APP_NAME=${UNLEASH_APP_NAME:-lukbot}
+            - UNLEASH_ENVIRONMENT=${UNLEASH_ENVIRONMENT:-development}
+            - UNLEASH_BOOTSTRAP_DATA=${UNLEASH_BOOTSTRAP_DATA:-}
+            # Web Application
+            - WEBAPP_ENABLED=${WEBAPP_ENABLED:-false}
+            - WEBAPP_PORT=${WEBAPP_PORT:-3000}
+            - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI:-}
+            - DEVELOPER_USER_IDS=${DEVELOPER_USER_IDS:-}
+            # Dependency Check Service
+            - DEPENDENCY_CHECK_ENABLED=${DEPENDENCY_CHECK_ENABLED:-false}
+            - DEPENDENCY_WEBHOOK_URL=${DEPENDENCY_WEBHOOK_URL:-}
+            - DEPENDENCY_CHECK_INTERVAL=${DEPENDENCY_CHECK_INTERVAL:-86400000}
+            - DEPENDENCY_NOTIFY_ONLY_SECURITY=${DEPENDENCY_NOTIFY_ONLY_SECURITY:-false}
+        ports:
+            - "${WEBAPP_PORT:-3000}:3000"
         volumes:
             - .:/app
             - /app/node_modules

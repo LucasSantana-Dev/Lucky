@@ -3,7 +3,7 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma-client"
+  output   = "../packages/shared/node_modules/.prisma/client"
 }
 
 datasource db {
@@ -269,4 +269,50 @@ model Recommendation {
 
   @@index([guildId, createdAt])
   @@map("recommendations")
+}
+
+// Reaction Roles
+model ReactionRoleMessage {
+  id        String   @id @default(cuid())
+  messageId String   @unique
+  channelId String
+  guildId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mappings  ReactionRoleMapping[]
+
+  @@index([guildId])
+  @@map("reaction_role_messages")
+}
+
+model ReactionRoleMapping {
+  id        String   @id @default(cuid())
+  messageId String
+  roleId    String
+  emoji     String?
+  buttonId  String?
+  type      String   // "reaction" | "button"
+  label     String?
+  style     String?  // "Primary" | "Secondary" | "Success" | "Danger"
+
+  message   ReactionRoleMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, roleId])
+  @@index([messageId])
+  @@map("reaction_role_mappings")
+}
+
+// Role Management
+model RoleExclusion {
+  id            String   @id @default(cuid())
+  guildId       String
+  roleId        String   // Role that triggers exclusion
+  excludedRoleId String // Role to be removed
+  createdAt     DateTime @default(now())
+
+  @@unique([guildId, roleId, excludedRoleId])
+  @@index([guildId])
+  @@index([roleId])
+  @@map("role_exclusions")
 }

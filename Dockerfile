@@ -1,7 +1,15 @@
-# Use Node.js 22 Alpine as base image
-FROM node:22-alpine
+# Multi-stage Dockerfile for LukBot services
+# Usage: docker build --build-arg SERVICE=bot --build-arg NODE_ENV=production -t lukbot-bot .
+#        docker build --build-arg SERVICE=backend --build-arg NODE_ENV=production -t lukbot-backend .
+#        docker build --build-arg SERVICE=dev -t lukbot-dev .
 
-# Install system dependencies including opus libraries
+ARG NODE_VERSION=22-alpine
+ARG SERVICE=bot
+ARG NODE_ENV=production
+
+# Base stage with common dependencies
+FROM node:${NODE_VERSION} AS base
+
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -14,45 +22,94 @@ RUN apk add --no-cache \
     python3-dev \
     && rm -rf /var/cache/apk/*
 
-# Install yt-dlp using pipx for isolated installation
 RUN pip3 install --break-system-packages yt-dlp
 
-# Create app directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Dependencies stage
+FROM base AS dependencies
 
-# Install all dependencies with proper opus support
+COPY package*.json ./
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/${SERVICE}/package*.json ./packages/${SERVICE}/
+
 RUN npm install
 
-# Copy source code
-COPY . .
+# Build stage
+FROM dependencies AS build
 
-# Build the application using tsup
+COPY packages/shared ./packages/shared
+COPY packages/${SERVICE} ./packages/${SERVICE}
+COPY prisma ./prisma
+
+WORKDIR /app/packages/shared
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --omit=dev
+WORKDIR /app/packages/${SERVICE}
+RUN npm run build
 
-# Create downloads directory with proper permissions
-RUN mkdir -p downloads
+# Production stage
+FROM base AS production
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S bot -u 1001
+ARG SERVICE
+ARG NODE_ENV
 
-# Change ownership of the app directory and downloads
-RUN chown -R bot:nodejs /app
-RUN chmod -R 755 /app/downloads
-USER bot
+WORKDIR /app
 
-# Expose port (if needed for health checks)
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=dependencies /app/package*.json ./
+COPY --from=dependencies /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=dependencies /app/packages/${SERVICE}/node_modules ./packages/${SERVICE}/node_modules
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/
+COPY --from=build /app/packages/${SERVICE}/dist ./packages/${SERVICE}/dist
+COPY --from=build /app/packages/${SERVICE}/package.json ./packages/${SERVICE}/
+COPY --from=build /app/prisma ./prisma
+
+RUN if [ "$SERVICE" = "bot" ]; then \
+        npm prune --omit=dev && \
+        mkdir -p downloads logs && \
+        addgroup -g 1001 -S nodejs && \
+        adduser -S bot -u 1001 && \
+        chown -R bot:nodejs /app && \
+        chmod -R 755 /app/downloads; \
+    elif [ "$SERVICE" = "backend" ]; then \
+        npm prune --omit=dev && \
+        addgroup -g 1001 -S nodejs && \
+        adduser -S backend -u 1001 && \
+        chown -R backend:nodejs /app; \
+    fi
+
+USER ${SERVICE}
+
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "console.log('Service is running')" || exit 1
+
+CMD ["sh", "-c", "if [ \"$SERVICE\" = \"bot\" ]; then node packages/bot/dist/index.js; else node packages/backend/dist/index.js; fi"]
+
+# Development stage
+FROM dependencies AS development
+
+ARG SERVICE
+
+WORKDIR /app
+
+COPY . .
+
+RUN mkdir -p downloads logs && \
+    chmod +x scripts/discord-bot.sh 2>/dev/null || true
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S bot -u 1001 && \
+    chown -R bot:nodejs /app
+
+USER bot
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "console.log('Bot is running')" || exit 1
 
-# Start the bot directly
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "if [ \"$SERVICE\" = \"bot\" ]; then npm run dev:bot; else npm run dev:backend; fi"]

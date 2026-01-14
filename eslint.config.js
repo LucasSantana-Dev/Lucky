@@ -8,6 +8,7 @@ export default [
     {
         ignores: [
             "dist/**/*",
+            "**/dist/**/*",
             "node_modules/**/*",
             "*.config.js",
             "*.config.ts",
@@ -87,6 +88,14 @@ export default [
                     caughtErrorsIgnorePattern: "^_",
                 },
             ],
+        },
+    },
+    {
+        files: ["src/webapp/public/**/*.js"],
+        languageOptions: {
+            globals: {
+                ...globals.browser,
+            },
         },
     },
 ]

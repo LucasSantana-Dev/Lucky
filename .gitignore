@@ -1,24 +1,56 @@
 node_modules
 package-lock.json
+
+# Environment files
 .env
 .env.local
 .env.test
+.env.production
+.env.development
+.env.*.local
+*.env
+
+# IDE
 .vscode
+.cursor/
+.cursorignore
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
 dist
-downloads
+build
+*.tsbuildinfo
+
+# Downloads and logs
+downloads/
+logs/
+*.log
 
 # FFmpeg binaries
 ffmpeg/bin/ffplay.exe
 ffmpeg/bin/ffmpeg.exe
 ffmpeg/bin/ffprobe.exe
 
-.cursor/
-.cursorignore
-.vscode/
-
-logs/
-*.log
-
+# Generated files
 /src/generated
+packages/*/dist
+packages/*/node_modules/.prisma
+
+# Test coverage
 coverage/
 *.lcov
+.nyc_output/
+
+# Secrets and keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+auth.json
+secrets.json
+config.json
+*.secret
