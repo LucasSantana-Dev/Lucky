@@ -1,0 +1,1 @@
+export { downloadCommand } from './service'
