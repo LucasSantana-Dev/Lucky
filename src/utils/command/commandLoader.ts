@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { errorLog, infoLog, debugLog } from '../general/log'
-import Command from '../../models/Command'
+import Command from '../../../packages/bot/src/models/Command'
 
 function getAbsolutePath(directoryPath: string): string {
     const absolutePath = path.isAbsolute(directoryPath)

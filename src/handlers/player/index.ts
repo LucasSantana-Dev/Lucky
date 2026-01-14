@@ -1,6 +1,5 @@
 import type { Player } from 'discord-player'
 import type { CustomClient } from '../../types/index'
-import type { PlayerEvents } from '../../types/discord'
 import { createPlayer } from './playerFactory'
 import { setupErrorHandlers } from './errorHandlers'
 import { setupLifecycleHandlers } from './lifecycleHandlers'
@@ -15,10 +14,11 @@ export const createPlayerWithHandlers = ({
 }: CreatePlayerParams): Player => {
     const player = createPlayer({ client })
 
-    // Setup event handlers
-    setupErrorHandlers(player as PlayerEvents)
-    setupLifecycleHandlers(player as PlayerEvents)
-    setupTrackHandlers(player as PlayerEvents)
+    player.events.removeAllListeners()
+
+    setupErrorHandlers(player as unknown as { events: { on: (event: string, handler: Function) => void } })
+    setupLifecycleHandlers(player as unknown as { events: { on: (event: string, handler: Function) => void } })
+    setupTrackHandlers({ player: player as unknown as { events: { on: (event: string, handler: Function) => void } }, client })
 
     return player
 }

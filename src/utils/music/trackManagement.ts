@@ -1,18 +1,16 @@
 import type { Track, GuildQueue } from "discord-player"
 import type { User } from "discord.js"
 import { debugLog, errorLog, infoLog } from "../general/log"
-import type { TrackHistoryEntry } from "./duplicateDetection"
 import {
     isDuplicateTrack,
     clearHistory,
     recentlyPlayedTracks,
     addTrackToHistory,
+    type TrackHistoryEntry,
 } from "./duplicateDetection"
 import {
-    searchRelatedTracks,
-    filterDuplicateTracks,
-    getCurrentTrackIds,
-} from "./trackSearch"
+    TrackFilter,
+} from "./trackSearch/trackFilter"
 import { getAutoplayCount, incrementAutoplayCount } from "./autoplayManager"
 
 interface IQueueMetadata {
@@ -21,17 +19,106 @@ interface IQueueMetadata {
     requestedBy: User | undefined
 }
 
+function checkAutoplayLimit(
+    currentAutoplayCount: number,
+    maxAutoplayTracks: number,
+    queue: GuildQueue,
+): boolean {
+    if (currentAutoplayCount >= maxAutoplayTracks) {
+        debugLog({
+            message: `Autoplay limit reached (${currentAutoplayCount}/${maxAutoplayTracks}), stopping autoplay`,
+        })
+        queue.setRepeatMode(0)
+        return false
+    }
+    return true
+}
+
+function calculateTargetQueueSize(
+    currentAutoplayCount: number,
+    maxAutoplayTracks: number,
+): number {
+    const isNearLimit = currentAutoplayCount >= maxAutoplayTracks * 0.8
+    return isNearLimit ? 3 : 8
+}
+
+async function searchRelatedTracksForReplenishment(
+    queue: GuildQueue,
+    lastTrack: Track,
+    guildId: string,
+): Promise<Track[]> {
+    addTrackToHistory(lastTrack, guildId)
+
+    if (!lastTrack.id) {
+        debugLog({
+            message: "Last track has no ID, cannot search for related tracks",
+            data: {
+                trackTitle: lastTrack.title,
+                trackUrl: lastTrack.url,
+            },
+        })
+        return []
+    }
+
+    const requestedBy = (lastTrack.requestedBy ??
+        (queue.metadata as IQueueMetadata)?.requestedBy) as User | undefined
+    if (!requestedBy) {
+        debugLog({
+            message: "No requestedBy user found, cannot search for related tracks",
+        })
+        return []
+    }
+
+    const searchQuery = `${lastTrack.author} ${lastTrack.title}`
+    const searchResult = await queue.player.search(searchQuery, {
+        requestedBy,
+    })
+    return searchResult.hasTracks() ? searchResult.tracks : []
+}
+
+async function addTracksToQueueForReplenishment(
+    queue: GuildQueue,
+    filteredTracks: Track[],
+    remainingSlots: number,
+    guildId: string,
+    currentAutoplayCount: number,
+    maxAutoplayTracks: number,
+): Promise<void> {
+    const tracksToAdd = filteredTracks.slice(0, remainingSlots)
+
+    if (tracksToAdd.length === 0) {
+        return
+    }
+
+    const botUser = (queue.metadata as IQueueMetadata)?.client?.user
+    tracksToAdd.forEach((track: Track) => {
+        if (botUser) {
+            track.requestedBy = botUser
+        }
+    })
+
+    queue.addTrack(tracksToAdd)
+    incrementAutoplayCount(guildId, tracksToAdd.length)
+
+    debugLog({
+        message: `Added ${tracksToAdd.length} related tracks to queue (autoplay: ${currentAutoplayCount + tracksToAdd.length}/${maxAutoplayTracks})`,
+        data: {
+            tracks: tracksToAdd.map((t: Track) => t.title),
+            requestedBy: tracksToAdd.map((track: Track) => track.requestedBy?.id),
+        },
+    })
+}
+
 /**
  * Add a track to the queue with duplicate checking
  */
-export function addTrackToQueue(queue: GuildQueue, track: Track): void {
+export async function addTrackToQueue(queue: GuildQueue, track: Track): Promise<void> {
     try {
         // Check if track is a duplicate
         const guildId = queue.guild.id
-        const currentTrackIds = getCurrentTrackIds(queue)
+        const isDuplicate = await isDuplicateTrack(guildId, track.url)
 
-        // Check if track is a duplicate
-        if (isDuplicateTrack(track, guildId, currentTrackIds)) {
+        if (isDuplicate) {
             debugLog({ message: `Skipping duplicate track: ${track.title}` })
             return
         }
@@ -49,14 +136,14 @@ export function addTrackToQueue(queue: GuildQueue, track: Track): void {
 /**
  * Add multiple tracks to the queue with duplicate checking
  */
-export function addTracksToQueue(queue: GuildQueue, tracks: Track[]): void {
+export async function addTracksToQueue(queue: GuildQueue, tracks: Track[]): Promise<void> {
     try {
         // Check if tracks are duplicates
         const guildId = queue.guild.id
-        const currentTrackIds = getCurrentTrackIds(queue)
+        const currentTrackIds = TrackFilter.getCurrentTrackIds(queue)
 
         // Filter out duplicates
-        const filteredTracks = filterDuplicateTracks(
+        const filteredTracks = await TrackFilter.filterDuplicateTracks(
             tracks,
             guildId,
             currentTrackIds,
@@ -105,36 +192,26 @@ export async function replenishQueue(
             return
         }
 
-        // Get the autoplay counter for this guild
         const guildId = queue.guild.id
-        const currentAutoplayCount = getAutoplayCount(guildId)
-        const maxAutoplayTracks = 50 // This should come from constants, but importing here would create circular dependency
+        const currentAutoplayCount = await Promise.resolve(getAutoplayCount(guildId))
+        const maxAutoplayTracks = 50
 
-        // For radio-like experience, we want to maintain a larger buffer
-        // If we're close to the limit, we should be more conservative
-        const isNearLimit = currentAutoplayCount >= maxAutoplayTracks * 0.8 // 80% of limit
-
-        if (currentAutoplayCount >= maxAutoplayTracks) {
-            debugLog({
-                message: `Autoplay limit reached (${currentAutoplayCount}/${maxAutoplayTracks}), stopping autoplay`,
-            })
-            queue.setRepeatMode(0) // QueueRepeatMode.OFF
+        if (!checkAutoplayLimit(currentAutoplayCount, maxAutoplayTracks, queue)) {
             return
         }
 
-        // Determine target queue size based on whether we're near the autoplay limit
-        const targetQueueSize = isNearLimit ? 3 : 8 // More aggressive when not near limit
+        const targetQueueSize = calculateTargetQueueSize(currentAutoplayCount, maxAutoplayTracks)
 
         // If queue has less than target tracks OR force replenish is true, try to add more
         // This ensures we maintain a larger buffer for continuous radio-like experience
-        if (queue.tracks.size < targetQueueSize || forceReplenish) {
+        const queueSize = queue.tracks.size
+        if (queueSize < targetQueueSize || forceReplenish) {
             debugLog({
                 message: forceReplenish
                     ? "Force replenishing queue with related tracks..."
                     : `Queue has less than ${targetQueueSize} tracks, replenishing...`,
             })
 
-            // Get the last played track to use for related search
             const lastTrack = queue.currentTrack
             if (!lastTrack) {
                 debugLog({
@@ -143,22 +220,6 @@ export async function replenishQueue(
                 return
             }
 
-            // Ensure the track is added to history first so we can get metadata
-            addTrackToHistory(lastTrack, guildId)
-
-            if (!lastTrack.id) {
-                debugLog({
-                    message:
-                        "Last track has no ID, cannot search for related tracks",
-                    data: {
-                        trackTitle: lastTrack.title,
-                        trackUrl: lastTrack.url,
-                    },
-                })
-                return
-            }
-
-            // Search for related tracks using metadata
             debugLog({
                 message: "Searching for related tracks",
                 data: {
@@ -168,31 +229,27 @@ export async function replenishQueue(
                 },
             })
 
-            const relatedTracks = await searchRelatedTracks(
+            const relatedTracks = await searchRelatedTracksForReplenishment(
                 queue,
-                lastTrack.id,
-                lastTrack.requestedBy ??
-                    (queue.metadata as { requestedBy?: unknown })?.requestedBy,
+                lastTrack,
+                guildId,
             )
 
             debugLog({
                 message: "Related tracks search completed",
                 data: {
-                    foundTracks: relatedTracks?.length || 0,
-                    trackTitles: relatedTracks?.map((t) => t.title) || [],
+                    foundTracks: relatedTracks.length,
+                    trackTitles: relatedTracks.map((t) => t.title),
                 },
             })
 
-            if (!relatedTracks?.length) {
+            if (relatedTracks.length === 0) {
                 debugLog({ message: "No related tracks found" })
                 return
             }
 
-            // Get the guild's track ID set
-            const currentTrackIds = getCurrentTrackIds(queue)
-
-            // Filter out recently played tracks
-            const filteredTracks = filterDuplicateTracks(
+            const currentTrackIds = TrackFilter.getCurrentTrackIds(queue)
+            const filteredTracks = await TrackFilter.filterDuplicateTracks(
                 relatedTracks,
                 guildId,
                 currentTrackIds,
@@ -208,45 +265,20 @@ export async function replenishQueue(
                 },
             })
 
-            // Add tracks to queue until we reach target size, but respect autoplay limit
-            // This creates a better radio-like experience with more tracks in queue
+            const currentQueueSize = queue.tracks.size
             const remainingSlots = Math.min(
-                targetQueueSize - queue.tracks.size,
+                targetQueueSize - currentQueueSize,
                 maxAutoplayTracks - currentAutoplayCount,
             )
-            const tracksToAdd = filteredTracks.slice(0, remainingSlots)
 
-            debugLog({
-                message: "Calculated tracks to add",
-                data: {
-                    remainingSlots,
-                    tracksToAdd: tracksToAdd.length,
-                    trackTitles: tracksToAdd.map((t) => t.title),
-                },
-            })
-
-            if (tracksToAdd.length > 0) {
-                // Mark tracks as requested by the bot for autoplay
-                const botUser = (queue.metadata as IQueueMetadata)?.client?.user
-                tracksToAdd.forEach((track) => {
-                    if (botUser) {
-                        track.requestedBy = botUser
-                    }
-                })
-
-                queue.addTrack(tracksToAdd)
-
-                // Update autoplay counter
-                incrementAutoplayCount(guildId, tracksToAdd.length)
-
-                debugLog({
-                    message: `Added ${tracksToAdd.length} related tracks to queue (autoplay: ${currentAutoplayCount + tracksToAdd.length}/${maxAutoplayTracks})`,
-                    data: {
-                        tracks: tracksToAdd.map((t) => t.title),
-                        requestedBy: tracksToAdd.map((t) => t.requestedBy?.id),
-                    },
-                })
-            }
+            await addTracksToQueueForReplenishment(
+                queue,
+                filteredTracks,
+                remainingSlots,
+                guildId,
+                currentAutoplayCount,
+                maxAutoplayTracks,
+            )
         }
     } catch (error) {
         errorLog({ message: "Error replenishing queue:", error })

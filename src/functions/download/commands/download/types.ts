@@ -8,6 +8,8 @@ export type DownloadOptions = {
     quality?: string
     maxDuration?: number
     maxFileSize?: number
+    userId?: string
+    guildId?: string
 }
 
 export type DownloadResult = {

@@ -11,6 +11,7 @@ import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
+import { reactionRolesService } from '../services/ReactionRolesService'
 
 type HandleInteractionsParams = {
     client: CustomClient
@@ -92,6 +93,11 @@ export async function handleInteraction(
     try {
         if (interaction.isChatInputCommand()) {
             await executeCommand({ interaction, client })
+            return
+        }
+
+        if (interaction.isButton()) {
+            await reactionRolesService.handleButtonInteraction(interaction)
         }
     } catch (error) {
         errorLog({ message: 'Error handling interaction:', error })

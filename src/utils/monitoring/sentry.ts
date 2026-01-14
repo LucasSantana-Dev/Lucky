@@ -72,17 +72,19 @@ export function initializeSentry(): void {
  * Add breadcrumb for debugging
  */
 export function addBreadcrumb(
-    level: string,
     message: string,
     category?: string,
+    level?: 'debug' | 'info' | 'warning' | 'error' | 'fatal',
     data?: Record<string, unknown>,
 ): void {
+    if (!process.env.SENTRY_DSN || process.env.NODE_ENV === 'development') {
+        return
+    }
+
     Sentry.addBreadcrumb({
         message,
         category: category ?? 'general',
-        level:
-            (level as 'debug' | 'info' | 'warning' | 'error' | 'fatal') ??
-            'info',
+        level: level ?? 'info',
         data,
     })
 }
@@ -97,11 +99,13 @@ export function monitorCommandExecution(
 ): void {
     addBreadcrumb(`Command executed: ${commandName}`, 'command', 'info')
 
-    Sentry.setContext('command', {
-        name: commandName,
-        userId,
-        guildId,
-    })
+    if (process.env.SENTRY_DSN && process.env.NODE_ENV !== 'development') {
+        Sentry.setContext('command', {
+            name: commandName,
+            userId,
+            guildId,
+        })
+    }
 }
 
 /**
@@ -118,9 +122,11 @@ export function monitorInteractionHandling(
         'info',
     )
 
-    Sentry.setContext('interaction', {
-        type: interactionType,
-        userId,
-        guildId,
-    })
+    if (process.env.SENTRY_DSN && process.env.NODE_ENV !== 'development') {
+        Sentry.setContext('interaction', {
+            type: interactionType,
+            userId,
+            guildId,
+        })
+    }
 }

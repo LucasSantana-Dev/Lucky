@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #151516;
+    --bg-secondary: #1a1a1b;
+    --bg-tertiary: #202021;
+    --bg-active: #252526;
+    --bg-border: #2d2d2e;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --text-tertiary: #808080;
+    --text-disabled: #4d4d4d;
+    --radius: 0.5rem;
+    --border: 210 40% 18%;
+    --input: 210 40% 18%;
+    --ring: 0 72% 51%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}

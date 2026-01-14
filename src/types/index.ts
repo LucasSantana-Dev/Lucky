@@ -4,7 +4,7 @@ import type {
     ChatInputCommandInteraction,
 } from 'discord.js'
 import type { Player } from 'discord-player'
-import type Command from '../models/Command'
+import type Command from '../../packages/bot/src/models/Command'
 
 export type CustomClient = Client & {
     commands: Collection<string, Command>

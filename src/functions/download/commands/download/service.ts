@@ -5,6 +5,7 @@ import { createEmbed, EMBED_COLORS } from '../../../../utils/general/embeds'
 import { DownloadValidator } from './validator'
 import { DownloadProcessor } from './processor'
 import type { DownloadOptions, DownloadResult } from './types'
+import { featureToggleService } from '../../../../services/FeatureToggleService'
 
 /**
  * Format file size for display
@@ -66,6 +67,26 @@ export class DownloadCommandService {
 
     async executeDownload(options: DownloadOptions): Promise<DownloadResult> {
         try {
+            const toggleName =
+                options.format === 'video' ? 'DOWNLOAD_VIDEO' : 'DOWNLOAD_AUDIO'
+            const context = options.userId
+                ? {
+                      userId: options.userId,
+                      guildId: options.guildId,
+                  }
+                : undefined
+            const isEnabled = await featureToggleService.isEnabled(
+                toggleName,
+                context,
+            )
+
+            if (!isEnabled) {
+                return {
+                    success: false,
+                    error: 'This feature is currently disabled',
+                }
+            }
+
             // Validate download options
             const validation = await this.validator.validateDownload(options)
             if (!validation.isValid) {

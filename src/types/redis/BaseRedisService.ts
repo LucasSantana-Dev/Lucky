@@ -2,7 +2,8 @@
  * Base Redis service with common operation patterns
  */
 
-import { BaseRedisOperations } from '../../config/redis/operations/base'
+import type { Redis } from 'ioredis'
+import { debugLog, errorLog } from '../../utils/general/log'
 
 export interface RedisServiceConfig {
     defaultTtl: number
@@ -21,17 +22,49 @@ export interface RedisStateInterface {
     lastPing: number
 }
 
-export abstract class BaseRedisService extends BaseRedisOperations {
+export abstract class BaseRedisService {
     protected readonly config: RedisServiceConfig
+    protected readonly client: Redis | null
+    protected readonly state: RedisStateInterface
 
     constructor(
         client: RedisClientInterface,
         state: RedisStateInterface,
         config: RedisServiceConfig,
     ) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        super(client as any, state as any)
         this.config = config
+        this.client = client as unknown as Redis | null
+        this.state = state
+    }
+
+    protected isHealthy(): boolean {
+        return this.state.isConnected && this.client !== null
+    }
+
+    protected async executeOperation<T>(
+        operation: () => Promise<T>,
+        fallback: T,
+        operationName: string,
+        key?: string,
+    ): Promise<T> {
+        if (!this.isHealthy()) {
+            debugLog({
+                message: `Redis not available, skipping ${operationName} operation`,
+            })
+            return fallback
+        }
+
+        try {
+            if (!this.client) return fallback
+            return await operation()
+        } catch (error) {
+            const keyInfo = key !== undefined ? ` for key ${key}` : ''
+            errorLog({
+                message: `Redis ${operationName} error${keyInfo}:`,
+                error,
+            })
+            return fallback
+        }
     }
 
     protected getKey(identifier: string): string {

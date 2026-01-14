@@ -102,7 +102,7 @@ export class LogService {
     success(params: LogParams): void {
         this.log(3, params)
 
-        addBreadcrumb('info', params.message, 'success')
+        addBreadcrumb('info', params.message, 'info')
     }
 
     debug(params: LogParams): void {

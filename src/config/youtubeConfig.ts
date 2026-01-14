@@ -1,5 +1,5 @@
 import { QueryType } from 'discord-player'
-import { ENVIRONMENT_CONFIG } from './environmentConfig'
+import { ENVIRONMENT_CONFIG } from './config'
 
 /**
  * Configuration for YouTube.js error handling and fallback mechanisms

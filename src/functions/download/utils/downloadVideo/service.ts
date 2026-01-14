@@ -1,8 +1,9 @@
-import ffmpeg from 'fluent-ffmpeg'
 import path from 'path'
 import play from 'play-dl'
 import fs from 'fs'
 import { errorLog, infoLog } from '../../../../utils/general/log'
+import { convertStreamToFile } from '../../../../utils/ffmpeg/ffmpegWrapper'
+import type { Readable } from 'stream'
 
 type DownloadResult = {
     success: boolean
@@ -104,40 +105,41 @@ export class DownloadVideoService {
                 }
             }
 
-            return new Promise((resolve) => {
-                ffmpeg(stream.stream)
-                    .audioCodec('libmp3lame')
-                    .audioBitrate(128)
-                    .format('mp3')
-                    .on('end', () => {
-                        const finalPath = path.join(outputPath, outputFileName)
-                        fs.renameSync(audioPath, finalPath)
-
-                        const stats = fs.statSync(finalPath)
-                        resolve({
-                            success: true,
-                            filePath: finalPath,
-                            fileName: outputFileName,
-                            fileSize: stats.size,
-                            duration: parseInt(
-                                (
-                                    videoInfo as {
-                                        videoDetails?: {
-                                            lengthSeconds?: string
-                                        }
-                                    }
-                                ).videoDetails?.lengthSeconds ?? '0',
-                            ),
-                        })
-                    })
-                    .on('error', (err) => {
-                        resolve({
-                            success: false,
-                            error: err.message,
-                        })
-                    })
-                    .save(audioPath)
+            const audioStream = stream.stream as Readable
+            const result = await convertStreamToFile({
+                input: audioStream,
+                output: audioPath,
+                audioCodec: 'libmp3lame',
+                audioBitrate: 128,
+                format: 'mp3',
             })
+
+            if (!result.success) {
+                return {
+                    success: false,
+                    error: result.error ?? 'FFmpeg conversion failed',
+                }
+            }
+
+            const finalPath = path.join(outputPath, outputFileName)
+            fs.renameSync(audioPath, finalPath)
+
+            const stats = fs.statSync(finalPath)
+            return {
+                success: true,
+                filePath: finalPath,
+                fileName: outputFileName,
+                fileSize: stats.size,
+                duration: parseInt(
+                    (
+                        videoInfo as {
+                            videoDetails?: {
+                                lengthSeconds?: string
+                            }
+                        }
+                    ).videoDetails?.lengthSeconds ?? '0',
+                ),
+            }
         } catch (error) {
             return {
                 success: false,
@@ -161,37 +163,50 @@ export class DownloadVideoService {
 
             const finalPath = path.join(outputPath, outputFileName)
 
-            return new Promise((resolve) => {
-                ffmpeg(stream.stream)
-                    .videoCodec('libx264')
-                    .audioCodec('aac')
-                    .format('mp4')
-                    .on('end', () => {
-                        const stats = fs.statSync(finalPath)
-                        resolve({
-                            success: true,
-                            filePath: finalPath,
-                            fileName: outputFileName,
-                            fileSize: stats.size,
-                            duration: parseInt(
-                                (
-                                    videoInfo as {
-                                        videoDetails?: {
-                                            lengthSeconds?: string
-                                        }
-                                    }
-                                ).videoDetails?.lengthSeconds ?? '0',
-                            ),
-                        })
-                    })
-                    .on('error', (err) => {
-                        resolve({
-                            success: false,
-                            error: err.message,
-                        })
-                    })
-                    .save(finalPath)
+            if (
+                stream === null ||
+                stream === undefined ||
+                typeof stream !== 'object' ||
+                !('stream' in stream)
+            ) {
+                return {
+                    success: false,
+                    error: 'Could not get video stream',
+                }
+            }
+
+            const videoStream = stream.stream as Readable
+            const result = await convertStreamToFile({
+                input: videoStream,
+                output: finalPath,
+                videoCodec: 'libx264',
+                audioCodec: 'aac',
+                format: 'mp4',
             })
+
+            if (!result.success) {
+                return {
+                    success: false,
+                    error: result.error ?? 'FFmpeg conversion failed',
+                }
+            }
+
+            const stats = fs.statSync(finalPath)
+            return {
+                success: true,
+                filePath: finalPath,
+                fileName: outputFileName,
+                fileSize: stats.size,
+                duration: parseInt(
+                    (
+                        videoInfo as {
+                            videoDetails?: {
+                                lengthSeconds?: string
+                            }
+                        }
+                    ).videoDetails?.lengthSeconds ?? '0',
+                ),
+            }
         } catch (error) {
             return {
                 success: false,

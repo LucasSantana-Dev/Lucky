@@ -2,7 +2,7 @@
  * Redis operations - main operations class
  */
 
-import type Redis from 'ioredis'
+import type { Redis } from 'ioredis'
 import type { RedisClientState } from './types'
 import { KeyOperations } from './operations/keyOperations'
 import { StringOperations } from './operations/stringOperations'

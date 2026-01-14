@@ -1,4 +1,3 @@
-import ffmpeg from 'fluent-ffmpeg'
 import path from 'path'
 import play from 'play-dl'
 import fs from 'fs'
@@ -6,6 +5,7 @@ import type { ChatInputCommandInteraction } from 'discord.js'
 import { deleteContent } from './deleteContent'
 import { errorLog, infoLog } from '../../../utils/general/log'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { convertFileToFile } from '../../../utils/ffmpeg/ffmpegWrapper'
 
 // NodeJS types are available via @types/node
 import type { Readable } from 'stream'
@@ -93,15 +93,16 @@ async function convertToMp3(
 ): Promise<void> {
     infoLog({ message: 'Converting audio to MP3' })
 
-    await new Promise<void>((resolve, reject) => {
-        ffmpeg(tempAudioPath)
-            .audioCodec('libmp3lame')
-            .audioBitrate('128k')
-            .output(outputPath)
-            .on('end', () => resolve())
-            .on('error', (err) => reject(err))
-            .run()
+    const result = await convertFileToFile({
+        input: tempAudioPath,
+        output: outputPath,
+        audioCodec: 'libmp3lame',
+        audioBitrate: '128k',
     })
+
+    if (!result.success) {
+        throw new Error(result.error ?? 'FFmpeg conversion failed')
+    }
 }
 
 async function cleanupFiles(

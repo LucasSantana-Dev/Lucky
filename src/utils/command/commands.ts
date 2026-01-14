@@ -3,7 +3,7 @@ import generalCommands from '../../functions/general/commands/index'
 import { groupCommands } from '../../handlers/commandsHandler'
 import musicCommands from '../../functions/music/commands/index'
 import { errorLog, debugLog } from '../general/log'
-import type Command from '../../models/Command'
+import type Command from '../../../packages/bot/src/models/Command'
 
 export const getCommands = async (): Promise<Command[]> => {
     try {

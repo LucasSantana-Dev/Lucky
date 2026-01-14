@@ -227,5 +227,6 @@ export class TrackHistoryService {
       errorLog({ message: 'Failed to clear guild caches', error })
     }
   }
-
 }
+
+export const trackHistoryService = new TrackHistoryService()

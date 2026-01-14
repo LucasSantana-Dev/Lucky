@@ -1,4 +1,4 @@
-import type Command from '../../models/Command'
+import type Command from '../../../packages/bot/src/models/Command'
 import path from 'path'
 import {
     COMMAND_CATEGORIES,

@@ -1,1 +1,0 @@
-export { downloadCommand } from './service'

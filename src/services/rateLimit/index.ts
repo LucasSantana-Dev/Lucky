@@ -1,4 +1,4 @@
-import { ENVIRONMENT_CONFIG } from '../../config/environmentConfig'
+import { ENVIRONMENT_CONFIG } from '../../config/config'
 import { RateLimitManager } from './rateLimitManager'
 import type {
     RateLimitConfig,

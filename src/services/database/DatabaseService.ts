@@ -2,8 +2,9 @@
  * Database service for managing PostgreSQL operations
  */
 
-import { PrismaClient } from '@prisma/client'
-import type { UserModel, GuildModel, TrackHistoryModel, CommandUsageModel } from '../../generated/prisma-client/models'
+import { getPrismaClient } from '@lukbot/shared/utils'
+
+type PrismaClient = ReturnType<typeof getPrismaClient>
 import { Result } from '../../types/common/BaseResult'
 import { infoLog, errorLog, debugLog } from '../../utils/general/log'
 import type {
@@ -14,6 +15,57 @@ import type {
   DatabaseAnalytics,
   DatabaseArtistStats
 } from './types'
+
+type UserModel = {
+  id: string
+  discordId: string
+  username: string
+  avatar: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+type GuildModel = {
+  id: string
+  discordId: string
+  name: string
+  icon: string | null
+  ownerId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+type TrackHistoryModel = {
+  id: string
+  guildId: string
+  trackId: string
+  title: string
+  author: string
+  duration: string
+  url: string
+  thumbnail: string | null
+  source: string
+  playedAt: Date
+  createdAt: Date
+  playedBy: string | null
+  isAutoplay: boolean
+  playlistName: string | null
+  playDuration: number | null
+  skipped: boolean | null
+  isPlaylist: boolean | null
+}
+
+type CommandUsageModel = {
+  id: string
+  userId: string | null
+  guildId: string | null
+  command: string
+  category: string
+  success: boolean
+  errorCode: string | null
+  duration: number | null
+  createdAt: Date
+}
 
 function assertIsUserModel(value: unknown): asserts value is UserModel {
   if (!value || typeof value !== 'object' || !('id' in value) || !('discordId' in value)) {
@@ -141,21 +193,7 @@ export class DatabaseService {
 
   constructor(config: DatabaseConfig) {
     this.config = config
-
-    this.prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: this.config.url,
-        },
-      },
-      log: [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'event' },
-        { level: 'info', emit: 'event' },
-        { level: 'warn', emit: 'event' },
-      ],
-    })
-
+    this.prisma = getPrismaClient()
     this.setupEventHandlers()
   }
 

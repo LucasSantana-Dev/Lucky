@@ -2,7 +2,7 @@
  * Redis client implementation
  */
 
-import Redis from 'ioredis'
+import RedisClientClass, { type Redis } from 'ioredis'
 import { debugLog, errorLog } from '../../utils/general/log'
 import { createRedisConfig } from './config'
 import { setupRedisEventHandlers } from './eventHandlers'
@@ -25,7 +25,7 @@ export class RedisClient implements IRedisClient {
     private initializeClient(): void {
         try {
             const config = createRedisConfig()
-            this.client = new Redis(config)
+            this.client = new RedisClientClass(config) as Redis
             this.operations = new RedisOperations(this.client, this.state)
             setupRedisEventHandlers(this.client, this.state)
         } catch (error) {

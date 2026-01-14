@@ -2,7 +2,7 @@
  * Redis configuration setup
  */
 
-import { ENVIRONMENT_CONFIG } from '../environmentConfig'
+import { ENVIRONMENT_CONFIG } from '../config'
 import type { RedisConfig } from './types'
 
 export function createRedisConfig(): RedisConfig {

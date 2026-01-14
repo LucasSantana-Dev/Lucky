@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import { errorLog, debugLog } from '../general/log'
-import type Command from '../../models/Command'
+import { errorLog, debugLog, infoLog } from '../general/log'
+import type Command from '../../../packages/bot/src/models/Command'
 import { config } from '../../config/config'
 
 type GetCommandsParams = {
@@ -25,14 +25,22 @@ function validateDirectoryPath(url: string): string | null {
 }
 
 function getCommandFiles(absolutePath: string): string[] {
-    return fs
+    const isProd = process.env.NODE_ENV === 'production'
+
+    const files = fs
         .readdirSync(absolutePath)
         .filter(
             (file) =>
                 (file.endsWith('.js') || file.endsWith('.ts')) &&
-                !file.endsWith('.d.ts'),
+                !file.endsWith('.d.ts') &&
+                !file.startsWith('index.'),
         )
-        .filter((file) => !file.startsWith('index.'))
+
+    if (isProd) {
+        return files.filter((file) => file.endsWith('.js'))
+    }
+
+    return files.filter((file) => file.endsWith('.ts'))
 }
 
 function isValidCommand(command: unknown): command is Command {
@@ -53,11 +61,23 @@ async function loadCommandFromFile(
 ): Promise<Command | null> {
     try {
         const filePath = path.join(absolutePath, file)
-        const fileUrl = `file://${filePath}`
-        const commandModule = await import(fileUrl) as { default?: Command; command?: Command }
+        debugLog({ message: `Loading command from: ${filePath}` })
+
+        const isProd = process.env.NODE_ENV === 'production'
+        let commandModule
+        if (isProd) {
+            const fileUrl = `file://${filePath}`
+            commandModule = await import(fileUrl) as { default?: Command; command?: Command }
+        } else {
+            commandModule = await import(filePath) as { default?: Command; command?: Command }
+        }
+
         const command = commandModule.default ?? commandModule.command
 
         if (isValidCommand(command)) {
+            debugLog({
+                message: `Successfully loaded command: ${command.data.name} from ${file}`,
+            })
             return command
         } else {
             errorLog({
@@ -66,7 +86,10 @@ async function loadCommandFromFile(
             return null
         }
     } catch (error) {
-        errorLog({ message: `Error loading command from ${file}:`, error })
+        errorLog({
+            message: `Error loading command from ${file}:`,
+            error,
+        })
         return null
     }
 }
@@ -81,6 +104,8 @@ export const getCommandsFromDirectory = async ({
     category,
 }: GetCommandsParams): Promise<Command[]> => {
     try {
+        debugLog({ message: `Reading directory: ${url}` })
+
         if (isCategoryDisabled(category)) {
             debugLog({
                 message: `Category '${category}' is disabled via config. Skipping load.`,
@@ -91,9 +116,14 @@ export const getCommandsFromDirectory = async ({
         const absolutePath = validateDirectoryPath(url)
         if (!absolutePath) return []
 
-        const commandFiles = getCommandFiles(absolutePath)
-        const commands: Command[] = []
+        debugLog({ message: `Absolute path: ${absolutePath}` })
 
+        const commandFiles = getCommandFiles(absolutePath)
+        debugLog({
+            message: `Found ${commandFiles.length} command files in ${absolutePath}`,
+        })
+
+        const commands: Command[] = []
         for (const file of commandFiles) {
             const command = await loadCommandFromFile(absolutePath, file)
             if (command) {
@@ -101,16 +131,16 @@ export const getCommandsFromDirectory = async ({
             }
         }
 
-        debugLog({
-            message: `Successfully loaded ${commands.length} commands from ${absolutePath}`,
-        })
-
         const filteredCommands = filterDisabledCommands(commands)
         if (filteredCommands.length !== commands.length) {
             debugLog({
                 message: `Filtered out ${commands.length - filteredCommands.length} disabled commands from ${absolutePath}`,
             })
         }
+
+        infoLog({
+            message: `Successfully loaded ${filteredCommands.length} commands from ${absolutePath}`,
+        })
 
         return filteredCommands
     } catch (error) {

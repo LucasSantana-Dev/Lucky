@@ -2,7 +2,7 @@
  * Redis event handlers
  */
 
-import type Redis from 'ioredis'
+import type { Redis } from 'ioredis'
 import { debugLog, errorLog, infoLog, warnLog } from '../../utils/general/log'
 import type { RedisClientState } from './types'
 

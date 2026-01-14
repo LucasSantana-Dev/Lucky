@@ -2,7 +2,7 @@
  * Base Redis operations
  */
 
-import type Redis from 'ioredis'
+import type { Redis } from 'ioredis'
 import { debugLog, errorLog } from '../../../utils/general/log'
 import type { RedisClientState } from '../types'
 

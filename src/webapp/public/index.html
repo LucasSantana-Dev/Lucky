@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Toggle Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin-bottom: 30px;
+            color: #5865F2;
+        }
+        .section {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .toggle-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #3d3d3d;
+        }
+        .toggle-item:last-child {
+            border-bottom: none;
+        }
+        .toggle-name {
+            font-weight: 600;
+            color: #fff;
+        }
+        .toggle-description {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #555;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #5865F2;
+        }
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+        .guild-selector {
+            margin-bottom: 20px;
+        }
+        select {
+            background: #3d3d3d;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 10px;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 16px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .status.error {
+            background: #d32f2f;
+            color: white;
+        }
+        .status.success {
+            background: #2e7d32;
+            color: white;
+        }
+        button {
+            background: #5865F2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #4752c4;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Feature Toggle Management</h1>
+
+        <div id="status"></div>
+
+        <div class="section">
+            <div class="guild-selector">
+                <label for="guildSelect">Select Server:</label>
+                <select id="guildSelect">
+                    <option value="">Select a server...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Global Toggles (Developer Only)</h2>
+            <div id="globalToggles"></div>
+        </div>
+
+        <div class="section">
+            <h2>Server-Specific Toggles</h2>
+            <div id="guildToggles"></div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
