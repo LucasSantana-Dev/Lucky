@@ -50,8 +50,37 @@ A modern Discord bot built with TypeScript that plays music from YouTube and Spo
 - **Structured error handling**: Comprehensive error handling with descriptive messages, error codes, and correlation IDs
 - **Logging system**: Multi-level logging with Sentry integration and structured error tracking
 - **Performance monitoring**: Sentry integration for error tracking and performance metrics
+- **Feature toggles**: Enhanced Unleash integration with two-tier system (global developer toggles + per-server admin toggles)
+- **Feature toggle web app**: Web application for non-technical users to manage feature toggles per server
+- **Dependency notifications**: Automated dependency update checking with Discord webhook alerts
 - **Hot reloading**: Development mode with automatic reloading
 - **Code quality**: ESLint, Prettier, and automated quality checks with **56% improvement** in code quality metrics
+- **Simplified architecture**: Reduced complexity through consolidation of duplicate code, simplified abstractions, and modular file structure
+
+### 🎛️ Feature Toggle Management
+
+DiscordBot includes a modern React-based web interface for feature toggle management:
+
+- **Two-tier toggle system**: Global developer toggles and per-server admin toggles
+- **Modern web interface**: React 18 + TypeScript + Tailwind CSS with dark mode
+- **Discord OAuth**: Secure authentication using Discord OAuth2
+- **Guild management**: View servers, check bot status, and add bot to servers
+- **Unleash integration**: Full Unleash support for advanced feature flag management
+- **Environment fallback**: Automatic fallback to environment variables when Unleash unavailable
+- **Responsive design**: Mobile-friendly interface with loading states and error handling
+
+To enable the web application, set `WEBAPP_ENABLED=true` in your `.env` file. See [WEBAPP_SETUP.md](docs/WEBAPP_SETUP.md) for detailed setup instructions.
+
+### 📦 Dependency Management
+
+DiscordBot includes automated dependency update notifications:
+
+- **Automated checking**: Scheduled checks for outdated packages using npm-check-updates
+- **Discord webhooks**: Rich embed notifications with update information
+- **Security focus**: Optional security-only mode for critical updates
+- **Configurable intervals**: Customizable check frequency (default: daily)
+
+To enable dependency notifications, set `DEPENDENCY_CHECK_ENABLED=true` and `DEPENDENCY_WEBHOOK_URL` in your `.env` file.
 
 ## 🏗️ Architecture
 
@@ -228,6 +257,51 @@ NODE_ENV=development
 - `DOWNLOAD_TIMEOUT` - Download timeout (default: 10000)
 - `DOWNLOAD_MAX_RETRIES` - Download max retries (default: 3)
 - `DOWNLOAD_RETRY_DELAY` - Download retry delay (default: 1000)
+
+**Feature Toggles (Unleash) (Optional):**
+
+- `UNLEASH_URL` - Unleash server URL (default: http://localhost:4242/api)
+- `UNLEASH_API_TOKEN` - Unleash API token for authentication
+- `UNLEASH_APP_NAME` - Application name in Unleash (default: lukbot)
+- `UNLEASH_ENVIRONMENT` - Unleash environment (default: development)
+- `UNLEASH_BOOTSTRAP_DATA` - JSON string with bootstrap feature toggle data for offline resilience
+
+**Feature Toggle Names:**
+- `DOWNLOAD_VIDEO` - Enable video download functionality
+- `DOWNLOAD_AUDIO` - Enable audio download functionality
+- `MUSIC_RECOMMENDATIONS` - Enable music recommendation system
+- `AUTOPLAY` - Enable autoplay functionality
+- `LYRICS` - Enable lyrics display
+- `QUEUE_MANAGEMENT` - Enable advanced queue management features
+
+**Note:** If Unleash is not configured, feature toggles fall back to environment variables using the pattern `FEATURE_<TOGGLE_NAME>` (e.g., `FEATURE_DOWNLOAD_VIDEO=true`).
+
+**Feature Toggle Web Application (Optional):**
+
+- `WEBAPP_ENABLED` - Enable web application for feature toggle management (default: false)
+- `WEBAPP_PORT` - Web application port (default: 3000)
+- `WEBAPP_REDIRECT_URI` - Discord OAuth redirect URI (default: http://localhost:3000/api/auth/callback)
+- `DEVELOPER_USER_IDS` - Comma-separated list of Discord user IDs with developer access to global toggles
+
+**Dependency Update Notifications (Optional):**
+
+- `DEPENDENCY_CHECK_ENABLED` - Enable automated dependency checking (default: false)
+- `DEPENDENCY_WEBHOOK_URL` - Discord webhook URL for dependency update notifications
+- `DEPENDENCY_CHECK_INTERVAL` - Check interval in milliseconds (default: 86400000 = 24 hours)
+- `DEPENDENCY_NOTIFY_ONLY_SECURITY` - Only notify on security updates (default: false)
+
+### Dependency Management
+
+The project uses depcheck to identify unused dependencies and npm-check-updates to check for outdated packages:
+
+```bash
+npm run check:deps      # Check for unused dependencies
+npm run check:outdated # Check for outdated packages
+npm audit              # Check for security vulnerabilities
+npm audit fix          # Automatically fix security issues where possible
+```
+
+**Note:** Some dependencies may appear as unused but are actually used dynamically or in runtime (e.g., @prisma/client, ioredis, unleash-client, uuid). These are properly configured in `depcheck.config.cjs`.
 
 **Search Configuration (Optional):**
 

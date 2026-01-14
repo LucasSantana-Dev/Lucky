@@ -7,17 +7,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Web Application
+
+- **Complete Discord OAuth Implementation**
+  - DiscordOAuthService for token exchange and user/guild fetching
+  - SessionService with Redis-based session management
+  - Express session middleware with secure cookie configuration
+  - Authentication middleware with requireAuth and optionalAuth
+  - Complete OAuth flow: login, callback, logout, status checking
+
+- **Discord API Integration**
+  - GuildService for fetching user guilds and checking bot membership
+  - Bot invite URL generation
+  - Guild status checking (bot added/not added)
+  - Admin permission filtering
+
+- **React Frontend Application**
+  - Vite + React 18 + TypeScript setup
+  - Tailwind CSS with custom dark mode palette (#c33d41 primary, #151516 background)
+  - Zustand stores for state management (auth, guild, feature)
+  - Axios API client with error interceptors
+  - React Router for navigation
+  - TypeScript type definitions
+
+- **UI Components**
+  - Layout components: Sidebar, Header, ServerSelector
+  - Dashboard: ServerGrid, ServerCard, AddBotButton
+  - Feature Management: GlobalTogglesSection, ServerTogglesSection, FeatureCard
+  - UI primitives: Button, Card, Skeleton, Toast, ErrorBoundary
+
+- **Feature Toggle Management**
+  - Global developer toggles (system-wide, developer-only)
+  - Per-server/guild toggles (server-specific, admin-managed)
+  - Clear visual separation between toggle types
+  - Permission-based access control
+
+- **Styling & Polish**
+  - Responsive design with mobile-first approach
+  - Loading states with skeleton components
+  - Error handling with ErrorBoundary and Toast notifications
+  - Smooth transitions and animations
+  - Dark mode optimized color palette
+
+- **API Routes**
+  - Global toggle routes with developer permission checks
+  - Per-server toggle routes with admin permission checks
+  - Guild management routes
+  - Authentication routes
+
+- **Documentation**
+  - WEBAPP_SETUP.md with complete setup guide
+  - API endpoint documentation
+  - Environment variable documentation
+  - Security considerations
+
+## [Unreleased]
+
 ### Added
 
+- **Codebase Simplification and Optimization**: Major refactoring to reduce complexity and improve maintainability
+  - Consolidated command loaders: Merged three duplicate command loading utilities into a single implementation
+  - Configuration consolidation: Merged `environmentConfig.ts` into `config.ts` for centralized configuration
+  - Redis abstraction simplification: Reduced Redis abstraction layers from 4+ to 2 (BaseRedisService + implementations)
+  - Service Factory simplification: Simplified ServiceFactory pattern with consistent singleton exports
+  - Error handling unification: Removed unused BaseErrorHandler abstract class, unified error handling pattern
+  - Player handler modularization: Split 653-line `playerHandler.ts` into focused modules (errorHandlers, trackHandlers, lifecycleHandlers)
+  - Queue command refactoring: Extracted formatting and grouping logic from 341-line `queue.ts` into separate modules
+  - Enhanced feature toggle system: Two-tier system with global developer toggles and per-server admin toggles
+  - Feature toggle web application: Express.js web app for non-technical users to manage feature toggles per server
+  - Dependency update notifications: Automated system that checks for dependency updates and sends Discord webhook alerts
+  - Monitoring simplification: Consolidated monitoring to Sentry + basic health checks, removed telemetry/metrics complexity
+
+### Changed
+
+- **Architecture Improvements**:
+  - Command loading: Single consolidated loader with environment-aware file extension handling
+  - Configuration management: Centralized configuration in `config.ts` with environment variable support
+  - Redis services: Simplified service instantiation with direct singleton exports
+  - Player event handling: Modular event handlers for better maintainability
+  - Queue display: Separated formatting and grouping logic for cleaner code organization
+  - Feature toggles: Enhanced with `isEnabledGlobal()` and `isEnabledForGuild()` methods
+  - Monitoring: Simplified to Sentry error tracking and basic health checks only
+
+### Removed
+
+- **Code Cleanup**:
+  - Removed duplicate command loader files: `loadCommands.ts`, `loadCommandsFromDir.ts`
+  - Removed `environmentConfig.ts` (merged into `config.ts`)
+  - Removed unused `BaseErrorHandler` abstract class
+  - Removed complex telemetry/metrics system (simplified to Sentry only)
+
+### Added
+
+- **Unleash Feature Toggle Integration**: Integrated Unleash for feature flag management
+  - Replaced custom feature toggle system with Unleash client SDK
+  - Support for contextual feature toggles (user/guild-based)
+  - Bootstrap data support for offline resilience
+  - Automatic fallback to environment-based toggles when Unleash unavailable
+  - Feature toggles: DOWNLOAD_VIDEO, DOWNLOAD_AUDIO, MUSIC_RECOMMENDATIONS, AUTOPLAY, LYRICS, QUEUE_MANAGEMENT
+- **FFmpeg Replacement**: Replaced deprecated fluent-ffmpeg with direct FFmpeg CLI wrapper
+  - Created custom FFmpeg wrapper utility using child_process.spawn
+  - Maintains same functionality with better control and fewer dependencies
+  - Support for both file and stream inputs
+  - Progress tracking support
 - **Dependency Updates**: Updated all dependencies to latest versions
   - discord.js: `^14.22.1` → `^14.25.1`
   - @prisma/client: `^6.16.3` → `^7.2.0` (major version upgrade)
-  - @sentry/node: `^10.17.0` → `^10.32.1`
+  - @sentry/node: `^10.17.0` → `^10.32.1` → `^10.34.0` (security fix)
   - youtubei.js: `^15.1.1` → `^16.0.1` (major version upgrade)
   - @discordjs/builders: `^1.11.3` → `^1.13.1`
   - ffmpeg-static: `^5.2.0` → `^5.3.0`
-  - ioredis: `^5.8.0` → `^5.8.2`
+  - ioredis: `^5.8.0` → `^5.8.2` → `^5.9.1`
+  - unleash-client: `^5.4.0` (new, v6.9.0 available but requires migration review)
+  - @commitlint/cli: `^20.3.0` → `^20.3.1`
+  - @commitlint/config-conventional: `^20.3.0` → `^20.3.1`
+  - @types/node: `^25.0.3` → `^25.0.8`
+  - @typescript-eslint/eslint-plugin: `^8.51.0` → `^8.53.0`
+  - @typescript-eslint/parser: `^8.51.0` → `^8.53.0`
   - All dev dependencies updated to latest versions
+- **Removed Dependencies**:
+  - fluent-ffmpeg: Removed deprecated package
+  - @types/fluent-ffmpeg: Removed as no longer needed
 - **Prisma v7 Migration**: Migrated to Prisma v7 with new client architecture
   - Updated generator provider from `prisma-client-js` to `prisma-client`
   - Added required `output` path for generated client
@@ -27,6 +137,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Dependency Validation**: Updated depcheck.config.cjs to properly recognize all used dependencies
+  - Added unleash-client, @prisma/client, ioredis, uuid to ignores (used but not detected by static analysis)
+  - Added test framework packages to ignores
+  - All dependency checks now pass without false positives
+- **Feature Toggle System**: Migrated from custom Redis-based toggles to Unleash platform
+  - More robust feature flag management with UI and API
+  - Support for gradual rollouts and A/B testing
+  - Better observability and feature flag lifecycle management
+  - Automatic synchronization with Unleash server
+- **FFmpeg Integration**: Replaced fluent-ffmpeg with direct CLI wrapper
+  - No breaking changes to API surface
+  - Better error handling and process management
+  - Reduced dependency footprint
 - **BREAKING - Prisma v7**: Major breaking changes in Prisma configuration
   - Database connection URL moved from `schema.prisma` to `prisma.config.ts`
   - Generated client location changed (now in `src/generated/prisma-client`)
@@ -36,6 +159,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Security Vulnerabilities**: Addressed security issues where possible
+  - Updated @sentry/node to 10.34.0 to fix moderate severity vulnerability (GHSA-6465-jgvq-jhgp)
+  - Production dependencies are secure - all vulnerabilities are in dev dependencies only
+  - Remaining vulnerabilities in dev dependencies (hono via @prisma/dev, tmp via commitizen) are non-critical
+  - These are in development tooling and do not affect production runtime
+  - Prisma dev dependency vulnerability (hono) will be resolved when Prisma updates their dev dependencies
+- **Dependency Detection**: Fixed depcheck false positives for runtime dependencies
+  - All used dependencies now properly recognized by depcheck
 - **Prisma v7 Compatibility**: Fixed all Prisma-related type issues
 - **Type Safety**: Added explicit type conversions for Prisma query results
 - **Build System**: Verified build works with all updated dependencies

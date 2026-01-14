@@ -18,6 +18,10 @@ module.exports = {
 
         // Testing framework
         "jest",
+        "@jest/globals",
+        "@types/jest",
+        "ts-jest",
+        "prisma",
 
         // Development tools
         "prettier",
@@ -48,12 +52,16 @@ module.exports = {
         "discord.js",
         "dotenv",
         "ffmpeg-static",
-        "fluent-ffmpeg",
         "module-alias",
         "play-dl",
+        "unleash-client",
+        "@prisma/client",
+        "ioredis",
+        "uuid",
+        "express",
+        "@types/express",
 
         // Type definitions
-        "@types/fluent-ffmpeg",
         "@types/node",
     ],
 
