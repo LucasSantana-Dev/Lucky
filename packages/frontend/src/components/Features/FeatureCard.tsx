@@ -1,72 +1,87 @@
 import { useState } from 'react'
-import type { Feature } from '../../types/feature'
-import { cn } from '../../lib/utils'
-import { useToast } from '../ui/Toast'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
+import type { Feature } from '@/types'
+import { cn } from '@/lib/utils'
 
 interface FeatureCardProps {
-  feature: Feature
-  enabled: boolean
-  onToggle: (enabled: boolean) => void
-  isGlobal: boolean
+    feature: Feature
+    enabled: boolean
+    onToggle: (enabled: boolean) => void
+    isGlobal?: boolean
 }
 
-function FeatureCard({ feature, enabled, onToggle, isGlobal }: FeatureCardProps) {
-  const [isToggling, setIsToggling] = useState(false)
-  const { showToast } = useToast()
+const formatFeatureName = (name: string): string => {
+    return name
+        .split('_')
+        .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+        .join(' ')
+}
 
-  const handleToggle = async () => {
-    setIsToggling(true)
-    try {
-      await onToggle(!enabled)
-      showToast(`${feature.name} ${!enabled ? 'enabled' : 'disabled'}`, 'success')
-    } catch {
-      showToast(`Failed to update ${feature.name}`, 'error')
-    } finally {
-      setIsToggling(false)
+export default function FeatureCard({
+    feature,
+    enabled,
+    onToggle,
+    isGlobal = false,
+}: FeatureCardProps) {
+    const [isUpdating, setIsUpdating] = useState(false)
+
+    const handleToggle = async (checked: boolean) => {
+        setIsUpdating(true)
+        try {
+            await onToggle(checked)
+            toast.success(
+                `${formatFeatureName(feature.name)} ${checked ? 'enabled' : 'disabled'}`,
+            )
+        } catch {
+            toast.error(`Failed to update ${formatFeatureName(feature.name)}`)
+        } finally {
+            setIsUpdating(false)
+        }
     }
-  }
 
-  return (
-    <div className="bg-bg-secondary border border-bg-border rounded-lg p-6 space-y-4">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-lg font-semibold text-text-primary">{feature.name}</h3>
-            <span
-              className={cn(
-                'px-2 py-1 rounded text-xs',
-                isGlobal ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400',
-              )}
-            >
-              {isGlobal ? 'Global' : 'Per-Server'}
-            </span>
-          </div>
-          <p className="text-text-secondary text-sm">{feature.description}</p>
+    return (
+        <div className='bg-lukbot-bg-secondary rounded-xl p-5 border border-lukbot-border'>
+            <div className='flex items-start justify-between gap-4'>
+                <div className='flex-1'>
+                    <div className='flex items-center gap-2 mb-1'>
+                        <h3 className='font-semibold text-white'>
+                            {formatFeatureName(feature.name)}
+                        </h3>
+                        <Badge
+                            className={cn(
+                                'text-xs',
+                                isGlobal
+                                    ? 'bg-lukbot-purple/20 text-lukbot-purple'
+                                    : 'bg-lukbot-blue/20 text-lukbot-blue',
+                            )}
+                        >
+                            {isGlobal ? 'Global' : 'Per-Server'}
+                        </Badge>
+                    </div>
+                    <p className='text-sm text-lukbot-text-secondary'>
+                        {feature.description}
+                    </p>
+                </div>
+                <div className='flex items-center gap-3'>
+                    <span
+                        className={cn(
+                            'text-sm',
+                            enabled
+                                ? 'text-lukbot-success'
+                                : 'text-lukbot-text-tertiary',
+                        )}
+                    >
+                        {enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                    <Switch
+                        checked={enabled}
+                        onCheckedChange={handleToggle}
+                        disabled={isUpdating}
+                    />
+                </div>
+            </div>
         </div>
-      </div>
-      <div className="flex items-center justify-between pt-4 border-t border-bg-border">
-        <span className="text-text-secondary text-sm">
-          {enabled ? 'Enabled' : 'Disabled'}
-        </span>
-        <button
-          onClick={handleToggle}
-          disabled={isToggling}
-          className={cn(
-            'relative w-12 h-6 rounded-full transition-colors',
-            enabled ? 'bg-primary' : 'bg-bg-tertiary',
-            'disabled:opacity-50',
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform',
-              enabled ? 'translate-x-6' : 'translate-x-0',
-            )}
-          />
-        </button>
-      </div>
-    </div>
-  )
+    )
 }
-
-export default FeatureCard

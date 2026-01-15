@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+      - generic [ref=e4]:
+            - complementary [ref=e5]:
+                  - heading "LukBot" [level=2] [ref=e7]
+                  - navigation [ref=e8]:
+                        - link "📊 Dashboard" [active] [ref=e9] [cursor=pointer]:
+                              - /url: /
+                              - generic [ref=e10]: 📊
+                              - generic [ref=e11]: Dashboard
+                        - link "⚙️ Features" [ref=e12] [cursor=pointer]:
+                              - /url: /features
+                              - generic [ref=e13]: ⚙️
+                              - generic [ref=e14]: Features
+            - generic [ref=e15]:
+                  - banner [ref=e16]:
+                        - generic [ref=e18]:
+                              - text: Select Server
+                              - combobox [ref=e19]:
+                                    - option "Select a server..."
+                                    - option "Test Server 1 ✓" [selected]
+                                    - option "Test Server 2"
+                                    - option "Test Server 3 ✓"
+                              - paragraph [ref=e20]: Bot added
+                        - generic [ref=e21]:
+                              - generic [ref=e22]:
+                                    - img "testuser" [ref=e23]
+                                    - generic [ref=e24]: testuser
+                              - button "Logout" [ref=e25] [cursor=pointer]
+                  - main [ref=e26]:
+                        - generic [ref=e28]:
+                              - heading "Dashboard" [level=1] [ref=e29]
+                              - generic [ref=e30]:
+                                    - generic [ref=e31]:
+                                          - button "All" [ref=e32] [cursor=pointer]
+                                          - button "With Bot" [ref=e33] [cursor=pointer]
+                                          - button "Without Bot" [ref=e34] [cursor=pointer]
+                                    - generic [ref=e35]:
+                                          - generic [ref=e36]:
+                                                - generic [ref=e37]:
+                                                      - img "Test Server 1" [ref=e38]
+                                                      - generic [ref=e39]:
+                                                            - heading "Test Server 1" [level=3] [ref=e40]
+                                                            - generic [ref=e42]: Bot Added
+                                                - button "Manage" [ref=e44] [cursor=pointer]
+                                          - generic [ref=e45]:
+                                                - generic [ref=e46]:
+                                                      - generic [ref=e47]: T
+                                                      - generic [ref=e48]:
+                                                            - heading "Test Server 2" [level=3] [ref=e49]
+                                                            - generic [ref=e51]: Not Added
+                                                - button "Add Bot" [ref=e53] [cursor=pointer]
+                                          - generic [ref=e54]:
+                                                - generic [ref=e55]:
+                                                      - img "Test Server 3" [ref=e56]
+                                                      - generic [ref=e57]:
+                                                            - heading "Test Server 3" [level=3] [ref=e58]
+                                                            - generic [ref=e60]: Bot Added
+                                                - button "Manage" [ref=e62] [cursor=pointer]
+      - region "Notifications alt+T"
+```

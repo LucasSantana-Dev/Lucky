@@ -1,26 +1,36 @@
 {
-  "name": "@lukbot/backend",
-  "version": "1.0.0",
-  "description": "Express API server for LukBot",
-  "type": "module",
-  "main": "./dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
-    "type:check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@lukbot/shared": "file:../shared",
-    "@types/express": "^5.0.6",
-    "@types/express-session": "^1.18.2",
-    "connect-redis": "^9.0.0",
-    "express": "^5.2.1",
-    "express-session": "^1.18.2"
-  },
-  "devDependencies": {
-    "@types/node": "^25.0.8",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
-  }
+    "name": "@lukbot/backend",
+    "version": "1.0.0",
+    "description": "Express API server for LukBot",
+    "type": "module",
+    "main": "./dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsx watch src/index.ts",
+        "start": "node dist/index.js",
+        "type:check": "tsc --noEmit",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "lint": "eslint . -c ../../eslint.config.js",
+        "lint:fix": "eslint . -c ../../eslint.config.js --fix"
+    },
+    "dependencies": {
+        "@lukbot/shared": "file:../shared",
+        "@types/express": "^5.0.6",
+        "@types/express-session": "^1.18.2",
+        "connect-redis": "^9.0.0",
+        "express": "^5.2.1",
+        "express-session": "^1.18.2"
+    },
+    "devDependencies": {
+        "@types/jest": "^30.0.0",
+        "@types/node": "^25.0.8",
+        "@types/supertest": "^6.0.0",
+        "jest": "^30.2.0",
+        "supertest": "^7.0.0",
+        "ts-jest": "^29.4.6",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3"
+    }
 }

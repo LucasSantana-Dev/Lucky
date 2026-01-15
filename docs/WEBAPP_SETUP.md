@@ -5,6 +5,7 @@ This document describes the Discord OAuth web interface for managing bot feature
 ## Overview
 
 The web application provides a modern React-based interface for:
+
 - Authenticating with Discord OAuth2
 - Viewing servers where you are an administrator
 - Adding the bot to servers
@@ -36,7 +37,8 @@ src/webapp/
 ├── services/            # Business logic
 │   ├── DiscordOAuthService.ts
 │   ├── GuildService.ts
-│   └── SessionService.ts
+│   ├── SessionService.ts
+│   └── OAuthStateService.ts
 └── frontend/            # React application
     ├── src/
     │   ├── components/   # React components
@@ -52,19 +54,59 @@ src/webapp/
 Add these to your `.env` file:
 
 ```env
-# Discord OAuth
+# Discord OAuth2 Configuration
 CLIENT_ID=your_discord_client_id
 CLIENT_SECRET=your_discord_client_secret
 WEBAPP_REDIRECT_URI=http://localhost:3000/api/auth/callback
 
-# Web Application
+# Web Application Configuration
 WEBAPP_ENABLED=true
 WEBAPP_PORT=3000
+WEBAPP_FRONTEND_URL=http://localhost:5173
 WEBAPP_SESSION_SECRET=your_random_session_secret_here
 
 # Developer Access
 DEVELOPER_USER_IDS=user_id_1,user_id_2
 ```
+
+### Environment Variable Descriptions
+
+- **CLIENT_ID**: Your Discord application's Client ID from the [Discord Developer Portal](https://discord.com/developers/applications)
+- **CLIENT_SECRET**: Your Discord application's Client Secret (keep this secure!)
+- **WEBAPP_REDIRECT_URI**: The callback URL registered in Discord OAuth2 settings. Must match exactly.
+- **WEBAPP_FRONTEND_URL**: The frontend application URL (used for OAuth redirects after authentication)
+- **WEBAPP_SESSION_SECRET**: A random secret string for signing session cookies (use a strong random value)
+- **DEVELOPER_USER_IDS**: Comma-separated list of Discord user IDs with developer access
+
+## Discord OAuth2 Setup
+
+### Step 1: Create Discord Application
+
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click "New Application" and provide a name
+3. Navigate to the "OAuth2" section
+
+### Step 2: Configure OAuth2 Redirect URI
+
+1. In the "Redirects" section, add your callback URL:
+    - Development: `http://localhost:3000/api/auth/callback`
+    - Production: `https://yourdomain.com/api/auth/callback`
+2. Save changes
+
+### Step 3: Get Credentials
+
+1. In "General Information", copy your **Client ID**
+2. In "OAuth2", copy your **Client Secret**
+3. Add these to your `.env` file
+
+### Step 4: Set OAuth2 Scopes
+
+The application requires these scopes:
+
+- `identify` - Get user information
+- `guilds` - Get user's guilds
+
+These are automatically included in the OAuth flow.
 
 ## Development Setup
 
@@ -94,6 +136,33 @@ npm run dev
 
 The backend API will be available at `http://localhost:3000`.
 
+## Authentication Flow
+
+1. **User clicks "Login with Discord"**
+    - Frontend redirects to `/api/auth/discord`
+    - Backend generates CSRF state token and redirects to Discord
+
+2. **User authorizes on Discord**
+    - Discord redirects to `/api/auth/callback?code=...&state=...`
+    - Backend validates state, exchanges code for tokens
+
+3. **Session Creation**
+    - Backend stores tokens in Redis session
+    - Sets secure session cookie
+    - Redirects to frontend with `?authenticated=true`
+
+4. **Frontend Verification**
+    - Frontend detects `?authenticated=true` parameter
+    - Calls `/api/auth/status` to verify authentication
+    - Updates auth store and redirects to dashboard
+
+### Security Features
+
+- **CSRF Protection**: OAuth2 state parameter prevents CSRF attacks
+- **Token Refresh**: Access tokens automatically refresh when expired
+- **Secure Cookies**: HttpOnly cookies prevent XSS token theft
+- **Session TTL**: Sessions expire after 7 days
+
 ## Feature Toggle System
 
 The web interface supports two types of feature toggles:
@@ -114,8 +183,8 @@ The web interface supports two types of feature toggles:
 
 ### Authentication
 
-- `GET /api/auth/discord` - Initiate Discord OAuth flow
-- `GET /api/auth/callback` - OAuth callback handler
+- `GET /api/auth/discord` - Initiate Discord OAuth flow (redirects to Discord)
+- `GET /api/auth/callback` - OAuth callback handler (redirects to frontend)
 - `GET /api/auth/logout` - Logout user
 - `GET /api/auth/status` - Check authentication status
 - `GET /api/auth/user` - Get current user info
@@ -129,11 +198,13 @@ The web interface supports two types of feature toggles:
 ### Feature Toggles
 
 **Global (Developer Only):**
+
 - `GET /api/toggles/global` - List all global toggles
 - `GET /api/toggles/global/:name` - Get specific global toggle
 - `POST /api/toggles/global/:name` - Update global toggle
 
 **Per-Server:**
+
 - `GET /api/features` - List all available features
 - `GET /api/guilds/:id/features` - Get guild-specific toggles
 - `POST /api/guilds/:id/features/:name` - Update per-server toggle
@@ -153,6 +224,15 @@ The built files will be in `src/webapp/frontend/dist/`.
 
 The Express server automatically serves the built frontend in production mode (`NODE_ENV=production`).
 
+### Production Environment Variables
+
+For production, ensure:
+
+- `WEBAPP_FRONTEND_URL` points to your production frontend URL
+- `WEBAPP_REDIRECT_URI` matches your production callback URL
+- `WEBAPP_SESSION_SECRET` is a strong random value
+- `NODE_ENV=production` for secure cookies
+
 ## Docker Setup
 
 The frontend can be run in Docker for development:
@@ -168,27 +248,41 @@ docker run -p 5173:5173 lukbot-frontend-dev
 ### Session Issues
 
 If sessions aren't persisting, check:
+
 - Redis is running and accessible
 - `WEBAPP_SESSION_SECRET` is set
 - Cookie settings match your domain
+- CORS is configured correctly
 
 ### OAuth Issues
 
 If OAuth isn't working:
+
 - Verify `CLIENT_ID` and `CLIENT_SECRET` are correct
-- Check `WEBAPP_REDIRECT_URI` matches Discord OAuth settings
+- Check `WEBAPP_REDIRECT_URI` matches Discord OAuth settings exactly
 - Ensure redirect URI is whitelisted in Discord Developer Portal
+- Check browser console for CORS errors
+- Verify `WEBAPP_FRONTEND_URL` is set correctly
 
 ### CORS Issues
 
-The frontend proxy handles CORS automatically in development. In production, ensure:
-- Frontend and backend are on the same domain, or
-- CORS is properly configured in Express
+- CORS is automatically configured for the frontend URL
+- Ensure `WEBAPP_FRONTEND_URL` matches your frontend origin
+- In production, ensure both frontend and backend are on the same domain or CORS is properly configured
+
+### Token Refresh Issues
+
+- Tokens automatically refresh when expired
+- If refresh fails, user will be logged out and need to re-authenticate
+- Check Redis connectivity for session storage
 
 ## Security Considerations
 
 - Always use HTTPS in production
-- Keep `WEBAPP_SESSION_SECRET` secure and random
+- Keep `WEBAPP_SESSION_SECRET` secure and random (use at least 32 characters)
 - Regularly rotate session secrets
 - Limit `DEVELOPER_USER_IDS` to trusted users only
 - Validate all user permissions on the backend
+- OAuth state parameter prevents CSRF attacks
+- HttpOnly cookies prevent XSS token theft
+- Secure cookies enabled in production (HTTPS required)

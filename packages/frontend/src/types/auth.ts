@@ -1,11 +1,13 @@
 export interface User {
-  id: string
-  username: string
-  discriminator: string
-  avatar: string | null
+    id: string
+    username: string
+    discriminator: string
+    avatar: string | null
+    email?: string
+    isDeveloper?: boolean
 }
 
 export interface AuthStatus {
-  authenticated: boolean
-  user?: User
+    authenticated: boolean
+    user?: User
 }

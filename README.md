@@ -69,7 +69,7 @@ DiscordBot includes a modern React-based web interface for feature toggle manage
 - **Environment fallback**: Automatic fallback to environment variables when Unleash unavailable
 - **Responsive design**: Mobile-friendly interface with loading states and error handling
 
-To enable the web application, set `WEBAPP_ENABLED=true` in your `.env` file. See [WEBAPP_SETUP.md](docs/WEBAPP_SETUP.md) for detailed setup instructions.
+To enable the web application, set `WEBAPP_ENABLED=true` in your `.env` file. See [WEBAPP_SETUP.md](docs/WEBAPP_SETUP.md) for detailed setup instructions and [FRONTEND.md](docs/FRONTEND.md) for comprehensive frontend documentation.
 
 ### 📦 Dependency Management
 

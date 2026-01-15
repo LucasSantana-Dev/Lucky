@@ -7,15 +7,15 @@ export function setupSessionMiddleware(app: Express): void {
 
     if (!sessionSecret) {
         errorLog({
-            message: 'WEBAPP_SESSION_SECRET not configured. Session management will not work properly.',
+            message:
+                'WEBAPP_SESSION_SECRET not configured. Session management will not work properly.',
         })
     }
 
     const isProduction = process.env.NODE_ENV === 'production'
-
-    debugLog({
-        message: 'Using memory store for sessions. Redis session store will be implemented in a future update.',
-    })
+    const frontendUrl =
+        process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
+    const frontendOrigin = new URL(frontendUrl).origin
 
     app.use(
         session({
@@ -31,4 +31,13 @@ export function setupSessionMiddleware(app: Express): void {
             },
         }),
     )
+
+    debugLog({
+        message: 'Session middleware configured',
+        data: {
+            secure: isProduction,
+            sameSite: 'lax',
+            frontendOrigin,
+        },
+    })
 }

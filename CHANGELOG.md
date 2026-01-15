@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation**
   - WEBAPP_SETUP.md with complete setup guide
+  - FRONTEND.md with comprehensive frontend documentation
   - API endpoint documentation
   - Environment variable documentation
   - Security considerations

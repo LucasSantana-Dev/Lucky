@@ -1,56 +1,83 @@
-import { useFeatureStore } from '../../stores/featureStore'
-import { useGuildStore } from '../../stores/guildStore'
+import { Server } from 'lucide-react'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import FeatureCard from './FeatureCard'
+import { useGuildStore } from '@/stores/guildStore'
+import { useFeaturesStore } from '@/stores/featuresStore'
+import type { FeatureToggleName, FeatureToggleState } from '@/types'
 
-function ServerTogglesSection() {
-  const { features, serverToggles, updateServerToggle, isLoading } = useFeatureStore()
-  const { selectedGuildId, getSelectedGuild } = useGuildStore()
-  const selectedGuild = getSelectedGuild()
-
-  if (!selectedGuildId) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-text-primary">Server Toggles</h2>
-        <p className="text-text-secondary">Select a server to manage its feature toggles</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-text-primary">Server Toggles</h2>
-          <p className="text-text-secondary text-sm mt-1">
-            Per-server feature toggles for: {selectedGuild?.name}
-          </p>
-        </div>
-      </div>
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-bg-secondary border border-bg-border rounded-lg p-6 space-y-4">
-              <div className="h-4 bg-bg-tertiary rounded animate-pulse w-3/4" />
-              <div className="h-3 bg-bg-tertiary rounded animate-pulse w-full" />
-              <div className="h-6 bg-bg-tertiary rounded animate-pulse w-12" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {features.map((feature) => (
-            <FeatureCard
-              key={feature.name}
-              feature={feature}
-              enabled={serverToggles[feature.name] ?? false}
-              onToggle={(enabled) => updateServerToggle(selectedGuildId, feature.name, enabled)}
-              isGlobal={false}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
+interface ServerTogglesSectionProps {
+    toggles: FeatureToggleState
+    onToggle: (name: FeatureToggleName, enabled: boolean) => void
+    selectedGuildId: string | null
+    onSelectGuild: (id: string | null) => void
 }
 
-export default ServerTogglesSection
+export default function ServerTogglesSection({
+    toggles,
+    onToggle,
+    selectedGuildId,
+    onSelectGuild,
+}: ServerTogglesSectionProps) {
+    const { guilds } = useGuildStore()
+    const { features } = useFeaturesStore()
+
+    return (
+        <div className='space-y-4'>
+            <div className='flex items-center gap-2 mb-4'>
+                <Server className='w-5 h-5 text-lukbot-blue' />
+                <h2 className='text-lg font-semibold text-white'>
+                    Server Toggles
+                </h2>
+            </div>
+
+            <div className='mb-6'>
+                <Select
+                    value={selectedGuildId || ''}
+                    onValueChange={(v: string) => onSelectGuild(v || null)}
+                >
+                    <SelectTrigger className='w-full max-w-xs bg-lukbot-bg-tertiary border-lukbot-border text-white'>
+                        <SelectValue placeholder='Select a server...' />
+                    </SelectTrigger>
+                    <SelectContent className='bg-lukbot-bg-secondary border-lukbot-border'>
+                        {guilds
+                            .filter((g) => g.botAdded)
+                            .map((guild) => (
+                                <SelectItem key={guild.id} value={guild.id}>
+                                    {guild.name}
+                                </SelectItem>
+                            ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {!selectedGuildId ? (
+                <div className='bg-lukbot-bg-secondary rounded-xl p-8 border border-lukbot-border text-center'>
+                    <Server className='w-10 h-10 text-lukbot-text-tertiary mx-auto mb-3' />
+                    <p className='text-lukbot-text-secondary'>
+                        Select a server to manage features
+                    </p>
+                </div>
+            ) : (
+                <div className='grid gap-4'>
+                    {features.map((feature) => (
+                        <FeatureCard
+                            key={feature.name}
+                            feature={feature}
+                            enabled={toggles[feature.name] ?? false}
+                            onToggle={(enabled) =>
+                                onToggle(feature.name, enabled)
+                            }
+                            isGlobal={false}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
