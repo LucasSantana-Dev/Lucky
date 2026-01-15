@@ -8,7 +8,7 @@ export function setupAuthRoutes(app: Express): void {
     app.get('/api/auth/discord', async (_req: Request, res: Response) => {
         try {
             const clientId = process.env.CLIENT_ID
-            const redirectUri = process.env.WEBAPP_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback'
+            const redirectUri = process.env.WEBAPP_REDIRECT_URI ?? `http://localhost:${process.env.WEBAPP_PORT ?? '3001'}/api/auth/callback`
             const scope = 'identify guilds'
 
             if (!clientId) {
