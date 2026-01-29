@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Phase 3: @smithy override attempt (incompatible)
+
+- Tried root `overrides` for `@smithy/config-resolver@>=4.4.0` to address critical advisory; incompatible with AWS SDK v3 chain used by @infisical/sdk (SDK v3 depends on @smithy v3). Override reverted. Documented in `docs/DEPENDENCY_UPDATES.md`; wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
+
+### Changed - Phase 2d (continued): Other frontend majors
+
+- **packages/frontend**
+  - Bumped `tailwind-merge` ^2.6 → ^3.0 (Tailwind v4–aligned), `date-fns` ^3.6 → ^4.1, `framer-motion` ^11.18 → ^12.0, `recharts` ^2.15 → ^3.0. Typecheck, build, and backend tests pass.
+
+### Changed - Phase 3: Audit and known vulnerabilities (tracking)
+
+- Re-ran `npm audit` and `npm run audit:critical` after Phase 2d. Known issues remain as documented in `docs/DEPENDENCY_UPDATES.md`: @smithy/config-resolver (via @infisical/sdk), hono/lodash (via prisma), tar (via @discordjs/opus, unleash-client), undici (via discord.js, youtubei.js). No `audit fix --force` or overrides applied; track upstream fixes.
+
+### Changed - Phase 2d: Vite 6 → 7 (frontend)
+
+- **packages/frontend**
+  - Upgraded `vite` from ^6.0.7 to ^7.0.0 and `@vitejs/plugin-react` from ^4.3.4 to ^5.0.0. Vite 7 requires Node 20.19+ or 22.12+; CI uses Node 22. No config changes required (no Sass legacy API, deprecated plugins, or advanced options in use).
+
+### Changed - Phase 2c: Zod v3 → v4 (deferred)
+
+- **Zod 4 upgrade deferred:** `@hookform/resolvers` (v3) is not yet compatible with Zod 4.3.x types (`ZodObject` not assignable to `Zod3Type`). Frontend and shared keep `zod@^3.25.x` and `@hookform/resolvers@^3.10.x` until the resolver supports Zod 4. See `docs/DEPENDENCY_UPDATES.md` (Phase 2c).
+
 ### Changed - Phase 2b: React 18 → 19 (frontend)
 
 - **packages/frontend**

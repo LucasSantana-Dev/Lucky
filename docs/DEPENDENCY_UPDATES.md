@@ -2,6 +2,8 @@
 
 Phased plan for updating LukBot dependencies. Run each phase on a branch; verify build, type-check, tests, and `npm run audit:critical` before merging.
 
+**Plan status:** Phase 1, Phase 2 (2a–2d), and Phase 3 are complete. Ongoing: re-run `npm audit` / `audit:critical` when upstreams release fixes; retry Zod 4 when `@hookform/resolvers` supports it.
+
 ## Current stack summary
 
 | Area     | Key deps                                                                                  | Notes                                                                |
@@ -9,7 +11,7 @@ Phased plan for updating LukBot dependencies. Run each phase on a branch; verify
 | Root     | @prisma/client ^7.2, ESLint 9, Jest 30, Prettier 3.7, TypeScript 5.9                      | Prisma CLI not in package.json (scripts use `prisma`; add as devDep) |
 | Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                           |                                                                      |
 | Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                       | Transitive: undici, tar (audit issues)                               |
-| Frontend | Vite 6, React 18, Tailwind 3.4, Radix, Zod 3.25, Playwright 1.57                          | Tailwind 3 → 4 is breaking                                           |
+| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                            | Zod 4 deferred (hookform/resolvers); Node 20.19+ / 22.12+ for Vite 7 |
 | Shared   | @prisma/client 7.2, Sentry 10, ioredis, unleash-client, Zod 3.25, optional @infisical/sdk |                                                                      |
 
 ## Phase 1: Safe patch/minor and audit fixes
@@ -67,24 +69,24 @@ Do these only after Phase 1 is merged and stable.
 - Check Radix, react-hook-form, and other UI libs for React 19 compatibility.
 - Run frontend build and E2E.
 
-### 2c. Zod v3 → v4 (frontend + shared)
+### 2c. Zod v3 → v4 (frontend + shared) — **Deferred**
 
 - [Zod 4 migration](https://zod.dev/v4/versioning): subpaths and API changes.
-- Ensure `@hookform/resolvers` and other Zod consumers support Zod 4 (peer deps).
-- Update imports/types as per Zod 4 docs; run tests and type-check.
+- **Deferred:** `@hookform/resolvers` (v3) expects Zod 3 schema types; with Zod 4.3.x the resolver reports `ZodObject<...>` not assignable to `Zod3Type<...>` (version check mismatch). Revisit when `@hookform/resolvers` supports Zod 4 or when using a Zod 4–compatible resolver.
+- When retrying: ensure `@hookform/resolvers` and other Zod consumers support Zod 4 (peer deps); update imports/types per Zod 4 docs; run tests and type-check.
 
 ### 2d. Vite 6 → 7, other frontend majors
 
-- Check Vite 7 migration notes; update `vite`, `@vitejs/plugin-react` and any Vite-dependent tools.
-- Recharts, tailwind-merge, date-fns, framer-motion, etc.: upgrade one at a time and run tests.
+- **Vite 7:** [Migration from v6](https://vite.dev/guide/migration): Node 20.19+ / 22.12+ required; default `build.target` updated; Sass legacy API removed; deprecated plugins/hooks removed. Update `vite` and `@vitejs/plugin-react` to Vite 7–compatible versions; ensure CI and local use Node 20.19+ or 22.12+.
+- Recharts, tailwind-merge, date-fns, framer-motion, etc.: upgrade one at a time and run tests. **Done:** tailwind-merge ^3, date-fns ^4, framer-motion ^12, recharts ^3 (typecheck and build pass).
 
 ---
 
 ## Phase 3: Transitive / security (track only; no force-downgrade)
 
-**Known audit issues (as of last run):**
+**Known audit issues (last updated: after Phase 2d; 32 vulnerabilities: 12 low, 14 moderate, 6 high):**
 
-- **@smithy/config-resolver** (via @infisical/sdk): `npm audit fix` may bump AWS SDK chain; apply if no breakage.
+- **@smithy/config-resolver** (via @infisical/sdk): Override `@smithy/config-resolver@>=4.4.0` was tried; incompatible with AWS SDK v3 chain (SDK v3 uses @smithy v3). Wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
 - **hono** (via prisma): Prisma 7.3+ may pull fixed hono; keep Prisma updated.
 - **lodash** (via chevrotain → @mrleebo/prisma-ast): Prisma/ecosystem updates may resolve; no override unless patched.
 - **tar** (via @discordjs/opus, cacache): `audit fix --force` would downgrade @discordjs/opus; **do not** use. Track upstream.
@@ -93,7 +95,7 @@ Do these only after Phase 1 is merged and stable.
 **Actions:**
 
 - Re-run `npm audit` and `npm run audit:critical` after Phase 1 and after any major upgrade.
-- Add `overrides` in root `package.json` only when a specific patch is required and safe (e.g. `@smithy/config-resolver@>=4.4.0` if compatible with @infisical/sdk). Test thoroughly.
+- Add `overrides` in root `package.json` only when a specific patch is required and safe. Do **not** override `@smithy/config-resolver` to v4+ while @infisical/sdk uses AWS SDK v3 (incompatible). Test thoroughly.
 - Document remaining known high/critical in this file or in a short “Known vulnerabilities” section and update when upstream fixes land.
 
 ---
