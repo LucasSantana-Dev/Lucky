@@ -47,6 +47,10 @@ coverage/
 *.lcov
 .nyc_output/
 
+# Playwright
+packages/frontend/playwright-report/
+packages/frontend/test-results/
+
 # Secrets and keys
 *.pem
 *.key
