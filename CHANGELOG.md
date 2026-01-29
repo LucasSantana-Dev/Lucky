@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Phase 2a: Tailwind CSS v4 (frontend)
+
+- **packages/frontend**
+  - Upgraded Tailwind CSS from v3.4 to v4.1 via `npx @tailwindcss/upgrade`. Replaced `@tailwind base/components/utilities` with `@import 'tailwindcss'`; migrated theme (colors, radius, keyframes, animations) to `@theme` and `@utility` in `src/index.css`. Removed `tailwind.config.js` (v4 CSS-first config). Replaced `autoprefixer` with `@tailwindcss/postcss`. Updated `components.json` to reference `src/index.css` as Tailwind config source.
+
 ### Changed - Phase 1 dependency updates
 
 - **Root package.json**

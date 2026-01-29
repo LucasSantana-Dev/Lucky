@@ -27,7 +27,7 @@ const ServerIcon = memo(
         if (!icon || imageError) {
             return (
                 <div
-                    className='w-16 h-16 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center text-2xl font-bold text-white ring-2 ring-bg-border transition-all duration-300'
+                    className='w-16 h-16 rounded-full bg-linear-to-br from-primary/80 to-primary flex items-center justify-center text-2xl font-bold text-white ring-2 ring-bg-border transition-all duration-300'
                     aria-hidden='true'
                 >
                     {initial}
@@ -69,7 +69,7 @@ function ServerCard({ guild }: ServerCardProps) {
             aria-labelledby={`server-${guild.id}-name`}
         >
             <div className='flex items-center gap-4'>
-                <div className='relative flex-shrink-0'>
+                <div className='relative shrink-0'>
                     <ServerIcon
                         name={guild.name}
                         icon={guild.icon}
@@ -120,7 +120,7 @@ function ServerCard({ guild }: ServerCardProps) {
                 {guild.botAdded ? (
                     <Button
                         onClick={handleManage}
-                        className='flex-1 bg-lukbot-red hover:bg-lukbot-red/90 text-white shadow-sm hover:shadow-md transition-all duration-200'
+                        className='flex-1 bg-lukbot-red hover:bg-lukbot-red/90 text-white shadow-xs hover:shadow-md transition-all duration-200'
                         aria-label={`Manage ${guild.name}`}
                     >
                         Manage

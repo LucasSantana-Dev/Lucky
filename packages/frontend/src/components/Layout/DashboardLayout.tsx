@@ -120,7 +120,7 @@ export default function DashboardLayout() {
                     </ScrollArea>
 
                     <div className='p-4 border-t border-lukbot-border'>
-                        <div className='bg-gradient-to-r from-lukbot-purple/20 to-lukbot-blue/20 rounded-lg p-4 border border-lukbot-purple/30'>
+                        <div className='bg-linear-to-r from-lukbot-purple/20 to-lukbot-blue/20 rounded-lg p-4 border border-lukbot-purple/30'>
                             <div className='flex items-center gap-2 mb-2'>
                                 <Gift className='w-5 h-5 text-lukbot-purple' />
                                 <span className='font-semibold text-white'>

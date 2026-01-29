@@ -19,7 +19,7 @@ export default function LoginPage() {
 
     return (
         <div className='min-h-screen bg-lukbot-bg-primary flex flex-col items-center justify-center p-4 relative overflow-hidden'>
-            <div className='absolute inset-0 bg-gradient-to-br from-lukbot-red/5 via-transparent to-lukbot-purple/5' />
+            <div className='absolute inset-0 bg-linear-to-br from-lukbot-red/5 via-transparent to-lukbot-purple/5' />
 
             <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-lukbot-red/10 rounded-full blur-3xl animate-pulse-glow' />
             <div

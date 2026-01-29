@@ -15,7 +15,7 @@ export default function ServerSelector() {
                 className={cn(
                     'w-full px-3 py-2 bg-lukbot-bg-secondary border border-lukbot-border rounded-lg',
                     'text-white text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-lukbot-red focus:border-transparent',
+                    'focus:outline-hidden focus:ring-2 focus:ring-lukbot-red focus:border-transparent',
                 )}
             >
                 <option value=''>Select a server...</option>
