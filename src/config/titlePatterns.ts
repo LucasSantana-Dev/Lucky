@@ -2,9 +2,7 @@
  * Title pattern configurations
  */
 
-export const artistTitlePatterns = [
-    // TODO: Add artist-title patterns
-]
+export const artistTitlePatterns: RegExp[] = []
 
 export const youtubePatterns = [
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
@@ -14,6 +12,4 @@ export const youtubePatterns = [
     /(?:https?:\/\/)?(?:www\.)?youtube\.com\/user\/([^&\n?#]+)/,
 ]
 
-export const artistPatterns = [
-    // TODO: Add artist patterns
-]
+export const artistPatterns: RegExp[] = []

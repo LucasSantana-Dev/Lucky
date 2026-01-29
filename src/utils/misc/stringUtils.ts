@@ -6,7 +6,6 @@ export function applyPatterns(
     input: string,
     _patterns: unknown[],
 ): { artist: string; title: string } {
-    // TODO: Implement pattern application
     return { artist: 'Unknown', title: input }
 }
 
