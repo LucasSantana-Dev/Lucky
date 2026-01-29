@@ -7,7 +7,7 @@
         "packages/*"
     ],
     "scripts": {
-        "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend",
+        "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
         "build:shared": "npm run build --workspace=packages/shared",
         "build:bot": "npm run build --workspace=packages/bot",
         "build:backend": "npm run build --workspace=packages/backend",
@@ -18,8 +18,14 @@
         "format": "prettier . --write",
         "lint": "eslint . -c eslint.config.js",
         "lint:fix": "eslint . -c eslint.config.js --fix",
-        "type:check": "npm run type:check --workspace=packages/shared && npm run type:check --workspace=packages/bot && npm run type:check --workspace=packages/backend",
-        "test": "jest",
+        "type:check": "npm run type:check --workspace=packages/shared && npm run type:check --workspace=packages/bot && npm run type:check --workspace=packages/backend && npm run type:check --workspace=packages/frontend",
+        "test": "npm run test --workspace=packages/backend",
+        "test:ci": "npm run test --workspace=packages/backend -- --ci",
+        "test:coverage": "npm run test --workspace=packages/backend -- --coverage",
+        "test:e2e": "npm run test:e2e --workspace=packages/frontend",
+        "audit:critical": "npm audit --audit-level=critical",
+        "audit:high": "npm audit --audit-level=high",
+        "check:outdated": "npm outdated || true",
         "db:generate": "prisma generate",
         "db:migrate": "prisma migrate dev",
         "db:deploy": "prisma migrate deploy",
@@ -59,7 +65,6 @@
     "license": "ISC",
     "devDependencies": {
         "@eslint/js": "^9.39.2",
-        "@types/cors": "^2.8.19",
         "@types/jest": "^30.0.0",
         "@typescript-eslint/eslint-plugin": "^8.53.0",
         "@typescript-eslint/parser": "^8.53.0",
@@ -71,7 +76,6 @@
         "unfetch": "^5.0.0"
     },
     "dependencies": {
-        "@prisma/client": "^7.2.0",
-        "cors": "^2.8.5"
+        "@prisma/client": "^7.2.0"
     }
 }
