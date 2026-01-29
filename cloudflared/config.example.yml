@@ -1,0 +1,15 @@
+# Cloudflare Tunnel config for LukBot web app (locally-managed tunnel).
+# Copy to config.yml and set tunnel ID + path to credentials.
+# See docs/CLOUDFLARE_TUNNEL_SETUP.md for setup.
+#
+# Create tunnel: cloudflared tunnel create lukbot-webapp
+# Route DNS:     cloudflared tunnel route dns lukbot-webapp app.yourdomain.com
+# Run:           cloudflared tunnel run lukbot-webapp
+
+tunnel: <TUNNEL_ID>
+credentials-file: /path/to/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: app.yourdomain.com
+    service: http://localhost:3000
+  - service: http_status:404
