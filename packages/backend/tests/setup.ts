@@ -11,12 +11,43 @@ process.env.REDIS_HOST = 'localhost'
 process.env.REDIS_PORT = '6379'
 
 jest.mock('express-session', () => {
-    const mockSession = jest.fn(
-        () => (req: unknown, res: unknown, next: () => void) => {
+    return function session(options?: { name?: string }) {
+        const cookieName = options?.name ?? 'connect.sid'
+        return (
+            req: {
+                sessionID?: string
+                session?: {
+                    save: (cb: (err?: Error) => void) => void
+                    cookie?: unknown
+                    [k: string]: unknown
+                }
+                headers?: { cookie?: string }
+            },
+            _res: unknown,
+            next: () => void,
+        ) => {
+            const cookie = req.headers?.cookie ?? ''
+            const match = cookie.match(new RegExp(`${cookieName}=([^;]+)`))
+            if (match) {
+                req.sessionID = match[1]
+            }
+            req.session = {
+                save(cb: (err?: Error) => void) {
+                    cb()
+                },
+                destroy(cb: (err?: Error) => void) {
+                    cb()
+                },
+                cookie: {},
+            } as {
+                save: (cb: (err?: Error) => void) => void
+                destroy: (cb: (err?: Error) => void) => void
+                cookie: unknown
+                [k: string]: unknown
+            }
             next()
-        },
-    )
-    return mockSession
+        }
+    }
 })
 
 jest.mock('chalk', () => ({

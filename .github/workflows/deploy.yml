@@ -13,6 +13,22 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Check deploy secrets
+              env:
+                  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                  SSH_USER: ${{ secrets.SSH_USER }}
+                  SSH_HOST: ${{ secrets.SSH_HOST }}
+              run: |
+                  missing=""
+                  [ -z "$SSH_PRIVATE_KEY" ] && missing="SSH_PRIVATE_KEY "
+                  [ -z "$SSH_USER" ] && missing="${missing}SSH_USER "
+                  [ -z "$SSH_HOST" ] && missing="${missing}SSH_HOST"
+                  if [ -n "$missing" ]; then
+                    echo "::error::Missing GitHub Actions secrets: $missing"
+                    echo "Add them in repo Settings → Secrets and variables → Actions. See docs/CI_CD.md (Deploy secrets)."
+                    exit 1
+                  fi
+
             - name: Setup SSH
               uses: webfactory/ssh-agent@v0.9.0
               with:

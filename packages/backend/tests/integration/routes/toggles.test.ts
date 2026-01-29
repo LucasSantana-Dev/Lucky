@@ -4,6 +4,7 @@ import express from 'express'
 import { setupToggleRoutes } from '../../../src/routes/toggles'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
+import { getFeatureToggleConfig } from '@lukbot/shared/config'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
@@ -39,9 +40,25 @@ describe('Toggles Routes Integration', () => {
 
     beforeEach(async () => {
         app = express()
+        app.use(express.json())
         setupSessionMiddleware(app)
         setupToggleRoutes(app)
         jest.clearAllMocks()
+
+        const mockGetFeatureToggleConfig =
+            getFeatureToggleConfig as jest.MockedFunction<
+                typeof getFeatureToggleConfig
+            >
+        mockGetFeatureToggleConfig.mockReturnValue({
+            DOWNLOAD_VIDEO: {
+                name: 'DOWNLOAD_VIDEO',
+                description: 'Download video feature',
+            },
+            DOWNLOAD_AUDIO: {
+                name: 'DOWNLOAD_AUDIO',
+                description: 'Download audio feature',
+            },
+        } as ReturnType<typeof getFeatureToggleConfig>)
 
         const sharedServices = await import('@lukbot/shared/services')
         featureToggleService = sharedServices.featureToggleService
@@ -110,7 +127,7 @@ describe('Toggles Routes Integration', () => {
                 .expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })
@@ -229,7 +246,7 @@ describe('Toggles Routes Integration', () => {
             const response = await request(app).get('/api/features').expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })

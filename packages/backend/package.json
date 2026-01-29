@@ -21,7 +21,7 @@
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
         "express": "^5.2.1",
-        "express-session": "^1.18.2"
+        "express-session": "^1.19.0"
     },
     "devDependencies": {
         "@types/cookie-parser": "^1.4.8",
@@ -29,7 +29,7 @@
         "@types/express": "^5.0.6",
         "@types/express-session": "^1.18.2",
         "@types/jest": "^30.0.0",
-        "@types/node": "^25.0.8",
+        "@types/node": "^25.1.0",
         "@types/supertest": "^6.0.0",
         "jest": "^30.2.0",
         "supertest": "^7.0.0",

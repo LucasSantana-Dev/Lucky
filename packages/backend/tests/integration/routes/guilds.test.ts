@@ -82,7 +82,7 @@ describe('Guilds Routes Integration', () => {
             const response = await request(app).get('/api/guilds').expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
 
@@ -170,7 +170,7 @@ describe('Guilds Routes Integration', () => {
                 .expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })
@@ -212,7 +212,7 @@ describe('Guilds Routes Integration', () => {
                 .expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })

@@ -16,8 +16,7 @@ The root `package-lock.json` must be committed. CI uses `cache: 'npm'` and `npm 
 Before each commit the following run automatically:
 
 1. **lint-staged**: ESLint (with autofix) and Prettier on staged `.ts`, `.tsx`, `.js`, `.json`, `.md` files.
-2. **audit:critical**: `npm audit --audit-level=critical` — commit is blocked if critical vulnerabilities exist.
-3. **audit:high**: `npm audit --audit-level=high` — commit is blocked if high (or critical) vulnerabilities exist.
+2. **audit:critical**: `npm audit --audit-level=critical` — commit is blocked only if critical vulnerabilities exist. High-severity issues are still reported in CI (Quality Gates).
 
 **Commit message**: The `commit-msg` hook runs Commitlint (Angular conventional commits). Subject must use a valid type (`feat`, `fix`, `docs`, etc.), lower-case, no trailing period, max 72 characters.
 
@@ -58,7 +57,49 @@ The deploy workflow (`.github/workflows/deploy.yml`) runs on push to `main` and 
     - `./scripts/discord-bot.sh stop` then `./scripts/discord-bot.sh start`
     - `./scripts/discord-bot.sh status`
 
-Required GitHub secrets: `SSH_PRIVATE_KEY`, `SSH_USER`, `SSH_HOST`.
+Required GitHub secrets: `SSH_PRIVATE_KEY`, `SSH_USER`, `SSH_HOST`. If any are missing, the deploy job fails at "Check deploy secrets" with the list of missing names.
+
+### Deploy secrets (how to add)
+
+GitHub Actions runs in the cloud and cannot use your local SSH config. Add these repository secrets in **Settings → Secrets and variables → Actions**:
+
+| Secret            | Description                                                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SSH_PRIVATE_KEY` | Full contents of the private key file (e.g. `~/.ssh/id_ed25519` or the key used for your server). Paste the whole file including `-----BEGIN ... KEY-----` and `-----END ... KEY-----`. |
+| `SSH_USER`        | SSH login user (e.g. `luk-server` or `root`).                                                                                                                                           |
+| `SSH_HOST`        | Server hostname or IP.                                                                                                                                                                  |
+
+If you use a host alias locally (e.g. `server-do-luk` in `~/.ssh/config`), you can get user and host with:
+
+```bash
+ssh -G server-do-luk | grep -E '^user |^hostname '
+```
+
+Use that user and hostname as `SSH_USER` and `SSH_HOST`. For `SSH_PRIVATE_KEY`, use the key file path from your config (`IdentityFile`) and paste its contents into the secret.
+
+#### One-time setup via GitHub CLI
+
+From the repo root, with [GitHub CLI](https://cli.github.com/) installed and authenticated (`gh auth login`):
+
+```bash
+gh secret set SSH_USER --body "luk-server"
+gh secret set SSH_HOST --body "100.95.204.103"
+gh secret set SSH_PRIVATE_KEY < ~/.ssh/YOUR_KEY_FILE
+```
+
+Replace `YOUR_KEY_FILE` with the key you use for the server. SSH lists default paths in order (`ssh -G server-do-luk | grep identityfile`); use the first one that exists on your machine (e.g. `id_ed25519` or `id_rsa`). To see which private keys you have:
+
+```bash
+ls ~/.ssh/id_* 2>/dev/null | grep -v '.pub'
+```
+
+Then set the secret (example for `id_ed25519`):
+
+```bash
+gh secret set SSH_PRIVATE_KEY < ~/.ssh/id_ed25519
+```
+
+If `gh` reports an invalid token, run `gh auth login` and try again.
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 

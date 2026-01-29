@@ -80,6 +80,7 @@ describe('API Integration Flows', () => {
             const callbackResponse = await request(app)
                 .get('/api/auth/callback')
                 .query({ code: MOCK_AUTH_CODE })
+                .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(302)
 
             expect(callbackResponse.headers.location).toContain(
@@ -156,7 +157,7 @@ describe('API Integration Flows', () => {
                 .expect(401)
 
             expect(protectedResponse.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })

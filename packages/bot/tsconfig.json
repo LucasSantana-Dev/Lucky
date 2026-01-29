@@ -13,7 +13,8 @@
         "outDir": "./dist",
         "baseUrl": ".",
         "paths": {
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            "discord.js": ["../../node_modules/discord.js"]
         }
     },
     "include": ["src/**/*"],

@@ -33,9 +33,7 @@ describe('Session Middleware', () => {
         const originalEnv = process.env.NODE_ENV
         process.env.NODE_ENV = 'production'
 
-        setupSessionMiddleware(app)
-
-        expect(app._router).toBeDefined()
+        expect(() => setupSessionMiddleware(app)).not.toThrow()
 
         process.env.NODE_ENV = originalEnv
     })

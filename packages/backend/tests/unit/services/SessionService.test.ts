@@ -20,6 +20,9 @@ jest.mock('@lukbot/shared/services', () => ({
 describe('SessionService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        ;(
+            redisClient as jest.Mocked<typeof redisClient>
+        ).isHealthy.mockReturnValue(true)
     })
 
     describe('getSession', () => {

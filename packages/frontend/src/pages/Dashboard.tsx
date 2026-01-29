@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { FolderKanban, Server } from 'lucide-react'
+import { FolderKanban } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
@@ -41,7 +41,9 @@ export default function DashboardPage() {
     return (
         <main className='space-y-6'>
             <header>
-                <h1 className='text-2xl font-bold text-white mb-4'>Dashboard</h1>
+                <h1 className='text-2xl font-bold text-white mb-4'>
+                    Dashboard
+                </h1>
             </header>
             <section aria-labelledby='server-grid-heading'>
                 <h2 id='server-grid-heading' className='sr-only'>

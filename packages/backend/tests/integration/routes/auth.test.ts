@@ -61,11 +61,11 @@ describe('Auth Routes Integration', () => {
 
             const response = await request(app)
                 .get('/api/auth/discord')
-                .expect(500)
+                .expect(302)
 
-            expect(response.body).toEqual({
-                error: 'Discord client ID not configured',
-            })
+            expect(response.headers.location).toContain(
+                'error=auth_failed&message=client_id_not_configured',
+            )
 
             if (originalClientId) {
                 process.env.CLIENT_ID = originalClientId
@@ -91,6 +91,7 @@ describe('Auth Routes Integration', () => {
             const response = await request(app)
                 .get('/api/auth/callback')
                 .query({ code: MOCK_AUTH_CODE })
+                .set('Cookie', ['sessionId=callback_session_id'])
                 .expect(302)
 
             expect(response.headers.location).toContain('authenticated=true')
@@ -106,11 +107,9 @@ describe('Auth Routes Integration', () => {
         test('should return 400 when code is missing', async () => {
             const response = await request(app)
                 .get('/api/auth/callback')
-                .expect(400)
+                .expect(302)
 
-            expect(response.body).toEqual({
-                error: 'Missing authorization code',
-            })
+            expect(response.headers.location).toContain('error=missing_code')
         })
 
         test('should return 500 when token exchange fails', async () => {
@@ -124,9 +123,12 @@ describe('Auth Routes Integration', () => {
             const response = await request(app)
                 .get('/api/auth/callback')
                 .query({ code: MOCK_AUTH_CODE })
-                .expect(500)
+                .set('Cookie', ['sessionId=callback_session_id'])
+                .expect(302)
 
-            expect(response.body).toEqual({ error: 'Authentication failed' })
+            expect(response.headers.location).toContain(
+                'error=auth_failed&message=authentication_error',
+            )
         })
 
         test('should return 500 when session ID is missing', async () => {
@@ -141,9 +143,9 @@ describe('Auth Routes Integration', () => {
             const response = await request(app)
                 .get('/api/auth/callback')
                 .query({ code: MOCK_AUTH_CODE })
-                .expect(500)
+                .expect(302)
 
-            expect(response.body).toEqual({ error: 'Failed to create session' })
+            expect(response.headers.location).toContain('error=session_failed')
         })
     })
 
@@ -175,7 +177,7 @@ describe('Auth Routes Integration', () => {
                 .expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })
@@ -272,7 +274,7 @@ describe('Auth Routes Integration', () => {
                 .expect(401)
 
             expect(response.body).toEqual({
-                error: 'Session expired or invalid',
+                error: 'Not authenticated',
             })
         })
     })

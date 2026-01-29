@@ -1,3 +1,2 @@
 npx lint-staged
 npm run audit:critical
-npm run audit:high

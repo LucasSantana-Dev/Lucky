@@ -6,7 +6,13 @@ import { Music2, Volume2, Repeat, Shuffle, Save } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -52,9 +58,14 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
             if (response.data.settings) {
                 form.reset({
                     volume: (response.data.settings.volume as number) ?? 50,
-                    autoplay: (response.data.settings.autoplay as boolean) ?? false,
-                    repeatMode: (response.data.settings.repeatMode as string) ?? 'off',
-                    shuffle: (response.data.settings.shuffle as boolean) ?? false,
+                    autoplay:
+                        (response.data.settings.autoplay as boolean) ?? false,
+                    repeatMode: ((response.data.settings.repeatMode as
+                        | 'off'
+                        | 'track'
+                        | 'queue') ?? 'off') as 'off' | 'track' | 'queue',
+                    shuffle:
+                        (response.data.settings.shuffle as boolean) ?? false,
                 })
             }
         } catch (error) {
@@ -81,7 +92,9 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
         <Card className='p-6'>
             <div className='flex items-center gap-2 mb-4'>
                 <Music2 className='h-5 w-5 text-primary' aria-hidden='true' />
-                <h2 className='text-xl font-bold text-white'>Music Configuration</h2>
+                <h2 className='text-xl font-bold text-white'>
+                    Music Configuration
+                </h2>
             </div>
             <p className='text-text-secondary mb-6'>
                 Configure music playback settings for your Discord bot
@@ -90,11 +103,17 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
             <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
                 <div className='space-y-2'>
                     <div className='flex items-center justify-between'>
-                        <Label htmlFor='volume' className='flex items-center gap-2'>
+                        <Label
+                            htmlFor='volume'
+                            className='flex items-center gap-2'
+                        >
                             <Volume2 className='h-4 w-4' aria-hidden='true' />
                             Volume
                         </Label>
-                        <span className='text-sm font-medium text-text-secondary' aria-live='polite'>
+                        <span
+                            className='text-sm font-medium text-text-secondary'
+                            aria-live='polite'
+                        >
                             {form.watch('volume')}%
                         </span>
                     </div>
@@ -108,7 +127,9 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                         className='w-full'
                         aria-label='Volume level'
                     />
-                    <p className='text-xs text-text-secondary'>Set the default volume level (0-100)</p>
+                    <p className='text-xs text-text-secondary'>
+                        Set the default volume level (0-100)
+                    </p>
                 </div>
 
                 <div className='flex items-center justify-between rounded-lg border border-bg-border bg-bg-tertiary p-4'>
@@ -123,23 +144,34 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                     <Switch
                         id='autoplay'
                         checked={form.watch('autoplay')}
-                        onCheckedChange={(checked) => form.setValue('autoplay', checked)}
+                        onCheckedChange={(checked) =>
+                            form.setValue('autoplay', checked)
+                        }
                         aria-label='Toggle autoplay'
                     />
                 </div>
 
                 <div className='space-y-2'>
-                    <Label htmlFor='repeatMode' className='flex items-center gap-2'>
+                    <Label
+                        htmlFor='repeatMode'
+                        className='flex items-center gap-2'
+                    >
                         <Repeat className='h-4 w-4' aria-hidden='true' />
                         Repeat Mode
                     </Label>
                     <Select
                         value={form.watch('repeatMode')}
                         onValueChange={(value) =>
-                            form.setValue('repeatMode', value as 'off' | 'track' | 'queue')
+                            form.setValue(
+                                'repeatMode',
+                                value as 'off' | 'track' | 'queue',
+                            )
                         }
                     >
-                        <SelectTrigger id='repeatMode' aria-label='Select repeat mode'>
+                        <SelectTrigger
+                            id='repeatMode'
+                            aria-label='Select repeat mode'
+                        >
                             <SelectValue placeholder='Select repeat mode' />
                         </SelectTrigger>
                         <SelectContent>
@@ -148,26 +180,40 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                             <SelectItem value='queue'>Repeat Queue</SelectItem>
                         </SelectContent>
                     </Select>
-                    <p className='text-xs text-text-secondary'>Choose how music should repeat</p>
+                    <p className='text-xs text-text-secondary'>
+                        Choose how music should repeat
+                    </p>
                 </div>
 
                 <div className='flex items-center justify-between rounded-lg border border-bg-border bg-bg-tertiary p-4'>
                     <div className='space-y-0.5'>
-                        <Label htmlFor='shuffle' className='text-base flex items-center gap-2'>
+                        <Label
+                            htmlFor='shuffle'
+                            className='text-base flex items-center gap-2'
+                        >
                             <Shuffle className='h-4 w-4' aria-hidden='true' />
                             Shuffle
                         </Label>
-                        <p className='text-xs text-text-secondary'>Randomize playback order</p>
+                        <p className='text-xs text-text-secondary'>
+                            Randomize playback order
+                        </p>
                     </div>
                     <Switch
                         id='shuffle'
                         checked={form.watch('shuffle')}
-                        onCheckedChange={(checked) => form.setValue('shuffle', checked)}
+                        onCheckedChange={(checked) =>
+                            form.setValue('shuffle', checked)
+                        }
                         aria-label='Toggle shuffle'
                     />
                 </div>
 
-                <Button type='submit' disabled={isLoading} loading={isLoading} className='w-full'>
+                <Button
+                    type='submit'
+                    disabled={isLoading}
+                    loading={isLoading}
+                    className='w-full'
+                >
                     <Save className='mr-2 h-4 w-4' aria-hidden='true' />
                     Save Configuration
                 </Button>

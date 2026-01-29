@@ -1,40 +1,40 @@
 {
-  "name": "@lukbot/shared",
-  "version": "1.0.0",
-  "description": "Shared code for LukBot modular monolith",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": "./dist/index.js",
-    "./config": "./dist/config/index.js",
-    "./services": "./dist/services/index.js",
-    "./utils": "./dist/utils/index.js",
-    "./types": "./dist/types/index.js"
-  },
-  "scripts": {
-    "build": "tsc && node add-js-extensions.js",
-    "dev": "tsc --watch",
-    "type:check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@prisma/client": "^7.2.0",
-    "@sentry/node": "^10.34.0",
-    "chalk": "^5.6.2",
-    "dotenv": "^17.2.3",
-    "ioredis": "^5.9.1",
-    "unleash-client": "^5.4.0",
-    "uuid": "^13.0.0",
-    "zod": "^3.25.76"
-  },
-  "optionalDependencies": {
-    "@infisical/sdk": "^4.0.0"
-  },
-  "devDependencies": {
-    "@swc/cli": "^0.7.10",
-    "@swc/core": "^1.15.8",
-    "@types/node": "^25.0.8",
-    "glob": "^7.2.3",
-    "typescript": "^5.9.3"
-  }
+    "name": "@lukbot/shared",
+    "version": "1.0.0",
+    "description": "Shared code for LukBot modular monolith",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": "./dist/index.js",
+        "./config": "./dist/config/index.js",
+        "./services": "./dist/services/index.js",
+        "./utils": "./dist/utils/index.js",
+        "./types": "./dist/types/index.js"
+    },
+    "scripts": {
+        "build": "tsc && node add-js-extensions.js",
+        "dev": "tsc --watch",
+        "type:check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@prisma/client": "^7.3.0",
+        "@sentry/node": "^10.37.0",
+        "chalk": "^5.6.2",
+        "dotenv": "^17.2.3",
+        "ioredis": "^5.9.2",
+        "unleash-client": "^5.4.0",
+        "uuid": "^13.0.0",
+        "zod": "^3.25.76"
+    },
+    "optionalDependencies": {
+        "@infisical/sdk": "^4.0.0"
+    },
+    "devDependencies": {
+        "@swc/cli": "^0.7.10",
+        "@swc/core": "^1.15.8",
+        "@types/node": "^25.1.0",
+        "glob": "^7.2.3",
+        "typescript": "^5.9.3"
+    }
 }
