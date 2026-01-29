@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Ignore Playwright report and test-results
+
+- **.gitignore**
+  - Added `packages/frontend/playwright-report/` and `packages/frontend/test-results/` so E2E output does not show as modified.
+
 ### Changed - Phase 3: @smithy override attempt (incompatible)
 
 - Tried root `overrides` for `@smithy/config-resolver@>=4.4.0` to address critical advisory; incompatible with AWS SDK v3 chain used by @infisical/sdk (SDK v3 depends on @smithy v3). Override reverted. Documented in `docs/DEPENDENCY_UPDATES.md`; wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
