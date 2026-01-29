@@ -57,3 +57,7 @@ auth.json
 secrets.json
 config.json
 *.secret
+
+# Cloudflare Tunnel (credentials; config.example.yml is committed)
+cloudflared/*.json
+cloudflared/config.yml

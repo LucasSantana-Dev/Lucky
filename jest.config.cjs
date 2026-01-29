@@ -2,7 +2,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/packages/backend'],
   testMatch: [
     '**/__tests__/**/*.test.ts',
     '**/tests/**/*.test.ts',
@@ -10,13 +10,11 @@ module.exports = {
     '**/*.spec.ts'
   ],
   collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/**/*.test.ts',
-    '!src/**/*.spec.ts',
-    '!src/index.ts',
-    '!src/config/**',
-    '!src/types/**'
+    'packages/backend/src/**/*.ts',
+    '!packages/backend/src/**/*.d.ts',
+    '!packages/backend/src/**/*.test.ts',
+    '!packages/backend/src/**/*.spec.ts',
+    '!packages/backend/src/index.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
@@ -28,16 +26,29 @@ module.exports = {
       statements: 70
     }
   },
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/packages/backend/tests/setup.ts'],
   testTimeout: 30000,
   maxWorkers: '50%',
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@tests/(.*)$': '<rootDir>/tests/$1'
+    '^@lukbot/shared$': '<rootDir>/packages/shared/src/index.ts',
+    '^@lukbot/shared/services$': '<rootDir>/packages/shared/src/services/index.ts',
+    '^@lukbot/shared/utils$': '<rootDir>/packages/shared/src/utils/index.ts',
+    '^@lukbot/shared/config$': '<rootDir>/packages/shared/src/config/index.ts',
+    '^@lukbot/shared/types$': '<rootDir>/packages/shared/src/types/index.ts',
+    '^@lukbot/shared/(.*)$': '<rootDir>/packages/shared/src/$1'
   },
   transform: {
-    '^.+\\.ts$': 'ts-jest'
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: {
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true
+      }
+    }]
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(chalk|#ansi-styles|uuid|@lukbot)/)',
+    '<rootDir>/packages/shared/dist/'
+  ],
   moduleFileExtensions: ['ts', 'js', 'json'],
   testPathIgnorePatterns: [
     '/node_modules/',
