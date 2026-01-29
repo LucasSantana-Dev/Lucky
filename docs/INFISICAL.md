@@ -73,6 +73,19 @@ Do not paste real client secrets into chat or into the repo; keep them in Cursor
 
 LukBot project overview: [Infisical LukBot](https://app.infisical.com/organizations/1843fc0a-2cce-46ca-a6d6-a31929356381/projects/secret-management/fdc73498-94a7-46ba-9ecc-b64956e45af3/overview). Use **Project ID** `fdc73498-94a7-46ba-9ecc-b64956e45af3` for MCP calls and for `INFISICAL_PROJECT_ID` in `.env`.
 
+### Run from Infisical (dev)
+
+Dev secrets are synced from `.env` to LukBot → dev. To run the bot/backend using Infisical instead of local `.env`, add to `.env` (keep `INFISICAL_CLIENT_SECRET` out of version control):
+
+```env
+INFISICAL_PROJECT_ID=fdc73498-94a7-46ba-9ecc-b64956e45af3
+INFISICAL_ENV=dev
+INFISICAL_CLIENT_ID=<from LukBot → Access Control → Machine Identities>
+INFISICAL_CLIENT_SECRET=<from same screen; store securely>
+```
+
+With `@infisical/sdk` installed in `packages/shared`, the app will load all dev secrets from Infisical at startup.
+
 ## Setup in Infisical
 
 1. Create an account and a project in [Infisical](https://app.infisical.com).
