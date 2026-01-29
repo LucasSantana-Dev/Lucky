@@ -17,9 +17,11 @@
     },
     "dependencies": {
         "@lukbot/shared": "file:../shared",
+        "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
         "@types/express-session": "^1.18.2",
         "connect-redis": "^9.0.0",
+        "cors": "^2.8.5",
         "express": "^5.2.1",
         "express-session": "^1.18.2"
     },

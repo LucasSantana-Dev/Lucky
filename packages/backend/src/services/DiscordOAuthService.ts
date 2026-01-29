@@ -27,21 +27,26 @@ interface TokenResponse {
 }
 
 class DiscordOAuthService {
-    private readonly clientId: string
-    private readonly clientSecret: string
-    private readonly redirectUri: string
     private readonly apiBaseUrl = 'https://discord.com/api/v10'
 
-    constructor() {
-        this.clientId = process.env.CLIENT_ID ?? ''
-        this.clientSecret = process.env.CLIENT_SECRET ?? ''
-        this.redirectUri = process.env.WEBAPP_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback'
-
-        if (!this.clientId || !this.clientSecret) {
-            errorLog({
-                message: 'Discord OAuth credentials not configured. CLIENT_ID and CLIENT_SECRET are required.',
-            })
+    private getClientId(): string {
+        const clientId = process.env.CLIENT_ID
+        if (!clientId) {
+            throw new Error('CLIENT_ID is not configured')
         }
+        return clientId
+    }
+
+    private getClientSecret(): string {
+        const clientSecret = process.env.CLIENT_SECRET
+        if (!clientSecret) {
+            throw new Error('CLIENT_SECRET is not configured')
+        }
+        return clientSecret
+    }
+
+    private getRedirectUri(): string {
+        return process.env.WEBAPP_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback'
     }
 
     async exchangeCodeForToken(code: string): Promise<TokenResponse> {
@@ -52,11 +57,11 @@ class DiscordOAuthService {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: new URLSearchParams({
-                    client_id: this.clientId,
-                    client_secret: this.clientSecret,
+                    client_id: this.getClientId(),
+                    client_secret: this.getClientSecret(),
                     grant_type: 'authorization_code',
                     code,
-                    redirect_uri: this.redirectUri,
+                    redirect_uri: this.getRedirectUri(),
                 }),
             })
 
@@ -141,8 +146,8 @@ class DiscordOAuthService {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: new URLSearchParams({
-                    client_id: this.clientId,
-                    client_secret: this.clientSecret,
+                    client_id: this.getClientId(),
+                    client_secret: this.getClientSecret(),
                     grant_type: 'refresh_token',
                     refresh_token: refreshToken,
                 }),

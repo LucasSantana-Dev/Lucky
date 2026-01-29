@@ -21,13 +21,14 @@ export function setupSessionMiddleware(app: Express): void {
         session({
             secret: sessionSecret ?? 'default-secret-change-in-production',
             resave: false,
-            saveUninitialized: false,
+            saveUninitialized: true,
             name: 'sessionId',
             cookie: {
                 secure: isProduction,
                 httpOnly: true,
                 maxAge: 7 * 24 * 60 * 60 * 1000,
                 sameSite: 'lax',
+                path: '/',
             },
         }),
     )
