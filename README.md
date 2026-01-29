@@ -10,7 +10,8 @@ A modern Discord bot built with TypeScript that plays music from YouTube and Spo
 [![Discord Player](https://img.shields.io/badge/Discord%20Player-7.1.0-orange.svg)](https://discord-player.js.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-7.2.0-blue.svg)](https://www.prisma.io/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
-[![CI/CD Pipeline](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml/badge.svg)](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml)
+[![CI](https://github.com/LukSantana/LukBot/actions/workflows/ci.yml/badge.svg)](https://github.com/LukSantana/LukBot/actions/workflows/ci.yml)
+[![Deploy](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml/badge.svg)](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml)
 
 ## 🚀 Features
 
@@ -69,7 +70,7 @@ DiscordBot includes a modern React-based web interface for feature toggle manage
 - **Environment fallback**: Automatic fallback to environment variables when Unleash unavailable
 - **Responsive design**: Mobile-friendly interface with loading states and error handling
 
-To enable the web application, set `WEBAPP_ENABLED=true` in your `.env` file. See [WEBAPP_SETUP.md](docs/WEBAPP_SETUP.md) for detailed setup instructions and [FRONTEND.md](docs/FRONTEND.md) for comprehensive frontend documentation.
+To enable the web application, set `WEBAPP_ENABLED=true` in your `.env` file. See [WEBAPP_SETUP.md](docs/WEBAPP_SETUP.md) for detailed setup instructions and [FRONTEND.md](docs/FRONTEND.md) for comprehensive frontend documentation. To expose the web app over a custom domain with HTTPS (no open ports), see [CLOUDFLARE_TUNNEL_SETUP.md](docs/CLOUDFLARE_TUNNEL_SETUP.md) for Cloudflare Tunnel, domain, and DNS.
 
 ### 📦 Dependency Management
 
@@ -82,7 +83,25 @@ DiscordBot includes automated dependency update notifications:
 
 To enable dependency notifications, set `DEPENDENCY_CHECK_ENABLED=true` and `DEPENDENCY_WEBHOOK_URL` in your `.env` file.
 
+### 📺 Twitch stream-online notifications
+
+LukBot can post to a Discord channel when a Twitch streamer goes live:
+
+- **Slash commands**: `/twitch add <username>`, `/twitch remove <username>`, `/twitch list`
+- **EventSub over WebSocket**: No public URL; uses Twitch user access token for subscriptions
+- **Env**: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_ACCESS_TOKEN`, and optionally `TWITCH_REFRESH_TOKEN`
+
+See [docs/TWITCH_SETUP.md](docs/TWITCH_SETUP.md) for credentials and OAuth setup. To get notifications when **Criativaria** goes live, run `/twitch add Criativaria` in the desired Discord channel.
+
+### 🎵 .fmbot / Last.fm scrobbling
+
+LukBot sends a plain-text "Now playing: Artist – Title" line when a track starts, so [.fmbot](https://fmbot.xyz/) (and other scrobblers that read the channel) can scrobble playback when they share the same Discord channel.
+
+**Last.fm API**: Optional direct scrobbling and now-playing updates to a Last.fm account. Set `LASTFM_API_KEY`, `LASTFM_API_SECRET`, and `LASTFM_SESSION_KEY` (see [docs/LASTFM_SETUP.md](docs/LASTFM_SETUP.md)).
+
 ## 🏗️ Architecture
+
+The single source of truth for structure is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): package layout, entry points (bot, backend, frontend, shared), where to add new code, command loading (bot), Nginx/Docker, and maintainability principles.
 
 ### Technology Stack
 
@@ -738,6 +757,16 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📚 Further Reference & Guides
 
+### AI development (Cursor)
+
+- **[AGENTS.md](AGENTS.md)**: Project summary for AI agents, Cursor rules and skills mapping, when to use which MCP tools, and behavior/commands reference.
+- **[docs/MCP_SETUP.md](docs/MCP_SETUP.md)**: How to configure MCP servers and secrets for Cursor (GitHub, Tavily, Cloudflare, Infisical, etc.).
+
+### CI/CD and testing
+
+- **[docs/CI_CD.md](docs/CI_CD.md)**: CI pipeline (quality gates, E2E), pre-commit hooks (lint-staged, audit), and deploy workflow.
+- **[docs/TESTING.md](docs/TESTING.md)**: Testing strategy, backend (Jest) and frontend E2E (Playwright), and how to run tests locally.
+
 ### Reference Documentation
 
 - [Discord.js Documentation](https://discord.js.org/#/docs/main/stable/general/welcome)
@@ -760,21 +789,20 @@ The project uses several code quality tools to maintain high standards:
 - **ESLint**: Enforces coding standards and conventions
 - **Prettier**: Code formatting and style consistency
 - **TypeScript**: Static type checking and IntelliSense
-- **Husky**: Git hooks for pre-commit checks
-- **Commitizen**: Conventional commit message formatting
+- **Husky**: Pre-commit (lint-staged, audit:critical, audit:high) and commit-msg (Commitlint)
+- **Commitlint**: Conventional commit message formatting (Angular style)
 
-### Quality Reports
+### Quality and test commands
 
-Quality checks are available through the unified management system:
-
-- **Quality Suite**: `npm run quality` - Run all quality checks (lint, type-check, build)
-- **Linting**: `npm run lint` - Check code quality
-- **Lint Fix**: `npm run lint:fix` - Auto-fix linting issues
-- **Format**: `npm run format` - Format code with Prettier
-- **Type Check**: `npm run type:check` - TypeScript validation
-- **Dependency Check**: `npm run check:deps` - Check for unused dependencies
-- **Update Dependencies**: `npm run check:outdated` - Check for outdated packages
-- **Security Audit**: `npm run audit` - Run security audit
+- **Lint**: `npm run lint` — Check code quality
+- **Lint fix**: `npm run lint:fix` — Auto-fix linting issues
+- **Format**: `npm run format` — Format code with Prettier
+- **Type check**: `npm run type:check` — TypeScript validation (shared, bot, backend, frontend)
+- **Build**: `npm run build` — Build all packages
+- **Backend tests**: `npm run test` — Run backend unit/integration tests; `npm run test:ci` (CI mode); `npm run test:coverage` — With coverage
+- **E2E**: `npm run test:e2e` — Run frontend Playwright E2E tests (from root)
+- **Security**: `npm run audit:critical` — Fail on critical; `npm run audit:high` — Fail on high or critical
+- **Outdated**: `npm run check:outdated` — List outdated dependencies
 
 ---
 

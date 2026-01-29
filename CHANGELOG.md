@@ -7,6 +7,183 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - ARCHITECTURE.md implementation
+
+- **docs/ARCHITECTURE.md**
+  - Quick reference line at top with links to Package structure, Package layouts, Command loading, Building, Dependencies.
+  - New "Entry points" section: bot (`src/index.ts` → `initializeBot()`), backend (`src/index.ts` → `startWebApp()`), frontend (`main.tsx`), shared (consumed by bot/backend).
+  - Nginx: clarified that nginx listens on 80 and is exposed as 8080 on host; `location /api` and `/api/*` → backend:3000, `/` → frontend:80; config path `nginx/nginx.conf`.
+  - Docker: table format for postgres, redis, bot, backend, frontend, nginx with roles.
+  - New "Repo checklist (matches this doc)": no root src/, Prisma at root, command loading pattern, backend routes/services, nginx routing.
+- **README.md**
+  - Architecture section updated to describe ARCHITECTURE.md as the single source of truth (entry points, where to add code, command loading, Nginx/Docker, principles).
+
+### Added - CI/CD and testing improvements
+
+- **CI pipeline (`.github/workflows/ci.yml`)**
+  - Quality Gates: lint, type-check (shared, bot, backend, frontend), build (all packages), backend `test:ci`, backend `test:coverage`, npm audit (high), check:outdated. Coverage uploaded to Codecov from `packages/backend/coverage/lcov.info`.
+  - E2E job: runs after Quality Gates; installs Playwright Chromium in frontend, runs `npm run test:e2e` (Playwright tests for the web app).
+- **Root package.json**
+  - `type:check` and `build` now include `packages/frontend`.
+  - New scripts: `test:e2e` (runs frontend Playwright), `audit:critical`, `audit:high` for pre-commit and CI.
+- **Pre-commit (Husky)**
+  - Pre-commit runs lint-staged (ESLint + Prettier), then `npm run audit:critical` and `npm run audit:high` (block commit on critical/high vulnerabilities). Commit-msg runs Commitlint (Angular conventional commits).
+- **Documentation**
+  - **docs/CI_CD.md**: CI jobs (Quality Gates, E2E), pre-commit hooks, deploy workflow, local parity commands.
+  - **docs/TESTING.md**: Testing strategy (backend Jest unit/integration, frontend Playwright E2E), where tests live, how to run them.
+- **README.md**
+  - CI and Deploy badges; new "CI/CD and testing" section linking to CI_CD.md and TESTING.md; "Code Quality Tools" and "Quality and test commands" updated (Husky steps, test and audit commands).
+
+### Added - Last.fm per-user account linking
+
+- **Per-user Last.fm linking**
+  - Users can connect their own Last.fm account via `/lastfm link`; tracks they request are scrobbled to their profile. Optional env `LASTFM_SESSION_KEY` remains as fallback when the requester has not linked.
+  - **Prisma**: New `LastFmLink` model and migration `20250129120000_add_lastfm_links` to store `discordId`, `sessionKey`, `lastFmUsername`.
+  - **Shared**: `LastFmLinkService` (get/set session key by Discord id, unlink) in `packages/shared/src/services/LastFmLinkService`.
+  - **Backend**: Routes `GET /api/lastfm/connect` (signed state, cookie, redirect to Last.fm) and `GET /api/lastfm/callback` (exchange token, store link, redirect to frontend). `LastFmAuthService` for token→session exchange. Cookie-parser middleware for state cookie.
+  - **Bot**: `lastFmApi` refactored to accept per-user session key; `getSessionKeyForUser(discordId)` resolves DB link or env fallback. Track handlers pass requester’s session key to updateNowPlaying/scrobble.
+  - **Discord**: `/lastfm link` and `/lastfm status` under general commands. Connect URL uses signed state (`LASTFM_LINK_SECRET` or `WEBAPP_SESSION_SECRET`) and base from `WEBAPP_REDIRECT_URI`.
+  - **Docs**: `docs/LASTFM_SETUP.md` updated with per-user linking, callback URL for backend, and optional global session key. `.env.example`: `LASTFM_LINK_SECRET` comment added.
+
+### Added - Project structure and conventions (ARCHITECTURE.md)
+
+- **docs/ARCHITECTURE.md**
+  - New section "Project structure and conventions": root layout, package layouts (shared, bot, backend, frontend), where to add new code, command loading rule for bot (top-level .ts or folder + re-export), principles for maintainability (consistency, shallow trees, one place for cross-cutting code, avoid big restructures, optional path aliases), and what not to do (no Prisma move, no extra abstraction layers, no throwaway scripts/docs).
+- **README.md**
+  - Link to ARCHITECTURE.md for package structure and conventions under Architecture section.
+
+### Added - Cloudflare Tunnel, domain, and DNS for bot frontend
+
+- **docs/CLOUDFLARE_TUNNEL_SETUP.md**
+  - Guide for exposing the LukBot web app at a custom domain over HTTPS using Cloudflare Tunnel: add domain to Cloudflare, change nameservers, install `cloudflared`, create tunnel (remote or local), configure DNS (CNAME), set `WEBAPP_FRONTEND_URL` and `WEBAPP_REDIRECT_URI`, and optional quick tunnel for dev.
+- **cloudflared/config.example.yml**
+  - Example ingress config for a locally-managed tunnel pointing a hostname to the web app backend port.
+- **.gitignore**
+  - Ignore `cloudflared/*.json` and `cloudflared/config.yml` so tunnel credentials and local config are not committed.
+- **.env.example**
+  - Placeholder comments for production/custom domain: `WEBAPP_FRONTEND_URL`, `WEBAPP_REDIRECT_URI` when using Cloudflare Tunnel.
+
+### Fixed - Discord slash command registration (all commands)
+
+- **packages/bot**
+  - Music commands were only registering 3 commands (autoplay, recommendation, play) because `music/commands/index.ts` returned a hardcoded list. Switched to `getCommandsFromDirectory` (same pattern as general and download) so all music command files in `functions/music/commands/` are loaded and registered with Discord.
+  - Added `functions/music/commands/queue.ts` re-export so the queue command (in `queue/index.ts`) is loaded when scanning the directory.
+  - All slash commands (general, download, music) are now sent to the Discord API on bot start; previously only a subset appeared in the client.
+
+### Changed - DEPENDENCIES.md implementation
+
+- **Root package.json**
+  - Removed `cors` from dependencies and `@types/cors` from devDependencies so root stays minimal (`@prisma/client` only). `cors` is used only by backend and remains in `packages/backend`.
+- **docs/DEPENDENCIES.md**
+  - Updated Root section: dependencies are `@prisma/client` only; `cors` lives in backend.
+  - Updated Backend section: types stay in devDependencies.
+  - Updated Upgrade order: backend types and root cors cleanup reflected as done.
+
+### Added - Twitch Criativaria and Last.fm API
+
+- **Twitch**
+  - Documented Criativaria notifications in `docs/TWITCH_SETUP.md` and README: run `/twitch add Criativaria` in the desired Discord channel to get alerts when Criativaria goes live.
+- **Last.fm API**
+  - Optional direct scrobbling and now-playing updates to a Last.fm account (in addition to the existing plain-text "Now playing" line for .fmbot).
+  - `packages/bot/src/lastfm/`: `lastFmApi.ts` (signed POST, `track.updateNowPlaying`, `track.scrobble`) and `index.ts`.
+  - Track handlers: on track start call Last.fm `updateNowPlaying` and store start time; on finish/skip call `scrobble` with stored timestamp. Disabled when `LASTFM_*` env vars are missing.
+  - Env: `LASTFM_API_KEY`, `LASTFM_API_SECRET`, `LASTFM_SESSION_KEY` (see `docs/LASTFM_SETUP.md`).
+  - **docs/LASTFM_SETUP.md**: API account, session key (web auth or mobile auth), behaviour, and references.
+
+### Added - Dependency analysis and maintenance
+
+- **docs/DEPENDENCIES.md**
+  - New doc: NPM dependency overview, reliable/non-deprecated choices, package-by-package notes, upgrade order, and guidance to avoid bloat.
+- **docs/ARCHITECTURE.md**
+  - Linked to DEPENDENCIES.md for dependency and upgrade details.
+- **packages/backend**
+  - Moved `@types/cors`, `@types/express`, `@types/express-session` to devDependencies (type-only; should not be production deps).
+- **packages/bot**
+  - Removed unused `module-alias` dependency; tsup resolves paths at build time.
+  - Kept `unfetch` and `isomorphic-unfetch` in tsup `external` so the build can resolve a transitive dependency.
+- **packages/shared**
+  - Removed `src/types/module-alias.d.ts` (no longer needed after dropping module-alias in bot).
+
+### Changed - Full cleanup refactor (packages-only architecture)
+
+- **Architecture**
+  - Production runs only `packages/bot` and `packages/backend`; root `src/` and root `tests/` have been removed.
+  - Bot no longer depends on root `src/`: all bot code and services (music recommendation, autoplay, guild settings, track history) use `@lukbot/shared` or live in `packages/bot`.
+  - PM2 `ecosystem.config.cjs`: two apps, `lukbot-bot` (packages/bot/dist/index.js) and `lukbot-backend` (packages/backend/dist/index.js). Root `dist/index.js` no longer used.
+  - Root `tsup.config.ts` removed; build is workspace-only (`npm run build` builds shared, bot, backend).
+- **packages/shared**
+  - `TrackHistoryService`, `GuildSettingsService`, and related types exported from `@lukbot/shared/services`.
+  - Removed duplicate `TrackHistoryEntry` from `types/music.ts` (only exported from `TrackHistoryService`).
+- **packages/bot**
+  - `MusicRecommendationService` and `musicRecommendation/` (recommendationEngine, similarityCalculator, types, vectorOperations) moved from root into `packages/bot/src/services/`; uses `trackHistoryService` and `@lukbot/shared/utils` for logging.
+  - Autoplay and counters use `guildSettingsService` and `trackHistoryService` from `@lukbot/shared/services` instead of root `ServiceFactory`.
+  - `stringUtils` and title comparison already in bot; no root dependency.
+- **Testing**
+  - Root `test` script runs backend tests only: `npm run test --workspace=packages/backend`.
+  - Added `test:ci`, `test:coverage`, `check:outdated` for CI.
+  - Root `jest.config.cjs` updated to run `packages/backend` tests when Jest is run from repo root.
+- **Docs**
+  - `docs/ARCHITECTURE.md`: clarified that production is packages-only and shared is the single source for DB, Redis, feature toggles, track history, guild settings; where to add new commands (bot) and API routes (backend).
+- **packages/frontend**
+  - Removed unused `featureStore.ts`; only `featuresStore.ts` is used (useFeaturesStore in hooks and components).
+- **packages/bot**
+  - Lyrics command: reply text updated to "Lyrics are not available yet" so it is clearly documented as not implemented rather than a bug.
+  - Twitch add/remove: await `twitchNotificationService.add` and `remove` so success checks use the resolved boolean.
+  - Title comparison: fixed `stringUtils` import path to `../../misc/stringUtils` (from `utils/music/titleComparison`).
+
+### Fixed - Shared package and code quality
+
+- **packages/shared**
+  - Removed broken `ServiceFactory` export (file did not exist in shared; bot uses `@lukbot/shared` services directly).
+  - Added `src/types/optional-infisical.d.ts` so the build passes when optional dependency `@infisical/sdk` is not installed.
+
+### Added - Twitch stream-online notifications
+
+- **docs/TWITCH_SETUP.md**
+  - Added step-by-step **Register your application** section: Twitch Developer Console, form fields (Name, OAuth Redirect URLs with HTTPS requirement, Category, Client type Confidential), and where to get Client ID and Client Secret.
+- **Twitch EventSub WebSocket integration**
+  - Notify a Discord channel when a configured Twitch streamer goes live
+  - EventSub over WebSocket (no public HTTP endpoint); uses user access token for subscriptions
+  - Slash commands: `/twitch add <username>`, `/twitch remove <username>`, `/twitch list`
+  - Env: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_ACCESS_TOKEN`, `TWITCH_REFRESH_TOKEN` (see `docs/TWITCH_SETUP.md`)
+- **Prisma**
+  - New `TwitchNotification` model (guild, twitch user, Discord channel); migration added
+
+### Added - .fmbot / Last.fm scrobbling
+
+- **Now Playing visibility for .fmbot**
+  - LukBot always sends a plain-text "Now playing: Artist – Title" message when a track starts (autoplay or manual), so .fmbot and other scrobblers can see and scrobble playback when they share the channel
+
+### Added - Cursor rules, skills, and agents
+
+- **Cursor rules**
+  - `lukbot-project.mdc`: project structure, stack, package layout, conventions (always apply)
+  - `lukbot-discord-bot.mdc`: Discord commands, player, handlers (packages/bot)
+  - `lukbot-backend-api.mdc`: Express API, auth, routes (packages/backend)
+  - `lukbot-frontend.mdc`: React app, pages, components (packages/frontend)
+  - `lukbot-shared.mdc`: shared config, DB, Redis, types, utils (packages/shared)
+- **Skills**
+  - `discord-commands`: add or change slash commands
+  - `music-queue-player`: play/queue/skip, player lifecycle, track handling
+  - `prisma-redis-lukbot`: Prisma schema/migrations, Redis usage in shared
+  - `lukbot-docker-dev`: Docker, compose, local dev runs
+- **AGENTS.md**
+  - Project summary, rule/skill mapping, when to use which MCP (filesystem, GitHub, Context7, Tavily, Playwright, etc.), agent behavior and commands reference
+
+### Added - MCP setup
+
+- **MCP configuration and docs**
+  - `docs/MCP_SETUP.md`: how to configure MCP servers and secrets for Cursor
+  - Wrapper scripts and `.env.mcp.example` live under `~/.cursor/` (global Cursor config); secrets are loaded from `~/.cursor/.env.mcp` instead of being hardcoded in `mcp.json`
+  - Filesystem MCP server path set to LukBot workspace; chrome-devtools and remote servers use `-y` for non-interactive npx
+- **MCP failing-tools fixes**
+  - GitHub: use npx `@modelcontextprotocol/server-github` via `run-mcp-github.sh` (no Docker)
+  - cloudflare-observability / cloudflare-bindings: use distinct OAuth callback ports (3335, 3336) to avoid EADDRINUSE
+  - infisical-craftvaria re-added to `mcp.json`; troubleshooting section in `docs/MCP_SETUP.md` for fetch (Docker), Infisical (env vars)
+  - BrowserStack: dedicated `run-mcp-browserstack.sh`; skip cleanly when `BROWSERSTACK_USERNAME`/`BROWSERSTACK_ACCESS_KEY` unset (no init error)
+  - Infisical wrappers: skip cleanly when project env vars unset
+  - fetch: removed from default `mcp.json` (requires Docker); doc explains how to re-add
+
 ### Added - Infisical
 
 - **Optional Infisical integration for environment variables**
