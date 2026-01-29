@@ -1,46 +1,101 @@
 # Git
 .git
 .gitignore
+.gitattributes
 
 # Documentation
 docs/
 *.md
+!README.md
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Node modules (will be installed in container)
 node_modules/
+**/node_modules/
 
 # Environment files
 .env
+.env.*
+!.env.example
 .env.local
 .env.production
+.env.development
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
 # Build artifacts
 dist/
 build/
+*.tsbuildinfo
+.next/
+out/
+.nuxt/
+.cache/
 
 # Test files
 test/
 tests/
+__tests__/
 *.test.js
+*.test.ts
+*.test.tsx
 *.spec.js
+*.spec.ts
+*.spec.tsx
+jest.config.*
+vitest.config.*
+playwright.config.*
 
 # Coverage
 coverage/
+.nyc_output/
+*.lcov
 
 # Temporary files
 tmp/
 temp/
+*.tmp
+*.temp
+
+# Docker files (don't copy Dockerfiles into themselves)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Misc
+*.pem
+*.key
+*.cert
+.cache/
+.parcel-cache/
