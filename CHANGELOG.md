@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Infisical
+
+- **Optional Infisical integration for environment variables**
+  - `ensureEnvironment()` in shared config: loads `.env` first, then fetches Infisical secrets when `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`, and `INFISICAL_ENV` are set
+  - Bot and backend entrypoints use `ensureEnvironment()` so Infisical works without code changes
+  - Optional dependency `@infisical/sdk`; app runs without it when Infisical is not configured
+  - `.env.example` documents Infisical-related variables
+  - `docs/INFISICAL.md` with setup, MCP usage, and Docker notes
+
 ### Added - Web Application
 
 - **Complete Discord OAuth Implementation**

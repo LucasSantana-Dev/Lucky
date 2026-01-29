@@ -58,6 +58,16 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete system architecture.
 
 - **Three.js 0.175.0** & **@react-three/fiber 8.17.10** & **@react-three/drei 9.114.3**: 3D graphics support (optional, for future enhancements)
 
+### Library Recommendations
+
+See [LIBRARY_RECOMMENDATIONS.md](../packages/frontend/LIBRARY_RECOMMENDATIONS.md) for detailed recommendations on:
+- Recommended additions (e.g., TanStack Query for server-state management)
+- Libraries to avoid
+- Dependency health criteria
+- Maintenance schedule
+
+**Key Recommendation**: Consider adding **TanStack Query** (`@tanstack/react-query`) for improved data fetching patterns, caching, and reduced boilerplate around API calls.
+
 ## Project Structure
 
 ```
@@ -80,6 +90,8 @@ src/webapp/frontend/
 │   │   ├── ui/              # Reusable UI components
 │   │   │   ├── Button.tsx
 │   │   │   ├── Card.tsx
+│   │   │   ├── LoadingSpinner.tsx
+│   │   │   ├── PageLoader.tsx
 │   │   │   ├── Skeleton.tsx
 │   │   │   └── Toast.tsx
 │   │   └── ErrorBoundary.tsx
@@ -110,7 +122,10 @@ src/webapp/frontend/
 ├── tsconfig.node.json        # TypeScript config for Vite
 ├── postcss.config.js        # PostCSS configuration
 ├── .eslintrc.cjs            # ESLint configuration
-└── Dockerfile.dev           # Development Docker configuration
+├── Dockerfile.dev           # Development Docker configuration
+├── scripts/                 # Build and utility scripts
+│   └── check-dependencies.ts # Dependency checking script
+└── LIBRARY_RECOMMENDATIONS.md # Library recommendations and guidelines
 ```
 
 ## Architecture & Design Patterns
@@ -466,6 +481,40 @@ Loading skeleton component for content placeholders.
 
 - Shimmer animation effect
 - Customizable size and shape
+
+#### LoadingSpinner
+
+Reusable loading spinner component with customizable size and optional message.
+
+**Location**: `src/components/ui/LoadingSpinner.tsx`
+
+**Props**:
+
+- `size?: 'sm' | 'md' | 'lg'` - Spinner size (default: 'md')
+- `className?: string` - Additional CSS classes
+- `message?: string` - Optional loading message
+
+**Usage**:
+
+```typescript
+<LoadingSpinner size="lg" message="Loading data..." />
+```
+
+#### PageLoader
+
+Full-page loading component for initial app load or route transitions.
+
+**Location**: `src/components/ui/PageLoader.tsx`
+
+**Props**:
+
+- `message?: string` - Loading message (default: 'Loading...')
+
+**Features**:
+
+- Centered layout
+- Full-screen coverage
+- Consistent styling with app theme
 
 #### ErrorBoundary
 
@@ -1197,6 +1246,66 @@ npm run type:check
 
 **Formatting**: Use Prettier (configured via ESLint)
 
+#### Dependency Management
+
+The frontend package includes dependency checking scripts similar to the bot package:
+
+**Check for Dependency Updates**:
+
+```bash
+npm run check:deps
+```
+
+This script:
+- Checks for available updates using `npm-check-updates`
+- Categorizes updates by type (major, minor, patch, security)
+- Saves results to `dependency-updates.json`
+- Displays formatted output with update information
+
+**Check Only Security Updates**:
+
+```bash
+npm run check:deps:security
+```
+
+**Simple Dependency Check**:
+
+```bash
+npm run check:deps:simple
+```
+
+**Check Outdated Packages**:
+
+```bash
+npm run check:outdated
+```
+
+**Dependency Check Script**:
+
+The dependency checking script (`scripts/check-dependencies.ts`) provides:
+- Automatic categorization of updates (major/minor/patch/security)
+- Filtering by security updates only (via `DEPENDENCY_NOTIFY_ONLY_SECURITY` env var)
+- JSON output for CI/CD integration
+- Formatted console output
+
+**Integration with CI/CD**:
+
+Add dependency checks to your CI pipeline:
+
+```yaml
+# Example GitHub Actions workflow
+- name: Check Dependencies
+  run: npm run check:deps
+  continue-on-error: true
+```
+
+**Best Practices**:
+
+- Run dependency checks monthly or before major releases
+- Review security updates immediately
+- Test major version updates in a separate branch
+- Keep `package-lock.json` committed for reproducible builds
+
 ### Debugging
 
 #### Chrome DevTools
@@ -1528,9 +1637,43 @@ try {
 
 ### Loading State Patterns
 
-**Skeleton Loaders**:
+**Full-Page Loading**:
+
+Use `PageLoader` for initial app load or route transitions:
 
 ```typescript
+import PageLoader from '@/components/ui/PageLoader'
+
+if (isLoading) {
+  return <PageLoader message="Loading application..." />
+}
+```
+
+**Inline Loading Spinner**:
+
+Use `LoadingSpinner` for component-level loading states:
+
+```typescript
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+
+function Component() {
+  const { isLoading } = useStore()
+
+  if (isLoading) {
+    return <LoadingSpinner size="md" message="Fetching data..." />
+  }
+
+  return <div>{/* content */}</div>
+}
+```
+
+**Skeleton Loaders**:
+
+Use `Skeleton` for content placeholders:
+
+```typescript
+import Skeleton from '@/components/ui/Skeleton'
+
 if (isLoading) {
   return <Skeleton className="h-20 w-full" />
 }
@@ -1538,11 +1681,28 @@ if (isLoading) {
 
 **Button Loading States**:
 
+Show loading state within buttons:
+
 ```typescript
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+
 <button disabled={isLoading}>
-  {isLoading ? 'Loading...' : 'Submit'}
+  {isLoading ? (
+    <LoadingSpinner size="sm" />
+  ) : (
+    'Submit'
+  )}
 </button>
 ```
+
+**App Initialization Loading**:
+
+The `App.tsx` component handles initial authentication loading with improved error handling and timeout management:
+
+- Uses `PageLoader` for consistent loading UI
+- 30-second safety timeout (increased from 10s)
+- Proper cleanup on unmount
+- Relies on store's `isLoading` state for better state management
 
 ### Error Handling Patterns
 

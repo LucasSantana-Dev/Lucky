@@ -1,4 +1,7 @@
 {
     "tsconfig": "tsconfig.json",
-    "experimentalSpecifierResolution": "node"
+    "experimentalSpecifierResolution": "node",
+    "resolve": {
+        "conditions": ["import", "require", "default"]
+    }
 }

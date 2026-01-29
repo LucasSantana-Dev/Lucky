@@ -180,7 +180,7 @@ npm run start
 
 ### ⚙️ Environment Configuration
 
-DiscordBot uses a `.env` file for all configuration. The environment mode is controlled by the `NODE_ENV` variable:
+DiscordBot uses a `.env` file for all configuration. Optionally, load secrets from [Infisical](https://infisical.com) by setting `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`, `INFISICAL_PROJECT_ID`, and `INFISICAL_ENV`; see the [Infisical configuration checklist](docs/INFISICAL.md#configuration-checklist) in [docs/INFISICAL.md](docs/INFISICAL.md). The environment mode is controlled by the `NODE_ENV` variable:
 
 ```bash
 # Production mode (default)
