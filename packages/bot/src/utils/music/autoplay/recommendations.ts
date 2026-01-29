@@ -1,21 +1,20 @@
 import { type Track } from 'discord-player'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { trackHistoryService } from '@lukbot/shared/services'
 import {
-    MusicRecommendationService,
-    type RecommendationConfig,
-} from '../../../../../../src/services/MusicRecommendationService'
-import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
+  MusicRecommendationService,
+  type RecommendationConfig,
+} from '../../../services/musicRecommendation'
 
-// Initialize recommendation service with default config
 const recommendationService = new MusicRecommendationService({
-    maxRecommendations: 8,
-    similarityThreshold: 0.4,
-    genreWeight: 0.4,
-    tagWeight: 0.3,
-    artistWeight: 0.2,
-    durationWeight: 0.05,
-    popularityWeight: 0.05,
-    diversityFactor: 0.1,
+  maxRecommendations: 8,
+  similarityThreshold: 0.4,
+  genreWeight: 0.4,
+  tagWeight: 0.3,
+  artistWeight: 0.2,
+  durationWeight: 0.05,
+  popularityWeight: 0.05,
+  diversityFactor: 0.1,
 })
 
 /**
@@ -32,8 +31,6 @@ export async function getAutoplayRecommendations(
             data: { guildId, hasCurrentTrack: !!currentTrack, limit },
         })
 
-        // Get recent history for context
-        const trackHistoryService = ServiceFactory.getTrackHistoryService()
         const recentHistory = await trackHistoryService.getTrackHistory(guildId, 10)
         const historyTracks = recentHistory.map(entry => entry.url)
 
@@ -93,22 +90,13 @@ async function getAvailableTracks(_guildId: string): Promise<Track[]> {
  * Update recommendation configuration
  */
 export function updateRecommendationConfig(config: Partial<RecommendationConfig>): void {
-    Object.assign(recommendationService, config)
-    debugLog({ message: 'Updated recommendation configuration', data: config })
+  recommendationService.updateConfig(config)
+  debugLog({ message: 'Updated recommendation configuration', data: config })
 }
 
 /**
  * Get current recommendation configuration
  */
 export function getRecommendationConfig(): RecommendationConfig {
-    return {
-        maxRecommendations: recommendationService['config'].maxRecommendations,
-        similarityThreshold: recommendationService['config'].similarityThreshold,
-        genreWeight: recommendationService['config'].genreWeight,
-        tagWeight: recommendationService['config'].tagWeight,
-        artistWeight: recommendationService['config'].artistWeight,
-        durationWeight: recommendationService['config'].durationWeight,
-        popularityWeight: recommendationService['config'].popularityWeight,
-        diversityFactor: recommendationService['config'].diversityFactor,
-    }
+  return recommendationService.getConfig()
 }

@@ -8,7 +8,7 @@ import type {
 } from './types'
 import { addTracksToQueue, addTrackToQueue, clearQueue, shuffleQueue, removeTrackFromQueue, moveTrackInQueue } from './queueOperations'
 import { getQueueState, getQueueStats, isQueueEmpty, isQueueFull } from './queueStateManager'
-import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
+import { trackHistoryService } from '@lukbot/shared/services'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
 
 /**
@@ -146,7 +146,6 @@ export class TrackManagementService {
      */
     async clearGuildHistory(guildId: string): Promise<void> {
         try {
-            const trackHistoryService = ServiceFactory.getTrackHistoryService()
             await trackHistoryService.clearAllGuildCaches(guildId)
             debugLog({ message: 'Cleared guild history', data: { guildId } })
         } catch (error) {

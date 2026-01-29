@@ -10,6 +10,12 @@ import {
 } from '../../utils/music/autoplayManager'
 import { featureToggleService } from "@lukbot/shared/services"
 import { constants } from '@lukbot/shared/config'
+import {
+    isLastFmConfigured,
+    getSessionKeyForUser,
+    updateNowPlaying as lastFmUpdateNowPlaying,
+    scrobble as lastFmScrobble,
+} from '../../lastfm'
 
 export const lastPlayedTracks = new Map<string, Track>()
 
@@ -27,6 +33,8 @@ const songInfoMessages = new Map<
     string,
     { messageId: string; channelId: string }
 >()
+
+const lastFmTrackStartTime = new Map<string, number>()
 
 interface IQueueMetadata {
     channel: TextChannel
@@ -138,21 +146,9 @@ const handlePlayerStart = async (
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)
 
-        if (isAutoplay) {
-            debugLog({
-                message: 'Autoplay track started, sending playing message',
-                data: { trackTitle: track.title, guildId: queue.guild.id },
-            })
-        } else {
-            debugLog({
-                message: 'Manual track started, skipping message (already handled by play command)',
-                data: { trackTitle: track.title, guildId: queue.guild.id },
-            })
-            return
-        }
-
         try {
             const metadata = queue.metadata as IQueueMetadata
+            if (!metadata?.channel) return
 
             const formatDuration = (duration: string) => {
                 if (!duration || duration === '0:00') return 'Unknown duration'
@@ -170,6 +166,10 @@ const handlePlayerStart = async (
             const requesterInfo = requester
                 ? `Added by **${requester.username}**`
                 : 'Added automatically'
+
+            const footer = isAutoplay
+                ? `Autoplay • ${getAutoplayCount(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
+                : requesterInfo
 
             const embed = createEmbed({
                 title: '🎵 Now Playing',
@@ -194,30 +194,58 @@ const handlePlayerStart = async (
                         inline: true,
                     },
                 ],
-                footer: `Autoplay • ${getAutoplayCount(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`,
+                footer,
             })
 
-            if (metadata?.channel) {
-                const message = await metadata.channel.send({
-                    embeds: [embed],
-                })
+            const nowPlayingText = `Now playing: ${track.author} – ${track.title}`
+            const message = await metadata.channel.send({
+                content: nowPlayingText,
+                embeds: [embed],
+            })
 
-                songInfoMessages.set(queue.guild.id, {
-                    messageId: message.id,
-                    channelId: metadata.channel.id,
-                })
+            songInfoMessages.set(queue.guild.id, {
+                messageId: message.id,
+                channelId: metadata.channel.id,
+            })
 
-                debugLog({
-                    message: 'Sent autoplay track message to channel',
-                    data: {
-                        guildId: queue.guild.id,
-                        trackTitle: track.title,
-                    },
-                })
+            debugLog({
+                message: 'Sent now playing message to channel',
+                data: {
+                    guildId: queue.guild.id,
+                    trackTitle: track.title,
+                    isAutoplay,
+                },
+            })
+
+            if (isLastFmConfigured()) {
+                const sessionKey = await getSessionKeyForUser(track.requestedBy?.id)
+                if (sessionKey) {
+                    const durationSec =
+                        typeof track.duration === 'number'
+                            ? Math.round(track.duration / 1000)
+                            : undefined
+                    try {
+                        await lastFmUpdateNowPlaying(
+                            track.author,
+                            track.title,
+                            durationSec,
+                            sessionKey,
+                        )
+                        lastFmTrackStartTime.set(
+                            queue.guild.id,
+                            Math.floor(Date.now() / 1000),
+                        )
+                    } catch (err) {
+                        errorLog({
+                            message: 'Last.fm updateNowPlaying failed',
+                            error: err,
+                        })
+                    }
+                }
             }
         } catch (error) {
             errorLog({
-                message: 'Error sending autoplay track message:',
+                message: 'Error sending now playing message:',
                 error,
             })
         }
@@ -226,9 +254,35 @@ const handlePlayerStart = async (
     }
 }
 
+async function scrobbleCurrentTrackIfLastFm(queue: GuildQueue): Promise<void> {
+    const track = queue.currentTrack
+    if (!track || !isLastFmConfigured()) return
+    const sessionKey = await getSessionKeyForUser(track.requestedBy?.id)
+    if (!sessionKey) return
+    const startedAt = lastFmTrackStartTime.get(queue.guild.id)
+    lastFmTrackStartTime.delete(queue.guild.id)
+    const timestamp = startedAt ?? Math.floor(Date.now() / 1000)
+    const durationSec =
+        typeof track.duration === 'number'
+            ? Math.round(track.duration / 1000)
+            : undefined
+    try {
+        await lastFmScrobble(
+            track.author,
+            track.title,
+            timestamp,
+            durationSec,
+            sessionKey,
+        )
+    } catch (err) {
+        errorLog({ message: 'Last.fm scrobble failed', error: err })
+    }
+}
+
 const handlePlayerFinish = async (queue: GuildQueue): Promise<void> => {
     try {
         if (queue.currentTrack) {
+            await scrobbleCurrentTrackIfLastFm(queue)
             addTrackToHistory(queue.currentTrack, queue.guild.id)
         }
 
@@ -252,6 +306,7 @@ const handlePlayerSkip = async (queue: GuildQueue): Promise<void> => {
         debugLog({ message: 'Track skipped, checking queue...' })
 
         if (queue.currentTrack) {
+            await scrobbleCurrentTrackIfLastFm(queue)
             addTrackToHistory(queue.currentTrack, queue.guild.id)
         }
 

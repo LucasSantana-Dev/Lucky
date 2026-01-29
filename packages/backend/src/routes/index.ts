@@ -2,6 +2,7 @@ import type { Express } from 'express'
 import { setupAuthRoutes } from './auth'
 import { setupToggleRoutes } from './toggles'
 import { setupGuildRoutes } from './guilds'
+import { setupLastFmRoutes } from './lastfm'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -12,6 +13,7 @@ export function setupRoutes(app: Express): void {
     setupAuthRoutes(app)
     setupToggleRoutes(app)
     setupGuildRoutes(app)
+    setupLastFmRoutes(app)
 
     const isProduction = process.env.NODE_ENV === 'production'
 

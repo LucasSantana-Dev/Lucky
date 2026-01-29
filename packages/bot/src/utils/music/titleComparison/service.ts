@@ -8,7 +8,7 @@ import {
     applyPatterns,
     calculateSimilarity,
     normalizeString,
-} from '../../../../../../src/utils/misc/stringUtils'
+} from '../../misc/stringUtils'
 import { safeSetInterval } from '@lukbot/shared/utils'
 import type {
     ArtistTitle,

@@ -34,6 +34,6 @@ export const COMMAND_CATEGORIES = {
         key: 'general' as CommandCategory,
         label: '⚙️ General',
         emoji: '⚙️',
-        prefixes: ['help', 'ping'],
+        prefixes: ['help', 'ping', 'twitch', 'lastfm'],
     },
 }

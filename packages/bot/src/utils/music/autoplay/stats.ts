@@ -1,6 +1,5 @@
 import { errorLog } from '@lukbot/shared/utils'
-import { guildSettingsService } from '../../../../../../src/services/GuildSettingsService'
-import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
+import { guildSettingsService, trackHistoryService } from '@lukbot/shared/services'
 
 /**
  * Get autoplay statistics for a guild
@@ -15,8 +14,6 @@ export async function getAutoplayStats(guildId: string): Promise<{
         const counter = await guildSettingsService.getAutoplayCounter(guildId)
         const total = counter?.count ?? 0
 
-        // Get history for time-based stats
-        const trackHistoryService = ServiceFactory.getTrackHistoryService()
         const history = await trackHistoryService.getTrackHistory(guildId, 100)
         const now = Date.now()
         const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000)

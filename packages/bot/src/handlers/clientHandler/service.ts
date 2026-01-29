@@ -54,7 +54,7 @@ export async function startClient({
 
         await client.login(TOKEN)
 
-        client.once('ready', () => {
+        client.once('ready', async () => {
             if (client.user) {
                 infoLog({
                     message: `Bot logged in as ${client.user.tag}`,
@@ -64,6 +64,9 @@ export async function startClient({
                     type: ActivityType.Listening,
                 })
             }
+
+            const { startTwitchService } = await import('../../twitch')
+            await startTwitchService(client)
         })
 
         const rest = new REST({ version: '10' }).setToken(TOKEN)

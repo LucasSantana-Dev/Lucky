@@ -60,13 +60,28 @@ model Guild {
   updatedAt DateTime @updatedAt
 
   // Relations
-  settings     GuildSettings?
-  sessions     GuildSession[]
-  userSessions UserSession[]
-  trackHistory TrackHistory[]
-  commandUsage CommandUsage[]
+  settings           GuildSettings?
+  sessions           GuildSession[]
+  userSessions       UserSession[]
+  trackHistory       TrackHistory[]
+  commandUsage       CommandUsage[]
+  twitchNotifications TwitchNotification[]
 
   @@map("guilds")
+}
+
+model TwitchNotification {
+  id                String   @id @default(cuid())
+  guildId           String
+  guild             Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  twitchUserId      String
+  twitchLogin       String
+  discordChannelId  String
+  createdAt         DateTime @default(now())
+
+  @@unique([guildId, twitchUserId])
+  @@index([twitchUserId])
+  @@map("twitch_notifications")
 }
 
 model GuildSettings {
@@ -301,6 +316,18 @@ model ReactionRoleMapping {
   @@unique([messageId, roleId])
   @@index([messageId])
   @@map("reaction_role_mappings")
+}
+
+// Last.fm per-user linking (session key stored per Discord user)
+model LastFmLink {
+  id             String   @id @default(cuid())
+  discordId      String   @unique
+  sessionKey     String
+  lastFmUsername String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("lastfm_links")
 }
 
 // Role Management

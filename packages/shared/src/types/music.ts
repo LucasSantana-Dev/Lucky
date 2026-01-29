@@ -59,15 +59,6 @@ export interface TrackSearchOptions {
     preferredEngine?: string
 }
 
-export interface TrackHistoryEntry {
-    trackId: string
-    title: string
-    author: string
-    duration: string
-    url: string
-    timestamp: number
-}
-
 export interface TrackLike {
     title: string
     author: string

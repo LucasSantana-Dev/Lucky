@@ -1,5 +1,6 @@
 import express, { type Express } from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { setupSessionMiddleware } from './session'
@@ -22,6 +23,7 @@ export function setupMiddleware(app: Express): void {
 
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
+    app.use(cookieParser())
     setupSessionMiddleware(app)
     app.use(express.static(path.join(__dirname, '../public')))
 }

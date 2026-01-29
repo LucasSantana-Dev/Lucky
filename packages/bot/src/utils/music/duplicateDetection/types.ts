@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import type { TrackHistoryEntry } from '../../../../../../src/services/TrackHistoryService'
+import type { TrackHistoryEntry } from '@lukbot/shared/services'
 import type { TrackMetadata } from '@lukbot/shared/types'
 
 // Legacy in-memory maps for backward compatibility (fallback when Redis is unavailable)

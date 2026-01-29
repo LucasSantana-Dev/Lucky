@@ -44,7 +44,8 @@ export default new Command({
 
             title = track?.title ?? 'Unknown'
         }
-        const lyrics = `Lyrics for **${title}** not found or not implemented.`
+        const lyrics =
+            'Lyrics are not available yet. This command is reserved for a future lyrics API integration.'
 
         const embed = musicEmbed('Lyrics', lyrics)
         await interactionReply({
