@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - CI pipeline (missing lock file)
+
+- **Root**
+  - Removed `package-lock.json` from `.gitignore` so the root lock file is committed. CI uses `actions/setup-node@v4` with `cache: 'npm'` and `npm ci`, which require a lock file at the repo root.
+- **docs/CI_CD.md**
+  - Added "Lock file" section: root `package-lock.json` must be committed for CI.
+
 ### Changed - Monorepo cleanup (remove legacy root src/tests)
 
 - **Root**

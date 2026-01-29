@@ -7,6 +7,10 @@ This document describes the continuous integration and deployment setup for LukB
 - **CI**: Runs on every push and pull request to `main` and `develop`. Two jobs: **Quality Gates** (lint, type-check, build, unit/integration tests, coverage, security audit) and **E2E** (Playwright tests for the frontend), with E2E depending on Quality Gates.
 - **CD**: Deploy workflow runs on push to `main` (and manual trigger). Deploys via SSH to the target server: pull, Docker build, restart services.
 
+## Lock file
+
+The root `package-lock.json` must be committed. CI uses `cache: 'npm'` and `npm ci`, which require it. Do not add it to `.gitignore`.
+
 ## Pre-commit hooks (Husky)
 
 Before each commit the following run automatically:
