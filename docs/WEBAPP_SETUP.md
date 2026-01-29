@@ -233,6 +233,8 @@ For production, ensure:
 - `WEBAPP_SESSION_SECRET` is a strong random value
 - `NODE_ENV=production` for secure cookies
 
+To expose the web app at a custom domain over HTTPS without opening ports, use [Cloudflare Tunnel](CLOUDFLARE_TUNNEL_SETUP.md) (domain, DNS, and tunnel setup).
+
 ## Docker Setup
 
 The frontend can be run in Docker for development:

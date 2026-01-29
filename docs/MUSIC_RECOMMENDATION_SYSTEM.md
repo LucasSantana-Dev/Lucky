@@ -308,7 +308,7 @@ debugLog({
 ### Integration Opportunities
 
 1. **Spotify API** - Enhanced metadata and related artists
-2. **Last.fm Integration** - User scrobbling data for better recommendations
+2. **Last.fm** - LukBot already scrobbles and updates now playing via the Last.fm API (see docs/LASTFM_SETUP.md). Using user scrobbling data (e.g. user.getRecentTracks) for better recommendations is a future enhancement.
 3. **YouTube Music API** - Access to official music data
 4. **Community Features** - Shared playlists and collaborative recommendations
 

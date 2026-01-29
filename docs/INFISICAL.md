@@ -21,6 +21,8 @@ After step 3, the bot and backend load secrets from Infisical at startup when al
 
 The bot and backend entrypoints use `ensureEnvironment()`, which runs this flow. No code changes are needed beyond setting the Infisical env vars.
 
+**Optional dependency:** Infisical is an optional dependency (`@infisical/sdk` in `packages/shared`). The shared package declares types for it so the build succeeds when the package is not installed; install it when you use Infisical for secrets.
+
 ## Configure .env for LukBot (Infisical)
 
 To have LukBot load secrets from Infisical at runtime, add these to your **local** `.env` (do not commit the secret):
