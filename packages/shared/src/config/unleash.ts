@@ -37,11 +37,11 @@ if (unleash !== null) {
         infoLog({ message: 'Unleash client ready' })
     })
 
-    unleash.on('error', (error) => {
+    unleash.on('error', (error: Error) => {
         errorLog({ message: 'Unleash client error:', error })
     })
 
-    unleash.on('warn', (message) => {
+    unleash.on('warn', (message: string) => {
         debugLog({ message: `Unleash warning: ${message}` })
     })
 

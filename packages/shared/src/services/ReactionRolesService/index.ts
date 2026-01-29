@@ -13,8 +13,6 @@ import { errorLog, debugLog } from '../../utils/general/log'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
 
-const prisma = getPrismaClient()
-
 export interface CreateReactionRoleOptions {
     guild: Guild
     channel: TextChannel
@@ -87,6 +85,7 @@ export class ReactionRolesService {
                 components: actionRows.length > 0 ? actionRows : [],
             })
 
+            const prisma = getPrismaClient()
             await prisma.reactionRoleMessage.create({
                 data: {
                     messageId: message.id,
@@ -124,6 +123,7 @@ export class ReactionRolesService {
         guildId: string,
     ): Promise<boolean> {
         try {
+            const prisma = getPrismaClient()
             const message = await prisma.reactionRoleMessage.findUnique({
                 where: { messageId },
                 include: { mappings: true },
@@ -153,6 +153,7 @@ export class ReactionRolesService {
 
     async listReactionRoleMessages(guildId: string) {
         try {
+            const prisma = getPrismaClient()
             const result = await prisma.reactionRoleMessage.findMany({
                 where: { guildId },
                 include: { mappings: true },
@@ -191,6 +192,7 @@ export class ReactionRolesService {
         const roleId = customId.replace('reactionrole:', '')
 
         try {
+            const prisma = getPrismaClient()
             const mapping = await prisma.reactionRoleMapping.findFirst({
                 where: {
                     buttonId: customId,

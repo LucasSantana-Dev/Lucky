@@ -2,7 +2,8 @@
  * Database service for managing PostgreSQL operations
  */
 
-import { PrismaClient } from '@prisma/client'
+import { getPrismaClient } from '../../utils/database/prismaClient'
+import type { PrismaClient } from '@prisma/client'
 import { Result } from '../../types/common/BaseResult'
 import { infoLog, errorLog, debugLog } from '../../utils/general/log'
 import type {
@@ -191,21 +192,7 @@ export class DatabaseService {
 
   constructor(config: DatabaseConfig) {
     this.config = config
-
-    this.prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: this.config.url,
-        },
-      },
-      log: [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'event' },
-        { level: 'info', emit: 'event' },
-        { level: 'warn', emit: 'event' },
-      ],
-    })
-
+    this.prisma = getPrismaClient()
     this.setupEventHandlers()
   }
 

@@ -3,7 +3,7 @@ import { createEmbed, formatTime, createProgressBar } from './core'
 import { EMBED_COLORS } from './constants'
 
 // Mock Discord.js EmbedBuilder
-jest.mock('discord.js', () => ({
+jest.mock('discord', () => ({
     EmbedBuilder: jest.fn().mockImplementation(() => ({
         setTitle: jest.fn().mockReturnThis(),
         setDescription: jest.fn().mockReturnThis(),
@@ -34,7 +34,7 @@ describe('Embed Utilities', () => {
             setTimestamp: jest.fn().mockReturnThis(),
             data: {}
         }
-        const { EmbedBuilder } = require('discord.js')
+        const { EmbedBuilder } = require('discord')
         EmbedBuilder.mockImplementation(() => mockEmbed)
     })
 

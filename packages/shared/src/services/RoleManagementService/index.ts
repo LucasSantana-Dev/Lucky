@@ -3,8 +3,6 @@ import { errorLog, debugLog } from '../../utils/general/log'
 import { featureToggleService } from '../FeatureToggleService'
 import { getPrismaClient } from '../../utils/database/prismaClient'
 
-const prisma = getPrismaClient()
-
 export class RoleManagementService {
     async isEnabled(guildId?: string, userId?: string): Promise<boolean> {
         return featureToggleService.isEnabled('ROLE_MANAGEMENT', {
@@ -19,6 +17,7 @@ export class RoleManagementService {
         excludedRoleId: string,
     ): Promise<boolean> {
         try {
+            const prisma = getPrismaClient()
             await prisma.roleExclusion.upsert({
                 where: {
                     guildId_roleId_excludedRoleId: {
@@ -55,6 +54,7 @@ export class RoleManagementService {
         excludedRoleId: string,
     ): Promise<boolean> {
         try {
+            const prisma = getPrismaClient()
             await prisma.roleExclusion.deleteMany({
                 where: {
                     guildId,
@@ -79,6 +79,7 @@ export class RoleManagementService {
 
     async listExclusiveRoles(guildId: string) {
         try {
+            const prisma = getPrismaClient()
             const result = await prisma.roleExclusion.findMany({
                 where: { guildId },
                 orderBy: { createdAt: 'desc' },
@@ -117,6 +118,7 @@ export class RoleManagementService {
         }
 
         try {
+            const prisma = getPrismaClient()
             const exclusions = await prisma.roleExclusion.findMany({
                 where: {
                     guildId: newMember.guild.id,
