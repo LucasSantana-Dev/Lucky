@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Phase 2b: React 18 → 19 (frontend)
+
+- **packages/frontend**
+  - Bumped `react` and `react-dom` to `^19.0.0`, `@types/react` and `@types/react-dom` to `^19.0.0`. Radix UI and other UI libs work with React 19; typecheck and build pass.
+
 ### Changed - Phase 2a: Tailwind CSS v4 (frontend)
 
 - **packages/frontend**
