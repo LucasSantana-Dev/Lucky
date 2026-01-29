@@ -8,7 +8,7 @@ import type {
 } from './types'
 import { addTracksToQueue, addTrackToQueue, clearQueue, shuffleQueue, removeTrackFromQueue, moveTrackInQueue } from './queueOperations'
 import { getQueueState, getQueueStats, isQueueEmpty, isQueueFull } from './queueStateManager'
-import { ServiceFactory } from '@services/ServiceFactory'
+import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
 
 /**

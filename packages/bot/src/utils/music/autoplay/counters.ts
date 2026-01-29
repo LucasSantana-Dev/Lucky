@@ -1,5 +1,5 @@
 import { debugLog, errorLog } from '@lukbot/shared/utils'
-import { ServiceFactory } from '@services/ServiceFactory'
+import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
 
 export const autoplayCounters = new Map<string, number>()
 

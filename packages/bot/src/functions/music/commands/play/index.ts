@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
 import { requireQueue } from '../../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../../types/CommandData'
+import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
 import {
     logYouTubeError,
@@ -44,18 +45,28 @@ type ProcessPlayCommandOptions = {
     guildId: string
     channelId: string
     interaction: ChatInputCommandInteraction
+    client: CustomClient
 }
 
 async function processPlayCommand(
     options: ProcessPlayCommandOptions,
 ): Promise<void> {
-    const { query, member, guildId, channelId, interaction } = options
+    const { query, member, guildId, channelId, interaction, client } = options
     const processor = new PlayCommandProcessor()
+    const queue = client.player.queues.get(guildId)
+    if (!queue) {
+        await interaction.editReply({
+            embeds: [createErrorEmbed('Error', 'Queue not found')],
+        })
+        return
+    }
     const playOptions: PlayCommandOptions = {
         query,
         user: member,
         guildId,
         channelId,
+        player: client.player,
+        queue,
     }
 
     const result: PlayCommandResult =
@@ -164,6 +175,7 @@ export default new Command({
                 guildId,
                 channelId: interaction.channelId,
                 interaction,
+                client,
             })
         } catch (error) {
             await handlePlayError({

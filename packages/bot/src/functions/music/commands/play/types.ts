@@ -2,7 +2,7 @@
  * Play command types and interfaces
  */
 
-import type { Track } from 'discord-player'
+import type { Track, Player, GuildQueue } from 'discord-player'
 import type { GuildMember } from 'discord.js'
 
 export type PlayCommandOptions = {
@@ -10,6 +10,8 @@ export type PlayCommandOptions = {
     user: GuildMember
     guildId: string
     channelId: string
+    player: Player
+    queue: GuildQueue
 }
 
 export type PlayCommandResult = {

@@ -5,11 +5,38 @@
 import type { PlayCommandResult, PlayCommandOptions } from './types'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
 
+function extractSpotifyTrackId(url: string): string | null {
+    const trackMatch = url.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/)
+    return trackMatch ? trackMatch[1] : null
+}
+
+function extractSpotifyPlaylistId(url: string): string | null {
+    const playlistMatch = url.match(/spotify\.com\/playlist\/([a-zA-Z0-9]+)/)
+    return playlistMatch ? playlistMatch[1] : null
+}
+
+function buildSearchQueryFromSpotifyUrl(url: string): string {
+    const trackId = extractSpotifyTrackId(url)
+    const playlistId = extractSpotifyPlaylistId(url)
+
+    if (trackId || playlistId) {
+        return url
+    }
+
+    const pathMatch = url.match(/spotify\.com\/([^?]+)/)
+    if (pathMatch) {
+        return url
+    }
+
+    return url
+}
+
 export async function handleSpotifyTrack(
     query: string,
     user: PlayCommandOptions['user'],
     guildId: string,
     _channelId: string,
+    player: PlayCommandOptions['player'],
 ): Promise<PlayCommandResult> {
     try {
         debugLog({
@@ -17,16 +44,30 @@ export async function handleSpotifyTrack(
             data: { guildId, userId: user.id },
         })
 
-        // TODO: Implement actual Spotify track resolution
-        // This would typically involve:
-        // 1. Extracting Spotify track ID from URL
-        // 2. Using Spotify API to get track metadata
-        // 3. Searching for equivalent YouTube track
-        // 4. Returning track information
+        const searchQuery = buildSearchQueryFromSpotifyUrl(query)
+        const searchResult = await player.search(searchQuery, {
+            requestedBy: user,
+        })
+
+        if (!searchResult.hasTracks()) {
+            return {
+                success: false,
+                error: 'No tracks found for this Spotify link. Try searching by song name instead.',
+            }
+        }
+
+        const tracks = searchResult.tracks
+        const firstTrack = tracks[0]
+
+        debugLog({
+            message: `Found track: ${firstTrack.title}`,
+            data: { guildId },
+        })
 
         return {
-            success: false,
-            error: 'Spotify track handling not fully implemented',
+            success: true,
+            tracks: [firstTrack],
+            isPlaylist: false,
         }
     } catch (error) {
         errorLog({
@@ -46,6 +87,7 @@ export async function handleSpotifyPlaylist(
     user: PlayCommandOptions['user'],
     guildId: string,
     _channelId: string,
+    player: PlayCommandOptions['player'],
 ): Promise<PlayCommandResult> {
     try {
         debugLog({
@@ -53,16 +95,30 @@ export async function handleSpotifyPlaylist(
             data: { guildId, userId: user.id },
         })
 
-        // TODO: Implement actual Spotify playlist resolution
-        // This would typically involve:
-        // 1. Extracting Spotify playlist ID from URL
-        // 2. Using Spotify API to get playlist tracks
-        // 3. Searching for equivalent YouTube tracks
-        // 4. Returning playlist information
+        const searchQuery = buildSearchQueryFromSpotifyUrl(query)
+        const searchResult = await player.search(searchQuery, {
+            requestedBy: user,
+        })
+
+        if (!searchResult.hasTracks()) {
+            return {
+                success: false,
+                error: 'No tracks found for this Spotify playlist. Try searching by playlist name instead.',
+            }
+        }
+
+        const tracks = searchResult.tracks
+        const isPlaylist = searchResult.playlist !== null
+
+        debugLog({
+            message: `Found ${tracks.length} tracks from Spotify playlist`,
+            data: { guildId, isPlaylist },
+        })
 
         return {
-            success: false,
-            error: 'Spotify playlist handling not fully implemented',
+            success: true,
+            tracks,
+            isPlaylist: isPlaylist || tracks.length > 1,
         }
     } catch (error) {
         errorLog({

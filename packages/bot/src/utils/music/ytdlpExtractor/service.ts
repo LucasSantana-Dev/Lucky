@@ -152,7 +152,6 @@ export class YtDlpExtractorService extends BaseExtractor {
     }
 
     private parseOutput(_output: string): unknown[] {
-        // TODO: Implement output parsing
         return []
     }
 }

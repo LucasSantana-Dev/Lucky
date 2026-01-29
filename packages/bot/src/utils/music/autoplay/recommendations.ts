@@ -3,8 +3,8 @@ import { debugLog, errorLog } from '@lukbot/shared/utils'
 import {
     MusicRecommendationService,
     type RecommendationConfig,
-} from '@services/MusicRecommendationService'
-import { ServiceFactory } from '@services/ServiceFactory'
+} from '../../../../../../src/services/MusicRecommendationService'
+import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
 
 // Initialize recommendation service with default config
 const recommendationService = new MusicRecommendationService({

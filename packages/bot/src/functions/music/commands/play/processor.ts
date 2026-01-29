@@ -55,49 +55,46 @@ export class PlayCommandProcessor {
     private async handleSpotifyQuery(
         options: PlayCommandOptions,
     ): Promise<PlayCommandResult> {
-        const { query, user, guildId, channelId } = options
+        const { query, user, guildId, channelId, player } = options
 
         if (query.includes('playlist')) {
-            return handleSpotifyPlaylist(query, user, guildId, channelId)
+            return handleSpotifyPlaylist(query, user, guildId, channelId, player)
         } else {
-            return handleSpotifyTrack(query, user, guildId, channelId)
+            return handleSpotifyTrack(query, user, guildId, channelId, player)
         }
     }
 
     private async handleYouTubeQuery(
         options: PlayCommandOptions,
     ): Promise<PlayCommandResult> {
-        const { query, user, guildId, channelId } = options
+        const { query, user, guildId, channelId, player } = options
 
         if (query.includes('playlist')) {
-            return handleYouTubePlaylist(query, user, guildId, channelId)
+            return handleYouTubePlaylist(query, user, guildId, channelId, player)
         } else {
-            return handleYouTubeSearch(query, user, guildId, channelId)
+            return handleYouTubeSearch(query, user, guildId, channelId, player)
         }
     }
 
     private async handleSearchQuery(
         options: PlayCommandOptions,
     ): Promise<PlayCommandResult> {
-        const { query, user, guildId, channelId } = options
+        const { query, user, guildId, channelId, player } = options
 
-        // Default to YouTube search for general queries
-        return handleYouTubeSearch(query, user, guildId, channelId)
+        return handleYouTubeSearch(query, user, guildId, channelId, player)
     }
 
     private async handleUrlQuery(
         options: PlayCommandOptions,
     ): Promise<PlayCommandResult> {
-        const { query, user, guildId, channelId } = options
+        const { query, user, guildId, channelId, player } = options
 
-        // Try to determine the platform from the URL
         if (query.includes('youtube.com') || query.includes('youtu.be')) {
-            return handleYouTubeSearch(query, user, guildId, channelId)
+            return handleYouTubeSearch(query, user, guildId, channelId, player)
         } else if (query.includes('spotify.com')) {
-            return handleSpotifyTrack(query, user, guildId, channelId)
+            return handleSpotifyTrack(query, user, guildId, channelId, player)
         } else {
-            // Default to YouTube search for unknown URLs
-            return handleYouTubeSearch(query, user, guildId, channelId)
+            return handleYouTubeSearch(query, user, guildId, channelId, player)
         }
     }
 }

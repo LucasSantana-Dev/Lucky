@@ -17,22 +17,26 @@ export async function manageQueue(
             data: { guildId: options.guildId, isPlaylist },
         })
 
-        // Set the requestedBy field for all tracks
-        const processedTracks = tracks.map((track) => ({
-            ...track,
-            requestedBy: options.user.id,
-        }))
+        const { queue } = options
 
-        // TODO: Implement actual queue management with discord-player
-        // This would typically involve:
-        // 1. Getting the queue for the guild
-        // 2. Adding tracks to the queue
-        // 3. Starting playback if queue was empty
-        // 4. Handling playlist vs single track logic
+        if (!queue) {
+            throw new Error('Queue not found')
+        }
+
+        const wasEmpty = queue.tracks.size === 0
+
+        for (const track of tracks) {
+            track.requestedBy = options.user.user
+            queue.addTrack(track)
+        }
+
+        if (wasEmpty && !queue.node.isPlaying()) {
+            await queue.node.play()
+        }
 
         debugLog({
-            message: `Successfully processed ${processedTracks.length} tracks for queue`,
-            data: { guildId: options.guildId },
+            message: `Successfully added ${tracks.length} tracks to queue`,
+            data: { guildId: options.guildId, isPlaylist, wasEmpty },
         })
     } catch (error) {
         errorLog({

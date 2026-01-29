@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import type { TrackHistoryEntry } from '@services/TrackHistoryService'
+import type { TrackHistoryEntry } from '../../../../../../src/services/TrackHistoryService'
 import type { SimilarityConfig } from './types'
 
 /**

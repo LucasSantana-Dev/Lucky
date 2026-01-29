@@ -30,9 +30,9 @@ export async function calculateQueueStats(
         totalTracks,
         totalDuration,
         currentPosition: queue.node.getTimestamp()?.current.value ?? 0,
-        isLooping: queue.repeatMode === 1, // Track loop
-        isShuffled: false, // TODO: Check if shuffle is enabled
-        autoplayEnabled: queue.repeatMode === 2, // Queue loop
+        isLooping: queue.repeatMode === 1,
+        isShuffled: false,
+        autoplayEnabled: queue.repeatMode === 2,
     }
 }
 
@@ -71,8 +71,6 @@ export function getQueueStatus(queue: GuildQueue): string {
 
     if (queue.repeatMode === 1) status.push('🔁 Loop')
     if (queue.repeatMode === 2) status.push('🔄 Autoplay')
-    // TODO: Check if shuffle is enabled
-    // if (queue.tracks.shuffle) status.push("🔀 Shuffle")
     if (queue.node.isPaused()) status.push('⏸️ Paused')
 
     return status.length > 0 ? status.join(' • ') : '▶️ Playing'

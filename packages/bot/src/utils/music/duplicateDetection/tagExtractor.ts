@@ -1,8 +1,6 @@
 import type { Track } from 'discord-player'
 import { debugLog } from '@lukbot/shared/utils'
 
-// Removed unused function
-
 function _getGenreKeywords(): string[] {
     return [
         'rock',
@@ -36,14 +34,6 @@ function _getGenreKeywords(): string[] {
     ]
 }
 
-// Removed unused function
-
-// Removed unused function
-
-// Removed unused function
-
-// Removed unused function
-
 /**
  * Extract tags from track title and description
  */
@@ -54,8 +44,6 @@ function _extractWordsFromText(text: string): string[] {
         .split(/\s+/)
         .filter((word: string) => word.length > 3)
 }
-
-// Removed duplicate function
 
 function addGenreTagsFromWords(tags: Set<string>, words: string[]): void {
     const genreKeywords = _getGenreKeywords()

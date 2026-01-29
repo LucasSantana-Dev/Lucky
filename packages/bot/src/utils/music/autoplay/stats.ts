@@ -1,6 +1,6 @@
 import { errorLog } from '@lukbot/shared/utils'
-import { guildSettingsService } from '@services/GuildSettingsService'
-import { ServiceFactory } from '@services/ServiceFactory'
+import { guildSettingsService } from '../../../../../../src/services/GuildSettingsService'
+import { ServiceFactory } from '../../../../../../src/services/ServiceFactory'
 
 /**
  * Get autoplay statistics for a guild
