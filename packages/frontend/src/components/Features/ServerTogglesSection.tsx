@@ -24,14 +24,14 @@ export default function ServerTogglesSection({
     selectedGuildId,
     onSelectGuild,
 }: ServerTogglesSectionProps) {
-    const { guilds } = useGuildStore()
-    const { features } = useFeaturesStore()
+    const guilds = useGuildStore((state) => state.guilds)
+    const features = useFeaturesStore((state) => state.features)
 
     return (
         <div className='space-y-4'>
             <div className='flex items-center gap-2 mb-4'>
-                <Server className='w-5 h-5 text-lukbot-blue' />
-                <h2 className='text-lg font-semibold text-white'>
+                <Server className='w-5 h-5 text-lukbot-blue' aria-hidden='true' />
+                <h2 id='server-toggles-heading' className='text-lg font-semibold text-white'>
                     Server Toggles
                 </h2>
             </div>

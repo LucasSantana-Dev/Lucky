@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState, useCallback } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -19,7 +19,7 @@ const formatFeatureName = (name: string): string => {
         .join(' ')
 }
 
-export default function FeatureCard({
+function FeatureCard({
     feature,
     enabled,
     onToggle,
@@ -27,27 +27,32 @@ export default function FeatureCard({
 }: FeatureCardProps) {
     const [isUpdating, setIsUpdating] = useState(false)
 
-    const handleToggle = async (checked: boolean) => {
-        setIsUpdating(true)
-        try {
-            await onToggle(checked)
-            toast.success(
-                `${formatFeatureName(feature.name)} ${checked ? 'enabled' : 'disabled'}`,
-            )
-        } catch {
-            toast.error(`Failed to update ${formatFeatureName(feature.name)}`)
-        } finally {
-            setIsUpdating(false)
-        }
-    }
+    const handleToggle = useCallback(
+        async (checked: boolean) => {
+            setIsUpdating(true)
+            try {
+                await onToggle(checked)
+                toast.success(
+                    `${formatFeatureName(feature.name)} ${checked ? 'enabled' : 'disabled'}`,
+                )
+            } catch {
+                toast.error(`Failed to update ${formatFeatureName(feature.name)}`)
+            } finally {
+                setIsUpdating(false)
+            }
+        },
+        [feature.name, onToggle],
+    )
+
+    const featureName = formatFeatureName(feature.name)
 
     return (
-        <div className='bg-lukbot-bg-secondary rounded-xl p-5 border border-lukbot-border'>
+        <article className='bg-lukbot-bg-secondary rounded-xl p-5 border border-lukbot-border'>
             <div className='flex items-start justify-between gap-4'>
                 <div className='flex-1'>
                     <div className='flex items-center gap-2 mb-1'>
                         <h3 className='font-semibold text-white'>
-                            {formatFeatureName(feature.name)}
+                            {featureName}
                         </h3>
                         <Badge
                             className={cn(
@@ -56,6 +61,7 @@ export default function FeatureCard({
                                     ? 'bg-lukbot-purple/20 text-lukbot-purple'
                                     : 'bg-lukbot-blue/20 text-lukbot-blue',
                             )}
+                            aria-label={isGlobal ? 'Global feature' : 'Per-server feature'}
                         >
                             {isGlobal ? 'Global' : 'Per-Server'}
                         </Badge>
@@ -72,6 +78,7 @@ export default function FeatureCard({
                                 ? 'text-lukbot-success'
                                 : 'text-lukbot-text-tertiary',
                         )}
+                        aria-live='polite'
                     >
                         {enabled ? 'Enabled' : 'Disabled'}
                     </span>
@@ -79,9 +86,12 @@ export default function FeatureCard({
                         checked={enabled}
                         onCheckedChange={handleToggle}
                         disabled={isUpdating}
+                        aria-label={`Toggle ${featureName}`}
                     />
                 </div>
             </div>
-        </div>
+        </article>
     )
 }
+
+export default memo(FeatureCard)

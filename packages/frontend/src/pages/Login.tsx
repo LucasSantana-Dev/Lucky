@@ -1,62 +1,17 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Bot, Loader2, AlertCircle } from 'lucide-react'
+import { Bot, Loader2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { useAuthStore } from '@/stores/authStore'
-import { toast } from 'sonner'
+import { useAuthRedirect } from '@/hooks/useAuthRedirect'
+import { usePageMetadata } from '@/hooks/usePageMetadata'
 
 export default function LoginPage() {
-    const navigate = useNavigate()
-    const [searchParams] = useSearchParams()
-    const { isAuthenticated, isLoading, login, checkAuth } = useAuthStore()
-    const [error, setError] = useState<string | null>(null)
-
-    useEffect(() => {
-        const authenticated = searchParams.get('authenticated')
-        const errorParam = searchParams.get('error')
-        const errorMessage = searchParams.get('message')
-
-        if (errorParam) {
-            const messages: Record<string, string> = {
-                auth_failed: 'Authentication failed. Please try again.',
-                missing_code: 'Missing authorization code. Please try again.',
-                missing_state: 'Security validation failed. Please try again.',
-                invalid_state: 'Invalid security token. Please try again.',
-                session_failed: 'Failed to create session. Please try again.',
-                authentication_error:
-                    'An error occurred during authentication.',
-            }
-            const errorText =
-                messages[errorParam] || errorMessage || 'An error occurred'
-            setError(errorText)
-
-            const newSearchParams = new URLSearchParams(searchParams)
-            newSearchParams.delete('error')
-            newSearchParams.delete('message')
-            const newUrl = newSearchParams.toString()
-                ? `/?${newSearchParams.toString()}`
-                : '/'
-            navigate(newUrl, { replace: true })
-        } else if (authenticated === 'true') {
-            const newSearchParams = new URLSearchParams(searchParams)
-            newSearchParams.delete('authenticated')
-            const newUrl = newSearchParams.toString()
-                ? `/?${newSearchParams.toString()}`
-                : '/'
-            navigate(newUrl, { replace: true })
-            checkAuth().then(() => {
-                toast.success('Successfully authenticated!')
-            })
-        } else {
-            checkAuth()
-        }
-    }, [searchParams, navigate, checkAuth])
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            navigate('/servers')
-        }
-    }, [isAuthenticated, navigate])
+    const isLoading = useAuthStore((state) => state.isLoading)
+    const login = useAuthStore((state) => state.login)
+    useAuthRedirect()
+    usePageMetadata({
+        title: 'Login - LukBot',
+        description: 'Login to LukBot Dashboard to manage your Discord servers',
+    })
 
     const handleLogin = () => {
         login()
@@ -100,12 +55,6 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                {error && (
-                    <div className='max-w-md w-full bg-lukbot-error/20 border border-lukbot-error/50 rounded-lg p-4 flex items-center gap-3'>
-                        <AlertCircle className='w-5 h-5 text-lukbot-error flex-shrink-0' />
-                        <p className='text-sm text-lukbot-error'>{error}</p>
-                    </div>
-                )}
 
                 <Button
                     onClick={handleLogin}

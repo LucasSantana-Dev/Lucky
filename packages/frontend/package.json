@@ -12,7 +12,11 @@
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:headed": "playwright test --headed",
-        "test:e2e:debug": "playwright test --debug"
+        "test:e2e:debug": "playwright test --debug",
+        "check:deps": "tsx scripts/check-dependencies.ts",
+        "check:deps:security": "DEPENDENCY_NOTIFY_ONLY_SECURITY=true tsx scripts/check-dependencies.ts",
+        "check:deps:simple": "npx npm-check-updates",
+        "check:outdated": "npm outdated"
     },
     "dependencies": {
         "@hookform/resolvers": "^3.10.0",
@@ -53,6 +57,8 @@
         "date-fns": "^3.6.0",
         "embla-carousel-react": "^8.6.0",
         "framer-motion": "^11.18.0",
+        "i18next": "^25.8.0",
+        "i18next-browser-languagedetector": "^8.2.0",
         "input-otp": "^1.4.2",
         "lucide-react": "^0.468.0",
         "next-themes": "^0.4.6",
@@ -60,6 +66,7 @@
         "react-day-picker": "^9.12.0",
         "react-dom": "^18.3.1",
         "react-hook-form": "^7.68.0",
+        "react-i18next": "^16.5.4",
         "react-resizable-panels": "^2.1.9",
         "react-router-dom": "^7.1.3",
         "recharts": "^2.15.4",
@@ -87,6 +94,7 @@
         "playwright": "^1.57.0",
         "postcss": "^8.4.49",
         "tailwindcss": "^3.4.17",
+        "tsx": "^4.21.0",
         "typescript": "^5.9.3",
         "vite": "^6.0.7"
     }

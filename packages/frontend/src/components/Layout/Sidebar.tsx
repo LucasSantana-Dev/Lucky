@@ -7,12 +7,13 @@ function Sidebar() {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
     { path: '/features', label: 'Features', icon: '⚙️' },
+    { path: '/config', label: 'Configuration', icon: '⚙️' },
   ]
 
   return (
-    <aside className="w-64 bg-bg-secondary border-r border-bg-border flex flex-col hidden md:flex">
+    <aside className="w-64 bg-bg-secondary border-r border-bg-border flex flex-col hidden lg:flex">
       <div className="p-6 border-b border-bg-border">
-        <h2 className="text-xl font-bold text-text-primary">LukBot</h2>
+        <h2 className="text-xl font-bold text-text-primary">Navigation</h2>
       </div>
       <nav className="flex-1 p-4 space-y-2">
         {navItems.map((item) => {
@@ -24,7 +25,7 @@ function Sidebar() {
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
                 isActive
-                  ? 'bg-primary text-text-primary'
+                  ? 'bg-primary text-white'
                   : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary',
               )}
             >

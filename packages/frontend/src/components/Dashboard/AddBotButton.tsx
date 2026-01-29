@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import type { Guild } from '@/types'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
@@ -11,7 +11,7 @@ interface AddBotButtonProps {
 export default function AddBotButton({ guild }: AddBotButtonProps) {
     const [isLoading, setIsLoading] = useState(false)
 
-    const handleAddBot = async () => {
+    const handleAddBot = useCallback(async () => {
         setIsLoading(true)
         try {
             const response = await api.guilds.getInvite(guild.id)
@@ -22,7 +22,7 @@ export default function AddBotButton({ guild }: AddBotButtonProps) {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [guild.id])
 
     return (
         <Button
@@ -30,6 +30,7 @@ export default function AddBotButton({ guild }: AddBotButtonProps) {
             disabled={isLoading}
             variant='secondary'
             className='flex-1'
+            aria-label={`Add bot to ${guild.name}`}
         >
             {isLoading ? 'Loading...' : 'Add Bot'}
         </Button>

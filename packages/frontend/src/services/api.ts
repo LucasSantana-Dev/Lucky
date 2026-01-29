@@ -42,6 +42,7 @@ const mapGuild = (backendGuild: BackendGuild): Guild => {
 const apiClient: AxiosInstance = axios.create({
     baseURL: API_BASE,
     withCredentials: true,
+    timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
     },
