@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Monorepo cleanup (remove legacy root src/tests)
+
+- **Root**
+  - Removed legacy `src/` (config, events, functions, handlers, services, types, utils, webapp) and `tests/` (e2e, integration, load, performance, services, utils, setup); removed `tsup.config.ts`. All code and tests now live in packages.
+- **packages**
+  - Backend: middleware, routes (including Last.fm), package.json.
+  - Bot: config, music commands (including queue re-export), handlers, player trackHandlers, utils (autoplay, duplicateDetection, titleComparison, trackManagement), Last.fm and Twitch modules, package.json.
+  - Frontend: removed featureStore.
+  - Shared: services index, types (music, optional-infisical), LastFmLinkService, GuildSettingsService, TrackHistoryService, TwitchNotificationService; removed module-alias.d.ts.
+- **prisma**
+  - Schema updates.
+- **docs**
+  - .env.example, docs/INFISICAL.md, docs/MUSIC_RECOMMENDATION_SYSTEM.md, docs/WEBAPP_SETUP.md updated.
+- **config**
+  - .gitignore, ecosystem.config.cjs, jest.config.cjs aligned with monorepo.
+
 ### Changed - ARCHITECTURE.md implementation
 
 - **docs/ARCHITECTURE.md**
