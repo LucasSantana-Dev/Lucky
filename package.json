@@ -25,6 +25,7 @@
         "test:e2e": "npm run test:e2e --workspace=packages/frontend",
         "audit:critical": "npm audit --audit-level=critical",
         "audit:high": "npm audit --audit-level=high",
+        "lint:secrets": "secretlint \"**/*\"",
         "check:outdated": "npm outdated || true",
         "db:generate": "prisma generate",
         "db:migrate": "prisma migrate dev",
@@ -42,6 +43,9 @@
         ],
         "*.{js,json,md}": [
             "prettier --write"
+        ],
+        "*": [
+            "secretlint"
         ]
     },
     "config": {
@@ -64,6 +68,8 @@
     "author": "",
     "license": "ISC",
     "devDependencies": {
+        "@commitlint/cli": "^20.3.1",
+        "@commitlint/config-conventional": "^20.3.1",
         "@eslint/js": "^9.39.2",
         "@types/jest": "^30.0.0",
         "@typescript-eslint/eslint-plugin": "^8.54.0",
@@ -74,7 +80,9 @@
         "prettier": "^3.8.1",
         "prisma": "^7.3.0",
         "ts-jest": "^29.4.6",
-        "unfetch": "^5.0.0"
+        "unfetch": "^5.0.0",
+        "secretlint": "^11.0.0",
+        "@secretlint/secretlint-rule-preset-recommend": "^8.0.0"
     },
     "dependencies": {
         "@prisma/client": "^7.3.0"

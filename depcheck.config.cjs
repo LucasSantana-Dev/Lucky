@@ -28,6 +28,8 @@ module.exports = {
         "eslint",
         "husky",
         "lint-staged",
+        "secretlint",
+        "@secretlint/secretlint-rule-preset-recommend",
         "commitizen",
         "cz-conventional-changelog",
 
