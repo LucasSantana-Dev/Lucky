@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Pre-commit secret analyzer
+
+- **Secretlint**: Pre-commit runs Secretlint on staged files (via lint-staged) to block commits that contain credentials. CI runs `npm run lint:secrets` (Secretlint on full codebase) in Quality Gates to block PRs that introduce secrets. Uses `@secretlint/secretlint-rule-preset-recommend` (AWS/GCP/GitHub tokens, private keys, basic auth, etc.). Config: `.secretlintrc.json`; ignore list: `.secretlintignore`. Documented in docs/CI_CD.md and README.
+
+### Added - Cursor Hooks
+
+- **Cursor Hooks**: Project-level hooks in `.cursor/hooks.json` and `.cursor/hooks/*.sh` for session context injection, format-after-edit (Prettier + ESLint on edited file), shell guard (block dangerous commands), and optional stop logging to `.cursor/hooks.log`. Documented in AGENTS.md and docs/MCP_SETUP.md. `.gitignore` updated so only `.cursor/hooks.json` and `.cursor/hooks/*.sh` are tracked; `.cursor/hooks.log` remains ignored.
+
+### Changed - Docker optimization
+
+- **Frontend**: Added `nginx/frontend.conf` for static-only serving (SPA fallback); frontend container no longer uses reverse-proxy config.
+- **Dockerfile**: Split production into `production-bot` (full runtime with ffmpeg/opus/yt-dlp) and `production-backend` (slim node:alpine). Backend healthcheck uses HTTP check on root.
+- **docker-compose.yml**: Expose only nginx (port 8080); removed frontend and backend host ports. Added json-file logging (max-size 10m, max-file 3) for all services. Build targets updated to `production-bot` and `production-backend`.
+- **docker-compose.dev.yml**: Renamed network and containers to `lukbot-*`. Added postgres service for full-stack dev. Same logging limits.
+- **scripts/discord-bot.sh**: Dev build uses main Dockerfile with `--target development --build-arg SERVICE=bot` (no root Dockerfile.dev). Production build uses `--target production-bot`. Image tags: `lukbot-bot:dev`, `lukbot-bot:latest`.
+- **Deploy workflow**: Build step uses `--target production-bot` for server image.
+- **.dockerignore**: Added `**/dist/` for package build outputs.
+- **docs**: Added [docs/DOCKER.md](docs/DOCKER.md); updated [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) Docker section.
+
+### Fixed - Setup and docs consistency
+
+- **Commitlint**: Added `@commitlint/cli` and `@commitlint/config-conventional` to root devDependencies so the commit-msg hook works on fresh install.
+- **Env example**: Standardized on `.env.example`; updated README, scripts/discord-bot.sh, and CHANGELOG references from `env.example` to `.env.example`.
+- **docs/DEPENDENCIES.md**: Updated stack overview and packages/frontend section to Vite 7, React 19, Tailwind 4; noted Zod 4 deferred; adjusted upgrade order.
+- **README**: Aligned CI/Deploy badges, clone URL, and support links with canonical repo LucasSantana-Dev/LukBot.
+
 ### Changed - Ignore Playwright report and test-results
 
 - **.gitignore**
@@ -720,7 +746,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Container names changed to `discord-bot` and `discord-bot-dev`
 - **BREAKING**: Network names changed to `discord-bot-network`
 - Updated all documentation to reflect generic naming
-- Enhanced env.example with comprehensive customization options
+- Enhanced .env.example with comprehensive customization options
 
 ### Removed
 
@@ -798,7 +824,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### From v0.2.x to v1.0.0
 
 1. **Update dependencies**: Run `npm install` to get new dependencies
-2. **Update environment variables**: Check `env.example` for new required variables
+2. **Update environment variables**: Check `.env.example` for new required variables
 3. **Docker setup**: Consider using Docker for consistent environments
 4. **Script changes**: Use new unified `discord-bot.sh` script instead of separate scripts
 5. **Configuration**: Update any custom configurations to match new structure

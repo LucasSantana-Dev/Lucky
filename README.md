@@ -10,8 +10,8 @@ A modern Discord bot built with TypeScript that plays music from YouTube and Spo
 [![Discord Player](https://img.shields.io/badge/Discord%20Player-7.1.0-orange.svg)](https://discord-player.js.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-7.2.0-blue.svg)](https://www.prisma.io/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
-[![CI](https://github.com/LukSantana/LukBot/actions/workflows/ci.yml/badge.svg)](https://github.com/LukSantana/LukBot/actions/workflows/ci.yml)
-[![Deploy](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml/badge.svg)](https://github.com/LukSantana/LukBot/actions/workflows/deploy.yml)
+[![CI](https://github.com/LucasSantana-Dev/LukBot/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/LukBot/actions/workflows/ci.yml)
+[![Deploy](https://github.com/LucasSantana-Dev/LukBot/actions/workflows/deploy.yml/badge.svg)](https://github.com/LucasSantana-Dev/LukBot/actions/workflows/deploy.yml)
 
 ## 🚀 Features
 
@@ -179,7 +179,7 @@ src/
 # 1. Clone and setup
 git clone <repository-url>
 cd discord-bot
-cp env.example .env
+cp .env.example .env
 
 # 2. Configure your bot
 nano .env  # Add your DISCORD_TOKEN and CLIENT_ID
@@ -342,14 +342,14 @@ The easiest way to run DiscordBot is using Docker. This ensures all dependencies
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/LukSantana/LukBot.git
+    git clone https://github.com/LucasSantana-Dev/LukBot.git
     cd LukBot
     ```
 
 2. **Set up environment**:
 
     ```bash
-    cp env.example .env
+    cp .env.example .env
     # Edit .env with your Discord bot credentials
     ```
 
@@ -494,7 +494,7 @@ NODE_ENV=development  # or production
 
 ```bash
 # Clone the repository
-git clone https://github.com/LukSantana/LukBot.git
+git clone https://github.com/LucasSantana-Dev/LukBot.git
 cd LukBot
 
 # Install dependencies
@@ -552,7 +552,7 @@ sudo chown -R 1001:1001 downloads logs
 
 ```bash
 # Create .env file
-cp env.example .env
+cp .env.example .env
 # Edit with your Discord credentials
 nano .env
 ```
@@ -740,8 +740,8 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Issues**: Report bugs and feature requests via [GitHub Issues](https://github.com/LukSantana/LukBot/issues)
-- **Discussions**: Join community discussions in [GitHub Discussions](https://github.com/LukSantana/LukBot/discussions)
+- **Issues**: Report bugs and feature requests via [GitHub Issues](https://github.com/LucasSantana-Dev/LukBot/issues)
+- **Discussions**: Join community discussions in [GitHub Discussions](https://github.com/LucasSantana-Dev/LukBot/discussions)
 - **Documentation**: Check the code comments and this README for detailed information
 
 ## 🗺️ Roadmap
@@ -764,7 +764,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ### CI/CD and testing
 
-- **[docs/CI_CD.md](docs/CI_CD.md)**: CI pipeline (quality gates, E2E), pre-commit hooks (lint-staged, audit), and deploy workflow.
+- **[docs/CI_CD.md](docs/CI_CD.md)**: CI pipeline (quality gates, E2E), pre-commit hooks (lint-staged, Secretlint, audit), and deploy workflow.
 - **[docs/TESTING.md](docs/TESTING.md)**: Testing strategy, backend (Jest) and frontend E2E (Playwright), and how to run tests locally.
 
 ### Reference Documentation
@@ -789,7 +789,7 @@ The project uses several code quality tools to maintain high standards:
 - **ESLint**: Enforces coding standards and conventions
 - **Prettier**: Code formatting and style consistency
 - **TypeScript**: Static type checking and IntelliSense
-- **Husky**: Pre-commit (lint-staged, audit:critical, audit:high) and commit-msg (Commitlint)
+- **Husky**: Pre-commit (lint-staged, Secretlint on staged files, audit:critical) and commit-msg (Commitlint)
 - **Commitlint**: Conventional commit message formatting (Angular style)
 
 ### Quality and test commands

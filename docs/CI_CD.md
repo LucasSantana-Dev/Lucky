@@ -15,7 +15,7 @@ The root `package-lock.json` must be committed. CI uses `cache: 'npm'` and `npm 
 
 Before each commit the following run automatically:
 
-1. **lint-staged**: ESLint (with autofix) and Prettier on staged `.ts`, `.tsx`, `.js`, `.json`, `.md` files.
+1. **lint-staged**: ESLint (with autofix), Prettier, and Secretlint on staged files. Secretlint scans for credentials (AWS/GCP/GitHub tokens, private keys, etc.); commit is blocked if a secret is detected.
 2. **audit:critical**: `npm audit --audit-level=critical` — commit is blocked only if critical vulnerabilities exist. High-severity issues are still reported in CI (Quality Gates).
 
 **Commit message**: The `commit-msg` hook runs Commitlint (Angular conventional commits). Subject must use a valid type (`feat`, `fix`, `docs`, etc.), lower-case, no trailing period, max 72 characters.
@@ -33,8 +33,9 @@ To bypass hooks (use sparingly): `git commit --no-verify`.
 5. **Tests**: `npm run test:ci` (backend Jest, unit + integration).
 6. **Coverage**: `npm run test:coverage` (backend; enforces thresholds, outputs `packages/backend/coverage/`).
 7. **Security**: `npm audit --audit-level high`.
-8. **Outdated**: `npm run check:outdated` (informational; does not fail).
-9. **Codecov**: Uploads `packages/backend/coverage/lcov.info`.
+8. **Secrets scan**: `npm run lint:secrets` (Secretlint on full codebase; blocks PRs that introduce credentials).
+9. **Outdated**: `npm run check:outdated` (informational; does not fail).
+10. **Codecov**: Uploads `packages/backend/coverage/lcov.info`.
 
 ### E2E (Playwright)
 
