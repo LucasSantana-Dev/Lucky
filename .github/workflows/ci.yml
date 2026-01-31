@@ -42,6 +42,9 @@ jobs:
             - name: Security audit
               run: npm audit --audit-level high
 
+            - name: Secrets scan
+              run: npm run lint:secrets
+
             - name: Check for outdated dependencies
               run: npm run check:outdated
 
