@@ -104,7 +104,7 @@ check_env() {
         echo "COMMANDS_DISABLED="
         echo "COMMAND_CATEGORIES_DISABLED="
         echo ""
-        print_status "You can copy from env.example: cp env.example .env"
+        print_status "You can copy from .env.example: cp .env.example .env"
         exit 1
     fi
 
@@ -229,12 +229,12 @@ build() {
     if is_development; then
         print_status "Building development Docker image..."
         check_docker || exit 1
-        docker build -f Dockerfile.dev -t discord-bot:dev .
+        docker build --target development --build-arg SERVICE=bot -t lukbot-bot:dev .
         print_success "Development image built successfully!"
     else
         print_status "Building production Docker image..."
         check_docker || exit 1
-        docker build -t discord-bot:latest .
+        docker build --target production-bot -t lukbot-bot:latest .
         print_success "Production image built successfully!"
     fi
 }
