@@ -16,6 +16,11 @@ services:
             interval: 30s
             timeout: 10s
             retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     redis:
         image: redis:7-alpine
@@ -31,12 +36,17 @@ services:
             interval: 30s
             timeout: 10s
             retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     bot:
         build:
             context: .
             dockerfile: Dockerfile
-            target: production
+            target: production-bot
             args:
                 SERVICE: bot
                 NODE_ENV: production
@@ -61,12 +71,17 @@ services:
             - ./logs:/app/logs
         networks:
             - lukbot-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     backend:
         build:
             context: .
             dockerfile: Dockerfile
-            target: production
+            target: production-backend
             args:
                 SERVICE: backend
                 NODE_ENV: production
@@ -90,10 +105,13 @@ services:
             - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI:-}
             - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET:-}
             - DEVELOPER_USER_IDS=${DEVELOPER_USER_IDS:-}
-        ports:
-            - "3000:3000"
         networks:
             - lukbot-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     frontend:
         build:
@@ -101,10 +119,13 @@ services:
             dockerfile: Dockerfile.frontend
         container_name: lukbot-frontend
         restart: unless-stopped
-        ports:
-            - "80:80"
         networks:
             - lukbot-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
     nginx:
         build:
@@ -119,6 +140,11 @@ services:
             - "8080:80"
         networks:
             - lukbot-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
 
 volumes:
     postgres_data:

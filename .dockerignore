@@ -50,6 +50,7 @@ Desktop.ini
 
 # Build artifacts
 dist/
+**/dist/
 build/
 *.tsbuildinfo
 .next/

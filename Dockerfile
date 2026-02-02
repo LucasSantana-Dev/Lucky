@@ -1,14 +1,13 @@
 # syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for LukBot services
-# Usage: docker build --build-arg SERVICE=bot --build-arg NODE_ENV=production -t lukbot-bot .
-#        docker build --build-arg SERVICE=backend --build-arg NODE_ENV=production -t lukbot-backend .
-#        docker build --build-arg SERVICE=dev -t lukbot-dev .
+# Usage: docker build --target production-bot -t lukbot-bot .
+#        docker build --target production-backend -t lukbot-backend .
+#        docker build --target development --build-arg SERVICE=bot -t lukbot-bot:dev .
 
 ARG NODE_VERSION=22-alpine
 ARG SERVICE=bot
 ARG NODE_ENV=production
 
-# Base runtime stage - minimal dependencies for production
 FROM node:${NODE_VERSION} AS base-runtime
 
 RUN apk add --no-cache \
@@ -20,6 +19,10 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 RUN pip3 install --break-system-packages --no-cache-dir yt-dlp
+
+WORKDIR /app
+
+FROM node:${NODE_VERSION} AS base-runtime-backend
 
 WORKDIR /app
 
@@ -68,10 +71,9 @@ RUN npm run build
 WORKDIR /app/packages/${SERVICE}
 RUN npm run build
 
-# Production stage - minimal runtime image
-FROM base-runtime AS production
+# Production stage - bot (full runtime with ffmpeg/opus/yt-dlp)
+FROM base-runtime AS production-bot
 
-ARG SERVICE
 ARG NODE_ENV
 
 ENV NODE_ENV=${NODE_ENV} \
@@ -83,32 +85,59 @@ COPY --from=deps-production /app/package*.json ./
 COPY --from=deps-production /app/node_modules ./node_modules
 COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps-production /app/packages/${SERVICE}/package*.json ./packages/${SERVICE}/
-COPY --from=deps-production /app/packages/${SERVICE}/node_modules ./packages/${SERVICE}/node_modules
+COPY --from=deps-production /app/packages/bot/package*.json ./packages/bot/
+COPY --from=deps-production /app/packages/bot/node_modules ./packages/bot/node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/${SERVICE}/dist ./packages/${SERVICE}/dist
+COPY --from=build /app/packages/bot/dist ./packages/bot/dist
 COPY --from=build /app/prisma ./prisma
 
-RUN if [ "$SERVICE" = "bot" ]; then \
-        mkdir -p downloads logs && \
-        addgroup -g 1001 -S nodejs && \
-        adduser -S bot -u 1001 -G nodejs && \
-        chown -R bot:nodejs /app && \
-        chmod -R 755 /app/downloads; \
-    elif [ "$SERVICE" = "backend" ]; then \
-        addgroup -g 1001 -S nodejs && \
-        adduser -S backend -u 1001 -G nodejs && \
-        chown -R backend:nodejs /app; \
-    fi
+RUN mkdir -p downloads logs && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S bot -u 1001 -G nodejs && \
+    chown -R bot:nodejs /app && \
+    chmod -R 755 /app/downloads
 
-USER ${SERVICE}
+USER bot
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node -e "console.log('Service is running')" || exit 1
 
-CMD ["sh", "-c", "if [ \"$SERVICE\" = \"bot\" ]; then node packages/bot/dist/index.js; else node packages/backend/dist/index.js; fi"]
+CMD ["node", "packages/bot/dist/index.js"]
+
+# Production stage - backend (slim runtime, no media tools)
+FROM base-runtime-backend AS production-backend
+
+ARG NODE_ENV
+
+ENV NODE_ENV=${NODE_ENV} \
+    NPM_CONFIG_LOGLEVEL=silent
+
+WORKDIR /app
+
+COPY --from=deps-production /app/package*.json ./
+COPY --from=deps-production /app/node_modules ./node_modules
+COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared/
+COPY --from=deps-production /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=deps-production /app/packages/backend/package*.json ./packages/backend/
+COPY --from=deps-production /app/packages/backend/node_modules ./packages/backend/node_modules
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/packages/backend/dist ./packages/backend/dist
+COPY --from=build /app/prisma ./prisma
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S backend -u 1001 -G nodejs && \
+    chown -R backend:nodejs /app
+
+USER backend
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node -e "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" || exit 1
+
+CMD ["node", "packages/backend/dist/index.js"]
 
 # Development stage
 FROM deps-build AS development

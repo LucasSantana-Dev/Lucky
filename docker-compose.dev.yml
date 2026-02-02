@@ -1,13 +1,36 @@
 services:
+    postgres:
+        image: postgres:15-alpine
+        container_name: lukbot-postgres-dev
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: discordbot
+            POSTGRES_USER: discordbot
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-discordbot123}
+        volumes:
+            - postgres_dev_data:/var/lib/postgresql/data
+        networks:
+            - lukbot-network
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+
     redis:
         image: redis:7-alpine
-        container_name: discord-bot-redis-dev
+        container_name: lukbot-redis-dev
         restart: unless-stopped
         command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
         volumes:
             - redis_dev_data:/data
         networks:
-            - discord-bot-network
+            - lukbot-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 30s
@@ -19,7 +42,7 @@ services:
                 max-size: "10m"
                 max-file: "3"
 
-    discord-bot-dev:
+    lukbot-bot-dev:
         build:
             context: .
             dockerfile: Dockerfile
@@ -27,12 +50,15 @@ services:
             args:
                 SERVICE: bot
                 NODE_ENV: development
-        container_name: discord-bot-dev
+        container_name: lukbot-bot-dev
         restart: unless-stopped
         depends_on:
+            postgres:
+                condition: service_healthy
             redis:
                 condition: service_healthy
         environment:
+            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD:-discordbot123}@postgres:5432/discordbot
             - NODE_ENV=development
             - DISCORD_TOKEN=${DISCORD_TOKEN}
             - CLIENT_ID=${CLIENT_ID}
@@ -109,7 +135,7 @@ services:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
         networks:
-            - discord-bot-network
+            - lukbot-network
         healthcheck:
             test: ["CMD", "node", "-e", "console.log('Bot is running')"]
             interval: 30s
@@ -123,8 +149,9 @@ services:
                 max-file: "3"
 
 volumes:
+    postgres_dev_data:
     redis_dev_data:
 
 networks:
-    discord-bot-network:
+    lukbot-network:
         driver: bridge
