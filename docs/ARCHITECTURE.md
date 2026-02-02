@@ -1,6 +1,6 @@
 # LukBot Architecture
 
-**Quick reference:** [Package structure](#package-structure) · [Where to add code](#package-layouts) · [Command loading (bot)](#command-loading-bot) · [Building](#building) · [Dependencies](DEPENDENCIES.md)
+**Quick reference:** [Package structure](#package-structure) · [Where to add code](#package-layouts) · [Command loading (bot)](#command-loading-bot) · [Data layer](#data-layer-prisma-redis) · [Building](#building) · [Dependencies](DEPENDENCIES.md)
 
 ## Overview
 
@@ -124,6 +124,19 @@ Keep one re-export per folder command; name the re-export file to match the comm
 - Bot commands: single-file under `functions/<category>/commands/*.ts` or folder + re-export (e.g. `queue.ts` → `queue/index.ts`).
 - Backend API: routes in `packages/backend/src/routes/`, logic in `services/`.
 - Nginx: `location /api` → backend:3000, `location /` → frontend:80.
+
+## Data layer (Prisma, Redis)
+
+- **Prisma**: Schema and migrations in `prisma/` at repo root; client from `@lukbot/shared`. Used for guild settings, track history, feature toggles, and app data.
+- **Redis**: Used by shared for session storage (backend), track history, guild settings cache, and rate limiting. Configure via `REDIS_URL`; see `.env.example`.
+
+## Monitoring (Sentry)
+
+Set `SENTRY_DSN` to enable error tracking and performance monitoring. Sentry is disabled when `NODE_ENV=development`. See [sentry-monitoring.md](sentry-monitoring.md) for env vars and dashboard.
+
+## Troubleshooting
+
+- **YouTube parser errors** (e.g. `InnertubeError: CompositeVideoPrimaryInfo not found`): YouTube.js can lag behind YouTube API changes. The bot uses fallback search and retries; if errors persist, update `youtubei.js` / `discord-player-youtubei` or check upstream issues.
 
 ## Dependencies
 

@@ -61,6 +61,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete system architecture.
 ### Library Recommendations
 
 See [LIBRARY_RECOMMENDATIONS.md](../packages/frontend/LIBRARY_RECOMMENDATIONS.md) for detailed recommendations on:
+
 - Recommended additions (e.g., TanStack Query for server-state management)
 - Libraries to avoid
 - Dependency health criteria
@@ -1257,6 +1258,7 @@ npm run check:deps
 ```
 
 This script:
+
 - Checks for available updates using `npm-check-updates`
 - Categorizes updates by type (major, minor, patch, security)
 - Saves results to `dependency-updates.json`
@@ -1283,6 +1285,7 @@ npm run check:outdated
 **Dependency Check Script**:
 
 The dependency checking script (`scripts/check-dependencies.ts`) provides:
+
 - Automatic categorization of updates (major/minor/patch/security)
 - Filtering by security updates only (via `DEPENDENCY_NOTIFY_ONLY_SECURITY` env var)
 - JSON output for CI/CD integration
@@ -1968,7 +1971,6 @@ const selectedGuild = useGuildStore((state) =>
 ### Related Documentation
 
 - [WEBAPP_SETUP.md](WEBAPP_SETUP.md) - Complete web application setup guide
-- [UI_PROMPT.md](UI_PROMPT.md) - UI design system and component requirements
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Overall system architecture
 
 ### External Resources

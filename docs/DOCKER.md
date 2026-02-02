@@ -36,3 +36,7 @@ All services use the `json-file` driver with `max-size: "10m"` and `max-file: "3
 
 - **nginx/nginx.conf** – Reverse proxy (used by the nginx container): `/api` → backend, `/` → frontend.
 - **nginx/frontend.conf** – Static serving only (used by the frontend container): SPA fallback for `/`.
+
+## Optional: Portainer
+
+To deploy via Portainer instead of SSH, use `scripts/portainer-deploy.sh` and `scripts/portainer-webhook.sh`. Set `PORTAINER_URL`, `PORTAINER_USERNAME`, `PORTAINER_PASSWORD`, `PORTAINER_STACK_ID`, and `PORTAINER_ENDPOINT_ID`; the main deployment path is [CI_CD.md](CI_CD.md) (GitHub Actions → SSH).

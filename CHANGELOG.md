@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - docs cleanup
+
+- **Removed**: UI_PROMPT.md (one-off design spec), youtube-error-handling.md (implementation detail), PORTAINER-SETUP.md (optional path; Portainer note moved to DOCKER.md), REDIS-INTEGRATION.md (content merged into ARCHITECTURE Data layer).
+- **Trimmed**: sentry-monitoring.md (env vars and link only), MUSIC_RECOMMENDATION_SYSTEM.md (overview, features, commands, related).
+- **ARCHITECTURE.md**: Added Data layer (Prisma, Redis), Monitoring (Sentry), Troubleshooting (YouTube parser errors). Quick reference updated.
+- **DOCKER.md**: Optional Portainer section (scripts/portainer-*). **FRONTEND.md**: Removed UI_PROMPT reference.
+
 ### Changed - Context Forge gateway: Docker only
 
 - **docs/MCP_SETUP.md**: MCP Gateway (Context Forge) section now describes running the gateway with Docker only (no uvx/Python). Cursor connects via the Docker-based stdio wrapper; virtual server URL uses `host.docker.internal` so the wrapper container can reach the host gateway. Linux note: add `--add-host=host.docker.internal:host-gateway` to the wrapper `docker run` args.
