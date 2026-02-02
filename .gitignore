@@ -12,7 +12,16 @@ packages/*/package-lock.json
 
 # IDE
 .vscode
-.cursor/
+.cursor/*
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/*.sh
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/skills/
+!.cursor/skills/**
+!.cursor/COMMANDS.md
+.cursor/hooks.log
 .cursorignore
 .idea/
 *.swp
