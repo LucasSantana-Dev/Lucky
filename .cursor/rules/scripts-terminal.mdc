@@ -1,0 +1,23 @@
+---
+description: Scripts & terminal usage policy. Apply when editing scripts, npm scripts, or automation using CLI commands.
+alwaysApply: false
+---
+
+## Scripts & Terminal Rules (Scripts Priority)
+When to apply: editing scripts, npm scripts, or automation using CLI commands.
+
+**Main rule:** ALWAYS use scripts in `/scripts/` for terminal operations.
+
+**Priority commands (examples):** start, dev, build, test, quality, logs, stop, clean
+
+**Never use direct commands in automation** unless those scripts don't exist, and this fallback must be documented in the PR.
+
+**Agent rule:** Prefer script calls and include the exact command used in the PR description.
+
+**Cross-platform & CI-friendly scripting**
+* Use cross-platform environment handling in scripts.
+* Use cross-platform deletion utilities instead of OS-specific `rm -rf`.
+* Pass non-interactive flags by default in automation (e.g., `--yes`, `--ci`).
+* Avoid OS-specific commands. Prefer portable CLIs.
+* Prefer environment-based flows over duplicating environment-specific commands.
+* Ensure logs are stream-friendly (no pagers). When a pager might be used, pipe to `cat`.

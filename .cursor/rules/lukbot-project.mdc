@@ -1,0 +1,45 @@
+---
+description: LukBot project structure, stack, and conventions. Apply when navigating or changing project layout.
+alwaysApply: true
+---
+
+# LukBot Project
+
+## Stack
+
+- **Monorepo**: npm workspaces (`packages/*`)
+- **Bot**: Discord.js, Discord Player, `@lukbot/shared`
+- **Backend**: Express, `@lukbot/shared`
+- **Frontend**: React (Vite), independent of shared
+- **Data**: Prisma (PostgreSQL), Redis (shared client)
+- **Runtime**: Node.js ≥22, ESM only
+
+## Package layout
+
+```
+packages/
+  shared/   # Config, services (DB/Redis), types, utils — no bot/backend deps
+  bot/      # Discord bot, commands, player handlers — depends on shared
+  backend/  # Express API, auth, guilds — depends on shared
+  frontend/ # React app — no shared dependency
+```
+
+- Bot and backend talk over HTTP when needed; frontend talks to backend via Nginx.
+- Prefer `packages/scripts` or root `scripts/` for one-off automation; avoid one-time scripts in repo long term.
+
+## Commands
+
+- **Build**: `npm run build` (shared → bot → backend); `npm run build:frontend` for frontend
+- **Dev**: `npm run dev:bot`, `npm run dev:backend`, `npm run dev:frontend`
+- **DB**: `npm run db:generate`, `npm run db:migrate`, `npm run db:deploy`, `npm run db:studio`
+- **Quality**: `npm run lint`, `npm run type:check`, `npm run test`
+
+Use Docker for local env when available (see `docker-compose.dev.yml`).
+
+## Conventions
+
+- No redundant or decorative AI comments; code should be self-explanatory. Comment only when logic is non-obvious; prefer refactor + short doc over long comments.
+- Avoid over-engineering: no unnecessary abstractions, base classes, or indirection. Prefer small, focused modules and clear boundaries.
+- Secrets, ports, hosts: use env (e.g. `.env`, `.env.example`); never hardcode.
+- Docs and changelog: update `CHANGELOG.md` and relevant `docs/` when behavior or setup changes.
+- Tests: add or adjust unit/integration tests when changing behavior; follow existing patterns in `packages/*/tests` and root `tests/`.

@@ -1,0 +1,47 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+## Templates & Examples
+
+**Commit example**
+
+```
+feat(transactions): add transaction reconciliation
+
+- Implement automatic reconciliation algorithm
+- Add reconciliation status field to Transaction entity
+- Add unit tests for reconciliation edge cases
+
+Closes #123
+```
+
+**Branch naming**
+
+```
+feat/transactions-add-reconciliation
+fix/auth-csrf-token
+chore/scripts-add-db-backup
+```
+
+**Sample PR checklist**
+
+* [ ] Commits follow Angular conventional commits
+* [ ] All tests pass locally and in CI
+* [ ] Quality checks ran successfully
+* [ ] Scripts used where applicable
+* [ ] CHANGELOG.md updated with all changes
+* [ ] README.md updated if behavior changed
+* [ ] Documentation kept in sync with code changes
+* [ ] Security scan completed
+
+**Response header template (agent/human automation)**
+
+```
+Timestamp: 2025-09-09T21:00:00-03:00
+Path: /src/features/transactions/reconciliation.ts
+Command: ./scripts/dev.sh test
+Summary: added reconciliation algorithm + tests
+```

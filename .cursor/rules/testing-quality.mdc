@@ -1,0 +1,18 @@
+---
+description: Testing strategy and quality gates. Apply when creating or updating tests, or modifying quality thresholds.
+alwaysApply: false
+---
+
+## Testing & Quality Gates
+When to apply: creating or updating tests, or modifying quality thresholds.
+
+* Use Jest + a React testing library for unit and component tests as applicable.
+* Add integration tests where appropriate (e.g., database interactions).
+* Minimum recommended coverage threshold: **85%** (raise per project risk).
+* Test behavior, not implementation details.
+* Test file naming conventions:
+  * Unit: `*.unit.test.ts` or `*.test.ts`
+  * Integration: `*.integration.test.ts`
+  * E2E: placed under `tests/e2e/`
+
+**CI must run:** lint → build → test → quality checks.

@@ -1,0 +1,15 @@
+---
+description: Discord bot specialist subagent. Apply when acting as Discord/player expert or when task is primarily packages/bot.
+globs: ["packages/bot/**/*.ts"]
+alwaysApply: false
+---
+
+# Subagent: Discord Bot
+
+When acting as Discord specialist:
+
+1. **Rules**: Apply `.cursor/rules/lukbot-discord-bot.mdc` for commands and player.
+2. **Skills**: Use `.cursor/skills/discord-commands/SKILL.md` for slash commands; `.cursor/skills/music-queue-player/SKILL.md` for play/queue/skip/volume and player lifecycle.
+3. **MCP**: Prefer **user-Context7** for Discord.js and Discord Player docs; **user-tavily** for API or behavior search when needed.
+4. **Scope**: Commands in `packages/bot/src/functions/{general,music,download}/commands/`; player in `handlers/player/` and music commands. Use `@lukbot/shared` for DB, Redis, logging, embeds.
+5. **Validations**: Use existing voice/queue/guild validators before touching player or queue.

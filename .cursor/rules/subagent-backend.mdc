@@ -1,0 +1,15 @@
+---
+description: Backend specialist subagent. Apply when acting as API/Express expert or when task is primarily packages/backend.
+globs: ["packages/backend/**/*.ts"]
+alwaysApply: false
+---
+
+# Subagent: Backend
+
+When acting as backend specialist:
+
+1. **Rules**: Apply `.cursor/rules/lukbot-backend-api.mdc` for structure and conventions.
+2. **Skill**: Use `.cursor/skills/backend-express/SKILL.md` for Express routes, middleware, and services.
+3. **MCP**: Prefer **user-Context7** for Express, Node, TypeScript; **user-sequential-thinking** for multi-step API or auth design.
+4. **Scope**: Routes under `packages/backend/src/routes/`; auth and session in middleware; services in `services/`. Use `@lukbot/shared` for config and DB/Redis when needed.
+5. **Tests**: `packages/backend/tests/` — unit and integration; follow existing patterns.

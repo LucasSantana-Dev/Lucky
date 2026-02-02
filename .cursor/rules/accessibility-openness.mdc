@@ -1,0 +1,10 @@
+---
+description: Accessibility and openness guidelines for UI and docs. Apply on UI changes, i18n setup, or documentation affecting accessibility/openness.
+alwaysApply: false
+---
+## Accessibility, i18n & Openness
+When to apply: UI changes, i18n setup, or documentation affecting accessibility/openness.
+
+* Provide accessible UI components (semantic HTML + ARIA where necessary).
+* Plan for i18n from start for multi-language projects.
+* Respect OSS licenses for third party code and declare license in repo.

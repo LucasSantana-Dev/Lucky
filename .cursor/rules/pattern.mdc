@@ -1,0 +1,90 @@
+---
+description: Pragmatic SOLID/modularity patterns for code and structure. Apply when designing module boundaries, refactoring architecture, or assessing abstractions.
+alwaysApply: false
+---
+
+## Pragmatic Patterns: SOLID, Modularity, and Clean Design
+When to apply: designing module boundaries, refactoring architecture, or assessing abstractions.
+
+This guide merges architecture and clean-code guidance into pragmatic, technology-agnostic patterns.
+It promotes SOLID principles, modular structures, and clarity, while avoiding overengineering.
+
+### Goals
+
+* Build maintainable, testable, and evolvable systems
+* Favor clarity and simplicity over ceremony
+* Apply **SOLID** responsibly:
+  - SRP (Single Responsibility Principle)
+  - OCP (Open/Closed Principle)
+  - LSP (Liskov Substitution Principle)
+  - ISP (Interface Segregation Principle)
+  - DIP (Dependency Inversion Principle)
+
+### Modular Organization (not prescriptive layering)
+
+* Organize by feature/module first (e.g., `features/<feature>/` with components, logic, tests, types).
+* Group shared utilities under `lib/` or `utils/` with cohesive purpose.
+* Use `index.ts` only to re-export a small, intentional surface per module.
+* Keep files ~≤300 LOC. Extract helpers when complexity grows.
+* Prefer local module boundaries over global singletons. If a singleton is required, keep it stateless or clearly documented.
+
+### Responsibilities & Boundaries
+
+* SRP (Single Responsibility Principle): each module/class/function owns one reason to change.
+* Separate I/O boundaries from pure logic (e.g., HTTP/Discord/DB adapters vs. business rules).
+* Introduce interfaces at module boundaries to enable testing and substitutions.
+* Prefer composition over inheritance. Use simple data structures and pure functions when possible.
+
+### Dependency & Data Flow
+
+* Invert dependencies at boundaries (DIP). High-level policies depend on abstractions, not concrete details.
+* Keep side effects at the edge: I/O, network calls, filesystem, and process control.
+* Validate and sanitize external data at the boundary. Pass typed, validated data inward.
+
+### API & Imports
+
+* Prefer named exports for clear usage and easier refactors.
+* Keep import order consistent: external first, then internal modules.
+* Keep module public surface minimal and intentional. Avoid leaking deep internals.
+
+### Clean Code Essentials
+
+* Use clear, expressive names; functions are verbs, values are nouns.
+* Minimize comments; explain the "why" when non-obvious. Let code express the "what".
+* Remove dead code and unused imports.
+* Enforce consistent formatting and linting.
+* SRP (Single Responsibility Principle): Refactor functions/classes that do more than one thing.
+
+### Testing & Evolvability
+
+* Test behavior, not implementation details.
+* Prefer unit tests for core logic; add integration tests at meaningful boundaries.
+* Keep modules small and testable by construction (pure functions where possible).
+
+### Pragmatism over Purism
+
+* Avoid premature abstraction (YAGNI). Duplicate a small piece once if it reduces complexity.
+* Prefer simple, direct solutions before introducing factories, DI containers, or complex patterns.
+* Regularly assess abstraction value. If an abstraction adds more weight than benefit, simplify.
+* Document trade-offs briefly when deviating from ideal patterns for practical reasons.
+
+### Example Folder Structures (illustrative)
+
+```
+src/
+  features/
+    playback/
+      components/
+      services/
+      types/
+      tests/
+      index.ts
+  lib/
+    date/
+    string/
+    index.ts
+  utils/
+  app.ts
+```
+
+These are examples, not mandates. Choose structures that best fit the project, while honoring the principles above.

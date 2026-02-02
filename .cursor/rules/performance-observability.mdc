@@ -1,0 +1,12 @@
+---
+description: Observability, monitoring, and performance guidance. Apply when adding logging/metrics, performance tuning, or health/readiness endpoints.
+alwaysApply: false
+---
+
+## Performance, Monitoring & Observability
+When to apply: adding logging/metrics, performance tuning, or health/readiness endpoints.
+
+* Add basic metrics and health endpoints in backend services.
+* Use logging standards (structured logs, include correlation IDs).
+* Add performance budgets for frontend bundles.
+* Monitor common regression signals (latency percentiles, critical path render time).

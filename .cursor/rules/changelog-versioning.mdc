@@ -1,0 +1,10 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+## Changelog / Versioning the ruleset
+
+* Version this file using semantic version notes at the top of the file when updates are made.
+* Use Git tags on the ruleset repo if maintained separately.

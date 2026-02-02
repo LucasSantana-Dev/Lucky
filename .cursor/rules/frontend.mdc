@@ -1,0 +1,42 @@
+---
+description: UI guidance for React (web) and React Native (mobile). Apply on changes to components, hooks, UI state, navigation, or styles/themes in React/React Native projects.
+alwaysApply: false
+---
+## React & React Native UI Rules
+When to apply: changes to components, hooks, UI state, navigation, or styles/themes in React/React Native projects.
+
+* Use **functional components with hooks**. Avoid class components.
+* Single responsibility: keep components focused; extract complex logic into custom hooks.
+* State management: keep state local when possible. Use Context/Zustand/Redux only when necessary.
+* Prop drilling: if props/state traverse >3 levels, consider context or a feature-scoped store.
+* Performance: `React.memo`, `useMemo`, `useCallback`, `Suspense` (web), virtualization for long lists; avoid unnecessary re-renders.
+* Accessibility:
+  * Web: semantic HTML, labels, focus management, keyboard navigation, `aria-*` as needed.
+  * RN: use accessibility props (`accessible`, `accessibilityLabel`), proper roles and labels.
+
+### Reuse & Shared Assets
+
+* Identify repetition proactively. Extract shared UI to `components/` with clear props and minimal coupling.
+* Scope shared pieces appropriately:
+  * App-wide: themes, global styles, primitive components (Button, Text, Input), icons.
+  * Feature-scoped: complex widgets specific to a feature under `features/<feature>/components`.
+* Styles & themes:
+  * Web: prefer co-located styles or design system tokens; avoid global leakage.
+  * RN: prefer `StyleSheet.create`, design tokens, and theme providers; avoid inline duplication.
+* Contexts: create narrowly scoped contexts for cross-cutting state (auth, theme, settings). Keep value shapes small and stable.
+
+### Platform Considerations (Web vs React Native)
+
+* Navigation: use idiomatic routers (`react-router` on web, `react-navigation` on RN). Keep route config close to screens.
+* Platform APIs: guard platform-specific code via `Platform` (RN) or feature detection (web). Prefer shared logic in hooks/services.
+* I/O boundaries: isolate network/storage/media modules behind simple interfaces reusable across platforms.
+
+### Testing
+
+* Test behavior, not implementation. Prefer Testing Library utilities.
+* For RN, mock native modules and test component interactions and accessibility labels.
+
+### Pragmatism
+
+* Avoid over-abstraction. Extract only when repetition or complexity warrants it.
+* Prefer simple composition of small components over deep inheritance or props explosion.

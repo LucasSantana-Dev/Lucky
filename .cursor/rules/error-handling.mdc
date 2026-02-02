@@ -1,0 +1,59 @@
+---
+description: Error handling policy with descriptive messages/codes and user-friendly UI. Apply when adding/modifying error handling, exceptions, user-visible error messages, or failure flows (frontend/backend).
+alwaysApply: false
+---
+
+## Error Handling & User Messaging
+
+When to apply: adding/modifying error handling, exceptions, user-visible error messages, or failure flows (frontend/backend).
+
+### Principles
+
+* Prefer a consistent error handling structure over ad-hoc `try/catch/throw`.
+* Never throw strings. Throw `Error` (or typed subclasses) with descriptive messages.
+* Include causal error as `cause` when available for better debugging.
+* Separate concerns: generate meaningful errors at source; map/translate at boundaries.
+* Distinguish user-facing messages from developer logs/diagnostics.
+
+### Descriptive Errors & Codes
+
+* Define clear, stable error codes (e.g., `ERR_AUTH_EXPIRED`, `ERR_NETWORK_TIMEOUT`).
+* Error message guidance:
+  - Short and actionable for users.
+  - Include context for developers (in logs/metadata), not in user toast.
+* Provide optional metadata (e.g., `details`, `retryable`, `status`, `correlationId`).
+
+### Patterns (choose pragmatically)
+
+* Domain error classes per area (e.g., `AuthenticationError`, `ValidationError`, `NetworkError`).
+* Mapping layer:
+  - Backend: map low-level (DB/HTTP) to domain errors before returning.
+  - Frontend: map API errors to UI-friendly variants (localize text, set `retryable`).
+* Optional Result/Either types for core logic (only where it simplifies flows).
+
+### React / React Native UI
+
+* Use toasts/snackbars for transient errors; avoid blocking modals for non-critical issues.
+* Debounce/suppress duplicate toasts to prevent spam.
+* Provide retry/refresh actions when meaningful (e.g., network failure).
+* Use error boundaries for render-time exceptions; show fallback UI.
+* Respect accessibility: toasts should be announced (aria-live on web; accessibility hints on RN).
+
+### Logging & Monitoring
+
+* Log errors with structure (message, code, stack, cause, correlationId, user context where appropriate).
+* Avoid logging secrets/PII.
+* Mark `retryable` vs `nonRetryable` where helpful for ops.
+
+### API/Network Guidance
+
+* Set timeouts and handle aborts/cancellations; avoid dangling requests.
+* Implement backoff for transient failures; avoid infinite retries.
+* Map HTTP status → domain errors; 4xx vs 5xx behave differently (e.g., retry for 5xx/network).
+
+### Pragmatism
+
+* Prefer the simplest consistent approach that fits project size.
+* Introduce custom error types incrementally; do not over-abstract small codebases.
+* Document decisions briefly when introducing new error categories.
+

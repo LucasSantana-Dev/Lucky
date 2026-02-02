@@ -1,0 +1,20 @@
+---
+description: CI/CD guidance and quality gates. Apply when editing CI workflows, quality gates, or build/test pipeline definitions.
+alwaysApply: false
+---
+## CI / CD and Automation
+When to apply: editing CI workflows, quality gates, or build/test pipeline definitions.
+
+**CI pipeline must include:**
+
+1. setup (node install, environment)
+2. lint (TypeScript typecheck + linter)
+3. build (production build)
+4. test (unit + integration) + coverage report
+5. quality (static analysis, vulnerability scan)
+
+**Optional (recommended):**
+
+* Dependency update bot configured with PR templates and tests.
+* SAST / secrets scan on PRs.
+* Publish artifacts only from protected pipeline steps.

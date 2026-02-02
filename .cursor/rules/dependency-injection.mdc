@@ -1,0 +1,10 @@
+---
+description: Dependency management and interface/abstraction guidance. Apply when introducing abstractions, interfaces, or refactoring dependencies.
+alwaysApply: false
+---
+## Dependency Injection & Patterns
+When to apply: introducing abstractions, interfaces, or refactoring dependencies.
+
+* Prefer constructor injection for classes that require dependencies.
+* Avoid global mutable singletons unless necessary.
+* Use explicit interfaces for external dependencies to make testing easier.

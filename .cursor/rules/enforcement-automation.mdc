@@ -1,0 +1,22 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+## Enforcement & Automation
+
+**Automated gates**
+
+* Pre-commit: format -> lint autofix -> type-check -> fast tests
+* CI: full lint -> type-check -> build -> test -> coverage -> security scans
+* PR protection: must pass CI + at least 1 reviewer
+
+**Tooling suggestions (JS/TS stack)**
+
+* Linting and formatting tools appropriate to the project
+* Pre-commit hooks to run fast checks
+* Commit message policy enforcement (conventional commits)
+* Dependency update automation
+* Security scanning (SAST/secrets)
+* Automated changelogs & releases

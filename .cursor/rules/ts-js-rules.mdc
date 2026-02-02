@@ -1,0 +1,50 @@
+---
+description: TypeScript/JavaScript code rules. Apply on any TS/JS code edit, refactor, or lint/format related change.
+globs: ["**/*.{ts,tsx,js,jsx}"]
+alwaysApply: false
+---
+
+## TypeScript & JavaScript Rules
+When to apply: any TS/JS code edit, refactor, or lint/format related change.
+
+**Compiler options (recommended `tsconfig.json` base)**
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+**Typing rules**
+
+* `noAny`: avoid `any`. If unavoidable, use `unknown + type guards` and justify in code comment.
+* Prefer `interface` for public shapes, `type` for unions & utility types.
+* Use TypeScript utility types (`Partial`, `Pick`, `Omit`, `Readonly`, `Record`).
+* **Naming:**
+  * Interfaces: `I{Name}`
+  * Types/Aliases: `T{Name}`
+  * Components: `PascalCase`
+  * Variables & functions: `camelCase`
+  * Constants: `UPPER_SNAKE_CASE`
+
+**Imports & ordering**
+
+* Prefer consistent import grouping/order within the project. Keep third-party imports separate from local imports.
+
+**Runtime checks**
+
+* For external data (HTTP, DB), always validate/sanitize input and use type guards or schema validators.

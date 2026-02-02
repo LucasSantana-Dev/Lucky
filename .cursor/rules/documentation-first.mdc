@@ -1,0 +1,14 @@
+---
+description: Documentation-first policy for non-trivial logic changes. Apply on non-trivial code changes, new APIs, complex logic, or external integrations.
+alwaysApply: false
+---
+## Documentation-First Rule
+When to apply: non-trivial code changes, new APIs, complex logic, or external integrations.
+
+* Always consult official documentation before making decisions. Prefer official docs over blogs.
+* **Required references** in PRs/code for non-trivial logic:
+  * TypeScript (official docs)
+  * MDN (JavaScript reference)
+  * Official docs for any runtime/framework/libraries used (e.g., Node.js, React) as applicable
+
+Agent behavior: before assuming behavior of an API, include the doc link and a ≤25-word quote when the change relies on it.

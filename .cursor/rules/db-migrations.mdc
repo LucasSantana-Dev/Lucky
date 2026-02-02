@@ -1,0 +1,11 @@
+---
+description: Database schema migrations guidance. Apply when adding/editing migrations or schema-affecting changes.
+alwaysApply: false
+---
+## Database & Migrations
+When to apply: adding/editing migrations or schema-affecting changes.
+
+* Use versioned migrations.
+* Place migrations in `src/db/migrations` or `db/migration`.
+* Migration file naming: `V{version}__{short_description}.sql`.
+* Test migrations in a disposable environment before applying to staging/production.

@@ -1,0 +1,32 @@
+---
+description: Discord bot commands, player, and handlers. Apply when editing packages/bot.
+globs: ["packages/bot/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# LukBot Discord Bot
+
+## Command model
+
+- **Model**: `packages/bot/src/models/Command.ts` — `data` (slash builder), `execute`, `category`
+- **Types**: `TCommandData` (SlashCommandBuilder / SubcommandsOnly / OptionsOnly), `TCommandExecute` from `CommandExecuteParams` (interaction, client)
+- **Registration**: Commands loaded from directory; `client.commands` set in `commandsHandler.ts`. Execute via `executeCommand` in interaction handler.
+
+## Adding a slash command
+
+1. Create command under `packages/bot/src/functions/{category}/commands/` (e.g. `music`, `general`, `download`).
+2. Export default: `Command` instance with `{ data, execute, category }`. Use `@discordjs/builders` for `data`.
+3. `execute` receives `{ interaction, client }`; use `interactionReply`, `createUserFriendlyError` from shared/general utils for replies and errors.
+4. Validations: use existing validators (voice channel, queue, guild) from `packages/bot/src/utils/command/` where applicable.
+
+## Player and queue
+
+- Discord Player is used via `useMainPlayer()` (or equivalent) from `discord-player`. Queue and node options live in player handlers under `packages/bot/src/handlers/player/` and `packages/bot/src/functions/music/`.
+- Track handling, errors, lifecycle: `trackHandlers`, `errorHandlers`, `lifecycleHandlers` in `packages/bot/src/handlers/player/`.
+- Do not duplicate queue or player state outside Discord Player; use shared services (e.g. track history, session) from `@lukbot/shared` when persisting.
+
+## Shared usage
+
+- Logging: `errorLog`, `debugLog` from `@lukbot/shared/utils`.
+- Embeds, replies, error sanitization: `@lukbot/shared` utils (embeds, interactionReply, errorSanitizer).
+- DB/Redis: use services from `@lukbot/shared` (DatabaseService, Redis client); do not instantiate Prisma/Redis directly in bot package.

@@ -1,0 +1,15 @@
+---
+description: Data/DB specialist subagent. Apply when acting as Prisma/Redis expert or when task is schema, migrations, or shared data services.
+globs: ["prisma/**/*", "packages/shared/**/*"]
+alwaysApply: false
+---
+
+# Subagent: Data & DB
+
+When acting as data specialist:
+
+1. **Rules**: Apply `.cursor/rules/db-migrations.mdc` and `.cursor/rules/lukbot-shared.mdc` for schema and shared usage.
+2. **Skill**: Use `.cursor/skills/prisma-redis-lukbot/SKILL.md` for Prisma schema, migrations, Redis client, and key patterns.
+3. **MCP**: Prefer **user-Context7** for Prisma, Redis, Node; **user-sequential-thinking** for migration or key-design decisions.
+4. **Scope**: Schema in `prisma/schema.prisma`; migrations in `prisma/migrations/`; shared client and services in `packages/shared`. No direct Prisma/Redis in bot or backend — use shared services only.
+5. **Commands**: `npm run db:generate`, `npm run db:migrate`, `npm run db:deploy`, `npm run db:studio` from repo root.

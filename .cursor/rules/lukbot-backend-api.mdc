@@ -1,0 +1,25 @@
+---
+description: Backend Express API, auth, sessions, routes. Apply when editing packages/backend.
+globs: ["packages/backend/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# LukBot Backend API
+
+## Structure
+
+- **Entry**: `packages/backend/src/server.ts` → `index.ts`
+- **Routes**: `packages/backend/src/routes/` (auth, guilds, toggles, index)
+- **Middleware**: auth, session in `packages/backend/src/middleware/`
+- **Services**: DiscordOAuthService, GuildService, SessionService in `packages/backend/src/services/`
+
+## Conventions
+
+- Use shared config and env from `@lukbot/shared` when needed; avoid duplicating env parsing.
+- Auth: Discord OAuth; session handling in middleware and SessionService. Keep tokens and secrets in env only.
+- Errors: return consistent JSON; use appropriate HTTP status codes. No stack traces or secrets in responses.
+- Tests: `packages/backend/tests/` — unit under `unit/`, integration under `integration/`. Follow existing patterns (fixtures, setup).
+
+## Nginx
+
+- `/api/*` is proxied to backend. Frontend is served separately; API base path is `/api`.

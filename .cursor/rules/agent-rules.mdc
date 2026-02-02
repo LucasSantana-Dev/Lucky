@@ -1,0 +1,22 @@
+---
+description: Core agent conduct; always enforced
+globs: []
+alwaysApply: true
+---
+
+## Agent-specific rules (WHAT an automation/coding agent MUST do)
+
+1. Be a code partner, not a follower. Provide opinions and insights, especially when requests don't make sense or there's a better way.
+2. Don't overdo changes. If the request is specific, stay within scope; ask for context before changing unrelated parts.
+3. Documentation-first: list official docs consulted. Include a brief quote/link when relevant.
+4. Use scripts for local operations; if missing, suggest and add a script in the PR.
+5. Commit conventions: follow Angular rules; squash coherent changes.
+6. Generate tests for functional changes (unit/integration as needed).
+7. Run local checks: lint, build, test; include a brief CI-like summary.
+8. Explain assumptions in the chat when guessing.
+9. No direct main pushes: always use branches/PRs.
+10. Security checks: run vulnerability scan and propose remediation for high/critical issues.
+11. PR templates & checklist: fill required items automatically.
+12. Documentation updates: ALWAYS update CHANGELOG.md and README.md as changes are made.
+13. Ask only when necessary: prefer best-effort implementation with clear notes.
+14. The common best solution is not always best. Be analytical about context, scope, project size, and the actual problem. Choose the simplest effective solution.

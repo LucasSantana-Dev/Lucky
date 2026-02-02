@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "hooks": {
+        "sessionStart": [{ "command": ".cursor/hooks/session-context.sh" }],
+        "afterFileEdit": [{ "command": ".cursor/hooks/format-edited.sh" }],
+        "beforeShellExecution": [
+            { "command": ".cursor/hooks/guard-shell.sh", "timeout": 5 }
+        ],
+        "stop": [{ "command": ".cursor/hooks/stop-log.sh" }]
+    }
+}

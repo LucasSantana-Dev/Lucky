@@ -1,0 +1,22 @@
+---
+description: Frontend React app, pages, components, hooks. Apply when editing packages/frontend.
+globs: ["packages/frontend/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# LukBot Frontend
+
+## Structure
+
+- **Entry**: `packages/frontend/src/main.tsx` → `App.tsx`
+- **Pages**: `packages/frontend/src/pages/` (Login, Dashboard, Config, Features, ServersPage)
+- **Components**: `packages/frontend/src/components/`
+- **State**: stores in `packages/frontend/src/stores/`; API in `packages/frontend/src/services/api.ts`
+- **Types**: `packages/frontend/src/types/`
+
+## Conventions
+
+- React + TypeScript; no dependency on `@lukbot/shared`. API calls go to backend via configured base URL (env).
+- Prefer functional components and hooks; keep components small and focused.
+- Styling: follow existing approach (e.g. Tailwind if present); avoid inline styles for layout/theming.
+- Tests: `packages/frontend/tests/`; use existing patterns (e.g. Playwright for e2e if configured).

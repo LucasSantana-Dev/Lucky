@@ -1,0 +1,22 @@
+---
+description: Shared package — config, DB, Redis, types, utils. Apply when editing packages/shared.
+globs: ["packages/shared/**/*.ts"]
+alwaysApply: false
+---
+
+# LukBot Shared Package
+
+## Layout
+
+- **Config**: `packages/shared/src/config/` (environment, constants, feature toggles, YouTube config)
+- **Services**: `packages/shared/src/services/` — DatabaseService, Redis (client, operations), FeatureToggleService, ReactionRoles, RoleManagement
+- **Types**: `packages/shared/src/types/` (errors, commands, common, discord, music, etc.)
+- **Utils**: `packages/shared/src/utils/` — error handling, retry, embeds, log, monitoring, composables, prismaClient
+
+## Conventions
+
+- No dependencies on `bot` or `backend`; shared is the base used by both.
+- Prisma: single client via `packages/shared/src/utils/database/prismaClient.ts`; schema in repo root `prisma/schema.prisma`. Run migrations from root (`npm run db:migrate`).
+- Redis: client and operations in `packages/shared/src/services/redis/`; use for cache, sessions, rate limits as defined by existing keys and types.
+- Errors: use typed errors from `packages/shared/src/types/errors/`; avoid generic `Error` for domain failures.
+- Logging/monitoring: use shared log and monitoring utils; no direct console for production paths.

@@ -1,0 +1,53 @@
+---
+description: Commit conventions, PR process, and release guidelines. Apply when authoring commits, PR templates, or release process changes.
+alwaysApply: false
+---
+## Commit, PR & Release Rules
+When to apply: authoring commits, PR templates, or release process changes.
+
+**Commit message format:** Angular commit convention (strict):
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Allowed types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`, `revert`.
+
+**Subject rules:** imperative, lower-case start, max 50 chars, no trailing period.
+
+**Body rules:** explain what and why, not how. Lines <= 72 chars.
+
+**Footer:** reference issues, breaking changes, release notes.
+
+**Pre-commit hooks & validation**
+
+* Enforce conventional commit message format.
+* Run lint and fast checks (e.g., type-check) before allowing commit.
+
+**PR rules**
+
+* Branch name: `<type>/<scope>-short-desc`.
+* PR title: same format as single commit subject.
+* Minimum one approving reviewer for non-trivial changes.
+* PR Checklist (must be ticked):
+  * [ ] Tests added/updated
+  * [ ] Lint and build pass
+  * [ ] Commits follow conventional commit rules (subject, body, footer)
+  * [ ] Scripts used where applicable
+  * [ ] CHANGELOG.md updated with changes
+  * [ ] README.md updated if behavior changed
+  * [ ] Documentation kept in sync with code changes
+
+**Merge rules**
+
+* Use Squash for small, single-purpose PRs; Rebase when preserving commits matters.
+* No direct pushes to protected branches. No force-push on protected branches.
+
+**Release**
+
+* Use automated or manual changelog flows driven from commit messages.
+* Tag releases with semantic versions.

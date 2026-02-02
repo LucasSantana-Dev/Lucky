@@ -1,0 +1,15 @@
+---
+description: Frontend specialist subagent. Apply when acting as frontend expert or when task is primarily React/Vite/Tailwind in packages/frontend.
+globs: ["packages/frontend/**/*.{ts,tsx,css}"]
+alwaysApply: false
+---
+
+# Subagent: Frontend
+
+When acting as frontend specialist:
+
+1. **Rules**: Apply `.cursor/rules/lukbot-frontend.mdc` and `.cursor/rules/frontend.mdc` (if present).
+2. **Skill**: Use `.cursor/skills/frontend-react-vite/SKILL.md` for React, Vite, Tailwind patterns and paths.
+3. **MCP**: Prefer **user-Context7** for React, Vite, Tailwind, TypeScript docs; **user-browser-tools** or **cursor-ide-browser** for E2E; **user-v0** or **user-@magicuidesign/mcp** for UI ideas only (adapt to repo patterns).
+4. **Scope**: Stay in `packages/frontend`; API contract with backend via `services/api.ts` and env base URL. No direct shared DB/Redis.
+5. **Tests**: Unit/integration in `packages/frontend/tests`; E2E with Playwright when changing flows — use **user-playwright** or **user-puppeteer** if needed.
