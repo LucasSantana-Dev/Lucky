@@ -8,12 +8,12 @@ LukBot is structured as a modular monolith with clear separation of concerns acr
 
 ## Entry points
 
-| Package   | Entry file              | Role |
-|-----------|-------------------------|------|
-| **bot**   | `packages/bot/src/index.ts` | Ensures env, error handlers, Sentry; then `initializeBot()` from `bot/start`. |
-| **backend** | `packages/backend/src/index.ts` | Ensures env, error handlers, Sentry; then `startWebApp()` from `server.ts`. |
-| **frontend** | `packages/frontend/src/main.tsx` (Vite) | React app entry. |
-| **shared** | No process entry | Consumed by bot and backend via `@lukbot/shared`. |
+| Package      | Entry file                              | Role                                                                          |
+| ------------ | --------------------------------------- | ----------------------------------------------------------------------------- |
+| **bot**      | `packages/bot/src/index.ts`             | Ensures env, error handlers, Sentry; then `initializeBot()` from `bot/start`. |
+| **backend**  | `packages/backend/src/index.ts`         | Ensures env, error handlers, Sentry; then `startWebApp()` from `server.ts`.   |
+| **frontend** | `packages/frontend/src/main.tsx` (Vite) | React app entry.                                                              |
+| **shared**   | No process entry                        | Consumed by bot and backend via `@lukbot/shared`.                             |
 
 ## Stack decisions
 
@@ -54,18 +54,21 @@ Config: `nginx/nginx.conf`.
 
 ## Docker Services
 
-| Service   | Role |
-|-----------|------|
-| **postgres** | PostgreSQL database |
-| **redis** | Redis cache |
-| **bot** | Discord bot (uses shared, Prisma, Redis) |
-| **backend** | Express API (port 3000; uses shared, Prisma, Redis) |
+| Service      | Role                                                 |
+| ------------ | ---------------------------------------------------- |
+| **postgres** | PostgreSQL database                                  |
+| **redis**    | Redis cache                                          |
+| **bot**      | Discord bot (uses shared, Prisma, Redis)             |
+| **backend**  | Express API (port 3000; uses shared, Prisma, Redis)  |
 | **frontend** | React app served by Nginx (port 80 inside container) |
-| **nginx** | Reverse proxy (port 80; host 8080) |
+| **nginx**    | Reverse proxy (port 80; host 8080)                   |
+
+Only **nginx** is exposed on the host (port 8080). Build targets: `production-bot`, `production-backend`, `development` (bot). Logging: json-file with max-size 10m, max-file 3. See [DOCKER.md](DOCKER.md).
 
 ## Development
 
 Each package can be developed independently:
+
 - `npm run dev:bot` - Start bot in watch mode
 - `npm run dev:backend` - Start backend in watch mode
 - `npm run dev:frontend` - Start frontend dev server
@@ -84,12 +87,12 @@ Each package can be developed independently:
 
 ### Package layouts
 
-| Package   | Layout | Where to add |
-|----------|--------|---------------|
-| **shared** | `src/config/`, `src/services/`, `src/types/`, `src/utils/` | New config in config/; new services in services/; shared types in types/; composables and helpers in utils/. |
-| **bot**    | `src/functions/{general,music,download}/commands/`, `src/handlers/`, `src/utils/`, `src/services/`, `src/events/` | New slash command: add file under `functions/<category>/commands/` or folder + re-export (see command loading below). Handlers, utils, and services by domain. |
-| **backend**| `src/routes/`, `src/services/`, `src/middleware/` | New API: route in routes/, logic in services/. |
-| **frontend** | `src/components/`, `src/pages/`, `src/hooks/`, `src/stores/`, `src/services/` | New page in pages/; shared UI in components/; API client in services/. |
+| Package      | Layout                                                                                                            | Where to add                                                                                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **shared**   | `src/config/`, `src/services/`, `src/types/`, `src/utils/`                                                        | New config in config/; new services in services/; shared types in types/; composables and helpers in utils/.                                                   |
+| **bot**      | `src/functions/{general,music,download}/commands/`, `src/handlers/`, `src/utils/`, `src/services/`, `src/events/` | New slash command: add file under `functions/<category>/commands/` or folder + re-export (see command loading below). Handlers, utils, and services by domain. |
+| **backend**  | `src/routes/`, `src/services/`, `src/middleware/`                                                                 | New API: route in routes/, logic in services/.                                                                                                                 |
+| **frontend** | `src/components/`, `src/pages/`, `src/hooks/`, `src/stores/`, `src/services/`                                     | New page in pages/; shared UI in components/; API client in services/.                                                                                         |
 
 ### Command loading (bot)
 
@@ -129,11 +132,13 @@ See [DEPENDENCIES.md](DEPENDENCIES.md) for the full dependency overview: what ea
 ## Building
 
 Build all packages:
+
 ```bash
 npm run build
 ```
 
 Build individual packages:
+
 ```bash
 npm run build:shared
 npm run build:bot

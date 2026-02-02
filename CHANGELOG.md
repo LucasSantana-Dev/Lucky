@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Context Forge gateway: Docker only
+
+- **docs/MCP_SETUP.md**: MCP Gateway (Context Forge) section now describes running the gateway with Docker only (no uvx/Python). Cursor connects via the Docker-based stdio wrapper; virtual server URL uses `host.docker.internal` so the wrapper container can reach the host gateway. Linux note: add `--add-host=host.docker.internal:host-gateway` to the wrapper `docker run` args.
+- **docs/mcp.json.example**: Context Forge entry uses `docker` as command with `run --rm -i -e MCP_SERVER_URL=... -e MCP_AUTH=... ghcr.io/ibm/mcp-context-forge:latest python3 -m mcpgateway.wrapper` so no local Python is required. Gateway project (separate repo) README and start.sh are Docker-only.
+
+### Added - Cursor subagents, skills, commands, and MCP guidance
+
+- **Subagents**: Four specialist rules in `.cursor/rules/` — `subagent-frontend.mdc`, `subagent-backend.mdc`, `subagent-discord.mdc`, `subagent-data.mdc`. Apply when acting as that specialist or when the task is primarily that area; each references the matching area rule and skills.
+- **Skills**: New project skills in `.cursor/skills/` — `frontend-react-vite` (React, Vite, Tailwind in packages/frontend), `backend-express` (Express API in packages/backend), `e2e-playwright` (E2E tests and browser MCP usage), `mcp-docs-search` (when to use Context7, Tavily, sequential-thinking, etc.).
+- **Commands**: `.cursor/COMMANDS.md` documents standard workflows — verify (lint, typecheck, build, test), test E2E, DB operations, deploy checklist, and when to use which subagent/skill.
+- **Session hook**: `session-context.sh` now injects subagents, COMMANDS.md, and MCP usage in addition to AGENTS.md and skills.
+- **AGENTS.md**: Cursor rules section lists subagents; skills table extended with the four new skills; new “Commands (workflows)” section pointing to `.cursor/COMMANDS.md`; MCP table updated (browser-tools, apify-dribbble, cloudflare naming; note on radar_search, mcp-gateway, desktop-commander, MCP_DOCKER, curl). Hooks section updated to mention subagents and COMMANDS.md.
+
+### Added - Superpowers (Codex) in chat and prompts
+
+- **AGENTS.md**: New “Superpowers (Codex)” section: how to load a skill in Cursor chat or prompts (run `~/.codex/superpowers/.codex/superpowers-codex use-skill <skill-name>` with a real skill name), table of available skill names, and agent behavior (run the command when the user asks for a superpowers skill; use MCP tools as needed).
+- **docs/MCP_SETUP.md**: Short note on Superpowers and link to AGENTS.md for the skill list.
+
 ### Added - Pre-commit secret analyzer
 
 - **Secretlint**: Pre-commit runs Secretlint on staged files (via lint-staged) to block commits that contain credentials. CI runs `npm run lint:secrets` (Secretlint on full codebase) in Quality Gates to block PRs that introduce secrets. Uses `@secretlint/secretlint-rule-preset-recommend` (AWS/GCP/GitHub tokens, private keys, basic auth, etc.). Config: `.secretlintrc.json`; ignore list: `.secretlintignore`. Documented in docs/CI_CD.md and README.

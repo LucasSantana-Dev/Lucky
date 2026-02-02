@@ -4,17 +4,17 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 
 ## Stack overview
 
-| Layer        | Choices                    | Rationale |
-|-------------|----------------------------|------------|
-| Runtime     | Node 22+                   | LTS, ESM, current tooling |
-| Monorepo    | npm workspaces             | Single lockfile, simple scripts |
-| Bot         | discord.js 14, discord-player 7 | Actively maintained; player requires discord.js 14+ |
-| Backend API | Express 5                  | Lightweight, no NestJS overhead |
-| Database    | Prisma 7 + PostgreSQL      | Single schema, type‑safe client |
-| Cache       | ioredis                    | Stable Redis client |
-| Feature flags | unleash-client           | Not deprecated; optional, env fallback |
-| Frontend    | Vite, React 18, Tailwind 3 | Fast dev, stable UI stack |
-| Validation  | Zod 3                      | Type‑safe schemas; Zod 4 is optional upgrade |
+| Layer         | Choices                         | Rationale                                           |
+| ------------- | ------------------------------- | --------------------------------------------------- |
+| Runtime       | Node 22+                        | LTS, ESM, current tooling                           |
+| Monorepo      | npm workspaces                  | Single lockfile, simple scripts                     |
+| Bot           | discord.js 14, discord-player 7 | Actively maintained; player requires discord.js 14+ |
+| Backend API   | Express 5                       | Lightweight, no NestJS overhead                     |
+| Database      | Prisma 7 + PostgreSQL           | Single schema, type‑safe client                     |
+| Cache         | ioredis                         | Stable Redis client                                 |
+| Feature flags | unleash-client                  | Not deprecated; optional, env fallback              |
+| Frontend      | Vite 7, React 19, Tailwind 4    | Fast dev, stable UI stack                           |
+| Validation    | Zod 3                           | Type‑safe schemas; Zod 4 is optional upgrade        |
 
 ## Package-by-package
 
@@ -46,11 +46,11 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 
 ### `packages/frontend`
 
-- **Build**: Vite 6, React 18, TypeScript – current.
-- **UI**: Radix UI, Tailwind 3, `tailwind-merge`, `clsx`, `class-variance-authority` – shadcn-style stack; no deprecation concerns.
+- **Build**: Vite 7, React 19, TypeScript – current.
+- **UI**: Radix UI, Tailwind 4, `tailwind-merge`, `clsx`, `class-variance-authority` – shadcn-style stack; no deprecation concerns.
 - **Forms**: `react-hook-form`, `@hookform/resolvers`, Zod – standard.
 - **Data**: `axios`, `zustand`, `react-router-dom` – maintained.
-- **Upgrades**: Tailwind 4, React 19, Zod 4, Vite 7 are optional; plan as separate upgrades with testing.
+- **Zod 4**: Deferred (see DEPENDENCY_UPDATES.md); other frontend majors (Tailwind 4, React 19, Vite 7) are current.
 
 ## Reliability and deprecation
 
@@ -72,7 +72,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 1. **Low risk**: Patch/minor updates – Prisma 7.2 → 7.3, Sentry 10.34 → 10.37, ioredis, ws, etc. Run tests and typecheck.
 2. **Backend types**: `@types/cors`, `@types/express`, `@types/express-session` are in backend devDependencies. Root has no `cors` or `@types/cors` (backend-only).
 3. **Bot cleanup**: `module-alias` removed from bot. Keep `unfetch`/`isomorphic-unfetch` in tsup `external` so a transitive dependency resolves at build time.
-4. **Major upgrades**: Plan separately – e.g. unleash-client 6, Zod 4, Tailwind 4, React 19 – with docs and tests.
+4. **Major upgrades**: Tailwind 4, React 19, and Vite 7 are done. Future upgrades: Zod 4 (when @hookform/resolvers supports it), unleash-client 6 – plan with docs and tests.
 
 ## Scripts and tooling
 
