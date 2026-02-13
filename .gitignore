@@ -27,6 +27,7 @@ packages/*/package-lock.json
 *.swp
 *.swo
 *~
+.windsurf/
 
 # Build outputs
 dist
