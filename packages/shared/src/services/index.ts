@@ -5,8 +5,8 @@ export * from './ModerationService.js'
 export * from './AutoMessageService.js'
 export * from './CustomCommandService.js'
 export * from './ServerLogService.js'
-// TODO: Implement these services in Phase 5+
-// export * from './AutoModService.js'
+// TODO: Implement these// Auto-moderation (Phase 5)
+export { AutoModService, autoModService } from './AutoModService.js'
 // export * from './EmbedBuilderService.js'
 export { twitchNotificationService } from './TwitchNotificationService'
 export { lastFmLinkService, type LastFmLinkRow } from './LastFmLinkService'
