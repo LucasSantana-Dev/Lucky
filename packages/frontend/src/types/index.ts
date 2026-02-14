@@ -1,6 +1,7 @@
 export * from './auth'
 export * from './guild'
 export * from './feature'
+export * from './music'
 
 export interface Module {
     id: string

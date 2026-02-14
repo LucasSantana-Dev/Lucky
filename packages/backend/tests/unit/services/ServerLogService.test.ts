@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
-const mockPrisma = {
+const mockPrisma: any = {
     serverLog: {
         create: jest.fn(),
         findMany: jest.fn(),
@@ -25,7 +25,7 @@ describe('ServerLogService', () => {
     const MOD_A = '555555555555555555'
 
     beforeAll(async () => {
-        const module = await import('@lukbot/shared/services/ServerLogService')
+        const module = await import('@lukbot/shared/services')
         ServerLogService = module.ServerLogService
     })
 

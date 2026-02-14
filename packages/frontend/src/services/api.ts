@@ -12,6 +12,7 @@ import type {
     Feature,
     FeatureToggleState,
 } from '@/types'
+import { createMusicApi } from './musicApi'
 
 const API_BASE = '/api'
 
@@ -249,6 +250,8 @@ export const api = {
                 note?: string
             }>(`/guilds/${guildId}/features/${name}`, { enabled }),
     },
+
+    music: createMusicApi(apiClient),
 }
 
 export default apiClient
