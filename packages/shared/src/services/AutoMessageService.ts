@@ -1,7 +1,11 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import type { EmbedData } from './EmbedBuilderService.js'
+// import type { EmbedData } from './EmbedBuilderService.js' // TODO: Implement EmbedBuilderService
 
-const prisma = getPrismaClient()
+// Workaround: Type assertion for Prisma client with autoMessage model
+const prisma = getPrismaClient() as any
+
+// Placeholder type until EmbedBuilderService is implemented
+export type EmbedData = any
 
 export type MessageType = 'welcome' | 'leave' | 'auto_response' | 'scheduled'
 

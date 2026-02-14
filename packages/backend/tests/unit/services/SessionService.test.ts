@@ -1,13 +1,13 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import { sessionService } from '../../../src/services/SessionService'
-import { redisClient } from '@lukbot/shared/services'
+import { redisClient } from '@lukbot/shared/services/redis/redisClient'
 import {
     MOCK_SESSION_DATA,
     MOCK_SESSION_ID,
     MOCK_EXPIRED_SESSION_DATA,
 } from '../../fixtures/mock-data'
 
-jest.mock('@lukbot/shared/services', () => ({
+jest.mock('@lukbot/shared/services/redis/redisClient', () => ({
     redisClient: {
         isHealthy: jest.fn(() => true),
         get: jest.fn(),

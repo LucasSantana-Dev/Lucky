@@ -1,7 +1,20 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import * as helpers from './serverLogHelpers.js'
 
-const prisma = getPrismaClient()
+// Workaround: Type assertion for Prisma client with serverLog model
+const prisma = getPrismaClient() as any
+
+// Type definition (normally from @prisma/client but not resolvable)
+export type ServerLog = {
+    id: string
+    guildId: string
+    type: string
+    userId: string | null
+    channelId: string | null
+    moderatorId: string | null
+    details: any
+    createdAt: Date
+}
 
 export type LogType =
     | 'message_delete'

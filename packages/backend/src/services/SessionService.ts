@@ -1,4 +1,4 @@
-import { redisClient } from '@lukbot/shared/services'
+import { redisClient } from '@lukbot/shared/services/redis/redisClient'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
 import type { DiscordUser } from './DiscordOAuthService'
 

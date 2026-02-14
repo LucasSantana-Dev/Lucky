@@ -1,7 +1,8 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import type { ModerationSettings } from '@prisma/client'
+import type { ModerationSettings } from './ModerationService.js'
 
-const prisma = getPrismaClient()
+// Workaround: Type assertion for Prisma client with moderation models
+const prisma = getPrismaClient() as any
 
 export async function getModerationSettings(
     guildId: string,
