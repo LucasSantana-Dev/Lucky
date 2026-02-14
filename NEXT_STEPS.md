@@ -87,7 +87,53 @@ Once services are enabled and building:
 
 See `docs/BOT_INTEGRATION_PLAN.md` for complete details.
 
-## Troubleshooting 🔧
+## Frontend Architecture Decision
+
+### Should We Migrate to Next.js? **No**
+
+**Current Stack: React + Vite + Express Backend**
+
+This is the correct architecture for LukBot. Here's why:
+
+#### Why Next.js Doesn't Make Sense
+
+1. **Separate Backend Already Exists**: Express API handles all logic, auth, and business rules
+2. **No SSR Benefits**: Private dashboard (no SEO needs), all content is authenticated
+3. **Architectural Redundancy**: Next.js API routes would duplicate Express backend
+4. **Migration Cost**: High effort, zero benefit, potential bugs
+5. **Unnecessary Complexity**: Next.js adds framework overhead for features you don't need
+
+#### Current Architecture Advantages
+
+- **Fast Development**: Vite HMR is faster than Next.js for SPAs
+- **Clear Separation**: Frontend = client, Backend = API, Bot = Discord
+- **Simple Deployment**: Static build served by Nginx
+- **Lightweight**: No framework overhead
+- **Modern Stack**: React 19, TypeScript, Tailwind
+
+#### Better Improvements to Focus On
+
+Instead of migrating to Next.js, prioritize:
+
+1. **Add TanStack Query** (`@tanstack/react-query`)
+    - Better data fetching and caching
+    - Reduces Zustand store boilerplate
+    - Automatic background refetching
+    - Already recommended in `docs/FRONTEND.md`
+
+2. **Optimize Current Setup**
+    - Add React Suspense boundaries
+    - Implement route-based code splitting
+    - Add error boundaries for better UX
+
+3. **Focus on Features**
+    - Complete Phase 4-9 moderation system
+    - Enhance music player with real-time updates
+    - Add WebSocket support for live status
+
+**Decision**: Keep React + Vite. It's the right tool for the job.
+
+## Troubleshooting
 
 If restarting IDE doesn't work:
 
