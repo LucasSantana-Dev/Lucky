@@ -15,16 +15,19 @@ jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
     prisma: mockPrisma,
 }))
 
-const { ServerLogService } =
-    await import('@lukbot/shared/services/ServerLogService')
-
 describe('ServerLogService', () => {
-    let service: InstanceType<typeof ServerLogService>
+    let service: any
+    let ServerLogService: any
 
     const GUILD_A = '111111111111111111'
     const GUILD_B = '222222222222222222'
     const USER_A = '333333333333333333'
     const MOD_A = '555555555555555555'
+
+    beforeAll(async () => {
+        const module = await import('@lukbot/shared/services/ServerLogService')
+        ServerLogService = module.ServerLogService
+    })
 
     beforeEach(() => {
         jest.clearAllMocks()
