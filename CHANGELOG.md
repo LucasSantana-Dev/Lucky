@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Moderation System Implementation
+
+- Implemented 11 moderation commands:
+  - Core actions: `/warn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/unban`
+  - Case management: `/case` (view/update/delete subcommands), `/cases` (list with filters), `/history` (user timeline)
+- Created `ModerationService` with case management, settings, and statistics
+- Created `AutoModService` with spam, caps, links, invites, and word filters
+- Created `EmbedBuilderService` for embed template management
+- Created `AutoMessageService` for welcome/leave/scheduled messages
+- Created `CustomCommandService` for custom command management
+- Created `ServerLogService` for server event logging
+- Added backend API routes: `moderation.ts`, `management.ts`, `managementEmbeds.ts`, `managementAutoMessages.ts`
+- Added unit tests for all 6 new services (ModerationService, AutoModService, EmbedBuilderService, AutoMessageService, CustomCommandService, ServerLogService)
+- Added comprehensive documentation: `BOT_INTEGRATION_PLAN.md` with Phases 4-9 implementation roadmap
+
+### Fixed - Prisma TypeScript ES Module Compatibility
+
+- Resolved TypeScript compilation errors with Prisma client in ES module environment
+- Changed Prisma generator from `prisma-client-js` to `prisma-client` with custom output path
+- Generated Prisma client to `packages/shared/src/generated/prisma` (within project rootDir)
+- Updated all imports from `@prisma/client` to use generated client location
+- All 6 services now compile successfully without modifying `node_modules`
+- Documented solution in `PRISMA_RESOLUTION_FINAL.md`
+
 ### Changed - Music Player Frontend Refactoring
 
 - Rewrote `NowPlaying.tsx` with responsive layout, skeleton loading, lazy images, debounced volume, ARIA labels, and reduced motion support
