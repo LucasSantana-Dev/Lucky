@@ -757,10 +757,10 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## 📚 Further Reference & Guides
 
-### AI development (Cursor)
+### AI Development
 
-- **[AGENTS.md](AGENTS.md)**: Project summary for AI agents, Cursor rules and skills mapping, when to use which MCP tools, and behavior/commands reference.
-- **[docs/MCP_SETUP.md](docs/MCP_SETUP.md)**: How to configure MCP servers and secrets for Cursor (GitHub, Tavily, Cloudflare, Infisical, etc.).
+- **[AGENTS.md](AGENTS.md)**: Project guide for AI agents - skills mapping, when to use which MCP tools, and behavior/commands reference.
+- **[docs/MCP_SETUP.md](docs/MCP_SETUP.md)**: How to configure MCP servers and secrets (GitHub, Tavily, Cloudflare, Infisical, etc.).
 
 ### CI/CD and testing
 

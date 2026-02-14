@@ -8,13 +8,6 @@ This file helps AI coding agents work effectively on LukBot: project layout, whe
 - **Stack**: Discord.js + Discord Player, Express, React, Prisma (PostgreSQL), Redis
 - **Docs**: `docs/` (ARCHITECTURE, MCP_SETUP, FRONTEND, WEBAPP_SETUP, etc.)
 
-## Cursor rules
-
-- **Always on**: `.cursor/rules/lukbot-project.mdc` — structure, stack, conventions
-- **By area**: `lukbot-discord-bot.mdc`, `lukbot-backend-api.mdc`, `lukbot-frontend.mdc`, `lukbot-shared.mdc` (apply when editing that package)
-- **Subagents**: `subagent-frontend.mdc`, `subagent-backend.mdc`, `subagent-discord.mdc`, `subagent-data.mdc` — apply when acting as that specialist or when the task is primarily that area (see [Commands](#commands-workflows) for when to use which)
-- **Existing**: ts-js-rules, error-handling, testing-quality, security-secrets, commit-pr-release, db-migrations, etc. — follow them for TS, errors, tests, secrets, commits, migrations
-
 ## Skills (when to use)
 
 | Task                                        | Skill                 |
@@ -28,15 +21,15 @@ This file helps AI coding agents work effectively on LukBot: project layout, whe
 | E2E tests, Playwright, browser verification | `e2e-playwright`      |
 | Docs lookup, web search, MCP usage          | `mcp-docs-search`     |
 
-Skills live in `.cursor/skills/`. Use the matching skill when doing the task.
+Use the matching skill when doing the task.
 
 ## Commands (workflows)
 
-Standard workflows (verify, test E2E, DB ops, deploy checklist, specialist) are in **`.cursor/COMMANDS.md`**. When the user asks to “run verify”, “full check”, “test E2E”, or to “act as frontend/backend/Discord/data specialist”, follow that doc.
+Standard workflows: verify (full check), test E2E, DB ops, deploy checklist, specialist modes. When the user asks to "run verify", "full check", "test E2E", or to "act as frontend/backend/Discord/data specialist", follow the appropriate workflow.
 
 ## Superpowers (Codex) – use in chat and prompts
 
-Superpowers are installed at **`~/.codex/superpowers`**. To use a skill in chat or in a Cursor prompt, the agent must run the CLI with a **real skill name** (not the literal `<skill-name>`).
+Superpowers are installed at **`~/.codex/superpowers`**. To use a skill in chat or in a prompt, the agent must run the CLI with a **real skill name** (not the literal `<skill-name>`).
 
 **Load a skill** (replace `<skill-name>` with one of the names below):
 
@@ -50,7 +43,7 @@ Superpowers are installed at **`~/.codex/superpowers`**. To use a skill in chat 
 ~/.codex/superpowers/.codex/superpowers-codex find-skills
 ```
 
-**Available superpowers skills** (use these exact names in chat/prompts or when calling the CLI):
+**Available superpowers skills** (use these exact names when calling the CLI):
 
 | Skill name                                   | Use when                                                             |
 | -------------------------------------------- | -------------------------------------------------------------------- |
@@ -82,7 +75,7 @@ Use these MCPs when they fit the task; don’t force them.
 | **user-Context7**                                                 | Up-to-date docs (Discord.js, Prisma, Node, React, Tailwind, etc.)    |
 | **user-tavily**                                                   | Web search for APIs, errors, best practices                          |
 | **user-sequential-thinking**                                      | Multi-step reasoning, architecture, refactors                        |
-| **user-playwright** / **user-puppeteer** / **cursor-ide-browser** | E2E/browser tests for frontend; verify web UI                        |
+| **user-playwright** / **user-puppeteer**                           | E2E/browser tests for frontend; verify web UI                        |
 | **user-chrome-devtools**                                          | Inspect frontend runtime, network, console                           |
 | **user-browser-tools**                                            | Browser automation, console/network logs, audits when testing webapp |
 | **user-v0**                                                       | UI component or page ideas (reference only; adapt to repo patterns)  |
@@ -96,13 +89,7 @@ Use these MCPs when they fit the task; don’t force them.
 | **MCP_DOCKER**                                                    | Docker API when task needs container/registry operations             |
 | **curl** / **fetch**                                              | HTTP from agent when no MCP covers the endpoint                      |
 
-**Context Forge gateway:** When the Context Forge gateway is enabled in Cursor, many MCPs (GitHub, Tavily, Context7, Playwright, etc.) are reached through it; use the gateway’s tools as needed. See [docs/MCP_SETUP.md](docs/MCP_SETUP.md) for connection.
-
 **Use when task needs them:** radar_search, mcp-gateway, desktop-commander, MCP_DOCKER, curl. Not used by default: minecraft, composio — use only when explicitly required.
-
-## Cursor Hooks
-
-Project-level hooks live in `.cursor/hooks.json` and run at agent lifecycle events: **sessionStart** (inject context: AGENTS.md, subagents, skills, `.cursor/COMMANDS.md`, MCP usage), **afterFileEdit** (Prettier + ESLint on the edited file), **beforeShellExecution** (block dangerous commands), **stop** (append to `.cursor/hooks.log` for debugging). Scripts are in `.cursor/hooks/*.sh`. To debug, use Cursor Settings → Hooks or the Hooks output channel.
 
 ## Agent behavior
 
