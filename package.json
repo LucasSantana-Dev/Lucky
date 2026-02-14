@@ -70,7 +70,8 @@
     "devDependencies": {
         "@commitlint/cli": "^20.3.1",
         "@commitlint/config-conventional": "^20.3.1",
-        "@eslint/js": "^10.0.0",
+        "@eslint/js": "^9.39.2",
+        "@secretlint/secretlint-rule-preset-recommend": "^8.0.0",
         "@types/jest": "^30.0.0",
         "@typescript-eslint/eslint-plugin": "^8.54.0",
         "@typescript-eslint/parser": "^8.54.0",
@@ -79,12 +80,11 @@
         "jest": "^30.2.0",
         "prettier": "^3.8.1",
         "prisma": "^7.3.0",
-        "ts-jest": "^29.4.6",
-        "unfetch": "^5.0.0",
         "secretlint": "^11.0.0",
-        "@secretlint/secretlint-rule-preset-recommend": "^11.0.0"
+        "ts-jest": "^29.4.6",
+        "unfetch": "^5.0.0"
     },
     "dependencies": {
-        "@prisma/client": "^7.3.0"
+        "@prisma/client": "^6.19.2"
     }
 }
