@@ -48,6 +48,7 @@ ffmpeg/bin/ffprobe.exe
 /src/generated
 packages/*/dist
 packages/*/node_modules/.prisma
+packages/shared/src/generated/
 
 # Backup and test artifacts
 src/webapp/frontend.backup/
