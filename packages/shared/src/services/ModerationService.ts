@@ -1,8 +1,5 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import type {
-    ModerationCase,
-    ModerationSettings,
-} from '../generated/prisma/client.js'
+import type { ModerationCase, ModerationSettings } from '@prisma/client'
 import {
     getModerationSettings,
     updateModerationSettings,

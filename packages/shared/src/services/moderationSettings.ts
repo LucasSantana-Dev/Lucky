@@ -1,5 +1,5 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import type { ModerationSettings } from '../generated/prisma/client.js'
+import type { ModerationSettings } from '@prisma/client'
 
 const prisma = getPrismaClient()
 
