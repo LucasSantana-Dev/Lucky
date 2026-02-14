@@ -1,5 +1,4 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import type { ModerationCase, ModerationSettings } from '@prisma/client'
 import {
     getModerationSettings,
     updateModerationSettings,
@@ -7,7 +6,43 @@ import {
     getModerationStats,
 } from './moderationSettings.js'
 
-const prisma = getPrismaClient()
+// Workaround: Type assertion for Prisma client with moderation models
+// The models exist at runtime but TypeScript can't resolve the types from @prisma/client
+const prisma = getPrismaClient() as any
+
+// Type definitions (normally from @prisma/client but not resolvable)
+export type ModerationCase = {
+    id: string
+    caseNumber: number
+    guildId: string
+    userId: string
+    moderatorId: string
+    type: string
+    reason: string | null
+    duration: number | null
+    expiresAt: Date | null
+    active: boolean
+    appealed: boolean
+    appealReason: string | null
+    createdAt: Date
+    updatedAt: Date
+}
+
+export type ModerationSettings = {
+    id: string
+    guildId: string
+    modLogChannelId: string | null
+    muteRoleId: string | null
+    modRoleIds: string[]
+    adminRoleIds: string[]
+    autoModEnabled: boolean
+    maxWarnings: number
+    warningExpiry: number
+    dmOnAction: boolean
+    requireReason: boolean
+    createdAt: Date
+    updatedAt: Date
+}
 
 export interface CreateCaseInput {
     guildId: string
