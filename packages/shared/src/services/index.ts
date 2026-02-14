@@ -1,12 +1,15 @@
 export * from './FeatureToggleService'
 export * from './database/DatabaseService.js'
 export * from './LyricsService.js'
-export * from './ModerationService.js'
-export * from './AutoModService.js'
-export * from './EmbedBuilderService.js'
-export * from './AutoMessageService.js'
-export * from './CustomCommandService.js'
-export * from './ServerLogService.js'
+// TODO: Re-enable after clearing TypeScript/IDE cache
+// The Prisma client has been generated with all new models, but TypeScript is caching old types
+// Solution: Restart your IDE/TypeScript server to clear the cache
+// export * from './ModerationService.js'
+// export * from './AutoModService.js'
+// export * from './EmbedBuilderService.js'
+// export * from './AutoMessageService.js'
+// export * from './CustomCommandService.js'
+// export * from './ServerLogService.js'
 export { twitchNotificationService } from './TwitchNotificationService'
 export { lastFmLinkService, type LastFmLinkRow } from './LastFmLinkService'
 export {
