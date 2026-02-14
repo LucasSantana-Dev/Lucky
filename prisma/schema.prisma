@@ -344,3 +344,138 @@ model RoleExclusion {
   @@index([roleId])
   @@map("role_exclusions")
 }
+
+// Moderation System
+model ModerationCase {
+  id          String   @id @default(cuid())
+  caseNumber  Int
+  guildId     String
+  userId      String
+  moderatorId String
+  type        String   // "warn", "mute", "kick", "ban", "unban"
+  reason      String?
+  duration    Int?     // Duration in seconds for temporary actions
+  expiresAt   DateTime?
+  active      Boolean  @default(true)
+  appealed    Boolean  @default(false)
+  appealReason String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, caseNumber])
+  @@index([guildId])
+  @@index([userId])
+  @@index([moderatorId])
+  @@map("moderation_cases")
+}
+
+model ModerationSettings {
+  id                    String   @id @default(cuid())
+  guildId               String   @unique
+  modLogChannelId       String?
+  muteRoleId            String?
+  autoModEnabled        Boolean  @default(false)
+  maxWarnings           Int      @default(3)
+  warningExpiry         Int      @default(2592000) // 30 days in seconds
+  dmOnAction            Boolean  @default(true)
+  requireReason         Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("moderation_settings")
+}
+
+model AutoModSettings {
+  id                    String   @id @default(cuid())
+  guildId               String   @unique
+  enabled               Boolean  @default(false)
+  spamEnabled           Boolean  @default(false)
+  spamThreshold         Int      @default(5)
+  spamTimeWindow        Int      @default(5)
+  capsEnabled           Boolean  @default(false)
+  capsThreshold         Int      @default(70)
+  linksEnabled          Boolean  @default(false)
+  allowedDomains        String[] @default([])
+  invitesEnabled        Boolean  @default(false)
+  wordsEnabled          Boolean  @default(false)
+  bannedWords           String[] @default([])
+  exemptRoles           String[] @default([])
+  exemptChannels        String[] @default([])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("automod_settings")
+}
+
+model EmbedTemplate {
+  id          String   @id @default(cuid())
+  guildId     String
+  name        String
+  title       String?
+  description String?
+  color       String?
+  footer      String?
+  thumbnail   String?
+  image       String?
+  fields      Json?    // Array of {name, value, inline}
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, name])
+  @@index([guildId])
+  @@map("embed_templates")
+}
+
+model AutoMessage {
+  id            String   @id @default(cuid())
+  guildId       String
+  type          String   // "welcome", "leave", "scheduled"
+  channelId     String?
+  message       String?
+  embedId       String?
+  enabled       Boolean  @default(true)
+  cronSchedule  String?  // For scheduled messages
+  lastSent      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([guildId])
+  @@index([type])
+  @@map("auto_messages")
+}
+
+model CustomCommand {
+  id              String   @id @default(cuid())
+  guildId         String
+  name            String
+  response        String?
+  embedId         String?
+  enabled         Boolean  @default(true)
+  useCount        Int      @default(0)
+  allowedRoles    String[] @default([])
+  allowedChannels String[] @default([])
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([guildId, name])
+  @@index([guildId])
+  @@map("custom_commands")
+}
+
+model ServerLog {
+  id          String   @id @default(cuid())
+  guildId     String
+  type        String   // "member_join", "member_leave", "message_delete", etc.
+  userId      String?
+  channelId   String?
+  moderatorId String?
+  details     Json
+  createdAt   DateTime @default(now())
+
+  @@index([guildId])
+  @@index([type])
+  @@index([userId])
+  @@map("server_logs")
+}
