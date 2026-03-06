@@ -23,7 +23,7 @@ services:
                 max-file: "3"
 
     redis:
-        image: redis:7-alpine
+        image: redis:8-alpine
         container_name: lukbot-redis
         restart: unless-stopped
         command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
