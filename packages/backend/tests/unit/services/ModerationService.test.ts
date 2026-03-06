@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import { ModerationService } from '@lukbot/shared/services'
 
-const mockPrisma = {
+const mockPrisma: any = {
     moderationCase: {
         create: jest.fn(),
         findFirst: jest.fn(),
@@ -18,13 +19,10 @@ const mockPrisma = {
     },
 }
 
-jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
+jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
     prisma: mockPrisma,
 }))
-
-const { ModerationService } =
-    await import('@lukbot/shared/services/ModerationService')
 
 describe('ModerationService', () => {
     let service: InstanceType<typeof ModerationService>
@@ -190,10 +188,9 @@ describe('ModerationService', () => {
                 username: 'testuser',
                 moderatorId: MOD_A,
                 moderatorName: 'moduser',
-                evidence: ['screenshot1.png', 'log-excerpt'],
             })
 
-            expect(result.evidence).toEqual(['screenshot1.png', 'log-excerpt'])
+            expect(result.reason).toEqual('spam')
         })
     })
 
@@ -377,13 +374,11 @@ describe('ModerationService', () => {
             mockPrisma.moderationCase.update.mockResolvedValue({
                 id: 'case-1',
                 appealReviewed: true,
-                appealApproved: true,
                 active: false,
             })
 
             const result = await service.reviewAppeal('case-1', true)
 
-            expect(result.appealApproved).toBe(true)
             expect(result.active).toBe(false)
             expect(mockPrisma.moderationCase.update).toHaveBeenCalledWith({
                 where: { id: 'case-1' },

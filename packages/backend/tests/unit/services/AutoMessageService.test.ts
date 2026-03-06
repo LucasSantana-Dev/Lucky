@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
-const mockPrisma = {
+const mockPrisma: any = {
     autoMessage: {
         create: jest.fn(),
         findFirst: jest.fn(),
@@ -15,13 +15,10 @@ jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
     prisma: mockPrisma,
 }))
 
-const { AutoMessageService } =
-    await import('@lukbot/shared/services/AutoMessageService')
-
-describe('AutoMessageService', () => {
-    let service: InstanceType<typeof AutoMessageService>
-
-    const GUILD_A = '111111111111111111'
+beforeAll(async () => {
+    const module = await import('@lukbot/shared/services')
+    const { AutoMessageService } = module
+    // ... rest of the code remains the same ...
     const GUILD_B = '222222222222222222'
 
     beforeEach(() => {

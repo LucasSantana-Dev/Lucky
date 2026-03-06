@@ -1,5 +1,4 @@
 import { ReactNode } from 'react'
-import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 
 interface LayoutProps {
@@ -8,14 +7,13 @@ interface LayoutProps {
 
 function Layout({ children }: LayoutProps) {
     return (
-        <div className='flex flex-col h-screen bg-bg-primary'>
-            <Navbar />
-            <div className='flex flex-1 overflow-hidden'>
-                <Sidebar />
-                <main className='flex-1 overflow-y-auto p-4 md:p-6'>
+        <div className='flex min-h-screen bg-lukbot-bg-primary'>
+            <Sidebar />
+            <main className='flex-1 min-w-0 overflow-y-auto'>
+                <div className='px-4 py-6 md:px-8 lg:px-10 max-w-[1400px] mx-auto'>
                     {children}
-                </main>
-            </div>
+                </div>
+            </main>
         </div>
     )
 }

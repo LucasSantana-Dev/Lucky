@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
-const mockPrisma = {
+const mockPrisma: any = {
     customCommand: {
         create: jest.fn(),
         findFirst: jest.fn(),
@@ -17,8 +17,14 @@ jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
     prisma: mockPrisma,
 }))
 
-const { CustomCommandService } =
-    await import('@lukbot/shared/services/CustomCommandService')
+beforeAll(async () => {
+    const module = await import('@lukbot/shared/services')
+    const { CustomCommandService } = module
+    jest.unstable_mockModule(
+        '@lukbot/shared/services/CustomCommandService',
+        () => CustomCommandService,
+    )
+})
 
 describe('CustomCommandService', () => {
     let service: InstanceType<typeof CustomCommandService>

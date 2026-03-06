@@ -2,6 +2,9 @@ export * from './auth'
 export * from './guild'
 export * from './feature'
 export * from './music'
+export * from './moderation'
+export * from './automod'
+export * from './logs'
 
 export interface Module {
     id: string

@@ -8,6 +8,7 @@ import type { CustomClient } from '../types'
 import { errorLog, infoLog, debugLog } from '@lukbot/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
+import { handleMessageCreate } from './messageHandler'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -125,9 +126,11 @@ function handleDebug(client: Client): void {
 function handleGuildDelete(client: Client): void {
     client.on(Events.GuildDelete, async (guild) => {
         try {
-            const duplicateDetection = await import(
-                '../utils/music/duplicateDetection'
-            ) as { clearHistory: (guildId: string) => void; clearAllGuildCaches: (guildId: string) => void }
+            const duplicateDetection =
+                (await import('../utils/music/duplicateDetection')) as {
+                    clearHistory: (guildId: string) => void
+                    clearAllGuildCaches: (guildId: string) => void
+                }
             duplicateDetection.clearHistory(guild.id)
             duplicateDetection.clearAllGuildCaches(guild.id)
         } catch (err) {
@@ -146,6 +149,7 @@ export default function handleEvents(client: Client) {
             errorLog({ message: 'Error handling interaction:', error })
         })
     })
+    handleMessageCreate(client)
     handleError(client)
     handleWarn(client)
     handleDebug(client)

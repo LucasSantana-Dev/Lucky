@@ -7,9 +7,16 @@ import PageLoader from './components/ui/PageLoader'
 
 const LoginPage = lazy(() => import('./pages/Login'))
 const ServersPage = lazy(() => import('./pages/ServersPage'))
-const DashboardPage = lazy(() => import('./pages/Dashboard'))
+const DashboardPage = lazy(() => import('./pages/DashboardOverview'))
 const FeaturesPage = lazy(() => import('./pages/Features'))
 const ConfigPage = lazy(() => import('./pages/Config'))
+const ModerationPage = lazy(() => import('./pages/Moderation'))
+const AutoModPage = lazy(() => import('./pages/AutoMod'))
+const ServerLogsPage = lazy(() => import('./pages/ServerLogs'))
+const MusicPage = lazy(() => import('./pages/Music'))
+const ServerSettingsPage = lazy(() => import('./pages/ServerSettings'))
+const CustomCommandsPage = lazy(() => import('./pages/CustomCommands'))
+const AutoMessagesPage = lazy(() => import('./pages/AutoMessages'))
 
 function AuthenticatedRoutes() {
     return (
@@ -18,6 +25,13 @@ function AuthenticatedRoutes() {
             <Route path='/servers' element={<ServersPage />} />
             <Route path='/features' element={<FeaturesPage />} />
             <Route path='/config' element={<ConfigPage />} />
+            <Route path='/settings' element={<ServerSettingsPage />} />
+            <Route path='/moderation' element={<ModerationPage />} />
+            <Route path='/automod' element={<AutoModPage />} />
+            <Route path='/logs' element={<ServerLogsPage />} />
+            <Route path='/commands' element={<CustomCommandsPage />} />
+            <Route path='/automessages' element={<AutoMessagesPage />} />
+            <Route path='/music' element={<MusicPage />} />
             <Route path='*' element={<Navigate to='/' replace />} />
         </Routes>
     )

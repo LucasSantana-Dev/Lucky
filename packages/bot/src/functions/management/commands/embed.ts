@@ -8,8 +8,10 @@ import {
     ActionRowBuilder,
     TextChannel,
 } from 'discord.js'
+import type { ColorResolvable } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { embedBuilderService } from '@lukbot/shared/services'
+import { embedBuilderService, hexToDecimal } from '@lukbot/shared/services'
+import type { EmbedField } from '@lukbot/shared/services'
 import { infoLog, errorLog } from '@lukbot/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
@@ -178,7 +180,20 @@ export default new Command({
                     return
                 }
 
-                const embed = new EmbedBuilder(template.embedData as any)
+                const embed = new EmbedBuilder()
+                if (template.title) embed.setTitle(template.title)
+                if (template.description)
+                    embed.setDescription(template.description)
+                if (template.color)
+                    embed.setColor(
+                        hexToDecimal(template.color) as ColorResolvable,
+                    )
+                if (template.footer) embed.setFooter({ text: template.footer })
+                if (template.thumbnail) embed.setThumbnail(template.thumbnail)
+                if (template.image) embed.setImage(template.image)
+                if (template.fields && Array.isArray(template.fields)) {
+                    embed.addFields(template.fields as EmbedField[])
+                }
 
                 const targetChannel =
                     channel && 'send' in channel

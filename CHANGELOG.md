@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Skills.sh ecosystem skills and Serena project memory
+
+- **`.agent-skills/`**: 10 skills installed from skills.sh ecosystem — `systematic-debugging`, `test-driven-development`, `brainstorming`, `verification-before-completion`, `requesting-code-review` (obra/superpowers); `vercel-react-best-practices`, `web-design-guidelines` (vercel-labs/agent-skills); `nodejs-backend-patterns`, `typescript-advanced-types`, `database-migration` (wshobson/agents)
+- **`.serena/memories/`**: 6 Serena project memory files — `project-overview.md`, `current-state.md`, `known-gotchas.md`, `next-priorities.md`, `db-and-services.md`, `agent-workflow.md`
+- **`.cursor/hooks/session-context.sh`**: Updated to instruct agents to load Serena memories at session start
+- **`AGENTS.md`**: Added "Session Start" protocol and "Ecosystem skills" table for `.agent-skills/` skills
+
+### Fixed - EmbedBuilderService implementation (Phase 7 unblocked)
+
+- Created `packages/shared/src/services/EmbedBuilderService.ts` with full CRUD for embed templates
+- Created `packages/shared/src/services/embedValidation.ts` with `validateEmbedData`, `hexToDecimal`, `decimalToHex`
+- Added `useCount Int @default(0)` to `EmbedTemplate` Prisma model
+- Fixed `packages/bot/src/functions/management/commands/embed.ts` to build `EmbedBuilder` from individual schema fields instead of `embedData` blob
+- Enabled embed API routes in `packages/backend/src/routes/managementEmbeds.ts`
+- Fixed and re-enabled `packages/backend/tests/unit/services/EmbedBuilderService.test.ts`
+
+### Changed - Doc governance cleanup
+
+- Removed `STATUS.md`, `NEXT_STEPS.md`, `COMPLETION_SUMMARY.md` from root — content moved to `.serena/memories/`
+
+### Added - Frontend Dashboard (Phases 1-5 Support)
+
+- **Dashboard Overview** (`DashboardOverview.tsx`): Stats cards (members, active cases, total cases, auto-mod actions), recent moderation cases list, quick actions panel, case-type breakdown with animated progress bars
+- **Moderation Cases** (`Moderation.tsx`): Full cases table with search/filter by type, pagination, case detail modal with status/timeline, color-coded action badges (warn/mute/kick/ban/unban/unmute)
+- **Auto-Moderation Config** (`AutoMod.tsx`): Toggle cards for 6 filter types (spam, caps, links, invites, banned words, raid protection), per-filter action select, tag-list inputs for whitelist/wordlist, exemptions panel for channels/roles
+- **Server Logs** (`ServerLogs.tsx`): Filterable log viewer with level badges (info/warn/error/moderation/automod/system), level summary chips, export functionality, pagination
+- **Server Settings** (`ServerSettings.tsx`): Bot nickname, command prefix, timezone, updates channel, warnings toggle
+- **Custom Commands** (`CustomCommands.tsx`): Commands grid with category chips, search, per-command enable/disable toggles
+- **Auto Messages** (`AutoMessages.tsx`): Scheduled message cards with interval/channel/embed info, create/edit/delete actions
+- **API Services**: `moderationApi.ts`, `automodApi.ts`, `logsApi.ts` with full CRUD operations
+- **Routing**: All new pages registered in `App.tsx` with lazy loading and code splitting
+- Sidebar already had all nav sections (Main, Moderation, Management, Extras) — now all routes are wired
+- All pages are fully responsive (mobile sidebar drawer, stacked layouts, sticky save bars on mobile)
+- Framer Motion animations for cards, lists, and page transitions
+- Dark theme consistent with LukBot design system (custom CSS variables)
+
 ### Added - Moderation System Implementation
 
 - Implemented 11 moderation commands:

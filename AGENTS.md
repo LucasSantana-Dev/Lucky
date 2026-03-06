@@ -8,24 +8,53 @@ This file helps AI coding agents work effectively on LukBot: project layout, whe
 - **Stack**: Discord.js + Discord Player, Express, React, Prisma (PostgreSQL), Redis
 - **Docs**: `docs/` (ARCHITECTURE, MCP_SETUP, FRONTEND, WEBAPP_SETUP, etc.)
 
+## Session Start
+
+At the start of every session:
+
+1. Load Serena memories: `activate_project` → `list_memories` (files in `.serena/memories/`)
+2. Check `git status` and `git log --oneline -5`
+3. Read `.serena/memories/current-state.md` for build status and `.serena/memories/next-priorities.md` for what to work on
+
 ## Skills (when to use)
 
-| Task                                        | Skill                 |
-| ------------------------------------------- | --------------------- |
-| Add/change slash command                    | `discord-commands`    |
-| Play/queue/skip/volume, player lifecycle    | `music-queue-player`  |
-| Schema, migrations, DB/Redis in shared      | `prisma-redis-lukbot` |
-| Docker, compose, local run                  | `lukbot-docker-dev`   |
-| Frontend (React, Vite, Tailwind)            | `frontend-react-vite` |
-| Backend (Express API, routes, services)     | `backend-express`     |
-| E2E tests, Playwright, browser verification | `e2e-playwright`      |
-| Docs lookup, web search, MCP usage          | `mcp-docs-search`     |
+### Project skills (`.cursor/skills/`)
 
-Use the matching skill when doing the task.
+| Task                                              | Skill                 |
+| ------------------------------------------------- | --------------------- |
+| Add/change slash command                          | `discord-commands`    |
+| Play/queue/skip/volume, player lifecycle          | `music-queue-player`  |
+| Schema, migrations, DB/Redis in shared            | `prisma-redis-lukbot` |
+| Docker, compose, local run                        | `lukbot-docker-dev`   |
+| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite` |
+| Backend (Express API, routes, services)           | `backend-express`     |
+| E2E tests, Playwright, browser verification       | `e2e-playwright`      |
+| Docs lookup, web search, MCP usage                | `mcp-docs-search`     |
+| Moderation commands + AutoModService              | `moderation-automod`  |
+| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`      |
+| Embed builder, custom commands, auto-messages     | `management-features` |
+| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lukbot`      |
+
+### Ecosystem skills (`.agent-skills/` — from skills.sh)
+
+| Task                                          | Skill                            |
+| --------------------------------------------- | -------------------------------- |
+| Any bug, test failure, unexpected behavior    | `systematic-debugging`           |
+| Implementing any feature or bugfix            | `test-driven-development`        |
+| Before claiming work complete / before commit | `verification-before-completion` |
+| Before implementing a new feature             | `brainstorming`                  |
+| Before merging / after major feature          | `requesting-code-review`         |
+| React components, performance, bundle size    | `vercel-react-best-practices`    |
+| UI review, accessibility, design audit        | `web-design-guidelines`          |
+| Express routes, middleware, backend API       | `nodejs-backend-patterns`        |
+| TypeScript types, removing `as any`           | `typescript-advanced-types`      |
+| Prisma schema changes, migrations             | `database-migration`             |
 
 ## Commands (workflows)
 
 Standard workflows: verify (full check), test E2E, DB ops, deploy checklist, specialist modes. When the user asks to "run verify", "full check", "test E2E", or to "act as frontend/backend/Discord/data specialist", follow the appropriate workflow.
+
+To install skills from the ecosystem, use: `npx skills add <owner/repo> --skill <name>`. See [skills.sh](https://skills.sh/) for the skill directory.
 
 ## Superpowers (Codex) – use in chat and prompts
 
@@ -68,26 +97,26 @@ Superpowers are installed at **`~/.codex/superpowers`**. To use a skill in chat 
 
 Use these MCPs when they fit the task; don’t force them.
 
-| MCP                                                               | Use for                                                              |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------- |
-| **user-filesystem**                                               | Read/write repo files, list dirs, stay in workspace                  |
-| **user-GitHub**                                                   | Issues, PRs, repo metadata, branch/commit info                       |
-| **user-Context7**                                                 | Up-to-date docs (Discord.js, Prisma, Node, React, Tailwind, etc.)    |
-| **user-tavily**                                                   | Web search for APIs, errors, best practices                          |
-| **user-sequential-thinking**                                      | Multi-step reasoning, architecture, refactors                        |
-| **user-playwright** / **user-puppeteer**                           | E2E/browser tests for frontend; verify web UI                        |
-| **user-chrome-devtools**                                          | Inspect frontend runtime, network, console                           |
-| **user-browser-tools**                                            | Browser automation, console/network logs, audits when testing webapp |
-| **user-v0**                                                       | UI component or page ideas (reference only; adapt to repo patterns)  |
-| **user-@magicuidesign/mcp**                                       | UI/design system reference if aligned with stack                     |
-| **user-cloudflare-observability** / **user-cloudflare-bindings**  | Only if LukBot is deployed on Cloudflare Workers                     |
-| **user-prisma-remote**                                            | Remote Prisma/DB introspection if configured                         |
-| **user-apify-dribbble**                                           | Scraping/data extraction when task clearly needs it                  |
-| **radar_search** (Cloudflare Radar)                               | Internet insights, threat intel when task needs it                   |
-| **mcp-gateway**                                                   | When using a gateway that aggregates MCP servers                     |
-| **user-desktop-commander**                                        | Desktop automation when task clearly needs it                        |
-| **MCP_DOCKER**                                                    | Docker API when task needs container/registry operations             |
-| **curl** / **fetch**                                              | HTTP from agent when no MCP covers the endpoint                      |
+| MCP                                                              | Use for                                                              |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **user-filesystem**                                              | Read/write repo files, list dirs, stay in workspace                  |
+| **user-GitHub**                                                  | Issues, PRs, repo metadata, branch/commit info                       |
+| **user-Context7**                                                | Up-to-date docs (Discord.js, Prisma, Node, React, Tailwind, etc.)    |
+| **user-tavily**                                                  | Web search for APIs, errors, best practices                          |
+| **user-sequential-thinking**                                     | Multi-step reasoning, architecture, refactors                        |
+| **user-playwright** / **user-puppeteer**                         | E2E/browser tests for frontend; verify web UI                        |
+| **user-chrome-devtools**                                         | Inspect frontend runtime, network, console                           |
+| **user-browser-tools**                                           | Browser automation, console/network logs, audits when testing webapp |
+| **user-v0**                                                      | UI component or page ideas (reference only; adapt to repo patterns)  |
+| **user-@magicuidesign/mcp**                                      | UI/design system reference if aligned with stack                     |
+| **user-cloudflare-observability** / **user-cloudflare-bindings** | Only if LukBot is deployed on Cloudflare Workers                     |
+| **user-prisma-remote**                                           | Remote Prisma/DB introspection if configured                         |
+| **user-apify-dribbble**                                          | Scraping/data extraction when task clearly needs it                  |
+| **radar_search** (Cloudflare Radar)                              | Internet insights, threat intel when task needs it                   |
+| **mcp-gateway**                                                  | When using a gateway that aggregates MCP servers                     |
+| **user-desktop-commander**                                       | Desktop automation when task clearly needs it                        |
+| **MCP_DOCKER**                                                   | Docker API when task needs container/registry operations             |
+| **curl** / **fetch**                                             | HTTP from agent when no MCP covers the endpoint                      |
 
 **Use when task needs them:** radar_search, mcp-gateway, desktop-commander, MCP_DOCKER, curl. Not used by default: minecraft, composio — use only when explicitly required.
 

@@ -13,6 +13,9 @@ import type {
     FeatureToggleState,
 } from '@/types'
 import { createMusicApi } from './musicApi'
+import { createModerationApi } from './moderationApi'
+import { createAutoModApi } from './automodApi'
+import { createLogsApi } from './logsApi'
 
 const API_BASE = '/api'
 
@@ -252,6 +255,9 @@ export const api = {
     },
 
     music: createMusicApi(apiClient),
+    moderation: createModerationApi(apiClient),
+    automod: createAutoModApi(apiClient),
+    serverLogs: createLogsApi(apiClient),
 }
 
 export default apiClient

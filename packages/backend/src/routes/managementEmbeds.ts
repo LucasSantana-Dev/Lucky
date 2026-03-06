@@ -1,17 +1,13 @@
 import type { Express, Response } from 'express'
 import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
-import { /* embedBuilderService, */ serverLogService } from '@lukbot/shared/services'
+import { embedBuilderService, serverLogService } from '@lukbot/shared/services'
 
 function param(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
 
 export function setupEmbedRoutes(app: Express): void {
-    // TODO: Implement EmbedBuilderService before enabling these routes
-    // All routes disabled until service is implemented
-
-    /* DISABLED - EmbedBuilderService not implemented yet
     app.get(
         '/api/guilds/:guildId/embeds',
         requireAuth,
@@ -122,5 +118,4 @@ export function setupEmbedRoutes(app: Express): void {
             }
         },
     )
-    */
 }
