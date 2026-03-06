@@ -1,4 +1,10 @@
-export type CommandCategory = 'music' | 'download' | 'general'
+export type CommandCategory =
+    | 'music'
+    | 'download'
+    | 'general'
+    | 'moderation'
+    | 'management'
+    | 'automod'
 
 export const COMMAND_CATEGORIES = {
     music: {
@@ -35,5 +41,23 @@ export const COMMAND_CATEGORIES = {
         label: '⚙️ General',
         emoji: '⚙️',
         prefixes: ['help', 'ping', 'twitch', 'lastfm'],
+    },
+    moderation: {
+        key: 'moderation' as CommandCategory,
+        label: '🛡️ Moderation',
+        emoji: '🛡️',
+        prefixes: ['ban', 'kick', 'mute', 'unmute', 'warn', 'unban', 'cases'],
+    },
+    management: {
+        key: 'management' as CommandCategory,
+        label: '⚙️ Management',
+        emoji: '⚙️',
+        prefixes: ['embed', 'reactionroles', 'serverlog', 'customcommand'],
+    },
+    automod: {
+        key: 'automod' as CommandCategory,
+        label: '🤖 AutoMod',
+        emoji: '🤖',
+        prefixes: ['automod'],
     },
 }

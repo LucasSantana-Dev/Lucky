@@ -1,5 +1,5 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import type { EmbedData } from './AutoMessageService.js' // Temporary: using placeholder type
+import type { EmbedData } from './embedValidation.js'
 
 // Workaround: Type assertion for Prisma client with customCommand model
 const prisma = getPrismaClient() as any
@@ -174,12 +174,16 @@ export class CustomCommandService {
 
         return {
             totalCommands: commands.length,
-            totalUses: commands.reduce((sum: number, cmd: any) => sum + cmd.useCount, 0),
+            totalUses: commands.reduce(
+                (sum: number, cmd: any) => sum + cmd.useCount,
+                0,
+            ),
             mostUsed: commands.sort(
                 (a: any, b: any) => b.useCount - a.useCount,
             )[0] as any,
             recentlyCreated: commands.sort(
-                (a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime(),
+                (a: any, b: any) =>
+                    b.createdAt.getTime() - a.createdAt.getTime(),
             )[0] as any,
         }
     }

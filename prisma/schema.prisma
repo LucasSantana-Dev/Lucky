@@ -417,6 +417,7 @@ model EmbedTemplate {
   thumbnail   String?
   image       String?
   fields      Json?    // Array of {name, value, inline}
+  useCount    Int      @default(0)
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
