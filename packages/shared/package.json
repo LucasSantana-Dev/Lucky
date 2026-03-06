@@ -23,7 +23,7 @@
         "chalk": "^5.6.2",
         "dotenv": "^17.2.3",
         "ioredis": "^5.9.2",
-        "unleash-client": "^5.4.0",
+        "unleash-client": "^6.9.4",
         "uuid": "^13.0.0",
         "zod": "^3.25.76"
     },
