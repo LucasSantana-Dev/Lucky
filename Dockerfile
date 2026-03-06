@@ -4,7 +4,7 @@
 #        docker build --target production-backend -t lukbot-backend .
 #        docker build --target development --build-arg SERVICE=bot -t lukbot-bot:dev .
 
-ARG NODE_VERSION=22-alpine
+ARG NODE_VERSION=24-alpine
 ARG SERVICE=bot
 ARG NODE_ENV=production
 
