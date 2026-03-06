@@ -49,7 +49,7 @@ jobs:
               run: npm run check:outdated
 
             - name: Upload coverage reports
-              uses: codecov/codecov-action@v4
+              uses: codecov/codecov-action@v5
               with:
                   files: packages/backend/coverage/lcov.info
                   flags: backend
