@@ -1,5 +1,13 @@
 export * from './FeatureToggleService'
 export * from './database/DatabaseService.js'
+export {
+    MusicControlService,
+    musicControlService,
+    type MusicCommand,
+    type RepeatMode,
+    type QueueState,
+    type TrackInfo as MusicTrackInfo,
+} from './music/index.js'
 export * from './LyricsService.js'
 export * from './ModerationService.js'
 export * from './AutoMessageService.js'
