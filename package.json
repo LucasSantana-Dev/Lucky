@@ -82,7 +82,7 @@
         "ts-jest": "^29.4.6",
         "unfetch": "^5.0.0",
         "secretlint": "^11.0.0",
-        "@secretlint/secretlint-rule-preset-recommend": "^8.0.0"
+        "@secretlint/secretlint-rule-preset-recommend": "^11.0.0"
     },
     "dependencies": {
         "@prisma/client": "^7.3.0"
