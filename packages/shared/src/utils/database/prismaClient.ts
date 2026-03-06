@@ -1,15 +1,15 @@
 import { createRequire } from 'module'
-import { PrismaClient } from '@prisma/client'
+import type { PrismaClient as PrismaClientType } from '@prisma/client'
 
 const require = createRequire(import.meta.url)
 
-let prismaInstance: PrismaClient | null = null
+let prismaInstance: PrismaClientType | null = null
 
-export function getPrismaClient(): PrismaClient {
+export function getPrismaClient(): PrismaClientType {
     if (!prismaInstance) {
         const { PrismaClient: PrismaClientConstructor } =
             require('@prisma/client') as {
-                PrismaClient: new (options?: unknown) => PrismaClient
+                PrismaClient: new (options?: unknown) => PrismaClientType
             }
         const databaseUrl = process.env.DATABASE_URL
         if (!databaseUrl) {
@@ -23,7 +23,7 @@ export function getPrismaClient(): PrismaClient {
             },
         })
     }
-    return prismaInstance as PrismaClient
+    return prismaInstance
 }
 
 export function disconnectPrisma(): Promise<void> {

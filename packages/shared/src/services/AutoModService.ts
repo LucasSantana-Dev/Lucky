@@ -1,7 +1,8 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { typePrisma } from '../utils/database/prismaHelpers.js'
 
-// Type assertion workaround for Prisma 6 + TS 5 compatibility
-const prisma = getPrismaClient() as any
+// Prisma client with model delegates - typed using helper
+const prisma = typePrisma(getPrismaClient())
 
 // Inline type definitions until Prisma type resolution is fixed
 interface AutoModSettings {
@@ -72,7 +73,9 @@ export class AutoModService {
 
     async updateSettings(
         guildId: string,
-        settings: Partial<Omit<AutoModSettings, 'id' | 'guildId' | 'createdAt' | 'updatedAt'>>,
+        settings: Partial<
+            Omit<AutoModSettings, 'id' | 'guildId' | 'createdAt' | 'updatedAt'>
+        >,
     ): Promise<AutoModSettings> {
         return await prisma.autoModSettings.upsert({
             where: { guildId },
@@ -139,7 +142,8 @@ export class AutoModService {
         const settings = await this.getSettings(guildId)
         if (!settings?.invitesEnabled) return false
 
-        const inviteRegex = /discord\.gg\/[a-zA-Z0-9]+|discord\.com\/invite\/[a-zA-Z0-9]+/gi
+        const inviteRegex =
+            /discord\.gg\/[a-zA-Z0-9]+|discord\.com\/invite\/[a-zA-Z0-9]+/gi
         const invites = content.match(inviteRegex)
 
         if (!invites) return false
@@ -172,7 +176,10 @@ export class AutoModService {
             return true
         }
 
-        if (roleIds && roleIds.some((roleId) => settings.exemptRoles.includes(roleId))) {
+        if (
+            roleIds &&
+            roleIds.some((roleId) => settings.exemptRoles.includes(roleId))
+        ) {
             return true
         }
 
