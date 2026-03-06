@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     Users,
@@ -17,10 +16,13 @@ import { Link } from 'react-router-dom'
 import Card from '@/components/ui/Card'
 import { Badge } from '@/components/ui/badge'
 import Skeleton from '@/components/ui/Skeleton'
-import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
-import type { ModerationCase, ModerationStats } from '@/types'
+import {
+    useModerationStats,
+    useModerationCases,
+} from '@/hooks/useModerationQueries'
+import type { ModerationCase } from '@/types'
 
 const ACTION_COLORS: Record<string, string> = {
     warn: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
@@ -205,27 +207,17 @@ function QuickActionButton({
 
 export default function DashboardOverview() {
     const { selectedGuild } = useGuildStore()
-    const [stats, setStats] = useState<ModerationStats | null>(null)
-    const [recentCases, setRecentCases] = useState<ModerationCase[]>([])
-    const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        if (!selectedGuild?.id) return
-        setLoading(true)
+    const { data: stats, isLoading: statsLoading } = useModerationStats(
+        selectedGuild?.id,
+    )
+    const { data: casesData, isLoading: casesLoading } = useModerationCases(
+        selectedGuild?.id,
+        { limit: 8 },
+    )
 
-        Promise.allSettled([
-            api.moderation.getStats(selectedGuild.id),
-            api.moderation.getCases(selectedGuild.id, { limit: 8 }),
-        ]).then(([statsResult, casesResult]) => {
-            if (statsResult.status === 'fulfilled') {
-                setStats(statsResult.value.data.stats)
-            }
-            if (casesResult.status === 'fulfilled') {
-                setRecentCases(casesResult.value.data.cases)
-            }
-            setLoading(false)
-        })
-    }, [selectedGuild?.id])
+    const recentCases = casesData?.cases ?? []
+    const loading = statsLoading || casesLoading
 
     if (!selectedGuild) {
         return (
