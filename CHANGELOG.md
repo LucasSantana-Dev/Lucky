@@ -7,6 +7,172 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Music Player Frontend Refactoring
+
+- Rewrote `NowPlaying.tsx` with responsive layout, skeleton loading, lazy images, debounced volume, ARIA labels, and reduced motion support
+- Extracted `PlaybackControls.tsx` with touch-friendly controls (min 44px hit targets), shuffle, repeat, and volume slider
+- Rewrote `SearchBar.tsx` with `React.memo`, accessible form semantics, and responsive sizing
+- Rewrote `ImportPlaylist.tsx` with `React.memo`, explicit Tailwind classes, and form accessibility
+- Rewrote `QueueList.tsx` with `React.memo`, CSS containment, lazy images, show-more pattern, and ARIA roles
+- Optimized `useMusicPlayer` hook with SSE reconnection (exponential backoff), optimistic UI updates, and connection status tracking
+- Extracted `useMusicCommands` hook for command factory methods
+- Created `useDebounce` hook for performance-sensitive inputs
+- Updated `Music.tsx` page with connection badge, keyboard shortcuts (Space = play/pause), error display, and responsive header
+- Renamed `TrackInfo` to `EmbedTrackInfo` in embed utilities to resolve duplicate export conflict with music service types
+- Fixed duplicate import in `MusicControlService.ts`
+
+### Refactored - Large File Splits (max-lines compliance)
+
+- Split `DatabaseService.ts` (733→196 lines): extracted `database/models.ts`, `database/mappers.ts`, `database/analyticsOperations.ts`
+- Split `ServerLogService.ts` (516→171 lines): extracted `serverLogHelpers.ts` for convenience logging methods
+- Split `GuildSettingsService.ts` (321→123 lines): extracted `guildCounters.ts` for counter/rate-limit operations
+- Split `api.ts` (295→95 lines): extracted `musicApi.ts` and `featuresApi.ts`
+- Split `reactionrole.ts` (256→53 lines): extracted `reactionroleHandlers.ts` for subcommand handlers
+- Split `eventsubClient.ts` (290→132 lines): extracted `eventsubSubscriptions.ts` for subscription/notification logic
+- Split `management.ts` (369→158 lines): extracted `managementEmbeds.ts` and `managementAutoMessages.ts`
+- Split `trackHandlers.ts` (335→115 lines): extracted `trackNowPlaying.ts` for embed/Last.fm logic
+- Split `SimplifiedTelemetry.ts` (297→189 lines): extracted `healthChecks.ts` and `telemetryMetrics.ts`
+- Split `ModerationService.ts` (279→121 lines): extracted `moderationSettings.ts` for settings management
+- Split `DashboardLayout.tsx` (270→108 lines): extracted `DashboardSidebar.tsx` component
+- Split `environment.ts` (257→191 lines): extracted `infisical.ts` for Infisical secrets loading
+- Split `twitch.ts` (257→59 lines): extracted `twitchHandlers.ts` for subcommand handlers
+- Split `ReactionRolesService` (261→177 lines): extracted `buttonHandler.ts` for button interaction handling
+- Split `AutoModService.ts` (246→87 lines): extracted `autoModFilters.ts` for content filter checks
+- Split `TrackHistoryService.ts` (243→185 lines): extracted `trackHistoryStats.ts` for stats/analytics
+- Split `roleconfig.ts` (231→49 lines): extracted `roleconfigHandlers.ts` for subcommand handlers
+- Split `auth.ts` (228→143 lines): extracted `authCallback.ts` for OAuth callback handler
+- Split `ModerationConfig.tsx` (229→194 lines): extracted `ModerationFilterOptions.tsx` component
+- Split `case.ts` (221→44 lines): extracted `caseHandlers.ts` for subcommand handlers
+- Split `recommendationEngine.ts` (227→103 lines): extracted `recommendationHelpers.ts` for helper functions
+- Split `EmbedBuilderService.ts` (215→59 lines): extracted `embedValidation.ts` for validation/color utilities
+- Split `queueOperations.ts` (232→50 lines): extracted `queueManipulation.ts` for queue manipulation helpers
+- Compacted `service.ts` (226→75 lines): removed JSDoc, condensed delegation methods
+- Compacted `MusicConfig.tsx` (223→134 lines): condensed imports and JSX
+- Compacted `downloadVideo/service.ts` (217→77 lines): extracted helper functions, removed redundant checks
+- Split `config.ts` (208→65 lines): extracted `environmentConfig.ts` for ENVIRONMENT_CONFIG object
+- Split `automessage.ts` (207→45 lines): extracted `automessageHandlers.ts` for subcommand handlers
+- Split `trackValidator.ts` (201→49 lines): extracted `trackSimilarity.ts` for similarity/quality functions
+- Deduplicated `trackManagement/` directory: replaced 3 duplicate files with re-exports from parent modules
+
+### Added - Moderation and Management System Implementation (Phases 3-5)
+
+**Phase 3: Bot Commands - Core Moderation**
+- Implemented 9 moderation commands in `packages/bot/src/functions/moderation/commands/`:
+  - `/warn` - Issue warnings to users with optional DM notification
+  - `/mute` - Timeout users with duration choices (60s to 1 week)
+  - `/unmute` - Remove timeout from users
+  - `/kick` - Kick members from server with optional message deletion
+  - `/ban` - Ban users with message deletion options (1h to 7 days)
+  - `/unban` - Unban users by ID
+  - `/case` - View, update, or delete specific moderation cases (subcommands)
+  - `/cases` - List and filter moderation cases with pagination
+  - `/history` - View full moderation history for a user with statistics
+- All commands use `ModerationService` from shared package
+- Proper permission checks (ModerateMembers, KickMembers, BanMembers, Administrator)
+- DM notifications to users (configurable with silent option)
+- Case tracking with case numbers, reasons, evidence, and expiration
+- Appeal system support in case viewing
+
+**Phase 4: Auto-Moderation System**
+- Implemented `/automod` command with 7 subcommands in `packages/bot/src/functions/automod/commands/`:
+  - `spam` - Configure spam detection (threshold, interval, action)
+  - `caps` - Configure caps detection (percentage, min length, action)
+  - `links` - Configure link filtering with whitelist support
+  - `invites` - Configure Discord invite filtering
+  - `words` - Configure bad words filter with custom word list
+  - `raid` - Configure raid protection (join threshold, interval, action)
+  - `status` - View all auto-moderation settings
+- Uses `AutoModService` from shared package
+- Configurable actions: warn, mute, kick, ban, delete
+- Ignored channels and roles support
+
+**Phase 5: Management Features**
+- Implemented 3 management commands in `packages/bot/src/functions/management/commands/`:
+  - `/customcommand` - Manage custom commands (create, edit, delete, list, info)
+  - `/embed` - Manage embed templates (create, send, list, delete)
+  - `/automessage` - Configure auto-messages (welcome, leave, list)
+- Custom commands with permissions, usage tracking, and descriptions
+- Embed builder with modal interface for template creation
+- Auto-messages with placeholder support ({user}, {server}, {memberCount})
+- Uses `CustomCommandService`, `EmbedBuilderService`, `AutoMessageService` from shared
+
+**Command Categories Added**
+- Updated `packages/bot/src/config/constants.ts` with new categories:
+  - `moderation` - 🛡️ Moderation commands
+  - `automod` - 🤖 Auto-Moderation commands
+  - `management` - 📋 Management commands
+
+**Total Commands Implemented: 15**
+- 9 moderation commands
+- 1 auto-moderation command (with 7 subcommands)
+- 3 management commands (with multiple subcommands each)
+
+**Next Steps** (requires database migration first):
+```bash
+npx prisma migrate dev --name add_moderation_and_management_systems
+npm run db:generate
+```
+
+After migration:
+- Test all commands in Discord server
+- Fix remaining type errors in service method signatures
+- Implement event handlers for auto-moderation (messageCreate, guildMemberAdd, guildMemberRemove)
+- Implement modal handlers for embed creation
+- Add button interaction handlers for case pagination
+
+### Added - Comprehensive Moderation and Management System (Phases 1-3)
+
+**Phase 1: Security & Dependencies**
+- Updated axios to 1.13.5+ (CVE-2024-55565 DoS vulnerability fix)
+- Updated @sentry/node to 10.38.0
+- Updated Prisma 7.3.0 → 7.4.0, @prisma/client 7.3.0 → 7.4.0
+- Updated TypeScript ESLint plugins 8.54.0 → 8.55.0
+- Updated 20+ packages (framer-motion, i18next, lucide-react, playwright, etc.)
+- All type-checking and builds passing
+
+**Phase 2: Lyrics Feature**
+- Created `LyricsService` with lyrics.ovh API integration
+- Smart query cleaning (removes suffixes, special characters, extracts artist from title)
+- Pagination support with Discord button navigation
+- Updated `/lyrics` command with full functionality
+- Supports both current track lookup and manual search
+
+**Phase 3: Core Moderation System (Database & Services)**
+- **Database Schema**: Added 7 new models to Prisma schema
+  - `ModerationCase` - Case tracking with appeals, evidence, expiration
+  - `ModerationSettings` - Guild mod configuration, roles, channels, DM settings
+  - `AutoModSettings` - Auto-moderation rules (spam, caps, links, words, raid)
+  - `CustomCommand` - Custom command system with permissions
+  - `AutoMessage` - Welcome/leave/auto-response/scheduled messages
+  - `EmbedTemplate` - Embed builder templates
+  - `ServerLog` - Comprehensive logging system
+
+- **Services Created** (ready for use after DB migration):
+  - `ModerationService` - Full case management, appeals, settings, stats
+  - `AutoModService` - Spam/caps/links/invites/words filtering, raid protection
+  - `EmbedBuilderService` - Template management, validation, color conversion
+  - `AutoMessageService` - Welcome/leave messages, auto-responders, placeholders
+  - `CustomCommandService` - Custom commands with permissions and usage tracking
+  - `ServerLogService` - Message/member/voice/role logging with search
+
+**Documentation**
+- Created `docs/IMPLEMENTATION_STATUS.md` - Complete project status and roadmap
+- Updated `packages/shared/src/services/index.ts` - Exported all new services
+
+**Next Steps** (requires database migration):
+```bash
+npx prisma migrate dev --name add_moderation_and_management_systems
+npm run db:generate
+```
+
+### Changed - docs: remove MCP references
+
+- **Removed**: `docs/MCP_SETUP.md` (Cursor tool/server setup no longer in docs).
+- **ARCHITECTURE.md**: New “Cursor” subsection: hooks in `.cursor/hooks.json` and `.cursor/hooks/`; agent behavior and tool usage in AGENTS.md.
+- **README.md**: AI development section no longer links to MCP_SETUP; AGENTS.md bullet no longer mentions “MCP tools”.
+- **docs/INFISICAL.md**: All “MCP” wording replaced with “Cursor” / “Infisical in Cursor” / “Settings → Tools”.
+- **AGENTS.md**: Docs list and Context Forge line no longer reference MCP_SETUP; gateway connection described as “Cursor config / gateway project”.
+
 ### Changed - docs cleanup
 
 - **Removed**: UI_PROMPT.md (one-off design spec), youtube-error-handling.md (implementation detail), PORTAINER-SETUP.md (optional path; Portainer note moved to DOCKER.md), REDIS-INTEGRATION.md (content merged into ARCHITECTURE Data layer).
