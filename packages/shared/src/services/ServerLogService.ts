@@ -1,8 +1,9 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { typePrisma } from '../utils/database/prismaHelpers.js'
 import * as helpers from './serverLogHelpers.js'
 
 // Workaround: Type assertion for Prisma client with serverLog model
-const prisma = getPrismaClient() as any
+const prisma = typePrisma(getPrismaClient())
 
 // Type definition (normally from @prisma/client but not resolvable)
 export type ServerLog = {

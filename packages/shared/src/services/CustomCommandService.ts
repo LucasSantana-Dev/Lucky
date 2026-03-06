@@ -1,8 +1,9 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { typePrisma } from '../utils/database/prismaHelpers.js'
 import type { EmbedData } from './embedValidation.js'
 
 // Workaround: Type assertion for Prisma client with customCommand model
-const prisma = getPrismaClient() as any
+const prisma = typePrisma(getPrismaClient())
 
 export class CustomCommandService {
     /**
@@ -180,11 +181,11 @@ export class CustomCommandService {
             ),
             mostUsed: commands.sort(
                 (a: any, b: any) => b.useCount - a.useCount,
-            )[0] as any,
+            )[0],
             recentlyCreated: commands.sort(
                 (a: any, b: any) =>
                     b.createdAt.getTime() - a.createdAt.getTime(),
-            )[0] as any,
+            )[0],
         }
     }
 }

@@ -1,7 +1,8 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { typePrisma } from '../utils/database/prismaHelpers.js'
 import type { EmbedData } from './embedValidation.js'
 
-const prisma = getPrismaClient() as any
+const prisma = typePrisma(getPrismaClient())
 
 export type MessageType = 'welcome' | 'leave' | 'auto_response' | 'scheduled'
 

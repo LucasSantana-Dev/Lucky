@@ -7,7 +7,14 @@ import {
     type EmbedField,
 } from './embedValidation.js'
 
-const prisma = getPrismaClient() as any
+// Prisma client with model delegates (embedTemplate, etc.) available at runtime
+// Type is correctly inferred at runtime, but ESM doesn't expose types in @prisma/client
+// Solution: minimal cast to unknown first, then to model operations
+type PrismaWithModels = ReturnType<typeof getPrismaClient> & {
+    embedTemplate: any
+}
+
+const prisma = getPrismaClient() as unknown as PrismaWithModels
 
 export type EmbedTemplate = {
     id: string
