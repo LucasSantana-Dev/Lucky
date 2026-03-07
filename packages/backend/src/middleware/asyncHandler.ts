@@ -8,6 +8,13 @@ type AsyncRouteHandler = (
 
 export function asyncHandler(fn: AsyncRouteHandler) {
     return (req: Request, res: Response, next: NextFunction) => {
-        Promise.resolve(fn(req, res, next)).catch(next)
+        try {
+            const result = fn(req, res, next)
+            if (result instanceof Promise) {
+                result.catch(next)
+            }
+        } catch (err) {
+            next(err)
+        }
     }
 }
