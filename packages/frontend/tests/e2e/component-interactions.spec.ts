@@ -72,16 +72,15 @@ test.describe('Component Interactions', () => {
     test('dropdown menu interactions', async ({ page }) => {
         await navigateToServers(page)
 
-        const userDropdown = page
-            .locator('button:has([class*="avatar"])')
-            .last()
-        await userDropdown.click()
-        await page.waitForTimeout(500)
-
-        const dropdownMenu = page.locator('[role="menu"]').first()
-        const isVisible = await dropdownMenu
-            .isVisible({ timeout: 2000 })
+        const serverSelector = page.locator('text=Select a server').first()
+        const isVisible = await serverSelector
+            .isVisible({ timeout: 3000 })
             .catch(() => false)
+
+        if (isVisible) {
+            await serverSelector.click()
+            await page.waitForTimeout(500)
+        }
     })
 
     test('button states (loading, disabled)', async ({ page }) => {

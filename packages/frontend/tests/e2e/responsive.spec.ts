@@ -90,28 +90,23 @@ test.describe('Responsive Design', () => {
         }
     })
 
-    test('header layout on mobile', async ({ page }) => {
+    test('mobile menu button on mobile', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const header = page.locator('header, [class*="header"]').first()
-        await expect(header).toBeVisible({ timeout: 5000 })
-
-        const mobileMenuButton = getMobileMenuButton(page)
-        const isVisible = await mobileMenuButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        const mobileMenuButton = page
+            .locator('button[aria-label="Open sidebar"]')
+            .first()
+        await expect(mobileMenuButton).toBeVisible({ timeout: 5000 })
     })
 
     test('navigation accessibility', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const dashboardLink = page
-            .locator('button:has-text("Dashboard")')
-            .first()
+        const dashboardLink = page.locator('a:has-text("Dashboard")').first()
         await expect(dashboardLink).toBeVisible()
 
-        const featuresLink = page.locator('button:has-text("Features")').first()
+        const featuresLink = page.locator('a:has-text("Features")').first()
         await expect(featuresLink).toBeVisible()
     })
 

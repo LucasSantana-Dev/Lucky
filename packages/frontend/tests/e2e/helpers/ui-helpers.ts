@@ -1,11 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test'
 
 export function getServerCard(page: Page, serverName: string): Locator {
-    return page
-        .locator(`text=${serverName}`)
-        .locator('..')
-        .locator('..')
-        .first()
+    return page.getByRole('article', { name: serverName }).first()
 }
 
 export function getFeatureCard(page: Page, featureName: string): Locator {
@@ -18,17 +14,11 @@ export function getFeatureCard(page: Page, featureName: string): Locator {
 }
 
 export function getServerSelector(page: Page): Locator {
-    return page
-        .locator(
-            'button:has-text("Test Server"), [aria-label*="server"], button:has([class*="avatar"])',
-        )
-        .first()
+    return page.locator('button:has-text("Test Server")').first()
 }
 
 export function getUserDropdown(page: Page): Locator {
-    return page
-        .locator('button:has([class*="avatar"]), [aria-label*="user"]')
-        .last()
+    return page.locator('button:has-text("Logout")').first()
 }
 
 export async function verifyToast(
@@ -41,33 +31,27 @@ export async function verifyToast(
 }
 
 export function getServerGrid(page: Page): Locator {
-    return page.locator('[class*="grid"], [class*="ServerGrid"]').first()
+    return page.locator('section[aria-labelledby="servers-heading"]').first()
 }
 
 export function getSidebar(page: Page): Locator {
-    return page.locator('aside, [class*="sidebar"], [class*="Sidebar"]').first()
+    return page.locator('[role="complementary"], aside').first()
 }
 
 export function getMobileMenuButton(page: Page): Locator {
-    return page
-        .locator('button:has([class*="Menu"]), button[aria-label*="menu"]')
-        .first()
+    return page.locator('button[aria-label*="menu" i]').first()
 }
 
 export function getLogoutButton(page: Page): Locator {
-    return page.locator('text=/Sign Out|Logout|Log out/i').first()
+    return page.locator('button:has-text("Logout")').first()
 }
 
 export function getAddBotButton(page: Page, serverName: string): Locator {
-    const serverCard = getServerCard(page, serverName)
-    return serverCard
-        .locator('button:has-text("Add Bot"), button:has-text("Invite")')
-        .first()
+    return page.locator(`button[aria-label="Add bot to ${serverName}"]`).first()
 }
 
 export function getManageButton(page: Page, serverName: string): Locator {
-    const serverCard = getServerCard(page, serverName)
-    return serverCard.locator('button:has-text("Manage")').first()
+    return page.locator(`button[aria-label="Manage ${serverName}"]`).first()
 }
 
 export async function waitForElement(

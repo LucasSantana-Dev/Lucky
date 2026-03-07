@@ -154,7 +154,7 @@ test.describe('Feature Toggles', () => {
             await page.waitForTimeout(1000)
 
             await page.reload()
-            await page.waitForLoadState('networkidle')
+            await page.waitForLoadState('domcontentloaded')
 
             const reloadedCard = getFeatureCard(page, firstFeature.name)
             const reloadedSwitch = reloadedCard

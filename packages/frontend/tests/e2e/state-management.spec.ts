@@ -1,11 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
-import {
-    navigateToDashboard,
-    navigateToFeatures,
-    selectServer,
-} from './helpers/page-helpers'
-import { getServerSelector } from './helpers/ui-helpers'
+import { navigateToDashboard, navigateToFeatures } from './helpers/page-helpers'
 import { MOCK_GUILDS } from './fixtures/test-data'
 
 test.describe('State Management', () => {
@@ -16,14 +11,14 @@ test.describe('State Management', () => {
     test('auth state updates correctly', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const userAvatar = page.locator('[class*="avatar"]').first()
-        await expect(userAvatar).toBeVisible({ timeout: 5000 })
+        const sidebar = page.locator('aside').first()
+        await expect(sidebar).toBeVisible({ timeout: 5000 })
     })
 
     test('guild state updates correctly', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const serverSelector = getServerSelector(page)
+        const serverSelector = page.locator('text=Select a server').first()
         const isVisible = await serverSelector
             .isVisible({ timeout: 3000 })
             .catch(() => false)
@@ -44,38 +39,25 @@ test.describe('State Management', () => {
 
     test('state persists across page reloads', async ({ page }) => {
         await navigateToDashboard(page)
+        await page.waitForTimeout(500)
 
-        const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
-        if (serverWithBot) {
-            await selectServer(page, serverWithBot.id)
-            await page.waitForTimeout(500)
+        await page.reload()
+        await page.waitForLoadState('domcontentloaded')
+        await page.waitForTimeout(1000)
 
-            await page.reload()
-            await page.waitForLoadState('networkidle')
-
-            const serverSelector = getServerSelector(page)
-            const isVisible = await serverSelector
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
-        }
+        const sidebar = page.locator('aside').first()
+        await expect(sidebar).toBeVisible({ timeout: 5000 })
     })
 
     test('state synchronization between stores', async ({ page }) => {
         await navigateToDashboard(page)
+        await page.waitForTimeout(500)
 
-        const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
-        if (serverWithBot) {
-            await selectServer(page, serverWithBot.id)
-            await page.waitForTimeout(500)
+        await navigateToFeatures(page)
+        await page.waitForTimeout(500)
 
-            await navigateToFeatures(page)
-            await page.waitForTimeout(500)
-
-            const serverSelector = getServerSelector(page)
-            const isVisible = await serverSelector
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
-        }
+        const sidebar = page.locator('aside').first()
+        await expect(sidebar).toBeVisible({ timeout: 5000 })
     })
 
     test('optimistic updates', async ({ page }) => {

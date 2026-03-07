@@ -8,7 +8,7 @@ type TestFixtures = {
 export const test = base.extend<TestFixtures>({
     authenticatedPage: async ({ page }, use) => {
         await page.goto('/')
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         const loginButton = page.locator(
             'button:has-text("Login with Discord")',

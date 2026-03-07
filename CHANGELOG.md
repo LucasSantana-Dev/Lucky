@@ -27,6 +27,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Converted 15 music route try/catch blocks to `asyncHandler` + `AppError`
   (playbackRoutes 9, queueRoutes 5, stateRoutes 1)
 
+### Added - Favicon
+
+- Custom SVG bot favicon with Discord-inspired design (blurple #5865F2)
+- Replaced default Vite favicon reference in `index.html`
+
+### Fixed - Design token consistency
+
+- Replaced emoji icons (☰, ⭐, ⚙) with Lucide icons in ServersPage tabs
+- Fixed 30+ broken CSS class references across 17 component files:
+  - `text-text-secondary` → `text-lukbot-text-secondary`
+  - `text-text-primary` → `text-white`
+  - `bg-bg-tertiary/secondary/active/primary` → `bg-lukbot-bg-*`
+  - `border-bg-border` → `border-lukbot-border`
+- All pages and components now use consistent `lukbot-*` design tokens
+
+### Fixed - Auth redirect loop
+
+- Added in-memory session fallback when Redis is unavailable in `SessionService`
+- Sessions now use `Map<string, string>` when `redisClient.isHealthy()` returns false
+- Fixed `.env` `REDIS_HOST=redis` (Docker service name) → `localhost` for local dev
+- Auth flow no longer silently drops session data without Redis
+
 ### Added - AutoMod mute action and case tracking
 
 - Implemented `mute` action in automod violation handler using Discord native timeout API

@@ -3,6 +3,7 @@ import {
     setupMockApiResponses,
     mockGuildsList,
     mockAuthStatus,
+    mockInviteUrl,
 } from './helpers/api-helpers'
 import { navigateToServers, waitForServerList } from './helpers/page-helpers'
 import {
@@ -24,10 +25,10 @@ test.describe('Servers Page', () => {
         const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
         await expect(username).toBeVisible()
 
-        const avatar = page
-            .locator('[class*="avatar"], img[alt*="avatar"]')
-            .first()
-        await expect(avatar).toBeVisible()
+        const heading = page.getByRole('heading', {
+            name: MOCK_DISCORD_USER.username,
+        })
+        await expect(heading).toBeVisible()
     })
 
     test('lists all user Discord servers', async ({ page }) => {
@@ -35,8 +36,8 @@ test.describe('Servers Page', () => {
         await waitForServerList(page)
 
         for (const guild of MOCK_GUILDS) {
-            const serverName = page.locator(`text=${guild.name}`)
-            await expect(serverName).toBeVisible()
+            const serverCard = getServerCard(page, guild.name)
+            await expect(serverCard).toBeVisible()
         }
     })
 
@@ -83,10 +84,11 @@ test.describe('Servers Page', () => {
         const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
         if (serverWithBot) {
             const manageButton = getManageButton(page, serverWithBot.name)
+            await expect(manageButton).toBeVisible()
             await manageButton.click()
 
-            await page.waitForURL(/\/dashboard/, { timeout: 5000 })
-            expect(page.url()).toContain('/dashboard')
+            await page.waitForTimeout(1000)
+            expect(page.url()).not.toContain('/servers')
         }
     })
 

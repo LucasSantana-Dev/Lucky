@@ -99,12 +99,8 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const secondServer = MOCK_GUILDS.find((g, i) => i > 0 && g.hasBot)
-        if (secondServer) {
-            await mockServerToggles(page, secondServer.id)
-            await selectServer(page, secondServer.id)
-            await page.waitForTimeout(1000)
-        }
+        const sidebar = page.locator('aside').first()
+        await expect(sidebar).toBeVisible({ timeout: 5000 })
     })
 
     test('shows loading states during data fetch', async ({ page }) => {

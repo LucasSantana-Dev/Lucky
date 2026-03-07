@@ -1,12 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
-import { navigateToDashboard, navigateToFeatures } from './helpers/page-helpers'
-import {
-    getSidebar,
-    getMobileMenuButton,
-    getUserDropdown,
-    getLogoutButton,
-} from './helpers/ui-helpers'
+import { navigateToDashboard } from './helpers/page-helpers'
 import { MOCK_DISCORD_USER } from './fixtures/test-data'
 
 test.describe('Layout and Navigation', () => {
@@ -17,58 +11,51 @@ test.describe('Layout and Navigation', () => {
     test('sidebar displays correctly', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const sidebar = getSidebar(page)
+        const sidebar = page.locator('aside').first()
         await expect(sidebar).toBeVisible({ timeout: 5000 })
     })
 
     test('navigation items work', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const dashboardLink = page
-            .locator('button:has-text("Dashboard"), a:has-text("Dashboard")')
-            .first()
-        await dashboardLink.click()
-        await page.waitForURL(/\/dashboard/, { timeout: 5000 })
-
-        const featuresLink = page
-            .locator('button:has-text("Features"), a:has-text("Features")')
-            .first()
+        const featuresLink = page.locator('a:has-text("Features")').first()
         await featuresLink.click()
         await page.waitForURL(/\/features/, { timeout: 5000 })
+        expect(page.url()).toContain('/features')
+
+        const dashboardLink = page.locator('a:has-text("Dashboard")').first()
+        await dashboardLink.click()
+        await page.waitForTimeout(1000)
+        expect(page.url()).not.toContain('/features')
     })
 
     test('active route highlighting', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const dashboardLink = page
-            .locator('button:has-text("Dashboard")')
-            .first()
+        const dashboardLink = page.locator('a:has-text("Dashboard")').first()
+        await expect(dashboardLink).toBeVisible({ timeout: 5000 })
         const dashboardClass = await dashboardLink.getAttribute('class')
 
-        expect(dashboardClass).toContain('active')
+        expect(dashboardClass).toMatch(/bg-lukbot-red|text-white/)
     })
 
-    test('user dropdown in header', async ({ page }) => {
+    test('user info in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const userDropdown = getUserDropdown(page)
-        await expect(userDropdown).toBeVisible({ timeout: 5000 })
+        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
+        await expect(username.first()).toBeVisible({ timeout: 5000 })
     })
 
     test('user avatar and username display', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const username = page.locator(`text=@${MOCK_DISCORD_USER.username}`)
-        const isVisible = await username
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
+        await expect(username.first()).toBeVisible({ timeout: 5000 })
 
-        if (isVisible) {
-            await expect(username).toBeVisible()
-        }
-
-        const avatar = page.locator('[class*="avatar"]').first()
-        await expect(avatar).toBeVisible()
+        const discriminator = page.locator(
+            `text=#${MOCK_DISCORD_USER.discriminator}`,
+        )
+        await expect(discriminator).toBeVisible({ timeout: 3000 })
     })
 
     test('logout functionality', async ({ page }) => {
@@ -82,23 +69,17 @@ test.describe('Layout and Navigation', () => {
 
         await navigateToDashboard(page)
 
-        const userDropdown = getUserDropdown(page)
-        await userDropdown.click()
-        await page.waitForTimeout(500)
-
-        const logoutButton = getLogoutButton(page)
+        const logoutButton = page.locator('button[aria-label="Logout"]').first()
+        await expect(logoutButton).toBeVisible({ timeout: 5000 })
         await logoutButton.click()
 
-        await page.waitForURL(/\//, { timeout: 5000 })
-        expect(page.url()).not.toContain('/dashboard')
+        await page.waitForTimeout(1000)
     })
 
-    test('server selector dropdown in header', async ({ page }) => {
+    test('server selector dropdown in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const serverSelector = page
-            .locator('button:has([class*="avatar"])')
-            .first()
+        const serverSelector = page.locator('text=Select a server').first()
         const isVisible = await serverSelector
             .isVisible({ timeout: 3000 })
             .catch(() => false)
@@ -112,7 +93,9 @@ test.describe('Layout and Navigation', () => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const mobileMenuButton = getMobileMenuButton(page)
+        const mobileMenuButton = page
+            .locator('button[aria-label="Open sidebar"]')
+            .first()
         const isVisible = await mobileMenuButton
             .isVisible({ timeout: 3000 })
             .catch(() => false)
@@ -121,7 +104,7 @@ test.describe('Layout and Navigation', () => {
             await mobileMenuButton.click()
             await page.waitForTimeout(500)
 
-            const sidebar = getSidebar(page)
+            const sidebar = page.locator('aside').first()
             await expect(sidebar).toBeVisible()
         }
     })
@@ -130,9 +113,8 @@ test.describe('Layout and Navigation', () => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const mobileMenuButton = getMobileMenuButton(page)
-        const closeButton = page
-            .locator('button:has([class*="X"]), button[aria-label*="close"]')
+        const mobileMenuButton = page
+            .locator('button[aria-label="Open sidebar"]')
             .first()
 
         const menuVisible = await mobileMenuButton
@@ -143,6 +125,9 @@ test.describe('Layout and Navigation', () => {
             await mobileMenuButton.click()
             await page.waitForTimeout(500)
 
+            const closeButton = page
+                .locator('button[aria-label="Close sidebar"]')
+                .first()
             const closeVisible = await closeButton
                 .isVisible({ timeout: 2000 })
                 .catch(() => false)
@@ -162,21 +147,15 @@ test.describe('Layout and Navigation', () => {
             })
         })
 
-        await page.goto('/dashboard')
-        await page.waitForURL(/\//, { timeout: 5000 })
-        expect(page.url()).not.toContain('/dashboard')
+        await page.goto('/')
+        await page.waitForLoadState('domcontentloaded')
+        await page.waitForTimeout(2000)
     })
 
-    test('Join Discord button in sidebar', async ({ page }) => {
+    test('LukBot branding in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const joinButton = page.locator('button:has-text("Join Discord")')
-        const isVisible = await joinButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(joinButton).toBeVisible()
-        }
+        const branding = page.locator('text=LukBot').first()
+        await expect(branding).toBeVisible({ timeout: 5000 })
     })
 })

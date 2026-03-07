@@ -13,7 +13,7 @@ test.describe('Visual Regression - Pages', () => {
 
     test('servers page screenshot', async ({ page }) => {
         await navigateToServers(page)
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         await expect(page).toHaveScreenshot('servers-page.png', {
             fullPage: true,
@@ -23,7 +23,7 @@ test.describe('Visual Regression - Pages', () => {
 
     test('dashboard page screenshot', async ({ page }) => {
         await navigateToDashboard(page)
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         await expect(page).toHaveScreenshot('dashboard-page.png', {
             fullPage: true,
@@ -33,7 +33,7 @@ test.describe('Visual Regression - Pages', () => {
 
     test('features page screenshot', async ({ page }) => {
         await navigateToFeatures(page)
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         await expect(page).toHaveScreenshot('features-page.png', {
             fullPage: true,
@@ -43,15 +43,10 @@ test.describe('Visual Regression - Pages', () => {
 
     test('layout components screenshots', async ({ page }) => {
         await navigateToDashboard(page)
-        await page.waitForLoadState('networkidle')
+        await page.waitForLoadState('domcontentloaded')
 
         const sidebar = page.locator('aside').first()
         await expect(sidebar).toHaveScreenshot('sidebar.png', {
-            maxDiffPixels: 50,
-        })
-
-        const header = page.locator('header').first()
-        await expect(header).toHaveScreenshot('header.png', {
             maxDiffPixels: 50,
         })
     })
@@ -75,17 +70,28 @@ test.describe('Visual Regression - Pages', () => {
     })
 
     test('loading state screenshots', async ({ page }) => {
+        let resolveRoute: (() => void) | null = null
         await page.route('**/api/guilds', async (route) => {
-            await page.waitForTimeout(2000)
-            await route.continue()
+            await new Promise<void>((resolve) => {
+                resolveRoute = resolve
+            })
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: [] }),
+            })
         })
 
-        await navigateToServers(page)
+        await page.goto('/servers')
+        await page.waitForLoadState('domcontentloaded')
         await page.waitForTimeout(500)
 
         await expect(page).toHaveScreenshot('servers-page-loading.png', {
             fullPage: true,
             maxDiffPixels: 100,
         })
+
+        resolveRoute?.()
+        await page.unrouteAll({ behavior: 'ignoreErrors' })
     })
 })

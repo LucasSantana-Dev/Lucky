@@ -17,17 +17,24 @@ test.describe('Error Handling', () => {
     })
 
     test('401 errors redirect to login', async ({ page }) => {
-        await page.route('**/api/**', async (route) => {
+        await page.route('**/api/auth/status', async (route) => {
             await route.fulfill({
-                status: 401,
+                status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ error: 'Unauthorized' }),
+                body: JSON.stringify({ authenticated: false }),
             })
         })
 
-        await page.goto('/dashboard')
-        await page.waitForURL(/\//, { timeout: 5000 })
-        expect(page.url()).not.toContain('/dashboard')
+        await page.goto('/')
+        await page.evaluate(() => localStorage.clear())
+        await page.reload()
+        await page.waitForLoadState('domcontentloaded')
+        await page.waitForTimeout(2000)
+
+        const loginButton = page.locator(
+            'button:has-text("Login with Discord")',
+        )
+        await expect(loginButton).toBeVisible({ timeout: 5000 })
     })
 
     test('403 errors show appropriate messages', async ({ page }) => {

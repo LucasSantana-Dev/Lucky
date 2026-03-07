@@ -153,7 +153,7 @@ test.describe('Dashboard Page', () => {
 
         if (isVisible) {
             await page.goto('/features')
-            await page.waitForLoadState('networkidle')
+            await page.waitForLoadState('domcontentloaded')
 
             const selectorAfterNav = getServerSelector(page)
             const stillVisible = await selectorAfterNav

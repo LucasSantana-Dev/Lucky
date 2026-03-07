@@ -2,19 +2,19 @@ import { Page, expect } from '@playwright/test'
 
 export async function navigateToServers(page: Page): Promise<void> {
     await page.goto('/servers')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForSelector('body', { state: 'visible' })
 }
 
 export async function navigateToDashboard(page: Page): Promise<void> {
-    await page.goto('/dashboard')
-    await page.waitForLoadState('networkidle')
+    await page.goto('/')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForSelector('body', { state: 'visible' })
 }
 
 export async function navigateToFeatures(page: Page): Promise<void> {
     await page.goto('/features')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForSelector('body', { state: 'visible' })
 }
 
@@ -70,7 +70,7 @@ export async function waitForServerList(
     timeout = 10000,
 ): Promise<void> {
     await page.waitForSelector('text=/servers|Server|No servers/i', { timeout })
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 }
 
 export async function waitForFeatures(
@@ -78,7 +78,7 @@ export async function waitForFeatures(
     timeout = 10000,
 ): Promise<void> {
     await page.waitForSelector('text=/Features|Feature|Toggle/i', { timeout })
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 }
 
 export async function waitForDashboard(
@@ -88,5 +88,5 @@ export async function waitForDashboard(
     await page.waitForSelector('text=/Dashboard|No Server Selected/i', {
         timeout,
     })
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 }
