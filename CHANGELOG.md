@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-03-07
+
+### Fixed
+
+- Fixed handler import paths for reactionrole, roleconfig, twitch commands
+- Fixed reactionrole roles option description exceeding Discord's 100-char limit
+- Fixed Prisma 7 client import path to use generated output directory
+- Added missing unleash-client transitive dependencies (minipass chain)
+- Mapped Redis to port 6380 in docker-compose.dev.yml (avoids Supabase conflict)
+- Updated E2E visual regression snapshots after AutoMod UI changes
+
 ## [2.0.0] - 2026-03-07
 
 ### Fixed - AutoMod schema alignment
