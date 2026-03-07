@@ -6,6 +6,7 @@ import { setupManagementRoutes } from './management'
 import { setupModerationRoutes } from './moderation'
 import { setupLastFmRoutes } from './lastfm'
 import { apiLimiter } from '../middleware/rateLimit'
+import { errorHandler } from '../middleware/errorHandler'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -30,4 +31,6 @@ export function setupRoutes(app: Express): void {
             })
         })
     }
+
+    app.use(errorHandler)
 }

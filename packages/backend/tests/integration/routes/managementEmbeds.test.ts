@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -35,6 +36,7 @@ describe('Embed Management Routes Integration', () => {
         app.use(express.json())
         setupSessionMiddleware(app)
         setupEmbedRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
     })
 
@@ -103,7 +105,7 @@ describe('Embed Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch embed templates',
+                error: 'Internal server error',
             })
         })
     })
@@ -263,7 +265,7 @@ describe('Embed Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to create embed template',
+                error: 'Internal server error',
             })
         })
     })
@@ -347,7 +349,7 @@ describe('Embed Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to update embed template',
+                error: 'Internal server error',
             })
         })
     })
@@ -419,7 +421,7 @@ describe('Embed Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to delete embed template',
+                error: 'Internal server error',
             })
         })
     })

@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -37,6 +38,7 @@ describe('Auto Message Routes Integration', () => {
         app.use(express.json())
         setupSessionMiddleware(app)
         setupAutoMessageRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
     })
 
@@ -133,7 +135,7 @@ describe('Auto Message Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch auto messages',
+                error: 'Internal server error',
             })
         })
     })
@@ -236,7 +238,7 @@ describe('Auto Message Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to create auto message',
+                error: 'Internal server error',
             })
         })
     })
@@ -312,7 +314,7 @@ describe('Auto Message Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to update auto message',
+                error: 'Internal server error',
             })
         })
     })
@@ -388,7 +390,7 @@ describe('Auto Message Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to toggle auto message',
+                error: 'Internal server error',
             })
         })
     })
@@ -454,7 +456,7 @@ describe('Auto Message Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to delete auto message',
+                error: 'Internal server error',
             })
         })
     })

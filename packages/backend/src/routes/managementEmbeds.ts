@@ -1,8 +1,9 @@
 import type { Express, Response } from 'express'
-import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
+import { asyncHandler } from '../middleware/asyncHandler'
+import { AppError } from '../errors/AppError'
 import { embedSchemas as s } from '../schemas/embeds'
 import { embedBuilderService, serverLogService } from '@lukbot/shared/services'
 
@@ -11,19 +12,12 @@ export function setupEmbedRoutes(app: Express): void {
         '/api/guilds/:guildId/embeds',
         requireAuth,
         validateParams(s.guildIdParam),
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const templates = await embedBuilderService.listTemplates(
-                    req.params.guildId,
-                )
-                res.json({ templates })
-            } catch (error) {
-                errorLog({ message: 'Error fetching embed templates:', error })
-                res.status(500).json({
-                    error: 'Failed to fetch embed templates',
-                })
-            }
-        },
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const templates = await embedBuilderService.listTemplates(
+                req.params.guildId,
+            )
+            res.json({ templates })
+        }),
     )
 
     app.post(
@@ -32,38 +26,31 @@ export function setupEmbedRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.createEmbedBody),
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const { guildId } = req.params
-                const { name, embedData, description } = req.body
-                const validation =
-                    embedBuilderService.validateEmbedData(embedData)
-                if (!validation.valid)
-                    return res.status(400).json({
-                        error: 'Invalid embed data',
-                        details: validation.errors,
-                    })
-                const template = await embedBuilderService.createTemplate(
-                    guildId,
-                    name,
-                    embedData,
-                    description,
-                    req.userId,
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const { guildId } = req.params
+            const { name, embedData, description } = req.body
+            const validation = embedBuilderService.validateEmbedData(embedData)
+            if (!validation.valid) {
+                throw AppError.badRequest(
+                    'Invalid embed data',
+                    validation.errors,
                 )
-                await serverLogService.logEmbedTemplateChange(
-                    guildId,
-                    'created',
-                    { templateName: name },
-                    req.userId!,
-                )
-                res.status(201).json(template)
-            } catch (error) {
-                errorLog({ message: 'Error creating embed template:', error })
-                res.status(500).json({
-                    error: 'Failed to create embed template',
-                })
             }
-        },
+            const template = await embedBuilderService.createTemplate(
+                guildId,
+                name,
+                embedData,
+                description,
+                req.userId,
+            )
+            await serverLogService.logEmbedTemplateChange(
+                guildId,
+                'created',
+                { templateName: name },
+                req.userId!,
+            )
+            res.status(201).json(template)
+        }),
     )
 
     app.patch(
@@ -72,28 +59,21 @@ export function setupEmbedRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.embedNameParam),
         validateBody(s.updateEmbedBody),
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const { guildId, name } = req.params
-                const template = await embedBuilderService.updateTemplate(
-                    guildId,
-                    name,
-                    req.body,
-                )
-                await serverLogService.logEmbedTemplateChange(
-                    guildId,
-                    'updated',
-                    { templateName: name },
-                    req.userId!,
-                )
-                res.json(template)
-            } catch (error) {
-                errorLog({ message: 'Error updating embed template:', error })
-                res.status(500).json({
-                    error: 'Failed to update embed template',
-                })
-            }
-        },
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const { guildId, name } = req.params
+            const template = await embedBuilderService.updateTemplate(
+                guildId,
+                name,
+                req.body,
+            )
+            await serverLogService.logEmbedTemplateChange(
+                guildId,
+                'updated',
+                { templateName: name },
+                req.userId!,
+            )
+            res.json(template)
+        }),
     )
 
     app.delete(
@@ -101,23 +81,16 @@ export function setupEmbedRoutes(app: Express): void {
         requireAuth,
         writeLimiter,
         validateParams(s.embedNameParam),
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const { guildId, name } = req.params
-                await embedBuilderService.deleteTemplate(guildId, name)
-                await serverLogService.logEmbedTemplateChange(
-                    guildId,
-                    'deleted',
-                    { templateName: name },
-                    req.userId!,
-                )
-                res.json({ success: true })
-            } catch (error) {
-                errorLog({ message: 'Error deleting embed template:', error })
-                res.status(500).json({
-                    error: 'Failed to delete embed template',
-                })
-            }
-        },
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const { guildId, name } = req.params
+            await embedBuilderService.deleteTemplate(guildId, name)
+            await serverLogService.logEmbedTemplateChange(
+                guildId,
+                'deleted',
+                { templateName: name },
+                req.userId!,
+            )
+            res.json({ success: true })
+        }),
     )
 }

@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -56,6 +57,7 @@ describe('Management Routes Integration', () => {
         app.use(express.json())
         setupSessionMiddleware(app)
         setupManagementRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
     })
 
@@ -122,7 +124,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch automod settings',
+                error: 'Internal server error',
             })
         })
     })
@@ -209,7 +211,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to update automod settings',
+                error: 'Internal server error',
             })
         })
     })
@@ -276,7 +278,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch custom commands',
+                error: 'Internal server error',
             })
         })
     })
@@ -400,7 +402,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to create custom command',
+                error: 'Internal server error',
             })
         })
     })
@@ -490,7 +492,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to update custom command',
+                error: 'Internal server error',
             })
         })
     })
@@ -564,7 +566,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to delete custom command',
+                error: 'Internal server error',
             })
         })
     })
@@ -658,7 +660,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch server logs',
+                error: 'Internal server error',
             })
         })
     })
@@ -743,7 +745,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to search server logs',
+                error: 'Internal server error',
             })
         })
     })
@@ -816,7 +818,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch user logs',
+                error: 'Internal server error',
             })
         })
     })
@@ -883,7 +885,7 @@ describe('Management Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch log stats',
+                error: 'Internal server error',
             })
         })
     })
