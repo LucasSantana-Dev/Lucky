@@ -69,6 +69,13 @@ jest.mock('uuid', () => ({
     v4: jest.fn(() => 'mock-uuid-v4'),
 }))
 
+const passthrough = (_req: any, _res: any, next: any) => next()
+jest.mock('../src/middleware/rateLimit', () => ({
+    apiLimiter: passthrough,
+    authLimiter: passthrough,
+    writeLimiter: passthrough,
+}))
+
 jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
     getPrismaClient: jest.fn(() => ({
         $connect: jest.fn(),

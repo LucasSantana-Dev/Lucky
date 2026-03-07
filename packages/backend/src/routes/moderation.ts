@@ -1,27 +1,28 @@
 import type { Express, Response } from 'express'
 import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import {
+    validateBody,
+    validateParams,
+    validateQuery,
+} from '../middleware/validate'
+import { writeLimiter } from '../middleware/rateLimit'
+import { moderationSchemas as s } from '../schemas/moderation'
 import { moderationService, serverLogService } from '@lukbot/shared/services'
 
-function param(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
-
 export function setupModerationRoutes(app: Express): void {
-    // Get recent moderation cases for a guild
     app.get(
         '/api/guilds/:guildId/moderation/cases',
         requireAuth,
+        validateParams(s.guildIdParam),
+        validateQuery(s.casesQuery),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
                 const limit = parseInt(req.query.limit as string) || 25
-
                 const cases = await moderationService.getRecentCases(
-                    guildId,
+                    req.params.guildId,
                     limit,
                 )
-
                 res.json({ cases })
             } catch (error) {
                 errorLog({ message: 'Error fetching moderation cases:', error })
@@ -32,23 +33,19 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Get a specific case
     app.get(
         '/api/guilds/:guildId/moderation/cases/:caseNumber',
         requireAuth,
+        validateParams(s.caseNumberParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const caseNumber = param(req.params.caseNumber)
                 const modCase = await moderationService.getCase(
-                    guildId,
-                    parseInt(caseNumber),
+                    req.params.guildId,
+                    Number(req.params.caseNumber),
                 )
-
                 if (!modCase) {
                     return res.status(404).json({ error: 'Case not found' })
                 }
-
                 res.json(modCase)
             } catch (error) {
                 errorLog({ message: 'Error fetching case:', error })
@@ -57,22 +54,19 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Get cases for a specific user
     app.get(
         '/api/guilds/:guildId/moderation/users/:userId/cases',
         requireAuth,
+        validateParams(s.userCasesParam),
+        validateQuery(s.userCasesQuery),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const userId = param(req.params.userId)
                 const activeOnly = req.query.activeOnly === 'true'
-
                 const cases = await moderationService.getUserCases(
-                    guildId,
-                    userId,
+                    req.params.guildId,
+                    req.params.userId,
                     activeOnly,
                 )
-
                 res.json({ cases })
             } catch (error) {
                 errorLog({ message: 'Error fetching user cases:', error })
@@ -81,23 +75,21 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Update case reason
     app.patch(
         '/api/guilds/:guildId/moderation/cases/:caseNumber/reason',
         requireAuth,
+        writeLimiter,
+        validateParams(s.caseNumberParam),
+        validateBody(s.updateReasonBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const caseNumber = param(req.params.caseNumber)
+                const { guildId } = req.params
+                const caseNumber = Number(req.params.caseNumber)
                 const { reason } = req.body
-
-                if (!reason || typeof reason !== 'string') {
-                    return res.status(400).json({ error: 'Reason is required' })
-                }
 
                 const modCase = await moderationService.getCase(
                     guildId,
-                    parseInt(caseNumber),
+                    caseNumber,
                 )
                 if (!modCase) {
                     return res.status(404).json({ error: 'Case not found' })
@@ -106,14 +98,13 @@ export function setupModerationRoutes(app: Express): void {
                 await serverLogService.logCaseUpdate(
                     guildId,
                     {
-                        caseNumber: parseInt(caseNumber),
+                        caseNumber,
                         changeType: 'reason_update',
                         oldValue: modCase.reason ?? undefined,
                         newValue: reason,
                     },
                     req.userId!,
                 )
-
                 res.json({ success: true })
             } catch (error) {
                 errorLog({ message: 'Error updating case reason:', error })
@@ -122,17 +113,15 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Deactivate a case
     app.post(
         '/api/guilds/:guildId/moderation/cases/:caseId/deactivate',
         requireAuth,
+        writeLimiter,
+        validateParams(s.caseIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const caseId = param(req.params.caseId)
-
+                const { guildId, caseId } = req.params
                 const updated = await moderationService.deactivateCase(caseId)
-
                 await serverLogService.logCaseUpdate(
                     guildId,
                     {
@@ -141,7 +130,6 @@ export function setupModerationRoutes(app: Express): void {
                     },
                     req.userId!,
                 )
-
                 res.json(updated)
             } catch (error) {
                 errorLog({ message: 'Error deactivating case:', error })
@@ -150,16 +138,15 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Get moderation settings
     app.get(
         '/api/guilds/:guildId/moderation/settings',
         requireAuth,
+        validateParams(s.guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-
-                const settings = await moderationService.getSettings(guildId)
-
+                const settings = await moderationService.getSettings(
+                    req.params.guildId,
+                )
                 res.json(settings)
             } catch (error) {
                 errorLog({
@@ -173,28 +160,24 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Update moderation settings
     app.patch(
         '/api/guilds/:guildId/moderation/settings',
         requireAuth,
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        validateBody(s.updateSettingsBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-
+                const { guildId } = req.params
                 const settings = await moderationService.updateSettings(
                     guildId,
                     req.body,
                 )
-
                 await serverLogService.logSettingsChange(
                     guildId,
-                    {
-                        setting: 'moderation',
-                        newValue: req.body,
-                    },
+                    { setting: 'moderation', newValue: req.body },
                     req.userId!,
                 )
-
                 res.json(settings)
             } catch (error) {
                 errorLog({
@@ -208,16 +191,15 @@ export function setupModerationRoutes(app: Express): void {
         },
     )
 
-    // Get moderation stats
     app.get(
         '/api/guilds/:guildId/moderation/stats',
         requireAuth,
+        validateParams(s.guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-
-                const stats = await moderationService.getStats(guildId)
-
+                const stats = await moderationService.getStats(
+                    req.params.guildId,
+                )
                 res.json(stats)
             } catch (error) {
                 errorLog({ message: 'Error fetching moderation stats:', error })

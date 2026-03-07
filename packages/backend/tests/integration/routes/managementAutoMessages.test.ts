@@ -161,7 +161,7 @@ describe('Auto Message Routes Integration', () => {
                 .send({
                     type: 'welcome',
                     message: 'Welcome!',
-                    channelId: '123',
+                    channelId: '222222222222222222',
                 })
                 .expect(201)
 
@@ -171,7 +171,7 @@ describe('Auto Message Routes Integration', () => {
                 'welcome',
                 { message: 'Welcome!' },
                 {
-                    channelId: '123',
+                    channelId: '222222222222222222',
                     trigger: undefined,
                     exactMatch: undefined,
                     cronSchedule: undefined,
@@ -180,7 +180,7 @@ describe('Auto Message Routes Integration', () => {
             expect(serverLogService.logAutoMessageChange).toHaveBeenCalledWith(
                 '111111111111111111',
                 'created',
-                { type: 'welcome', channelId: '123' },
+                { type: 'welcome', channelId: '222222222222222222' },
                 MOCK_SESSION_DATA.userId,
             )
         })
@@ -198,7 +198,8 @@ describe('Auto Message Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Type and message are required',
+                error: 'Validation failed',
+                errors: expect.any(Array),
             })
         })
 

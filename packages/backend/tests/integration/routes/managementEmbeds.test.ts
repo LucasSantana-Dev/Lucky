@@ -177,7 +177,8 @@ describe('Embed Management Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Name and embedData are required',
+                error: 'Validation failed',
+                errors: expect.any(Array),
             })
         })
 
@@ -194,7 +195,8 @@ describe('Embed Management Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Name and embedData are required',
+                error: 'Validation failed',
+                errors: expect.any(Array),
             })
         })
 

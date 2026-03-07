@@ -1,21 +1,21 @@
 import type { Express, Response } from 'express'
 import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { validateBody, validateParams } from '../middleware/validate'
+import { writeLimiter } from '../middleware/rateLimit'
+import { embedSchemas as s } from '../schemas/embeds'
 import { embedBuilderService, serverLogService } from '@lukbot/shared/services'
-
-function param(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
 
 export function setupEmbedRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/embeds',
         requireAuth,
+        validateParams(s.guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const templates =
-                    await embedBuilderService.listTemplates(guildId)
+                const templates = await embedBuilderService.listTemplates(
+                    req.params.guildId,
+                )
                 res.json({ templates })
             } catch (error) {
                 errorLog({ message: 'Error fetching embed templates:', error })
@@ -29,14 +29,13 @@ export function setupEmbedRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/embeds',
         requireAuth,
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        validateBody(s.createEmbedBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
+                const { guildId } = req.params
                 const { name, embedData, description } = req.body
-                if (!name || !embedData)
-                    return res
-                        .status(400)
-                        .json({ error: 'Name and embedData are required' })
                 const validation =
                     embedBuilderService.validateEmbedData(embedData)
                 if (!validation.valid)
@@ -70,10 +69,12 @@ export function setupEmbedRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/embeds/:name',
         requireAuth,
+        writeLimiter,
+        validateParams(s.embedNameParam),
+        validateBody(s.updateEmbedBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const name = param(req.params.name)
+                const { guildId, name } = req.params
                 const template = await embedBuilderService.updateTemplate(
                     guildId,
                     name,
@@ -98,10 +99,11 @@ export function setupEmbedRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/embeds/:name',
         requireAuth,
+        writeLimiter,
+        validateParams(s.embedNameParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const name = param(req.params.name)
+                const { guildId, name } = req.params
                 await embedBuilderService.deleteTemplate(guildId, name)
                 await serverLogService.logEmbedTemplateChange(
                     guildId,

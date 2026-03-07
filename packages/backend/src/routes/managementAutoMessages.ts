@@ -1,19 +1,24 @@
 import type { Express, Response } from 'express'
 import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import {
+    validateBody,
+    validateParams,
+    validateQuery,
+} from '../middleware/validate'
+import { writeLimiter } from '../middleware/rateLimit'
+import { autoMessageSchemas as s } from '../schemas/autoMessages'
 import { autoMessageService, serverLogService } from '@lukbot/shared/services'
-
-function param(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
 
 export function setupAutoMessageRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automessages',
         requireAuth,
+        validateParams(s.guildIdParam),
+        validateQuery(s.messagesQuery),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
+                const { guildId } = req.params
                 const type = req.query.type as string | undefined
                 if (type) {
                     const messages = await autoMessageService.getMessagesByType(
@@ -29,7 +34,9 @@ export function setupAutoMessageRoutes(app: Express): void {
                 res.json({ welcome, leave })
             } catch (error) {
                 errorLog({ message: 'Error fetching auto messages:', error })
-                res.status(500).json({ error: 'Failed to fetch auto messages' })
+                res.status(500).json({
+                    error: 'Failed to fetch auto messages',
+                })
             }
         },
     )
@@ -37,9 +44,12 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/automessages',
         requireAuth,
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        validateBody(s.createMessageBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
+                const { guildId } = req.params
                 const {
                     type,
                     message,
@@ -48,20 +58,11 @@ export function setupAutoMessageRoutes(app: Express): void {
                     exactMatch,
                     cronSchedule,
                 } = req.body
-                if (!type || !message)
-                    return res
-                        .status(400)
-                        .json({ error: 'Type and message are required' })
                 const autoMsg = await autoMessageService.createMessage(
                     guildId,
                     type,
                     { message },
-                    {
-                        channelId,
-                        trigger,
-                        exactMatch,
-                        cronSchedule,
-                    },
+                    { channelId, trigger, exactMatch, cronSchedule },
                 )
                 await serverLogService.logAutoMessageChange(
                     guildId,
@@ -72,7 +73,9 @@ export function setupAutoMessageRoutes(app: Express): void {
                 res.status(201).json(autoMsg)
             } catch (error) {
                 errorLog({ message: 'Error creating auto message:', error })
-                res.status(500).json({ error: 'Failed to create auto message' })
+                res.status(500).json({
+                    error: 'Failed to create auto message',
+                })
             }
         },
     )
@@ -80,10 +83,12 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/automessages/:id',
         requireAuth,
+        writeLimiter,
+        validateParams(s.messageIdParam),
+        validateBody(s.updateMessageBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const id = param(req.params.id)
+                const { guildId, id } = req.params
                 const updated = await autoMessageService.updateMessage(
                     id,
                     req.body,
@@ -97,7 +102,9 @@ export function setupAutoMessageRoutes(app: Express): void {
                 res.json(updated)
             } catch (error) {
                 errorLog({ message: 'Error updating auto message:', error })
-                res.status(500).json({ error: 'Failed to update auto message' })
+                res.status(500).json({
+                    error: 'Failed to update auto message',
+                })
             }
         },
     )
@@ -105,10 +112,12 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/automessages/:id/toggle',
         requireAuth,
+        writeLimiter,
+        validateParams(s.messageIdParam),
+        validateBody(s.toggleBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const id = param(req.params.id)
+                const { guildId, id } = req.params
                 const { enabled } = req.body
                 const updated = await autoMessageService.toggleMessage(
                     id,
@@ -123,7 +132,9 @@ export function setupAutoMessageRoutes(app: Express): void {
                 res.json(updated)
             } catch (error) {
                 errorLog({ message: 'Error toggling auto message:', error })
-                res.status(500).json({ error: 'Failed to toggle auto message' })
+                res.status(500).json({
+                    error: 'Failed to toggle auto message',
+                })
             }
         },
     )
@@ -131,10 +142,11 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/automessages/:id',
         requireAuth,
+        writeLimiter,
+        validateParams(s.messageIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const id = param(req.params.id)
+                const { guildId, id } = req.params
                 await autoMessageService.deleteMessage(id)
                 await serverLogService.logAutoMessageChange(
                     guildId,
@@ -145,7 +157,9 @@ export function setupAutoMessageRoutes(app: Express): void {
                 res.json({ success: true })
             } catch (error) {
                 errorLog({ message: 'Error deleting auto message:', error })
-                res.status(500).json({ error: 'Failed to delete auto message' })
+                res.status(500).json({
+                    error: 'Failed to delete auto message',
+                })
             }
         },
     )

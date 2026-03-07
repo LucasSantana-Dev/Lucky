@@ -13,19 +13,38 @@ jest.mock('../../../src/services/SessionService', () => ({
 }))
 
 jest.mock('@lukbot/shared/services', () => ({
+    redisClient: {
+        isHealthy: jest.fn(() => true),
+        get: jest.fn(),
+        set: jest.fn(),
+        setex: jest.fn(),
+        del: jest.fn(),
+        ping: jest.fn(() => Promise.resolve('PONG')),
+    },
+    featureToggleService: {
+        isEnabledGlobal: jest.fn(() => true),
+        isEnabledForGuild: jest.fn(() => true),
+    },
     moderationService: {
-        getRecentCases: jest.fn(),
+        createCase: jest.fn(),
         getCase: jest.fn(),
+        getRecentCases: jest.fn(),
         getUserCases: jest.fn(),
         deactivateCase: jest.fn(),
         getSettings: jest.fn(),
         updateSettings: jest.fn(),
         getStats: jest.fn(),
     },
+    autoModService: { getSettings: jest.fn() },
+    customCommandService: { getCommand: jest.fn() },
+    autoMessageService: { getWelcomeMessage: jest.fn() },
     serverLogService: {
+        createLog: jest.fn(),
         logCaseUpdate: jest.fn(),
         logSettingsChange: jest.fn(),
     },
+    embedBuilderService: {},
+    musicControlService: {},
 }))
 
 import { moderationService, serverLogService } from '@lukbot/shared/services'
@@ -70,7 +89,6 @@ describe('Moderation Routes Integration', () => {
                 .get('/api/guilds/111111111111111111/moderation/cases')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
-
             expect(response.body).toEqual({ cases: mockCases })
             expect(mockModerationService.getRecentCases).toHaveBeenCalledWith(
                 '111111111111111111',
@@ -399,7 +417,11 @@ describe('Moderation Routes Integration', () => {
                 .send({})
                 .expect(400)
 
-            expect(response.body).toEqual({ error: 'Reason is required' })
+            expect(response.body).toEqual({
+                error: 'Validation failed',
+                errors: expect.any(Array),
+            })
+            expect(response.body.errors[0].field).toBe('reason')
         })
 
         test('should return 404 when case not found', async () => {

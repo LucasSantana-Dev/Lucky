@@ -136,7 +136,7 @@ describe('Management Routes Integration', () => {
 
             const updatedSettings = {
                 enabled: false,
-                spamProtection: true,
+                spamEnabled: true,
             }
 
             const mockAutoModService = autoModService as jest.Mocked<
@@ -342,7 +342,8 @@ describe('Management Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Name and response are required',
+                error: 'Validation failed',
+                errors: expect.any(Array),
             })
         })
 
@@ -359,7 +360,8 @@ describe('Management Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Name and response are required',
+                error: 'Validation failed',
+                errors: expect.any(Array),
             })
         })
 
@@ -702,7 +704,8 @@ describe('Management Routes Integration', () => {
                 .expect(400)
 
             expect(response.body).toEqual({
-                error: 'Search query is required',
+                error: 'Validation failed',
+                errors: expect.any(Array),
             })
         })
 

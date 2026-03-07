@@ -2,6 +2,13 @@ import type { Express, Response } from 'express'
 import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import {
+    validateBody,
+    validateParams,
+    validateQuery,
+} from '../middleware/validate'
+import { writeLimiter } from '../middleware/rateLimit'
+import { managementSchemas as s } from '../schemas/management'
+import {
     autoModService,
     customCommandService,
     serverLogService,
@@ -10,23 +17,22 @@ import {
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
 
-function param(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
-
 export function setupManagementRoutes(app: Express): void {
-    // ── AutoMod ──
-
     app.get(
         '/api/guilds/:guildId/automod/settings',
         requireAuth,
+        validateParams(s.guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const settings = await autoModService.getSettings(guildId)
+                const settings = await autoModService.getSettings(
+                    req.params.guildId,
+                )
                 res.json(settings)
             } catch (error) {
-                errorLog({ message: 'Error fetching automod settings:', error })
+                errorLog({
+                    message: 'Error fetching automod settings:',
+                    error,
+                })
                 res.status(500).json({
                     error: 'Failed to fetch automod settings',
                 })
@@ -37,9 +43,12 @@ export function setupManagementRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/automod/settings',
         requireAuth,
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        validateBody(s.autoModSettingsBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
+                const { guildId } = req.params
                 const settings = await autoModService.updateSettings(
                     guildId,
                     req.body,
@@ -55,7 +64,10 @@ export function setupManagementRoutes(app: Express): void {
                 )
                 res.json(settings)
             } catch (error) {
-                errorLog({ message: 'Error updating automod settings:', error })
+                errorLog({
+                    message: 'Error updating automod settings:',
+                    error,
+                })
                 res.status(500).json({
                     error: 'Failed to update automod settings',
                 })
@@ -63,19 +75,21 @@ export function setupManagementRoutes(app: Express): void {
         },
     )
 
-    // ── Custom Commands ──
-
     app.get(
         '/api/guilds/:guildId/commands',
         requireAuth,
+        validateParams(s.guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const commands =
-                    await customCommandService.listCommands(guildId)
+                const commands = await customCommandService.listCommands(
+                    req.params.guildId,
+                )
                 res.json({ commands })
             } catch (error) {
-                errorLog({ message: 'Error fetching custom commands:', error })
+                errorLog({
+                    message: 'Error fetching custom commands:',
+                    error,
+                })
                 res.status(500).json({
                     error: 'Failed to fetch custom commands',
                 })
@@ -86,22 +100,18 @@ export function setupManagementRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/commands',
         requireAuth,
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        validateBody(s.createCommandBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
+                const { guildId } = req.params
                 const { name, response, description } = req.body
-                if (!name || !response)
-                    return res
-                        .status(400)
-                        .json({ error: 'Name and response are required' })
                 const command = await customCommandService.createCommand(
                     guildId,
                     name,
                     response,
-                    {
-                        description,
-                        createdBy: req.userId,
-                    },
+                    { description, createdBy: req.userId },
                 )
                 await serverLogService.logCustomCommandChange(
                     guildId,
@@ -111,7 +121,10 @@ export function setupManagementRoutes(app: Express): void {
                 )
                 res.status(201).json(command)
             } catch (error) {
-                errorLog({ message: 'Error creating custom command:', error })
+                errorLog({
+                    message: 'Error creating custom command:',
+                    error,
+                })
                 res.status(500).json({
                     error: 'Failed to create custom command',
                 })
@@ -122,10 +135,12 @@ export function setupManagementRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/commands/:name',
         requireAuth,
+        writeLimiter,
+        validateParams(s.commandNameParam),
+        validateBody(s.updateCommandBody),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const name = param(req.params.name)
+                const { guildId, name } = req.params
                 const command = await customCommandService.updateCommand(
                     guildId,
                     name,
@@ -139,7 +154,10 @@ export function setupManagementRoutes(app: Express): void {
                 )
                 res.json(command)
             } catch (error) {
-                errorLog({ message: 'Error updating custom command:', error })
+                errorLog({
+                    message: 'Error updating custom command:',
+                    error,
+                })
                 res.status(500).json({
                     error: 'Failed to update custom command',
                 })
@@ -150,10 +168,11 @@ export function setupManagementRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/commands/:name',
         requireAuth,
+        writeLimiter,
+        validateParams(s.commandNameParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const name = param(req.params.name)
+                const { guildId, name } = req.params
                 await customCommandService.deleteCommand(guildId, name)
                 await serverLogService.logCustomCommandChange(
                     guildId,
@@ -163,7 +182,10 @@ export function setupManagementRoutes(app: Express): void {
                 )
                 res.json({ success: true })
             } catch (error) {
-                errorLog({ message: 'Error deleting custom command:', error })
+                errorLog({
+                    message: 'Error deleting custom command:',
+                    error,
+                })
                 res.status(500).json({
                     error: 'Failed to delete custom command',
                 })
@@ -171,18 +193,17 @@ export function setupManagementRoutes(app: Express): void {
         },
     )
 
-    // ── Delegated route groups ──
     setupEmbedRoutes(app)
     setupAutoMessageRoutes(app)
-
-    // ── Server Logs ──
 
     app.get(
         '/api/guilds/:guildId/logs',
         requireAuth,
+        validateParams(s.guildIdParam),
+        validateQuery(s.logsQuery),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
+                const { guildId } = req.params
                 const limit = parseInt(req.query.limit as string) || 50
                 const type = req.query.type as string | undefined
                 if (type) {
@@ -200,7 +221,9 @@ export function setupManagementRoutes(app: Express): void {
                 res.json({ logs })
             } catch (error) {
                 errorLog({ message: 'Error fetching server logs:', error })
-                res.status(500).json({ error: 'Failed to fetch server logs' })
+                res.status(500).json({
+                    error: 'Failed to fetch server logs',
+                })
             }
         },
     )
@@ -208,14 +231,11 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/search',
         requireAuth,
+        validateParams(s.guildIdParam),
+        validateQuery(s.logsSearchQuery),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const query = req.query.q as string
-                if (!query)
-                    return res
-                        .status(400)
-                        .json({ error: 'Search query is required' })
+                const { guildId } = req.params
                 const logs = await serverLogService.searchLogs(guildId, {
                     type: req.query.type as LogType | undefined,
                     userId: req.query.userId as string | undefined,
@@ -223,7 +243,9 @@ export function setupManagementRoutes(app: Express): void {
                 res.json({ logs })
             } catch (error) {
                 errorLog({ message: 'Error searching server logs:', error })
-                res.status(500).json({ error: 'Failed to search server logs' })
+                res.status(500).json({
+                    error: 'Failed to search server logs',
+                })
             }
         },
     )
@@ -231,15 +253,17 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/users/:userId',
         requireAuth,
+        validateParams(s.userIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const userId = param(req.params.userId)
+                const { guildId, userId } = req.params
                 const logs = await serverLogService.getUserLogs(guildId, userId)
                 res.json({ logs })
             } catch (error) {
                 errorLog({ message: 'Error fetching user logs:', error })
-                res.status(500).json({ error: 'Failed to fetch user logs' })
+                res.status(500).json({
+                    error: 'Failed to fetch user logs',
+                })
             }
         },
     )
@@ -247,14 +271,18 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/stats',
         requireAuth,
+        validateParams(s.guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const guildId = param(req.params.guildId)
-                const stats = await serverLogService.getStats(guildId)
+                const stats = await serverLogService.getStats(
+                    req.params.guildId,
+                )
                 res.json(stats)
             } catch (error) {
                 errorLog({ message: 'Error fetching log stats:', error })
-                res.status(500).json({ error: 'Failed to fetch log stats' })
+                res.status(500).json({
+                    error: 'Failed to fetch log stats',
+                })
             }
         },
     )
