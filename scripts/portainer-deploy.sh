@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# LukBot Portainer Deployment Script
+# Nexus Portainer Deployment Script
 # This script handles deployment via Portainer API
 
 set -e
 
 # Configuration
-PROJECT_DIR="/home/luk-server/LukBot"
+PROJECT_DIR="/home/luk-server/Nexus"
 PORTAINER_URL="${PORTAINER_URL:-http://localhost:9000}"
 PORTAINER_USERNAME="${PORTAINER_USERNAME:-admin}"
 PORTAINER_PASSWORD="${PORTAINER_PASSWORD:-}"
@@ -141,7 +141,7 @@ main() {
         esac
     done
     
-    print_status "Starting Portainer deployment for LukBot..."
+    print_status "Starting Portainer deployment for Nexus..."
     
     # Check if required environment variables are set
     if [ -z "$PORTAINER_PASSWORD" ]; then

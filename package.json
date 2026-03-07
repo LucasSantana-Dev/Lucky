@@ -79,17 +79,23 @@
         "globals": "^17.2.0",
         "jest": "^30.2.0",
         "prettier": "^3.8.1",
-        "prisma": "^6.19.2",
+        "prisma": "^7.4.2",
         "secretlint": "^11.0.0",
         "ts-jest": "^29.4.6",
         "unfetch": "^5.0.0"
     },
     "dependencies": {
-        "@prisma/client": "^6.19.2"
+        "@prisma/adapter-pg": "^7.4.2",
+        "@prisma/client": "^7.4.2"
     },
     "overrides": {
         "fast-xml-parser": ">=4.5.4",
         "tar": ">=7.5.10",
-        "undici": ">=6.23.0"
+        "undici": ">=6.23.0",
+        "@smithy/config-resolver": ">=4.4.10",
+        "@aws-sdk/client-sso": ">=3.726.0",
+        "@hono/node-server": ">=1.19.10",
+        "hono": ">=4.7.15",
+        "lodash": ">=4.17.22"
     }
 }

@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# LukBot Portainer Webhook Handler
+# Nexus Portainer Webhook Handler
 # This script handles webhook requests from Portainer for automatic deployment
 
 set -e
 
 # Configuration
-PROJECT_DIR="/home/luk-server/LukBot"
-LOG_FILE="/home/luk-server/LukBot/logs/portainer-webhook.log"
+PROJECT_DIR="/home/luk-server/Nexus"
+LOG_FILE="/home/luk-server/Nexus/logs/portainer-webhook.log"
 WEBHOOK_SECRET="${WEBHOOK_SECRET:-}"
 
 # Colors for output
@@ -42,7 +42,7 @@ deploy_via_portainer() {
     
     # Build new image
     log "Building new Docker image..."
-    docker build -t lukbot:latest .
+    docker build -t nexus:latest .
     
     # Stop and remove old container
     log "Stopping old container..."
@@ -59,7 +59,7 @@ deploy_via_portainer() {
         -e CLIENT_ID="${CLIENT_ID}" \
         -v "$PROJECT_DIR/logs:/app/logs" \
         -v "$PROJECT_DIR/data:/app/data" \
-        lukbot:latest
+        nexus:latest
     
     # Wait and check status
     sleep 5

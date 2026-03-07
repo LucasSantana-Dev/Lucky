@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Skills wrapper script for LukBot
+# Skills wrapper script for Nexus
 # Unified entry point for npx skills (management) and Codex CLI (execution).
 
 CODEX_CLI="/Users/lucassantana/.codex/superpowers/.codex/superpowers-codex"

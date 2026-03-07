@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
-# Multi-stage Dockerfile for LukBot services
-# Usage: docker build --target production-bot -t lukbot-bot .
-#        docker build --target production-backend -t lukbot-backend .
-#        docker build --target development --build-arg SERVICE=bot -t lukbot-bot:dev .
+# Multi-stage Dockerfile for Nexus services
+# Usage: docker build --target production-bot -t nexus-bot .
+#        docker build --target production-backend -t nexus-backend .
+#        docker build --target development --build-arg SERVICE=bot -t nexus-bot:dev .
 
 ARG NODE_VERSION=24-alpine
 ARG SERVICE=bot

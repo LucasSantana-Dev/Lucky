@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Database setup script for LukBot
+# Database setup script for Nexus
 # This script sets up PostgreSQL database and runs Prisma migrations
 
 set -e
 
-echo "🗄️  Setting up database for LukBot..."
+echo "🗄️  Setting up database for Nexus..."
 
 # Check if DATABASE_URL is set
 if [ -z "$DATABASE_URL" ]; then
@@ -45,4 +45,4 @@ echo "📊 Database status:"
 npx prisma db status
 
 echo ""
-echo "🎉 LukBot database is ready to use!"
+echo "🎉 Nexus database is ready to use!"

@@ -31,9 +31,9 @@ packages/
 |-------|-----------|
 | Runtime | Node.js 22, TypeScript 5.9 (strict) |
 | Bot | Discord.js 14, Discord Player 7.1, FFmpeg, yt-dlp |
-| Backend | Express 5, Prisma 6, Redis (ioredis) |
+| Backend | Express 5, Prisma 7, Redis (ioredis) |
 | Frontend | React 19, React Router 7, TanStack Query 5, Zustand 5, Tailwind 4 |
-| Testing | Jest 30 (backend, 362 tests), Playwright (E2E) |
+| Testing | Jest 30 (backend, 364 tests), Playwright (E2E) |
 | Build | tsup (bot), tsc (shared/backend), Vite 7 (frontend) |
 | Infra | Docker (postgres + redis + nginx), Cloudflare Tunnel |
 

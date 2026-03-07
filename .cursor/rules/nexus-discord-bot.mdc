@@ -4,7 +4,7 @@ globs: ["packages/bot/**/*.{ts,tsx}"]
 alwaysApply: false
 ---
 
-# LukBot Discord Bot
+# Nexus Discord Bot
 
 ## Command model
 
@@ -23,10 +23,10 @@ alwaysApply: false
 
 - Discord Player is used via `useMainPlayer()` (or equivalent) from `discord-player`. Queue and node options live in player handlers under `packages/bot/src/handlers/player/` and `packages/bot/src/functions/music/`.
 - Track handling, errors, lifecycle: `trackHandlers`, `errorHandlers`, `lifecycleHandlers` in `packages/bot/src/handlers/player/`.
-- Do not duplicate queue or player state outside Discord Player; use shared services (e.g. track history, session) from `@lukbot/shared` when persisting.
+- Do not duplicate queue or player state outside Discord Player; use shared services (e.g. track history, session) from `@nexus/shared` when persisting.
 
 ## Shared usage
 
-- Logging: `errorLog`, `debugLog` from `@lukbot/shared/utils`.
-- Embeds, replies, error sanitization: `@lukbot/shared` utils (embeds, interactionReply, errorSanitizer).
-- DB/Redis: use services from `@lukbot/shared` (DatabaseService, Redis client); do not instantiate Prisma/Redis directly in bot package.
+- Logging: `errorLog`, `debugLog` from `@nexus/shared/utils`.
+- Embeds, replies, error sanitization: `@nexus/shared` utils (embeds, interactionReply, errorSanitizer).
+- DB/Redis: use services from `@nexus/shared` (DatabaseService, Redis client); do not instantiate Prisma/Redis directly in bot package.

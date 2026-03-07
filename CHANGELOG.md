@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Prisma 7 upgrade
+
+- Upgraded Prisma from 6.19.2 to 7.4.2 (both CLI and client)
+- Migrated to `@prisma/adapter-pg` driver adapter for direct TCP connections
+- Updated schema generator: `prisma-client` provider with `engineType = "client"`
+- Removed deprecated `url` from `datasource` block (now in `prisma.config.ts`)
+- Zero npm vulnerabilities (added overrides for @smithy, @hono, lodash)
+
+### Changed - GitHub repo rename
+
+- Renamed GitHub repository from `LukBot` to `Nexus`
+- Updated all remaining `LukBot` references in scripts, Dockerfile, and Cursor rules
+- Renamed `.cursor/rules/lukbot-*.mdc` to `nexus-*.mdc`
+
 ### Added - Backend quality infrastructure
 
 - Zod input validation middleware (`validateBody`, `validateParams`, `validateQuery`)

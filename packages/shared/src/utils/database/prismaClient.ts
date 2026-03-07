@@ -1,5 +1,6 @@
-import { createRequire } from 'module'
+import { PrismaPg } from '@prisma/adapter-pg'
 import type { PrismaClient as PrismaClientType } from '@prisma/client'
+import { createRequire } from 'module'
 
 let _require: NodeRequire
 try {
@@ -22,13 +23,10 @@ export function getPrismaClient(): PrismaClientType {
         if (!databaseUrl) {
             throw new Error('DATABASE_URL environment variable is required')
         }
-        prismaInstance = new PrismaClientConstructor({
-            datasources: {
-                db: {
-                    url: databaseUrl,
-                },
-            },
+        const adapter = new PrismaPg({
+            connectionString: databaseUrl,
         })
+        prismaInstance = new PrismaClientConstructor({ adapter })
     }
     return prismaInstance
 }

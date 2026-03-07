@@ -17,7 +17,7 @@ packages/
 ## Stack
 - Runtime: Node.js 22, TypeScript 5.9 (strict)
 - Bot: Discord.js 14.25, Discord Player 7.1
-- Backend: Express 5.2, Prisma 6.19, Redis (ioredis)
+- Backend: Express 5.2, Prisma 7.4, Redis (ioredis)
 - Frontend: React 19, React Router 7, TanStack Query 5, Zustand 5, Tailwind 4
 - Testing: Jest 30 (backend), Playwright 1.57 (E2E)
 - Build: tsup (bot), tsc (shared/backend), Vite 7 (frontend)
