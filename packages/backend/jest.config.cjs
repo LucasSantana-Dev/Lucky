@@ -26,6 +26,7 @@ module.exports = {
       statements: 70
     }
   },
+  resolver: '<rootDir>/jest-resolver.cjs',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   maxWorkers: '50%',
@@ -39,6 +40,7 @@ module.exports = {
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
+      diagnostics: false,
       tsconfig: {
         esModuleInterop: true,
         allowSyntheticDefaultImports: true

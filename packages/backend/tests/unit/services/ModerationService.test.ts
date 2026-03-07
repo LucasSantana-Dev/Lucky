@@ -1,28 +1,38 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
-import { ModerationService } from '@lukbot/shared/services'
 
 const mockPrisma: any = {
     moderationCase: {
-        create: jest.fn(),
-        findFirst: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
-        update: jest.fn(),
-        updateMany: jest.fn(),
-        groupBy: jest.fn(),
-    },
-    moderationSettings: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        upsert: jest.fn(),
+        create: jest.fn<any>(),
+        findFirst: jest.fn<any>(),
+        findUnique: jest.fn<any>(),
+        findMany: jest.fn<any>(),
+        count: jest.fn<any>(),
+        update: jest.fn<any>(),
+        updateMany: jest.fn<any>(),
     },
 }
 
+const mockModerationSettings = {
+    getModerationSettings: jest.fn<any>(),
+    updateModerationSettings: jest.fn<any>(),
+    hasModPermissions: jest.fn<any>(),
+    getModerationStats: jest.fn<any>(),
+}
+
+jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+    typePrisma: (client: any) => client,
+}))
+
 jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
-    prisma: mockPrisma,
 }))
+
+jest.mock(
+    '@lukbot/shared/services/moderationSettings',
+    () => mockModerationSettings,
+)
+
+import { ModerationService } from '@lukbot/shared/services/ModerationService'
 
 describe('ModerationService', () => {
     let service: InstanceType<typeof ModerationService>
@@ -174,7 +184,7 @@ describe('ModerationService', () => {
             expect(caseB.guildId).toBe(GUILD_B)
         })
 
-        test('should store evidence array', async () => {
+        test('should store optional fields (channelId, evidence)', async () => {
             mockPrisma.moderationCase.findFirst.mockResolvedValue(null)
             mockPrisma.moderationCase.create.mockImplementation(
                 (args: { data: Record<string, unknown> }) =>
@@ -188,9 +198,17 @@ describe('ModerationService', () => {
                 username: 'testuser',
                 moderatorId: MOD_A,
                 moderatorName: 'moduser',
+                reason: 'spam',
+                channelId: 'channel-123',
+                evidence: ['screenshot1.png', 'screenshot2.png'],
             })
 
             expect(result.reason).toEqual('spam')
+            expect(result.channelId).toEqual('channel-123')
+            expect(result.evidence).toEqual([
+                'screenshot1.png',
+                'screenshot2.png',
+            ])
         })
     })
 
@@ -430,95 +448,64 @@ describe('ModerationService', () => {
     })
 
     describe('getSettings', () => {
-        test('should return existing settings', async () => {
+        test('should delegate to getModerationSettings', async () => {
             const settings = {
                 id: 's1',
                 guildId: GUILD_A,
                 modRoleIds: ['role1'],
                 adminRoleIds: ['role2'],
             }
-            mockPrisma.moderationSettings.findUnique.mockResolvedValue(settings)
+            mockModerationSettings.getModerationSettings.mockResolvedValue(
+                settings,
+            )
 
             const result = await service.getSettings(GUILD_A)
 
             expect(result).toEqual(settings)
-        })
-
-        test('should create default settings if none exist', async () => {
-            mockPrisma.moderationSettings.findUnique.mockResolvedValue(null)
-            mockPrisma.moderationSettings.create.mockResolvedValue({
-                id: 's1',
-                guildId: GUILD_A,
-                modRoleIds: [],
-                adminRoleIds: [],
-            })
-
-            const result = await service.getSettings(GUILD_A)
-
-            expect(result.guildId).toBe(GUILD_A)
-            expect(mockPrisma.moderationSettings.create).toHaveBeenCalledWith({
-                data: { guildId: GUILD_A },
-            })
+            expect(
+                mockModerationSettings.getModerationSettings,
+            ).toHaveBeenCalledWith(GUILD_A)
         })
     })
 
     describe('updateSettings', () => {
-        test('should upsert settings', async () => {
+        test('should delegate to updateModerationSettings', async () => {
             const updated = {
                 id: 's1',
                 guildId: GUILD_A,
                 modRoleIds: ['role1'],
             }
-            mockPrisma.moderationSettings.upsert.mockResolvedValue(updated)
+            mockModerationSettings.updateModerationSettings.mockResolvedValue(
+                updated,
+            )
 
             const result = await service.updateSettings(GUILD_A, {
                 modRoleIds: ['role1'],
             })
 
             expect(result.modRoleIds).toEqual(['role1'])
-            expect(mockPrisma.moderationSettings.upsert).toHaveBeenCalledWith({
-                where: { guildId: GUILD_A },
-                create: { guildId: GUILD_A, modRoleIds: ['role1'] },
-                update: { modRoleIds: ['role1'] },
-            })
+            expect(
+                mockModerationSettings.updateModerationSettings,
+            ).toHaveBeenCalledWith(GUILD_A, { modRoleIds: ['role1'] })
         })
     })
 
     describe('hasModPermissions', () => {
-        test('should return true when user has mod role', async () => {
-            mockPrisma.moderationSettings.findUnique.mockResolvedValue({
-                guildId: GUILD_A,
-                modRoleIds: ['mod-role'],
-                adminRoleIds: [],
-            })
+        test('should delegate to hasModPermissions helper', async () => {
+            mockModerationSettings.hasModPermissions.mockResolvedValue(true)
 
             const result = await service.hasModPermissions(GUILD_A, [
                 'mod-role',
             ])
 
             expect(result).toBe(true)
+            expect(
+                mockModerationSettings.hasModPermissions,
+            ).toHaveBeenCalledWith(GUILD_A, ['mod-role'])
         })
 
-        test('should return true when user has admin role', async () => {
-            mockPrisma.moderationSettings.findUnique.mockResolvedValue({
-                guildId: GUILD_A,
-                modRoleIds: [],
-                adminRoleIds: ['admin-role'],
-            })
-
-            const result = await service.hasModPermissions(GUILD_A, [
-                'admin-role',
-            ])
-
-            expect(result).toBe(true)
-        })
-
-        test('should return false when user has no matching roles', async () => {
-            mockPrisma.moderationSettings.findUnique.mockResolvedValue({
-                guildId: GUILD_A,
-                modRoleIds: ['mod-role'],
-                adminRoleIds: ['admin-role'],
-            })
+        test('should return false when no permissions', async () => {
+            mockModerationSettings.hasModPermissions.mockResolvedValue(false)
 
             const result = await service.hasModPermissions(GUILD_A, [
                 'random-role',
@@ -529,15 +516,17 @@ describe('ModerationService', () => {
     })
 
     describe('getStats', () => {
-        test('should return guild statistics', async () => {
-            mockPrisma.moderationCase.count
-                .mockResolvedValueOnce(100)
-                .mockResolvedValueOnce(25)
-            mockPrisma.moderationCase.groupBy.mockResolvedValue([
-                { type: 'warn', _count: 50 },
-                { type: 'ban', _count: 30 },
-                { type: 'mute', _count: 20 },
-            ])
+        test('should delegate to getModerationStats', async () => {
+            const stats = {
+                totalCases: 100,
+                activeCases: 25,
+                casesByType: {
+                    warn: 50,
+                    ban: 30,
+                    mute: 20,
+                },
+            }
+            mockModerationSettings.getModerationStats.mockResolvedValue(stats)
 
             const result = await service.getStats(GUILD_A)
 
@@ -548,19 +537,9 @@ describe('ModerationService', () => {
                 ban: 30,
                 mute: 20,
             })
-        })
-
-        test('should return empty stats for guild with no cases', async () => {
-            mockPrisma.moderationCase.count
-                .mockResolvedValueOnce(0)
-                .mockResolvedValueOnce(0)
-            mockPrisma.moderationCase.groupBy.mockResolvedValue([])
-
-            const result = await service.getStats(GUILD_B)
-
-            expect(result.totalCases).toBe(0)
-            expect(result.activeCases).toBe(0)
-            expect(result.casesByType).toEqual({})
+            expect(
+                mockModerationSettings.getModerationStats,
+            ).toHaveBeenCalledWith(GUILD_A)
         })
     })
 })

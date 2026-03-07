@@ -1,22 +1,23 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
-const mockPrisma = {
+const mockPrisma: any = {
     autoMessage: {
-        create: jest.fn(),
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
+        create: jest.fn<any>(),
+        findMany: jest.fn<any>(),
+        update: jest.fn<any>(),
+        delete: jest.fn<any>(),
     },
 }
 
-jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
-    getPrismaClient: () => mockPrisma,
-    prisma: mockPrisma,
+jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+    typePrisma: (client: any) => client,
 }))
 
-const { AutoMessageService } =
-    await import('@lukbot/shared/services/AutoMessageService')
+jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
+    getPrismaClient: () => mockPrisma,
+}))
+
+import { AutoMessageService } from '@lukbot/shared/services/AutoMessageService'
 
 describe('AutoMessageService', () => {
     let service: InstanceType<typeof AutoMessageService>
@@ -97,7 +98,7 @@ describe('AutoMessageService', () => {
     })
 
     describe('getMessagesByType', () => {
-        test('should return messages filtered by type', async () => {
+        test('should return messages filtered by type and enabled', async () => {
             const messages = [
                 { id: 'msg-1', type: 'welcome', guildId: GUILD_A },
             ]
@@ -107,7 +108,7 @@ describe('AutoMessageService', () => {
 
             expect(result).toHaveLength(1)
             expect(mockPrisma.autoMessage.findMany).toHaveBeenCalledWith({
-                where: { guildId: GUILD_A, type: 'welcome' },
+                where: { guildId: GUILD_A, type: 'welcome', enabled: true },
             })
         })
 
@@ -132,18 +133,18 @@ describe('AutoMessageService', () => {
                 enabled: true,
                 guildId: GUILD_A,
             }
-            mockPrisma.autoMessage.findFirst.mockResolvedValue(msg)
+            mockPrisma.autoMessage.findMany.mockResolvedValue([msg])
 
             const result = await service.getWelcomeMessage(GUILD_A)
 
             expect(result).toEqual(msg)
-            expect(mockPrisma.autoMessage.findFirst).toHaveBeenCalledWith({
+            expect(mockPrisma.autoMessage.findMany).toHaveBeenCalledWith({
                 where: { guildId: GUILD_A, type: 'welcome', enabled: true },
             })
         })
 
         test('should return null when no welcome message exists', async () => {
-            mockPrisma.autoMessage.findFirst.mockResolvedValue(null)
+            mockPrisma.autoMessage.findMany.mockResolvedValue([])
 
             const result = await service.getWelcomeMessage(GUILD_A)
 
@@ -159,11 +160,14 @@ describe('AutoMessageService', () => {
                 enabled: true,
                 guildId: GUILD_A,
             }
-            mockPrisma.autoMessage.findFirst.mockResolvedValue(msg)
+            mockPrisma.autoMessage.findMany.mockResolvedValue([msg])
 
             const result = await service.getLeaveMessage(GUILD_A)
 
             expect(result).toEqual(msg)
+            expect(mockPrisma.autoMessage.findMany).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A, type: 'leave', enabled: true },
+            })
         })
     })
 
@@ -234,9 +238,15 @@ describe('AutoMessageService', () => {
             const result = service.replacePlaceholders(
                 'Welcome {user} to the server!',
                 {
-                    user: 'TestUser',
-                    server: 'TestServer',
-                    memberCount: '100',
+                    user: {
+                        username: 'TestUser',
+                        mention: '<@123>',
+                        id: '123',
+                    },
+                    server: {
+                        name: 'TestServer',
+                        memberCount: 100,
+                    },
                 },
             )
 
@@ -245,24 +255,66 @@ describe('AutoMessageService', () => {
 
         test('should replace multiple placeholders', () => {
             const result = service.replacePlaceholders(
-                '{user} joined {server}! We now have {memberCount} members.',
+                '{user} joined {server}! We now have {server.memberCount} members.',
                 {
-                    user: 'Alice',
-                    server: 'MyGuild',
-                    memberCount: '50',
+                    user: {
+                        username: 'Alice',
+                        mention: '<@456>',
+                        id: '456',
+                    },
+                    server: {
+                        name: 'MyGuild',
+                        memberCount: 50,
+                    },
                 },
             )
 
             expect(result).toBe('Alice joined MyGuild! We now have 50 members.')
         })
 
+        test('should replace user.mention placeholder', () => {
+            const result = service.replacePlaceholders(
+                'Hey {user.mention}, welcome!',
+                {
+                    user: {
+                        username: 'Bob',
+                        mention: '<@789>',
+                        id: '789',
+                    },
+                },
+            )
+
+            expect(result).toBe('Hey <@789>, welcome!')
+        })
+
+        test('should replace guild.name and guild.memberCount', () => {
+            const result = service.replacePlaceholders(
+                'Welcome to {guild.name} with {guild.memberCount} members!',
+                {
+                    guild: {
+                        name: 'TestGuild',
+                        memberCount: 250,
+                    },
+                },
+            )
+
+            expect(result).toBe('Welcome to TestGuild with 250 members!')
+        })
+
         test('should handle missing placeholders gracefully', () => {
             const result = service.replacePlaceholders(
                 'Hello {user}! Welcome to {server}!',
-                { user: 'Bob' },
+                {
+                    user: {
+                        username: 'Bob',
+                        mention: '<@999>',
+                        id: '999',
+                    },
+                },
             )
 
             expect(result).toContain('Bob')
+            expect(result).toContain('{server}')
         })
     })
 
@@ -286,6 +338,13 @@ describe('AutoMessageService', () => {
 
             expect(result).not.toBeNull()
             expect(result?.message).toBe('Check the FAQ!')
+            expect(mockPrisma.autoMessage.findMany).toHaveBeenCalledWith({
+                where: {
+                    guildId: GUILD_A,
+                    type: 'auto_response',
+                    enabled: true,
+                },
+            })
         })
 
         test('should respect exact match setting', async () => {
@@ -306,6 +365,24 @@ describe('AutoMessageService', () => {
             )
 
             expect(result).toBeNull()
+        })
+
+        test('should match exact responder when exactMatch is true', async () => {
+            mockPrisma.autoMessage.findMany.mockResolvedValue([
+                {
+                    id: 'msg-1',
+                    type: 'auto_response',
+                    trigger: 'help',
+                    exactMatch: true,
+                    message: 'Exact match!',
+                    enabled: true,
+                },
+            ])
+
+            const result = await service.findMatchingResponder(GUILD_A, 'help')
+
+            expect(result).not.toBeNull()
+            expect(result?.message).toBe('Exact match!')
         })
     })
 })

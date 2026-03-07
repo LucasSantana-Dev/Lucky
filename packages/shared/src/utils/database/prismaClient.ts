@@ -1,16 +1,23 @@
 import { createRequire } from 'module'
 import type { PrismaClient as PrismaClientType } from '@prisma/client'
 
-const require = createRequire(import.meta.url)
+let _require: NodeRequire
+try {
+    _require = createRequire(import.meta.url)
+} catch {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _require = require
+}
 
 let prismaInstance: PrismaClientType | null = null
 
 export function getPrismaClient(): PrismaClientType {
     if (!prismaInstance) {
-        const { PrismaClient: PrismaClientConstructor } =
-            require('@prisma/client') as {
-                PrismaClient: new (options?: unknown) => PrismaClientType
-            }
+        const { PrismaClient: PrismaClientConstructor } = _require(
+            '@prisma/client',
+        ) as {
+            PrismaClient: new (options?: unknown) => PrismaClientType
+        }
         const databaseUrl = process.env.DATABASE_URL
         if (!databaseUrl) {
             throw new Error('DATABASE_URL environment variable is required')

@@ -70,10 +70,15 @@ jest.mock('uuid', () => ({
 }))
 
 jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
-    prisma: {
+    getPrismaClient: jest.fn(() => ({
         $connect: jest.fn(),
         $disconnect: jest.fn(),
-    },
+    })),
+    disconnectPrisma: jest.fn(),
+}))
+
+jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+    typePrisma: (client: any) => client,
 }))
 
 jest.mock('@lukbot/shared/services', () => ({
@@ -85,6 +90,17 @@ jest.mock('@lukbot/shared/services', () => ({
         del: jest.fn(),
         ping: jest.fn(() => Promise.resolve('PONG')),
     },
+    featureToggleService: {
+        isEnabledGlobal: jest.fn(() => true),
+        isEnabledForGuild: jest.fn(() => true),
+    },
+    moderationService: { createCase: jest.fn(), getCase: jest.fn() },
+    autoModService: { getSettings: jest.fn() },
+    customCommandService: { getCommand: jest.fn() },
+    autoMessageService: { getWelcomeMessage: jest.fn() },
+    serverLogService: { createLog: jest.fn() },
+    embedBuilderService: {},
+    musicControlService: {},
 }))
 
 jest.mock('@lukbot/shared/utils', () => ({

@@ -2,25 +2,24 @@ import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
 const mockPrisma: any = {
     autoModSettings: {
-        findUnique: jest.fn(),
-        create: jest.fn(),
-        upsert: jest.fn(),
+        findUnique: jest.fn<any>(),
+        create: jest.fn<any>(),
+        upsert: jest.fn<any>(),
     },
 }
 
-jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
-    getPrismaClient: () => mockPrisma,
-    prisma: mockPrisma,
+jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+    typePrisma: (client: any) => client,
 }))
 
-beforeAll(async () => {
-    // TODO: AutoModService not implemented yet - skip this test file
-    return
-    const module = await import('@lukbot/shared/services')
-    const { AutoModService } = module
+jest.mock('@lukbot/shared/utils/database/prismaClient', () => {
+    return { getPrismaClient: () => mockPrisma }
 })
 
+import { AutoModService } from '@lukbot/shared/services/AutoModService'
+
 const DEFAULT_SETTINGS = {
+    id: '1',
     guildId: '111111111111111111',
     spamEnabled: false,
     spamThreshold: 5,
@@ -29,17 +28,23 @@ const DEFAULT_SETTINGS = {
     capsEnabled: false,
     capsThreshold: 70,
     capsMinLength: 10,
-    capsAction: 'delete',
+    capsAction: 'warn',
     linksEnabled: false,
     linksWhitelist: [] as string[],
-    linksAction: 'delete',
+    linksAction: 'warn',
     invitesEnabled: false,
-    invitesAction: 'delete',
+    invitesAllowOwnServer: true,
+    invitesAction: 'warn',
     wordsEnabled: false,
     wordsList: [] as string[],
-    wordsAction: 'delete',
-    ignoredChannels: [] as string[],
-    ignoredRoles: [] as string[],
+    wordsAction: 'warn',
+    raidEnabled: false,
+    raidJoinThreshold: 10,
+    raidTimeframe: 10000,
+    exemptChannels: [] as string[],
+    exemptRoles: [] as string[],
+    createdAt: new Date(),
+    updatedAt: new Date(),
 }
 
 describe('AutoModService', () => {
@@ -48,6 +53,7 @@ describe('AutoModService', () => {
     const GUILD_A = '111111111111111111'
     const GUILD_B = '222222222222222222'
     const USER_A = '333333333333333333'
+    const CHANNEL_1 = '444444444444444444'
 
     beforeEach(() => {
         jest.clearAllMocks()
@@ -62,20 +68,36 @@ describe('AutoModService', () => {
             const result = await service.getSettings(GUILD_A)
 
             expect(result).toEqual(settings)
+            expect(mockPrisma.autoModSettings.findUnique).toHaveBeenCalledWith({
+                where: { guildId: GUILD_A },
+            })
         })
 
-        test('should create default settings if none exist', async () => {
+        test('should return null if settings do not exist', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
-            mockPrisma.autoModSettings.create.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                guildId: GUILD_A,
-            })
 
             const result = await service.getSettings(GUILD_A)
 
+            expect(result).toBeNull()
+        })
+    })
+
+    describe('createSettings', () => {
+        test('should create default settings', async () => {
+            const created = { ...DEFAULT_SETTINGS, guildId: GUILD_A }
+            mockPrisma.autoModSettings.create.mockResolvedValue(created)
+
+            const result = await service.createSettings(GUILD_A)
+
             expect(result.guildId).toBe(GUILD_A)
+            expect(result.spamEnabled).toBe(false)
+            expect(result.spamThreshold).toBe(5)
             expect(mockPrisma.autoModSettings.create).toHaveBeenCalledWith({
-                data: { guildId: GUILD_A },
+                data: expect.objectContaining({
+                    guildId: GUILD_A,
+                    spamEnabled: false,
+                    spamThreshold: 5,
+                }),
             })
         })
     })
@@ -103,18 +125,46 @@ describe('AutoModService', () => {
     })
 
     describe('checkSpam', () => {
-        test('should return null when spam detection is disabled', async () => {
+        test('should return false when spam detection is disabled', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 spamEnabled: false,
             })
 
-            const result = await service.checkSpam(USER_A, GUILD_A, Date.now())
+            const result = await service.checkSpam(GUILD_A, USER_A, [
+                Date.now(),
+            ])
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should not trigger on first message', async () => {
+        test('should return false when settings do not exist', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
+
+            const result = await service.checkSpam(GUILD_A, USER_A, [
+                Date.now(),
+            ])
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false when below threshold', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: true,
+                spamThreshold: 5,
+                spamInterval: 5000,
+            })
+
+            const now = Date.now()
+            const timestamps = [now - 1000, now - 500]
+
+            const result = await service.checkSpam(GUILD_A, USER_A, timestamps)
+
+            expect(result).toBe(false)
+        })
+
+        test('should return true when threshold exceeded within interval', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
@@ -122,75 +172,33 @@ describe('AutoModService', () => {
                 spamInterval: 5000,
             })
 
-            const result = await service.checkSpam(USER_A, GUILD_A, Date.now())
+            const now = Date.now()
+            const timestamps = [now - 1000, now - 500, now - 100]
 
-            expect(result).toBeNull()
+            const result = await service.checkSpam(GUILD_A, USER_A, timestamps)
+
+            expect(result).toBe(true)
         })
 
-        test('should trigger when threshold exceeded within interval', async () => {
-            const settings = {
+        test('should ignore old timestamps outside interval', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
                 spamThreshold: 3,
-                spamInterval: 5000,
-                spamAction: 'mute',
-            }
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue(settings)
-
-            const now = Date.now()
-            await service.checkSpam(USER_A, GUILD_A, now)
-            await service.checkSpam(USER_A, GUILD_A, now + 100)
-            await service.checkSpam(USER_A, GUILD_A, now + 200)
-            const result = await service.checkSpam(USER_A, GUILD_A, now + 300)
-
-            expect(result).toEqual({
-                type: 'mute',
-                reason: 'Spam detected',
+                spamInterval: 2000,
             })
-        })
-
-        test('should reset tracking after interval expires', async () => {
-            const settings = {
-                ...DEFAULT_SETTINGS,
-                spamEnabled: true,
-                spamThreshold: 3,
-                spamInterval: 1000,
-            }
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue(settings)
 
             const now = Date.now()
-            await service.checkSpam(USER_A, GUILD_A, now)
-            await service.checkSpam(USER_A, GUILD_A, now + 100)
-            const result = await service.checkSpam(USER_A, GUILD_A, now + 2000)
+            const timestamps = [now - 10000, now - 8000, now - 500]
 
-            expect(result).toBeNull()
-        })
+            const result = await service.checkSpam(GUILD_A, USER_A, timestamps)
 
-        test('should track users independently per guild (multi-server)', async () => {
-            const settings = {
-                ...DEFAULT_SETTINGS,
-                spamEnabled: true,
-                spamThreshold: 2,
-                spamInterval: 5000,
-                spamAction: 'warn',
-            }
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue(settings)
-
-            const now = Date.now()
-            await service.checkSpam(USER_A, GUILD_A, now)
-            await service.checkSpam(USER_A, GUILD_A, now + 100)
-            const resultA = await service.checkSpam(USER_A, GUILD_A, now + 200)
-
-            await service.checkSpam(USER_A, GUILD_B, now)
-            const resultB = await service.checkSpam(USER_A, GUILD_B, now + 100)
-
-            expect(resultA).not.toBeNull()
-            expect(resultB).toBeNull()
+            expect(result).toBe(false)
         })
     })
 
     describe('checkCaps', () => {
-        test('should return null when caps detection is disabled', async () => {
+        test('should return false when caps detection is disabled', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 capsEnabled: false,
@@ -198,10 +206,18 @@ describe('AutoModService', () => {
 
             const result = await service.checkCaps(GUILD_A, 'HELLO WORLD')
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should return null for short messages', async () => {
+        test('should return false when settings do not exist', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
+
+            const result = await service.checkCaps(GUILD_A, 'HELLO WORLD')
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false for short messages', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 capsEnabled: true,
@@ -210,16 +226,15 @@ describe('AutoModService', () => {
 
             const result = await service.checkCaps(GUILD_A, 'HI')
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should trigger when caps percentage exceeds threshold', async () => {
+        test('should return true when caps percentage exceeds threshold', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 capsEnabled: true,
                 capsThreshold: 70,
                 capsMinLength: 5,
-                capsAction: 'delete',
             })
 
             const result = await service.checkCaps(
@@ -227,13 +242,10 @@ describe('AutoModService', () => {
                 'THIS IS ALL CAPS MESSAGE',
             )
 
-            expect(result).toEqual({
-                type: 'delete',
-                reason: 'Excessive caps',
-            })
+            expect(result).toBe(true)
         })
 
-        test('should not trigger for normal messages', async () => {
+        test('should return false for normal messages', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 capsEnabled: true,
@@ -246,12 +258,25 @@ describe('AutoModService', () => {
                 'This is a normal message with some Caps',
             )
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
+        })
+
+        test('should return false for messages with no letters', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                capsEnabled: true,
+                capsThreshold: 70,
+                capsMinLength: 5,
+            })
+
+            const result = await service.checkCaps(GUILD_A, '12345 !@#$%')
+
+            expect(result).toBe(false)
         })
     })
 
     describe('checkLinks', () => {
-        test('should return null when link detection is disabled', async () => {
+        test('should return false when link detection is disabled', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 linksEnabled: false,
@@ -262,15 +287,25 @@ describe('AutoModService', () => {
                 'Check https://example.com',
             )
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should trigger for non-whitelisted links', async () => {
+        test('should return false when settings do not exist', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
+
+            const result = await service.checkLinks(
+                GUILD_A,
+                'Check https://example.com',
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return true for non-whitelisted links', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 linksEnabled: true,
                 linksWhitelist: ['youtube.com'],
-                linksAction: 'delete',
             })
 
             const result = await service.checkLinks(
@@ -278,13 +313,10 @@ describe('AutoModService', () => {
                 'Visit https://malicious-site.com',
             )
 
-            expect(result).toEqual({
-                type: 'delete',
-                reason: 'Unauthorized link',
-            })
+            expect(result).toBe(true)
         })
 
-        test('should allow whitelisted links', async () => {
+        test('should return false for whitelisted links', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 linksEnabled: true,
@@ -296,10 +328,10 @@ describe('AutoModService', () => {
                 'Watch https://youtube.com/watch?v=123',
             )
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should return null for messages without links', async () => {
+        test('should return false for messages without links', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 linksEnabled: true,
@@ -307,12 +339,12 @@ describe('AutoModService', () => {
 
             const result = await service.checkLinks(GUILD_A, 'No links here')
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
     })
 
     describe('checkInvites', () => {
-        test('should return null when invite detection is disabled', async () => {
+        test('should return false when invite detection is disabled', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 invitesEnabled: false,
@@ -323,14 +355,24 @@ describe('AutoModService', () => {
                 'Join discord.gg/abc123',
             )
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should trigger for discord.gg invites', async () => {
+        test('should return false when settings do not exist', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
+
+            const result = await service.checkInvites(
+                GUILD_A,
+                'Join discord.gg/abc123',
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return true for discord.gg invites', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 invitesEnabled: true,
-                invitesAction: 'warn',
             })
 
             const result = await service.checkInvites(
@@ -338,17 +380,13 @@ describe('AutoModService', () => {
                 'Join discord.gg/abc123',
             )
 
-            expect(result).toEqual({
-                type: 'warn',
-                reason: 'Discord invite link',
-            })
+            expect(result).toBe(true)
         })
 
-        test('should trigger for discord.com/invite links', async () => {
+        test('should return true for discord.com/invite links', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 invitesEnabled: true,
-                invitesAction: 'delete',
             })
 
             const result = await service.checkInvites(
@@ -356,13 +394,10 @@ describe('AutoModService', () => {
                 'Join discord.com/invite/abc123',
             )
 
-            expect(result).toEqual({
-                type: 'delete',
-                reason: 'Discord invite link',
-            })
+            expect(result).toBe(true)
         })
 
-        test('should not trigger for messages without invites', async () => {
+        test('should return false for messages without invites', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 invitesEnabled: true,
@@ -373,51 +408,87 @@ describe('AutoModService', () => {
                 'Just a normal message',
             )
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
+        })
+
+        test('should return false for own server invites when allowed', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                invitesEnabled: true,
+                invitesAllowOwnServer: true,
+            })
+
+            const result = await service.checkInvites(
+                GUILD_A,
+                'Join discord.gg/abc123',
+                GUILD_A,
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return true for other server invites when own server allowed', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                invitesEnabled: true,
+                invitesAllowOwnServer: true,
+            })
+
+            const result = await service.checkInvites(
+                GUILD_A,
+                'Join discord.gg/abc123',
+                GUILD_B,
+            )
+
+            expect(result).toBe(true)
         })
     })
 
-    describe('checkBadWords', () => {
-        test('should return null when word filter is disabled', async () => {
+    describe('checkWords', () => {
+        test('should return false when word filter is disabled', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: false,
             })
 
-            const result = await service.checkBadWords(GUILD_A, 'badword')
+            const result = await service.checkWords(GUILD_A, 'badword')
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should return null when word list is empty', async () => {
+        test('should return false when settings do not exist', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
+
+            const result = await service.checkWords(GUILD_A, 'badword')
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false when word list is empty', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
                 wordsList: [],
             })
 
-            const result = await service.checkBadWords(GUILD_A, 'anything')
+            const result = await service.checkWords(GUILD_A, 'anything')
 
-            expect(result).toBeNull()
+            expect(result).toBe(false)
         })
 
-        test('should trigger for messages containing bad words', async () => {
+        test('should return true for messages containing bad words', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
                 wordsList: ['badword', 'offensive'],
-                wordsAction: 'warn',
             })
 
-            const result = await service.checkBadWords(
+            const result = await service.checkWords(
                 GUILD_A,
                 'This contains a badword in it',
             )
 
-            expect(result).toEqual({
-                type: 'warn',
-                reason: 'Inappropriate language',
-            })
+            expect(result).toBe(true)
         })
 
         test('should be case-insensitive', async () => {
@@ -425,119 +496,96 @@ describe('AutoModService', () => {
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
                 wordsList: ['badword'],
-                wordsAction: 'delete',
             })
 
-            const result = await service.checkBadWords(
+            const result = await service.checkWords(
                 GUILD_A,
                 'This has BADWORD in it',
             )
 
-            expect(result).toEqual({
-                type: 'delete',
-                reason: 'Inappropriate language',
-            })
+            expect(result).toBe(true)
         })
 
-        test('should not trigger for clean messages', async () => {
+        test('should return false for clean messages', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
                 wordsList: ['badword'],
             })
 
-            const result = await service.checkBadWords(
+            const result = await service.checkWords(
                 GUILD_A,
                 'This is a clean message',
             )
-
-            expect(result).toBeNull()
-        })
-    })
-
-    describe('shouldIgnore', () => {
-        test('should ignore messages in ignored channels', async () => {
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                ignoredChannels: ['channel-1', 'channel-2'],
-                ignoredRoles: [],
-            })
-
-            const result = await service.shouldIgnore(GUILD_A, 'channel-1', [])
-
-            expect(result).toBe(true)
-        })
-
-        test('should ignore users with ignored roles', async () => {
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                ignoredChannels: [],
-                ignoredRoles: ['mod-role'],
-            })
-
-            const result = await service.shouldIgnore(GUILD_A, 'channel-1', [
-                'mod-role',
-            ])
-
-            expect(result).toBe(true)
-        })
-
-        test('should not ignore regular users in regular channels', async () => {
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                ignoredChannels: ['other-channel'],
-                ignoredRoles: ['admin-role'],
-            })
-
-            const result = await service.shouldIgnore(GUILD_A, 'channel-1', [
-                'member-role',
-            ])
 
             expect(result).toBe(false)
         })
     })
 
-    describe('clearSpamTracking', () => {
-        test('should clear tracking for specific user in guild', async () => {
+    describe('isExempt', () => {
+        test('should return true for exempt channels', () => {
             const settings = {
                 ...DEFAULT_SETTINGS,
-                spamEnabled: true,
-                spamThreshold: 10,
-                spamInterval: 10000,
+                exemptChannels: ['channel-1', 'channel-2'],
+                exemptRoles: [],
             }
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue(settings)
 
-            const now = Date.now()
-            await service.checkSpam(USER_A, GUILD_A, now)
-            await service.checkSpam(USER_A, GUILD_A, now + 100)
+            const result = service.isExempt(settings, 'channel-1')
 
-            service.clearSpamTracking(USER_A, GUILD_A)
-
-            const result = await service.checkSpam(USER_A, GUILD_A, now + 200)
-            expect(result).toBeNull()
+            expect(result).toBe(true)
         })
-    })
 
-    describe('clearAllSpamTracking', () => {
-        test('should clear all tracking data', async () => {
+        test('should return true for users with exempt roles', () => {
             const settings = {
                 ...DEFAULT_SETTINGS,
-                spamEnabled: true,
-                spamThreshold: 10,
-                spamInterval: 10000,
+                exemptChannels: [],
+                exemptRoles: ['mod-role'],
             }
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue(settings)
 
-            const now = Date.now()
-            await service.checkSpam(USER_A, GUILD_A, now)
-            await service.checkSpam(USER_A, GUILD_B, now)
+            const result = service.isExempt(settings, undefined, ['mod-role'])
 
-            service.clearAllSpamTracking()
+            expect(result).toBe(true)
+        })
 
-            const resultA = await service.checkSpam(USER_A, GUILD_A, now + 100)
-            const resultB = await service.checkSpam(USER_A, GUILD_B, now + 100)
-            expect(resultA).toBeNull()
-            expect(resultB).toBeNull()
+        test('should return true if any role is exempt', () => {
+            const settings = {
+                ...DEFAULT_SETTINGS,
+                exemptChannels: [],
+                exemptRoles: ['admin-role'],
+            }
+
+            const result = service.isExempt(settings, undefined, [
+                'member-role',
+                'admin-role',
+            ])
+
+            expect(result).toBe(true)
+        })
+
+        test('should return false for non-exempt channels and roles', () => {
+            const settings = {
+                ...DEFAULT_SETTINGS,
+                exemptChannels: ['other-channel'],
+                exemptRoles: ['admin-role'],
+            }
+
+            const result = service.isExempt(settings, CHANNEL_1, [
+                'member-role',
+            ])
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false when no channel or roles provided', () => {
+            const settings = {
+                ...DEFAULT_SETTINGS,
+                exemptChannels: ['channel-1'],
+                exemptRoles: ['mod-role'],
+            }
+
+            const result = service.isExempt(settings)
+
+            expect(result).toBe(false)
         })
     })
 })

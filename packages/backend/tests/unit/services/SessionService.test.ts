@@ -1,46 +1,51 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
-import { sessionService } from '../../../src/services/SessionService'
-import { redisClient } from '@lukbot/shared/services/redis/redisClient'
 import {
     MOCK_SESSION_DATA,
     MOCK_SESSION_ID,
     MOCK_EXPIRED_SESSION_DATA,
 } from '../../fixtures/mock-data'
 
-jest.mock('@lukbot/shared/services/redis/redisClient', () => ({
-    redisClient: {
-        isHealthy: jest.fn(() => true),
-        get: jest.fn(),
-        set: jest.fn(),
-        setex: jest.fn(),
-        del: jest.fn(),
-    },
+const mockRedisClient = {
+    isHealthy: jest.fn<any>(() => true),
+    get: jest.fn<any>(),
+    set: jest.fn<any>(),
+    setex: jest.fn<any>(),
+    del: jest.fn<any>(),
+}
+
+jest.mock('@lukbot/shared/services', () => ({
+    redisClient: mockRedisClient,
 }))
+
+jest.mock('@lukbot/shared/utils', () => ({
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+}))
+
+import { sessionService } from '../../../src/services/SessionService'
 
 describe('SessionService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        ;(
-            redisClient as jest.Mocked<typeof redisClient>
-        ).isHealthy.mockReturnValue(true)
+        mockRedisClient.isHealthy.mockReturnValue(true)
     })
 
     describe('getSession', () => {
         test('should retrieve session successfully', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.get.mockResolvedValue(JSON.stringify(MOCK_SESSION_DATA))
+            mockRedisClient.get.mockResolvedValue(
+                JSON.stringify(MOCK_SESSION_DATA),
+            )
 
             const result = await sessionService.getSession(MOCK_SESSION_ID)
 
             expect(result).toEqual(MOCK_SESSION_DATA)
-            expect(mockRedis.get).toHaveBeenCalledWith(
+            expect(mockRedisClient.get).toHaveBeenCalledWith(
                 `webapp:session:${MOCK_SESSION_ID}`,
             )
         })
 
         test('should return null when session not found', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.get.mockResolvedValue(null)
+            mockRedisClient.get.mockResolvedValue(null)
 
             const result = await sessionService.getSession(MOCK_SESSION_ID)
 
@@ -48,33 +53,30 @@ describe('SessionService', () => {
         })
 
         test('should return null and delete when session expired', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.get.mockResolvedValue(
+            mockRedisClient.get.mockResolvedValue(
                 JSON.stringify(MOCK_EXPIRED_SESSION_DATA),
             )
-            mockRedis.del.mockResolvedValue(true)
+            mockRedisClient.del.mockResolvedValue(true)
 
             const result = await sessionService.getSession(MOCK_SESSION_ID)
 
             expect(result).toBeNull()
-            expect(mockRedis.del).toHaveBeenCalledWith(
+            expect(mockRedisClient.del).toHaveBeenCalledWith(
                 `webapp:session:${MOCK_SESSION_ID}`,
             )
         })
 
         test('should return null when Redis is unavailable', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.isHealthy.mockReturnValue(false)
+            mockRedisClient.isHealthy.mockReturnValue(false)
 
             const result = await sessionService.getSession(MOCK_SESSION_ID)
 
             expect(result).toBeNull()
-            expect(mockRedis.get).not.toHaveBeenCalled()
+            expect(mockRedisClient.get).not.toHaveBeenCalled()
         })
 
         test('should return null on JSON parse error', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.get.mockResolvedValue('invalid json')
+            mockRedisClient.get.mockResolvedValue('invalid json')
 
             const result = await sessionService.getSession(MOCK_SESSION_ID)
 
@@ -84,12 +86,11 @@ describe('SessionService', () => {
 
     describe('setSession', () => {
         test('should store session successfully', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.setex.mockResolvedValue(true)
+            mockRedisClient.setex.mockResolvedValue(true)
 
             await sessionService.setSession(MOCK_SESSION_ID, MOCK_SESSION_DATA)
 
-            expect(mockRedis.setex).toHaveBeenCalledWith(
+            expect(mockRedisClient.setex).toHaveBeenCalledWith(
                 `webapp:session:${MOCK_SESSION_ID}`,
                 7 * 24 * 60 * 60,
                 JSON.stringify(MOCK_SESSION_DATA),
@@ -97,17 +98,15 @@ describe('SessionService', () => {
         })
 
         test('should not store when Redis is unavailable', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.isHealthy.mockReturnValue(false)
+            mockRedisClient.isHealthy.mockReturnValue(false)
 
             await sessionService.setSession(MOCK_SESSION_ID, MOCK_SESSION_DATA)
 
-            expect(mockRedis.setex).not.toHaveBeenCalled()
+            expect(mockRedisClient.setex).not.toHaveBeenCalled()
         })
 
         test('should throw error on Redis failure', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.setex.mockRejectedValue(new Error('Redis error'))
+            mockRedisClient.setex.mockRejectedValue(new Error('Redis error'))
 
             await expect(
                 sessionService.setSession(MOCK_SESSION_ID, MOCK_SESSION_DATA),
@@ -117,51 +116,48 @@ describe('SessionService', () => {
 
     describe('deleteSession', () => {
         test('should delete session successfully', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.del.mockResolvedValue(true)
+            mockRedisClient.del.mockResolvedValue(true)
 
             await sessionService.deleteSession(MOCK_SESSION_ID)
 
-            expect(mockRedis.del).toHaveBeenCalledWith(
+            expect(mockRedisClient.del).toHaveBeenCalledWith(
                 `webapp:session:${MOCK_SESSION_ID}`,
             )
         })
 
         test('should not delete when Redis is unavailable', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.isHealthy.mockReturnValue(false)
+            mockRedisClient.isHealthy.mockReturnValue(false)
 
             await sessionService.deleteSession(MOCK_SESSION_ID)
 
-            expect(mockRedis.del).not.toHaveBeenCalled()
+            expect(mockRedisClient.del).not.toHaveBeenCalled()
         })
 
         test('should handle delete errors gracefully', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.del.mockRejectedValue(new Error('Redis error'))
+            mockRedisClient.del.mockRejectedValue(new Error('Redis error'))
 
             await sessionService.deleteSession(MOCK_SESSION_ID)
 
-            expect(mockRedis.del).toHaveBeenCalled()
+            expect(mockRedisClient.del).toHaveBeenCalled()
         })
     })
 
     describe('updateSession', () => {
         test('should update session successfully', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.get.mockResolvedValue(JSON.stringify(MOCK_SESSION_DATA))
-            mockRedis.setex.mockResolvedValue(true)
+            mockRedisClient.get.mockResolvedValue(
+                JSON.stringify(MOCK_SESSION_DATA),
+            )
+            mockRedisClient.setex.mockResolvedValue(true)
 
             const updates = { accessToken: 'new_token' }
             await sessionService.updateSession(MOCK_SESSION_ID, updates)
 
-            expect(mockRedis.get).toHaveBeenCalled()
-            expect(mockRedis.setex).toHaveBeenCalled()
+            expect(mockRedisClient.get).toHaveBeenCalled()
+            expect(mockRedisClient.setex).toHaveBeenCalled()
         })
 
         test('should throw error when session not found', async () => {
-            const mockRedis = redisClient as jest.Mocked<typeof redisClient>
-            mockRedis.get.mockResolvedValue(null)
+            mockRedisClient.get.mockResolvedValue(null)
 
             await expect(
                 sessionService.updateSession(MOCK_SESSION_ID, {}),

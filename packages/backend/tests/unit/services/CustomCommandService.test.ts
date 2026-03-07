@@ -2,29 +2,25 @@ import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
 const mockPrisma: any = {
     customCommand: {
-        create: jest.fn(),
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
-        count: jest.fn(),
-        groupBy: jest.fn(),
+        create: jest.fn<any>(),
+        findUnique: jest.fn<any>(),
+        findMany: jest.fn<any>(),
+        update: jest.fn<any>(),
+        delete: jest.fn<any>(),
+        count: jest.fn<any>(),
+        groupBy: jest.fn<any>(),
     },
 }
 
-jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
-    getPrismaClient: () => mockPrisma,
-    prisma: mockPrisma,
+jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+    typePrisma: (client: any) => client,
 }))
 
-beforeAll(async () => {
-    const module = await import('@lukbot/shared/services')
-    const { CustomCommandService } = module
-    jest.unstable_mockModule(
-        '@lukbot/shared/services/CustomCommandService',
-        () => CustomCommandService,
-    )
+jest.mock('@lukbot/shared/utils/database/prismaClient', () => {
+    return { getPrismaClient: () => mockPrisma }
 })
+
+import { CustomCommandService } from '@lukbot/shared/services/CustomCommandService'
 
 describe('CustomCommandService', () => {
     let service: InstanceType<typeof CustomCommandService>
@@ -99,28 +95,35 @@ describe('CustomCommandService', () => {
                 guildId: GUILD_A,
                 name: 'hello',
                 response: 'Hi!',
+                embedData: null,
             }
-            mockPrisma.customCommand.findFirst.mockResolvedValue(cmd)
+            mockPrisma.customCommand.findUnique.mockResolvedValue(cmd)
 
             const result = await service.getCommand(GUILD_A, 'hello')
 
             expect(result).toEqual(cmd)
-            expect(mockPrisma.customCommand.findFirst).toHaveBeenCalledWith({
-                where: { guildId: GUILD_A, name: 'hello' },
+            expect(mockPrisma.customCommand.findUnique).toHaveBeenCalledWith({
+                where: {
+                    guildId_name: { guildId: GUILD_A, name: 'hello' },
+                },
             })
         })
 
         test('should return null for non-existent command', async () => {
-            mockPrisma.customCommand.findFirst.mockResolvedValue(null)
+            mockPrisma.customCommand.findUnique.mockResolvedValue(null)
 
             const result = await service.getCommand(GUILD_A, 'nonexistent')
 
             expect(result).toBeNull()
         })
 
-        test('should isolate commands per guild (multi-server)', async () => {
-            mockPrisma.customCommand.findFirst
-                .mockResolvedValueOnce({ name: 'hello', guildId: GUILD_A })
+        test('should isolate commands per guild', async () => {
+            mockPrisma.customCommand.findUnique
+                .mockResolvedValueOnce({
+                    name: 'hello',
+                    guildId: GUILD_A,
+                    embedData: null,
+                })
                 .mockResolvedValueOnce(null)
 
             const resultA = await service.getCommand(GUILD_A, 'hello')
@@ -144,7 +147,7 @@ describe('CustomCommandService', () => {
             expect(result).toHaveLength(2)
             expect(mockPrisma.customCommand.findMany).toHaveBeenCalledWith({
                 where: { guildId: GUILD_A },
-                orderBy: { name: 'asc' },
+                orderBy: { useCount: 'desc' },
             })
         })
 
@@ -159,11 +162,6 @@ describe('CustomCommandService', () => {
 
     describe('updateCommand', () => {
         test('should update command by guild and name', async () => {
-            mockPrisma.customCommand.findFirst.mockResolvedValue({
-                id: 'cmd-1',
-                guildId: GUILD_A,
-                name: 'hello',
-            })
             mockPrisma.customCommand.update.mockResolvedValue({
                 id: 'cmd-1',
                 name: 'hello',
@@ -175,33 +173,33 @@ describe('CustomCommandService', () => {
             })
 
             expect(result.response).toBe('Updated response')
+            expect(mockPrisma.customCommand.update).toHaveBeenCalledWith({
+                where: {
+                    guildId_name: { guildId: GUILD_A, name: 'hello' },
+                },
+                data: { response: 'Updated response' },
+            })
         })
     })
 
     describe('deleteCommand', () => {
         test('should delete command by guild and name', async () => {
-            mockPrisma.customCommand.findFirst.mockResolvedValue({
-                id: 'cmd-1',
-                guildId: GUILD_A,
-                name: 'hello',
-            })
             mockPrisma.customCommand.delete.mockResolvedValue({
                 id: 'cmd-1',
             })
 
             await service.deleteCommand(GUILD_A, 'hello')
 
-            expect(mockPrisma.customCommand.delete).toHaveBeenCalled()
+            expect(mockPrisma.customCommand.delete).toHaveBeenCalledWith({
+                where: {
+                    guildId_name: { guildId: GUILD_A, name: 'hello' },
+                },
+            })
         })
     })
 
     describe('incrementUsage', () => {
         test('should increment use count and update lastUsed', async () => {
-            mockPrisma.customCommand.findFirst.mockResolvedValue({
-                id: 'cmd-1',
-                guildId: GUILD_A,
-                name: 'hello',
-            })
             mockPrisma.customCommand.update.mockResolvedValue({
                 id: 'cmd-1',
                 useCount: 5,
@@ -211,6 +209,12 @@ describe('CustomCommandService', () => {
 
             expect(mockPrisma.customCommand.update).toHaveBeenCalledWith(
                 expect.objectContaining({
+                    where: {
+                        guildId_name: {
+                            guildId: GUILD_A,
+                            name: 'hello',
+                        },
+                    },
                     data: expect.objectContaining({
                         useCount: { increment: 1 },
                     }),
@@ -221,14 +225,19 @@ describe('CustomCommandService', () => {
 
     describe('getStats', () => {
         test('should return command statistics for a guild', async () => {
-            mockPrisma.customCommand.count.mockResolvedValue(10)
             mockPrisma.customCommand.findMany.mockResolvedValue([
-                { name: 'popular', useCount: 100 },
+                {
+                    name: 'popular',
+                    useCount: 100,
+                    createdAt: new Date(),
+                },
             ])
 
             const result = await service.getStats(GUILD_A)
 
             expect(result).toBeDefined()
+            expect(result.totalCommands).toBe(1)
+            expect(result.totalUses).toBe(100)
         })
     })
 })
