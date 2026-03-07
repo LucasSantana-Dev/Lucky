@@ -15,7 +15,7 @@ let prismaInstance: PrismaClientType | null = null
 export function getPrismaClient(): PrismaClientType {
     if (!prismaInstance) {
         const { PrismaClient: PrismaClientConstructor } = _require(
-            '@prisma/client',
+            '../../generated/prisma/client.js',
         ) as {
             PrismaClient: new (options?: unknown) => PrismaClientType
         }

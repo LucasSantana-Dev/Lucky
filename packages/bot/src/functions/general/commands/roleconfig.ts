@@ -9,7 +9,7 @@ import {
     handleSetExclusive,
     handleRemoveExclusive,
     handleListExclusive,
-} from './roleconfigHandlers'
+} from '../handlers/roleconfigHandlers'
 
 export default new Command({
     data: new SlashCommandBuilder()

@@ -5,7 +5,11 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { errorEmbed } from '../../../utils/general/embeds'
 import { errorLog } from '@nexus/shared/utils'
-import { handleCreate, handleDelete, handleList } from './reactionroleHandlers'
+import {
+    handleCreate,
+    handleDelete,
+    handleList,
+} from '../handlers/reactionroleHandlers'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -37,7 +41,7 @@ export default new Command({
                     o
                         .setName('roles')
                         .setDescription(
-                            'Roles in format: roleId:label:emoji:style (comma-separated). Style: Primary, Secondary, Success, Danger',
+                            'roleId:label:emoji:style, comma-separated',
                         )
                         .setRequired(true),
                 ),
