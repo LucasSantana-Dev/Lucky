@@ -57,6 +57,7 @@ packages/shared/src/generated/
 
 # Backup and test artifacts
 src/webapp/frontend.backup/
+packages/backend/src/public/
 
 # Test coverage
 coverage/
