@@ -152,4 +152,10 @@ describe('AppError', () => {
         const err = AppError.unauthorized()
         expect(err.message).toBe('Not authenticated')
     })
+
+    test('should default forbidden message', () => {
+        const err = AppError.forbidden()
+        expect(err.statusCode).toBe(403)
+        expect(err.message).toBe('Forbidden')
+    })
 })

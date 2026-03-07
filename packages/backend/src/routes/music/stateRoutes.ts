@@ -1,6 +1,6 @@
 import type { Express, Response } from 'express'
-import { errorLog } from '@lukbot/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
+import { asyncHandler } from '../../middleware/asyncHandler'
 import { musicControlService, type QueueState } from '@lukbot/shared/services'
 import { param, sseClients } from './helpers'
 
@@ -43,16 +43,11 @@ export function setupStateRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/music/state',
         requireAuth,
-        async (req: AuthenticatedRequest, res: Response) => {
-            try {
-                const guildId = param(req.params.guildId)
-                const state = await musicControlService.getState(guildId)
-                res.json(state ?? emptyState(guildId))
-            } catch (error) {
-                errorLog({ message: 'Error fetching music state:', error })
-                res.status(500).json({ error: 'Failed to fetch music state' })
-            }
-        },
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = param(req.params.guildId)
+            const state = await musicControlService.getState(guildId)
+            res.json(state ?? emptyState(guildId))
+        }),
     )
 }
 

@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Aligned `logsApi` with backend routes (getRecent, getByType, search, getUserLogs)
 - Axios interceptor now creates typed `ApiError` instead of generic `Error`
 - Refactored 8 route files removing ~50 try/catch blocks (net -119 lines)
+- Converted 15 music route try/catch blocks to `asyncHandler` + `AppError`
+  (playbackRoutes 9, queueRoutes 5, stateRoutes 1)
+
+### Added - Test coverage improvements
+
+- `LastFmAuthService` unit tests (11 tests, 0% -> 100% coverage)
+- `AppError.forbidden()` default message branch test
+- Coverage: statements 96%, branches 84%, functions 100%, lines 96%
+  (362 tests across 24 suites)
 
 ### Removed
 
