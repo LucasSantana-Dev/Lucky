@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-03-07
+
+### Fixed - AutoMod schema alignment
+
+- Aligned AutoMod code across all 4 packages with actual Prisma schema
+- Removed fields that never existed in DB: all `*Action` fields, `capsMinLength`, `raidEnabled`, `raidJoinThreshold`, `raidTimeframe`, `invitesAllowOwnServer`
+- Renamed: `spamInterval` → `spamTimeWindow`, `linksWhitelist` → `allowedDomains`, `wordsList` → `bannedWords`
+- Removed `ActionSelect` component and Raid Protection card from frontend
+- Removed Prisma `$on` event handlers (removed in Prisma 7)
+
 ### Changed - Prisma 7 upgrade
 
 - Upgraded Prisma from 6.19.2 to 7.4.2 (both CLI and client)

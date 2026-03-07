@@ -33,7 +33,7 @@ packages/
 | Bot | Discord.js 14, Discord Player 7.1, FFmpeg, yt-dlp |
 | Backend | Express 5, Prisma 7, Redis (ioredis) |
 | Frontend | React 19, React Router 7, TanStack Query 5, Zustand 5, Tailwind 4 |
-| Testing | Jest 30 (backend, 364 tests), Playwright (E2E) |
+| Testing | Jest 30 (backend, 361 tests), Vitest (frontend, 60 tests), Playwright (E2E) |
 | Build | tsup (bot), tsc (shared/backend), Vite 7 (frontend) |
 | Infra | Docker (postgres + redis + nginx), Cloudflare Tunnel |
 
@@ -64,7 +64,7 @@ packages/
 - Rate limiting (API 100/min, auth 20/15min, write 30/min)
 - Centralized error handling (AppError + asyncHandler + errorHandler)
 - Request logging middleware
-- 362 tests, 96% statement coverage
+- 421 tests (361 backend + 60 frontend), 96% statement coverage
 
 ## Quick Start
 
