@@ -1,11 +1,17 @@
 import { Events, type Client, type Message } from 'discord.js'
 import { autoModService } from '@lukbot/shared/services'
 import { customCommandService } from '@lukbot/shared/services'
+import { featureToggleService } from '@lukbot/shared/services'
 import { errorLog, debugLog } from '@lukbot/shared/utils'
 
 async function handleAutoMod(message: Message): Promise<void> {
     if (!message.guild || !message.member) return
     if (message.author.bot) return
+
+    const isEnabled = await featureToggleService.isEnabled('AUTOMOD', {
+        guildId: message.guild.id,
+    })
+    if (!isEnabled) return
 
     try {
         const guildId = message.guild.id
@@ -157,6 +163,11 @@ async function handleAutoMod(message: Message): Promise<void> {
 
 async function handleCustomCommands(message: Message): Promise<void> {
     if (!message.guild || message.author.bot) return
+
+    const isEnabled = await featureToggleService.isEnabled('CUSTOM_COMMANDS', {
+        guildId: message.guild.id,
+    })
+    if (!isEnabled) return
 
     try {
         // Get all custom commands for the guild

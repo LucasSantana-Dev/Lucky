@@ -10,12 +10,18 @@ import {
     AuditLogEvent,
 } from 'discord.js'
 import { serverLogService } from '@lukbot/shared/services'
+import { featureToggleService } from '@lukbot/shared/services'
 import { errorLog, debugLog } from '@lukbot/shared/utils'
+
+async function isServerLogsEnabled(guildId: string): Promise<boolean> {
+    return featureToggleService.isEnabled('SERVER_LOGS', { guildId })
+}
 
 async function handleMessageDelete(
     message: Message<boolean> | PartialMessage<boolean>,
 ): Promise<void> {
     if (!message.guild || message.author?.bot) return
+    if (!(await isServerLogsEnabled(message.guild.id))) return
 
     try {
         await serverLogService.createLog(
@@ -50,6 +56,7 @@ async function handleMessageUpdate(
 ): Promise<void> {
     if (!newMessage.guild || newMessage.author?.bot) return
     if (oldMessage.content === newMessage.content) return
+    if (!(await isServerLogsEnabled(newMessage.guild.id))) return
 
     try {
         await serverLogService.createLog(
@@ -85,6 +92,7 @@ async function handleGuildBanAdd(ban: {
     user: { id: string; username: string; tag: string }
     guild: Guild
 }): Promise<void> {
+    if (!(await isServerLogsEnabled(ban.guild.id))) return
     try {
         const guild = ban.guild
         const auditLogs = await guild
@@ -123,6 +131,7 @@ async function handleGuildBanRemove(ban: {
     user: { id: string; username: string; tag: string }
     guild: Guild
 }): Promise<void> {
+    if (!(await isServerLogsEnabled(ban.guild.id))) return
     try {
         const guild = ban.guild
         const auditLogs = await guild
@@ -158,6 +167,7 @@ async function handleGuildBanRemove(ban: {
 }
 
 async function handleChannelCreate(channel: GuildChannel): Promise<void> {
+    if (!(await isServerLogsEnabled(channel.guild.id))) return
     try {
         const auditLogs = await channel.guild
             .fetchAuditLogs({ type: AuditLogEvent.ChannelCreate, limit: 1 })
@@ -191,6 +201,7 @@ async function handleChannelCreate(channel: GuildChannel): Promise<void> {
 }
 
 async function handleChannelDelete(channel: GuildChannel): Promise<void> {
+    if (!(await isServerLogsEnabled(channel.guild.id))) return
     try {
         const auditLogs = await channel.guild
             .fetchAuditLogs({ type: AuditLogEvent.ChannelDelete, limit: 1 })

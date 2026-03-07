@@ -7,10 +7,16 @@ import {
     EmbedBuilder,
 } from 'discord.js'
 import { autoMessageService } from '@lukbot/shared/services'
+import { featureToggleService } from '@lukbot/shared/services'
 import { errorLog, debugLog } from '@lukbot/shared/utils'
 
 async function handleMemberAdd(member: GuildMember): Promise<void> {
     if (!member.guild) return
+
+    const isEnabled = await featureToggleService.isEnabled('WELCOME_MESSAGES', {
+        guildId: member.guild.id,
+    })
+    if (!isEnabled) return
 
     try {
         // Get welcome message for this guild
@@ -91,6 +97,11 @@ async function handleMemberRemove(
     member: GuildMember | PartialGuildMember,
 ): Promise<void> {
     if (!member.guild) return
+
+    const isEnabled = await featureToggleService.isEnabled('WELCOME_MESSAGES', {
+        guildId: member.guild.id,
+    })
+    if (!isEnabled) return
 
     try {
         // Get leave message for this guild

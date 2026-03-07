@@ -3,7 +3,7 @@ name: Deploy LukBot
 on:
     push:
         branches: [main]
-    workflow_dispatch: # Allow manual trigger
+    workflow_dispatch:
 
 jobs:
     deploy:
@@ -11,7 +11,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v4
 
             - name: Check deploy secrets
               env:
@@ -25,7 +25,7 @@ jobs:
                   [ -z "$SSH_HOST" ] && missing="${missing}SSH_HOST"
                   if [ -n "$missing" ]; then
                     echo "::error::Missing GitHub Actions secrets: $missing"
-                    echo "Add them in repo Settings → Secrets and variables → Actions. See docs/CI_CD.md (Deploy secrets)."
+                    echo "Add them in repo Settings -> Secrets and variables -> Actions."
                     exit 1
                   fi
 
@@ -35,39 +35,39 @@ jobs:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
             - name: Deploy to server
+              env:
+                  DEPLOY_USER: ${{ secrets.SSH_USER }}
+                  DEPLOY_HOST: ${{ secrets.SSH_HOST }}
               run: |
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+                  ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
                     cd /home/luk-server/LukBot
-                    
-                    # Pull latest changes
+
                     echo "Pulling latest changes..."
                     git pull origin main
-                    
-                    # Build new Docker image
+
                     echo "Building new Docker image..."
                     docker build --target production-bot -t lukbot:latest .
-                    
-                    # Stop the current container
+
                     echo "Stopping current container..."
                     ./scripts/discord-bot.sh stop
-                    
-                    # Start the container with new image
+
                     echo "Starting container with new image..."
                     ./scripts/discord-bot.sh start
-                    
-                    # Wait a moment and check status
+
                     sleep 5
                     echo "Checking container status..."
                     ./scripts/discord-bot.sh status
-                    
+
                     echo "Deployment completed!"
                   EOF
 
             - name: Notify deployment status
               if: always()
+              env:
+                  JOB_STATUS: ${{ job.status }}
               run: |
-                  if [ ${{ job.status }} == 'success' ]; then
-                    echo "✅ Deployment successful!"
+                  if [ "$JOB_STATUS" = "success" ]; then
+                    echo "Deployment successful"
                   else
-                    echo "❌ Deployment failed!"
+                    echo "Deployment failed"
                   fi

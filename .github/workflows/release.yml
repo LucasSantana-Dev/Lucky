@@ -1,0 +1,62 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - 'v*'
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        name: Create Release
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build project
+              run: npm run build
+
+            - name: Run tests
+              run: npm run test:ci
+              continue-on-error: true
+
+            - name: Extract version from tag
+              id: version
+              env:
+                  TAG_REF: ${{ github.ref_name }}
+              run: echo "VERSION=${TAG_REF#v}" >> "$GITHUB_OUTPUT"
+
+            - name: Extract changelog entry
+              id: changelog
+              env:
+                  RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
+              run: |
+                  CHANGELOG=$(sed -n "/^## \[${RELEASE_VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d' || echo "Release ${RELEASE_VERSION}")
+                  {
+                    echo "BODY<<CHANGELOG_EOF"
+                    echo "$CHANGELOG"
+                    echo "CHANGELOG_EOF"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  name: v${{ steps.version.outputs.VERSION }}
+                  body: ${{ steps.changelog.outputs.BODY }}
+                  draft: false
+                  prerelease: false

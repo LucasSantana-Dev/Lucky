@@ -1,10 +1,19 @@
 import { Collection, type ChatInputCommandInteraction } from 'discord.js'
 import { errorLog, debugLog } from '@lukbot/shared/utils'
+import { featureToggleService } from '@lukbot/shared/services'
+import type { FeatureToggleName } from '@lukbot/shared/types'
 import type { CustomClient } from '../types'
 import type Command from '../models/Command'
+import type { CommandCategory } from '../config/constants'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
+
+const CATEGORY_FLAG_MAP: Partial<Record<CommandCategory, FeatureToggleName>> = {
+    moderation: 'MODERATION',
+    automod: 'AUTOMOD',
+    management: 'AUTO_MESSAGES',
+}
 
 type ExecuteCommandParams = {
     interaction: ChatInputCommandInteraction
@@ -37,6 +46,27 @@ export const executeCommand = async ({
                 message: `Command not found: ${interaction.commandName}`,
             })
             return
+        }
+
+        const categoryFlag = CATEGORY_FLAG_MAP[command.category]
+        if (categoryFlag) {
+            const isEnabled = await featureToggleService.isEnabled(
+                categoryFlag,
+                {
+                    guildId: interaction.guild?.id ?? undefined,
+                    userId: interaction.user.id,
+                },
+            )
+            if (!isEnabled) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: 'This feature is currently disabled.',
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
         }
 
         debugLog({ message: `Executing command: ${interaction.commandName}` })
