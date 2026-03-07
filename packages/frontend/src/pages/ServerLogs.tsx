@@ -164,12 +164,15 @@ export default function ServerLogsPage() {
             const filters: Record<string, string | number | undefined> = {}
             if (levelFilter !== 'all') filters.level = levelFilter
             if (debouncedSearch) filters.search = debouncedSearch
-            const res = await api.serverLogs.getLogs(
-                selectedGuild.id,
-                filters as any,
-            )
+            const res =
+                levelFilter !== 'all'
+                    ? await api.serverLogs.getByType(
+                          selectedGuild.id,
+                          levelFilter,
+                      )
+                    : await api.serverLogs.getRecent(selectedGuild.id)
             setLogs(res.data.logs)
-            setTotal(res.data.total)
+            setTotal(res.data.logs.length)
         } catch {
             setLogs([])
             setTotal(0)
@@ -187,21 +190,18 @@ export default function ServerLogsPage() {
 
     const totalPages = Math.max(1, Math.ceil(total / limit))
 
-    const handleExport = async () => {
-        if (!selectedGuild?.id) return
-        try {
-            toast.info('Exporting logs...')
-            const res = await api.serverLogs.exportLogs(selectedGuild.id)
-            const url = window.URL.createObjectURL(res.data)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `${selectedGuild.name}-logs.json`
-            a.click()
-            window.URL.revokeObjectURL(url)
-            toast.success('Logs exported!')
-        } catch {
-            toast.error('Failed to export logs')
-        }
+    const handleExport = () => {
+        if (!selectedGuild?.id || logs.length === 0) return
+        const blob = new Blob([JSON.stringify(logs, null, 2)], {
+            type: 'application/json',
+        })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${selectedGuild.name}-logs.json`
+        a.click()
+        window.URL.revokeObjectURL(url)
+        toast.success('Logs exported!')
     }
 
     if (!selectedGuild) {

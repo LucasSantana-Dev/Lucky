@@ -1,23 +1,29 @@
 import type { AxiosInstance } from 'axios'
-import type { ServerLog, LogFilter } from '@/types'
+import type { ServerLog } from '@/types'
 
 export function createLogsApi(apiClient: AxiosInstance) {
     return {
-        getLogs: (guildId: string, filters?: LogFilter) =>
-            apiClient.get<{ logs: ServerLog[]; total: number }>(
-                `/guilds/${guildId}/logs`,
+        getRecent: (guildId: string, limit?: number) =>
+            apiClient.get<{ logs: ServerLog[] }>(`/guilds/${guildId}/logs`, {
+                params: limit ? { limit } : {},
+            }),
+        getByType: (guildId: string, type: string, limit?: number) =>
+            apiClient.get<{ logs: ServerLog[] }>(`/guilds/${guildId}/logs`, {
+                params: { type, ...(limit ? { limit } : {}) },
+            }),
+        search: (
+            guildId: string,
+            filters: { type?: string; userId?: string },
+        ) =>
+            apiClient.get<{ logs: ServerLog[] }>(
+                `/guilds/${guildId}/logs/search`,
                 { params: filters },
             ),
-        getLog: (guildId: string, logId: string) =>
-            apiClient.get<{ log: ServerLog }>(
-                `/guilds/${guildId}/logs/${logId}`,
+        getUserLogs: (guildId: string, userId: string) =>
+            apiClient.get<{ logs: ServerLog[] }>(
+                `/guilds/${guildId}/logs/users/${userId}`,
             ),
-        clearLogs: (guildId: string) =>
-            apiClient.delete<{ success: boolean }>(`/guilds/${guildId}/logs`),
-        exportLogs: (guildId: string, filters?: LogFilter) =>
-            apiClient.get<Blob>(`/guilds/${guildId}/logs/export`, {
-                params: filters,
-                responseType: 'blob',
-            }),
+        getStats: (guildId: string) =>
+            apiClient.get(`/guilds/${guildId}/logs/stats`),
     }
 }

@@ -1,30 +1,46 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
-import type { LogCategory } from '@/types'
 
-export function useActivityLogs(guildId: string | undefined) {
+export function useRecentLogs(guildId: string | undefined, limit?: number) {
     return useQuery({
-        queryKey: ['logs', 'activity', guildId],
+        queryKey: ['logs', 'recent', guildId, limit],
         queryFn: async () => {
             if (!guildId) throw new Error('Guild ID is required')
-            const response = await api.logs.getActivity(guildId)
+            const response = await api.serverLogs.getRecent(guildId, limit)
             return response.data.logs
         },
         enabled: !!guildId,
     })
 }
 
-export function useServerLogsByCategory(
+export function useLogsByType(
     guildId: string | undefined,
-    category: LogCategory,
+    type: string,
+    limit?: number,
 ) {
     return useQuery({
-        queryKey: ['logs', category, guildId],
+        queryKey: ['logs', 'type', guildId, type, limit],
         queryFn: async () => {
             if (!guildId) throw new Error('Guild ID is required')
-            const response = await api.logs.getByCategory(guildId, category)
+            const response = await api.serverLogs.getByType(
+                guildId,
+                type,
+                limit,
+            )
             return response.data.logs
         },
-        enabled: !!guildId && !!category,
+        enabled: !!guildId && !!type,
+    })
+}
+
+export function useLogStats(guildId: string | undefined) {
+    return useQuery({
+        queryKey: ['logs', 'stats', guildId],
+        queryFn: async () => {
+            if (!guildId) throw new Error('Guild ID is required')
+            const response = await api.serverLogs.getStats(guildId)
+            return response.data
+        },
+        enabled: !!guildId,
     })
 }

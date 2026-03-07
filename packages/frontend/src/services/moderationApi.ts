@@ -27,18 +27,14 @@ export function createModerationApi(apiClient: AxiosInstance) {
             apiClient.get<{ case: ModerationCase }>(
                 `/guilds/${guildId}/moderation/cases/${caseNumber}`,
             ),
-        updateCase: (
-            guildId: string,
-            caseNumber: number,
-            data: Partial<Pick<ModerationCase, 'reason' | 'active'>>,
-        ) =>
-            apiClient.patch<{ case: ModerationCase }>(
-                `/guilds/${guildId}/moderation/cases/${caseNumber}`,
-                data,
+        updateReason: (guildId: string, caseNumber: number, reason: string) =>
+            apiClient.patch<{ success: boolean }>(
+                `/guilds/${guildId}/moderation/cases/${caseNumber}/reason`,
+                { reason },
             ),
-        deleteCase: (guildId: string, caseNumber: number) =>
-            apiClient.delete<{ success: boolean }>(
-                `/guilds/${guildId}/moderation/cases/${caseNumber}`,
+        deactivateCase: (guildId: string, caseId: string) =>
+            apiClient.post<ModerationCase>(
+                `/guilds/${guildId}/moderation/cases/${caseId}/deactivate`,
             ),
         getStats: (guildId: string) =>
             apiClient.get<{ stats: ModerationStats }>(
@@ -52,13 +48,14 @@ export function createModerationApi(apiClient: AxiosInstance) {
             guildId: string,
             settings: Partial<ModerationSettings>,
         ) =>
-            apiClient.post<{ settings: ModerationSettings }>(
+            apiClient.patch<{ settings: ModerationSettings }>(
                 `/guilds/${guildId}/moderation/settings`,
                 settings,
             ),
-        getUserHistory: (guildId: string, userId: string) =>
+        getUserCases: (guildId: string, userId: string, activeOnly?: boolean) =>
             apiClient.get<{ cases: ModerationCase[] }>(
-                `/guilds/${guildId}/moderation/users/${userId}/history`,
+                `/guilds/${guildId}/moderation/users/${userId}/cases`,
+                { params: activeOnly ? { activeOnly: 'true' } : {} },
             ),
     }
 }

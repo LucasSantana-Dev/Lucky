@@ -4,14 +4,12 @@ import type {
     Guild,
     Module,
     Command,
-    ActivityLog,
-    LogEntry,
-    LogCategory,
     ServerSettings,
     ServerListing,
     Feature,
     FeatureToggleState,
 } from '@/types'
+import { ApiError } from './ApiError'
 import { createMusicApi } from './musicApi'
 import { createModerationApi } from './moderationApi'
 import { createAutoModApi } from './automodApi'
@@ -55,34 +53,23 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        const status = error.response?.status
-        const errorMessage =
-            error.response?.data?.error || error.message || 'An error occurred'
-
-        if (status === 401) {
-            window.location.href = `${API_BASE}/auth/discord`
-            return Promise.reject(new Error('Unauthorized'))
-        }
-
-        if (status === 403) {
-            console.warn('Forbidden:', errorMessage)
-            return Promise.reject(new Error('Forbidden: ' + errorMessage))
-        }
-
-        if (status === 404) {
-            console.warn('Not found:', errorMessage)
-            return Promise.reject(new Error('Not found: ' + errorMessage))
-        }
-
         if (!error.response) {
-            console.error('Network error:', errorMessage)
             return Promise.reject(
-                new Error('Network error: Unable to connect to the server'),
+                new ApiError(0, 'Unable to connect to the server'),
             )
         }
 
-        console.error('API Error:', errorMessage, error)
-        return Promise.reject(new Error(errorMessage))
+        const status: number = error.response.status
+        const data = error.response.data as
+            | { error?: string; details?: unknown }
+            | undefined
+        const message = data?.error || error.message || 'An error occurred'
+
+        if (status === 401) {
+            window.location.href = `${API_BASE}/auth/discord`
+        }
+
+        return Promise.reject(new ApiError(status, message, data?.details))
     },
 )
 
@@ -198,17 +185,6 @@ export const api = {
             ),
     },
 
-    logs: {
-        getActivity: (guildId: string) =>
-            apiClient.get<{ logs: ActivityLog[] }>(
-                `/guilds/${guildId}/logs/activity`,
-            ),
-        getByCategory: (guildId: string, category: LogCategory) =>
-            apiClient.get<{ logs: LogEntry[] }>(
-                `/guilds/${guildId}/logs/${category.toLowerCase()}`,
-            ),
-    },
-
     features: {
         list: async () => {
             const response = await apiClient.get<{
@@ -260,4 +236,5 @@ export const api = {
     serverLogs: createLogsApi(apiClient),
 }
 
+export { ApiError } from './ApiError'
 export default apiClient

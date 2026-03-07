@@ -8,7 +8,7 @@ export function createAutoModApi(apiClient: AxiosInstance) {
                 `/guilds/${guildId}/automod/settings`,
             ),
         updateSettings: (guildId: string, settings: Partial<AutoModSettings>) =>
-            apiClient.post<{ settings: AutoModSettings }>(
+            apiClient.patch<{ settings: AutoModSettings }>(
                 `/guilds/${guildId}/automod/settings`,
                 settings,
             ),
