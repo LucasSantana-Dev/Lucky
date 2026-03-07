@@ -52,7 +52,7 @@ export const COMMAND_CATEGORIES = {
         key: 'management' as CommandCategory,
         label: '⚙️ Management',
         emoji: '⚙️',
-        prefixes: ['embed', 'reactionroles', 'serverlog', 'customcommand'],
+        prefixes: ['embed', 'reactionroles', 'serverlog', 'customcommand', 'serversetup'],
     },
     automod: {
         key: 'automod' as CommandCategory,
