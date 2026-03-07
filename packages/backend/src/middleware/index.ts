@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { setupSessionMiddleware } from './session'
+import { requestLogger } from './requestLogger'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,6 +22,7 @@ export function setupMiddleware(app: Express): void {
         }),
     )
 
+    app.use(requestLogger)
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
     app.use(cookieParser())

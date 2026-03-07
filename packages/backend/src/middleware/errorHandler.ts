@@ -4,7 +4,7 @@ import { AppError } from '../errors/AppError'
 
 export function errorHandler(
     err: Error,
-    _req: Request,
+    req: Request,
     res: Response,
     _next: NextFunction,
 ): void {
@@ -17,6 +17,9 @@ export function errorHandler(
         return
     }
 
-    errorLog({ message: 'Unhandled error:', error: err })
+    errorLog({
+        message: `Unhandled error on ${req.method} ${req.originalUrl}:`,
+        error: err,
+    })
     res.status(500).json({ error: 'Internal server error' })
 }
