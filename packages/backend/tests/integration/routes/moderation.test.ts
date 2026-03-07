@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -57,6 +58,7 @@ describe('Moderation Routes Integration', () => {
         app.use(express.json())
         setupSessionMiddleware(app)
         setupModerationRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
     })
 
@@ -150,7 +152,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch moderation cases',
+                error: 'Internal server error',
             })
         })
     })
@@ -240,7 +242,7 @@ describe('Moderation Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(500)
 
-            expect(response.body).toEqual({ error: 'Failed to fetch case' })
+            expect(response.body).toEqual({ error: 'Internal server error' })
         })
     })
 
@@ -345,7 +347,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch user cases',
+                error: 'Internal server error',
             })
         })
     })
@@ -484,7 +486,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to update case reason',
+                error: 'Internal server error',
             })
         })
     })
@@ -576,7 +578,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to deactivate case',
+                error: 'Internal server error',
             })
         })
     })
@@ -643,7 +645,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch moderation settings',
+                error: 'Internal server error',
             })
         })
     })
@@ -736,7 +738,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to update moderation settings',
+                error: 'Internal server error',
             })
         })
     })
@@ -806,7 +808,7 @@ describe('Moderation Routes Integration', () => {
                 .expect(500)
 
             expect(response.body).toEqual({
-                error: 'Failed to fetch moderation stats',
+                error: 'Internal server error',
             })
         })
     })

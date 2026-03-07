@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -34,6 +35,7 @@ describe('Auth Routes Integration', () => {
         app = express()
         setupSessionMiddleware(app)
         setupAuthRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
     })
 

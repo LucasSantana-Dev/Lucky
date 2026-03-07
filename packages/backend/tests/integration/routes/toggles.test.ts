@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -43,6 +44,7 @@ describe('Toggles Routes Integration', () => {
         app.use(express.json())
         setupSessionMiddleware(app)
         setupToggleRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
 
         const mockGetFeatureToggleConfig =

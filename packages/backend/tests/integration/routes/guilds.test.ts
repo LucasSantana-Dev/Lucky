@@ -1,3 +1,4 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -33,6 +34,7 @@ describe('Guilds Routes Integration', () => {
         app = express()
         setupSessionMiddleware(app)
         setupGuildRoutes(app)
+        app.use(errorHandler)
         jest.clearAllMocks()
     })
 
@@ -104,7 +106,7 @@ describe('Guilds Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(500)
 
-            expect(response.body).toEqual({ error: 'Failed to fetch guilds' })
+            expect(response.body).toEqual({ error: 'Internal server error' })
         })
     })
 
