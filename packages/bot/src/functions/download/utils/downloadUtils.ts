@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { downloadWithYtDlp } from './ytDlpUtils'
-import { errorLog, infoLog } from '@lukbot/shared/utils'
+import { errorLog, infoLog } from '@nexus/shared/utils'
 import { unlink } from 'fs/promises'
 
 const downloadFolder = join(process.cwd(), 'downloads')

@@ -1,11 +1,11 @@
 import { QueryType, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
-import { errorLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, debugLog } from '@nexus/shared/utils'
 import {
     analyzeYouTubeError,
     logYouTubeError,
 } from '../../utils/music/youtubeErrorHandler'
-import { youtubeConfig } from '@lukbot/shared/config'
+import { youtubeConfig } from '@nexus/shared/config'
 
 type PlayerEvents = {
     events: {
@@ -66,8 +66,10 @@ function handleYouTubeParserError(
     error: Error,
     youtubeErrorInfo: ReturnType<typeof analyzeYouTubeError>,
 ): void {
-    const requestedBy: User | undefined = queue.currentTrack?.requestedBy ??
-        (queue.metadata as IQueueMetadata).requestedBy ?? undefined
+    const requestedBy: User | undefined =
+        queue.currentTrack?.requestedBy ??
+        (queue.metadata as IQueueMetadata).requestedBy ??
+        undefined
     logYouTubeError(
         error,
         `player error in ${queue.guild.name}`,
@@ -100,20 +102,19 @@ async function recoverFromStreamExtractionError(
         message: `Problematic URL: ${currentTrack.url}`,
     })
 
-    const requestedByUser: User | undefined = currentTrack.requestedBy ??
-        (queue.metadata as IQueueMetadata).requestedBy ?? undefined
+    const requestedByUser: User | undefined =
+        currentTrack.requestedBy ??
+        (queue.metadata as IQueueMetadata).requestedBy ??
+        undefined
     if (!requestedByUser) {
         queue.node.skip()
         return
     }
 
-    const searchResult = await queue.player.search(
-        currentTrack.title,
-        {
-            requestedBy: requestedByUser,
-            searchEngine: QueryType.YOUTUBE_SEARCH,
-        },
-    )
+    const searchResult = await queue.player.search(currentTrack.title, {
+        requestedBy: requestedByUser,
+        searchEngine: QueryType.YOUTUBE_SEARCH,
+    })
 
     if (!searchResult || searchResult.tracks.length === 0) {
         queue.node.skip()
@@ -162,7 +163,8 @@ const handlePlayerError = async (
 
         if (isStreamExtractionError) {
             debugLog({
-                message: 'Detected stream extraction error, attempting recovery...',
+                message:
+                    'Detected stream extraction error, attempting recovery...',
             })
 
             try {

@@ -1,6 +1,6 @@
-# LukBot – AI agents and MCP usage
+# Nexus – AI agents and MCP usage
 
-This file helps AI coding agents work effectively on LukBot: project layout, when to use which tools, and how to stay within project rules.
+This file helps AI coding agents work effectively on Nexus: project layout, when to use which tools, and how to stay within project rules.
 
 ## Project at a glance
 
@@ -24,8 +24,8 @@ At the start of every session:
 | ------------------------------------------------- | --------------------- |
 | Add/change slash command                          | `discord-commands`    |
 | Play/queue/skip/volume, player lifecycle          | `music-queue-player`  |
-| Schema, migrations, DB/Redis in shared            | `prisma-redis-lukbot` |
-| Docker, compose, local run                        | `lukbot-docker-dev`   |
+| Schema, migrations, DB/Redis in shared            | `prisma-redis-nexus`  |
+| Docker, compose, local run                        | `nexus-docker-dev`    |
 | Frontend (React, Vite, Tailwind)                  | `frontend-react-vite` |
 | Backend (Express API, routes, services)           | `backend-express`     |
 | E2E tests, Playwright, browser verification       | `e2e-playwright`      |
@@ -33,7 +33,7 @@ At the start of every session:
 | Moderation commands + AutoModService              | `moderation-automod`  |
 | Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`      |
 | Embed builder, custom commands, auto-messages     | `management-features` |
-| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lukbot`      |
+| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-nexus`       |
 
 ### Ecosystem skills (`.agent-skills/` — from skills.sh)
 
@@ -109,7 +109,7 @@ Use these MCPs when they fit the task; don’t force them.
 | **user-browser-tools**                                           | Browser automation, console/network logs, audits when testing webapp |
 | **user-v0**                                                      | UI component or page ideas (reference only; adapt to repo patterns)  |
 | **user-@magicuidesign/mcp**                                      | UI/design system reference if aligned with stack                     |
-| **user-cloudflare-observability** / **user-cloudflare-bindings** | Only if LukBot is deployed on Cloudflare Workers                     |
+| **user-cloudflare-observability** / **user-cloudflare-bindings** | Only if Nexus is deployed on Cloudflare Workers                      |
 | **user-prisma-remote**                                           | Remote Prisma/DB introspection if configured                         |
 | **user-apify-dribbble**                                          | Scraping/data extraction when task clearly needs it                  |
 | **radar_search** (Cloudflare Radar)                              | Internet insights, threat intel when task needs it                   |

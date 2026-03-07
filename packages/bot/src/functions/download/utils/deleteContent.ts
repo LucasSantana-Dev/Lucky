@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { promisify } from 'util'
-import { errorLog, successLog } from '@lukbot/shared/utils'
+import { errorLog, successLog } from '@nexus/shared/utils'
 
 const unlinkAsync = promisify(fs.unlink)
 

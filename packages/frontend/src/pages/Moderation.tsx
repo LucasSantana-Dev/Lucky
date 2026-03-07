@@ -130,7 +130,7 @@ function CaseDetailModal({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className='bg-lukbot-bg-secondary border-lukbot-border max-w-lg'>
+            <DialogContent className='bg-nexus-bg-secondary border-nexus-border max-w-lg'>
                 <DialogHeader>
                     <DialogTitle className='flex items-center gap-3 text-white'>
                         <div className={cn('p-2 rounded-lg', style.bg)}>
@@ -142,7 +142,7 @@ function CaseDetailModal({
                 <div className='space-y-4 mt-2'>
                     <div className='grid grid-cols-2 gap-4'>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lukbot-text-tertiary flex items-center gap-1.5'>
+                            <p className='text-xs text-nexus-text-tertiary flex items-center gap-1.5'>
                                 <User className='w-3 h-3' /> User
                             </p>
                             <p className='text-sm font-medium text-white'>
@@ -150,7 +150,7 @@ function CaseDetailModal({
                             </p>
                         </div>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lukbot-text-tertiary flex items-center gap-1.5'>
+                            <p className='text-xs text-nexus-text-tertiary flex items-center gap-1.5'>
                                 <Shield className='w-3 h-3' /> Moderator
                             </p>
                             <p className='text-sm font-medium text-white'>
@@ -158,7 +158,7 @@ function CaseDetailModal({
                             </p>
                         </div>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lukbot-text-tertiary flex items-center gap-1.5'>
+                            <p className='text-xs text-nexus-text-tertiary flex items-center gap-1.5'>
                                 <Hash className='w-3 h-3' /> Action
                             </p>
                             <Badge
@@ -174,26 +174,26 @@ function CaseDetailModal({
                             </Badge>
                         </div>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lukbot-text-tertiary flex items-center gap-1.5'>
+                            <p className='text-xs text-nexus-text-tertiary flex items-center gap-1.5'>
                                 <Calendar className='w-3 h-3' /> Date
                             </p>
-                            <p className='text-sm text-lukbot-text-secondary'>
+                            <p className='text-sm text-nexus-text-secondary'>
                                 {formatDate(caseData.createdAt)}
                             </p>
                         </div>
                     </div>
-                    <div className='p-3 rounded-lg bg-lukbot-bg-tertiary border border-lukbot-border'>
-                        <p className='text-xs text-lukbot-text-tertiary mb-1'>
+                    <div className='p-3 rounded-lg bg-nexus-bg-tertiary border border-nexus-border'>
+                        <p className='text-xs text-nexus-text-tertiary mb-1'>
                             Reason
                         </p>
-                        <p className='text-sm text-lukbot-text-secondary'>
+                        <p className='text-sm text-nexus-text-secondary'>
                             {caseData.reason || 'No reason provided'}
                         </p>
                     </div>
                     {caseData.duration && (
                         <div className='flex items-center gap-2 text-sm'>
-                            <Clock className='w-4 h-4 text-lukbot-text-tertiary' />
-                            <span className='text-lukbot-text-secondary'>
+                            <Clock className='w-4 h-4 text-nexus-text-tertiary' />
+                            <span className='text-nexus-text-secondary'>
                                 Duration: {Math.floor(caseData.duration / 60)}{' '}
                                 minutes
                             </span>
@@ -205,7 +205,7 @@ function CaseDetailModal({
                                 'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border',
                                 caseData.active
                                     ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                    : 'bg-lukbot-bg-tertiary text-lukbot-text-tertiary border-lukbot-border',
+                                    : 'bg-nexus-bg-tertiary text-nexus-text-tertiary border-nexus-border',
                             )}
                         >
                             <div
@@ -213,7 +213,7 @@ function CaseDetailModal({
                                     'w-1.5 h-1.5 rounded-full',
                                     caseData.active
                                         ? 'bg-green-400'
-                                        : 'bg-lukbot-text-disabled',
+                                        : 'bg-nexus-text-disabled',
                                 )}
                             />
                             {caseData.active ? 'Active' : 'Expired'}
@@ -284,11 +284,11 @@ export default function ModerationPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <Shield className='w-16 h-16 text-lukbot-text-tertiary mb-4' />
+                <Shield className='w-16 h-16 text-nexus-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lukbot-text-secondary text-sm'>
+                <p className='text-nexus-text-secondary text-sm'>
                     Select a server to view moderation cases
                 </p>
             </div>
@@ -301,7 +301,7 @@ export default function ModerationPage() {
                 <h1 className='text-2xl font-bold text-white'>
                     Moderation Cases
                 </h1>
-                <p className='text-sm text-lukbot-text-secondary mt-1'>
+                <p className='text-sm text-nexus-text-secondary mt-1'>
                     Manage warnings, mutes, kicks, and bans
                 </p>
             </header>
@@ -310,32 +310,32 @@ export default function ModerationPage() {
             <Card className='p-4'>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
-                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lukbot-text-tertiary' />
+                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-tertiary' />
                         <Input
                             placeholder='Search by user, moderator, or reason...'
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className='pl-9 bg-lukbot-bg-tertiary border-lukbot-border text-white placeholder:text-lukbot-text-tertiary'
+                            className='pl-9 bg-nexus-bg-tertiary border-nexus-border text-white placeholder:text-nexus-text-tertiary'
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className='absolute right-3 top-1/2 -translate-y-1/2 text-lukbot-text-tertiary hover:text-white transition-colors'
+                                className='absolute right-3 top-1/2 -translate-y-1/2 text-nexus-text-tertiary hover:text-white transition-colors'
                             >
                                 <X className='w-4 h-4' />
                             </button>
                         )}
                     </div>
                     <div className='flex items-center gap-2'>
-                        <Filter className='w-4 h-4 text-lukbot-text-tertiary shrink-0' />
+                        <Filter className='w-4 h-4 text-nexus-text-tertiary shrink-0' />
                         <Select
                             value={typeFilter}
                             onValueChange={setTypeFilter}
                         >
-                            <SelectTrigger className='w-[140px] bg-lukbot-bg-tertiary border-lukbot-border text-white'>
+                            <SelectTrigger className='w-[140px] bg-nexus-bg-tertiary border-nexus-border text-white'>
                                 <SelectValue placeholder='All types' />
                             </SelectTrigger>
-                            <SelectContent className='bg-lukbot-bg-secondary border-lukbot-border'>
+                            <SelectContent className='bg-nexus-bg-secondary border-nexus-border'>
                                 <SelectItem value='all'>All types</SelectItem>
                                 <SelectItem value='warn'>Warnings</SelectItem>
                                 <SelectItem value='mute'>Mutes</SelectItem>
@@ -352,7 +352,7 @@ export default function ModerationPage() {
             {/* Cases Table */}
             <Card className='overflow-hidden p-0'>
                 {/* Header */}
-                <div className='hidden md:grid grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-4 px-5 py-3 border-b border-lukbot-border bg-lukbot-bg-tertiary/30'>
+                <div className='hidden md:grid grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-4 px-5 py-3 border-b border-nexus-border bg-nexus-bg-tertiary/30'>
                     {[
                         '#',
                         'User',
@@ -364,7 +364,7 @@ export default function ModerationPage() {
                     ].map((h) => (
                         <span
                             key={h}
-                            className='text-[10px] font-semibold uppercase tracking-wider text-lukbot-text-tertiary'
+                            className='text-[10px] font-semibold uppercase tracking-wider text-nexus-text-tertiary'
                         >
                             {h}
                         </span>
@@ -372,7 +372,7 @@ export default function ModerationPage() {
                 </div>
 
                 {/* Rows */}
-                <div className='divide-y divide-lukbot-border/40'>
+                <div className='divide-y divide-nexus-border/40'>
                     {loading ? (
                         Array.from({ length: 8 }).map((_, i) => (
                             <div
@@ -405,17 +405,17 @@ export default function ModerationPage() {
                                             duration: 0.15,
                                             delay: i * 0.02,
                                         }}
-                                        className='grid grid-cols-1 md:grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-2 md:gap-4 px-5 py-3.5 hover:bg-lukbot-bg-tertiary/30 transition-colors cursor-pointer group'
+                                        className='grid grid-cols-1 md:grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-2 md:gap-4 px-5 py-3.5 hover:bg-nexus-bg-tertiary/30 transition-colors cursor-pointer group'
                                         onClick={() => setSelectedCase(c)}
                                     >
                                         <div className='flex items-center'>
-                                            <span className='text-xs font-mono text-lukbot-text-tertiary'>
+                                            <span className='text-xs font-mono text-nexus-text-tertiary'>
                                                 #{c.caseNumber}
                                             </span>
                                         </div>
                                         <div className='flex items-center gap-2.5 min-w-0'>
-                                            <div className='w-7 h-7 rounded-full bg-lukbot-bg-active flex items-center justify-center shrink-0'>
-                                                <span className='text-[10px] font-medium text-lukbot-text-secondary'>
+                                            <div className='w-7 h-7 rounded-full bg-nexus-bg-active flex items-center justify-center shrink-0'>
+                                                <span className='text-[10px] font-medium text-nexus-text-secondary'>
                                                     {(c.userName || c.userId)
                                                         .substring(0, 2)
                                                         .toUpperCase()}
@@ -426,7 +426,7 @@ export default function ModerationPage() {
                                             </span>
                                         </div>
                                         <div className='flex items-center min-w-0'>
-                                            <span className='text-sm text-lukbot-text-secondary truncate'>
+                                            <span className='text-sm text-nexus-text-secondary truncate'>
                                                 {c.moderatorName ||
                                                     c.moderatorId}
                                             </span>
@@ -451,7 +451,7 @@ export default function ModerationPage() {
                                                     'flex items-center gap-1.5 text-[11px]',
                                                     c.active
                                                         ? 'text-green-400'
-                                                        : 'text-lukbot-text-tertiary',
+                                                        : 'text-nexus-text-tertiary',
                                                 )}
                                             >
                                                 <div
@@ -459,7 +459,7 @@ export default function ModerationPage() {
                                                         'w-1.5 h-1.5 rounded-full',
                                                         c.active
                                                             ? 'bg-green-400'
-                                                            : 'bg-lukbot-text-disabled',
+                                                            : 'bg-nexus-text-disabled',
                                                     )}
                                                 />
                                                 {c.active
@@ -468,12 +468,12 @@ export default function ModerationPage() {
                                             </div>
                                         </div>
                                         <div className='flex items-center'>
-                                            <span className='text-xs text-lukbot-text-tertiary'>
+                                            <span className='text-xs text-nexus-text-tertiary'>
                                                 {timeAgo(c.createdAt)}
                                             </span>
                                         </div>
                                         <div className='flex items-center justify-center'>
-                                            <Eye className='w-4 h-4 text-lukbot-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity' />
+                                            <Eye className='w-4 h-4 text-nexus-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity' />
                                         </div>
                                     </motion.div>
                                 )
@@ -481,11 +481,11 @@ export default function ModerationPage() {
                         </AnimatePresence>
                     ) : (
                         <div className='py-16 text-center'>
-                            <Shield className='w-12 h-12 text-lukbot-text-tertiary mx-auto mb-3' />
-                            <p className='text-sm text-lukbot-text-secondary'>
+                            <Shield className='w-12 h-12 text-nexus-text-tertiary mx-auto mb-3' />
+                            <p className='text-sm text-nexus-text-secondary'>
                                 No cases found
                             </p>
-                            <p className='text-xs text-lukbot-text-tertiary mt-1'>
+                            <p className='text-xs text-nexus-text-tertiary mt-1'>
                                 {searchQuery || typeFilter !== 'all'
                                     ? 'Try adjusting your filters'
                                     : 'Moderation cases will appear here'}
@@ -496,8 +496,8 @@ export default function ModerationPage() {
 
                 {/* Pagination */}
                 {total > limit && (
-                    <div className='flex items-center justify-between px-5 py-3 border-t border-lukbot-border'>
-                        <span className='text-xs text-lukbot-text-tertiary'>
+                    <div className='flex items-center justify-between px-5 py-3 border-t border-nexus-border'>
+                        <span className='text-xs text-nexus-text-tertiary'>
                             Showing {(page - 1) * limit + 1}-
                             {Math.min(page * limit, total)} of {total}
                         </span>
@@ -507,11 +507,11 @@ export default function ModerationPage() {
                                 variant='ghost'
                                 disabled={page <= 1}
                                 onClick={() => setPage((p) => p - 1)}
-                                className='h-8 w-8 p-0 text-lukbot-text-secondary hover:text-white'
+                                className='h-8 w-8 p-0 text-nexus-text-secondary hover:text-white'
                             >
                                 <ChevronLeft className='w-4 h-4' />
                             </Button>
-                            <span className='text-xs text-lukbot-text-secondary px-2'>
+                            <span className='text-xs text-nexus-text-secondary px-2'>
                                 {page} / {totalPages}
                             </span>
                             <Button
@@ -519,7 +519,7 @@ export default function ModerationPage() {
                                 variant='ghost'
                                 disabled={page >= totalPages}
                                 onClick={() => setPage((p) => p + 1)}
-                                className='h-8 w-8 p-0 text-lukbot-text-secondary hover:text-white'
+                                className='h-8 w-8 p-0 text-nexus-text-secondary hover:text-white'
                             >
                                 <ChevronRight className='w-4 h-4' />
                             </Button>

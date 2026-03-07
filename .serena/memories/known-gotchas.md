@@ -1,85 +1,48 @@
 # LukBot — Known Gotchas
 
-## 1. Prisma `as any` Workaround
+Last updated: 2026-03-07 (Session 6)
 
-**Symptom**: TypeScript can't resolve types from `@prisma/client` (e.g. `ModerationCase`, `AutoModSettings`).
+## Express 5
+- `req.query` is read-only (getter/setter) — cannot reassign in middleware
+- Use `p()` helper for `req.params` (string | string[]) — but NOT for Zod-coerced number params
+- `validateParams` replaces `req.params` with Zod output: `z.coerce.number()` turns "1" → 1 (number), so `p(1)` breaks
+- Never use `p()` on optional query params — `p(undefined)` crashes
 
-**Root cause**: Prisma 6 + TypeScript 5 module resolution edge case. The type re-exports don't work correctly with ES module resolution.
+## Testing
+- Jest 30 uses `--testPathPatterns` (plural), not `--testPathPattern`
+- Flaky moderation test: "should return 500 on service error" fails intermittently in full suite
+- 1 flaky E2E test: "OAuth redirect targets Discord auth endpoint" — race with window.location.href cleanup
 
-**Current workaround** (in all services):
+## E2E Tests (Playwright)
+- `networkidle` → `domcontentloaded` (Vite HMR WebSocket blocks networkidle)
+- Nav links are `<a>` (React Router Link), not `<button>`
+- Dashboard route is `/` not `/dashboard`
+- Active sidebar class: `bg-lukbot-red/10` not `active`
+- Logout: `button[aria-label="Logout"]` (no dropdown)
+- Mobile: `aria-label="Open sidebar"` / `"Close sidebar"`
+- Avatar: Radix uses Tailwind utilities, `[class*="avatar"]` doesn't match
+- Zustand persist interferes with logout/error tests — clear localStorage or override mock
+- Always use `route.fulfill()` with mock data, never `route.continue()` (hits real API → 401)
 
-```typescript
-const prisma = getPrismaClient() as any
-// Plus inline type definitions at top of each service file
-export type ModerationCase = { id: string; ... }
-```
+## Session Persistence
+- `session-file-store` ESM/CJS: must use `require()` not `import` (Jest prototype undefined)
+- `ServerCard` Manage button navigates to `/dashboard` (not a route) → catch-all redirects to `/`
 
-**Long-term fix** (not yet applied):
+## Bundle / Dependencies
+- shadcn/ui CLI installs all Radix primitives even when few components used — audit periodically
+- `tailwindcss-animate` IS used (in `index.css` @plugin) — don't remove
+- Commitlint requires lowercase subject after conventional prefix
 
-1. Check `tsconfig.json` `moduleResolution` setting — try `"bundler"` or `"node16"`
-2. Import types from `packages/shared/src/generated/prisma/` (the actual generated client)
-3. Remove `as any` and inline types once imports work
+## Git / CI
+- `CLAUDE.md` is gitignored — use `git add -f CLAUDE.md` to stage
+- Pre-commit runs `npm audit --audit-level=critical` — use `HUSKY=0` for non-code commits
 
-**Impact**: Runtime is 100% correct. TypeScript types are weakened. Not a blocker.
+## Build
+- `packages/shared` must build first before other packages
+- Frontend uses path alias `@/` mapped to `src/`
 
-## 2. Jest ESM Mode
+## Music Routes
+- SSE stream route (`/music/stream`) intentionally NOT wrapped in asyncHandler
 
-All tests use `jest.unstable_mockModule()` (not `jest.mock()`). This is required for ES modules.
-
-```typescript
-jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', () => ({
-    getPrismaClient: () => mockPrisma,
-    prisma: mockPrisma,
-}))
-```
-
-The module import must come AFTER the mock registration, inside `beforeAll`:
-
-```typescript
-beforeAll(async () => {
-    const module = await import('@lukbot/shared/services')
-    // use module.SomeService
-})
-```
-
-## 3. Test Files with Disabled Tests (early `return`)
-
-Two test files are currently broken due to mismatches between service and test expectations:
-
-- `packages/backend/tests/unit/services/EmbedBuilderService.test.ts` — disabled via `return` in `beforeAll` (service missing)
-- `packages/backend/tests/unit/services/AutoModService.test.ts` — disabled via `return` in `beforeAll` (signature mismatch)
-
-These tests must be fixed alongside the service implementations.
-
-## 4. ESLint Max Lines Rule
-
-Files must be under **250 lines**. This is actively enforced. When a service grows large, extract helpers:
-
-- Pattern: `ServiceName.ts` + `serviceNameHelpers.ts` (or `serviceNameOtherConcern.ts`)
-- Examples: `ModerationService.ts` + `moderationSettings.ts`, `ServerLogService.ts` + `serverLogHelpers.ts`
-
-## 5. EmbedTemplate Schema vs Bot Command Expectations
-
-The `EmbedTemplate` Prisma model stores fields individually (`title`, `description`, `color`, `footer`, `thumbnail`, `image`, `fields`). But `embed.ts` currently uses `template.embedData as any`.
-
-The fix (planned): Update `embed.ts` to build a Discord `EmbedBuilder` from the individual fields, not from a single blob. Also add `useCount Int @default(0)` to the schema.
-
-## 6. `scripts/skills.sh` is Superpowers CLI only
-
-`scripts/skills.sh` wraps the Codex/Superpowers CLI at `~/.codex/superpowers/`. It is NOT the skills.sh ecosystem CLI.
-
-The skills.sh ecosystem skills are installed at `.agent-skills/` in the repo root.
-
-## 7. Xcode License on macOS
-
-`git clone` may fail with "You have not agreed to the Xcode license agreements." This blocks `npx skills add`. Workaround: fetch SKILL.md files directly from GitHub API and write them manually.
-
-## 8. `.cursor/` gitignore exception
-
-`.cursor/` is gitignored EXCEPT for:
-
-- `.cursor/hooks.json`
-- `.cursor/hooks/*.sh`
-- `.cursor/rules/**`
-- `.cursor/skills/**`
-- `.cursor/COMMANDS.md`
+## Auth Routes
+- `auth.ts`, `authCallback.ts`, `lastfm.ts` use try/catch legitimately — redirect-based error handling

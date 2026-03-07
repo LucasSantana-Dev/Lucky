@@ -1,74 +1,41 @@
 # LukBot — Next Priorities
 
-Last updated: 2026-03-06 (Session Complete - All Priorities Finished)
+Last updated: 2026-03-07 (Session 6)
 
-## Completed This Session ✅
+## Completed
 
-1. **Priority 1: Frontend Bug Fix** — Changed `globalName` to `discriminator` in Sidebar
-2. **Priority 2: Member Event Handlers** — AutoMessages working on guildMemberAdd/Remove
-3. **Priority 3: Audit Event Handlers** — ServerLogging capturing message and ban events
+1. ✅ Zod input validation + rate limiting on all routes
+2. ✅ Centralized error handling (AppError, asyncHandler, errorHandler)
+3. ✅ Frontend API alignment (ApiError, method/path fixes)
+4. ✅ CI hardening, README modernization
+5. ✅ Music route refactoring (asyncHandler + AppError)
+6. ✅ Backend coverage: 96% stmts, 84% branches, 100% functions
+7. ✅ Frontend unit tests: 30 tests, 4 suites (Vitest)
+8. ✅ Express 5 type fixes: p() helper
+9. ✅ AutoMod mute action with Discord timeout + moderation case tracking
+10. ✅ Session persistence (file-based, survives restarts)
+11. ✅ E2E tests: 135/135 passing (Playwright)
+12. ✅ Design tokens: 30+ broken Tailwind classes fixed
+13. ✅ Bundle optimization: 756→409 KB, 31 unused deps removed
 
-## Current State: Production Ready (~85%)
+## Next Priorities (Recommended Order)
 
-### All Core Features Working
+### Priority 1: Security Vulnerabilities
+- 26 vulnerabilities (6 critical, 6 high) from discord-player-youtubei
+- Run `npm audit fix` and check for dependency updates
 
-- ✅ 40+ bot commands across 6 feature categories
-- ✅ All 6 event handlers registered (messageCreate, memberAdd/Remove, ban, channel, audit)
-- ✅ Dashboard with 8 management pages
-- ✅ AutoMod with 6 checks active on all messages
-- ✅ Custom commands and auto-messages responding in real-time
-- ✅ EmbedBuilder with full CRUD
+### Priority 2: CI/CD Pipeline
+- No GitHub Actions workflows yet
+- Add: lint + build + test on PR, deploy on merge
 
-### Build Status
+### Priority 3: Frontend Component Tests
+- 30 unit tests but no component-level tests
+- Key targets: Sidebar, ServerCard, Login page, Config forms
 
-- ✅ `npm run build:shared` — PASS
-- ✅ `npm run build:bot` — PASS
-- ✅ `npm run build:frontend` — PASS
-- ⚠️ `npm run build:backend` — Pre-existing type errors (pre-dates this session)
-- ⚠️ `npm run test` — 92 passed, 25 failed (pre-existing Jest ESM issues)
+### Priority 4: Redis Session Upgrade
+- File-based sessions work but Redis is faster for production
+- Graceful fallback already in place — just needs Redis connection
 
-## What's Next (Priority Order)
-
-### Optional Enhancement 1: Jest Test Fixes
-
-- **Why**: Clean up pre-existing test failures
-- **Pattern**: Convert `jest.unstable_mockModule` to relative `jest.mock()` (see GuildService.test.ts)
-- **Effort**: 4-6 hours for 5 test suites
-- **Impact**: Better test coverage confidence, but not blocking production use
-
-### Optional Enhancement 2: Mute Action in AutoMod
-
-- **Why**: Complete the action spectrum (warn/delete/kick/ban/mute)
-- **Files**: `packages/shared/src/services/AutoModService.ts`
-- **Effort**: 1-2 hours
-
-### Optional Enhancement 3: Prisma Type Resolution
-
-- **Why**: Remove `as any` workarounds throughout codebase
-- **Effort**: 3-4 hours
-- **Impact**: Better type safety, cleaner code
-
-### Optional Enhancement 4: Frontend Quality
-
-- **Add TanStack Query** for data fetching (recommended in docs/FRONTEND.md)
-- **Add Suspense + error boundaries** to dashboard pages
-- **Effort**: 2-3 hours each
-
-### Optional Enhancement 5: Backend Test Coverage
-
-- **Why**: Increase coverage from current ~40% to target 80%
-- **Pattern**: Follow existing service test patterns
-- **Effort**: 3-4 hours
-
-## Recommendation for Next Session
-
-**Bot is production-ready.** All priorities from the original plan are complete.
-
-Next work depends on goals:
-
-- **Want to ship today?** → Stop here. Bot is fully functional.
-- **Want production-grade tests?** → Do Jest Test Fixes (Priority 1)
-- **Want to remove tech debt?** → Do Prisma Type Resolution (Priority 3)
-- **Want to polish the UI?** → Do Frontend Quality work (Priority 4)
-
-All remaining tasks are **optional enhancements**, not blockers.
+### Priority 5: Code Splitting Config Page
+- Config chunk is 118 KB — largest page chunk
+- Could lazy-load sub-configs (MusicConfig, ModerationConfig)

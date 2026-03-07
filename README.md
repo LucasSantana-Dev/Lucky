@@ -1,4 +1,4 @@
-# LukBot
+# Nexus
 
 A modular Discord bot with web dashboard. TypeScript monorepo with music playback, moderation, auto-mod, feature toggles, and server management.
 
@@ -6,7 +6,7 @@ A modular Discord bot with web dashboard. TypeScript monorepo with music playbac
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Discord.js](https://img.shields.io/badge/Discord.js-14.25-purple.svg)](https://discord.js.org/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
-[![CI](https://github.com/LucasSantana-Dev/LukBot/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/LukBot/actions/workflows/ci.yml)
+[![CI](https://github.com/LucasSantana-Dev/Nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Nexus/actions/workflows/ci.yml)
 
 ## Architecture
 
@@ -70,8 +70,8 @@ packages/
 ### Setup
 
 ```bash
-git clone https://github.com/LucasSantana-Dev/LukBot.git
-cd LukBot
+git clone https://github.com/LucasSantana-Dev/Nexus.git
+cd Nexus
 cp .env.example .env    # Configure DISCORD_TOKEN, CLIENT_ID, DATABASE_URL
 npm install
 npm run build

@@ -27,12 +27,12 @@ class ErrorBoundary extends Component<Props, State> {
     render() {
         if (this.state.hasError) {
             return (
-                <div className='flex items-center justify-center min-h-screen bg-lukbot-bg-primary'>
+                <div className='flex items-center justify-center min-h-screen bg-nexus-bg-primary'>
                     <div className='text-center space-y-4 p-6'>
                         <h1 className='text-2xl font-bold text-white'>
                             Something went wrong
                         </h1>
-                        <p className='text-lukbot-text-secondary'>
+                        <p className='text-nexus-text-secondary'>
                             {this.state.error?.message ||
                                 'An unexpected error occurred'}
                         </p>
@@ -41,7 +41,7 @@ class ErrorBoundary extends Component<Props, State> {
                                 this.setState({ hasError: false, error: null })
                                 window.location.reload()
                             }}
-                            className='bg-lukbot-red hover:bg-lukbot-red/90'
+                            className='bg-nexus-red hover:bg-nexus-red/90'
                         >
                             Reload Page
                         </Button>

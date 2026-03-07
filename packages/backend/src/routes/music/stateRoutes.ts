@@ -1,7 +1,7 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
-import { musicControlService, type QueueState } from '@lukbot/shared/services'
+import { musicControlService, type QueueState } from '@nexus/shared/services'
 import { param, sseClients } from './helpers'
 
 export function setupStateRoutes(app: Express): void {

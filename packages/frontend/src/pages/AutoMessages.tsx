@@ -51,11 +51,11 @@ export default function AutoMessagesPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <MessageSquare className='w-16 h-16 text-lukbot-text-tertiary mb-4' />
+                <MessageSquare className='w-16 h-16 text-nexus-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lukbot-text-secondary text-sm'>
+                <p className='text-nexus-text-secondary text-sm'>
                     Select a server to manage auto messages
                 </p>
             </div>
@@ -69,11 +69,11 @@ export default function AutoMessagesPage() {
                     <h1 className='text-2xl font-bold text-white'>
                         Auto Messages
                     </h1>
-                    <p className='text-sm text-lukbot-text-secondary mt-1'>
+                    <p className='text-sm text-nexus-text-secondary mt-1'>
                         Schedule automatic messages for {selectedGuild.name}
                     </p>
                 </header>
-                <Button className='bg-lukbot-red hover:bg-lukbot-red/90 gap-2'>
+                <Button className='bg-nexus-red hover:bg-nexus-red/90 gap-2'>
                     <Plus className='w-4 h-4' /> New Message
                 </Button>
             </div>
@@ -104,39 +104,39 @@ export default function AutoMessagesPage() {
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.2, delay: i * 0.03 }}
                             >
-                                <Card className='p-5 hover:border-lukbot-border/80 transition-all'>
+                                <Card className='p-5 hover:border-nexus-border/80 transition-all'>
                                     <div className='flex items-start justify-between mb-3'>
                                         <div className='flex items-center gap-2'>
-                                            <div className='p-2 rounded-lg bg-lukbot-purple/15'>
-                                                <MessageSquare className='w-4 h-4 text-lukbot-purple' />
+                                            <div className='p-2 rounded-lg bg-nexus-purple/15'>
+                                                <MessageSquare className='w-4 h-4 text-nexus-purple' />
                                             </div>
                                             <h3 className='text-sm font-semibold text-white'>
                                                 {msg.name}
                                             </h3>
                                         </div>
                                         <div className='flex items-center gap-1'>
-                                            <button className='p-1.5 rounded-md text-lukbot-text-tertiary hover:text-white hover:bg-lukbot-bg-active transition-colors'>
+                                            <button className='p-1.5 rounded-md text-nexus-text-tertiary hover:text-white hover:bg-nexus-bg-active transition-colors'>
                                                 <Pencil className='w-3.5 h-3.5' />
                                             </button>
-                                            <button className='p-1.5 rounded-md text-lukbot-text-tertiary hover:text-lukbot-error hover:bg-lukbot-error/10 transition-colors'>
+                                            <button className='p-1.5 rounded-md text-nexus-text-tertiary hover:text-nexus-error hover:bg-nexus-error/10 transition-colors'>
                                                 <Trash2 className='w-3.5 h-3.5' />
                                             </button>
                                         </div>
                                     </div>
-                                    <p className='text-xs text-lukbot-text-secondary line-clamp-2 mb-3'>
+                                    <p className='text-xs text-nexus-text-secondary line-clamp-2 mb-3'>
                                         {msg.content}
                                     </p>
                                     <div className='flex flex-wrap items-center gap-2'>
                                         <Badge
                                             variant='outline'
-                                            className='text-[10px] gap-1 bg-lukbot-bg-tertiary border-lukbot-border text-lukbot-text-secondary'
+                                            className='text-[10px] gap-1 bg-nexus-bg-tertiary border-nexus-border text-nexus-text-secondary'
                                         >
                                             <Hash className='w-3 h-3' />{' '}
                                             {msg.channel}
                                         </Badge>
                                         <Badge
                                             variant='outline'
-                                            className='text-[10px] gap-1 bg-lukbot-bg-tertiary border-lukbot-border text-lukbot-text-secondary'
+                                            className='text-[10px] gap-1 bg-nexus-bg-tertiary border-nexus-border text-nexus-text-secondary'
                                         >
                                             <Clock className='w-3 h-3' /> Every{' '}
                                             {formatInterval(msg.interval)}
@@ -144,14 +144,14 @@ export default function AutoMessagesPage() {
                                         {msg.isEmbed && (
                                             <Badge
                                                 variant='outline'
-                                                className='text-[10px] bg-lukbot-blue/10 text-lukbot-blue border-lukbot-blue/20'
+                                                className='text-[10px] bg-nexus-blue/10 text-nexus-blue border-nexus-blue/20'
                                             >
                                                 Embed
                                             </Badge>
                                         )}
                                         <Badge
                                             variant='outline'
-                                            className='text-[10px] gap-1 bg-lukbot-bg-tertiary border-lukbot-border text-lukbot-text-tertiary'
+                                            className='text-[10px] gap-1 bg-nexus-bg-tertiary border-nexus-border text-nexus-text-tertiary'
                                         >
                                             <Calendar className='w-3 h-3' />{' '}
                                             Next: {formatNextPost(msg.nextPost)}
@@ -164,14 +164,14 @@ export default function AutoMessagesPage() {
                 </div>
             ) : (
                 <Card className='py-16 text-center'>
-                    <MessageSquare className='w-12 h-12 text-lukbot-text-tertiary mx-auto mb-3' />
-                    <p className='text-sm text-lukbot-text-secondary'>
+                    <MessageSquare className='w-12 h-12 text-nexus-text-tertiary mx-auto mb-3' />
+                    <p className='text-sm text-nexus-text-secondary'>
                         No auto messages configured
                     </p>
-                    <p className='text-xs text-lukbot-text-tertiary mt-1 mb-4'>
+                    <p className='text-xs text-nexus-text-tertiary mt-1 mb-4'>
                         Create scheduled messages that are posted automatically
                     </p>
-                    <Button className='bg-lukbot-red hover:bg-lukbot-red/90 gap-2 mx-auto'>
+                    <Button className='bg-nexus-red hover:bg-nexus-red/90 gap-2 mx-auto'>
                         <Plus className='w-4 h-4' /> Create Auto Message
                     </Button>
                 </Card>

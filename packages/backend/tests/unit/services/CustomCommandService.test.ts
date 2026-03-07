@@ -12,15 +12,15 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
     typePrisma: (client: any) => client,
 }))
 
-jest.mock('@lukbot/shared/utils/database/prismaClient', () => {
+jest.mock('@nexus/shared/utils/database/prismaClient', () => {
     return { getPrismaClient: () => mockPrisma }
 })
 
-import { CustomCommandService } from '@lukbot/shared/services/CustomCommandService'
+import { CustomCommandService } from '@nexus/shared/services/CustomCommandService'
 
 describe('CustomCommandService', () => {
     let service: InstanceType<typeof CustomCommandService>

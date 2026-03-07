@@ -1,8 +1,8 @@
 import fs from 'fs'
 import path from 'path'
-import { errorLog, debugLog, infoLog } from '@lukbot/shared/utils'
+import { errorLog, debugLog, infoLog } from '@nexus/shared/utils'
 import type Command from '../../models/Command'
-import { config } from '@lukbot/shared/config'
+import { config } from '@nexus/shared/config'
 
 type GetCommandsParams = {
     url: string
@@ -67,9 +67,15 @@ async function loadCommandFromFile(
         let commandModule
         if (isProd) {
             const fileUrl = `file://${filePath}`
-            commandModule = await import(fileUrl) as { default?: Command; command?: Command }
+            commandModule = (await import(fileUrl)) as {
+                default?: Command
+                command?: Command
+            }
         } else {
-            commandModule = await import(filePath) as { default?: Command; command?: Command }
+            commandModule = (await import(filePath)) as {
+                default?: Command
+                command?: Command
+            }
         }
 
         const command = commandModule.default ?? commandModule.command

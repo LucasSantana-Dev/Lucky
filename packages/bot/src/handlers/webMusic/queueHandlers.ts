@@ -3,7 +3,7 @@ import {
     musicControlService,
     type MusicCommand,
     type MusicCommandResult,
-} from '@lukbot/shared/services'
+} from '@nexus/shared/services'
 import { buildQueueState } from './mappers'
 
 type Result = MusicCommandResult

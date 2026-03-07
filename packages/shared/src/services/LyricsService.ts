@@ -80,7 +80,7 @@ export class LyricsService {
             const response = await axios.get(url, {
                 timeout: LyricsService.TIMEOUT,
                 headers: {
-                    'User-Agent': 'LukBot/1.0',
+                    'User-Agent': 'Nexus/1.0',
                 },
             })
 

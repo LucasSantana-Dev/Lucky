@@ -1,4 +1,1 @@
-export {
-    convertStreamToFile,
-    convertFileToFile,
-} from '@lukbot/shared/utils'
+export { convertStreamToFile, convertFileToFile } from '@nexus/shared/utils'

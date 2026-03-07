@@ -4,8 +4,8 @@ import {
     EmbedBuilder,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { customCommandService } from '@lukbot/shared/services'
-import { infoLog, errorLog } from '@lukbot/shared/utils'
+import { customCommandService } from '@nexus/shared/services'
+import { infoLog, errorLog } from '@nexus/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 export default new Command({

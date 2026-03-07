@@ -7,5 +7,5 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['@lukbot/shared', 'unfetch', 'isomorphic-unfetch'],
+  external: ['@nexus/shared', 'unfetch', 'isomorphic-unfetch'],
 })

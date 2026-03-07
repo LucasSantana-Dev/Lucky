@@ -1,5 +1,5 @@
 import type { GuildQueue, Track } from 'discord-player'
-import { debugLog } from '@lukbot/shared/utils'
+import { debugLog } from '@nexus/shared/utils'
 
 /**
  * Queue strategy implementation for LIFO/FIFO operations
@@ -14,7 +14,7 @@ export class QueueStrategyManager {
     static addTrackWithStrategy(
         queue: GuildQueue,
         track: Track,
-        strategy: QueueStrategy = 'FIFO'
+        strategy: QueueStrategy = 'FIFO',
     ): void {
         try {
             if (strategy === 'LIFO') {
@@ -22,14 +22,14 @@ export class QueueStrategyManager {
                 queue.insertTrack(track, 0)
                 debugLog({
                     message: 'Added track using LIFO strategy',
-                    data: { trackTitle: track.title, position: 0 }
+                    data: { trackTitle: track.title, position: 0 },
                 })
             } else {
                 // First In, First Out - add to end (default)
                 queue.addTrack(track)
                 debugLog({
                     message: 'Added track using FIFO strategy',
-                    data: { trackTitle: track.title }
+                    data: { trackTitle: track.title },
                 })
             }
         } catch (error) {
@@ -44,7 +44,7 @@ export class QueueStrategyManager {
     static addTracksWithStrategy(
         queue: GuildQueue,
         tracks: Track[],
-        strategy: QueueStrategy = 'FIFO'
+        strategy: QueueStrategy = 'FIFO',
     ): void {
         try {
             if (strategy === 'LIFO') {
@@ -54,7 +54,7 @@ export class QueueStrategyManager {
                 }
                 debugLog({
                     message: 'Added tracks using LIFO strategy',
-                    data: { trackCount: tracks.length }
+                    data: { trackCount: tracks.length },
                 })
             } else {
                 // Add tracks in order for FIFO
@@ -63,7 +63,7 @@ export class QueueStrategyManager {
                 }
                 debugLog({
                     message: 'Added tracks using FIFO strategy',
-                    data: { trackCount: tracks.length }
+                    data: { trackCount: tracks.length },
                 })
             }
         } catch (error) {
@@ -75,7 +75,10 @@ export class QueueStrategyManager {
     /**
      * Get next track based on strategy
      */
-    static getNextTrack(queue: GuildQueue, strategy: QueueStrategy = 'FIFO'): Track | null {
+    static getNextTrack(
+        queue: GuildQueue,
+        strategy: QueueStrategy = 'FIFO',
+    ): Track | null {
         try {
             if (queue.tracks.size === 0) {
                 return null
@@ -89,7 +92,10 @@ export class QueueStrategyManager {
                 return queue.tracks.at(0) || null
             }
         } catch (error) {
-            debugLog({ message: 'Error getting next track with strategy:', error })
+            debugLog({
+                message: 'Error getting next track with strategy:',
+                error,
+            })
             return null
         }
     }
@@ -99,7 +105,7 @@ export class QueueStrategyManager {
      */
     static removeTrackWithStrategy(
         queue: GuildQueue,
-        strategy: QueueStrategy = 'FIFO'
+        strategy: QueueStrategy = 'FIFO',
     ): Track | null {
         try {
             if (queue.tracks.size === 0) {
@@ -125,7 +131,7 @@ export class QueueStrategyManager {
 
             debugLog({
                 message: 'Removed track using strategy',
-                data: { strategy, trackTitle: removedTrack?.title }
+                data: { strategy, trackTitle: removedTrack?.title },
             })
 
             return removedTrack

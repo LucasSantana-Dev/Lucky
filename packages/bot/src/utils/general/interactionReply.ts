@@ -12,7 +12,7 @@ import type {
     APIEmbed,
     JSONEncodable,
 } from 'discord.js'
-import { errorLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, debugLog } from '@nexus/shared/utils'
 import { errorEmbed, infoEmbed } from './embeds'
 
 // Type for interactions that support reply methods
@@ -42,7 +42,11 @@ function stripFlags<T extends object>(obj: T): Omit<T, 'flags'> {
 /**
  * Convert plain text content to embed if needed
  */
-function convertTextToEmbed(content: { content?: string; embeds?: readonly (APIEmbed | JSONEncodable<APIEmbed>)[]; ephemeral?: boolean }): { content?: string; embeds: APIEmbed[]; ephemeral?: boolean } {
+function convertTextToEmbed(content: {
+    content?: string
+    embeds?: readonly (APIEmbed | JSONEncodable<APIEmbed>)[]
+    ephemeral?: boolean
+}): { content?: string; embeds: APIEmbed[]; ephemeral?: boolean } {
     if (
         content.content !== undefined &&
         content.content !== '' &&
@@ -61,7 +65,11 @@ function convertTextToEmbed(content: { content?: string; embeds?: readonly (APIE
     }
     return {
         ...content,
-        embeds: content.embeds ? content.embeds.map(embed => 'toJSON' in embed ? embed.toJSON() : embed) as APIEmbed[] : []
+        embeds: content.embeds
+            ? (content.embeds.map((embed) =>
+                  'toJSON' in embed ? embed.toJSON() : embed,
+              ) as APIEmbed[])
+            : [],
     }
 }
 
@@ -91,7 +99,11 @@ async function handleChatInputCommand(
  */
 async function handleOtherInteraction(
     interaction: ReplyableInteraction,
-    content: { content?: string; embeds?: readonly (APIEmbed | JSONEncodable<APIEmbed>)[]; ephemeral?: boolean },
+    content: {
+        content?: string
+        embeds?: readonly (APIEmbed | JSONEncodable<APIEmbed>)[]
+        ephemeral?: boolean
+    },
 ): Promise<void> {
     const processedContent = convertTextToEmbed(content)
 

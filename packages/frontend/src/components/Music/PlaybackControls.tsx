@@ -44,7 +44,7 @@ export function PlaybackControls({
         >
             <button
                 onClick={onShuffle}
-                className='p-2.5 sm:p-2 rounded-lg hover:bg-lukbot-bg-tertiary active:bg-lukbot-bg-tertiary text-lukbot-text-secondary hover:text-white transition-colors'
+                className='p-2.5 sm:p-2 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary text-nexus-text-secondary hover:text-white transition-colors'
                 aria-label='Shuffle'
             >
                 <Shuffle className='h-5 w-5 sm:h-4 sm:w-4' />
@@ -52,7 +52,7 @@ export function PlaybackControls({
             <div className='flex items-center gap-2 sm:gap-3'>
                 <button
                     onClick={onSkip}
-                    className='p-2.5 sm:p-2 rounded-lg hover:bg-lukbot-bg-tertiary active:bg-lukbot-bg-tertiary text-lukbot-text-secondary hover:text-white transition-colors rotate-180 disabled:opacity-40'
+                    className='p-2.5 sm:p-2 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary text-nexus-text-secondary hover:text-white transition-colors rotate-180 disabled:opacity-40'
                     aria-label='Previous'
                     disabled={!hasTrack}
                 >
@@ -72,7 +72,7 @@ export function PlaybackControls({
                 </button>
                 <button
                     onClick={onSkip}
-                    className='p-2.5 sm:p-2 rounded-lg hover:bg-lukbot-bg-tertiary active:bg-lukbot-bg-tertiary text-lukbot-text-secondary hover:text-white transition-colors disabled:opacity-40'
+                    className='p-2.5 sm:p-2 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary text-nexus-text-secondary hover:text-white transition-colors disabled:opacity-40'
                     aria-label='Skip'
                     disabled={!hasTrack}
                 >
@@ -80,7 +80,7 @@ export function PlaybackControls({
                 </button>
                 <button
                     onClick={onStop}
-                    className='p-2.5 sm:p-2 rounded-lg hover:bg-lukbot-bg-tertiary active:bg-lukbot-bg-tertiary text-lukbot-text-secondary hover:text-white transition-colors disabled:opacity-40'
+                    className='p-2.5 sm:p-2 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary text-nexus-text-secondary hover:text-white transition-colors disabled:opacity-40'
                     aria-label='Stop'
                     disabled={!hasTrack}
                 >
@@ -89,7 +89,7 @@ export function PlaybackControls({
             </div>
             <button
                 onClick={onRepeatCycle}
-                className={`p-2.5 sm:p-2 rounded-lg hover:bg-lukbot-bg-tertiary active:bg-lukbot-bg-tertiary transition-colors ${repeatMode !== 'off' ? 'text-primary' : 'text-lukbot-text-secondary hover:text-white'}`}
+                className={`p-2.5 sm:p-2 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary transition-colors ${repeatMode !== 'off' ? 'text-primary' : 'text-nexus-text-secondary hover:text-white'}`}
                 aria-label={`Repeat mode: ${repeatMode}`}
             >
                 {repeatMode === 'track' ? (
@@ -135,7 +135,7 @@ export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
                     setLocalVol(v)
                     onChange(v)
                 }}
-                className='p-1.5 text-lukbot-text-secondary hover:text-white active:text-white transition-colors'
+                className='p-1.5 text-nexus-text-secondary hover:text-white active:text-white transition-colors'
                 aria-label={volume === 0 ? 'Unmute' : 'Mute'}
             >
                 {volume === 0 ? (
@@ -157,7 +157,7 @@ export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
                 aria-valuenow={displayVol}
             />
             <span
-                className='text-xs text-lukbot-text-secondary w-8 text-right tabular-nums'
+                className='text-xs text-nexus-text-secondary w-8 text-right tabular-nums'
                 aria-hidden='true'
             >
                 {displayVol}%

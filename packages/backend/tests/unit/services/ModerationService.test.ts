@@ -19,20 +19,20 @@ const mockModerationSettings = {
     getModerationStats: jest.fn<any>(),
 }
 
-jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
     typePrisma: (client: any) => client,
 }))
 
-jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
+jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
 jest.mock(
-    '@lukbot/shared/services/moderationSettings',
+    '@nexus/shared/services/moderationSettings',
     () => mockModerationSettings,
 )
 
-import { ModerationService } from '@lukbot/shared/services/ModerationService'
+import { ModerationService } from '@nexus/shared/services/ModerationService'
 
 describe('ModerationService', () => {
     let service: InstanceType<typeof ModerationService>

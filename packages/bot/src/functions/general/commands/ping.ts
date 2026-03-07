@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { infoLog } from '@lukbot/shared/utils'
+import { infoLog } from '@nexus/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
 export default new Command({

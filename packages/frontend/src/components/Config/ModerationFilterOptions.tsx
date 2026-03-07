@@ -53,27 +53,27 @@ export default function ModerationFilterOptions({
     form,
 }: ModerationFilterOptionsProps) {
     return (
-        <div className='border-t border-lukbot-border pt-4'>
+        <div className='border-t border-nexus-border pt-4'>
             <div className='flex items-center gap-2 mb-4'>
                 <MessageSquareOff
-                    className='h-4 w-4 text-lukbot-text-secondary'
+                    className='h-4 w-4 text-nexus-text-secondary'
                     aria-hidden='true'
                 />
                 <h3 className='text-lg font-semibold text-white'>
                     Filter Options
                 </h3>
             </div>
-            <div className='space-y-3 rounded-lg border border-lukbot-border bg-lukbot-bg-tertiary p-4'>
+            <div className='space-y-3 rounded-lg border border-nexus-border bg-nexus-bg-tertiary p-4'>
                 {FILTER_OPTIONS.map(({ key, label, desc }) => (
                     <div
                         key={key}
-                        className='flex flex-row items-center justify-between rounded-md bg-lukbot-bg-secondary p-3'
+                        className='flex flex-row items-center justify-between rounded-md bg-nexus-bg-secondary p-3'
                     >
                         <div className='space-y-0.5'>
                             <Label className='text-sm font-medium'>
                                 {label}
                             </Label>
-                            <p className='text-xs text-lukbot-text-secondary'>
+                            <p className='text-xs text-nexus-text-secondary'>
                                 {desc}
                             </p>
                         </div>

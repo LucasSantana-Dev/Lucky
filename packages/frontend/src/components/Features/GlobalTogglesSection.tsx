@@ -18,15 +18,21 @@ export default function GlobalTogglesSection({
     return (
         <div className='space-y-4'>
             <div className='flex items-center gap-2 mb-4'>
-                <Globe className='w-5 h-5 text-lukbot-purple' aria-hidden='true' />
-                <h2 id='global-toggles-heading' className='text-lg font-semibold text-white'>
+                <Globe
+                    className='w-5 h-5 text-nexus-purple'
+                    aria-hidden='true'
+                />
+                <h2
+                    id='global-toggles-heading'
+                    className='text-lg font-semibold text-white'
+                >
                     Global Toggles
                 </h2>
-                <Badge className='bg-lukbot-purple/20 text-lukbot-purple text-xs'>
+                <Badge className='bg-nexus-purple/20 text-nexus-purple text-xs'>
                     Developer Only
                 </Badge>
             </div>
-            <p className='text-sm text-lukbot-text-secondary mb-4'>
+            <p className='text-sm text-nexus-text-secondary mb-4'>
                 These toggles affect all servers using the bot. Only developers
                 can modify these.
             </p>

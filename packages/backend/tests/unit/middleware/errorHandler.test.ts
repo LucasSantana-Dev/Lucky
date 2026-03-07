@@ -2,11 +2,11 @@ import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { AppError } from '../../../src/errors/AppError'
 
-jest.mock('@lukbot/shared/utils', () => ({
+jest.mock('@nexus/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-import { errorLog } from '@lukbot/shared/utils'
+import { errorLog } from '@nexus/shared/utils'
 
 function createReq(method = 'GET', url = '/test') {
     return { method, originalUrl: url } as any

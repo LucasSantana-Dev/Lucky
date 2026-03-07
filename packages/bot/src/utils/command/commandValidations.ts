@@ -2,10 +2,7 @@ import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import { errorEmbed } from '../general/embeds'
 import { interactionReply } from '../general/interactionReply'
-import {
-    handleError,
-    createUserErrorMessage,
-} from '@lukbot/shared/utils'
+import { handleError, createUserErrorMessage } from '@nexus/shared/utils'
 
 export async function requireGuild(
     interaction: ChatInputCommandInteraction,

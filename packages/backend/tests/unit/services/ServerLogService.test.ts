@@ -10,11 +10,11 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
     typePrisma: (client: any) => client,
 }))
 
-jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
+jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
@@ -35,9 +35,9 @@ const mockHelpers = {
     logSettingsChange: jest.fn<any>(),
 }
 
-jest.mock('@lukbot/shared/services/serverLogHelpers', () => mockHelpers)
+jest.mock('@nexus/shared/services/serverLogHelpers', () => mockHelpers)
 
-import { ServerLogService } from '@lukbot/shared/services/ServerLogService'
+import { ServerLogService } from '@nexus/shared/services/ServerLogService'
 
 describe('ServerLogService', () => {
     let service: InstanceType<typeof ServerLogService>

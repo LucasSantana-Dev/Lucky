@@ -29,7 +29,7 @@ const SOURCE_META: Record<string, { icon: typeof Disc3; color: string }> = {
     youtube: { icon: ExternalLink, color: 'text-red-400' },
     soundcloud: { icon: Radio, color: 'text-orange-400' },
     deezer: { icon: Music2, color: 'text-purple-400' },
-    unknown: { icon: Music2, color: 'text-lukbot-text-secondary' },
+    unknown: { icon: Music2, color: 'text-nexus-text-secondary' },
 }
 
 function SourceBadge({ source }: { source: TrackInfo['source'] }) {
@@ -128,7 +128,7 @@ function AlbumArt({
 
     return (
         <div
-            className='relative w-full sm:w-56 md:w-64 h-44 sm:h-56 md:h-64 bg-lukbot-bg-tertiary shrink-0'
+            className='relative w-full sm:w-56 md:w-64 h-44 sm:h-56 md:h-64 bg-nexus-bg-tertiary shrink-0'
             aria-hidden='true'
         >
             {track?.thumbnail ? (
@@ -148,7 +148,7 @@ function AlbumArt({
             ) : (
                 <div className='w-full h-full flex items-center justify-center'>
                     <Disc3
-                        className={`h-16 w-16 sm:h-20 sm:w-20 text-lukbot-text-secondary opacity-30 ${isPlaying ? 'animate-spin motion-reduce:animate-none' : ''}`}
+                        className={`h-16 w-16 sm:h-20 sm:w-20 text-nexus-text-secondary opacity-30 ${isPlaying ? 'animate-spin motion-reduce:animate-none' : ''}`}
                         style={{ animationDuration: '3s' }}
                     />
                 </div>
@@ -185,10 +185,10 @@ function TrackDetails({ track }: { track: TrackInfo | null }) {
     if (!track) {
         return (
             <div role='status' aria-label='No track playing'>
-                <h2 className='text-lg sm:text-xl font-bold text-lukbot-text-secondary'>
+                <h2 className='text-lg sm:text-xl font-bold text-nexus-text-secondary'>
                     Nothing playing
                 </h2>
-                <p className='text-sm text-lukbot-text-secondary'>
+                <p className='text-sm text-nexus-text-secondary'>
                     Search for a song or import a playlist
                 </p>
             </div>
@@ -203,11 +203,11 @@ function TrackDetails({ track }: { track: TrackInfo | null }) {
             >
                 {track.title}
             </h2>
-            <p className='text-sm text-lukbot-text-secondary truncate'>
+            <p className='text-sm text-nexus-text-secondary truncate'>
                 {track.author}
             </p>
             {track.requestedBy && (
-                <p className='text-xs text-lukbot-text-secondary mt-1'>
+                <p className='text-xs text-nexus-text-secondary mt-1'>
                     Requested by {track.requestedBy}
                 </p>
             )}
@@ -241,7 +241,7 @@ function ProgressBar({
     return (
         <div className='mt-3 sm:mt-4'>
             <div
-                className='w-full bg-lukbot-bg-tertiary rounded-full h-2 sm:h-1.5 cursor-pointer group touch-none'
+                className='w-full bg-nexus-bg-tertiary rounded-full h-2 sm:h-1.5 cursor-pointer group touch-none'
                 onClick={handleClick}
                 role='slider'
                 aria-label='Seek position'
@@ -256,7 +256,7 @@ function ProgressBar({
                     style={{ width: `${pct}%` }}
                 />
             </div>
-            <div className='flex justify-between text-xs text-lukbot-text-secondary mt-1'>
+            <div className='flex justify-between text-xs text-nexus-text-secondary mt-1'>
                 <span>{formatDuration(position)}</span>
                 <span>{formatted}</span>
             </div>

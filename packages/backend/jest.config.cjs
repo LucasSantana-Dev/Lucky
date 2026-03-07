@@ -36,12 +36,12 @@ module.exports = {
   testTimeout: 30000,
   maxWorkers: '50%',
   moduleNameMapper: {
-    '^@lukbot/shared$': '<rootDir>/../shared/src/index',
-    '^@lukbot/shared/services$': '<rootDir>/../shared/src/services/index',
-    '^@lukbot/shared/utils$': '<rootDir>/../shared/src/utils/index',
-    '^@lukbot/shared/config$': '<rootDir>/../shared/src/config/index',
-    '^@lukbot/shared/types$': '<rootDir>/../shared/src/types/index',
-    '^@lukbot/shared/(.*)$': '<rootDir>/../shared/src/$1'
+    '^@nexus/shared$': '<rootDir>/../shared/src/index',
+    '^@nexus/shared/services$': '<rootDir>/../shared/src/services/index',
+    '^@nexus/shared/utils$': '<rootDir>/../shared/src/utils/index',
+    '^@nexus/shared/config$': '<rootDir>/../shared/src/config/index',
+    '^@nexus/shared/types$': '<rootDir>/../shared/src/types/index',
+    '^@nexus/shared/(.*)$': '<rootDir>/../shared/src/$1'
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
@@ -53,7 +53,7 @@ module.exports = {
     }]
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(chalk|#ansi-styles|uuid|@lukbot)/)',
+    'node_modules/(?!(chalk|#ansi-styles|uuid|@nexus)/)',
     '<rootDir>/../shared/dist/'
   ],
   moduleFileExtensions: ['ts', 'js', 'json'],

@@ -112,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
             },
         }),
         {
-            name: 'lukbot-auth',
+            name: 'nexus-auth',
             partialize: (state) => ({
                 user: state.user,
                 isAuthenticated: state.isAuthenticated,

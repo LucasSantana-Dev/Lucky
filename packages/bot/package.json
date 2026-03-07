@@ -1,5 +1,5 @@
 {
-    "name": "@lukbot/bot",
+    "name": "@nexus/bot",
     "version": "1.0.0",
     "description": "Discord bot application",
     "type": "module",
@@ -11,7 +11,7 @@
         "type:check": "tsc --noEmit"
     },
     "dependencies": {
-        "@lukbot/shared": "file:../shared",
+        "@nexus/shared": "file:../shared",
         "ws": "^8.19.0",
         "@discordjs/builders": "^1.13.1",
         "@sentry/node": "^10.38.0",

@@ -10,7 +10,7 @@ import ModerationConfig from '@/components/Config/ModerationConfig'
 
 export default function ConfigPage() {
     usePageMetadata({
-        title: 'Configuration - LukBot',
+        title: 'Configuration - Nexus',
         description: 'Configure modules and commands for your Discord servers',
     })
     const [selectedModule, setSelectedModule] = useState<string | null>(null)
@@ -46,7 +46,7 @@ export default function ConfigPage() {
                     <h1 className='text-2xl font-bold text-white mb-2'>
                         Configuration
                     </h1>
-                    <p className='text-lukbot-text-secondary'>
+                    <p className='text-nexus-text-secondary'>
                         Please select a server to configure
                     </p>
                 </header>
@@ -60,7 +60,7 @@ export default function ConfigPage() {
                 <h1 className='text-2xl font-bold text-white mb-2'>
                     Configuration
                 </h1>
-                <p className='text-lukbot-text-secondary'>
+                <p className='text-nexus-text-secondary'>
                     Configure modules and commands for your servers
                 </p>
             </header>
@@ -74,7 +74,7 @@ export default function ConfigPage() {
                         {modules.map((module) => (
                             <Card
                                 key={module.id}
-                                className='p-6 hover:bg-lukbot-bg-tertiary transition-colors cursor-pointer'
+                                className='p-6 hover:bg-nexus-bg-tertiary transition-colors cursor-pointer'
                                 onClick={() => setSelectedModule(module.id)}
                                 role='button'
                                 tabIndex={0}
@@ -97,7 +97,7 @@ export default function ConfigPage() {
                                         <h3 className='text-lg font-semibold text-white mb-1'>
                                             {module.name}
                                         </h3>
-                                        <p className='text-sm text-lukbot-text-secondary'>
+                                        <p className='text-sm text-nexus-text-secondary'>
                                             {module.description}
                                         </p>
                                     </div>

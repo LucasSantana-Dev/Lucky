@@ -1,12 +1,12 @@
-import { errorLog, infoLog } from '@lukbot/shared/utils'
+import { errorLog, infoLog } from '@nexus/shared/utils'
 import { createClient, startClient } from '../../handlers/clientHandler'
 import { createPlayer } from '../../handlers/playerHandler'
 import { setCommands } from '../../handlers/commandsHandler'
 import { getCommands } from '../../register'
 import handleEvents from '../../handlers/eventHandler'
 import type { CustomClient } from '../../types'
-import { ConfigurationError } from '@lukbot/shared/types'
-import { redisClient } from '@lukbot/shared/services'
+import { ConfigurationError } from '@nexus/shared/types'
+import { redisClient } from '@nexus/shared/services'
 import type {
     BotInitializationOptions,
     BotInitializationResult,

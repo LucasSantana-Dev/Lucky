@@ -1,7 +1,7 @@
 import type { Track } from 'discord-player'
 // import { errorLog } from "../../general/log"
 import { isSimilarTitle } from '../titleComparison'
-import { safeSetInterval } from '@lukbot/shared/utils'
+import { safeSetInterval } from '@nexus/shared/utils'
 import { TrackCacheManager } from './cacheManager'
 import type {
     TrackInfo,
@@ -25,7 +25,9 @@ export class TrackProcessor {
             title: track.title,
             duration: track.duration,
             requester: track.requestedBy?.username ?? 'Unknown',
-            isAutoplay: (track.metadata as { isAutoplay?: boolean })?.isAutoplay ?? false,
+            isAutoplay:
+                (track.metadata as { isAutoplay?: boolean })?.isAutoplay ??
+                false,
         }
     }
 
@@ -73,7 +75,10 @@ export class TrackProcessor {
         const results: Track[] = []
 
         for (const track of tracks) {
-            if (!includeAutoplay && (track.metadata as { isAutoplay?: boolean })?.isAutoplay) {
+            if (
+                !includeAutoplay &&
+                (track.metadata as { isAutoplay?: boolean })?.isAutoplay
+            ) {
                 continue
             }
 

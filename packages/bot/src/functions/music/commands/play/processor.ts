@@ -1,4 +1,4 @@
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 import { detectQueryType } from './queryDetector'
 import { handleSpotifyTrack, handleSpotifyPlaylist } from './spotifyHandler'
 import { handleYouTubePlaylist, handleYouTubeSearch } from './youtubeHandler'
@@ -58,7 +58,13 @@ export class PlayCommandProcessor {
         const { query, user, guildId, channelId, player } = options
 
         if (query.includes('playlist')) {
-            return handleSpotifyPlaylist(query, user, guildId, channelId, player)
+            return handleSpotifyPlaylist(
+                query,
+                user,
+                guildId,
+                channelId,
+                player,
+            )
         } else {
             return handleSpotifyTrack(query, user, guildId, channelId, player)
         }
@@ -70,7 +76,13 @@ export class PlayCommandProcessor {
         const { query, user, guildId, channelId, player } = options
 
         if (query.includes('playlist')) {
-            return handleYouTubePlaylist(query, user, guildId, channelId, player)
+            return handleYouTubePlaylist(
+                query,
+                user,
+                guildId,
+                channelId,
+                player,
+            )
         } else {
             return handleYouTubeSearch(query, user, guildId, channelId, player)
         }

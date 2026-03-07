@@ -52,20 +52,20 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --color-lukbot-red: #c33d41;
-  --color-lukbot-bg-primary: #151516;
-  --color-lukbot-bg-secondary: #1a1a1b;
-  --color-lukbot-bg-tertiary: #202021;
-  --color-lukbot-bg-active: #252526;
-  --color-lukbot-border: #2d2d2e;
-  --color-lukbot-text-primary: #ffffff;
-  --color-lukbot-text-secondary: #b3b3b3;
-  --color-lukbot-text-tertiary: #808080;
-  --color-lukbot-text-disabled: #4d4d4d;
-  --color-lukbot-blue: #3b82f6;
-  --color-lukbot-purple: #8b5cf6;
-  --color-lukbot-success: #22c55e;
-  --color-lukbot-error: #ef4444;
+  --color-nexus-red: #c33d41;
+  --color-nexus-bg-primary: #151516;
+  --color-nexus-bg-secondary: #1a1a1b;
+  --color-nexus-bg-tertiary: #202021;
+  --color-nexus-bg-active: #252526;
+  --color-nexus-border: #2d2d2e;
+  --color-nexus-text-primary: #ffffff;
+  --color-nexus-text-secondary: #b3b3b3;
+  --color-nexus-text-tertiary: #808080;
+  --color-nexus-text-disabled: #4d4d4d;
+  --color-nexus-blue: #3b82f6;
+  --color-nexus-purple: #8b5cf6;
+  --color-nexus-success: #22c55e;
+  --color-nexus-error: #ef4444;
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -131,7 +131,7 @@
 
 @utility scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--lukbot-border) transparent;
+  scrollbar-color: var(--nexus-border) transparent;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -143,14 +143,14 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: var(--lukbot-border);
+    background-color: var(--nexus-border);
     border-radius: 3px;
   }
 }
 
 @layer base {
   :root {
-    /* LukBot Dark Theme - Default */
+    /* Nexus Dark Theme - Default */
     --background: 240 3% 8%;
     --foreground: 0 0% 100%;
 
@@ -190,21 +190,21 @@
     --sidebar-border: 240 3% 18%;
     --sidebar-ring: 359 57% 50%;
 
-    /* LukBot Custom Colors */
-    --lukbot-red: #c33d41;
-    --lukbot-bg-primary: #151516;
-    --lukbot-bg-secondary: #1a1a1b;
-    --lukbot-bg-tertiary: #202021;
-    --lukbot-bg-active: #252526;
-    --lukbot-border: #2d2d2e;
-    --lukbot-text-primary: #ffffff;
-    --lukbot-text-secondary: #b3b3b3;
-    --lukbot-text-tertiary: #808080;
-    --lukbot-text-disabled: #4d4d4d;
-    --lukbot-blue: #3b82f6;
-    --lukbot-purple: #8b5cf6;
-    --lukbot-success: #22c55e;
-    --lukbot-error: #ef4444;
+    /* Nexus Custom Colors */
+    --nexus-red: #c33d41;
+    --nexus-bg-primary: #151516;
+    --nexus-bg-secondary: #1a1a1b;
+    --nexus-bg-tertiary: #202021;
+    --nexus-bg-active: #252526;
+    --nexus-border: #2d2d2e;
+    --nexus-text-primary: #ffffff;
+    --nexus-text-secondary: #b3b3b3;
+    --nexus-text-tertiary: #808080;
+    --nexus-text-disabled: #4d4d4d;
+    --nexus-blue: #3b82f6;
+    --nexus-purple: #8b5cf6;
+    --nexus-success: #22c55e;
+    --nexus-error: #ef4444;
   }
 
   .dark {

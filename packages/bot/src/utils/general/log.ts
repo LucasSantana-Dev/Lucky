@@ -1,1 +1,1 @@
-export * from '@lukbot/shared/utils'
+export * from '@nexus/shared/utils'

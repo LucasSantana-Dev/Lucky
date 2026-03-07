@@ -5,7 +5,7 @@ import express from 'express'
 import { setupToggleRoutes } from '../../../src/routes/toggles'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { getFeatureToggleConfig } from '@lukbot/shared/config'
+import { getFeatureToggleConfig } from '@nexus/shared/config'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
@@ -14,7 +14,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-jest.mock('@lukbot/shared/services', () => ({
+jest.mock('@nexus/shared/services', () => ({
     featureToggleService: {
         getAllToggles: jest.fn(),
         isEnabledGlobal: jest.fn(),
@@ -22,7 +22,7 @@ jest.mock('@lukbot/shared/services', () => ({
     },
 }))
 
-jest.mock('@lukbot/shared/config', () => ({
+jest.mock('@nexus/shared/config', () => ({
     getFeatureToggleConfig: jest.fn(() => ({
         DOWNLOAD_VIDEO: {
             name: 'DOWNLOAD_VIDEO',
@@ -62,7 +62,7 @@ describe('Toggles Routes Integration', () => {
             },
         } as ReturnType<typeof getFeatureToggleConfig>)
 
-        const sharedServices = await import('@lukbot/shared/services')
+        const sharedServices = await import('@nexus/shared/services')
         featureToggleService = sharedServices.featureToggleService
     })
 

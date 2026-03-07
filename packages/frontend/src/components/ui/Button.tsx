@@ -36,7 +36,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                             variant === 'secondary',
                         'bg-accent hover:bg-accent/90 text-white':
                             variant === 'accent',
-                        'bg-transparent hover:bg-lukbot-bg-tertiary text-white':
+                        'bg-transparent hover:bg-nexus-bg-tertiary text-white':
                             variant === 'ghost',
                         'bg-destructive hover:bg-destructive/90 text-destructive-foreground':
                             variant === 'destructive',

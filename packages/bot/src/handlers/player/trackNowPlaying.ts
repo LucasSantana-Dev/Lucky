@@ -1,9 +1,9 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { ColorResolvable, TextChannel, User } from 'discord.js'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
-import { constants } from '@lukbot/shared/config'
+import { constants } from '@nexus/shared/config'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,

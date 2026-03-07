@@ -1,6 +1,6 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { infoLog, errorLog, debugLog } from '@lukbot/shared/utils'
+import { infoLog, errorLog, debugLog } from '@nexus/shared/utils'
 import { sendDependencyWebhook } from '../utils/dependency/webhook'
 import type { DependencyUpdate } from '../utils/dependency/types'
 
@@ -86,9 +86,7 @@ class DependencyCheckService {
         }
     }
 
-    private parseUpdates(
-        updates: Record<string, string>,
-    ): DependencyUpdate[] {
+    private parseUpdates(updates: Record<string, string>): DependencyUpdate[] {
         const result: DependencyUpdate[] = []
 
         for (const [packageName, latestVersion] of Object.entries(updates)) {
@@ -162,9 +160,7 @@ class DependencyCheckService {
         const lastPackageNames = new Set(
             this.lastResults.map((u) => u.packageName),
         )
-        const currentPackageNames = new Set(
-            updates.map((u) => u.packageName),
-        )
+        const currentPackageNames = new Set(updates.map((u) => u.packageName))
 
         if (currentPackageNames.size !== lastPackageNames.size) return true
 
@@ -172,7 +168,10 @@ class DependencyCheckService {
             const lastUpdate = this.lastResults.find(
                 (u) => u.packageName === update.packageName,
             )
-            if (!lastUpdate || lastUpdate.latestVersion !== update.latestVersion) {
+            if (
+                !lastUpdate ||
+                lastUpdate.latestVersion !== update.latestVersion
+            ) {
                 return true
             }
         }

@@ -3,7 +3,7 @@ import play from 'play-dl'
 import fs from 'fs'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { deleteContent } from './deleteContent'
-import { errorLog, infoLog } from '@lukbot/shared/utils'
+import { errorLog, infoLog } from '@nexus/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { convertFileToFile } from '../../../utils/ffmpeg/ffmpegWrapper'
 

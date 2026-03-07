@@ -1,5 +1,5 @@
 import type { Track, GuildQueue } from 'discord-player'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 
 export async function clearQueue(queue: GuildQueue): Promise<boolean> {
     try {
@@ -18,8 +18,8 @@ export async function shuffleQueue(queue: GuildQueue): Promise<boolean> {
         if (tracks.length <= 1) return true
 
         for (let i = tracks.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [tracks[i], tracks[j]] = [tracks[j], tracks[i]]
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[tracks[i], tracks[j]] = [tracks[j], tracks[i]]
         }
 
         queue.clear()
@@ -35,14 +35,20 @@ export async function shuffleQueue(queue: GuildQueue): Promise<boolean> {
     }
 }
 
-export async function removeTrackFromQueue(queue: GuildQueue, position: number): Promise<Track | null> {
+export async function removeTrackFromQueue(
+    queue: GuildQueue,
+    position: number,
+): Promise<Track | null> {
     try {
         const tracks = queue.tracks.toArray()
         if (position < 0 || position >= tracks.length) return null
 
         const track = tracks[position]
         queue.node.remove(track)
-        debugLog({ message: 'Track removed from queue', data: { position, track: track.title } })
+        debugLog({
+            message: 'Track removed from queue',
+            data: { position, track: track.title },
+        })
         return track
     } catch (error) {
         errorLog({ message: 'Error removing track from queue:', error })
@@ -50,10 +56,20 @@ export async function removeTrackFromQueue(queue: GuildQueue, position: number):
     }
 }
 
-export async function moveTrackInQueue(queue: GuildQueue, fromPosition: number, toPosition: number): Promise<Track | null> {
+export async function moveTrackInQueue(
+    queue: GuildQueue,
+    fromPosition: number,
+    toPosition: number,
+): Promise<Track | null> {
     try {
         const tracks = queue.tracks.toArray()
-        if (fromPosition < 0 || fromPosition >= tracks.length || toPosition < 0 || toPosition >= tracks.length) return null
+        if (
+            fromPosition < 0 ||
+            fromPosition >= tracks.length ||
+            toPosition < 0 ||
+            toPosition >= tracks.length
+        )
+            return null
 
         const track = tracks[fromPosition]
         queue.node.remove(track)
@@ -65,7 +81,10 @@ export async function moveTrackInQueue(queue: GuildQueue, fromPosition: number, 
             queue.insertTrack(track, toPosition)
         }
 
-        debugLog({ message: 'Track moved in queue', data: { track: track.title, from: fromPosition, to: toPosition } })
+        debugLog({
+            message: 'Track moved in queue',
+            data: { track: track.title, from: fromPosition, to: toPosition },
+        })
         return track
     } catch (error) {
         errorLog({ message: 'Error moving track in queue:', error })
@@ -75,7 +94,10 @@ export async function moveTrackInQueue(queue: GuildQueue, fromPosition: number, 
 
 export async function replenishQueue(queue: GuildQueue): Promise<void> {
     try {
-        debugLog({ message: 'Replenishing queue', data: { guildId: queue.guild.id } })
+        debugLog({
+            message: 'Replenishing queue',
+            data: { guildId: queue.guild.id },
+        })
         debugLog({ message: 'Queue replenished successfully' })
     } catch (error) {
         errorLog({ message: 'Error replenishing queue:', error })

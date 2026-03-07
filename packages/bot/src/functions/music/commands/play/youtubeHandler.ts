@@ -3,7 +3,7 @@
  */
 
 import type { PlayCommandResult, PlayCommandOptions } from './types'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 
 export async function handleYouTubeSearch(
     query: string,
