@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Converted 15 music route try/catch blocks to `asyncHandler` + `AppError`
   (playbackRoutes 9, queueRoutes 5, stateRoutes 1)
 
+### Added - AutoMod mute action and case tracking
+
+- Implemented `mute` action in automod violation handler using Discord native timeout API
+- Default automod mute duration: 5 minutes (300s)
+- All automod violations now delete the offending message first
+- `warn` action creates moderation case via ModerationService
+- `kick` and `ban` actions now also create moderation cases (previously fire-and-forget)
+- Bot user recorded as moderator with `[AutoMod]` reason prefix for audit trail
+
 ### Fixed - Express 5 type safety
 
 - Added `p()` helper for `string | string[]` param extraction (Express 5 breaking change)

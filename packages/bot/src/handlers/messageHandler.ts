@@ -2,7 +2,10 @@ import { Events, type Client, type Message } from 'discord.js'
 import { autoModService } from '@lukbot/shared/services'
 import { customCommandService } from '@lukbot/shared/services'
 import { featureToggleService } from '@lukbot/shared/services'
+import { moderationService } from '@lukbot/shared/services'
 import { errorLog, debugLog } from '@lukbot/shared/utils'
+
+const AUTOMOD_MUTE_DURATION = 300
 
 async function handleAutoMod(message: Message): Promise<void> {
     if (!message.guild || !message.member) return
@@ -116,37 +119,88 @@ async function handleAutoMod(message: Message): Promise<void> {
                 data: violation,
             })
 
-            // Handle based on action type
+            await message.delete().catch(() => {})
+
+            const caseInput = {
+                guildId,
+                userId,
+                username: message.author.tag,
+                moderatorId: message.client.user!.id,
+                moderatorName: message.client.user!.tag,
+                reason: `[AutoMod] ${violation.reason}`,
+                channelId: message.channelId,
+            }
+
             switch (violation.action) {
                 case 'delete':
-                    await message.delete().catch(() => {
-                        // Message already deleted or permissions issue
-                    })
                     break
                 case 'warn':
-                    // Would create a moderation case via ModerationService
+                    await moderationService
+                        .createCase({ ...caseInput, type: 'warn' })
+                        .catch((err) => {
+                            errorLog({
+                                message: 'Failed to create warn case:',
+                                error: err,
+                            })
+                        })
                     break
                 case 'mute':
-                    // Would mute the user
+                    await message.member
+                        ?.timeout(
+                            AUTOMOD_MUTE_DURATION * 1000,
+                            caseInput.reason,
+                        )
+                        .catch((err) => {
+                            errorLog({
+                                message: 'Failed to mute user:',
+                                error: err,
+                            })
+                        })
+                    await moderationService
+                        .createCase({
+                            ...caseInput,
+                            type: 'mute',
+                            duration: AUTOMOD_MUTE_DURATION,
+                        })
+                        .catch((err) => {
+                            errorLog({
+                                message: 'Failed to create mute case:',
+                                error: err,
+                            })
+                        })
                     break
                 case 'kick':
                     await message.member
-                        ?.kick(violation.reason)
+                        ?.kick(caseInput.reason)
                         .catch((err) => {
                             errorLog({
-                                message:
-                                    'Failed to kick user for automod violation:',
+                                message: 'Failed to kick user:',
+                                error: err,
+                            })
+                        })
+                    await moderationService
+                        .createCase({ ...caseInput, type: 'kick' })
+                        .catch((err) => {
+                            errorLog({
+                                message: 'Failed to create kick case:',
                                 error: err,
                             })
                         })
                     break
                 case 'ban':
                     await message.guild?.members
-                        .ban(userId, { reason: violation.reason })
+                        .ban(userId, { reason: caseInput.reason })
                         .catch((err) => {
                             errorLog({
-                                message:
-                                    'Failed to ban user for automod violation:',
+                                message: 'Failed to ban user:',
+                                error: err,
+                            })
+                        })
+                    await moderationService
+                        .createCase({ ...caseInput, type: 'ban' })
+                        .catch((err) => {
+                            errorLog({
+                                message: 'Failed to create ban case:',
                                 error: err,
                             })
                         })
