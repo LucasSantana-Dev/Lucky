@@ -193,6 +193,32 @@ describe('Toggles Routes Integration', () => {
     })
 
     describe('POST /api/toggles/global/:name', () => {
+        test('should return 400 for invalid toggle name', async () => {
+            const developerSession = {
+                ...MOCK_SESSION_DATA,
+                userId: '123456789',
+            }
+
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(developerSession)
+
+            const mockToggles = new Map()
+
+            const mockFeatureToggleService =
+                featureToggleService as jest.Mocked<typeof featureToggleService>
+            mockFeatureToggleService.getAllToggles.mockReturnValue(mockToggles)
+
+            const response = await request(app)
+                .post('/api/toggles/global/INVALID_TOGGLE')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: true })
+                .expect(400)
+
+            expect(response.body).toEqual({ error: 'Invalid toggle name' })
+        })
+
         test('should return success message for developer', async () => {
             const developerSession = {
                 ...MOCK_SESSION_DATA,
@@ -317,6 +343,23 @@ describe('Toggles Routes Integration', () => {
                 .expect(200)
 
             expect(response.body).toHaveProperty('success', true)
+        })
+
+        test('should return 400 when enabled is missing', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const response = await request(app)
+                .post('/api/guilds/111111111111111111/features/DOWNLOAD_VIDEO')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({})
+                .expect(400)
+
+            expect(response.body).toEqual({
+                error: 'Enabled must be a boolean',
+            })
         })
 
         test('should return 400 when enabled is not boolean', async () => {
