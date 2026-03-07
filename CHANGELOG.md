@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage: statements 96%, branches 84%, functions 100%, lines 96%
   (362 tests across 24 suites)
 
+### Added - Frontend unit testing infrastructure
+
+- Vitest + React Testing Library + jsdom for frontend unit tests
+- `ApiError` tests (7 tests — constructor, details, status helpers)
+- `guildStore` Zustand tests (9 tests — fetch, select, update, error handling)
+- `featuresStore` Zustand tests (9 tests — global/server toggles, defaults)
+- `useServerFilter` hook tests (5 tests — filter all/with-bot/without-bot)
+- 30 frontend tests across 4 suites, all passing
+
 ### Removed
 
 - Unused `featuresApi.ts` (duplicated inline in `api.ts`)
