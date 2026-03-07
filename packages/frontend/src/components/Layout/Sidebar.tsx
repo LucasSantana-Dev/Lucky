@@ -287,7 +287,9 @@ function Sidebar() {
                             {user?.username || 'User'}
                         </p>
                         <p className='text-[11px] text-lukbot-text-tertiary truncate'>
-                            {user?.globalName || 'Online'}
+                            {user?.discriminator
+                                ? `#${user.discriminator}`
+                                : 'Online'}
                         </p>
                     </div>
                     <button

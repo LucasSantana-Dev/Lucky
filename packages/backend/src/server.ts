@@ -34,13 +34,18 @@ export function startWebApp(): void {
 
     server.on('error', (error: Error & { code?: string }) => {
         if (error.code === 'EADDRINUSE') {
-            errorLog({
-                message: `Port ${WEBAPP_PORT} is already in use. Please stop the conflicting service or set WEBAPP_PORT to a different port.`,
-                error: { code: error.code, port: WEBAPP_PORT },
+            const fallbackPort = WEBAPP_PORT + 1
+            infoLog({
+                message: `Port ${WEBAPP_PORT} in use, trying ${fallbackPort}...`,
             })
-            process.exit(1)
-        } else {
-            errorLog({ message: 'Web application error:', error })
+            app.listen(fallbackPort, WEBAPP_HOST, () => {
+                infoLog({
+                    message: `Web application started on ${WEBAPP_HOST}:${fallbackPort}`,
+                })
+            })
+            return
         }
+        errorLog({ message: 'Web application error:', error })
+        process.exit(1)
     })
 }

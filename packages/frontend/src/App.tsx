@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
@@ -39,44 +39,20 @@ function AuthenticatedRoutes() {
 
 function App() {
     const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
-    const [isInitializing, setIsInitializing] = useState(true)
+    const [isReady, setIsReady] = useState(false)
+    const initialized = useRef(false)
 
     useEffect(() => {
-        let isMounted = true
-        let timeoutId: ReturnType<typeof setTimeout> | null = null
+        if (initialized.current) return
+        initialized.current = true
 
-        const initializeAuth = async () => {
-            try {
-                await checkAuth()
-            } catch (error) {
-                console.error('Failed to initialize auth:', error)
-            } finally {
-                if (isMounted) {
-                    setIsInitializing(false)
-                }
-            }
-        }
-
-        initializeAuth()
-
-        timeoutId = setTimeout(() => {
-            if (isMounted) {
-                console.warn(
-                    'Auth initialization taking longer than expected - proceeding anyway',
-                )
-                setIsInitializing(false)
-            }
-        }, 30000)
-
-        return () => {
-            isMounted = false
-            if (timeoutId) {
-                clearTimeout(timeoutId)
-            }
-        }
+        checkAuth()
+            .then(() => setIsReady(true))
+            .catch(() => setIsReady(true))
     }, [checkAuth])
 
-    if (isInitializing || isLoading) {
+    // Show loader while initializing
+    if (!isReady || isLoading) {
         return (
             <div className='dark'>
                 <PageLoader />

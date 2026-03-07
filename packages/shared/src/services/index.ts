@@ -35,3 +35,5 @@ export {
     type AutoplayCounter,
 } from './GuildSettingsService'
 export { roleManagementService } from './RoleManagementService'
+export { reactionRolesService } from './ReactionRolesService'
+export { redisClient } from './redis/index.js'

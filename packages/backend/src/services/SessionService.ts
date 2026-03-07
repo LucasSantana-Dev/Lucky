@@ -1,4 +1,4 @@
-import { redisClient } from '@lukbot/shared/services/redis/redisClient'
+import { redisClient } from '@lukbot/shared/services'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
 import type { DiscordUser } from './DiscordOAuthService'
 
@@ -21,7 +21,10 @@ class SessionService {
     async getSession(sessionId: string): Promise<SessionData | null> {
         try {
             if (!redisClient.isHealthy()) {
-                debugLog({ message: 'Redis client not available, session retrieval failed' })
+                debugLog({
+                    message:
+                        'Redis client not available, session retrieval failed',
+                })
                 return null
             }
 
@@ -46,10 +49,16 @@ class SessionService {
         }
     }
 
-    async setSession(sessionId: string, sessionData: SessionData): Promise<void> {
+    async setSession(
+        sessionId: string,
+        sessionData: SessionData,
+    ): Promise<void> {
         try {
             if (!redisClient.isHealthy()) {
-                debugLog({ message: 'Redis client not available, session storage failed' })
+                debugLog({
+                    message:
+                        'Redis client not available, session storage failed',
+                })
                 return
             }
 
@@ -57,7 +66,10 @@ class SessionService {
             const data = JSON.stringify(sessionData)
 
             await redisClient.setex(key, this.sessionTtl, data)
-            debugLog({ message: 'Session stored successfully', data: { sessionId } })
+            debugLog({
+                message: 'Session stored successfully',
+                data: { sessionId },
+            })
         } catch (error) {
             errorLog({ message: 'Error setting session:', error })
             throw error
@@ -67,19 +79,28 @@ class SessionService {
     async deleteSession(sessionId: string): Promise<void> {
         try {
             if (!redisClient.isHealthy()) {
-                debugLog({ message: 'Redis client not available, session deletion failed' })
+                debugLog({
+                    message:
+                        'Redis client not available, session deletion failed',
+                })
                 return
             }
 
             const key = this.getSessionKey(sessionId)
             await redisClient.del(key)
-            debugLog({ message: 'Session deleted successfully', data: { sessionId } })
+            debugLog({
+                message: 'Session deleted successfully',
+                data: { sessionId },
+            })
         } catch (error) {
             errorLog({ message: 'Error deleting session:', error })
         }
     }
 
-    async updateSession(sessionId: string, updates: Partial<SessionData>): Promise<void> {
+    async updateSession(
+        sessionId: string,
+        updates: Partial<SessionData>,
+    ): Promise<void> {
         try {
             const existingSession = await this.getSession(sessionId)
             if (!existingSession) {

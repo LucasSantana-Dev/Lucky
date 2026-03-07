@@ -10,14 +10,17 @@ interface AuthState {
     isDeveloper: boolean
     login: () => void
     logout: () => Promise<void>
-    checkAuth: () => Promise<void>
+    checkAuth: () => Promise<boolean>
     checkDeveloperStatus: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+// Module-level promise to prevent concurrent auth checks
+let authCheckPromise: Promise<boolean> | null = null
+
+export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     isAuthenticated: false,
-    isLoading: false,
+    isLoading: true, // Start as true
     isDeveloper: false,
 
     login: () => {
@@ -38,37 +41,62 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     checkAuth: async () => {
-        set({ isLoading: true })
-        try {
-            const response = await api.auth.checkStatus()
-            if (response.data.authenticated && response.data.user) {
-                const user = response.data.user
-                set({ user, isAuthenticated: true, isLoading: false })
-                const store = useAuthStore.getState()
-                await store.checkDeveloperStatus()
-            } else {
+        // Return existing promise if check is already in progress
+        if (authCheckPromise) {
+            return authCheckPromise
+        }
+
+        // Create new auth check promise
+        authCheckPromise = (async () => {
+            // Only set loading if not already authenticated
+            const currentState = get()
+            if (!currentState.isAuthenticated) {
+                set({ isLoading: true })
+            }
+
+            try {
+                const response = await api.auth.checkStatus()
+
+                if (response.data.authenticated && response.data.user) {
+                    const user = response.data.user
+                    set({
+                        user,
+                        isAuthenticated: true,
+                        isLoading: false,
+                    })
+
+                    // Check developer status asynchronously
+                    get()
+                        .checkDeveloperStatus()
+                        .catch(() => {})
+
+                    return true
+                } else {
+                    set({
+                        user: null,
+                        isAuthenticated: false,
+                        isLoading: false,
+                        isDeveloper: false,
+                    })
+                    return false
+                }
+            } catch {
                 set({
                     user: null,
                     isAuthenticated: false,
                     isLoading: false,
                     isDeveloper: false,
                 })
+                return false
+            } finally {
+                // Clear the promise after a short delay to allow for state updates
+                setTimeout(() => {
+                    authCheckPromise = null
+                }, 100)
             }
-        } catch (error) {
-            const message =
-                error instanceof Error
-                    ? error.message
-                    : 'Failed to check authentication status'
-            if (!message.includes('Network error')) {
-                console.error('Auth check error:', error)
-            }
-            set({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-                isDeveloper: false,
-            })
-        }
+        })()
+
+        return authCheckPromise
     },
 
     checkDeveloperStatus: async () => {
@@ -76,16 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             await api.features.getGlobalToggles()
             set({ isDeveloper: true })
         } catch (error: unknown) {
-            if (error && typeof error === 'object' && 'response' in error) {
-                const axiosError = error as { response?: { status?: number } }
-                if (axiosError.response?.status === 403) {
-                    set({ isDeveloper: false })
-                } else {
-                    set({ isDeveloper: false })
-                }
-            } else {
-                set({ isDeveloper: false })
-            }
+            set({ isDeveloper: false })
         }
     },
 }))

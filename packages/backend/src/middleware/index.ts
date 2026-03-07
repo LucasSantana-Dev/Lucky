@@ -25,5 +25,10 @@ export function setupMiddleware(app: Express): void {
     app.use(express.urlencoded({ extended: true }))
     app.use(cookieParser())
     setupSessionMiddleware(app)
-    app.use(express.static(path.join(__dirname, '../public')))
+
+    // Only serve static files in production mode
+    const isProduction = process.env.NODE_ENV === 'production'
+    if (isProduction) {
+        app.use(express.static(path.join(__dirname, '../public')))
+    }
 }
