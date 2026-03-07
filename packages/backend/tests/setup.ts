@@ -10,6 +10,23 @@ process.env.DEVELOPER_USER_IDS = '123456789,987654321'
 process.env.REDIS_HOST = 'localhost'
 process.env.REDIS_PORT = '6379'
 
+jest.mock('ioredis', () => {
+    return jest.fn().mockImplementation(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('not available')),
+        disconnect: jest.fn(),
+        on: jest.fn(),
+        status: 'wait',
+    }))
+})
+
+jest.mock('connect-redis', () => {
+    return jest.fn().mockImplementation(() => ({
+        get: jest.fn(),
+        set: jest.fn(),
+        destroy: jest.fn(),
+    }))
+})
+
 jest.mock('express-session', () => {
     return function session(options?: { name?: string }) {
         const cookieName = options?.name ?? 'connect.sid'

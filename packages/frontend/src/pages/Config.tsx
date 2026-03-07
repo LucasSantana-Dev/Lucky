@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { Music, MessageSquare, Shield } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
-import MusicConfig from '@/components/Config/MusicConfig'
-import CommandsConfig from '@/components/Config/CommandsConfig'
-import ModerationConfig from '@/components/Config/ModerationConfig'
+import LoadingSpinner from '@/components/ui/LoadingSpinner'
+
+const MusicConfig = lazy(() => import('@/components/Config/MusicConfig'))
+const CommandsConfig = lazy(() => import('@/components/Config/CommandsConfig'))
+const ModerationConfig = lazy(
+    () => import('@/components/Config/ModerationConfig'),
+)
 
 export default function ConfigPage() {
     usePageMetadata({
@@ -117,15 +121,17 @@ export default function ConfigPage() {
                             ← Back
                         </Button>
                     </div>
-                    {selectedModule === 'music' && (
-                        <MusicConfig guildId={selectedGuild.id} />
-                    )}
-                    {selectedModule === 'commands' && (
-                        <CommandsConfig guildId={selectedGuild.id} />
-                    )}
-                    {selectedModule === 'moderation' && (
-                        <ModerationConfig guildId={selectedGuild.id} />
-                    )}
+                    <Suspense fallback={<LoadingSpinner />}>
+                        {selectedModule === 'music' && (
+                            <MusicConfig guildId={selectedGuild.id} />
+                        )}
+                        {selectedModule === 'commands' && (
+                            <CommandsConfig guildId={selectedGuild.id} />
+                        )}
+                        {selectedModule === 'moderation' && (
+                            <ModerationConfig guildId={selectedGuild.id} />
+                        )}
+                    </Suspense>
                 </section>
             )}
         </main>
