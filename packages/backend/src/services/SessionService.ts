@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { redisClient } from '@lukbot/shared/services'
 import { debugLog, errorLog } from '@lukbot/shared/utils'
 import type { DiscordUser } from './DiscordOAuthService'
@@ -10,26 +12,59 @@ export interface SessionData {
     expiresAt: number
 }
 
+const SESSION_FILE = join(process.cwd(), '.data', 'sessions.json')
+
 class SessionService {
     private readonly sessionPrefix = 'webapp:session:'
     private readonly sessionTtl = 7 * 24 * 60 * 60
+    private readonly memoryStore: Map<string, string>
+
+    constructor() {
+        this.memoryStore = this.loadFromFile()
+    }
 
     private getSessionKey(sessionId: string): string {
         return `${this.sessionPrefix}${sessionId}`
     }
 
+    private useRedis(): boolean {
+        return redisClient.isHealthy()
+    }
+
+    private loadFromFile(): Map<string, string> {
+        try {
+            const raw = readFileSync(SESSION_FILE, 'utf-8')
+            const entries = JSON.parse(raw) as [string, string][]
+            debugLog({
+                message: `Loaded ${entries.length} sessions from disk`,
+            })
+            return new Map(entries)
+        } catch {
+            return new Map()
+        }
+    }
+
+    private persistToFile(): void {
+        try {
+            mkdirSync(join(process.cwd(), '.data'), {
+                recursive: true,
+            })
+            const entries = Array.from(this.memoryStore.entries())
+            writeFileSync(SESSION_FILE, JSON.stringify(entries), 'utf-8')
+        } catch (error) {
+            errorLog({
+                message: 'Failed to persist sessions to disk',
+                error,
+            })
+        }
+    }
+
     async getSession(sessionId: string): Promise<SessionData | null> {
         try {
-            if (!redisClient.isHealthy()) {
-                debugLog({
-                    message:
-                        'Redis client not available, session retrieval failed',
-                })
-                return null
-            }
-
             const key = this.getSessionKey(sessionId)
-            const data = await redisClient.get(key)
+            const data = this.useRedis()
+                ? await redisClient.get(key)
+                : (this.memoryStore.get(key) ?? null)
 
             if (!data) {
                 return null
@@ -54,18 +89,19 @@ class SessionService {
         sessionData: SessionData,
     ): Promise<void> {
         try {
-            if (!redisClient.isHealthy()) {
-                debugLog({
-                    message:
-                        'Redis client not available, session storage failed',
-                })
-                return
-            }
-
             const key = this.getSessionKey(sessionId)
             const data = JSON.stringify(sessionData)
 
-            await redisClient.setex(key, this.sessionTtl, data)
+            if (this.useRedis()) {
+                await redisClient.setex(key, this.sessionTtl, data)
+            } else {
+                this.memoryStore.set(key, data)
+                this.persistToFile()
+                debugLog({
+                    message: 'Session persisted to disk (Redis unavailable)',
+                })
+            }
+
             debugLog({
                 message: 'Session stored successfully',
                 data: { sessionId },
@@ -78,16 +114,15 @@ class SessionService {
 
     async deleteSession(sessionId: string): Promise<void> {
         try {
-            if (!redisClient.isHealthy()) {
-                debugLog({
-                    message:
-                        'Redis client not available, session deletion failed',
-                })
-                return
+            const key = this.getSessionKey(sessionId)
+
+            if (this.useRedis()) {
+                await redisClient.del(key)
+            } else {
+                this.memoryStore.delete(key)
+                this.persistToFile()
             }
 
-            const key = this.getSessionKey(sessionId)
-            await redisClient.del(key)
             debugLog({
                 message: 'Session deleted successfully',
                 data: { sessionId },

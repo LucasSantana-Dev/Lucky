@@ -39,6 +39,9 @@ dist
 build
 *.tsbuildinfo
 
+# Session data
+.data/
+
 # Downloads and logs
 downloads/
 logs/
