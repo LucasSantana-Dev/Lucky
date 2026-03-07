@@ -86,7 +86,8 @@
     },
     "dependencies": {
         "@prisma/adapter-pg": "^7.4.2",
-        "@prisma/client": "^7.4.2"
+        "@prisma/client": "^7.4.2",
+        "minipass-flush": "^1.0.5"
     },
     "overrides": {
         "fast-xml-parser": ">=4.5.4",

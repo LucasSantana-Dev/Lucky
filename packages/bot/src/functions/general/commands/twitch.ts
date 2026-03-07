@@ -9,7 +9,7 @@ import {
     handleTwitchAdd,
     handleTwitchRemove,
     handleTwitchList,
-} from './twitchHandlers'
+} from '../handlers/twitchHandlers'
 
 export default new Command({
     data: new SlashCommandBuilder()
