@@ -41,7 +41,7 @@ export default function MusicPage() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-64 text-lukbot-text-secondary px-4'>
+            <div className='flex flex-col items-center justify-center h-64 text-nexus-text-secondary px-4'>
                 <Music2
                     className='h-10 w-10 sm:h-12 sm:w-12 mb-4 opacity-50'
                     aria-hidden='true'
@@ -58,14 +58,14 @@ export default function MusicPage() {
             <header className='flex items-center justify-between gap-3'>
                 <div className='flex items-center gap-3 min-w-0'>
                     <Music2
-                        className='h-6 w-6 sm:h-7 sm:w-7 text-lukbot-red shrink-0'
+                        className='h-6 w-6 sm:h-7 sm:w-7 text-nexus-red shrink-0'
                         aria-hidden='true'
                     />
                     <div className='min-w-0'>
                         <h1 className='text-xl sm:text-2xl font-bold text-white truncate'>
                             Music Player
                         </h1>
-                        <p className='text-xs sm:text-sm text-lukbot-text-secondary truncate'>
+                        <p className='text-xs sm:text-sm text-nexus-text-secondary truncate'>
                             {player.state.voiceChannelName
                                 ? `Connected to ${player.state.voiceChannelName}`
                                 : 'Not connected to a voice channel'}

@@ -3,7 +3,7 @@
  */
 
 import type { PlayCommandResult, PlayCommandOptions } from './types'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 
 function extractSpotifyTrackId(url: string): string | null {
     const trackMatch = url.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/)

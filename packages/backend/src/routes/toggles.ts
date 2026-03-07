@@ -1,10 +1,10 @@
 import type { Express, Response } from 'express'
-import { featureToggleService } from '@lukbot/shared/services'
+import { featureToggleService } from '@nexus/shared/services'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
-import { getFeatureToggleConfig } from '@lukbot/shared/config'
-import type { FeatureToggleName } from '@lukbot/shared/types'
+import { getFeatureToggleConfig } from '@nexus/shared/config'
+import type { FeatureToggleName } from '@nexus/shared/types'
 
 const DEVELOPER_USER_IDS = (process.env.DEVELOPER_USER_IDS ?? '')
     .split(',')

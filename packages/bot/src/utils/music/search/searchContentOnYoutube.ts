@@ -1,11 +1,8 @@
 import type { ChatInputCommandInteraction, User } from 'discord.js'
 import type { CustomClient } from '../../../types'
 import type { SearchResult } from 'discord-player'
-import { errorLog, debugLog } from '@lukbot/shared/utils'
-import {
-    enhancedYouTubeSearch,
-    enhancedAutoSearch,
-} from './index'
+import { errorLog, debugLog } from '@nexus/shared/utils'
+import { enhancedYouTubeSearch, enhancedAutoSearch } from './index'
 import {
     logYouTubeError,
     isRecoverableYouTubeError,

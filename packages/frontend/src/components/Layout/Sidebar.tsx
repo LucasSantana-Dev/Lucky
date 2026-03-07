@@ -92,15 +92,15 @@ function Sidebar() {
     const sidebarContent = (
         <div className='flex flex-col h-full'>
             {/* Logo */}
-            <div className='flex items-center gap-3 px-5 py-4 border-b border-lukbot-border'>
-                <div className='w-9 h-9 bg-lukbot-red rounded-lg flex items-center justify-center shrink-0'>
+            <div className='flex items-center gap-3 px-5 py-4 border-b border-nexus-border'>
+                <div className='w-9 h-9 bg-nexus-red rounded-lg flex items-center justify-center shrink-0'>
                     <Bot className='w-5 h-5 text-white' />
                 </div>
                 <span className='text-lg font-bold text-white tracking-tight'>
-                    LukBot
+                    Nexus
                 </span>
                 <button
-                    className='ml-auto lg:hidden text-lukbot-text-secondary hover:text-white transition-colors'
+                    className='ml-auto lg:hidden text-nexus-text-secondary hover:text-white transition-colors'
                     onClick={() => setMobileOpen(false)}
                     aria-label='Close sidebar'
                 >
@@ -109,13 +109,13 @@ function Sidebar() {
             </div>
 
             {/* Server Selector */}
-            <div className='px-3 py-3 border-b border-lukbot-border'>
+            <div className='px-3 py-3 border-b border-nexus-border'>
                 <div className='relative'>
                     <button
                         onClick={() =>
                             setServerDropdownOpen(!serverDropdownOpen)
                         }
-                        className='w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-lukbot-bg-tertiary hover:bg-lukbot-bg-active transition-colors text-left'
+                        className='w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-nexus-bg-tertiary hover:bg-nexus-bg-active transition-colors text-left'
                     >
                         {selectedGuild ? (
                             <>
@@ -127,7 +127,7 @@ function Sidebar() {
                                                 : undefined
                                         }
                                     />
-                                    <AvatarFallback className='bg-lukbot-bg-active text-white text-[10px]'>
+                                    <AvatarFallback className='bg-nexus-bg-active text-white text-[10px]'>
                                         {selectedGuild.name
                                             .substring(0, 2)
                                             .toUpperCase()}
@@ -138,13 +138,13 @@ function Sidebar() {
                                 </span>
                             </>
                         ) : (
-                            <span className='flex-1 text-sm text-lukbot-text-secondary'>
+                            <span className='flex-1 text-sm text-nexus-text-secondary'>
                                 Select a server
                             </span>
                         )}
                         <ChevronDown
                             className={cn(
-                                'w-4 h-4 text-lukbot-text-tertiary transition-transform shrink-0',
+                                'w-4 h-4 text-nexus-text-tertiary transition-transform shrink-0',
                                 serverDropdownOpen && 'rotate-180',
                             )}
                         />
@@ -157,11 +157,11 @@ function Sidebar() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -4 }}
                                 transition={{ duration: 0.15 }}
-                                className='absolute left-0 right-0 top-full mt-1 z-50 bg-lukbot-bg-secondary border border-lukbot-border rounded-lg shadow-xl overflow-hidden'
+                                className='absolute left-0 right-0 top-full mt-1 z-50 bg-nexus-bg-secondary border border-nexus-border rounded-lg shadow-xl overflow-hidden'
                             >
                                 <ScrollArea className='max-h-48'>
                                     {botGuilds.length === 0 ? (
-                                        <div className='px-3 py-4 text-sm text-lukbot-text-tertiary text-center'>
+                                        <div className='px-3 py-4 text-sm text-nexus-text-tertiary text-center'>
                                             No servers with bot
                                         </div>
                                     ) : (
@@ -173,10 +173,10 @@ function Sidebar() {
                                                     setServerDropdownOpen(false)
                                                 }}
                                                 className={cn(
-                                                    'w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-lukbot-bg-tertiary transition-colors',
+                                                    'w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-nexus-bg-tertiary transition-colors',
                                                     selectedGuild?.id ===
                                                         guild.id &&
-                                                        'bg-lukbot-bg-active',
+                                                        'bg-nexus-bg-active',
                                                 )}
                                             >
                                                 <Avatar className='w-6 h-6 shrink-0'>
@@ -187,7 +187,7 @@ function Sidebar() {
                                                                 : undefined
                                                         }
                                                     />
-                                                    <AvatarFallback className='bg-lukbot-bg-active text-white text-[9px]'>
+                                                    <AvatarFallback className='bg-nexus-bg-active text-white text-[9px]'>
                                                         {guild.name
                                                             .substring(0, 2)
                                                             .toUpperCase()}
@@ -198,7 +198,7 @@ function Sidebar() {
                                                 </span>
                                                 {selectedGuild?.id ===
                                                     guild.id && (
-                                                    <div className='ml-auto w-1.5 h-1.5 rounded-full bg-lukbot-success shrink-0' />
+                                                    <div className='ml-auto w-1.5 h-1.5 rounded-full bg-nexus-success shrink-0' />
                                                 )}
                                             </button>
                                         ))
@@ -216,7 +216,7 @@ function Sidebar() {
                     {navSections.map((section) => (
                         <div key={section.title}>
                             <div className='px-3 mb-1.5'>
-                                <span className='text-[10px] font-semibold tracking-widest text-lukbot-text-tertiary uppercase'>
+                                <span className='text-[10px] font-semibold tracking-widest text-nexus-text-tertiary uppercase'>
                                     {section.title}
                                 </span>
                             </div>
@@ -230,19 +230,19 @@ function Sidebar() {
                                             className={cn(
                                                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all relative group',
                                                 active
-                                                    ? 'bg-lukbot-red/10 text-white'
-                                                    : 'text-lukbot-text-secondary hover:text-white hover:bg-lukbot-bg-tertiary',
+                                                    ? 'bg-nexus-red/10 text-white'
+                                                    : 'text-nexus-text-secondary hover:text-white hover:bg-nexus-bg-tertiary',
                                             )}
                                         >
                                             {active && (
-                                                <div className='absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-lukbot-red rounded-r-full' />
+                                                <div className='absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-nexus-red rounded-r-full' />
                                             )}
                                             <item.icon
                                                 className={cn(
                                                     'w-[18px] h-[18px] shrink-0 transition-colors',
                                                     active
-                                                        ? 'text-lukbot-red'
-                                                        : 'text-lukbot-text-tertiary group-hover:text-lukbot-text-secondary',
+                                                        ? 'text-nexus-red'
+                                                        : 'text-nexus-text-tertiary group-hover:text-nexus-text-secondary',
                                                 )}
                                             />
                                             <span className='truncate'>
@@ -250,7 +250,7 @@ function Sidebar() {
                                             </span>
                                             {item.badge !== undefined &&
                                                 item.badge > 0 && (
-                                                    <span className='ml-auto text-[10px] font-bold bg-lukbot-red text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1'>
+                                                    <span className='ml-auto text-[10px] font-bold bg-nexus-red text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1'>
                                                         {item.badge > 99
                                                             ? '99+'
                                                             : item.badge}
@@ -266,7 +266,7 @@ function Sidebar() {
             </ScrollArea>
 
             {/* User Profile */}
-            <div className='px-3 py-3 border-t border-lukbot-border'>
+            <div className='px-3 py-3 border-t border-nexus-border'>
                 <div className='flex items-center gap-3 px-3 py-2'>
                     <Avatar className='w-8 h-8 shrink-0'>
                         <AvatarImage
@@ -276,7 +276,7 @@ function Sidebar() {
                                     : undefined
                             }
                         />
-                        <AvatarFallback className='bg-lukbot-bg-active text-white text-xs'>
+                        <AvatarFallback className='bg-nexus-bg-active text-white text-xs'>
                             {(user?.username || 'U')
                                 .substring(0, 2)
                                 .toUpperCase()}
@@ -286,7 +286,7 @@ function Sidebar() {
                         <p className='text-sm font-medium text-white truncate'>
                             {user?.username || 'User'}
                         </p>
-                        <p className='text-[11px] text-lukbot-text-tertiary truncate'>
+                        <p className='text-[11px] text-nexus-text-tertiary truncate'>
                             {user?.discriminator
                                 ? `#${user.discriminator}`
                                 : 'Online'}
@@ -294,7 +294,7 @@ function Sidebar() {
                     </div>
                     <button
                         onClick={logout}
-                        className='p-1.5 rounded-md text-lukbot-text-tertiary hover:text-lukbot-error hover:bg-lukbot-error/10 transition-colors'
+                        className='p-1.5 rounded-md text-nexus-text-tertiary hover:text-nexus-error hover:bg-nexus-error/10 transition-colors'
                         aria-label='Logout'
                     >
                         <LogOut className='w-4 h-4' />
@@ -308,7 +308,7 @@ function Sidebar() {
         <>
             {/* Mobile toggle */}
             <button
-                className='fixed top-3 left-3 z-50 lg:hidden p-2 rounded-lg bg-lukbot-bg-secondary border border-lukbot-border text-white hover:bg-lukbot-bg-tertiary transition-colors'
+                className='fixed top-3 left-3 z-50 lg:hidden p-2 rounded-lg bg-nexus-bg-secondary border border-nexus-border text-white hover:bg-nexus-bg-tertiary transition-colors'
                 onClick={() => setMobileOpen(true)}
                 aria-label='Open sidebar'
             >
@@ -341,7 +341,7 @@ function Sidebar() {
                             damping: 25,
                             stiffness: 300,
                         }}
-                        className='fixed inset-y-0 left-0 z-50 w-64 bg-lukbot-bg-secondary lg:hidden'
+                        className='fixed inset-y-0 left-0 z-50 w-64 bg-nexus-bg-secondary lg:hidden'
                     >
                         {sidebarContent}
                     </motion.aside>
@@ -349,7 +349,7 @@ function Sidebar() {
             </AnimatePresence>
 
             {/* Desktop sidebar */}
-            <aside className='hidden lg:flex w-64 shrink-0 bg-lukbot-bg-secondary border-r border-lukbot-border h-screen sticky top-0'>
+            <aside className='hidden lg:flex w-64 shrink-0 bg-nexus-bg-secondary border-r border-nexus-border h-screen sticky top-0'>
                 {sidebarContent}
             </aside>
         </>

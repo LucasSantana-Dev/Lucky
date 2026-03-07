@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 import type { ChatInputCommandInteraction, EmbedBuilder } from 'discord.js'
-import { errorLog } from '@lukbot/shared/utils'
+import { errorLog } from '@nexus/shared/utils'
 import { searchContentOnYoutube } from '../../../../utils/music/search/searchContentOnYoutube'
 import type { CustomClient } from '../../../../types'
 import { messages } from '../../../../utils/general/messages'

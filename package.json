@@ -1,7 +1,7 @@
 {
-    "name": "lukbot",
+    "name": "nexus-bot",
     "version": "1.0.0",
-    "description": "Modular Discord bot with web interface",
+    "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [
         "packages/*"
@@ -86,5 +86,10 @@
     },
     "dependencies": {
         "@prisma/client": "^6.19.2"
+    },
+    "overrides": {
+        "fast-xml-parser": ">=4.5.4",
+        "tar": ">=7.5.10",
+        "undici": ">=6.23.0"
     }
 }

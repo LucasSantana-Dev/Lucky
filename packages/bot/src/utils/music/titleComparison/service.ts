@@ -1,15 +1,15 @@
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 import {
     artistTitlePatterns,
     youtubePatterns,
     artistPatterns,
-} from '@lukbot/shared/config'
+} from '@nexus/shared/config'
 import {
     applyPatterns,
     calculateSimilarity,
     normalizeString,
 } from '../../misc/stringUtils'
-import { safeSetInterval } from '@lukbot/shared/utils'
+import { safeSetInterval } from '@nexus/shared/utils'
 import type {
     ArtistTitle,
     TitleComparisonOptions,

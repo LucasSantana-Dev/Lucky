@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { infoLog, warnLog, errorLog } from '@lukbot/shared/utils'
+import { infoLog, warnLog, errorLog } from '@nexus/shared/utils'
 
 export function requestLogger(
     req: Request,

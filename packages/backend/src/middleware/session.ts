@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import session from 'express-session'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 import type { Express } from 'express'
 
 function createFileStore(sessionPath: string): session.Store | undefined {

@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { QueueState } from './types'
-import { debugLog } from '@lukbot/shared/utils'
+import { debugLog } from '@nexus/shared/utils'
 
 /**
  * Get current queue state
@@ -14,7 +14,10 @@ export function getQueueState(queue: GuildQueue): QueueState {
         const repeatMode = queue.repeatMode.toString()
         const volume = queue.node.volume
         const position = queue.node.getTimestamp()?.current?.valueOf() || 0
-        const duration = typeof currentTrack?.duration === 'number' ? currentTrack.duration : parseInt(currentTrack?.duration?.toString() || '0')
+        const duration =
+            typeof currentTrack?.duration === 'number'
+                ? currentTrack.duration
+                : parseInt(currentTrack?.duration?.toString() || '0')
 
         return {
             isPlaying,
@@ -24,7 +27,7 @@ export function getQueueState(queue: GuildQueue): QueueState {
             repeatMode: repeatMode.toString(),
             volume,
             position: typeof position === 'number' ? position : 0,
-            duration
+            duration,
         }
     } catch (error) {
         debugLog({ message: 'Error getting queue state:', error })
@@ -35,7 +38,7 @@ export function getQueueState(queue: GuildQueue): QueueState {
             repeatMode: 'OFF',
             volume: 100,
             position: 0,
-            duration: 0
+            duration: 0,
         }
     }
 }
@@ -68,10 +71,14 @@ export function getQueueStats(queue: GuildQueue): {
         const tracks = queue.tracks.toArray()
         const totalTracks = tracks.length
         const totalDuration = tracks.reduce((sum, track) => {
-            const duration = typeof track.duration === 'number' ? track.duration : parseInt(track.duration.toString())
+            const duration =
+                typeof track.duration === 'number'
+                    ? track.duration
+                    : parseInt(track.duration.toString())
             return sum + duration
         }, 0)
-        const averageDuration = totalTracks > 0 ? totalDuration / totalTracks : 0
+        const averageDuration =
+            totalTracks > 0 ? totalDuration / totalTracks : 0
 
         const genres = new Set<string>()
         const artists = new Set<string>()
@@ -88,7 +95,7 @@ export function getQueueStats(queue: GuildQueue): {
             totalDuration,
             averageDuration,
             genres: Array.from(genres),
-            artists: Array.from(artists)
+            artists: Array.from(artists),
         }
     } catch (error) {
         debugLog({ message: 'Error getting queue stats:', error })
@@ -97,7 +104,7 @@ export function getQueueStats(queue: GuildQueue): {
             totalDuration: 0,
             averageDuration: 0,
             genres: [],
-            artists: []
+            artists: [],
         }
     }
 }
@@ -118,7 +125,10 @@ export function getNextTrack(queue: GuildQueue): Track | null {
 /**
  * Get track at specific position
  */
-export function getTrackAtPosition(queue: GuildQueue, position: number): Track | null {
+export function getTrackAtPosition(
+    queue: GuildQueue,
+    position: number,
+): Track | null {
     try {
         const tracks = queue.tracks.toArray()
         if (position < 0 || position >= tracks.length) {
@@ -137,7 +147,9 @@ export function getTrackAtPosition(queue: GuildQueue, position: number): Track |
 export function isTrackInQueue(queue: GuildQueue, trackId: string): boolean {
     try {
         const tracks = queue.tracks.toArray()
-        return tracks.some(track => track.id === trackId || track.url === trackId)
+        return tracks.some(
+            (track) => track.id === trackId || track.url === trackId,
+        )
     } catch (error) {
         debugLog({ message: 'Error checking if track is in queue:', error })
         return false
@@ -150,7 +162,9 @@ export function isTrackInQueue(queue: GuildQueue, trackId: string): boolean {
 export function getTrackPosition(queue: GuildQueue, trackId: string): number {
     try {
         const tracks = queue.tracks.toArray()
-        const index = tracks.findIndex(track => track.id === trackId || track.url === trackId)
+        const index = tracks.findIndex(
+            (track) => track.id === trackId || track.url === trackId,
+        )
         return index >= 0 ? index : -1
     } catch (error) {
         debugLog({ message: 'Error getting track position:', error })

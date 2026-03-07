@@ -1,6 +1,6 @@
 import type { Express } from 'express'
-import { musicControlService } from '@lukbot/shared/services'
-import { infoLog, errorLog } from '@lukbot/shared/utils'
+import { musicControlService } from '@nexus/shared/services'
+import { infoLog, errorLog } from '@nexus/shared/utils'
 import { setupPlaybackRoutes } from './playbackRoutes'
 import { setupQueueRoutes } from './queueRoutes'
 import { setupStateRoutes } from './stateRoutes'

@@ -6,16 +6,16 @@ import {
     EMBED_COLORS,
     EMOJIS,
 } from '../../../utils/general/embeds'
-import { errorLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, debugLog } from '@nexus/shared/utils'
 import { QueueRepeatMode, type GuildQueue } from 'discord-player'
 import {
     requireGuild,
     requireQueue,
-} from "../../../utils/command/commandValidations"
+} from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { messages } from "../../../utils/general/messages"
+import { messages } from '../../../utils/general/messages'
 import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
-import { replenishQueue } from "../../../utils/music/trackManagement/queueOperations"
+import { replenishQueue } from '../../../utils/music/trackManagement/queueOperations'
 
 /**
  * Handle disabling autoplay

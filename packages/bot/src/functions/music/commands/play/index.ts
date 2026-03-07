@@ -8,10 +8,7 @@ import {
     logYouTubeError,
     isRecoverableYouTubeError,
 } from '../../../../utils/music/youtubeErrorHandler'
-import {
-    handleError,
-    createUserErrorMessage,
-} from '@lukbot/shared/utils'
+import { handleError, createUserErrorMessage } from '@nexus/shared/utils'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { PlayCommandProcessor } from './processor'
 import { createSuccessResponse } from './responseHandler'

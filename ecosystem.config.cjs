@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: "lukbot-bot",
+            name: "nexus-bot",
             script: "./packages/bot/dist/index.js",
             instances: 1,
             autorestart: true,
@@ -11,7 +11,7 @@ module.exports = {
             env_production: { NODE_ENV: "production" },
         },
         {
-            name: "lukbot-backend",
+            name: "nexus-backend",
             script: "./packages/backend/dist/index.js",
             instances: 1,
             autorestart: true,

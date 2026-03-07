@@ -99,7 +99,7 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                     Moderation Configuration
                 </h2>
             </div>
-            <p className='text-lukbot-text-secondary mb-6'>
+            <p className='text-nexus-text-secondary mb-6'>
                 Configure auto-moderation and moderation actions
             </p>
 
@@ -110,7 +110,7 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                             <Shield className='h-4 w-4' aria-hidden='true' />
                             Auto-Moderation
                         </Label>
-                        <p className='text-xs text-lukbot-text-secondary'>
+                        <p className='text-xs text-nexus-text-secondary'>
                             Enable automatic moderation for your server
                         </p>
                     </div>
@@ -125,10 +125,10 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
 
                 <ModerationFilterOptions form={form} />
 
-                <div className='border-t border-lukbot-border pt-4'>
+                <div className='border-t border-nexus-border pt-4'>
                     <div className='flex items-center gap-2 mb-4'>
                         <AlertTriangle
-                            className='h-4 w-4 text-lukbot-text-secondary'
+                            className='h-4 w-4 text-nexus-text-secondary'
                             aria-hidden='true'
                         />
                         <h3 className='text-lg font-semibold text-white'>
@@ -184,14 +184,14 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                                     <SelectItem value='ban'>Ban</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className='text-xs text-lukbot-text-secondary'>
+                            <p className='text-xs text-nexus-text-secondary'>
                                 {desc}
                             </p>
                         </div>
                     ))}
                 </div>
 
-                <div className='border-t border-lukbot-border pt-4 space-y-3'>
+                <div className='border-t border-nexus-border pt-4 space-y-3'>
                     {[
                         {
                             key: 'autoDeleteMessages',
@@ -206,11 +206,11 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                     ].map(({ key, label, desc }) => (
                         <div
                             key={key}
-                            className='flex flex-row items-center justify-between rounded-lg border border-lukbot-border bg-lukbot-bg-tertiary p-4'
+                            className='flex flex-row items-center justify-between rounded-lg border border-nexus-border bg-nexus-bg-tertiary p-4'
                         >
                             <div className='space-y-0.5'>
                                 <Label className='text-base'>{label}</Label>
-                                <p className='text-xs text-lukbot-text-secondary'>
+                                <p className='text-xs text-nexus-text-secondary'>
                                     {desc}
                                 </p>
                             </div>

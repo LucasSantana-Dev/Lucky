@@ -1,5 +1,5 @@
 import { YouTubeErrorAnalyzer } from './analyzer'
-import { errorLog, warnLog } from '@lukbot/shared/utils'
+import { errorLog, warnLog } from '@nexus/shared/utils'
 // import { createCorrelationId } from "../../error/errorHandler"
 import type {
     YouTubeErrorInfo,

@@ -1,15 +1,15 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
 import {
     requireGuild,
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
-} from "../../../utils/command/commandValidations"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+} from '../../../utils/command/commandValidations'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 

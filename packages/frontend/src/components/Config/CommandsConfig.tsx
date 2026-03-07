@@ -79,14 +79,14 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                     Commands Configuration
                 </h2>
             </div>
-            <p className='text-lukbot-text-secondary mb-6'>
+            <p className='text-nexus-text-secondary mb-6'>
                 Enable or disable bot commands
             </p>
 
             <div className='space-y-4'>
                 <div className='relative'>
                     <Search
-                        className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lukbot-text-secondary'
+                        className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-nexus-text-secondary'
                         aria-hidden='true'
                     />
                     <Input
@@ -137,10 +137,10 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                     ))}
                 </div>
 
-                <ScrollArea className='h-[400px] rounded-lg border border-lukbot-border bg-lukbot-bg-tertiary'>
+                <ScrollArea className='h-[400px] rounded-lg border border-nexus-border bg-nexus-bg-tertiary'>
                     <div className='space-y-1 p-4'>
                         {filteredCommands.length === 0 ? (
-                            <div className='flex h-32 items-center justify-center text-sm text-lukbot-text-secondary'>
+                            <div className='flex h-32 items-center justify-center text-sm text-nexus-text-secondary'>
                                 No commands found
                             </div>
                         ) : (
@@ -148,7 +148,7 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                 <div
                                     key={command.id}
                                     className={cn(
-                                        'flex flex-row items-center justify-between rounded-lg border border-lukbot-border bg-lukbot-bg-secondary p-4 transition-colors hover:bg-lukbot-bg-tertiary',
+                                        'flex flex-row items-center justify-between rounded-lg border border-nexus-border bg-nexus-bg-secondary p-4 transition-colors hover:bg-nexus-bg-tertiary',
                                     )}
                                 >
                                     <div className='flex-1 space-y-1'>
@@ -163,7 +163,7 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                                 {command.category}
                                             </Badge>
                                         </div>
-                                        <p className='text-sm text-lukbot-text-secondary'>
+                                        <p className='text-sm text-nexus-text-secondary'>
                                             {command.description}
                                         </p>
                                     </div>
@@ -181,7 +181,7 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                 </ScrollArea>
 
                 <div
-                    className='text-sm text-lukbot-text-secondary'
+                    className='text-sm text-nexus-text-secondary'
                     role='status'
                     aria-live='polite'
                 >

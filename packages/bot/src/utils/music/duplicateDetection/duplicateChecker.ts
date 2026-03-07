@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { debugLog } from '@lukbot/shared/utils'
+import { debugLog } from '@nexus/shared/utils'
 import { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 import { extractTags } from './tagExtractor'
 import type { DuplicateCheckResult, SimilarityConfig } from './types'
@@ -62,19 +62,17 @@ async function checkSameArtistTracks(
         return {
             isDuplicate: true,
             reason: 'Too many tracks from the same artist recently',
-            similarTracks: sameArtistTracks
-                .slice(0, 3)
-                .map((t) => ({
-                    trackId: t.id || t.url,
-                    title: t.title,
-                    author: t.author,
-                    duration: t.duration,
-                    url: t.url,
-                    timestamp: Date.now(),
-                    guildId: guildId,
-                    playedBy: t.requestedBy?.id || 'unknown',
-                    isAutoplay: false,
-                })),
+            similarTracks: sameArtistTracks.slice(0, 3).map((t) => ({
+                trackId: t.id || t.url,
+                title: t.title,
+                author: t.author,
+                duration: t.duration,
+                url: t.url,
+                timestamp: Date.now(),
+                guildId: guildId,
+                playedBy: t.requestedBy?.id || 'unknown',
+                isAutoplay: false,
+            })),
             confidence: 0.6,
         }
     }

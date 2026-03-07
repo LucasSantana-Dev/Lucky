@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { sessionService } from '../services/SessionService'
-import { errorLog } from '@lukbot/shared/utils'
+import { errorLog } from '@nexus/shared/utils'
 
 export interface AuthenticatedRequest extends Request {
     sessionId?: string
@@ -13,7 +13,11 @@ export interface AuthenticatedRequest extends Request {
     }
 }
 
-export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export function requireAuth(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+): void {
     const sessionId = req.sessionID
 
     if (!sessionId) {
@@ -46,7 +50,11 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
         })
 }
 
-export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
+export function optionalAuth(
+    req: AuthenticatedRequest,
+    _res: Response,
+    next: NextFunction,
+): void {
     const sessionId = req.sessionID
 
     if (!sessionId) {

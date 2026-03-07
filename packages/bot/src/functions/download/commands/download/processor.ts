@@ -1,6 +1,6 @@
 import { downloadVideo, deleteDownloadedFile } from '../../utils/downloadUtils'
 import { formatDuration } from '../../utils/downloadHelpers'
-import { errorLog, infoLog, successLog } from '@lukbot/shared/utils'
+import { errorLog, infoLog, successLog } from '@nexus/shared/utils'
 import type { DownloadOptions, DownloadResult } from './types'
 
 /**

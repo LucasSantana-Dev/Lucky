@@ -1,5 +1,5 @@
 import type { Response } from 'express'
-import { MusicControlService, type MusicCommand } from '@lukbot/shared/services'
+import { MusicControlService, type MusicCommand } from '@nexus/shared/services'
 
 export function param(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]

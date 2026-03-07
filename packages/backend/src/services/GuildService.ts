@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 
 let botClient: Client | null = null
 
@@ -24,7 +24,8 @@ class GuildService {
 
     async getUserGuilds(accessToken: string): Promise<DiscordGuild[]> {
         try {
-            const allGuilds = await discordOAuthService.getUserGuilds(accessToken)
+            const allGuilds =
+                await discordOAuthService.getUserGuilds(accessToken)
             const adminGuilds = discordOAuthService.filterAdminGuilds(allGuilds)
             debugLog({
                 message: 'Fetched user guilds',
@@ -75,7 +76,9 @@ class GuildService {
     ): Promise<GuildWithBotStatus[]> {
         return guilds.map((guild) => {
             const hasBot = this.checkBotInGuild(guild.id)
-            const botInviteUrl = hasBot ? undefined : this.generateBotInviteUrl(guild.id)
+            const botInviteUrl = hasBot
+                ? undefined
+                : this.generateBotInviteUrl(guild.id)
 
             return {
                 ...guild,

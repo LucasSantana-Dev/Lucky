@@ -5,7 +5,7 @@ import {
     type Client,
 } from 'discord.js'
 import Command from '../../../models/Command'
-import { debugLog, infoLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, infoLog, errorLog } from '@nexus/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
     getCommandCategory,

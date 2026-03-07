@@ -1,10 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
+import { interactionReply } from '../../../utils/general/interactionReply'
 import { musicEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
-import { featureToggleService } from "@lukbot/shared/services"
+import { featureToggleService } from '@nexus/shared/services'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -13,15 +13,18 @@ export default new Command({
             '📄 Show the lyrics of the current song or a specified song.',
         )
         .addStringOption((option) =>
-            option.setName("song").setDescription("Song name (optional)"),
+            option.setName('song').setDescription('Song name (optional)'),
         ),
-    category: "music",
+    category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         const context = {
             userId: interaction.user.id,
             guildId: interaction.guildId ?? undefined,
         }
-        const isEnabled = await featureToggleService.isEnabled('LYRICS', context)
+        const isEnabled = await featureToggleService.isEnabled(
+            'LYRICS',
+            context,
+        )
 
         if (!isEnabled) {
             await interactionReply({
@@ -33,7 +36,7 @@ export default new Command({
             return
         }
 
-        const query = interaction.options.getString("song")
+        const query = interaction.options.getString('song')
         let title = query
 
         if (title === null || title === '') {

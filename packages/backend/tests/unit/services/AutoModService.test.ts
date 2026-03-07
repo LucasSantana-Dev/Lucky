@@ -8,15 +8,15 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
     typePrisma: (client: any) => client,
 }))
 
-jest.mock('@lukbot/shared/utils/database/prismaClient', () => {
+jest.mock('@nexus/shared/utils/database/prismaClient', () => {
     return { getPrismaClient: () => mockPrisma }
 })
 
-import { AutoModService } from '@lukbot/shared/services/AutoModService'
+import { AutoModService } from '@nexus/shared/services/AutoModService'
 
 const DEFAULT_SETTINGS = {
     id: '1',

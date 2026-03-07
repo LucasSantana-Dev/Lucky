@@ -9,28 +9,28 @@ export default function DashboardPage() {
     const navigate = useNavigate()
     const { selectedGuild } = useGuildSelection()
     usePageMetadata({
-        title: 'Dashboard - LukBot',
+        title: 'Dashboard - Nexus',
         description: 'Manage your Discord bot servers and settings',
     })
 
     if (!selectedGuild) {
         return (
             <main className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <div className='w-24 h-24 bg-lukbot-bg-tertiary rounded-2xl flex items-center justify-center mb-4'>
+                <div className='w-24 h-24 bg-nexus-bg-tertiary rounded-2xl flex items-center justify-center mb-4'>
                     <FolderKanban
-                        className='w-12 h-12 text-lukbot-text-tertiary'
+                        className='w-12 h-12 text-nexus-text-tertiary'
                         aria-hidden='true'
                     />
                 </div>
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lukbot-text-secondary mb-4'>
+                <p className='text-nexus-text-secondary mb-4'>
                     Select a server from the dropdown above to manage it
                 </p>
                 <Button
                     onClick={() => navigate('/servers')}
-                    className='bg-lukbot-red hover:bg-lukbot-red/90'
+                    className='bg-nexus-red hover:bg-nexus-red/90'
                 >
                     View Your Servers
                 </Button>

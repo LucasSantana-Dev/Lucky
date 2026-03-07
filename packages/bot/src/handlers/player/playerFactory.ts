@@ -6,7 +6,7 @@ import {
 } from '@discord-player/extractor'
 import { YtDlpExtractor } from '../../utils/music/ytdlpExtractor/index'
 import type { CustomClient } from '../../types'
-import { errorLog, infoLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, infoLog, debugLog } from '@nexus/shared/utils'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -35,7 +35,7 @@ const registerExtractors = (player: Player): void => {
         const extractorsToLoad = [
             AttachmentExtractor,
             SpotifyExtractor,
-            SoundCloudExtractor
+            SoundCloudExtractor,
         ]
 
         // Load extractors selectively to reduce memory usage
@@ -47,7 +47,10 @@ const registerExtractors = (player: Player): void => {
         // Set max listeners to prevent memory leaks
         player.setMaxListeners(20)
 
-        infoLog({ message: 'Successfully registered extractors with selective loading' })
+        infoLog({
+            message:
+                'Successfully registered extractors with selective loading',
+        })
     } catch (error) {
         errorLog({ message: 'Error registering extractors:', error })
     }
@@ -55,7 +58,18 @@ const registerExtractors = (player: Player): void => {
 
 const registerYtDlpExtractor = (player: Player): void => {
     try {
-        void (player.extractors as { register: (extractor: unknown, options?: unknown) => void }).register(YtDlpExtractor as unknown as { name: string; validate: (url: string) => boolean; extract: (url: string) => Promise<unknown> }, {})
+        void (
+            player.extractors as {
+                register: (extractor: unknown, options?: unknown) => void
+            }
+        ).register(
+            YtDlpExtractor as unknown as {
+                name: string
+                validate: (url: string) => boolean
+                extract: (url: string) => Promise<unknown>
+            },
+            {},
+        )
         infoLog({
             message: 'Successfully registered yt-dlp-based YouTube extractor',
         })

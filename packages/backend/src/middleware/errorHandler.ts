@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { errorLog } from '@lukbot/shared/utils'
+import { errorLog } from '@nexus/shared/utils'
 import { AppError } from '../errors/AppError'
 
 export function errorHandler(

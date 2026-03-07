@@ -58,7 +58,7 @@ function FilterCard({
             className={cn(
                 'p-0 overflow-hidden transition-all',
                 enabled
-                    ? 'border-lukbot-border/80 ring-1 ring-lukbot-border/30'
+                    ? 'border-nexus-border/80 ring-1 ring-nexus-border/30'
                     : 'opacity-80',
             )}
         >
@@ -71,7 +71,7 @@ function FilterCard({
                         <h3 className='text-sm font-semibold text-white'>
                             {title}
                         </h3>
-                        <p className='text-xs text-lukbot-text-tertiary mt-0.5'>
+                        <p className='text-xs text-nexus-text-tertiary mt-0.5'>
                             {description}
                         </p>
                     </div>
@@ -84,7 +84,7 @@ function FilterCard({
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className='border-t border-lukbot-border'
+                    className='border-t border-nexus-border'
                 >
                     <div className='p-4 pt-3 space-y-3'>{children}</div>
                 </motion.div>
@@ -104,17 +104,15 @@ function ActionSelect({
 }) {
     return (
         <div className='space-y-1.5'>
-            <Label className='text-xs text-lukbot-text-secondary'>
-                {label}
-            </Label>
+            <Label className='text-xs text-nexus-text-secondary'>{label}</Label>
             <Select
                 value={value}
                 onValueChange={(v) => onChange(v as AutoModAction)}
             >
-                <SelectTrigger className='h-9 bg-lukbot-bg-tertiary border-lukbot-border text-white text-sm'>
+                <SelectTrigger className='h-9 bg-nexus-bg-tertiary border-nexus-border text-white text-sm'>
                     <SelectValue />
                 </SelectTrigger>
-                <SelectContent className='bg-lukbot-bg-secondary border-lukbot-border'>
+                <SelectContent className='bg-nexus-bg-secondary border-nexus-border'>
                     <SelectItem value='warn'>⚠️ Warn</SelectItem>
                     <SelectItem value='mute'>🔇 Mute</SelectItem>
                     <SelectItem value='kick'>👢 Kick</SelectItem>
@@ -140,16 +138,14 @@ function NumberInput({
 }) {
     return (
         <div className='space-y-1.5'>
-            <Label className='text-xs text-lukbot-text-secondary'>
-                {label}
-            </Label>
+            <Label className='text-xs text-nexus-text-secondary'>{label}</Label>
             <Input
                 type='number'
                 value={value}
                 onChange={(e) => onChange(Number(e.target.value))}
                 min={min}
                 max={max}
-                className='h-9 bg-lukbot-bg-tertiary border-lukbot-border text-white text-sm'
+                className='h-9 bg-nexus-bg-tertiary border-nexus-border text-white text-sm'
             />
         </div>
     )
@@ -186,12 +182,12 @@ function TagList({
                         e.key === 'Enter' && (e.preventDefault(), handleAdd())
                     }
                     placeholder={placeholder}
-                    className='h-9 bg-lukbot-bg-tertiary border-lukbot-border text-white text-sm flex-1'
+                    className='h-9 bg-nexus-bg-tertiary border-nexus-border text-white text-sm flex-1'
                 />
                 <Button
                     size='sm'
                     onClick={handleAdd}
-                    className='h-9 px-3 bg-lukbot-bg-active hover:bg-lukbot-bg-active/80'
+                    className='h-9 px-3 bg-nexus-bg-active hover:bg-nexus-bg-active/80'
                 >
                     <Plus className='w-4 h-4' />
                 </Button>
@@ -202,12 +198,12 @@ function TagList({
                         <Badge
                             key={item}
                             variant='outline'
-                            className='bg-lukbot-bg-tertiary border-lukbot-border text-lukbot-text-secondary text-xs gap-1 pr-1'
+                            className='bg-nexus-bg-tertiary border-nexus-border text-nexus-text-secondary text-xs gap-1 pr-1'
                         >
                             {item}
                             <button
                                 onClick={() => onRemove(item)}
-                                className='hover:text-lukbot-error transition-colors p-0.5'
+                                className='hover:text-nexus-error transition-colors p-0.5'
                             >
                                 <X className='w-3 h-3' />
                             </button>
@@ -287,11 +283,11 @@ export default function AutoModPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <ShieldAlert className='w-16 h-16 text-lukbot-text-tertiary mb-4' />
+                <ShieldAlert className='w-16 h-16 text-nexus-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lukbot-text-secondary text-sm'>
+                <p className='text-nexus-text-secondary text-sm'>
                     Select a server to configure auto-moderation
                 </p>
             </div>
@@ -321,7 +317,7 @@ export default function AutoModPage() {
                     <h1 className='text-2xl font-bold text-white'>
                         Auto-Moderation
                     </h1>
-                    <p className='text-sm text-lukbot-text-secondary mt-1'>
+                    <p className='text-sm text-nexus-text-secondary mt-1'>
                         Configure automatic content filters for{' '}
                         {selectedGuild.name}
                     </p>
@@ -329,7 +325,7 @@ export default function AutoModPage() {
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className='bg-lukbot-red hover:bg-lukbot-red/90 gap-2'
+                    className='bg-nexus-red hover:bg-nexus-red/90 gap-2'
                 >
                     {saving ? (
                         <Loader2 className='w-4 h-4 animate-spin' />
@@ -437,7 +433,7 @@ export default function AutoModPage() {
                             onChange={(v) => update('linksAction', v)}
                         />
                         <div className='space-y-1.5'>
-                            <Label className='text-xs text-lukbot-text-secondary'>
+                            <Label className='text-xs text-nexus-text-secondary'>
                                 Whitelisted domains
                             </Label>
                             <TagList
@@ -482,7 +478,7 @@ export default function AutoModPage() {
                             onChange={(v) => update('invitesAction', v)}
                         />
                         <div className='flex items-center justify-between'>
-                            <Label className='text-xs text-lukbot-text-secondary'>
+                            <Label className='text-xs text-nexus-text-secondary'>
                                 Allow own server invites
                             </Label>
                             <Switch
@@ -515,7 +511,7 @@ export default function AutoModPage() {
                             onChange={(v) => update('wordsAction', v)}
                         />
                         <div className='space-y-1.5'>
-                            <Label className='text-xs text-lukbot-text-secondary'>
+                            <Label className='text-xs text-nexus-text-secondary'>
                                 Word list
                             </Label>
                             <TagList
@@ -582,18 +578,18 @@ export default function AutoModPage() {
             >
                 <Card className='p-5'>
                     <div className='flex items-center gap-2 mb-4'>
-                        <CheckCircle2 className='w-5 h-5 text-lukbot-success' />
+                        <CheckCircle2 className='w-5 h-5 text-nexus-success' />
                         <h2 className='text-base font-semibold text-white'>
                             Exemptions
                         </h2>
                     </div>
-                    <p className='text-xs text-lukbot-text-tertiary mb-4'>
+                    <p className='text-xs text-nexus-text-tertiary mb-4'>
                         Channels and roles that are exempt from auto-moderation
                         filters
                     </p>
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-lukbot-text-secondary'>
+                            <Label className='text-xs text-nexus-text-secondary'>
                                 Exempt Channels (IDs)
                             </Label>
                             <TagList
@@ -616,7 +612,7 @@ export default function AutoModPage() {
                             />
                         </div>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-lukbot-text-secondary'>
+                            <Label className='text-xs text-nexus-text-secondary'>
                                 Exempt Roles (IDs)
                             </Label>
                             <TagList
@@ -643,11 +639,11 @@ export default function AutoModPage() {
             </motion.div>
 
             {/* Sticky Save Bar (mobile) */}
-            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lukbot-bg-primary/95 backdrop-blur-sm border-t border-lukbot-border z-30'>
+            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-nexus-bg-primary/95 backdrop-blur-sm border-t border-nexus-border z-30'>
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className='w-full bg-lukbot-red hover:bg-lukbot-red/90 gap-2'
+                    className='w-full bg-nexus-red hover:bg-nexus-red/90 gap-2'
                 >
                     {saving ? (
                         <Loader2 className='w-4 h-4 animate-spin' />

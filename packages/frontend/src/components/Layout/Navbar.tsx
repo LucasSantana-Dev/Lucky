@@ -43,13 +43,13 @@ export default function Navbar() {
 
     return (
         <>
-            <nav className='h-16 bg-lukbot-bg-secondary border-b border-lukbot-border flex items-center justify-between px-4 md:px-6 sticky top-0 z-40'>
+            <nav className='h-16 bg-nexus-bg-secondary border-b border-nexus-border flex items-center justify-between px-4 md:px-6 sticky top-0 z-40'>
                 <div className='flex items-center gap-6'>
                     <Link
                         to='/'
                         className='text-xl font-bold text-white hover:text-primary transition-colors'
                     >
-                        LukBot
+                        Nexus
                     </Link>
                     <nav
                         className='hidden md:flex items-center gap-1'
@@ -63,7 +63,7 @@ export default function Navbar() {
                                     'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                                     isActive(item.path)
                                         ? 'bg-primary text-white'
-                                        : 'text-lukbot-text-secondary hover:text-white hover:bg-lukbot-bg-tertiary',
+                                        : 'text-nexus-text-secondary hover:text-white hover:bg-nexus-bg-tertiary',
                                 )}
                                 aria-current={
                                     isActive(item.path) ? 'page' : undefined
@@ -78,11 +78,11 @@ export default function Navbar() {
                 <div className='flex items-center gap-4'>
                     <button
                         onClick={handleProfileClick}
-                        className='flex items-center gap-2 p-2 rounded-lg hover:bg-lukbot-bg-tertiary transition-colors'
+                        className='flex items-center gap-2 p-2 rounded-lg hover:bg-nexus-bg-tertiary transition-colors'
                         aria-label='Open profile menu'
                         aria-expanded={isProfileModalOpen}
                     >
-                        <Avatar className='w-8 h-8 border border-lukbot-border'>
+                        <Avatar className='w-8 h-8 border border-nexus-border'>
                             <AvatarImage
                                 src={
                                     user?.avatar
@@ -99,7 +99,7 @@ export default function Navbar() {
 
                     <button
                         onClick={handleMobileMenuToggle}
-                        className='md:hidden p-2 rounded-lg hover:bg-lukbot-bg-tertiary transition-colors'
+                        className='md:hidden p-2 rounded-lg hover:bg-nexus-bg-tertiary transition-colors'
                         aria-label='Toggle mobile menu'
                         aria-expanded={isMobileMenuOpen}
                     >
@@ -119,7 +119,7 @@ export default function Navbar() {
             </nav>
 
             {isMobileMenuOpen && (
-                <div className='md:hidden bg-lukbot-bg-secondary border-b border-lukbot-border'>
+                <div className='md:hidden bg-nexus-bg-secondary border-b border-nexus-border'>
                     <nav
                         className='px-4 py-2 space-y-1'
                         aria-label='Mobile navigation'
@@ -133,7 +133,7 @@ export default function Navbar() {
                                     'block px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                                     isActive(item.path)
                                         ? 'bg-primary text-white'
-                                        : 'text-lukbot-text-secondary hover:text-white hover:bg-lukbot-bg-tertiary',
+                                        : 'text-nexus-text-secondary hover:text-white hover:bg-nexus-bg-tertiary',
                                 )}
                                 aria-current={
                                     isActive(item.path) ? 'page' : undefined

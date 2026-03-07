@@ -1,11 +1,11 @@
 import { AttachmentBuilder, type ColorResolvable } from 'discord.js'
-import { errorLog } from '@lukbot/shared/utils'
+import { errorLog } from '@nexus/shared/utils'
 import { createErrorEmbed } from '../../../../utils/download/downloadHelpers'
 import { createEmbed, EMBED_COLORS } from '../../../../utils/general/embeds'
 import { DownloadValidator } from './validator'
 import { DownloadProcessor } from './processor'
 import type { DownloadOptions, DownloadResult } from './types'
-import { featureToggleService } from '@lukbot/shared/services'
+import { featureToggleService } from '@nexus/shared/services'
 
 /**
  * Format file size for display

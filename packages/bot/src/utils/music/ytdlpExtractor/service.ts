@@ -6,7 +6,7 @@ import {
     type Track,
 } from 'discord-player'
 import { spawn } from 'child_process'
-import { errorLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, debugLog } from '@nexus/shared/utils'
 import type { YtDlpExtractorOptions, YtDlpExtractorResult } from './types'
 
 /**
@@ -96,7 +96,16 @@ export class YtDlpExtractorService extends BaseExtractor {
     }
 
     private setupProcessHandlers(
-        process: { stdout?: { on: (event: string, callback: (data: Buffer) => void) => void }; stderr?: { on: (event: string, callback: (data: Buffer) => void) => void }; on: (event: string, callback: (code: number | null) => void) => void; kill: () => void },
+        process: {
+            stdout?: {
+                on: (event: string, callback: (data: Buffer) => void) => void
+            }
+            stderr?: {
+                on: (event: string, callback: (data: Buffer) => void) => void
+            }
+            on: (event: string, callback: (code: number | null) => void) => void
+            kill: () => void
+        },
         resolve: (result: YtDlpExtractorResult) => void,
     ): void {
         let stdout = ''

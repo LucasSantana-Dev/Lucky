@@ -20,4 +20,4 @@ export {
     type EmbedColor,
     type EmbedEmoji,
     type CreateEmbedOptions,
-} from '@lukbot/shared/utils'
+} from '@nexus/shared/utils'

@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
-import type { TrackHistoryEntry } from '@lukbot/shared/services'
-import type { TrackMetadata } from '@lukbot/shared/types'
+import type { TrackHistoryEntry } from '@nexus/shared/services'
+import type { TrackMetadata } from '@nexus/shared/types'
 
 // Legacy in-memory maps for backward compatibility (fallback when Redis is unavailable)
 export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()

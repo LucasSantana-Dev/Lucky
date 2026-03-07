@@ -1,13 +1,13 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { debugLog, errorLog, infoLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog, infoLog } from '@nexus/shared/utils'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
 import {
     requireGuild,
     requireQueue,
-} from "../../../utils/command/commandValidations"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+} from '../../../utils/command/commandValidations'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 
 export default new Command({
     data: new SlashCommandBuilder()

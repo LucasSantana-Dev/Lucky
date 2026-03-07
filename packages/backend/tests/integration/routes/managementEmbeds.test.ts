@@ -13,7 +13,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-jest.mock('@lukbot/shared/services', () => ({
+jest.mock('@nexus/shared/services', () => ({
     embedBuilderService: {
         listTemplates: jest.fn(),
         createTemplate: jest.fn(),
@@ -26,7 +26,7 @@ jest.mock('@lukbot/shared/services', () => ({
     },
 }))
 
-import { embedBuilderService, serverLogService } from '@lukbot/shared/services'
+import { embedBuilderService, serverLogService } from '@nexus/shared/services'
 
 describe('Embed Management Routes Integration', () => {
     let app: express.Express

@@ -1,8 +1,8 @@
-import { ensureEnvironment } from '@lukbot/shared/config'
-import { setupErrorHandlers } from '@lukbot/shared/utils'
-import { initializeSentry } from '@lukbot/shared/utils'
+import { ensureEnvironment } from '@nexus/shared/config'
+import { setupErrorHandlers } from '@nexus/shared/utils'
+import { initializeSentry } from '@nexus/shared/utils'
 import { initializeBot } from './bot/start'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
+import { debugLog, errorLog } from '@nexus/shared/utils'
 import { dependencyCheckService } from './services/DependencyCheckService'
 
 async function main(): Promise<void> {

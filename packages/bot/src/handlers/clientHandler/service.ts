@@ -7,9 +7,9 @@ import {
     Collection,
 } from 'discord.js'
 import type { Player } from 'discord-player'
-import { errorLog, infoLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, infoLog, debugLog } from '@nexus/shared/utils'
 import type { CustomClient } from '../../types'
-import { config } from '@lukbot/shared/config'
+import { config } from '@nexus/shared/config'
 import type Command from '../../models/Command'
 
 export async function createClient(): Promise<CustomClient> {

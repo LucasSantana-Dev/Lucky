@@ -38,7 +38,7 @@ export default memo(function SearchBar({ onPlay }: SearchBarProps) {
                     Search & Play
                 </h3>
             </div>
-            <p className='text-xs sm:text-sm text-lukbot-text-secondary mb-3 sm:mb-4'>
+            <p className='text-xs sm:text-sm text-nexus-text-secondary mb-3 sm:mb-4'>
                 Search for a song or paste a YouTube/Spotify URL
             </p>
             <form

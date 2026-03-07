@@ -140,7 +140,7 @@ export const MOCK_SERVER_SETTINGS = {
 
 export const MOCK_SERVER_LISTING = {
     name: 'Test Server 1',
-    description: 'A test server for LukBot',
+    description: 'A test server for Nexus',
     tags: ['music', 'community'],
     verified: false,
 }

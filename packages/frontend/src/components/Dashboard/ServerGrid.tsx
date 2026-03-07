@@ -19,11 +19,15 @@ export default function ServerGrid() {
 
     if (isLoading) {
         return (
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' role='status' aria-label='Loading servers'>
+            <div
+                className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+                role='status'
+                aria-label='Loading servers'
+            >
                 {[1, 2, 3].map((i) => (
                     <div
                         key={i}
-                        className='bg-lukbot-bg-secondary border border-lukbot-border rounded-lg p-6 space-y-4'
+                        className='bg-nexus-bg-secondary border border-nexus-border rounded-lg p-6 space-y-4'
                     >
                         <div className='flex items-center gap-4'>
                             <Skeleton className='w-16 h-16 rounded-full' />
@@ -50,8 +54,8 @@ export default function ServerGrid() {
                                 className={cn(
                                     'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
                                     filter === filterType
-                                        ? 'bg-lukbot-red text-white'
-                                        : 'bg-lukbot-bg-secondary text-lukbot-text-secondary hover:bg-lukbot-bg-tertiary hover:text-white',
+                                        ? 'bg-nexus-red text-white'
+                                        : 'bg-nexus-bg-secondary text-nexus-text-secondary hover:bg-nexus-bg-tertiary hover:text-white',
                                 )}
                                 aria-pressed={filter === filterType}
                             >
@@ -71,7 +75,10 @@ export default function ServerGrid() {
                 ))}
             </div>
             {filteredGuilds.length === 0 && (
-                <div className='text-center text-lukbot-text-secondary py-12' role='status'>
+                <div
+                    className='text-center text-nexus-text-secondary py-12'
+                    role='status'
+                >
                     No servers found matching the filter.
                 </div>
             )}

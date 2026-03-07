@@ -1,7 +1,7 @@
 {
-    "name": "@lukbot/backend",
+    "name": "@nexus/backend",
     "version": "1.0.0",
-    "description": "Express API server for LukBot",
+    "description": "Express API server for Nexus",
     "type": "module",
     "main": "./dist/index.js",
     "scripts": {
@@ -16,7 +16,7 @@
         "lint:fix": "eslint . -c ../../eslint.config.js --fix"
     },
     "dependencies": {
-        "@lukbot/shared": "file:../shared",
+        "@nexus/shared": "file:../shared",
         "connect-redis": "^9.0.0",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",

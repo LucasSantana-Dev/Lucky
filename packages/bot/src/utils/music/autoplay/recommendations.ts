@@ -1,20 +1,20 @@
 import { type Track } from 'discord-player'
-import { debugLog, errorLog } from '@lukbot/shared/utils'
-import { trackHistoryService } from '@lukbot/shared/services'
+import { debugLog, errorLog } from '@nexus/shared/utils'
+import { trackHistoryService } from '@nexus/shared/services'
 import {
-  MusicRecommendationService,
-  type RecommendationConfig,
+    MusicRecommendationService,
+    type RecommendationConfig,
 } from '../../../services/musicRecommendation'
 
 const recommendationService = new MusicRecommendationService({
-  maxRecommendations: 8,
-  similarityThreshold: 0.4,
-  genreWeight: 0.4,
-  tagWeight: 0.3,
-  artistWeight: 0.2,
-  durationWeight: 0.05,
-  popularityWeight: 0.05,
-  diversityFactor: 0.1,
+    maxRecommendations: 8,
+    similarityThreshold: 0.4,
+    genreWeight: 0.4,
+    tagWeight: 0.3,
+    artistWeight: 0.2,
+    durationWeight: 0.05,
+    popularityWeight: 0.05,
+    diversityFactor: 0.1,
 })
 
 /**
@@ -31,8 +31,11 @@ export async function getAutoplayRecommendations(
             data: { guildId, hasCurrentTrack: !!currentTrack, limit },
         })
 
-        const recentHistory = await trackHistoryService.getTrackHistory(guildId, 10)
-        const historyTracks = recentHistory.map(entry => entry.url)
+        const recentHistory = await trackHistoryService.getTrackHistory(
+            guildId,
+            10,
+        )
+        const historyTracks = recentHistory.map((entry) => entry.url)
 
         let recommendations: Track[] = []
 
@@ -42,26 +45,32 @@ export async function getAutoplayRecommendations(
             const availableTracks = await getAvailableTracks(guildId)
 
             if (availableTracks.length > 0) {
-                const personalizedRecommendations = await recommendationService.getPersonalizedRecommendations(
-                    guildId,
-                    availableTracks,
-                    limit
-                )
+                const personalizedRecommendations =
+                    await recommendationService.getPersonalizedRecommendations(
+                        guildId,
+                        availableTracks,
+                        limit,
+                    )
 
-                recommendations = personalizedRecommendations.map(rec => rec.track)
+                recommendations = personalizedRecommendations.map(
+                    (rec) => rec.track,
+                )
             }
         } else if (historyTracks.length > 0) {
             // Get recommendations based on history
             const availableTracks = await getAvailableTracks(guildId)
 
             if (availableTracks.length > 0) {
-                const personalizedRecommendations = await recommendationService.getRecommendationsBasedOnHistory(
-                    guildId,
-                    availableTracks,
-                    limit
-                )
+                const personalizedRecommendations =
+                    await recommendationService.getRecommendationsBasedOnHistory(
+                        guildId,
+                        availableTracks,
+                        limit,
+                    )
 
-                recommendations = personalizedRecommendations.map(rec => rec.track)
+                recommendations = personalizedRecommendations.map(
+                    (rec) => rec.track,
+                )
             }
         }
 
@@ -89,14 +98,16 @@ async function getAvailableTracks(_guildId: string): Promise<Track[]> {
 /**
  * Update recommendation configuration
  */
-export function updateRecommendationConfig(config: Partial<RecommendationConfig>): void {
-  recommendationService.updateConfig(config)
-  debugLog({ message: 'Updated recommendation configuration', data: config })
+export function updateRecommendationConfig(
+    config: Partial<RecommendationConfig>,
+): void {
+    recommendationService.updateConfig(config)
+    debugLog({ message: 'Updated recommendation configuration', data: config })
 }
 
 /**
  * Get current recommendation configuration
  */
 export function getRecommendationConfig(): RecommendationConfig {
-  return recommendationService.getConfig()
+    return recommendationService.getConfig()
 }

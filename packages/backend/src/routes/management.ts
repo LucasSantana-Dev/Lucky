@@ -13,7 +13,7 @@ import {
     customCommandService,
     serverLogService,
     type LogType,
-} from '@lukbot/shared/services'
+} from '@nexus/shared/services'
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
 

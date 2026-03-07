@@ -1,5 +1,8 @@
-import { errorLog } from '@lukbot/shared/utils'
-import { guildSettingsService, trackHistoryService } from '@lukbot/shared/services'
+import { errorLog } from '@nexus/shared/utils'
+import {
+    guildSettingsService,
+    trackHistoryService,
+} from '@nexus/shared/services'
 
 /**
  * Get autoplay statistics for a guild
@@ -16,11 +19,15 @@ export async function getAutoplayStats(guildId: string): Promise<{
 
         const history = await trackHistoryService.getTrackHistory(guildId, 100)
         const now = Date.now()
-        const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000)
-        const oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000)
+        const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000
+        const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000
 
-        const thisWeek = history.filter(entry => entry.timestamp > oneWeekAgo).length
-        const thisMonth = history.filter(entry => entry.timestamp > oneMonthAgo).length
+        const thisWeek = history.filter(
+            (entry) => entry.timestamp > oneWeekAgo,
+        ).length
+        const thisMonth = history.filter(
+            (entry) => entry.timestamp > oneMonthAgo,
+        ).length
         const averagePerDay = thisWeek / 7
 
         return {

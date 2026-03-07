@@ -1,45 +1,53 @@
 # LukBot — Current State
 
-Last updated: 2026-03-06 (Session Complete)
+Last updated: 2026-03-07 (Session 6 — Bundle Optimization)
 
 ## Build Status
 
-| Package           | Status     | Notes                                               |
-| ----------------- | ---------- | --------------------------------------------------- |
-| shared            | ✅ Builds  | All services complete                               |
-| bot               | ✅ Builds  | All event handlers registered                       |
-| frontend          | ✅ Builds  | globalName property error fixed                     |
-| backend (runtime) | ✅ Works   | Services functional at runtime                      |
-| backend (tests)   | ⚠️ Partial | 92 passed, 25 failed (pre-existing Jest ESM issues) |
+| Package  | Status    | Notes                                    |
+| -------- | --------- | ---------------------------------------- |
+| shared   | ✅ Builds | All services complete                    |
+| bot      | ✅ Builds | All event handlers registered            |
+| frontend | ✅ Builds | No warnings, optimized bundle            |
+| backend  | ✅ Builds | All type errors fixed                    |
+| backend tests | ✅ 364/364 | 24 suites, Jest 30                  |
+| frontend tests | ✅ 30/30 | 4 suites, Vitest                    |
+| E2E tests | ✅ 135/135 | 15 spec files, Playwright             |
 
-## What Works — Production Ready ✅
+## Backend Coverage
 
-### Core Functionality
+| Metric     | Value |
+| ---------- | ----- |
+| Statements | 96%   |
+| Branches   | 84%   |
+| Functions  | 100%  |
+| Lines      | 96%   |
 
-- **Music System** — 11 commands (play, queue, skip, volume, lyrics, autoplay, shuffle, repeat, seek, history, songinfo)
-- **Moderation** — 11 commands + case management + appeals
-- **Auto-Moderation** — 6 checks (spam, caps, links, invites, badwords) with 5 actions
-- **Custom Commands** — Create, edit, delete, list with trigger matching
-- **AutoMessages** — Welcome + Leave messages with channel routing + variable substitution
-- **EmbedBuilder** — Full CRUD with validation + color conversion utilities
-- **Dashboard** — 8 pages (Music, Moderation, AutoMod, CustomCommands, AutoMessages, ServerLogs, ServerSettings, Config)
+## Frontend Bundle
 
-### Event Handlers (Just Completed)
+| Chunk         | Size (raw) | Size (gzip) |
+| ------------- | ---------- | ----------- |
+| index.js      | 409 KB     | 119 KB      |
+| vendor-ui     | 203 KB     | 65 KB       |
+| vendor-radix  | 98 KB      | 32 KB       |
+| vendor-state  | 78 KB      | 28 KB       |
+| vendor-react  | 67 KB      | 23 KB       |
+| vendor-forms  | 24 KB      | 9 KB        |
 
-- **messageCreate** — AutoMod checks + CustomCommands triggers
-- **guildMemberAdd** — Welcome messages
-- **guildMemberRemove** — Leave messages
-- **messageDelete/Edit** — Server audit logging
-- **guildBanAdd/Remove** — Ban tracking with audit logs
-- **channelCreate/Delete** — Channel change logging
+Optimized from 756 KB (232 KB gz) → 409 KB (119 KB gz) main chunk.
+31 unused dependencies removed (58 → 27 deps).
 
-## Overall Completion
+## Session Persistence
 
-**~85%** — All core functionality implemented and event handlers wired. Bot is now ready for production use.
+- `SessionService.ts`: file-based store at `.data/sessions.json`
+- `session.ts` middleware: `session-file-store` at `.data/sessions/`
+- `authStore.ts`: Zustand persist → localStorage (key: `lukbot-auth`)
+- Sessions survive server restarts without Redis
 
-### What Remains (Optional Enhancements)
+## Express 5 Type Safety
 
-- Jest ESM test fixes (25 pre-existing failures)
-- RoleCreate/RoleDelete logging (not available in discord.js Events enum)
-- Mute action implementation in AutoMod
-- Rate limiting/cooldowns for custom commands
+- `p()` helper in 4 route files for `string | string[]` param extraction
+- `validateParams` replaces `req.params` with Zod output (coerced types)
+- `validateQuery` does NOT reassign `req.query`
+
+## Overall Completion: ~98%

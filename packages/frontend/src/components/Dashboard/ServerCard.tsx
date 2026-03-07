@@ -59,7 +59,7 @@ function ServerCard({ guild }: ServerCardProps) {
     return (
         <article
             className={cn(
-                'group bg-lukbot-bg-secondary border border-lukbot-border rounded-lg p-6 space-y-4',
+                'group bg-nexus-bg-secondary border border-nexus-border rounded-lg p-6 space-y-4',
                 'transition-all duration-300 ease-out',
                 'hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10',
                 'hover:-translate-y-1',
@@ -77,7 +77,7 @@ function ServerCard({ guild }: ServerCardProps) {
                     />
                     {guild.botAdded && (
                         <div
-                            className='absolute -bottom-1 -right-1 w-5 h-5 bg-lukbot-success rounded-full border-2 border-lukbot-bg-secondary flex items-center justify-center'
+                            className='absolute -bottom-1 -right-1 w-5 h-5 bg-nexus-success rounded-full border-2 border-nexus-bg-secondary flex items-center justify-center'
                             aria-label='Bot is online'
                         >
                             <CheckCircle2 className='w-3 h-3 text-white' />
@@ -96,10 +96,14 @@ function ServerCard({ guild }: ServerCardProps) {
                             className={cn(
                                 'text-xs transition-colors duration-200',
                                 guild.botAdded
-                                    ? 'bg-lukbot-success/20 text-lukbot-success border-lukbot-success/30'
-                                    : 'bg-lukbot-error/20 text-lukbot-error border-lukbot-error/30',
+                                    ? 'bg-nexus-success/20 text-nexus-success border-nexus-success/30'
+                                    : 'bg-nexus-error/20 text-nexus-error border-nexus-error/30',
                             )}
-                            aria-label={guild.botAdded ? 'Bot is added' : 'Bot is not added'}
+                            aria-label={
+                                guild.botAdded
+                                    ? 'Bot is added'
+                                    : 'Bot is not added'
+                            }
                         >
                             {guild.botAdded ? (
                                 <>
@@ -120,7 +124,7 @@ function ServerCard({ guild }: ServerCardProps) {
                 {guild.botAdded ? (
                     <Button
                         onClick={handleManage}
-                        className='flex-1 bg-lukbot-red hover:bg-lukbot-red/90 text-white shadow-xs hover:shadow-md transition-all duration-200'
+                        className='flex-1 bg-nexus-red hover:bg-nexus-red/90 text-white shadow-xs hover:shadow-md transition-all duration-200'
                         aria-label={`Manage ${guild.name}`}
                     >
                         Manage

@@ -1,5 +1,5 @@
 import { QueueRepeatMode } from 'discord-player'
-import type { TrackInfo, QueueState } from '@lukbot/shared/services'
+import type { TrackInfo, QueueState } from '@nexus/shared/services'
 import type { CustomClient } from '../../types'
 
 interface RawTrack {

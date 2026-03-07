@@ -30,12 +30,12 @@ module.exports = {
   testTimeout: 30000,
   maxWorkers: '50%',
   moduleNameMapper: {
-    '^@lukbot/shared$': '<rootDir>/packages/shared/src/index.ts',
-    '^@lukbot/shared/services$': '<rootDir>/packages/shared/src/services/index.ts',
-    '^@lukbot/shared/utils$': '<rootDir>/packages/shared/src/utils/index.ts',
-    '^@lukbot/shared/config$': '<rootDir>/packages/shared/src/config/index.ts',
-    '^@lukbot/shared/types$': '<rootDir>/packages/shared/src/types/index.ts',
-    '^@lukbot/shared/(.*)$': '<rootDir>/packages/shared/src/$1'
+    '^@nexus/shared$': '<rootDir>/packages/shared/src/index.ts',
+    '^@nexus/shared/services$': '<rootDir>/packages/shared/src/services/index.ts',
+    '^@nexus/shared/utils$': '<rootDir>/packages/shared/src/utils/index.ts',
+    '^@nexus/shared/config$': '<rootDir>/packages/shared/src/config/index.ts',
+    '^@nexus/shared/types$': '<rootDir>/packages/shared/src/types/index.ts',
+    '^@nexus/shared/(.*)$': '<rootDir>/packages/shared/src/$1'
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
@@ -46,7 +46,7 @@ module.exports = {
     }]
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(chalk|#ansi-styles|uuid|@lukbot)/)',
+    'node_modules/(?!(chalk|#ansi-styles|uuid|@nexus)/)',
     '<rootDir>/packages/shared/dist/'
   ],
   moduleFileExtensions: ['ts', 'js', 'json'],

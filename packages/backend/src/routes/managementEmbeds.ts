@@ -5,7 +5,7 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { embedSchemas as s } from '../schemas/embeds'
-import { embedBuilderService, serverLogService } from '@lukbot/shared/services'
+import { embedBuilderService, serverLogService } from '@nexus/shared/services'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]

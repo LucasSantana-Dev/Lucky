@@ -1,4 +1,4 @@
-import { errorLog, debugLog } from '@lukbot/shared/utils'
+import { errorLog, debugLog } from '@nexus/shared/utils'
 
 export interface DiscordUser {
     id: string
@@ -46,7 +46,10 @@ class DiscordOAuthService {
     }
 
     private getRedirectUri(): string {
-        return process.env.WEBAPP_REDIRECT_URI ?? 'http://localhost:3000/api/auth/callback'
+        return (
+            process.env.WEBAPP_REDIRECT_URI ??
+            'http://localhost:3000/api/auth/callback'
+        )
     }
 
     async exchangeCodeForToken(code: string): Promise<TokenResponse> {
@@ -67,7 +70,9 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(`Token exchange failed: ${response.status} ${errorText}`)
+                throw new Error(
+                    `Token exchange failed: ${response.status} ${errorText}`,
+                )
             }
 
             const tokenData = (await response.json()) as TokenResponse
@@ -89,11 +94,16 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(`Failed to fetch user info: ${response.status} ${errorText}`)
+                throw new Error(
+                    `Failed to fetch user info: ${response.status} ${errorText}`,
+                )
             }
 
             const userData = (await response.json()) as DiscordUser
-            debugLog({ message: 'Successfully fetched user info', data: { userId: userData.id } })
+            debugLog({
+                message: 'Successfully fetched user info',
+                data: { userId: userData.id },
+            })
             return userData
         } catch (error) {
             errorLog({ message: 'Error fetching user info:', error })
@@ -103,19 +113,27 @@ class DiscordOAuthService {
 
     async getUserGuilds(accessToken: string): Promise<DiscordGuild[]> {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/users/@me/guilds`, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+            const response = await fetch(
+                `${this.apiBaseUrl}/users/@me/guilds`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
                 },
-            })
+            )
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(`Failed to fetch user guilds: ${response.status} ${errorText}`)
+                throw new Error(
+                    `Failed to fetch user guilds: ${response.status} ${errorText}`,
+                )
             }
 
             const guilds = (await response.json()) as DiscordGuild[]
-            debugLog({ message: 'Successfully fetched user guilds', data: { count: guilds.length } })
+            debugLog({
+                message: 'Successfully fetched user guilds',
+                data: { count: guilds.length },
+            })
             return guilds
         } catch (error) {
             errorLog({ message: 'Error fetching user guilds:', error })
@@ -129,13 +147,17 @@ class DiscordOAuthService {
         const manageGuildPermission = BigInt(0x20)
 
         return (
-            (permissionsBigInt & administratorPermission) === administratorPermission ||
-            (permissionsBigInt & manageGuildPermission) === manageGuildPermission
+            (permissionsBigInt & administratorPermission) ===
+                administratorPermission ||
+            (permissionsBigInt & manageGuildPermission) ===
+                manageGuildPermission
         )
     }
 
     filterAdminGuilds(guilds: DiscordGuild[]): DiscordGuild[] {
-        return guilds.filter((guild) => this.hasAdminPermission(guild.permissions))
+        return guilds.filter((guild) =>
+            this.hasAdminPermission(guild.permissions),
+        )
     }
 
     async refreshToken(refreshToken: string): Promise<TokenResponse> {
@@ -155,7 +177,9 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(`Token refresh failed: ${response.status} ${errorText}`)
+                throw new Error(
+                    `Token refresh failed: ${response.status} ${errorText}`,
+                )
             }
 
             const tokenData = (await response.json()) as TokenResponse

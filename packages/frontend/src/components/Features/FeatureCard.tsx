@@ -36,7 +36,9 @@ function FeatureCard({
                     `${formatFeatureName(feature.name)} ${checked ? 'enabled' : 'disabled'}`,
                 )
             } catch {
-                toast.error(`Failed to update ${formatFeatureName(feature.name)}`)
+                toast.error(
+                    `Failed to update ${formatFeatureName(feature.name)}`,
+                )
             } finally {
                 setIsUpdating(false)
             }
@@ -47,7 +49,7 @@ function FeatureCard({
     const featureName = formatFeatureName(feature.name)
 
     return (
-        <article className='bg-lukbot-bg-secondary rounded-xl p-5 border border-lukbot-border'>
+        <article className='bg-nexus-bg-secondary rounded-xl p-5 border border-nexus-border'>
             <div className='flex items-start justify-between gap-4'>
                 <div className='flex-1'>
                     <div className='flex items-center gap-2 mb-1'>
@@ -58,15 +60,19 @@ function FeatureCard({
                             className={cn(
                                 'text-xs',
                                 isGlobal
-                                    ? 'bg-lukbot-purple/20 text-lukbot-purple'
-                                    : 'bg-lukbot-blue/20 text-lukbot-blue',
+                                    ? 'bg-nexus-purple/20 text-nexus-purple'
+                                    : 'bg-nexus-blue/20 text-nexus-blue',
                             )}
-                            aria-label={isGlobal ? 'Global feature' : 'Per-server feature'}
+                            aria-label={
+                                isGlobal
+                                    ? 'Global feature'
+                                    : 'Per-server feature'
+                            }
                         >
                             {isGlobal ? 'Global' : 'Per-Server'}
                         </Badge>
                     </div>
-                    <p className='text-sm text-lukbot-text-secondary'>
+                    <p className='text-sm text-nexus-text-secondary'>
                         {feature.description}
                     </p>
                 </div>
@@ -75,8 +81,8 @@ function FeatureCard({
                         className={cn(
                             'text-sm',
                             enabled
-                                ? 'text-lukbot-success'
-                                : 'text-lukbot-text-tertiary',
+                                ? 'text-nexus-success'
+                                : 'text-nexus-text-tertiary',
                         )}
                         aria-live='polite'
                     >

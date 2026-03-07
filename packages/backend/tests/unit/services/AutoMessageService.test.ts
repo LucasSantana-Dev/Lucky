@@ -9,15 +9,15 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@lukbot/shared/utils/database/prismaHelpers', () => ({
+jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
     typePrisma: (client: any) => client,
 }))
 
-jest.mock('@lukbot/shared/utils/database/prismaClient', () => ({
+jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
-import { AutoMessageService } from '@lukbot/shared/services/AutoMessageService'
+import { AutoMessageService } from '@nexus/shared/services/AutoMessageService'
 
 describe('AutoMessageService', () => {
     let service: InstanceType<typeof AutoMessageService>
