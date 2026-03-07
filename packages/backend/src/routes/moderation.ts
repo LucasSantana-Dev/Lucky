@@ -11,6 +11,10 @@ import { AppError } from '../errors/AppError'
 import { moderationSchemas as s } from '../schemas/moderation'
 import { moderationService, serverLogService } from '@lukbot/shared/services'
 
+function p(val: string | string[]): string {
+    return typeof val === 'string' ? val : val[0]
+}
+
 export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/cases',
@@ -20,7 +24,7 @@ export function setupModerationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const limit = parseInt(req.query.limit as string) || 25
             const cases = await moderationService.getRecentCases(
-                req.params.guildId,
+                p(req.params.guildId),
                 limit,
             )
             res.json({ cases })
@@ -33,7 +37,7 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.caseNumberParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const modCase = await moderationService.getCase(
-                req.params.guildId,
+                p(req.params.guildId),
                 Number(req.params.caseNumber),
             )
             if (!modCase) {
@@ -51,8 +55,8 @@ export function setupModerationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const activeOnly = req.query.activeOnly === 'true'
             const cases = await moderationService.getUserCases(
-                req.params.guildId,
-                req.params.userId,
+                p(req.params.guildId),
+                p(req.params.userId),
                 activeOnly,
             )
             res.json({ cases })
@@ -66,7 +70,7 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.caseNumberParam),
         validateBody(s.updateReasonBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const caseNumber = Number(req.params.caseNumber)
             const { reason } = req.body
 
@@ -95,7 +99,8 @@ export function setupModerationRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.caseIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, caseId } = req.params
+            const guildId = p(req.params.guildId)
+            const caseId = p(req.params.caseId)
             const updated = await moderationService.deactivateCase(caseId)
             await serverLogService.logCaseUpdate(
                 guildId,
@@ -115,7 +120,7 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const settings = await moderationService.getSettings(
-                req.params.guildId,
+                p(req.params.guildId),
             )
             res.json(settings)
         }),
@@ -128,7 +133,7 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateBody(s.updateSettingsBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const settings = await moderationService.updateSettings(
                 guildId,
                 req.body,
@@ -147,7 +152,9 @@ export function setupModerationRoutes(app: Express): void {
         requireAuth,
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const stats = await moderationService.getStats(req.params.guildId)
+            const stats = await moderationService.getStats(
+                p(req.params.guildId),
+            )
             res.json(stats)
         }),
     )

@@ -7,6 +7,10 @@ import { AppError } from '../errors/AppError'
 import { embedSchemas as s } from '../schemas/embeds'
 import { embedBuilderService, serverLogService } from '@lukbot/shared/services'
 
+function p(val: string | string[]): string {
+    return typeof val === 'string' ? val : val[0]
+}
+
 export function setupEmbedRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/embeds',
@@ -14,7 +18,7 @@ export function setupEmbedRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const templates = await embedBuilderService.listTemplates(
-                req.params.guildId,
+                p(req.params.guildId),
             )
             res.json({ templates })
         }),
@@ -27,7 +31,7 @@ export function setupEmbedRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateBody(s.createEmbedBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const { name, embedData, description } = req.body
             const validation = embedBuilderService.validateEmbedData(embedData)
             if (!validation.valid) {
@@ -60,7 +64,8 @@ export function setupEmbedRoutes(app: Express): void {
         validateParams(s.embedNameParam),
         validateBody(s.updateEmbedBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, name } = req.params
+            const guildId = p(req.params.guildId)
+            const name = p(req.params.name)
             const template = await embedBuilderService.updateTemplate(
                 guildId,
                 name,
@@ -82,7 +87,8 @@ export function setupEmbedRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.embedNameParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, name } = req.params
+            const guildId = p(req.params.guildId)
+            const name = p(req.params.name)
             await embedBuilderService.deleteTemplate(guildId, name)
             await serverLogService.logEmbedTemplateChange(
                 guildId,

@@ -17,6 +17,10 @@ import {
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
 
+function p(val: string | string[]): string {
+    return typeof val === 'string' ? val : val[0]
+}
+
 export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automod/settings',
@@ -24,7 +28,7 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const settings = await autoModService.getSettings(
-                req.params.guildId,
+                p(req.params.guildId),
             )
             res.json(settings)
         }),
@@ -37,7 +41,7 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateBody(s.autoModSettingsBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const settings = await autoModService.updateSettings(
                 guildId,
                 req.body,
@@ -61,7 +65,7 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const commands = await customCommandService.listCommands(
-                req.params.guildId,
+                p(req.params.guildId),
             )
             res.json({ commands })
         }),
@@ -74,7 +78,7 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateBody(s.createCommandBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const { name, response, description } = req.body
             const command = await customCommandService.createCommand(
                 guildId,
@@ -99,7 +103,8 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.commandNameParam),
         validateBody(s.updateCommandBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, name } = req.params
+            const guildId = p(req.params.guildId)
+            const name = p(req.params.name)
             const command = await customCommandService.updateCommand(
                 guildId,
                 name,
@@ -121,7 +126,8 @@ export function setupManagementRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.commandNameParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, name } = req.params
+            const guildId = p(req.params.guildId)
+            const name = p(req.params.name)
             await customCommandService.deleteCommand(guildId, name)
             await serverLogService.logCustomCommandChange(
                 guildId,
@@ -142,16 +148,17 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateQuery(s.logsQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
-            const limit = parseInt(req.query.limit as string) || 50
-            const type = req.query.type as string | undefined
+            const guildId = p(req.params.guildId)
+            const limit = parseInt((req.query.limit as string) || '50')
+            const type = req.query.type ? (req.query.type as string) : undefined
             if (type) {
                 const logs = await serverLogService.getLogsByType(
                     guildId,
                     type as LogType,
                     limit,
                 )
-                return res.json({ logs })
+                res.json({ logs })
+                return
             }
             const logs = await serverLogService.getRecentLogs(guildId, limit)
             res.json({ logs })
@@ -164,10 +171,14 @@ export function setupManagementRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateQuery(s.logsSearchQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const logs = await serverLogService.searchLogs(guildId, {
-                type: req.query.type as LogType | undefined,
-                userId: req.query.userId as string | undefined,
+                type: req.query.type
+                    ? (req.query.type as string as LogType)
+                    : undefined,
+                userId: req.query.userId
+                    ? (req.query.userId as string)
+                    : undefined,
             })
             res.json({ logs })
         }),
@@ -178,7 +189,8 @@ export function setupManagementRoutes(app: Express): void {
         requireAuth,
         validateParams(s.userIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, userId } = req.params
+            const guildId = p(req.params.guildId)
+            const userId = p(req.params.userId)
             const logs = await serverLogService.getUserLogs(guildId, userId)
             res.json({ logs })
         }),
@@ -189,7 +201,7 @@ export function setupManagementRoutes(app: Express): void {
         requireAuth,
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const stats = await serverLogService.getStats(req.params.guildId)
+            const stats = await serverLogService.getStats(p(req.params.guildId))
             res.json(stats)
         }),
     )

@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Converted 15 music route try/catch blocks to `asyncHandler` + `AppError`
   (playbackRoutes 9, queueRoutes 5, stateRoutes 1)
 
+### Fixed - Express 5 type safety
+
+- Added `p()` helper for `string | string[]` param extraction (Express 5 breaking change)
+- Fixed `req.params` destructuring in management, moderation, embeds, auto-messages routes
+- Fixed `return res.json()` → `res.json(); return` for asyncHandler void compatibility
+- Fixed `p()` not applied to Zod-coerced number params (caseNumber) or optional query params
+- Replaced `type as any` with `type as 'welcome' | 'leave'` in auto-messages
+
 ### Added - Test coverage improvements
 
 - `LastFmAuthService` unit tests (11 tests, 0% -> 100% coverage)

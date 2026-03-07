@@ -10,6 +10,10 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { autoMessageSchemas as s } from '../schemas/autoMessages'
 import { autoMessageService, serverLogService } from '@lukbot/shared/services'
 
+function p(val: string | string[]): string {
+    return typeof val === 'string' ? val : val[0]
+}
+
 export function setupAutoMessageRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automessages',
@@ -17,14 +21,15 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateQuery(s.messagesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
-            const type = req.query.type as string | undefined
+            const guildId = p(req.params.guildId)
+            const type = req.query.type ? (req.query.type as string) : undefined
             if (type) {
                 const messages = await autoMessageService.getMessagesByType(
                     guildId,
-                    type as any,
+                    type as 'welcome' | 'leave',
                 )
-                return res.json({ messages })
+                res.json({ messages })
+                return
             }
             const [welcome, leave] = await Promise.all([
                 autoMessageService.getWelcomeMessage(guildId),
@@ -41,7 +46,7 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateBody(s.createMessageBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId } = req.params
+            const guildId = p(req.params.guildId)
             const {
                 type,
                 message,
@@ -73,7 +78,8 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateParams(s.messageIdParam),
         validateBody(s.updateMessageBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, id } = req.params
+            const guildId = p(req.params.guildId)
+            const id = p(req.params.id)
             const updated = await autoMessageService.updateMessage(id, req.body)
             await serverLogService.logAutoMessageChange(
                 guildId,
@@ -92,7 +98,8 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateParams(s.messageIdParam),
         validateBody(s.toggleBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, id } = req.params
+            const guildId = p(req.params.guildId)
+            const id = p(req.params.id)
             const { enabled } = req.body
             const updated = await autoMessageService.toggleMessage(id, enabled)
             await serverLogService.logAutoMessageChange(
@@ -111,7 +118,8 @@ export function setupAutoMessageRoutes(app: Express): void {
         writeLimiter,
         validateParams(s.messageIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const { guildId, id } = req.params
+            const guildId = p(req.params.guildId)
+            const id = p(req.params.id)
             await autoMessageService.deleteMessage(id)
             await serverLogService.logAutoMessageChange(
                 guildId,
