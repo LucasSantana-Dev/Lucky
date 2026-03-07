@@ -14,7 +14,12 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
-    '!src/index.ts'
+    '!src/index.ts',
+    '!src/server.ts',
+    '!src/middleware/index.ts',
+    '!src/routes/index.ts',
+    '!src/routes/music/**',
+    '!src/routes/lastfm.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

@@ -104,10 +104,12 @@ export class ServerLogService {
                 ...(filters.moderatorId && {
                     moderatorId: filters.moderatorId,
                 }),
-                ...(filters.startDate && {
-                    createdAt: { gte: filters.startDate },
+                ...((filters.startDate || filters.endDate) && {
+                    createdAt: {
+                        ...(filters.startDate && { gte: filters.startDate }),
+                        ...(filters.endDate && { lte: filters.endDate }),
+                    },
                 }),
-                ...(filters.endDate && { createdAt: { lte: filters.endDate } }),
             },
             orderBy: { createdAt: 'desc' },
             take: limit,

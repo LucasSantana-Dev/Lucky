@@ -194,7 +194,7 @@ describe('ServerLogService', () => {
             expect(mockPrisma.serverLog.findMany).toHaveBeenCalledWith({
                 where: {
                     guildId: GUILD_A,
-                    createdAt: { lte: endDate },
+                    createdAt: { gte: startDate, lte: endDate },
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 100,
