@@ -1,6 +1,11 @@
-# Nexus
+<p align="center">
+  <img src="assets/nexus-logo.svg" alt="Nexus" width="320" />
+</p>
 
-A modular Discord bot with web dashboard. TypeScript monorepo with music playback, moderation, auto-mod, feature toggles, and server management.
+<p align="center">
+  All-in-one Discord bot platform with web dashboard.<br/>
+  Music, moderation, auto-mod, custom commands, feature toggles, and server management.
+</p>
 
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
