@@ -4,12 +4,15 @@ import { cn } from '../../lib/utils'
 interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {}
 
 function Skeleton({ className, ...props }: SkeletonProps) {
-  return (
-    <div
-      className={cn('animate-pulse rounded bg-bg-tertiary', className)}
-      {...props}
-    />
-  )
+    return (
+        <div
+            className={cn(
+                'animate-pulse rounded bg-lukbot-bg-tertiary',
+                className,
+            )}
+            {...props}
+        />
+    )
 }
 
 export default Skeleton

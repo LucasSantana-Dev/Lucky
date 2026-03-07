@@ -18,7 +18,9 @@ interface CommandsConfigProps {
 export default function CommandsConfig({ guildId }: CommandsConfigProps) {
     const [commands, setCommands] = useState<Command[]>([])
     const [searchQuery, setSearchQuery] = useState('')
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(
+        null,
+    )
 
     useEffect(() => {
         if (guildId) {
@@ -45,8 +47,11 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
             const matchesSearch =
                 searchQuery === '' ||
                 cmd.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                cmd.description.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesCategory = selectedCategory === null || cmd.category === selectedCategory
+                cmd.description
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase())
+            const matchesCategory =
+                selectedCategory === null || cmd.category === selectedCategory
             return matchesSearch && matchesCategory
         })
     }, [commands, searchQuery, selectedCategory])
@@ -55,7 +60,9 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
         try {
             await api.commands.toggle(guildId, commandId, enabled)
             setCommands((prev) =>
-                prev.map((cmd) => (cmd.id === commandId ? { ...cmd, enabled } : cmd)),
+                prev.map((cmd) =>
+                    cmd.id === commandId ? { ...cmd, enabled } : cmd,
+                ),
             )
             toast.success(`Command ${enabled ? 'enabled' : 'disabled'}`)
         } catch (error) {
@@ -68,14 +75,18 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
         <Card className='p-6'>
             <div className='flex items-center gap-2 mb-4'>
                 <Terminal className='h-5 w-5 text-primary' aria-hidden='true' />
-                <h2 className='text-xl font-bold text-white'>Commands Configuration</h2>
+                <h2 className='text-xl font-bold text-white'>
+                    Commands Configuration
+                </h2>
             </div>
-            <p className='text-text-secondary mb-6'>Enable or disable bot commands</p>
+            <p className='text-lukbot-text-secondary mb-6'>
+                Enable or disable bot commands
+            </p>
 
             <div className='space-y-4'>
                 <div className='relative'>
                     <Search
-                        className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary'
+                        className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lukbot-text-secondary'
                         aria-hidden='true'
                     />
                     <Input
@@ -95,7 +106,9 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                 >
                     <Button
                         type='button'
-                        variant={selectedCategory === null ? 'primary' : 'ghost'}
+                        variant={
+                            selectedCategory === null ? 'primary' : 'ghost'
+                        }
                         size='sm'
                         onClick={() => setSelectedCategory(null)}
                         className='h-8'
@@ -106,21 +119,28 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                         <Button
                             key={category}
                             type='button'
-                            variant={selectedCategory === category ? 'primary' : 'ghost'}
+                            variant={
+                                selectedCategory === category
+                                    ? 'primary'
+                                    : 'ghost'
+                            }
                             size='sm'
                             onClick={() => setSelectedCategory(category)}
                             className='h-8'
                         >
-                            <Filter className='mr-1 h-3 w-3' aria-hidden='true' />
+                            <Filter
+                                className='mr-1 h-3 w-3'
+                                aria-hidden='true'
+                            />
                             {category}
                         </Button>
                     ))}
                 </div>
 
-                <ScrollArea className='h-[400px] rounded-lg border border-bg-border bg-bg-tertiary'>
+                <ScrollArea className='h-[400px] rounded-lg border border-lukbot-border bg-lukbot-bg-tertiary'>
                     <div className='space-y-1 p-4'>
                         {filteredCommands.length === 0 ? (
-                            <div className='flex h-32 items-center justify-center text-sm text-text-secondary'>
+                            <div className='flex h-32 items-center justify-center text-sm text-lukbot-text-secondary'>
                                 No commands found
                             </div>
                         ) : (
@@ -128,7 +148,7 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                 <div
                                     key={command.id}
                                     className={cn(
-                                        'flex flex-row items-center justify-between rounded-lg border border-bg-border bg-bg-secondary p-4 transition-colors hover:bg-bg-tertiary',
+                                        'flex flex-row items-center justify-between rounded-lg border border-lukbot-border bg-lukbot-bg-secondary p-4 transition-colors hover:bg-lukbot-bg-tertiary',
                                     )}
                                 >
                                     <div className='flex-1 space-y-1'>
@@ -136,11 +156,14 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                                             <span className='text-base font-medium text-white'>
                                                 /{command.name}
                                             </span>
-                                            <Badge variant='secondary' className='text-xs'>
+                                            <Badge
+                                                variant='secondary'
+                                                className='text-xs'
+                                            >
                                                 {command.category}
                                             </Badge>
                                         </div>
-                                        <p className='text-sm text-text-secondary'>
+                                        <p className='text-sm text-lukbot-text-secondary'>
                                             {command.description}
                                         </p>
                                     </div>
@@ -157,8 +180,13 @@ export default function CommandsConfig({ guildId }: CommandsConfigProps) {
                     </div>
                 </ScrollArea>
 
-                <div className='text-sm text-text-secondary' role='status' aria-live='polite'>
-                    Showing {filteredCommands.length} of {commands.length} commands
+                <div
+                    className='text-sm text-lukbot-text-secondary'
+                    role='status'
+                    aria-live='polite'
+                >
+                    Showing {filteredCommands.length} of {commands.length}{' '}
+                    commands
                 </div>
             </div>
         </Card>

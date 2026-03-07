@@ -18,34 +18,77 @@ interface ModerationConfigValues {
 }
 
 const FILTER_OPTIONS = [
-    { key: 'spamFilter', label: 'Spam Filter', desc: 'Detect and prevent spam messages' },
-    { key: 'linkFilter', label: 'Link Filter', desc: 'Block unauthorized links' },
-    { key: 'profanityFilter', label: 'Profanity Filter', desc: 'Filter inappropriate language' },
-    { key: 'capsFilter', label: 'Excessive Caps Filter', desc: 'Limit excessive use of capital letters' },
-    { key: 'mentionSpamFilter', label: 'Mention Spam Filter', desc: 'Prevent excessive user mentions' },
+    {
+        key: 'spamFilter',
+        label: 'Spam Filter',
+        desc: 'Detect and prevent spam messages',
+    },
+    {
+        key: 'linkFilter',
+        label: 'Link Filter',
+        desc: 'Block unauthorized links',
+    },
+    {
+        key: 'profanityFilter',
+        label: 'Profanity Filter',
+        desc: 'Filter inappropriate language',
+    },
+    {
+        key: 'capsFilter',
+        label: 'Excessive Caps Filter',
+        desc: 'Limit excessive use of capital letters',
+    },
+    {
+        key: 'mentionSpamFilter',
+        label: 'Mention Spam Filter',
+        desc: 'Prevent excessive user mentions',
+    },
 ] as const
 
 interface ModerationFilterOptionsProps {
     form: UseFormReturn<ModerationConfigValues>
 }
 
-export default function ModerationFilterOptions({ form }: ModerationFilterOptionsProps) {
+export default function ModerationFilterOptions({
+    form,
+}: ModerationFilterOptionsProps) {
     return (
-        <div className='border-t border-bg-border pt-4'>
+        <div className='border-t border-lukbot-border pt-4'>
             <div className='flex items-center gap-2 mb-4'>
-                <MessageSquareOff className='h-4 w-4 text-text-secondary' aria-hidden='true' />
-                <h3 className='text-lg font-semibold text-white'>Filter Options</h3>
+                <MessageSquareOff
+                    className='h-4 w-4 text-lukbot-text-secondary'
+                    aria-hidden='true'
+                />
+                <h3 className='text-lg font-semibold text-white'>
+                    Filter Options
+                </h3>
             </div>
-            <div className='space-y-3 rounded-lg border border-bg-border bg-bg-tertiary p-4'>
+            <div className='space-y-3 rounded-lg border border-lukbot-border bg-lukbot-bg-tertiary p-4'>
                 {FILTER_OPTIONS.map(({ key, label, desc }) => (
-                    <div key={key} className='flex flex-row items-center justify-between rounded-md bg-bg-secondary p-3'>
+                    <div
+                        key={key}
+                        className='flex flex-row items-center justify-between rounded-md bg-lukbot-bg-secondary p-3'
+                    >
                         <div className='space-y-0.5'>
-                            <Label className='text-sm font-medium'>{label}</Label>
-                            <p className='text-xs text-text-secondary'>{desc}</p>
+                            <Label className='text-sm font-medium'>
+                                {label}
+                            </Label>
+                            <p className='text-xs text-lukbot-text-secondary'>
+                                {desc}
+                            </p>
                         </div>
                         <Switch
-                            checked={form.watch(key as keyof ModerationConfigValues) as boolean}
-                            onCheckedChange={(checked) => form.setValue(key as keyof ModerationConfigValues, checked)}
+                            checked={
+                                form.watch(
+                                    key as keyof ModerationConfigValues,
+                                ) as boolean
+                            }
+                            onCheckedChange={(checked) =>
+                                form.setValue(
+                                    key as keyof ModerationConfigValues,
+                                    checked,
+                                )
+                            }
                             aria-label={`Toggle ${label.toLowerCase()}`}
                         />
                     </div>

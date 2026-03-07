@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { LayoutGrid, Crown, Settings } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Skeleton from '@/components/ui/Skeleton'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
@@ -41,7 +42,10 @@ export default function ServersPage() {
         <main className='space-y-6'>
             <header className='flex items-center gap-4'>
                 <Avatar className='w-16 h-16 border-2 border-lukbot-border'>
-                    <AvatarImage src={user?.avatar || undefined} alt={user?.username || 'User avatar'} />
+                    <AvatarImage
+                        src={user?.avatar || undefined}
+                        alt={user?.username || 'User avatar'}
+                    />
                     <AvatarFallback className='bg-lukbot-red text-white text-xl'>
                         {user?.username?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
@@ -56,30 +60,39 @@ export default function ServersPage() {
                 </div>
             </header>
 
-            <nav className='flex border-b border-lukbot-border' aria-label='Server navigation'>
+            <nav
+                className='flex border-b border-lukbot-border'
+                aria-label='Server navigation'
+            >
                 <button
-                    className='px-6 py-3 text-sm font-medium border-b-2 border-lukbot-red text-white'
+                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 border-lukbot-red text-white'
                     aria-current='page'
                 >
-                    <span aria-hidden='true'>☰</span> Servers
+                    <LayoutGrid className='w-4 h-4' aria-hidden='true' />
+                    Servers
                 </button>
                 <button
-                    className='px-6 py-3 text-sm font-medium text-lukbot-text-secondary hover:text-white'
+                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium text-lukbot-text-secondary hover:text-white transition-colors'
                     aria-label='Premium features'
                 >
-                    <span aria-hidden='true'>⭐</span> Premium
+                    <Crown className='w-4 h-4' aria-hidden='true' />
+                    Premium
                 </button>
                 <button
-                    className='px-6 py-3 text-sm font-medium text-lukbot-text-secondary hover:text-white'
+                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium text-lukbot-text-secondary hover:text-white transition-colors'
                     aria-label='Settings'
                 >
-                    <span aria-hidden='true'>⚙</span> Settings
+                    <Settings className='w-4 h-4' aria-hidden='true' />
+                    Settings
                 </button>
             </nav>
 
             <section aria-labelledby='servers-heading'>
                 <div className='mb-4'>
-                    <h2 id='servers-heading' className='text-xl font-bold text-white'>
+                    <h2
+                        id='servers-heading'
+                        className='text-xl font-bold text-white'
+                    >
                         Servers
                     </h2>
                     <p className='text-sm text-lukbot-text-secondary'>

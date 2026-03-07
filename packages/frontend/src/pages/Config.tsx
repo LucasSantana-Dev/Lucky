@@ -20,7 +20,8 @@ export default function ConfigPage() {
         {
             id: 'music',
             name: 'Music Module',
-            description: 'Configure music playback, queue management, and audio settings',
+            description:
+                'Configure music playback, queue management, and audio settings',
             icon: Music,
         },
         {
@@ -32,7 +33,8 @@ export default function ConfigPage() {
         {
             id: 'moderation',
             name: 'Moderation',
-            description: 'Set up auto-moderation, filters, and moderation actions',
+            description:
+                'Set up auto-moderation, filters, and moderation actions',
             icon: Shield,
         },
     ]
@@ -41,8 +43,10 @@ export default function ConfigPage() {
         return (
             <main className='space-y-6'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white mb-2'>Configuration</h1>
-                    <p className='text-text-secondary'>
+                    <h1 className='text-2xl font-bold text-white mb-2'>
+                        Configuration
+                    </h1>
+                    <p className='text-lukbot-text-secondary'>
                         Please select a server to configure
                     </p>
                 </header>
@@ -53,8 +57,10 @@ export default function ConfigPage() {
     return (
         <main className='space-y-6'>
             <header>
-                <h1 className='text-2xl font-bold text-white mb-2'>Configuration</h1>
-                <p className='text-text-secondary'>
+                <h1 className='text-2xl font-bold text-white mb-2'>
+                    Configuration
+                </h1>
+                <p className='text-lukbot-text-secondary'>
                     Configure modules and commands for your servers
                 </p>
             </header>
@@ -68,7 +74,7 @@ export default function ConfigPage() {
                         {modules.map((module) => (
                             <Card
                                 key={module.id}
-                                className='p-6 hover:bg-bg-tertiary transition-colors cursor-pointer'
+                                className='p-6 hover:bg-lukbot-bg-tertiary transition-colors cursor-pointer'
                                 onClick={() => setSelectedModule(module.id)}
                                 role='button'
                                 tabIndex={0}
@@ -81,14 +87,17 @@ export default function ConfigPage() {
                                 aria-label={`Configure ${module.name}`}
                             >
                                 <div className='flex items-start gap-4'>
-                                    <div className='p-3 bg-primary/20 rounded-lg' aria-hidden='true'>
+                                    <div
+                                        className='p-3 bg-primary/20 rounded-lg'
+                                        aria-hidden='true'
+                                    >
                                         <module.icon className='w-6 h-6 text-primary' />
                                     </div>
                                     <div className='flex-1'>
                                         <h3 className='text-lg font-semibold text-white mb-1'>
                                             {module.name}
                                         </h3>
-                                        <p className='text-sm text-text-secondary'>
+                                        <p className='text-sm text-lukbot-text-secondary'>
                                             {module.description}
                                         </p>
                                     </div>

@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import * as z from 'zod/v3'
 import { Shield, AlertTriangle, Save } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
@@ -60,7 +66,10 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
 
     const loadSettings = async () => {
         try {
-            const response = await api.modules.getSettings(guildId, 'moderation')
+            const response = await api.modules.getSettings(
+                guildId,
+                'moderation',
+            )
             if (response.data.settings) {
                 form.reset(response.data.settings as ModerationConfigValues)
             }
@@ -86,9 +95,11 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
         <Card className='p-6'>
             <div className='flex items-center gap-2 mb-4'>
                 <Shield className='h-5 w-5 text-primary' aria-hidden='true' />
-                <h2 className='text-xl font-bold text-white'>Moderation Configuration</h2>
+                <h2 className='text-xl font-bold text-white'>
+                    Moderation Configuration
+                </h2>
             </div>
-            <p className='text-text-secondary mb-6'>
+            <p className='text-lukbot-text-secondary mb-6'>
                 Configure auto-moderation and moderation actions
             </p>
 
@@ -99,45 +110,71 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                             <Shield className='h-4 w-4' aria-hidden='true' />
                             Auto-Moderation
                         </Label>
-                        <p className='text-xs text-text-secondary'>
+                        <p className='text-xs text-lukbot-text-secondary'>
                             Enable automatic moderation for your server
                         </p>
                     </div>
                     <Switch
                         checked={form.watch('autoModeration')}
-                        onCheckedChange={(checked) => form.setValue('autoModeration', checked)}
+                        onCheckedChange={(checked) =>
+                            form.setValue('autoModeration', checked)
+                        }
                         aria-label='Toggle auto-moderation'
                     />
                 </div>
 
                 <ModerationFilterOptions form={form} />
 
-                <div className='border-t border-bg-border pt-4'>
+                <div className='border-t border-lukbot-border pt-4'>
                     <div className='flex items-center gap-2 mb-4'>
                         <AlertTriangle
-                            className='h-4 w-4 text-text-secondary'
+                            className='h-4 w-4 text-lukbot-text-secondary'
                             aria-hidden='true'
                         />
-                        <h3 className='text-lg font-semibold text-white'>Moderation Actions</h3>
+                        <h3 className='text-lg font-semibold text-white'>
+                            Moderation Actions
+                        </h3>
                     </div>
 
                     {[
-                        { key: 'defaultAction', label: 'Default Action', desc: 'Default action for rule violations' },
-                        { key: 'spamAction', label: 'Spam Detection Action', desc: 'Action taken when spam is detected' },
-                        { key: 'profanityAction', label: 'Profanity Filter Action', desc: 'Action taken when profanity is detected' },
+                        {
+                            key: 'defaultAction',
+                            label: 'Default Action',
+                            desc: 'Default action for rule violations',
+                        },
+                        {
+                            key: 'spamAction',
+                            label: 'Spam Detection Action',
+                            desc: 'Action taken when spam is detected',
+                        },
+                        {
+                            key: 'profanityAction',
+                            label: 'Profanity Filter Action',
+                            desc: 'Action taken when profanity is detected',
+                        },
                     ].map(({ key, label, desc }) => (
                         <div key={key} className='space-y-2 mb-4'>
                             <Label>{label}</Label>
                             <Select
-                                value={form.watch(key as keyof ModerationConfigValues) as string}
+                                value={
+                                    form.watch(
+                                        key as keyof ModerationConfigValues,
+                                    ) as string
+                                }
                                 onValueChange={(value) =>
                                     form.setValue(
                                         key as keyof ModerationConfigValues,
-                                        value as 'warn' | 'mute' | 'kick' | 'ban',
+                                        value as
+                                            | 'warn'
+                                            | 'mute'
+                                            | 'kick'
+                                            | 'ban',
                                     )
                                 }
                             >
-                                <SelectTrigger aria-label={`Select ${label.toLowerCase()}`}>
+                                <SelectTrigger
+                                    aria-label={`Select ${label.toLowerCase()}`}
+                                >
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -147,12 +184,14 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                                     <SelectItem value='ban'>Ban</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p className='text-xs text-text-secondary'>{desc}</p>
+                            <p className='text-xs text-lukbot-text-secondary'>
+                                {desc}
+                            </p>
                         </div>
                     ))}
                 </div>
 
-                <div className='border-t border-bg-border pt-4 space-y-3'>
+                <div className='border-t border-lukbot-border pt-4 space-y-3'>
                     {[
                         {
                             key: 'autoDeleteMessages',
@@ -167,16 +206,25 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                     ].map(({ key, label, desc }) => (
                         <div
                             key={key}
-                            className='flex flex-row items-center justify-between rounded-lg border border-bg-border bg-bg-tertiary p-4'
+                            className='flex flex-row items-center justify-between rounded-lg border border-lukbot-border bg-lukbot-bg-tertiary p-4'
                         >
                             <div className='space-y-0.5'>
                                 <Label className='text-base'>{label}</Label>
-                                <p className='text-xs text-text-secondary'>{desc}</p>
+                                <p className='text-xs text-lukbot-text-secondary'>
+                                    {desc}
+                                </p>
                             </div>
                             <Switch
-                                checked={form.watch(key as keyof ModerationConfigValues) as boolean}
+                                checked={
+                                    form.watch(
+                                        key as keyof ModerationConfigValues,
+                                    ) as boolean
+                                }
                                 onCheckedChange={(checked) =>
-                                    form.setValue(key as keyof ModerationConfigValues, checked)
+                                    form.setValue(
+                                        key as keyof ModerationConfigValues,
+                                        checked,
+                                    )
                                 }
                                 aria-label={`Toggle ${label.toLowerCase()}`}
                             />
@@ -184,7 +232,12 @@ export default function ModerationConfig({ guildId }: ModerationConfigProps) {
                     ))}
                 </div>
 
-                <Button type='submit' disabled={isLoading} loading={isLoading} className='w-full'>
+                <Button
+                    type='submit'
+                    disabled={isLoading}
+                    loading={isLoading}
+                    className='w-full'
+                >
                     <Save className='mr-2 h-4 w-4' aria-hidden='true' />
                     Save Configuration
                 </Button>

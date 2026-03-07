@@ -21,13 +21,10 @@ function LoadingSpinner({
     return (
         <div className={cn('flex flex-col items-center gap-2', className)}>
             <Loader2
-                className={cn(
-                    'text-primary animate-spin',
-                    sizeClasses[size],
-                )}
+                className={cn('text-primary animate-spin', sizeClasses[size])}
             />
             {message && (
-                <p className='text-sm text-text-secondary'>{message}</p>
+                <p className='text-sm text-lukbot-text-secondary'>{message}</p>
             )}
         </div>
     )
