@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Backend quality infrastructure
+
+- Zod input validation middleware (`validateBody`, `validateParams`, `validateQuery`)
+- Rate limiting (`apiLimiter` 100/min, `authLimiter` 20/15min, `writeLimiter` 30/min)
+- `AppError` class with static factories for typed operational errors
+- `asyncHandler` wrapper eliminating try/catch boilerplate in route handlers
+- Centralized `errorHandler` middleware (AppError -> typed response, unknown -> 500)
+- `ApiError` class in frontend preserving status code and validation details
+- Request logging middleware (method, url, status, duration)
+
+### Changed - Frontend API alignment
+
+- Fixed HTTP method mismatches (POST -> PATCH for automod/moderation settings)
+- Fixed path mismatches (moderation user cases, case update/deactivate)
+- Aligned `logsApi` with backend routes (getRecent, getByType, search, getUserLogs)
+- Axios interceptor now creates typed `ApiError` instead of generic `Error`
+- Refactored 8 route files removing ~50 try/catch blocks (net -119 lines)
+
+### Removed
+
+- Unused `featuresApi.ts` (duplicated inline in `api.ts`)
+- Phantom API endpoints with no backend routes (logs export, single log, clear)
+
 ### Added - Skills.sh ecosystem skills and Serena project memory
 
 - **`.agent-skills/`**: 10 skills installed from skills.sh ecosystem — `systematic-debugging`, `test-driven-development`, `brainstorming`, `verification-before-completion`, `requesting-code-review` (obra/superpowers); `vercel-react-best-practices`, `web-design-guidelines` (vercel-labs/agent-skills); `nodejs-backend-patterns`, `typescript-advanced-types`, `database-migration` (wshobson/agents)
