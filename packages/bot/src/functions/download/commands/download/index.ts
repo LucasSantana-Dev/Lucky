@@ -1,1 +1,1 @@
-export { downloadCommand } from './service'
+export { default } from './command'

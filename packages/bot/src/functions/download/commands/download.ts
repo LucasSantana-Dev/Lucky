@@ -1,1 +1,1 @@
-export { downloadCommand as default } from './download/index'
+export { default } from './download/index'

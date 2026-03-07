@@ -9,6 +9,8 @@ import { errorLog, infoLog, debugLog } from '@lukbot/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
 import { handleMessageCreate } from './messageHandler'
+import { handleMemberEvents } from './memberHandler'
+import { handleAuditEvents } from './auditHandler'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -150,6 +152,8 @@ export default function handleEvents(client: Client) {
         })
     })
     handleMessageCreate(client)
+    handleMemberEvents(client)
+    handleAuditEvents(client)
     handleError(client)
     handleWarn(client)
     handleDebug(client)
