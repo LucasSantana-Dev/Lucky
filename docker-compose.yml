@@ -1,7 +1,7 @@
 services:
     postgres:
         image: postgres:18-alpine
-        container_name: lukbot-postgres
+        container_name: nexus-postgres
         restart: unless-stopped
         environment:
             POSTGRES_DB: discordbot
@@ -10,7 +10,7 @@ services:
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:
-            - lukbot-network
+            - nexus-network
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
             interval: 30s
@@ -24,13 +24,13 @@ services:
 
     redis:
         image: redis:8-alpine
-        container_name: lukbot-redis
+        container_name: nexus-redis
         restart: unless-stopped
         command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
         volumes:
             - redis_data:/data
         networks:
-            - lukbot-network
+            - nexus-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 30s
@@ -50,7 +50,7 @@ services:
             args:
                 SERVICE: bot
                 NODE_ENV: production
-        container_name: lukbot-bot
+        container_name: nexus-bot
         restart: unless-stopped
         depends_on:
             postgres:
@@ -70,7 +70,7 @@ services:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
         networks:
-            - lukbot-network
+            - nexus-network
         logging:
             driver: "json-file"
             options:
@@ -85,7 +85,7 @@ services:
             args:
                 SERVICE: backend
                 NODE_ENV: production
-        container_name: lukbot-backend
+        container_name: nexus-backend
         restart: unless-stopped
         depends_on:
             postgres:
@@ -106,7 +106,7 @@ services:
             - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET:-}
             - DEVELOPER_USER_IDS=${DEVELOPER_USER_IDS:-}
         networks:
-            - lukbot-network
+            - nexus-network
         logging:
             driver: "json-file"
             options:
@@ -117,10 +117,10 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.frontend
-        container_name: lukbot-frontend
+        container_name: nexus-frontend
         restart: unless-stopped
         networks:
-            - lukbot-network
+            - nexus-network
         logging:
             driver: "json-file"
             options:
@@ -131,7 +131,7 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.nginx
-        container_name: lukbot-nginx
+        container_name: nexus-nginx
         restart: unless-stopped
         depends_on:
             - backend
@@ -139,7 +139,7 @@ services:
         ports:
             - "8080:80"
         networks:
-            - lukbot-network
+            - nexus-network
         logging:
             driver: "json-file"
             options:
@@ -151,5 +151,5 @@ volumes:
     redis_data:
 
 networks:
-    lukbot-network:
+    nexus-network:
         driver: bridge

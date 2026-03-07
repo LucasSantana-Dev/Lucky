@@ -1,4 +1,4 @@
-# LukBot Implementation Status
+# Nexus Implementation Status
 
 **Last Updated:** February 13, 2026
 

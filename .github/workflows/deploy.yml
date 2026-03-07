@@ -38,9 +38,12 @@ jobs:
               env:
                   DEPLOY_USER: ${{ secrets.SSH_USER }}
                   DEPLOY_HOST: ${{ secrets.SSH_HOST }}
+                  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
               run: |
-                  ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
-                    cd /home/luk-server/Nexus
+                  DEPLOY_DIR="${DEPLOY_PATH:-/opt/nexus}"
+                  ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "$DEPLOY_DIR" << 'EOF'
+                    set -e
+                    cd "$1"
 
                     echo "Pulling latest changes..."
                     git pull origin main

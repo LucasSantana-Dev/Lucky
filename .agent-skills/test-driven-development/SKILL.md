@@ -50,11 +50,11 @@ Confirm: Test passes. Other tests still pass. Output pristine.
 
 After green only. Remove duplication. Keep tests green. Don't add behavior.
 
-## LukBot-Specific Context
+## Nexus-Specific Context
 
 - Tests live in `packages/backend/tests/unit/services/`
 - Uses Jest with ESM: `NODE_OPTIONS=--experimental-vm-modules jest`
-- Mock pattern: `jest.unstable_mockModule('@lukbot/shared/utils/database/prismaClient', ...)`
+- Mock pattern: `jest.unstable_mockModule('@nexus/shared/utils/database/prismaClient', ...)`
 - Run tests: `npm run test` from repo root (runs backend tests)
 
 ## Red Flags - STOP and Start Over

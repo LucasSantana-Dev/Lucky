@@ -1,6 +1,6 @@
 # Code Examples
 
-Collection of common code patterns and snippets used in LukBot. Copy-paste ready examples for quick development.
+Collection of common code patterns and snippets used in Nexus. Copy-paste ready examples for quick development.
 
 ## Table of Contents
 
@@ -101,7 +101,7 @@ export default {
 // packages/bot/src/functions/music/commands/play.ts
 import { SlashCommandBuilder } from '@discordjs/builders'
 import type { ChatInputCommandInteraction } from 'discord.js'
-import { featureToggleService } from '@lukbot/shared'
+import { featureToggleService } from '@nexus/shared'
 
 export default {
     data: new SlashCommandBuilder()
@@ -264,7 +264,7 @@ function createNowPlayingEmbed(queue: GuildQueue) {
 ### Create User with Preferences
 
 ```typescript
-import { prisma } from '@lukbot/shared'
+import { prisma } from '@nexus/shared'
 
 async function createUser(discordId: string, username: string) {
     const user = await prisma.user.create({
@@ -406,7 +406,7 @@ async function getTrackHistory(
 ### Basic Get/Set
 
 ```typescript
-import { redis } from '@lukbot/shared'
+import { redis } from '@nexus/shared'
 
 // Set with expiration
 await redis.setex('key', 3600, 'value') // Expires in 1 hour
@@ -622,7 +622,7 @@ export class UnauthorizedError extends AppError {
 ```typescript
 // packages/backend/src/middleware/errorHandler.ts
 import type { Request, Response, NextFunction } from 'express'
-import { AppError } from '@lukbot/shared'
+import { AppError } from '@nexus/shared'
 
 export function errorHandler(
     error: Error,

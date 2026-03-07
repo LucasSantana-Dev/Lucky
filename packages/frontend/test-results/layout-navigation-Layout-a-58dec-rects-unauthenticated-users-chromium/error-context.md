@@ -7,10 +7,10 @@
                   - generic [ref=e9]:
                         - img [ref=e12]
                         - generic [ref=e16]:
-                              - heading "LukBot" [level=1] [ref=e17]
+                              - heading "Nexus" [level=1] [ref=e17]
                               - paragraph [ref=e18]: Discord Bot Management
                   - generic [ref=e19]:
-                        - heading "Welcome to LukBot Dashboard" [level=2] [ref=e20]
+                        - heading "Welcome to Nexus Dashboard" [level=2] [ref=e20]
                         - paragraph [ref=e21]: Manage your Discord servers, configure bot features, and customize commands all in one place.
                   - button "Connecting..." [disabled]:
                         - img
@@ -25,6 +25,6 @@
                         - generic [ref=e29]:
                               - generic [ref=e30]: 24/7
                               - generic [ref=e31]: Uptime
-            - generic [ref=e32]: © 2026 LukBot. All rights reserved.
+            - generic [ref=e32]: © 2026 Nexus. All rights reserved.
       - region "Notifications alt+T"
 ```

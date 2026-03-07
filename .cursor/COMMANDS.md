@@ -1,4 +1,4 @@
-# LukBot Agent Commands (Workflows)
+# Nexus Agent Commands (Workflows)
 
 Standard workflows the agent can run when asked. Use scripts and npm scripts; prefer Docker when the project provides it.
 
@@ -25,7 +25,7 @@ Use a single command when available (e.g. `npm run test`); otherwise run in orde
 - Migrate: `npm run db:migrate` (local) or `npm run db:deploy` (deploy)
 - Studio: `npm run db:studio`
 
-Use **prisma-redis-lukbot** skill when changing schema or migrations.
+Use **prisma-redis-nexus** skill when changing schema or migrations.
 
 ## Deploy checklist
 
@@ -41,4 +41,4 @@ When the user asks to "act as frontend/backend/Discord/data specialist", apply t
 - Frontend: `.cursor/rules/subagent-frontend.mdc` + **frontend-react-vite** skill
 - Backend: `.cursor/rules/subagent-backend.mdc` + **backend-express** skill
 - Discord: `.cursor/rules/subagent-discord.mdc` + **discord-commands** + **music-queue-player** skills
-- Data: `.cursor/rules/subagent-data.mdc` + **prisma-redis-lukbot** skill
+- Data: `.cursor/rules/subagent-data.mdc` + **prisma-redis-nexus** skill

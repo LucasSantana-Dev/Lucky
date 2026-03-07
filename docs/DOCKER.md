@@ -7,13 +7,13 @@
 
 ## Build targets
 
-| Image                | Command                                                                         |
-| -------------------- | ------------------------------------------------------------------------------- |
-| Bot (production)     | `docker build --target production-bot -t lukbot-bot:latest .`                   |
-| Backend (production) | `docker build --target production-backend -t lukbot-backend:latest .`           |
-| Bot (development)    | `docker build --target development --build-arg SERVICE=bot -t lukbot-bot:dev .` |
-| Frontend             | `docker build -f Dockerfile.frontend -t lukbot-frontend:latest .`               |
-| Nginx                | `docker build -f Dockerfile.nginx -t lukbot-nginx:latest .`                     |
+| Image                | Command                                                                        |
+| -------------------- | ------------------------------------------------------------------------------ |
+| Bot (production)     | `docker build --target production-bot -t nexus-bot:latest .`                   |
+| Backend (production) | `docker build --target production-backend -t nexus-backend:latest .`           |
+| Bot (development)    | `docker build --target development --build-arg SERVICE=bot -t nexus-bot:dev .` |
+| Frontend             | `docker build -f Dockerfile.frontend -t nexus-frontend:latest .`               |
+| Nginx                | `docker build -f Dockerfile.nginx -t nexus-nginx:latest .`                     |
 
 Compose builds these when you run `docker compose up -d` or `docker compose -f docker-compose.dev.yml up -d`.
 

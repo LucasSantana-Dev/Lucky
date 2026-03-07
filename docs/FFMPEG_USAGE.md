@@ -1,6 +1,6 @@
 # FFmpeg Usage Guide
 
-Comprehensive guide for using FFmpeg in LukBot for audio processing, format conversion, and audio effects.
+Comprehensive guide for using FFmpeg in Nexus for audio processing, format conversion, and audio effects.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ Comprehensive guide for using FFmpeg in LukBot for audio processing, format conv
 
 ### Using ffmpeg-static (Recommended)
 
-LukBot uses `ffmpeg-static` which provides pre-compiled FFmpeg binaries for all platforms.
+Nexus uses `ffmpeg-static` which provides pre-compiled FFmpeg binaries for all platforms.
 
 ```bash
 npm install ffmpeg-static
@@ -77,7 +77,7 @@ ffmpeg -version
 
 ### Docker Setup
 
-LukBot's Dockerfile already includes FFmpeg via `ffmpeg-static`. No additional configuration needed.
+Nexus's Dockerfile already includes FFmpeg via `ffmpeg-static`. No additional configuration needed.
 
 ```dockerfile
 # FFmpeg is included via npm dependencies

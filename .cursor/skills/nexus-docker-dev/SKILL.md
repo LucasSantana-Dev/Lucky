@@ -1,9 +1,9 @@
 ---
-name: lukbot-docker-dev
-description: Run and test LukBot with Docker. Use when changing docker-compose, Dockerfiles, or local dev/CI runs.
+name: nexus-docker-dev
+description: Run and test Nexus with Docker. Use when changing docker-compose, Dockerfiles, or local dev/CI runs.
 ---
 
-# LukBot Docker & Local Dev
+# Nexus Docker & Local Dev
 
 ## When to use
 

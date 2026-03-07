@@ -4,7 +4,7 @@
 - generic [ref=e2]:
       - generic [ref=e4]:
             - complementary [ref=e5]:
-                  - heading "LukBot" [level=2] [ref=e7]
+                  - heading "Nexus" [level=2] [ref=e7]
                   - navigation [ref=e8]:
                         - link "📊 Dashboard" [ref=e9] [cursor=pointer]:
                               - /url: /

@@ -1,9 +1,9 @@
 ---
 name: backend-express
-description: Work with LukBot backend (Express API). Use when editing packages/backend, routes, middleware, or backend services.
+description: Work with Nexus backend (Express API). Use when editing packages/backend, routes, middleware, or backend services.
 ---
 
-# LukBot Backend (Express)
+# Nexus Backend (Express)
 
 ## When to use
 
@@ -20,7 +20,7 @@ description: Work with LukBot backend (Express API). Use when editing packages/b
 
 ## Conventions
 
-- Use shared config and env from `@lukbot/shared` when needed.
+- Use shared config and env from `@nexus/shared` when needed.
 - Auth: Discord OAuth; session in middleware and SessionService. No hardcoded secrets.
 - Responses: consistent JSON; appropriate HTTP status codes; no stack traces or secrets in responses.
 - Tests: `packages/backend/tests/` — unit under `unit/`, integration under `integration/`.

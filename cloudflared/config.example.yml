@@ -1,10 +1,10 @@
-# Cloudflare Tunnel config for LukBot web app (locally-managed tunnel).
+# Cloudflare Tunnel config for Nexus web app (locally-managed tunnel).
 # Copy to config.yml and set tunnel ID + path to credentials.
 # See docs/CLOUDFLARE_TUNNEL_SETUP.md for setup.
 #
-# Create tunnel: cloudflared tunnel create lukbot-webapp
-# Route DNS:     cloudflared tunnel route dns lukbot-webapp app.yourdomain.com
-# Run:           cloudflared tunnel run lukbot-webapp
+# Create tunnel: cloudflared tunnel create nexus-webapp
+# Route DNS:     cloudflared tunnel route dns nexus-webapp app.yourdomain.com
+# Run:           cloudflared tunnel run nexus-webapp
 
 tunnel: <TUNNEL_ID>
 credentials-file: /path/to/<TUNNEL_ID>.json

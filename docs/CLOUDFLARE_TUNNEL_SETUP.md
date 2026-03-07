@@ -1,6 +1,6 @@
 # Cloudflare Tunnel, Domain, and DNS for Bot Frontend
 
-This guide configures Cloudflare Tunnel so the LukBot web app (frontend + API) is reachable at a custom domain over HTTPS, without opening ports or exposing your origin IP.
+This guide configures Cloudflare Tunnel so the Nexus web app (frontend + API) is reachable at a custom domain over HTTPS, without opening ports or exposing your origin IP.
 
 ## Overview
 
@@ -52,11 +52,11 @@ You can create a **remotely-managed** tunnel (recommended) from the dashboard, o
 
 1. In [Cloudflare Dashboard](https://dash.cloudflare.com) → **Zero Trust** (or **Networks** → **Tunnels**), open **Networks** → **Tunnels**.
 2. Click **Create a tunnel**. Choose **Cloudflared**.
-3. Name it (e.g. `lukbot-webapp`) and save.
+3. Name it (e.g. `nexus-webapp`) and save.
 4. On **Configure** (or **Route Traffic** → **Published applications**):
-   - **Public hostname**: your subdomain + domain (e.g. `lukbot.yourdomain.com`).
-   - **Service type**: **HTTP** (the LukBot web app serves HTTP; do not use HTTPS unless your origin has TLS).
-   - **URL (Required)**: `http://localhost:3000` (or `http://localhost:YOUR_WEBAPP_PORT`). This is the origin the tunnel forwards to; leave blank causes "url is required".
+    - **Public hostname**: your subdomain + domain (e.g. `nexus.yourdomain.com`).
+    - **Service type**: **HTTP** (the Nexus web app serves HTTP; do not use HTTPS unless your origin has TLS).
+    - **URL (Required)**: `http://localhost:3000` (or `http://localhost:YOUR_WEBAPP_PORT`). This is the origin the tunnel forwards to; leave blank causes "url is required".
 5. Install the connector using the command shown in the dashboard (it includes the tunnel token). Run that command on the host where the web app is running.
 
 The tunnel will appear as “Connected” when `cloudflared` is running with that token.
@@ -65,47 +65,47 @@ The tunnel will appear as “Connected” when `cloudflared` is running with tha
 
 1. Log in and choose the zone (your domain):
 
-   ```bash
-   cloudflared tunnel login
-   ```
+    ```bash
+    cloudflared tunnel login
+    ```
 
-   This opens a browser to authorize; select the zone (e.g. `yourdomain.com`).
+    This opens a browser to authorize; select the zone (e.g. `yourdomain.com`).
 
 2. Create the tunnel:
 
-   ```bash
-   cloudflared tunnel create lukbot-webapp
-   ```
+    ```bash
+    cloudflared tunnel create nexus-webapp
+    ```
 
-   Note the tunnel ID from the output.
+    Note the tunnel ID from the output.
 
 3. Create a config file (e.g. `~/.cloudflared/config.yml` or project `cloudflared/config.yml`):
 
-   ```yaml
-   tunnel: <TUNNEL_ID>
-   credentials-file: /path/to/<TUNNEL_ID>.json
+    ```yaml
+    tunnel: <TUNNEL_ID>
+    credentials-file: /path/to/<TUNNEL_ID>.json
 
-   ingress:
-     - hostname: app.yourdomain.com
-       service: http://localhost:3000
-     - hostname: api.yourdomain.com
-       service: http://localhost:3000
-     - service: http_status:404
-   ```
+    ingress:
+        - hostname: app.yourdomain.com
+          service: http://localhost:3000
+        - hostname: api.yourdomain.com
+          service: http://localhost:3000
+        - service: http_status:404
+    ```
 
-   Use one hostname if frontend and API are on the same origin (recommended). Replace `app.yourdomain.com` and `localhost:3000` with your hostname and port.
+    Use one hostname if frontend and API are on the same origin (recommended). Replace `app.yourdomain.com` and `localhost:3000` with your hostname and port.
 
 4. Route DNS (creates CNAME to the tunnel):
 
-   ```bash
-   cloudflared tunnel route dns lukbot-webapp app.yourdomain.com
-   ```
+    ```bash
+    cloudflared tunnel route dns nexus-webapp app.yourdomain.com
+    ```
 
 5. Run the tunnel:
 
-   ```bash
-   cloudflared tunnel run lukbot-webapp
-   ```
+    ```bash
+    cloudflared tunnel run nexus-webapp
+    ```
 
 References:
 
@@ -119,10 +119,10 @@ If you did not use “Route DNS” or the dashboard wizard:
 
 1. In Cloudflare Dashboard → your zone → **DNS** → **Records**.
 2. **Add record**:
-   - **Type**: CNAME
-   - **Name**: `app` (for `app.yourdomain.com`) or your subdomain
-   - **Target**: `<TUNNEL_ID>.cfargotunnel.com` (for named tunnels; remote tunnels show the target in the dashboard)
-   - **Proxy status**: Proxied (orange cloud) for HTTPS and DDoS protection.
+    - **Type**: CNAME
+    - **Name**: `app` (for `app.yourdomain.com`) or your subdomain
+    - **Target**: `<TUNNEL_ID>.cfargotunnel.com` (for named tunnels; remote tunnels show the target in the dashboard)
+    - **Proxy status**: Proxied (orange cloud) for HTTPS and DDoS protection.
 
 Save. After DNS propagates, `https://app.yourdomain.com` will go through the tunnel to your app.
 
@@ -160,7 +160,7 @@ You get a random `*.trycloudflare.com` URL. Limitations: no custom domain, reque
 ## 7. Running the tunnel in production
 
 - **Remotely-managed**: Run the install command from the dashboard (it includes the token). Use a process manager (e.g. systemd, PM2, Docker) so the tunnel restarts with the app.
-- **Locally-managed**: Run `cloudflared tunnel run lukbot-webapp` (or your tunnel name) with the same process manager. Keep credentials and config secure and out of version control.
+- **Locally-managed**: Run `cloudflared tunnel run nexus-webapp` (or your tunnel name) with the same process manager. Keep credentials and config secure and out of version control.
 
 ## Troubleshooting
 

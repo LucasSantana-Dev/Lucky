@@ -1,4 +1,4 @@
-# LukBot – Dependencies and maintenance
+# Nexus – Dependencies and maintenance
 
 This document summarizes the project’s NPM dependencies: what is used where, what is reliable and non‑deprecated, and how to keep the stack maintainable without over‑engineering.
 

@@ -16,7 +16,7 @@ Guidance for TypeScript's advanced type system: generics, conditional types, map
 - Implementing type-safe discriminated unions
 - Ensuring compile-time type safety
 
-## LukBot-Specific Context
+## Nexus-Specific Context
 
 ### The Prisma `as any` Workaround
 

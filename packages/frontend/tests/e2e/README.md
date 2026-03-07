@@ -1,6 +1,6 @@
 # E2E Testing with Playwright
 
-This directory contains end-to-end tests for the LukBot web application, focusing on the Discord OAuth2 authentication flow.
+This directory contains end-to-end tests for the Nexus web application, focusing on the Discord OAuth2 authentication flow.
 
 ## Prerequisites
 

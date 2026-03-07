@@ -1,9 +1,9 @@
 ---
 name: discord-commands
-description: Add or change LukBot slash commands. Use when adding a new Discord command, changing command options, or fixing command execution in packages/bot.
+description: Add or change Nexus slash commands. Use when adding a new Discord command, changing command options, or fixing command execution in packages/bot.
 ---
 
-# LukBot Discord Commands
+# Nexus Discord Commands
 
 ## When to use
 
@@ -41,7 +41,7 @@ Category must match `CommandCategory` in `packages/bot/src/config/constants.ts`.
 ## Execution
 
 - Use `interactionReply({ interaction, content: { content: '...' } })` or embeds from bot/utils or shared.
-- On errors, use `createUserFriendlyError(error)` and reply ephemeral; log with `errorLog` from `@lukbot/shared/utils`.
+- On errors, use `createUserFriendlyError(error)` and reply ephemeral; log with `errorLog` from `@nexus/shared/utils`.
 - Validators: use `commandValidations` and validators under `packages/bot/src/utils/command/` (voice channel, queue, guild) before using player or queue.
 
 ## Subcommands / options

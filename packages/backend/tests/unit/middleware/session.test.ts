@@ -10,13 +10,13 @@ jest.mock('ioredis', () => {
     }))
 })
 
-jest.mock('connect-redis', () => {
-    return jest.fn().mockImplementation(() => ({
+jest.mock('connect-redis', () => ({
+    RedisStore: jest.fn().mockImplementation(() => ({
         get: jest.fn(),
         set: jest.fn(),
         destroy: jest.fn(),
-    }))
-})
+    })),
+}))
 
 describe('Session Middleware', () => {
     let app: express.Express

@@ -1,6 +1,6 @@
 # Dependency update plan
 
-Phased plan for updating LukBot dependencies. Run each phase on a branch; verify build, type-check, tests, and `npm run audit:critical` before merging.
+Phased plan for updating Nexus dependencies. Run each phase on a branch; verify build, type-check, tests, and `npm run audit:critical` before merging.
 
 **Plan status:** Phase 1, Phase 2 (2a–2d), and Phase 3 are complete. Ongoing: re-run `npm audit` / `audit:critical` when upstreams release fixes; retry Zod 4 when `@hookform/resolvers` supports it.
 

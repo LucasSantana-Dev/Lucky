@@ -1,6 +1,6 @@
 # CI/CD Pipeline
 
-This document describes the continuous integration and deployment setup for LukBot.
+This document describes the continuous integration and deployment setup for Nexus.
 
 ## Overview
 
@@ -52,9 +52,9 @@ The deploy workflow (`.github/workflows/deploy.yml`) runs on push to `main` and 
 1. Checks out the repo.
 2. Uses `webfactory/ssh-agent` with `SSH_PRIVATE_KEY`.
 3. SSHs to the server (`SSH_USER`@`SSH_HOST`), then:
-    - `cd /home/luk-server/LukBot`
+    - `cd /home/nexus-server/Nexus`
     - `git pull origin main`
-    - `docker build -t lukbot:latest .`
+    - `docker build -t nexus:latest .`
     - `./scripts/discord-bot.sh stop` then `./scripts/discord-bot.sh start`
     - `./scripts/discord-bot.sh status`
 
@@ -67,7 +67,7 @@ GitHub Actions runs in the cloud and cannot use your local SSH config. Add these
 | Secret            | Description                                                                                                                                                                             |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SSH_PRIVATE_KEY` | Full contents of the private key file (e.g. `~/.ssh/id_ed25519` or the key used for your server). Paste the whole file including `-----BEGIN ... KEY-----` and `-----END ... KEY-----`. |
-| `SSH_USER`        | SSH login user (e.g. `luk-server` or `root`).                                                                                                                                           |
+| `SSH_USER`        | SSH login user (e.g. `nexus-server` or `root`).                                                                                                                                         |
 | `SSH_HOST`        | Server hostname or IP.                                                                                                                                                                  |
 
 If you use a host alias locally (e.g. `server-do-luk` in `~/.ssh/config`), you can get user and host with:
@@ -83,7 +83,7 @@ Use that user and hostname as `SSH_USER` and `SSH_HOST`. For `SSH_PRIVATE_KEY`, 
 From the repo root, with [GitHub CLI](https://cli.github.com/) installed and authenticated (`gh auth login`):
 
 ```bash
-gh secret set SSH_USER --body "luk-server"
+gh secret set SSH_USER --body "nexus-server"
 gh secret set SSH_HOST --body "100.95.204.103"
 gh secret set SSH_PRIVATE_KEY < ~/.ssh/YOUR_KEY_FILE
 ```

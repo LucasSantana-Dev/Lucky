@@ -1,9 +1,9 @@
 ---
 name: event-handlers
-description: Add or modify Discord bot event handlers in LukBot. Use when wiring messageCreate, guildMemberAdd/Remove, guildMemberUpdate, or any new Discord.js event into packages/bot.
+description: Add or modify Discord bot event handlers in Nexus. Use when wiring messageCreate, guildMemberAdd/Remove, guildMemberUpdate, or any new Discord.js event into packages/bot.
 ---
 
-# LukBot Event Handlers
+# Nexus Event Handlers
 
 ## When to use
 
@@ -83,16 +83,16 @@ Handler file to create: `packages/bot/src/handlers/messageHandler.ts`
 - `guildMemberAdd` → `autoMessageService.getMessagesForEvent(guildId, 'join')` → send to configured channel
 - `guildMemberRemove` → `autoMessageService.getMessagesForEvent(guildId, 'leave')` → send to configured channel
 
-Services are in `@lukbot/shared/services`. No direct Prisma access from bot.
+Services are in `@nexus/shared/services`. No direct Prisma access from bot.
 
 ## Error handling
 
-Always wrap event callbacks in try/catch and call `errorLog` from `@lukbot/shared/utils`. Never let an unhandled event crash the bot process.
+Always wrap event callbacks in try/catch and call `errorLog` from `@nexus/shared/utils`. Never let an unhandled event crash the bot process.
 
 ## Imports
 
 ```typescript
 import { Events } from 'discord.js'
-import { errorLog } from '@lukbot/shared/utils'
-import { someService } from '@lukbot/shared/services'
+import { errorLog } from '@nexus/shared/utils'
+import { someService } from '@nexus/shared/services'
 ```

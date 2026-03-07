@@ -1,9 +1,9 @@
 ---
 name: management-features
-description: Work with LukBot management features: embed builder, custom commands, and auto-messages. Use when implementing or editing /embed, /customcommand, /automessage commands or their shared services.
+description: Work with Nexus management features: embed builder, custom commands, and auto-messages. Use when implementing or editing /embed, /customcommand, /automessage commands or their shared services.
 ---
 
-# LukBot Management Features
+# Nexus Management Features
 
 ## When to use
 
@@ -81,7 +81,7 @@ Auto-messages fire on `guildMemberAdd` / `guildMemberRemove` Discord events — 
 
 ## Conventions
 
-- All service imports come from `@lukbot/shared/services` — no direct Prisma in bot or backend.
+- All service imports come from `@nexus/shared/services` — no direct Prisma in bot or backend.
 - Validate embed data with `embedBuilderService.validateEmbedData()` before saving.
 - Template names are stored lowercase (`name.toLowerCase()`).
 - Command replies: defer for any DB operation; edit reply with result embed or error message.

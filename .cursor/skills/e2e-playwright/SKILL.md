@@ -1,9 +1,9 @@
 ---
 name: e2e-playwright
-description: Run and write E2E tests with Playwright for LukBot frontend. Use when adding or changing E2E flows, or verifying web UI.
+description: Run and write E2E tests with Playwright for Nexus frontend. Use when adding or changing E2E flows, or verifying web UI.
 ---
 
-# LukBot E2E (Playwright)
+# Nexus E2E (Playwright)
 
 ## When to use
 

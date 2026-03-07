@@ -1,9 +1,9 @@
 ---
 name: frontend-react-vite
-description: Work with LukBot frontend (React, Vite, Tailwind). Use when editing packages/frontend, UI components, pages, or frontend tests.
+description: Work with Nexus frontend (React, Vite, Tailwind). Use when editing packages/frontend, UI components, pages, or frontend tests.
 ---
 
-# LukBot Frontend (React, Vite, Tailwind)
+# Nexus Frontend (React, Vite, Tailwind)
 
 ## When to use
 
@@ -21,7 +21,7 @@ description: Work with LukBot frontend (React, Vite, Tailwind). Use when editing
 
 ## Conventions
 
-- React + TypeScript; no dependency on `@lukbot/shared`. API via backend base URL (env).
+- React + TypeScript; no dependency on `@nexus/shared`. API via backend base URL (env).
 - Functional components and hooks; keep components small and focused.
 - Styling: Tailwind; follow existing patterns in `index.css` and components.
 - Tests: `packages/frontend/tests/`; E2E with Playwright when changing user flows.

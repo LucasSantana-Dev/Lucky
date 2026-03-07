@@ -1,9 +1,9 @@
 ---
-name: prisma-redis-lukbot
-description: Use Prisma and Redis in LukBot. Use when changing schema, migrations, shared DB/Redis services, or key patterns.
+name: prisma-redis-nexus
+description: Use Prisma and Redis in Nexus. Use when changing schema, migrations, shared DB/Redis services, or key patterns.
 ---
 
-# LukBot Prisma & Redis
+# Nexus Prisma & Redis
 
 ## When to use
 
@@ -26,5 +26,5 @@ description: Use Prisma and Redis in LukBot. Use when changing schema, migration
 
 ## Conventions
 
-- No raw Prisma/Redis usage in `packages/bot` or `packages/backend`; go through `@lukbot/shared` services.
+- No raw Prisma/Redis usage in `packages/bot` or `packages/backend`; go through `@nexus/shared` services.
 - Migrations: additive changes preferred; avoid destructive changes without a clear migration path and backup.

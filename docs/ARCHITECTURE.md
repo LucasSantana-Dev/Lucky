@@ -1,10 +1,10 @@
-# LukBot Architecture
+# Nexus Architecture
 
 **Quick reference:** [Package structure](#package-structure) · [Where to add code](#package-layouts) · [Command loading (bot)](#command-loading-bot) · [Data layer](#data-layer-prisma-redis) · [Building](#building) · [Dependencies](DEPENDENCIES.md)
 
 ## Overview
 
-LukBot is structured as a modular monolith with clear separation of concerns across multiple packages. **Production runs only `packages/bot` (Discord bot) and `packages/backend` (Express API).** There is no root `src/` entry point; all runtime code lives in packages.
+Nexus is structured as a modular monolith with clear separation of concerns across multiple packages. **Production runs only `packages/bot` (Discord bot) and `packages/backend` (Express API).** There is no root `src/` entry point; all runtime code lives in packages.
 
 ## Entry points
 
@@ -13,12 +13,12 @@ LukBot is structured as a modular monolith with clear separation of concerns acr
 | **bot**      | `packages/bot/src/index.ts`             | Ensures env, error handlers, Sentry; then `initializeBot()` from `bot/start`. |
 | **backend**  | `packages/backend/src/index.ts`         | Ensures env, error handlers, Sentry; then `startWebApp()` from `server.ts`.   |
 | **frontend** | `packages/frontend/src/main.tsx` (Vite) | React app entry.                                                              |
-| **shared**   | No process entry                        | Consumed by bot and backend via `@lukbot/shared`.                             |
+| **shared**   | No process entry                        | Consumed by bot and backend via `@nexus/shared`.                              |
 
 ## Stack decisions
 
 - **Backend**: Express (Node.js). NestJS is not used; the existing Express API in `packages/backend` is sufficient and avoids the extra structure and migration cost of NestJS.
-- **Database**: PostgreSQL with Prisma (schema in repo root; shared client via `@lukbot/shared`). Supabase is not used for the bot or backend; Prisma + Postgres keeps one source of truth and avoids splitting data between Supabase and the bot. Supabase can be considered later only if a separate product (e.g. a Next.js app with its own auth/RLS) needs it.
+- **Database**: PostgreSQL with Prisma (schema in repo root; shared client via `@nexus/shared`). Supabase is not used for the bot or backend; Prisma + Postgres keeps one source of truth and avoids splitting data between Supabase and the bot. Supabase can be considered later only if a separate product (e.g. a Next.js app with its own auth/RLS) needs it.
 
 ## Package Structure
 
@@ -33,8 +33,8 @@ packages/
 ## Package Dependencies
 
 - **shared**: No dependencies on other packages (base package). Single source for database (Prisma), Redis, feature toggles, reaction roles, Twitch notifications, track history, guild settings.
-- **bot**: Depends on `@lukbot/shared` only. Commands and music logic live in `packages/bot`; add new commands there.
-- **backend**: Depends on `@lukbot/shared` only. API routes and auth live in `packages/backend`; add new API routes there.
+- **bot**: Depends on `@nexus/shared` only. Commands and music logic live in `packages/bot`; add new commands there.
+- **backend**: Depends on `@nexus/shared` only. API routes and auth live in `packages/backend`; add new API routes there.
 - **frontend**: Independent (React application)
 
 ## Communication
@@ -78,7 +78,7 @@ Each package can be developed independently:
 ### Root layout
 
 - **packages/** – All runtime code (shared, bot, backend, frontend).
-- **prisma/** – Schema and migrations (single source of truth; shared via `@lukbot/shared`).
+- **prisma/** – Schema and migrations (single source of truth; shared via `@nexus/shared`).
 - **docs/** – Setup guides, architecture, and feature docs.
 - **scripts/** – Shell scripts (discord-bot.sh, setup-database.sh, etc.).
 - **cloudflared/** – Tunnel config example (see [CLOUDFLARE_TUNNEL_SETUP.md](CLOUDFLARE_TUNNEL_SETUP.md)).
@@ -107,7 +107,7 @@ Keep one re-export per folder command; name the re-export file to match the comm
 
 1. **Consistency over perfection** – Follow the same pattern in each area (e.g. all music commands either single-file or folder + re-export). Document the rule; don’t mix styles without reason.
 2. **Shallow where possible** – Prefer flat or one level of nesting for new code. Deeper trees (e.g. `play/`, `queue/`, download utils) exist where the feature needs many files; don’t add layers (e.g. extra “domain” folders) unless there’s a clear benefit.
-3. **One place for cross-cutting concerns** – DB, Redis, config, and shared types live in `@lukbot/shared`. Bot-only helpers stay in `packages/bot/src/utils/` or under the feature.
+3. **One place for cross-cutting concerns** – DB, Redis, config, and shared types live in `@nexus/shared`. Bot-only helpers stay in `packages/bot/src/utils/` or under the feature.
 4. **Avoid big restructures** – Prefer small, incremental improvements when touching code. Don’t rename large trees or split packages for structure alone.
 5. **Path aliases** – `packages/bot/tsconfig.json` already has `@/*` → `./src/*`, so you can use `@/utils/...`, `@/handlers/...` etc. Use them in new code if you prefer; migrate old relative imports gradually.
 
@@ -120,14 +120,14 @@ Keep one re-export per folder command; name the re-export file to match the comm
 ### Repo checklist (matches this doc)
 
 - No `src/` at repo root; all runtime code under `packages/`.
-- Prisma schema and migrations in `prisma/` at repo root; client used via `@lukbot/shared`.
+- Prisma schema and migrations in `prisma/` at repo root; client used via `@nexus/shared`.
 - Bot commands: single-file under `functions/<category>/commands/*.ts` or folder + re-export (e.g. `queue.ts` → `queue/index.ts`).
 - Backend API: routes in `packages/backend/src/routes/`, logic in `services/`.
 - Nginx: `location /api` → backend:3000, `location /` → frontend:80.
 
 ## Data layer (Prisma, Redis)
 
-- **Prisma**: Schema and migrations in `prisma/` at repo root; client from `@lukbot/shared`. Used for guild settings, track history, feature toggles, and app data.
+- **Prisma**: Schema and migrations in `prisma/` at repo root; client from `@nexus/shared`. Used for guild settings, track history, feature toggles, and app data.
 - **Redis**: Used by shared for session storage (backend), track history, guild settings cache, and rate limiting. Configure via `REDIS_URL`; see `.env.example`.
 
 ## Monitoring (Sentry)

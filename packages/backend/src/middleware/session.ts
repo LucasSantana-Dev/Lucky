@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import session from 'express-session'
-import RedisStore from 'connect-redis'
+import { RedisStore } from 'connect-redis'
 import Redis from 'ioredis'
 import { debugLog, errorLog } from '@nexus/shared/utils'
 import type { Express } from 'express'

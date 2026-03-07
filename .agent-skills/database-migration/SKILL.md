@@ -6,7 +6,7 @@ source: https://github.com/wshobson/agents
 
 # Database Migration
 
-Master database schema migrations with Prisma for LukBot.
+Master database schema migrations with Prisma for Nexus.
 
 ## When to Use This Skill
 
@@ -15,7 +15,7 @@ Master database schema migrations with Prisma for LukBot.
 - Running `npm run db:migrate`
 - Zero-downtime schema changes
 
-## LukBot Migration Commands
+## Nexus Migration Commands
 
 ```bash
 npm run db:generate    # Regenerate Prisma client after schema changes
@@ -50,7 +50,7 @@ Step 2: Backfill data
 Step 3: Make required (String) in separate migration
 ```
 
-## LukBot Schema Location
+## Nexus Schema Location
 
 - Schema: `prisma/schema.prisma`
 - Migrations: `prisma/migrations/`

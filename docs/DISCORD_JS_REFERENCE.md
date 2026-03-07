@@ -1,6 +1,6 @@
 # Discord.js Quick Reference
 
-Quick reference guide for common Discord.js patterns and operations used in LukBot.
+Quick reference guide for common Discord.js patterns and operations used in Nexus.
 
 ## Table of Contents
 

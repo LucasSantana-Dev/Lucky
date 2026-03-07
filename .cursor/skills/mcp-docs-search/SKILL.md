@@ -1,9 +1,9 @@
 ---
 name: mcp-docs-search
-description: Use MCP tools for docs lookup and web search in LukBot. Use when needing up-to-date docs, APIs, or best practices.
+description: Use MCP tools for docs lookup and web search in Nexus. Use when needing up-to-date docs, APIs, or best practices.
 ---
 
-# MCP Docs & Search (LukBot)
+# MCP Docs & Search (Nexus)
 
 ## When to use
 
@@ -21,12 +21,12 @@ description: Use MCP tools for docs lookup and web search in LukBot. Use when ne
 | GitHub               | **user-GitHub**                                                     | Issues, PRs, repo metadata                      |
 | Browser/E2E          | **user-playwright**, **cursor-ide-browser**, **user-browser-tools** | E2E tests, UI verification                      |
 | UI ideas             | **user-v0**, **user-@magicuidesign/mcp**                            | Reference only; adapt to repo                   |
-| Cloudflare           | **user-cloudflare-observability**, **user-cloudflare-bindings**     | Only if LukBot is on Cloudflare Workers         |
+| Cloudflare           | **user-cloudflare-observability**, **user-cloudflare-bindings**     | Only if Nexus is on Cloudflare Workers          |
 
 ## Use when needed (not default)
 
 - **radar_search**, **mcp-gateway**, **user-desktop-commander**, **user-apify-dribbble**, **MCP_DOCKER**, **curl**: Only when the task clearly requires them (e.g. Docker API, desktop automation, scraping).
-- **user-minecraft**, **composio**: Not used for LukBot unless explicitly required.
+- **user-minecraft**, **composio**: Not used for Nexus unless explicitly required.
 
 ## Conventions
 

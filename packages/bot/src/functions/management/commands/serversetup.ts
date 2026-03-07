@@ -10,7 +10,7 @@ import {
     type OverwriteResolvable,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { infoLog, errorLog } from '@lukbot/shared/utils'
+import { infoLog, errorLog } from '@nexus/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 interface ChannelDef {
@@ -138,7 +138,7 @@ const FORGE_CATEGORIES: CategoryDef[] = [
             },
             {
                 name: 'music-bot',
-                topic: 'LukBot music commands go here',
+                topic: 'Nexus music commands go here',
             },
         ],
     },
@@ -172,9 +172,7 @@ const WELCOME_EMBED = new EmbedBuilder()
 async function createRoles(guild: Guild): Promise<Map<string, Role>> {
     const created = new Map<string, Role>()
     for (const def of FORGE_ROLES) {
-        const existing = guild.roles.cache.find(
-            (r) => r.name === def.name,
-        )
+        const existing = guild.roles.cache.find((r) => r.name === def.name)
         if (existing) {
             created.set(def.name, existing)
             continue
@@ -196,9 +194,7 @@ async function createCategory(
     def: CategoryDef,
 ): Promise<{ category: CategoryChannel; channels: TextChannel[] }> {
     const existing = guild.channels.cache.find(
-        (c) =>
-            c.name === def.name &&
-            c.type === ChannelType.GuildCategory,
+        (c) => c.name === def.name && c.type === ChannelType.GuildCategory,
     ) as CategoryChannel | undefined
 
     const category =
@@ -273,10 +269,7 @@ export default new Command({
             return
         }
 
-        const template = interaction.options.getString(
-            'template',
-            true,
-        )
+        const template = interaction.options.getString('template', true)
 
         if (template !== 'forge-space') {
             await interactionReply({
@@ -308,15 +301,10 @@ export default new Command({
             let welcomeChannel: TextChannel | null = null
 
             for (const catDef of FORGE_CATEGORIES) {
-                const { channels } = await createCategory(
-                    guild,
-                    catDef,
-                )
+                const { channels } = await createCategory(guild, catDef)
                 totalChannels += channels.length
 
-                const general = channels.find(
-                    (c) => c.name === 'general',
-                )
+                const general = channels.find((c) => c.name === 'general')
                 if (general) welcomeChannel = general
             }
 
@@ -349,7 +337,9 @@ export default new Command({
                 message: 'serversetup: Failed to setup server',
                 error: err,
             })
-            progress.push(`❌ Error: ${err instanceof Error ? err.message : String(err)}`)
+            progress.push(
+                `❌ Error: ${err instanceof Error ? err.message : String(err)}`,
+            )
             await interaction.editReply(progress.join('\n'))
         }
     },

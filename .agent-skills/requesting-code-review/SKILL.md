@@ -46,7 +46,7 @@ HEAD_SHA=$(git rev-parse HEAD)
 - Note Minor issues for later
 - Push back if reviewer is wrong (with reasoning)
 
-## LukBot-Specific
+## Nexus-Specific
 
 - Angular-style commits: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
 - Check CHANGELOG.md is updated before review

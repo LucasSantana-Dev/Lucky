@@ -19,13 +19,13 @@ jest.mock('ioredis', () => {
     }))
 })
 
-jest.mock('connect-redis', () => {
-    return jest.fn().mockImplementation(() => ({
+jest.mock('connect-redis', () => ({
+    RedisStore: jest.fn().mockImplementation(() => ({
         get: jest.fn(),
         set: jest.fn(),
         destroy: jest.fn(),
-    }))
-})
+    })),
+}))
 
 jest.mock('express-session', () => {
     return function session(options?: { name?: string }) {

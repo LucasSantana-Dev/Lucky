@@ -30,7 +30,7 @@ Reference these guidelines when:
 | 7        | JavaScript Performance    | LOW-MEDIUM  | `js-`        |
 | 8        | Advanced Patterns         | LOW         | `advanced-`  |
 
-## Key Rules for LukBot Frontend (React + Vite SPA)
+## Key Rules for Nexus Frontend (React + Vite SPA)
 
 **CRITICAL:**
 
@@ -46,7 +46,7 @@ Reference these guidelines when:
 - `rerender-lazy-state-init` — Pass function to useState for expensive initial values
 - `rendering-conditional-render` — Use ternary, not && for conditionals with objects
 
-## LukBot Frontend Location
+## Nexus Frontend Location
 
 - Components: `packages/frontend/src/components/`
 - Pages: `packages/frontend/src/pages/`

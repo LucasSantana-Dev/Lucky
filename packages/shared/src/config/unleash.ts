@@ -3,12 +3,13 @@ import { infoLog, errorLog, debugLog } from '../utils/general/log'
 
 const unleashUrl = process.env.UNLEASH_URL ?? ''
 const unleashApiToken = process.env.UNLEASH_API_TOKEN ?? ''
-const unleashAppName = process.env.UNLEASH_APP_NAME ?? 'lukbot'
+const unleashAppName = process.env.UNLEASH_APP_NAME ?? 'nexus'
 const unleashEnvironment = process.env.UNLEASH_ENVIRONMENT ?? 'development'
 
 type BootstrapData = unknown
 
-const bootstrapData: BootstrapData | undefined = process.env.UNLEASH_BOOTSTRAP_DATA
+const bootstrapData: BootstrapData | undefined = process.env
+    .UNLEASH_BOOTSTRAP_DATA
     ? (JSON.parse(process.env.UNLEASH_BOOTSTRAP_DATA) as BootstrapData)
     : undefined
 
@@ -24,7 +25,9 @@ const config: UnleashConfig = {
             Authorization: unleashApiToken,
         },
     }),
-    ...(bootstrapData !== undefined && { bootstrap: { data: bootstrapData as unknown } }),
+    ...(bootstrapData !== undefined && {
+        bootstrap: { data: bootstrapData as unknown },
+    }),
     refreshInterval: 15000,
     metricsInterval: 60000,
     disableMetrics: false,
@@ -49,7 +52,9 @@ if (unleash !== null) {
         debugLog({ message: 'Unleash synchronized with server' })
     })
 } else {
-    debugLog({ message: 'Unleash not configured, using fallback feature toggles' })
+    debugLog({
+        message: 'Unleash not configured, using fallback feature toggles',
+    })
 }
 
 export function isUnleashEnabled(): boolean {
