@@ -7,6 +7,15 @@ export type FeatureToggleName =
     | 'QUEUE_MANAGEMENT'
     | 'REACTION_ROLES'
     | 'ROLE_MANAGEMENT'
+    | 'MODERATION'
+    | 'AUTOMOD'
+    | 'CUSTOM_COMMANDS'
+    | 'AUTO_MESSAGES'
+    | 'SERVER_LOGS'
+    | 'WEBAPP'
+    | 'TWITCH_NOTIFICATIONS'
+    | 'LASTFM_INTEGRATION'
+    | 'WELCOME_MESSAGES'
 
 export type FeatureToggleConfig = {
     name: FeatureToggleName

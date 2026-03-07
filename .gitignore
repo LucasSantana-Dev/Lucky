@@ -10,6 +10,11 @@ packages/*/package-lock.json
 .env.*.local
 *.env
 
+# AI Agents
+.claude/
+.serena/
+CLAUDE.md
+
 # IDE
 .vscode
 .cursor/*

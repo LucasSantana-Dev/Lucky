@@ -20,7 +20,10 @@ class FeatureToggleService {
     private loadFallbackToggles(): void {
         const config = getFeatureToggleConfig()
         for (const [name, toggleConfig] of Object.entries(config)) {
-            this.fallbackToggles.set(name as FeatureToggleName, toggleConfig.enabled)
+            this.fallbackToggles.set(
+                name as FeatureToggleName,
+                toggleConfig.enabled,
+            )
         }
     }
 
@@ -50,13 +53,6 @@ class FeatureToggleService {
         name: FeatureToggleName,
         userId?: string,
     ): Promise<boolean> {
-        if (!this.isDeveloper(userId)) {
-            debugLog({
-                message: `Non-developer attempted to check global toggle ${name}`,
-            })
-            return false
-        }
-
         if (!isUnleashEnabled() || !this.unleashReady || unleash === null) {
             return this.getFallbackValue(name)
         }

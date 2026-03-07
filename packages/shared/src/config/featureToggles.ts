@@ -1,4 +1,7 @@
-import type { FeatureToggleConfig, FeatureToggleName } from '../types/featureToggle'
+import type {
+    FeatureToggleConfig,
+    FeatureToggleName,
+} from '../types/featureToggle'
 
 const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     DOWNLOAD_VIDEO: {
@@ -34,12 +37,60 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     REACTION_ROLES: {
         name: 'REACTION_ROLES',
         enabled: true,
-        description: 'Enable reaction roles with embed builders and button support',
+        description:
+            'Enable reaction roles with embed builders and button support',
     },
     ROLE_MANAGEMENT: {
         name: 'ROLE_MANAGEMENT',
         enabled: true,
-        description: 'Enable automatic role management (mutually exclusive roles)',
+        description:
+            'Enable automatic role management (mutually exclusive roles)',
+    },
+    MODERATION: {
+        name: 'MODERATION',
+        enabled: true,
+        description: 'Enable moderation commands (ban, kick, warn, mute)',
+    },
+    AUTOMOD: {
+        name: 'AUTOMOD',
+        enabled: true,
+        description:
+            'Enable auto-moderation (spam, caps, links, invites, badwords)',
+    },
+    CUSTOM_COMMANDS: {
+        name: 'CUSTOM_COMMANDS',
+        enabled: true,
+        description: 'Enable custom command creation and triggers',
+    },
+    AUTO_MESSAGES: {
+        name: 'AUTO_MESSAGES',
+        enabled: true,
+        description: 'Enable scheduled auto-messages in channels',
+    },
+    SERVER_LOGS: {
+        name: 'SERVER_LOGS',
+        enabled: true,
+        description: 'Enable server audit logging',
+    },
+    WEBAPP: {
+        name: 'WEBAPP',
+        enabled: true,
+        description: 'Enable web dashboard interface',
+    },
+    TWITCH_NOTIFICATIONS: {
+        name: 'TWITCH_NOTIFICATIONS',
+        enabled: false,
+        description: 'Enable Twitch stream notifications (requires API keys)',
+    },
+    LASTFM_INTEGRATION: {
+        name: 'LASTFM_INTEGRATION',
+        enabled: false,
+        description: 'Enable Last.fm scrobbling and profile linking',
+    },
+    WELCOME_MESSAGES: {
+        name: 'WELCOME_MESSAGES',
+        enabled: true,
+        description: 'Enable welcome/leave messages for new members',
     },
 }
 
