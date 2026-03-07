@@ -21,26 +21,17 @@ import { AutoModService } from '@nexus/shared/services/AutoModService'
 const DEFAULT_SETTINGS = {
     id: '1',
     guildId: '111111111111111111',
+    enabled: true,
     spamEnabled: false,
     spamThreshold: 5,
-    spamInterval: 5000,
-    spamAction: 'warn',
+    spamTimeWindow: 5,
     capsEnabled: false,
     capsThreshold: 70,
-    capsMinLength: 10,
-    capsAction: 'warn',
     linksEnabled: false,
-    linksWhitelist: [] as string[],
-    linksAction: 'warn',
+    allowedDomains: [] as string[],
     invitesEnabled: false,
-    invitesAllowOwnServer: true,
-    invitesAction: 'warn',
     wordsEnabled: false,
-    wordsList: [] as string[],
-    wordsAction: 'warn',
-    raidEnabled: false,
-    raidJoinThreshold: 10,
-    raidTimeframe: 10000,
+    bannedWords: [] as string[],
     exemptChannels: [] as string[],
     exemptRoles: [] as string[],
     createdAt: new Date(),
@@ -90,14 +81,11 @@ describe('AutoModService', () => {
             const result = await service.createSettings(GUILD_A)
 
             expect(result.guildId).toBe(GUILD_A)
+            expect(result.enabled).toBe(true)
             expect(result.spamEnabled).toBe(false)
             expect(result.spamThreshold).toBe(5)
             expect(mockPrisma.autoModSettings.create).toHaveBeenCalledWith({
-                data: expect.objectContaining({
-                    guildId: GUILD_A,
-                    spamEnabled: false,
-                    spamThreshold: 5,
-                }),
+                data: { guildId: GUILD_A },
             })
         })
     })
@@ -153,7 +141,7 @@ describe('AutoModService', () => {
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
                 spamThreshold: 5,
-                spamInterval: 5000,
+                spamTimeWindow: 5,
             })
 
             const now = Date.now()
@@ -169,7 +157,7 @@ describe('AutoModService', () => {
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
                 spamThreshold: 3,
-                spamInterval: 5000,
+                spamTimeWindow: 5,
             })
 
             const now = Date.now()
@@ -185,7 +173,7 @@ describe('AutoModService', () => {
                 ...DEFAULT_SETTINGS,
                 spamEnabled: true,
                 spamThreshold: 3,
-                spamInterval: 2000,
+                spamTimeWindow: 2,
             })
 
             const now = Date.now()
@@ -217,24 +205,11 @@ describe('AutoModService', () => {
             expect(result).toBe(false)
         })
 
-        test('should return false for short messages', async () => {
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                capsEnabled: true,
-                capsMinLength: 10,
-            })
-
-            const result = await service.checkCaps(GUILD_A, 'HI')
-
-            expect(result).toBe(false)
-        })
-
         test('should return true when caps percentage exceeds threshold', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 capsEnabled: true,
                 capsThreshold: 70,
-                capsMinLength: 5,
             })
 
             const result = await service.checkCaps(
@@ -250,7 +225,6 @@ describe('AutoModService', () => {
                 ...DEFAULT_SETTINGS,
                 capsEnabled: true,
                 capsThreshold: 70,
-                capsMinLength: 5,
             })
 
             const result = await service.checkCaps(
@@ -266,7 +240,6 @@ describe('AutoModService', () => {
                 ...DEFAULT_SETTINGS,
                 capsEnabled: true,
                 capsThreshold: 70,
-                capsMinLength: 5,
             })
 
             const result = await service.checkCaps(GUILD_A, '12345 !@#$%')
@@ -305,7 +278,7 @@ describe('AutoModService', () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 linksEnabled: true,
-                linksWhitelist: ['youtube.com'],
+                allowedDomains: ['youtube.com'],
             })
 
             const result = await service.checkLinks(
@@ -320,7 +293,7 @@ describe('AutoModService', () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 linksEnabled: true,
-                linksWhitelist: ['youtube.com'],
+                allowedDomains: ['youtube.com'],
             })
 
             const result = await service.checkLinks(
@@ -410,38 +383,6 @@ describe('AutoModService', () => {
 
             expect(result).toBe(false)
         })
-
-        test('should return false for own server invites when allowed', async () => {
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                invitesEnabled: true,
-                invitesAllowOwnServer: true,
-            })
-
-            const result = await service.checkInvites(
-                GUILD_A,
-                'Join discord.gg/abc123',
-                GUILD_A,
-            )
-
-            expect(result).toBe(false)
-        })
-
-        test('should return true for other server invites when own server allowed', async () => {
-            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
-                ...DEFAULT_SETTINGS,
-                invitesEnabled: true,
-                invitesAllowOwnServer: true,
-            })
-
-            const result = await service.checkInvites(
-                GUILD_A,
-                'Join discord.gg/abc123',
-                GUILD_B,
-            )
-
-            expect(result).toBe(true)
-        })
     })
 
     describe('checkWords', () => {
@@ -468,7 +409,7 @@ describe('AutoModService', () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
-                wordsList: [],
+                bannedWords: [],
             })
 
             const result = await service.checkWords(GUILD_A, 'anything')
@@ -480,7 +421,7 @@ describe('AutoModService', () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
-                wordsList: ['badword', 'offensive'],
+                bannedWords: ['badword', 'offensive'],
             })
 
             const result = await service.checkWords(
@@ -495,7 +436,7 @@ describe('AutoModService', () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
-                wordsList: ['badword'],
+                bannedWords: ['badword'],
             })
 
             const result = await service.checkWords(
@@ -510,7 +451,7 @@ describe('AutoModService', () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
                 ...DEFAULT_SETTINGS,
                 wordsEnabled: true,
-                wordsList: ['badword'],
+                bannedWords: ['badword'],
             })
 
             const result = await service.checkWords(

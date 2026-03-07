@@ -1,8 +1,8 @@
-# LukBot — Agent Workflow
+# Nexus — Agent Workflow
 
 ## Session Start Protocol
 
-When starting a new session on LukBot:
+When starting a new session on Nexus:
 
 1. Run `activate_project` for this project in Serena
 2. Run `list_memories` to load all project context
@@ -44,8 +44,8 @@ npm run build:frontend  # Frontend only if frontend changed
 | Prisma schema changes                | `.agent-skills/database-migration`             |
 | Add slash command                    | `.cursor/skills/discord-commands`              |
 | Music/queue/player                   | `.cursor/skills/music-queue-player`            |
-| Schema, migrations, DB/Redis         | `.cursor/skills/prisma-redis-lukbot`           |
-| Docker, local dev                    | `.cursor/skills/lukbot-docker-dev`             |
+| Schema, migrations, DB/Redis         | `.cursor/skills/prisma-redis-nexus`           |
+| Docker, local dev                    | `.cursor/skills/nexus-docker-dev`             |
 | Frontend (React/Vite/Tailwind)       | `.cursor/skills/frontend-react-vite`           |
 | Backend (Express API)                | `.cursor/skills/backend-express`               |
 | E2E tests, Playwright                | `.cursor/skills/e2e-playwright`                |
@@ -73,7 +73,7 @@ Task completion info → CHANGELOG.md or these Serena memories.
 - No hardcoded secrets, IPs, or ports
 - No speculative features / premature abstraction
 - No comments unless asked — code should be clear from names
-- Use `errorLog` from `@lukbot/shared/utils` for all error logging
+- Use `errorLog` from `@nexus/shared/utils` for all error logging
 
 ## MCP Tools Available
 

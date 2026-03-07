@@ -51,7 +51,7 @@ async function handleAutoMod(message: Message): Promise<void> {
                 violations.push({
                     type: 'spam',
                     reason: 'Spam detected',
-                    action: settings.spamAction,
+                    action: 'delete',
                 })
             }
         }
@@ -65,7 +65,7 @@ async function handleAutoMod(message: Message): Promise<void> {
                 violations.push({
                     type: 'caps',
                     reason: 'Excessive capitalization',
-                    action: settings.capsAction,
+                    action: 'delete',
                 })
             }
         }
@@ -79,7 +79,7 @@ async function handleAutoMod(message: Message): Promise<void> {
                 violations.push({
                     type: 'links',
                     reason: 'Unauthorized link detected',
-                    action: settings.linksAction,
+                    action: 'delete',
                 })
             }
         }
@@ -93,7 +93,7 @@ async function handleAutoMod(message: Message): Promise<void> {
                 violations.push({
                     type: 'invites',
                     reason: 'Invite detected',
-                    action: settings.invitesAction,
+                    action: 'delete',
                 })
             }
         }
@@ -107,7 +107,7 @@ async function handleAutoMod(message: Message): Promise<void> {
                 violations.push({
                     type: 'badwords',
                     reason: 'Inappropriate language detected',
-                    action: settings.wordsAction,
+                    action: 'delete',
                 })
             }
         }

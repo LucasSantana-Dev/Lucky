@@ -1,35 +1,24 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { typePrisma } from '../utils/database/prismaHelpers.js'
 
-// Prisma client with model delegates - typed using helper
 const prisma = typePrisma(getPrismaClient())
 
-// Inline type definitions until Prisma type resolution is fixed
 interface AutoModSettings {
     id: string
     guildId: string
+    enabled: boolean
     spamEnabled: boolean
     spamThreshold: number
-    spamInterval: number
-    spamAction: string
+    spamTimeWindow: number
     capsEnabled: boolean
     capsThreshold: number
-    capsMinLength: number
-    capsAction: string
     linksEnabled: boolean
-    linksWhitelist: string[]
-    linksAction: string
+    allowedDomains: string[]
     invitesEnabled: boolean
-    invitesAllowOwnServer: boolean
-    invitesAction: string
     wordsEnabled: boolean
-    wordsList: string[]
-    wordsAction: string
-    raidEnabled: boolean
-    raidJoinThreshold: number
-    raidTimeframe: number
-    exemptChannels: string[]
+    bannedWords: string[]
     exemptRoles: string[]
+    exemptChannels: string[]
     createdAt: Date
     updatedAt: Date
 }
@@ -43,31 +32,7 @@ export class AutoModService {
 
     async createSettings(guildId: string): Promise<AutoModSettings> {
         return await prisma.autoModSettings.create({
-            data: {
-                guildId,
-                spamEnabled: false,
-                spamThreshold: 5,
-                spamInterval: 5000,
-                spamAction: 'warn',
-                capsEnabled: false,
-                capsThreshold: 70,
-                capsMinLength: 10,
-                capsAction: 'warn',
-                linksEnabled: false,
-                linksWhitelist: [],
-                linksAction: 'warn',
-                invitesEnabled: false,
-                invitesAllowOwnServer: true,
-                invitesAction: 'warn',
-                wordsEnabled: false,
-                wordsList: [],
-                wordsAction: 'warn',
-                raidEnabled: false,
-                raidJoinThreshold: 10,
-                raidTimeframe: 10000,
-                exemptChannels: [],
-                exemptRoles: [],
-            },
+            data: { guildId },
         })
     }
 
@@ -79,25 +44,23 @@ export class AutoModService {
     ): Promise<AutoModSettings> {
         return await prisma.autoModSettings.upsert({
             where: { guildId },
-            create: {
-                guildId,
-                ...settings,
-            },
+            create: { guildId, ...settings },
             update: settings,
         })
     }
 
     async checkSpam(
         guildId: string,
-        userId: string,
+        _userId: string,
         messageTimestamps: number[],
     ): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.spamEnabled) return false
 
         const now = Date.now()
+        const windowMs = settings.spamTimeWindow * 1000
         const recentMessages = messageTimestamps.filter(
-            (timestamp) => now - timestamp < settings.spamInterval,
+            (ts) => now - ts < windowMs,
         )
 
         return recentMessages.length >= settings.spamThreshold
@@ -106,7 +69,7 @@ export class AutoModService {
     async checkCaps(guildId: string, content: string): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.capsEnabled) return false
-        if (content.length < settings.capsMinLength) return false
+        if (content.length < 10) return false
 
         const uppercaseCount = (content.match(/[A-Z]/g) || []).length
         const letterCount = (content.match(/[A-Za-z]/g) || []).length
@@ -126,43 +89,28 @@ export class AutoModService {
 
         if (!urls) return false
 
-        // Check if any URL is not in whitelist
-        return urls.some((url) => {
-            return !settings.linksWhitelist.some((whitelisted) =>
-                url.includes(whitelisted),
-            )
-        })
+        return urls.some(
+            (url) =>
+                !settings.allowedDomains.some((domain) => url.includes(domain)),
+        )
     }
 
-    async checkInvites(
-        guildId: string,
-        content: string,
-        currentGuildId?: string,
-    ): Promise<boolean> {
+    async checkInvites(guildId: string, content: string): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.invitesEnabled) return false
 
         const inviteRegex =
             /discord\.gg\/[a-zA-Z0-9]+|discord\.com\/invite\/[a-zA-Z0-9]+/gi
-        const invites = content.match(inviteRegex)
-
-        if (!invites) return false
-
-        // If allow own server is enabled and this is the current guild, allow
-        if (settings.invitesAllowOwnServer && currentGuildId === guildId) {
-            return false
-        }
-
-        return true
+        return inviteRegex.test(content)
     }
 
     async checkWords(guildId: string, content: string): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.wordsEnabled) return false
-        if (settings.wordsList.length === 0) return false
+        if (settings.bannedWords.length === 0) return false
 
         const lowerContent = content.toLowerCase()
-        return settings.wordsList.some((word) =>
+        return settings.bannedWords.some((word) =>
             lowerContent.includes(word.toLowerCase()),
         )
     }

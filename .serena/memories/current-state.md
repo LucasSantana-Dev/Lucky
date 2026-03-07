@@ -1,53 +1,54 @@
-# LukBot — Current State
+# Nexus — Current State
 
-Last updated: 2026-03-07 (Session 6 — Bundle Optimization)
+Last updated: 2026-03-07 (Session 11 — Prisma 7, Zero Vulns, Repo Rename)
+
+## GitHub
+- **Repo**: `LucasSantana-Dev/Nexus` (renamed from LukBot)
+- **0 open PRs, 0 open issues**
+- All dependabot PRs resolved (#110-113 closed, #66 closed, #111 closed)
 
 ## Build Status
 
 | Package  | Status    | Notes                                    |
 | -------- | --------- | ---------------------------------------- |
-| shared   | ✅ Builds | All services complete                    |
-| bot      | ✅ Builds | All event handlers registered            |
+| shared   | ✅ Builds | Prisma 7.4.2 with @prisma/adapter-pg    |
+| bot      | ✅ Builds | @discord-player/extractor added          |
 | frontend | ✅ Builds | No warnings, optimized bundle            |
-| backend  | ✅ Builds | All type errors fixed                    |
+| backend  | ✅ Builds | Tests excluded from tsc, named RedisStore |
 | backend tests | ✅ 364/364 | 24 suites, Jest 30                  |
-| frontend tests | ✅ 30/30 | 4 suites, Vitest                    |
+| frontend tests | ✅ 60/60 | 8 suites, Vitest                    |
 | E2E tests | ✅ 135/135 | 15 spec files, Playwright             |
 
-## Backend Coverage
+## Security
+- **0 vulnerabilities** (npm overrides: @smithy, @hono, lodash + audit fix)
 
-| Metric     | Value |
-| ---------- | ----- |
-| Statements | 96%   |
-| Branches   | 84%   |
-| Functions  | 100%  |
-| Lines      | 96%   |
+## Prisma 7.4.2
+- Provider: `prisma-client` with `engineType = "client"`
+- Output: `../packages/shared/src/generated/prisma`
+- `prisma.config.ts` for CLI datasource URL
+- `@prisma/adapter-pg` driver adapter in PrismaClient constructor
 
 ## Frontend Bundle
 
-| Chunk         | Size (raw) | Size (gzip) |
-| ------------- | ---------- | ----------- |
-| index.js      | 409 KB     | 119 KB      |
-| vendor-ui     | 203 KB     | 65 KB       |
-| vendor-radix  | 98 KB      | 32 KB       |
-| vendor-state  | 78 KB      | 28 KB       |
-| vendor-react  | 67 KB      | 23 KB       |
-| vendor-forms  | 24 KB      | 9 KB        |
+| Chunk         | Size (gzip) |
+| ------------- | ----------- |
+| index.js      | 119 KB      |
+| vendor-ui     | 65 KB       |
+| vendor-radix  | 34 KB       |
+| vendor-state  | 28 KB       |
+| vendor-react  | 23 KB       |
 
-Optimized from 756 KB (232 KB gz) → 409 KB (119 KB gz) main chunk.
-31 unused dependencies removed (58 → 27 deps).
+Dependencies: 27 (down from 58).
 
-## Session Persistence
+## Logo & Branding
+- `assets/nexus-logo.svg` — horizontal icon + wordmark
+- `assets/nexus-logo.png` — canvas art
+- `packages/frontend/public/favicon.svg` — hexagonal hub icon
+- All LukBot references removed (scripts, Dockerfile, .cursor/rules)
 
-- `SessionService.ts`: file-based store at `.data/sessions.json`
-- `session.ts` middleware: `session-file-store` at `.data/sessions/`
-- `authStore.ts`: Zustand persist → localStorage (key: `lukbot-auth`)
-- Sessions survive server restarts without Redis
+## Deploy
+- `deploy.yml`: configurable via `DEPLOY_PATH` secret, defaults `/opt/nexus`
 
-## Express 5 Type Safety
-
-- `p()` helper in 4 route files for `string | string[]` param extraction
-- `validateParams` replaces `req.params` with Zod output (coerced types)
-- `validateQuery` does NOT reassign `req.query`
-
-## Overall Completion: ~98%
+## CI/CD
+- `npm ci --legacy-peer-deps` required
+- Lint + type-check + build + backend tests + frontend tests + security

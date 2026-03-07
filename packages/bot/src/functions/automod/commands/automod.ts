@@ -35,23 +35,11 @@ export default new Command({
                 )
                 .addIntegerOption((option) =>
                     option
-                        .setName('interval')
+                        .setName('timewindow')
                         .setDescription('Timeframe in seconds (default: 5)')
                         .setRequired(false)
                         .setMinValue(1)
                         .setMaxValue(60),
-                )
-                .addStringOption((option) =>
-                    option
-                        .setName('action')
-                        .setDescription('Action to take')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Warn', value: 'warn' },
-                            { name: 'Mute', value: 'mute' },
-                            { name: 'Kick', value: 'kick' },
-                            { name: 'Ban', value: 'ban' },
-                        ),
                 ),
         )
         .addSubcommand((subcommand) =>
@@ -81,16 +69,6 @@ export default new Command({
                         .setRequired(false)
                         .setMinValue(5)
                         .setMaxValue(50),
-                )
-                .addStringOption((option) =>
-                    option
-                        .setName('action')
-                        .setDescription('Action to take')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Warn', value: 'warn' },
-                            { name: 'Delete', value: 'delete' },
-                        ),
                 ),
         )
         .addSubcommand((subcommand) =>
@@ -102,16 +80,6 @@ export default new Command({
                         .setName('enabled')
                         .setDescription('Enable link filtering')
                         .setRequired(true),
-                )
-                .addStringOption((option) =>
-                    option
-                        .setName('action')
-                        .setDescription('Action to take')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Delete', value: 'delete' },
-                            { name: 'Warn', value: 'warn' },
-                        ),
                 ),
         )
         .addSubcommand((subcommand) =>
@@ -123,17 +91,6 @@ export default new Command({
                         .setName('enabled')
                         .setDescription('Enable invite filtering')
                         .setRequired(true),
-                )
-                .addStringOption((option) =>
-                    option
-                        .setName('action')
-                        .setDescription('Action to take')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Delete', value: 'delete' },
-                            { name: 'Warn', value: 'warn' },
-                            { name: 'Kick', value: 'kick' },
-                        ),
                 ),
         )
         .addSubcommand((subcommand) =>
@@ -145,54 +102,6 @@ export default new Command({
                         .setName('enabled')
                         .setDescription('Enable bad words filter')
                         .setRequired(true),
-                )
-                .addStringOption((option) =>
-                    option
-                        .setName('action')
-                        .setDescription('Action to take')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Delete', value: 'delete' },
-                            { name: 'Warn', value: 'warn' },
-                            { name: 'Mute', value: 'mute' },
-                        ),
-                ),
-        )
-        .addSubcommand((subcommand) =>
-            subcommand
-                .setName('raid')
-                .setDescription('Configure raid protection')
-                .addBooleanOption((option) =>
-                    option
-                        .setName('enabled')
-                        .setDescription('Enable raid protection')
-                        .setRequired(true),
-                )
-                .addIntegerOption((option) =>
-                    option
-                        .setName('threshold')
-                        .setDescription('Max joins in timeframe (default: 10)')
-                        .setRequired(false)
-                        .setMinValue(5)
-                        .setMaxValue(50),
-                )
-                .addIntegerOption((option) =>
-                    option
-                        .setName('interval')
-                        .setDescription('Timeframe in seconds (default: 10)')
-                        .setRequired(false)
-                        .setMinValue(5)
-                        .setMaxValue(60),
-                )
-                .addStringOption((option) =>
-                    option
-                        .setName('action')
-                        .setDescription('Action to take')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Kick', value: 'kick' },
-                            { name: 'Ban', value: 'ban' },
-                        ),
                 ),
         )
         .addSubcommand((subcommand) =>
@@ -227,55 +136,49 @@ export default new Command({
                         {
                             name: '📨 Spam Detection',
                             value: settings.spamEnabled
-                                ? `✅ Enabled\n└ ${settings.spamThreshold} messages in ${settings.spamInterval / 1000}s → ${settings.spamAction}`
+                                ? `✅ Enabled\n└ ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
                                 : '❌ Disabled',
                         },
                         {
                             name: '🔠 Caps Detection',
                             value: settings.capsEnabled
-                                ? `✅ Enabled\n└ ${settings.capsThreshold}% caps, min ${settings.capsMinLength} chars → ${settings.capsAction}`
+                                ? `✅ Enabled\n└ ${settings.capsThreshold}% caps threshold`
                                 : '❌ Disabled',
                         },
                         {
                             name: '🔗 Link Filtering',
                             value: settings.linksEnabled
-                                ? `✅ Enabled\n└ Action: ${settings.linksAction}\n└ Whitelist: ${settings.linksWhitelist.length} domains`
+                                ? `✅ Enabled\n└ Allowed domains: ${settings.allowedDomains.length}`
                                 : '❌ Disabled',
                         },
                         {
                             name: '📧 Invite Filtering',
                             value: settings.invitesEnabled
-                                ? `✅ Enabled\n└ Action: ${settings.invitesAction}`
+                                ? `✅ Enabled`
                                 : '❌ Disabled',
                         },
                         {
                             name: '🚫 Bad Words Filter',
                             value: settings.wordsEnabled
-                                ? `✅ Enabled\n└ ${settings.wordsList.length} words → ${settings.wordsAction}`
-                                : '❌ Disabled',
-                        },
-                        {
-                            name: '🛡️ Raid Protection',
-                            value: settings.raidEnabled
-                                ? `✅ Enabled\n└ ${settings.raidThreshold} joins in ${settings.raidInterval / 1000}s → ${settings.raidAction}`
+                                ? `✅ Enabled\n└ ${settings.bannedWords.length} banned words`
                                 : '❌ Disabled',
                         },
                     )
                     .setTimestamp()
 
-                if (settings.ignoredChannels.length > 0) {
+                if (settings.exemptChannels.length > 0) {
                     embed.addFields({
-                        name: 'Ignored Channels',
-                        value: settings.ignoredChannels
+                        name: 'Exempt Channels',
+                        value: settings.exemptChannels
                             .map((id) => `<#${id}>`)
                             .join(', '),
                     })
                 }
 
-                if (settings.ignoredRoles.length > 0) {
+                if (settings.exemptRoles.length > 0) {
                     embed.addFields({
-                        name: 'Ignored Roles',
-                        value: settings.ignoredRoles
+                        name: 'Exempt Roles',
+                        value: settings.exemptRoles
                             .map((id) => `<@&${id}>`)
                             .join(', '),
                     })
@@ -296,56 +199,26 @@ export default new Command({
                 if (enabled) {
                     const threshold =
                         interaction.options.getInteger('threshold')
-                    const interval = interaction.options.getInteger('interval')
-                    const action = interaction.options.getString('action')
+                    const timewindow =
+                        interaction.options.getInteger('timewindow')
 
                     if (threshold) updateData.spamThreshold = threshold
-                    if (interval) updateData.spamInterval = interval * 1000
-                    if (action) updateData.spamAction = action
+                    if (timewindow) updateData.spamTimeWindow = timewindow
                 }
             } else if (subcommand === 'caps') {
                 updateData.capsEnabled = enabled
                 if (enabled) {
                     const percentage =
                         interaction.options.getInteger('percentage')
-                    const minLength =
-                        interaction.options.getInteger('min_length')
-                    const action = interaction.options.getString('action')
 
                     if (percentage) updateData.capsThreshold = percentage
-                    if (minLength) updateData.capsMinLength = minLength
-                    if (action) updateData.capsAction = action
                 }
             } else if (subcommand === 'links') {
                 updateData.linksEnabled = enabled
-                if (enabled) {
-                    const action = interaction.options.getString('action')
-                    if (action) updateData.linksAction = action
-                }
             } else if (subcommand === 'invites') {
                 updateData.invitesEnabled = enabled
-                if (enabled) {
-                    const action = interaction.options.getString('action')
-                    if (action) updateData.invitesAction = action
-                }
             } else if (subcommand === 'words') {
                 updateData.wordsEnabled = enabled
-                if (enabled) {
-                    const action = interaction.options.getString('action')
-                    if (action) updateData.wordsAction = action
-                }
-            } else if (subcommand === 'raid') {
-                updateData.raidEnabled = enabled
-                if (enabled) {
-                    const threshold =
-                        interaction.options.getInteger('threshold')
-                    const interval = interaction.options.getInteger('interval')
-                    const action = interaction.options.getString('action')
-
-                    if (threshold) updateData.raidThreshold = threshold
-                    if (interval) updateData.raidInterval = interval * 1000
-                    if (action) updateData.raidAction = action
-                }
             }
 
             await autoModService.updateSettings(

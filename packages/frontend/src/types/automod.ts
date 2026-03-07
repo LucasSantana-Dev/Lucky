@@ -1,28 +1,19 @@
-export type AutoModAction = 'warn' | 'mute' | 'kick' | 'ban'
-
 export interface AutoModSettings {
     id: string
     guildId: string
+    enabled: boolean
     spamEnabled: boolean
     spamThreshold: number
-    spamInterval: number
-    spamAction: AutoModAction
+    spamTimeWindow: number
     capsEnabled: boolean
     capsThreshold: number
-    capsMinLength: number
-    capsAction: AutoModAction
     linksEnabled: boolean
-    linksWhitelist: string[]
-    linksAction: AutoModAction
+    allowedDomains: string[]
     invitesEnabled: boolean
-    invitesAllowOwnServer: boolean
-    invitesAction: AutoModAction
     wordsEnabled: boolean
-    wordsList: string[]
-    wordsAction: AutoModAction
-    raidEnabled: boolean
-    raidJoinThreshold: number
-    raidTimeframe: number
-    exemptChannels: string[]
+    bannedWords: string[]
     exemptRoles: string[]
+    exemptChannels: string[]
+    createdAt: Date
+    updatedAt: Date
 }

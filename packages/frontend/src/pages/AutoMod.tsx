@@ -7,7 +7,6 @@ import {
     Link2,
     Mail,
     Ban,
-    Users,
     Save,
     Plus,
     X,
@@ -20,19 +19,12 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
 import Skeleton from '@/components/ui/Skeleton'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
-import type { AutoModSettings, AutoModAction } from '@/types'
+import type { AutoModSettings } from '@/types'
 
 interface FilterCardProps {
     title: string
@@ -90,36 +82,6 @@ function FilterCard({
                 </motion.div>
             )}
         </Card>
-    )
-}
-
-function ActionSelect({
-    value,
-    onChange,
-    label,
-}: {
-    value: AutoModAction
-    onChange: (v: AutoModAction) => void
-    label: string
-}) {
-    return (
-        <div className='space-y-1.5'>
-            <Label className='text-xs text-nexus-text-secondary'>{label}</Label>
-            <Select
-                value={value}
-                onValueChange={(v) => onChange(v as AutoModAction)}
-            >
-                <SelectTrigger className='h-9 bg-nexus-bg-tertiary border-nexus-border text-white text-sm'>
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent className='bg-nexus-bg-secondary border-nexus-border'>
-                    <SelectItem value='warn'>⚠️ Warn</SelectItem>
-                    <SelectItem value='mute'>🔇 Mute</SelectItem>
-                    <SelectItem value='kick'>👢 Kick</SelectItem>
-                    <SelectItem value='ban'>🔨 Ban</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
     )
 }
 
@@ -218,28 +180,21 @@ function TagList({
 const DEFAULT_SETTINGS: AutoModSettings = {
     id: '',
     guildId: '',
+    enabled: true,
     spamEnabled: false,
     spamThreshold: 5,
-    spamInterval: 5000,
-    spamAction: 'warn',
+    spamTimeWindow: 5,
     capsEnabled: false,
     capsThreshold: 70,
-    capsMinLength: 10,
-    capsAction: 'warn',
     linksEnabled: false,
-    linksWhitelist: [],
-    linksAction: 'warn',
+    allowedDomains: [],
     invitesEnabled: false,
-    invitesAllowOwnServer: true,
-    invitesAction: 'warn',
     wordsEnabled: false,
-    wordsList: [],
-    wordsAction: 'warn',
-    raidEnabled: false,
-    raidJoinThreshold: 10,
-    raidTimeframe: 10000,
+    bannedWords: [],
     exemptChannels: [],
     exemptRoles: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
 }
 
 export default function AutoModPage() {
@@ -360,18 +315,13 @@ export default function AutoModPage() {
                                 max={20}
                             />
                             <NumberInput
-                                label='Timeframe (ms)'
-                                value={settings.spamInterval}
-                                onChange={(v) => update('spamInterval', v)}
-                                min={1000}
-                                max={60000}
+                                label='Time window (s)'
+                                value={settings.spamTimeWindow}
+                                onChange={(v) => update('spamTimeWindow', v)}
+                                min={1}
+                                max={60}
                             />
                         </div>
-                        <ActionSelect
-                            label='Action'
-                            value={settings.spamAction}
-                            onChange={(v) => update('spamAction', v)}
-                        />
                     </FilterCard>
                 </motion.div>
 
@@ -389,26 +339,12 @@ export default function AutoModPage() {
                         onToggle={(v) => update('capsEnabled', v)}
                         accent='bg-yellow-500/20'
                     >
-                        <div className='grid grid-cols-2 gap-3'>
-                            <NumberInput
-                                label='Caps threshold (%)'
-                                value={settings.capsThreshold}
-                                onChange={(v) => update('capsThreshold', v)}
-                                min={50}
-                                max={100}
-                            />
-                            <NumberInput
-                                label='Min length'
-                                value={settings.capsMinLength}
-                                onChange={(v) => update('capsMinLength', v)}
-                                min={3}
-                                max={50}
-                            />
-                        </div>
-                        <ActionSelect
-                            label='Action'
-                            value={settings.capsAction}
-                            onChange={(v) => update('capsAction', v)}
+                        <NumberInput
+                            label='Caps threshold (%)'
+                            value={settings.capsThreshold}
+                            onChange={(v) => update('capsThreshold', v)}
+                            min={50}
+                            max={100}
                         />
                     </FilterCard>
                 </motion.div>
@@ -427,27 +363,22 @@ export default function AutoModPage() {
                         onToggle={(v) => update('linksEnabled', v)}
                         accent='bg-blue-500/20'
                     >
-                        <ActionSelect
-                            label='Action'
-                            value={settings.linksAction}
-                            onChange={(v) => update('linksAction', v)}
-                        />
                         <div className='space-y-1.5'>
                             <Label className='text-xs text-nexus-text-secondary'>
-                                Whitelisted domains
+                                Allowed domains
                             </Label>
                             <TagList
-                                items={settings.linksWhitelist}
+                                items={settings.allowedDomains}
                                 onAdd={(d) =>
-                                    update('linksWhitelist', [
-                                        ...settings.linksWhitelist,
+                                    update('allowedDomains', [
+                                        ...settings.allowedDomains,
                                         d,
                                     ])
                                 }
                                 onRemove={(d) =>
                                     update(
-                                        'linksWhitelist',
-                                        settings.linksWhitelist.filter(
+                                        'allowedDomains',
+                                        settings.allowedDomains.filter(
                                             (x) => x !== d,
                                         ),
                                     )
@@ -471,24 +402,7 @@ export default function AutoModPage() {
                         enabled={settings.invitesEnabled}
                         onToggle={(v) => update('invitesEnabled', v)}
                         accent='bg-purple-500/20'
-                    >
-                        <ActionSelect
-                            label='Action'
-                            value={settings.invitesAction}
-                            onChange={(v) => update('invitesAction', v)}
-                        />
-                        <div className='flex items-center justify-between'>
-                            <Label className='text-xs text-nexus-text-secondary'>
-                                Allow own server invites
-                            </Label>
-                            <Switch
-                                checked={settings.invitesAllowOwnServer}
-                                onCheckedChange={(v) =>
-                                    update('invitesAllowOwnServer', v)
-                                }
-                            />
-                        </div>
-                    </FilterCard>
+                    />
                 </motion.div>
 
                 {/* Banned Words */}
@@ -505,65 +419,27 @@ export default function AutoModPage() {
                         onToggle={(v) => update('wordsEnabled', v)}
                         accent='bg-red-500/20'
                     >
-                        <ActionSelect
-                            label='Action'
-                            value={settings.wordsAction}
-                            onChange={(v) => update('wordsAction', v)}
-                        />
                         <div className='space-y-1.5'>
                             <Label className='text-xs text-nexus-text-secondary'>
-                                Word list
+                                Banned words
                             </Label>
                             <TagList
-                                items={settings.wordsList}
+                                items={settings.bannedWords}
                                 onAdd={(w) =>
-                                    update('wordsList', [
-                                        ...settings.wordsList,
+                                    update('bannedWords', [
+                                        ...settings.bannedWords,
                                         w,
                                     ])
                                 }
                                 onRemove={(w) =>
                                     update(
-                                        'wordsList',
-                                        settings.wordsList.filter(
+                                        'bannedWords',
+                                        settings.bannedWords.filter(
                                             (x) => x !== w,
                                         ),
                                     )
                                 }
                                 placeholder='Add a word to ban...'
-                            />
-                        </div>
-                    </FilterCard>
-                </motion.div>
-
-                {/* Raid Protection */}
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
-                >
-                    <FilterCard
-                        title='Raid Protection'
-                        description='Detect and respond to join raids'
-                        icon={Users}
-                        enabled={settings.raidEnabled}
-                        onToggle={(v) => update('raidEnabled', v)}
-                        accent='bg-red-600/20'
-                    >
-                        <div className='grid grid-cols-2 gap-3'>
-                            <NumberInput
-                                label='Join threshold'
-                                value={settings.raidJoinThreshold}
-                                onChange={(v) => update('raidJoinThreshold', v)}
-                                min={3}
-                                max={50}
-                            />
-                            <NumberInput
-                                label='Timeframe (ms)'
-                                value={settings.raidTimeframe}
-                                onChange={(v) => update('raidTimeframe', v)}
-                                min={5000}
-                                max={60000}
                             />
                         </div>
                     </FilterCard>
