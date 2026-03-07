@@ -27,12 +27,12 @@ function loadEnvironmentFiles(): { result: unknown; loadedFile: string } {
     for (const envFile of envFiles) {
         const envPath = path.resolve(rootDir, envFile)
         if (fs.existsSync(envPath)) {
-            const result = config({ path: envPath })
+            const result = config({ path: envPath, quiet: true })
             return { result, loadedFile: envFile }
         }
     }
 
-    return { result: config(), loadedFile: '.env (default)' }
+    return { result: config({ quiet: true }), loadedFile: '.env (default)' }
 }
 
 function findProjectRoot(): string {
@@ -151,9 +151,7 @@ async function loadInfisicalSecrets(): Promise<void> {
     try {
         const { InfisicalSDK } = await import('@infisical/sdk')
         const siteUrl = process.env.INFISICAL_SITE_URL
-        const client = new InfisicalSDK(
-            siteUrl ? { siteUrl } : undefined
-        )
+        const client = new InfisicalSDK(siteUrl ? { siteUrl } : undefined)
         await client.auth().universalAuth.login({
             clientId: process.env.INFISICAL_CLIENT_ID!,
             clientSecret: process.env.INFISICAL_CLIENT_SECRET!,
@@ -182,9 +180,13 @@ async function loadInfisicalSecrets(): Promise<void> {
         })
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        if (message.includes('Cannot find module') || message.includes('MODULE_NOT_FOUND')) {
+        if (
+            message.includes('Cannot find module') ||
+            message.includes('MODULE_NOT_FOUND')
+        ) {
             debugLog({
-                message: 'Infisical SDK not installed; skip loading from Infisical. Install @infisical/sdk to use Infisical.',
+                message:
+                    'Infisical SDK not installed; skip loading from Infisical. Install @infisical/sdk to use Infisical.',
             })
             return
         }

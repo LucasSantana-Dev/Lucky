@@ -44,7 +44,9 @@ export function captureMessage(
  */
 export function initializeSentry(): void {
     if (!process.env.SENTRY_DSN) {
-        console.log('Sentry DSN not configured, skipping initialization')
+        if (process.env.NODE_ENV === 'production') {
+            console.log('Sentry DSN not configured, skipping initialization')
+        }
         return
     }
 
