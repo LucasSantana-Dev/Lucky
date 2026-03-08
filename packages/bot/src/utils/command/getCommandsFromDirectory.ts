@@ -25,8 +25,6 @@ function validateDirectoryPath(url: string): string | null {
 }
 
 function getCommandFiles(absolutePath: string): string[] {
-    const isProd = process.env.NODE_ENV === 'production'
-
     const files = fs
         .readdirSync(absolutePath)
         .filter(
@@ -36,9 +34,8 @@ function getCommandFiles(absolutePath: string): string[] {
                 !file.startsWith('index.'),
         )
 
-    if (isProd) {
-        return files.filter((file) => file.endsWith('.js'))
-    }
+    const jsFiles = files.filter((file) => file.endsWith('.js'))
+    if (jsFiles.length > 0) return jsFiles
 
     return files.filter((file) => file.endsWith('.ts'))
 }
@@ -63,19 +60,10 @@ async function loadCommandFromFile(
         const filePath = path.join(absolutePath, file)
         debugLog({ message: `Loading command from: ${filePath}` })
 
-        const isProd = process.env.NODE_ENV === 'production'
-        let commandModule
-        if (isProd) {
-            const fileUrl = `file://${filePath}`
-            commandModule = (await import(fileUrl)) as {
-                default?: Command
-                command?: Command
-            }
-        } else {
-            commandModule = (await import(filePath)) as {
-                default?: Command
-                command?: Command
-            }
+        const fileUrl = `file://${filePath}`
+        const commandModule = (await import(fileUrl)) as {
+            default?: Command
+            command?: Command
         }
 
         const command = commandModule.default ?? commandModule.command
