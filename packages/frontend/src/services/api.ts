@@ -230,6 +230,81 @@ export const api = {
             }>(`/guilds/${guildId}/features/${name}`, { enabled }),
     },
 
+    trackHistory: {
+        getHistory: (guildId: string, limit = 10) =>
+            apiClient.get<{
+                history: Array<{
+                    trackId: string
+                    title: string
+                    author: string
+                    duration: string
+                    url: string
+                    timestamp: number
+                    playedBy?: string
+                }>
+            }>(`/guilds/${guildId}/music/history?limit=${limit}`),
+        getStats: (guildId: string) =>
+            apiClient.get<{
+                stats: {
+                    totalTracks: number
+                    totalPlayTime: number
+                    topArtists: Array<{ artist: string; plays: number }>
+                    topTracks: Array<{
+                        trackId: string
+                        title: string
+                        plays: number
+                    }>
+                    lastUpdated: string
+                } | null
+            }>(`/guilds/${guildId}/music/history/stats`),
+        getTopTracks: (guildId: string, limit = 10) =>
+            apiClient.get<{
+                tracks: Array<{
+                    trackId: string
+                    title: string
+                    plays: number
+                }>
+            }>(`/guilds/${guildId}/music/history/top-tracks?limit=${limit}`),
+        getTopArtists: (guildId: string, limit = 10) =>
+            apiClient.get<{
+                artists: Array<{ artist: string; plays: number }>
+            }>(`/guilds/${guildId}/music/history/top-artists?limit=${limit}`),
+        clearHistory: (guildId: string) =>
+            apiClient.delete<{ success: boolean }>(
+                `/guilds/${guildId}/music/history`,
+            ),
+    },
+
+    twitch: {
+        list: (guildId: string) =>
+            apiClient.get<{
+                notifications: Array<{
+                    id: string
+                    guildId: string
+                    twitchUserId: string
+                    twitchLogin: string
+                    discordChannelId: string
+                }>
+            }>(`/guilds/${guildId}/twitch/notifications`),
+        add: (
+            guildId: string,
+            data: {
+                twitchUserId: string
+                twitchLogin: string
+                discordChannelId: string
+            },
+        ) =>
+            apiClient.post<{ success: boolean }>(
+                `/guilds/${guildId}/twitch/notifications`,
+                data,
+            ),
+        remove: (guildId: string, twitchUserId: string) =>
+            apiClient.delete<{ success: boolean }>(
+                `/guilds/${guildId}/twitch/notifications`,
+                { data: { twitchUserId } },
+            ),
+    },
+
     music: createMusicApi(apiClient),
     moderation: createModerationApi(apiClient),
     automod: createAutoModApi(apiClient),

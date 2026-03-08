@@ -17,6 +17,10 @@ const MusicPage = lazy(() => import('./pages/Music'))
 const ServerSettingsPage = lazy(() => import('./pages/ServerSettings'))
 const CustomCommandsPage = lazy(() => import('./pages/CustomCommands'))
 const AutoMessagesPage = lazy(() => import('./pages/AutoMessages'))
+const TrackHistoryPage = lazy(() => import('./pages/TrackHistory'))
+const TwitchNotificationsPage = lazy(
+    () => import('./pages/TwitchNotifications'),
+)
 
 function AuthenticatedRoutes() {
     return (
@@ -32,6 +36,8 @@ function AuthenticatedRoutes() {
             <Route path='/commands' element={<CustomCommandsPage />} />
             <Route path='/automessages' element={<AutoMessagesPage />} />
             <Route path='/music' element={<MusicPage />} />
+            <Route path='/music/history' element={<TrackHistoryPage />} />
+            <Route path='/twitch' element={<TwitchNotificationsPage />} />
             <Route path='*' element={<Navigate to='/' replace />} />
         </Routes>
     )

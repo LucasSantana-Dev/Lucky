@@ -10,6 +10,8 @@ import {
     Terminal,
     MessageSquare,
     Music,
+    History,
+    Tv,
     ToggleLeft,
     LogOut,
     ChevronDown,
@@ -66,6 +68,12 @@ const navSections: NavSection[] = [
         title: 'EXTRAS',
         items: [
             { path: '/music', label: 'Music Player', icon: Music },
+            {
+                path: '/music/history',
+                label: 'Track History',
+                icon: History,
+            },
+            { path: '/twitch', label: 'Twitch', icon: Tv },
             { path: '/features', label: 'Features', icon: ToggleLeft },
         ],
     },
