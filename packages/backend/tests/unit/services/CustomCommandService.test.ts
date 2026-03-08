@@ -16,6 +16,22 @@ jest.mock('@nexus/shared/utils/database/prismaClient', () => {
     return { getPrismaClient: () => mockPrisma }
 })
 
+jest.mock('@nexus/shared/services/redis', () => ({
+    redisClient: {
+        isHealthy: jest.fn(() => false),
+        get: jest.fn(),
+        setex: jest.fn(),
+        del: jest.fn(),
+    },
+}))
+
+jest.mock('@nexus/shared/utils/general/log', () => ({
+    errorLog: jest.fn(),
+    debugLog: jest.fn(),
+    infoLog: jest.fn(),
+    warnLog: jest.fn(),
+}))
+
 import { CustomCommandService } from '@nexus/shared/services/CustomCommandService'
 
 describe('CustomCommandService', () => {
