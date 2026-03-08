@@ -124,13 +124,15 @@ export class RoleManagementService {
                     guildId: newMember.guild.id,
                     roleId: { in: addedRoles },
                 },
-            }) as Array<{ excludedRoleId: string }>
+            })
 
             if (exclusions.length === 0) {
                 return
             }
 
-            const rolesToRemove = exclusions.map((exclusion) => exclusion.excludedRoleId)
+            const rolesToRemove = exclusions.map(
+                (exclusion) => exclusion.excludedRoleId,
+            )
 
             for (const roleId of rolesToRemove) {
                 if (newMember.roles.cache.has(roleId)) {

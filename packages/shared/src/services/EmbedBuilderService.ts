@@ -1,4 +1,5 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { Prisma } from '../generated/prisma/client.js'
 import {
     validateEmbedData as _validateEmbedData,
     hexToDecimal as _hexToDecimal,
@@ -7,14 +8,7 @@ import {
     type EmbedField,
 } from './embedValidation.js'
 
-// Prisma client with model delegates (embedTemplate, etc.) available at runtime
-// Type is correctly inferred at runtime, but ESM doesn't expose types in @prisma/client
-// Solution: minimal cast to unknown first, then to model operations
-type PrismaWithModels = ReturnType<typeof getPrismaClient> & {
-    embedTemplate: any
-}
-
-const prisma = getPrismaClient() as unknown as PrismaWithModels
+const prisma = getPrismaClient()
 
 export type EmbedTemplate = {
     id: string
@@ -51,7 +45,9 @@ export class EmbedBuilderService {
                 footer: embedData.footer ?? null,
                 thumbnail: embedData.thumbnail ?? null,
                 image: embedData.image ?? null,
-                fields: embedData.fields ? embedData.fields : undefined,
+                fields: embedData.fields
+                    ? (embedData.fields as unknown as Prisma.InputJsonValue)
+                    : undefined,
                 createdBy: createdBy ?? 'unknown',
             },
         })
@@ -84,9 +80,15 @@ export class EmbedBuilderService {
         if (!existing) {
             throw new Error(`Template "${name}" not found in guild ${guildId}`)
         }
+        const { fields, ...rest } = updates
         return await prisma.embedTemplate.update({
             where: { id: existing.id },
-            data: updates,
+            data: {
+                ...rest,
+                ...(fields && {
+                    fields: fields as unknown as Prisma.InputJsonValue,
+                }),
+            },
         })
     }
 

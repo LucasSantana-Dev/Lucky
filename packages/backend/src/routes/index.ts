@@ -6,6 +6,10 @@ import { setupManagementRoutes } from './management'
 import { setupModerationRoutes } from './moderation'
 import { setupLastFmRoutes } from './lastfm'
 import { setupGuildSettingsRoutes } from './guildSettings'
+import { setupTrackHistoryRoutes } from './trackHistory'
+import { setupTwitchRoutes } from './twitch'
+import { setupLyricsRoutes } from './lyrics'
+import { setupRolesRoutes } from './roles'
 import { apiLimiter } from '../middleware/rateLimit'
 import { errorHandler } from '../middleware/errorHandler'
 
@@ -18,6 +22,10 @@ export function setupRoutes(app: Express): void {
     setupModerationRoutes(app)
     setupLastFmRoutes(app)
     setupGuildSettingsRoutes(app)
+    setupTrackHistoryRoutes(app)
+    setupTwitchRoutes(app)
+    setupLyricsRoutes(app)
+    setupRolesRoutes(app)
 
     app.use(errorHandler)
 }

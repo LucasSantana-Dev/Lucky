@@ -77,7 +77,9 @@ export class ReactionRolesService {
             }
 
             if (actionRows.length === 0) {
-                throw new Error('No action rows created - at least one role is required')
+                throw new Error(
+                    'No action rows created - at least one role is required',
+                )
             }
 
             const message = await channel.send({
@@ -129,7 +131,7 @@ export class ReactionRolesService {
                 include: { mappings: true },
             })
 
-            if (!message || (message as { guildId: string }).guildId !== guildId) {
+            if (!message || message.guildId !== guildId) {
                 return false
             }
 
@@ -181,7 +183,9 @@ export class ReactionRolesService {
             return false
         }
 
-        if (!(await this.isEnabled(interaction.guild.id, interaction.user.id))) {
+        if (
+            !(await this.isEnabled(interaction.guild.id, interaction.user.id))
+        ) {
             await interaction.reply({
                 content: 'Reaction roles are disabled for this server.',
                 ephemeral: true,
@@ -201,9 +205,13 @@ export class ReactionRolesService {
                     },
                 },
                 include: { message: true },
-            }) as { message?: { guildId: string } } | null
+            })
 
-            if (!mapping || !mapping.message || mapping.message.guildId !== interaction.guild.id) {
+            if (
+                !mapping ||
+                !mapping.message ||
+                mapping.message.guildId !== interaction.guild.id
+            ) {
                 await interaction.reply({
                     content: 'This reaction role is no longer valid.',
                     ephemeral: true,
