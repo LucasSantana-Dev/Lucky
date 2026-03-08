@@ -34,7 +34,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund && \
+    npm ci --legacy-peer-deps --no-audit --no-fund && \
     npm cache clean --force
 
 COPY packages/shared ./packages/shared
@@ -66,7 +66,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --no-audit --no-fund && \
+    npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
     npm cache clean --force
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
