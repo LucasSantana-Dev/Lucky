@@ -1,41 +1,34 @@
-# Nexus Known Gotchas
+# Known Gotchas
 
-## Prisma 7
-- **Custom output path**: `_require('../../generated/prisma/client.js')` not `@prisma/client` — Prisma 7 with custom output doesn't populate `.prisma/client/default`
-- **No `url` in datasource**: Must use `prisma.config.ts` for CLI datasource URL
-- **Driver adapter required**: `@prisma/adapter-pg` in PrismaClient constructor
-- **Manual ModerationCase type**: `ModerationService.ts` has manual type (not Prisma-generated). Must keep in sync with schema
-- **Dockerfile must run `npx prisma generate`** and copy `packages/shared/src/generated/` to production stage
+## Prisma 7 Custom Output
+- `generator { output = "../packages/shared/src/generated/prisma" }` means `.prisma/client/default` is NOT populated
+- `@prisma/client` PrismaClient type has NO model delegates — must import from generated path
+- Services import: `import { Prisma } from '../generated/prisma/client.js'`
+- prismaClient.ts imports: `import type { PrismaClient } from '../../generated/prisma/client.js'`
+- `src/generated` must NOT be in tsconfig `exclude` array
 
-## Redis / ioredis
-- **Empty password = AUTH hang**: `REDIS_PASSWORD=""` sends AUTH with empty string. Config uses `|| undefined` to skip AUTH
-- **lazyConnect: true** in config — `connect()` must be called explicitly
-- **Port 6380 in dev**: Supabase uses 6379, Docker Redis mapped to 6380 locally
-- **In Docker network**: Redis on port 6379 internally, no password needed
+## Prisma Json Fields
+- Nullable Json columns require `Prisma.JsonNull` (not `null`)
+- Returned values are `JsonValue` not `string` — use `typeof x === 'string' ? JSON.parse(x) : x`
 
-## Discord Bot
-- **Handler import paths**: Commands in `commands/` import handlers from `../handlers/` (not `./handlers/`)
-- **Option description limit**: Discord slash command option descriptions must be ≤100 chars
-- **Feature flag changes require restart**: No hot-reload for env vars
-- **24 commands loaded** (not 38 — some categories may have fewer than expected)
-- **TrackInfo naming conflict**: Use `MusicTrackInfo` alias from `@nexus/shared/services`
-
-## TypeScript / Build
-- **Build order**: shared must build first (`npm run build:shared`)
-- **typePrisma returns any**: Service method callbacks need explicit type annotations
-- **commitlint**: Subject starts lowercase after prefix (e.g., `fix: resolve...` not `fix: Resolve...`)
+## Jest + Generated Prisma Client (ESM)
+- Generated client uses `import.meta.url` (ESM only)
+- Jest runs in CJS mode via ts-jest — crashes on import.meta
+- Fix: `moduleNameMapper` in `packages/backend/jest.config.cjs` stubs `generated/prisma/client` → `tests/__mocks__/prismaClient.ts`
+- Mock exports minimal `Prisma = { JsonNull: 'DbNull' }`
 
 ## Express 5
-- `req.params` and `req.query` are read-only (getter/setter)
-- `validateParams` middleware may silently fail on assignment
+- `req.query` and `req.params` are read-only (getter/setter) — cannot reassign in middleware
+- Fixed in validateParams (commit 4d75605)
 
-## Frontend
-- Path alias `@/` → `src/`
-- E2E visual regression tests need `--update-snapshots` after UI changes
-- E2E auth tests need running backend for OAuth callback
+## Docker Build
+- Prisma generate needs correct output path in multi-stage build
+- Backend needs tsup ESM build (commit 61fcb45)
 
-## Docker / Deployment
-- **Node 22 LTS** in Dockerfiles (not 24 — doesn't exist yet)
-- **Dockerfile.frontend** needs monorepo context (root package.json + shared types)
-- **Cloudflare Tunnel** via `--profile tunnel` in docker-compose
-- **NGINX_PORT** configurable via env var (default 8080)
+## Pre-commit Hooks
+- `npm audit --audit-level=critical` can fail on transitive deps — use `HUSKY=0` for non-code commits
+- commitlint enforces lowercase subject after colon
+
+## Dead Code
+- `prismaHelpers.ts` (typePrisma/TypedPrisma) — no longer imported by services
+- Test mocks still reference it (`jest.mock('@nexus/shared/utils/database/prismaHelpers')`) — harmless but prevents deletion

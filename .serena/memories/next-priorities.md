@@ -1,28 +1,14 @@
-# Nexus — Next Priorities
+# Next Priorities (2026-03-07)
 
-Last updated: 2026-03-07 (Session 13)
+## Completed
+- ✅ CI/CD pipeline (GitHub Actions) — already existed
+- ✅ EmbedBuilderService — already implemented
+- ✅ Prisma type cleanup — removed all `as any` / typePrisma workarounds
 
-## Completed (Sessions 1-13)
-
-1-18. All previous items (see git log)
-19. ✅ AutoMod schema alignment (v2.0.0)
-20. ✅ Bot startup fixes — import paths, description length, Prisma client path
-21. ✅ Redis password fix — empty string AUTH hang
-22. ✅ Full test run — 361 backend + 60 frontend + 123 E2E passing
-23. ✅ Homelab deployment config — Dockerfiles, Cloudflare Tunnel, .env.example
-24. ✅ All services verified running (bot, backend, frontend, postgres, redis)
-
-## Current State
-- v2.0.1 on main, 0 open PRs, 0 issues, 0 vulns
-- 556 total tests (544 passing, 12 expected E2E failures)
-- Deployment ready for homelab (nexus.lucassantana.tech)
-
-## Next Steps
-1. **Deploy to homelab** — run docker compose with tunnel on homelab server
-2. **Discord OAuth redirect** — add nexus.lucassantana.tech callback URL in Discord Developer Portal
-3. **Prisma migration** — `npx prisma migrate deploy` on production DB
-4. **Bot rename** — change display name from LukBot to Nexus in Discord Developer Portal
-5. **EmbedBuilderService** — missing service referenced in codebase
-6. **Prisma type cleanup** — remove `as any` workarounds in services
-7. **Additional E2E coverage** — fix 4 auth E2E tests (need backend mock or running server)
-8. **CI/CD pipeline** — GitHub Actions for automated build/test/deploy
+## Remaining Work
+1. **Clean up dead code**: Remove `prismaHelpers.ts` and update test mocks to not reference it
+2. **Remove manual type definitions**: Services that define their own types (ModerationCase, ModerationSettings) can use Prisma generated types
+3. **Music player testing**: Discord Player 7.1 integration needs verification
+4. **Frontend dashboard**: Connect to backend API, show real server data
+5. **Feature flags UI**: Admin panel for feature toggle management
+6. **Redis caching layer**: Add caching to frequently-accessed services
