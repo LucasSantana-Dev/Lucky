@@ -44,6 +44,6 @@ jobs:
               continue-on-error: true
 
             - name: SonarCloud Scan
-              uses: SonarSource/sonarqube-scan-action@v5
+              uses: SonarSource/sonarqube-scan-action@v6
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
