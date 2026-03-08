@@ -35,7 +35,7 @@ COPY packages/backend/package*.json ./packages/backend/
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
-    npm cache clean --force
+    npm cache verify 2>/dev/null || true
 
 COPY packages/shared ./packages/shared
 COPY packages/bot ./packages/bot
@@ -70,7 +70,7 @@ COPY packages/backend/package*.json ./packages/backend/
 RUN --mount=type=cache,target=/root/.npm \
     YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
     npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
-    npm cache clean --force
+    npm cache verify 2>/dev/null || true
 
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot
