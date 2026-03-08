@@ -5,6 +5,7 @@ import { setupGuildRoutes } from './guilds'
 import { setupManagementRoutes } from './management'
 import { setupModerationRoutes } from './moderation'
 import { setupLastFmRoutes } from './lastfm'
+import { setupGuildSettingsRoutes } from './guildSettings'
 import { apiLimiter } from '../middleware/rateLimit'
 import { errorHandler } from '../middleware/errorHandler'
 
@@ -16,6 +17,7 @@ export function setupRoutes(app: Express): void {
     setupManagementRoutes(app)
     setupModerationRoutes(app)
     setupLastFmRoutes(app)
+    setupGuildSettingsRoutes(app)
 
     app.use(errorHandler)
 }
