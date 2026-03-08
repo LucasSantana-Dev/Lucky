@@ -804,7 +804,7 @@ export class DatabaseService {
                     Date.now() - 30 * 24 * 60 * 60 * 1000,
                 )
 
-                const deleteResultsRaw: unknown = await Promise.all([
+                const [tracks, usage, rateLimits] = await Promise.all([
                     this.prisma.trackHistory.deleteMany({
                         where: { playedAt: { lt: thirtyDaysAgo } },
                     }),
@@ -815,63 +815,8 @@ export class DatabaseService {
                         where: { resetAt: { lt: new Date() } },
                     }),
                 ])
-                if (
-                    !Array.isArray(deleteResultsRaw) ||
-                    deleteResultsRaw.length !== 3
-                ) {
-                    throw new Error('Invalid delete results from database')
-                }
-                const deleteResults: unknown[] = deleteResultsRaw
 
-                const deletedTracksResult: unknown = deleteResults[0]
-                const deletedUsageResult: unknown = deleteResults[1]
-                const deletedRateLimitsResult: unknown = deleteResults[2]
-
-                if (
-                    typeof deletedTracksResult !== 'object' ||
-                    deletedTracksResult === null ||
-                    !('count' in deletedTracksResult)
-                ) {
-                    throw new Error('Invalid delete result from database')
-                }
-                if (
-                    typeof deletedUsageResult !== 'object' ||
-                    deletedUsageResult === null ||
-                    !('count' in deletedUsageResult)
-                ) {
-                    throw new Error('Invalid delete result from database')
-                }
-                if (
-                    typeof deletedRateLimitsResult !== 'object' ||
-                    deletedRateLimitsResult === null ||
-                    !('count' in deletedRateLimitsResult)
-                ) {
-                    throw new Error('Invalid delete result from database')
-                }
-
-                const tracksCountValue = (
-                    deletedTracksResult as { count: unknown }
-                ).count
-                const usageCountValue = (
-                    deletedUsageResult as { count: unknown }
-                ).count
-                const rateLimitsCountValue = (
-                    deletedRateLimitsResult as { count: unknown }
-                ).count
-
-                if (
-                    typeof tracksCountValue !== 'number' ||
-                    typeof usageCountValue !== 'number' ||
-                    typeof rateLimitsCountValue !== 'number'
-                ) {
-                    throw new Error('Invalid count values from database')
-                }
-
-                const tracksCount = tracksCountValue
-                const usageCount = usageCountValue
-                const rateLimitsCount = rateLimitsCountValue
-                const totalDeleted = tracksCount + usageCount + rateLimitsCount
-                return totalDeleted
+                return tracks.count + usage.count + rateLimits.count
             },
             0,
             'cleanup_old_data',

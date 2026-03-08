@@ -153,12 +153,15 @@ async function replenishIfAutoplay(queue: GuildQueue): Promise<void> {
     if (autoplayEnabled) await replenishQueue(queue)
 }
 
+async function scrobbleAndRecord(queue: GuildQueue): Promise<void> {
+    if (!queue.currentTrack) return
+    await scrobbleCurrentTrackIfLastFm(queue)
+    addTrackToHistory(queue.currentTrack, queue.guild.id)
+}
+
 const handlePlayerFinish = async (queue: GuildQueue): Promise<void> => {
     try {
-        if (queue.currentTrack) {
-            await scrobbleCurrentTrackIfLastFm(queue)
-            addTrackToHistory(queue.currentTrack, queue.guild.id)
-        }
+        await scrobbleAndRecord(queue)
         await replenishIfAutoplay(queue)
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
@@ -168,10 +171,7 @@ const handlePlayerFinish = async (queue: GuildQueue): Promise<void> => {
 const handlePlayerSkip = async (queue: GuildQueue): Promise<void> => {
     try {
         debugLog({ message: 'Track skipped, checking queue...' })
-        if (queue.currentTrack) {
-            await scrobbleCurrentTrackIfLastFm(queue)
-            addTrackToHistory(queue.currentTrack, queue.guild.id)
-        }
+        await scrobbleAndRecord(queue)
         await replenishIfAutoplay(queue)
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })
