@@ -8,6 +8,7 @@ COPY packages/frontend/package*.json ./packages/frontend/
 COPY packages/shared/package*.json ./packages/shared/
 
 RUN --mount=type=cache,target=/root/.npm \
+    YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
     npm cache clean --force
 
