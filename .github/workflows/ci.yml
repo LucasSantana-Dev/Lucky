@@ -24,6 +24,9 @@ jobs:
             - name: Install dependencies
               run: npm ci --legacy-peer-deps
 
+            - name: Generate Prisma client
+              run: npx prisma generate
+
             - name: Lint code
               run: npm run lint
 
