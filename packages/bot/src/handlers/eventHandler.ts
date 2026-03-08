@@ -11,6 +11,7 @@ import { createUserFriendlyError } from '../utils/general/errorSanitizer'
 import { handleMessageCreate } from './messageHandler'
 import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
+import { handleExternalScrobbler } from './externalScrobbler'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -154,6 +155,7 @@ export default function handleEvents(client: Client) {
     handleMessageCreate(client)
     handleMemberEvents(client)
     handleAuditEvents(client)
+    handleExternalScrobbler(client)
     handleError(client)
     handleWarn(client)
     handleDebug(client)
