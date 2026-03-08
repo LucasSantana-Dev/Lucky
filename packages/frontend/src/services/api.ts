@@ -305,6 +305,18 @@ export const api = {
             ),
     },
 
+    lyrics: {
+        search: (title: string, artist?: string) => {
+            const params = new URLSearchParams({ title })
+            if (artist) params.set('artist', artist)
+            return apiClient.get<{
+                lyrics: string
+                title: string
+                artist: string
+            }>(`/lyrics?${params.toString()}`)
+        },
+    },
+
     music: createMusicApi(apiClient),
     moderation: createModerationApi(apiClient),
     automod: createAutoModApi(apiClient),
