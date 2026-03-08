@@ -19,6 +19,7 @@ if [ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]; then
 fi
 
 cd "$DEPLOY_DIR"
+git config --global --add safe.directory "$DEPLOY_DIR"
 
 log "Pulling latest changes..."
 git pull origin main
