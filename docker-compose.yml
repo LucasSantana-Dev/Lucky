@@ -166,7 +166,6 @@ services:
             -hooks /etc/webhook/hooks.json
             -verbose
             -hotreload
-            -template
         environment:
             - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}
         volumes:

@@ -1,10 +1,22 @@
 #!/bin/bash
 set -e
 
+RECEIVED_SECRET="${1:-}"
+EXPECTED_SECRET="${DEPLOY_WEBHOOK_SECRET:-}"
 DEPLOY_DIR="${DEPLOY_DIR:-/repo}"
 LOG_PREFIX="[deploy]"
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
+
+if [ -z "$EXPECTED_SECRET" ]; then
+    log "ERROR: DEPLOY_WEBHOOK_SECRET not configured"
+    exit 1
+fi
+
+if [ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]; then
+    log "ERROR: invalid webhook secret"
+    exit 1
+fi
 
 cd "$DEPLOY_DIR"
 
