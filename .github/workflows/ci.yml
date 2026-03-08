@@ -36,15 +36,20 @@ jobs:
             - name: Run backend tests
               run: npm run test:ci
 
+            - name: Run bot tests
+              run: npm run test --workspace=packages/bot -- --ci
+
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend
 
             - name: Upload coverage reports
               uses: codecov/codecov-action@v5
               with:
-                  files: packages/backend/coverage/lcov.info
-                  flags: backend
-                  name: codecov-backend
+                  files: |
+                      packages/backend/coverage/lcov.info
+                      packages/bot/coverage/lcov.info
+                  flags: backend,bot
+                  name: codecov
                   fail_ci_if_error: false
 
     security:
