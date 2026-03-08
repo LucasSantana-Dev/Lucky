@@ -90,7 +90,8 @@ export function setupLastFmRoutes(app: Express): void {
                 path: '/',
             })
             const apiKey = process.env.LASTFM_API_KEY
-            const authUrl = `https://www.last.fm/api/auth?api_key=${encodeURIComponent(apiKey!)}`
+            const callbackUrl = `${getFrontendUrl()}/api/lastfm/callback`
+            const authUrl = `https://www.last.fm/api/auth?api_key=${encodeURIComponent(apiKey!)}&cb=${encodeURIComponent(callbackUrl)}`
             res.redirect(authUrl)
         } catch (error) {
             errorLog({ message: 'Last.fm connect error', error })
