@@ -33,7 +33,7 @@ packages/
 | Bot | Discord.js 14, Discord Player 7.1, FFmpeg, yt-dlp |
 | Backend | Express 5, Prisma 7, Redis (ioredis) |
 | Frontend | React 19, React Router 7, TanStack Query 5, Zustand 5, Tailwind 4 |
-| Testing | Jest 30 (backend, 361 tests), Vitest (frontend, 60 tests), Playwright (E2E) |
+| Testing | Jest 30 (backend, 462 tests), Vitest (frontend, 197 tests), Playwright (E2E, 190 tests) |
 | Build | tsup (bot), tsc (shared/backend), Vite 7 (frontend) |
 | Infra | Docker (postgres + redis + nginx), Cloudflare Tunnel |
 

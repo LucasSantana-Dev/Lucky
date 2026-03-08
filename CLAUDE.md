@@ -48,7 +48,7 @@ Service: `packages/shared/src/services/FeatureToggleService.ts`
 - **Rate limiting**: `apiLimiter` (100/min), `authLimiter` (20/15min), `writeLimiter` (30/min)
 
 ## Testing
-- Backend: `npm run test --workspace=packages/backend` (362 tests, 24 suites)
+- Backend: `npm run test --workspace=packages/backend` (462 tests, 35 suites)
 - Coverage: statements 96%, branches 84%, functions 100%, lines 96%
 - Frontend: `npm run test --workspace=packages/frontend` (197 tests, 23 suites, Vitest)
 - E2E: `npm run test:e2e` (Playwright, 135 tests, 13 spec files + visual/performance)

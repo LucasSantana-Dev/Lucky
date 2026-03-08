@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-03-08
+
+### Added
+
+- Last.fm integration page with account linking, status display, and unlink flow
+- Last.fm external scrobbler for Discord music bot playback
+- Drag-and-drop queue reordering in music player UI
+- Redis cache metrics and health endpoint (`/api/health/cache`)
+- Last.fm OAuth connect/callback routes with HMAC-signed state
+- Backend integration tests for Last.fm routes (22 tests) and health routes (5 tests)
+- Frontend unit tests for Last.fm page covering all states
+- E2E specs for 8 previously untested pages (33 tests)
+- Twitch feature toggle enforcement and user lookup API
+- SonarCloud quality gate integration (0 issues on first scan)
+
+### Fixed
+
+- Docker builds: include all workspace package.jsons for correct npm hoisting
+- Last.fm OAuth: validate API key before redirect, use `WEBAPP_BACKEND_URL` for callback
+- SonarCloud org key and project configuration
+- CI build order: `build:shared` runs before lint/type-check
+- Code quality: reduced cognitive complexity in `cleanupOldData()`, extracted `scrobbleAndRecord()`
+- Bounded in-memory maps (`lastPlayedTracks`, `recentlyPlayedTracks`) to 500 entries
+
+### Changed
+
+- Upgraded SonarCloud action from v5 to v6
+- Structured logging across bot handlers (replaced `console.*` calls)
+- PR automation: labeler, size tracking, auto-merge for dependabot, bundle size checks
+
 ## [2.4.0] - 2026-03-08
 
 ### Fixed
