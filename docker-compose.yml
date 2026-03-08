@@ -43,6 +43,7 @@ services:
                 max-file: "3"
 
     bot:
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-bot:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile
@@ -84,6 +85,7 @@ services:
                 max-file: "3"
 
     backend:
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-backend:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile
@@ -123,6 +125,7 @@ services:
                 max-file: "3"
 
     frontend:
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-frontend:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile.frontend
@@ -137,6 +140,7 @@ services:
                 max-file: "3"
 
     nginx:
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-nginx:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile.nginx
@@ -168,6 +172,8 @@ services:
             -hotreload
         environment:
             - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}
+            - DISCORD_DEPLOY_WEBHOOK=${DISCORD_DEPLOY_WEBHOOK:-}
+            - DEPLOY_DIR=/repo
         volumes:
             - ./deploy/hooks.json:/etc/webhook/hooks.json:ro
             - ./scripts/deploy.sh:/scripts/deploy.sh:ro
