@@ -45,8 +45,7 @@ export function useAuthRedirect() {
                         navigate('/servers', { replace: true })
                     }
                 })
-                .catch((error) => {
-                    console.error('Auth check failed:', error)
+                .catch(() => {
                     toast.error('Failed to verify authentication')
                 })
         } else {

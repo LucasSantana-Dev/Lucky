@@ -1,5 +1,5 @@
-/* eslint-disable no-console */
 import * as Sentry from '@sentry/node'
+import { infoLog } from '@nexus/shared/utils'
 // import { nodeProfilingIntegration } from '@sentry/profiling-node'
 
 /**
@@ -45,7 +45,9 @@ export function captureMessage(
 export function initializeSentry(): void {
     if (!process.env.SENTRY_DSN) {
         if (process.env.NODE_ENV === 'production') {
-            console.log('Sentry DSN not configured, skipping initialization')
+            infoLog({
+                message: 'Sentry DSN not configured, skipping initialization',
+            })
         }
         return
     }
@@ -67,7 +69,7 @@ export function initializeSentry(): void {
         },
     })
 
-    console.log('Sentry monitoring initialized')
+    infoLog({ message: 'Sentry monitoring initialized' })
 }
 
 /**

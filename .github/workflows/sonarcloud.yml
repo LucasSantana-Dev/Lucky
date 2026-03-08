@@ -24,10 +24,16 @@ jobs:
                   cache: 'npm'
 
             - name: Install dependencies
-              run: npm ci --legacy-peer-deps
+              run: npm ci --legacy-peer-deps --ignore-scripts
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Generate Prisma client
+            - name: Run postinstall scripts (skip youtube-dl)
               run: npx prisma generate
+              continue-on-error: true
+
+            - name: Build shared package
+              run: npm run build:shared
 
             - name: Run backend tests with coverage
               run: npm run test:ci

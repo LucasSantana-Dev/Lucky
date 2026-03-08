@@ -11,6 +11,8 @@ import {
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
 
+const MAX_GUILD_ENTRIES = 500
+
 export const lastPlayedTracks = new Map<string, Track>()
 
 export type TrackHistoryEntry = {
@@ -22,6 +24,18 @@ export type TrackHistoryEntry = {
 }
 
 export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()
+
+function evictOldEntries(): void {
+    if (lastPlayedTracks.size > MAX_GUILD_ENTRIES) {
+        const oldest = lastPlayedTracks.keys().next().value
+        if (oldest) lastPlayedTracks.delete(oldest)
+    }
+    for (const [guildId, entries] of recentlyPlayedTracks) {
+        if (entries.length > MAX_GUILD_ENTRIES) {
+            recentlyPlayedTracks.set(guildId, entries.slice(-MAX_GUILD_ENTRIES))
+        }
+    }
+}
 
 type PlayerEvents = {
     events: { on: (event: string, handler: Function) => void }
@@ -108,6 +122,7 @@ const handlePlayerStart = async (
     client: { user?: { id: string } | null },
 ): Promise<void> => {
     try {
+        evictOldEntries()
         infoLog({
             message: `Started playing "${track.title}" in ${queue.guild.name}`,
         })

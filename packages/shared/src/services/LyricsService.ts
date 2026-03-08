@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { errorLog } from '../utils/general/log'
 
 export interface LyricsResult {
     title: string
@@ -39,7 +40,7 @@ export class LyricsService {
             )
             if (result) return result
         } catch (error) {
-            console.error('LyricsOVH failed:', error)
+            errorLog({ message: 'LyricsOVH failed', error })
         }
 
         // Fallback: Try extracting from title if it contains artist
@@ -54,7 +55,10 @@ export class LyricsService {
                 )
                 if (result) return result
             } catch (error) {
-                console.error('LyricsOVH with extracted artist failed:', error)
+                errorLog({
+                    message: 'LyricsOVH with extracted artist failed',
+                    error,
+                })
             }
         }
 
