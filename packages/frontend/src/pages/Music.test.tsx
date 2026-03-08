@@ -11,15 +11,13 @@ vi.mock('@/components/Music/NowPlaying', () => ({
     default: () => <div data-testid='now-playing'>NowPlaying</div>,
 }))
 vi.mock('@/components/Music/SearchBar', () => ({
-    default: ({ onPlay }: any) => <div data-testid='search-bar'>SearchBar</div>,
+    default: () => <div data-testid='search-bar'>SearchBar</div>,
 }))
 vi.mock('@/components/Music/ImportPlaylist', () => ({
-    default: ({ onImport }: any) => (
-        <div data-testid='import-playlist'>ImportPlaylist</div>
-    ),
+    default: () => <div data-testid='import-playlist'>ImportPlaylist</div>,
 }))
 vi.mock('@/components/Music/QueueList', () => ({
-    default: ({ tracks }: any) => <div data-testid='queue-list'>QueueList</div>,
+    default: () => <div data-testid='queue-list'>QueueList</div>,
 }))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
