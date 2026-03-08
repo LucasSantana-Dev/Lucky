@@ -29,8 +29,10 @@ const mockCommands: Command[] = [
         id: 'cmd1',
         name: 'play',
         description: 'Play a song',
-        category: 'Music',
+        category: 'Misc',
         enabled: true,
+        hasSettings: false,
+        hasHelp: true,
     },
     {
         id: 'cmd2',
@@ -38,6 +40,8 @@ const mockCommands: Command[] = [
         description: 'Ban a user',
         category: 'Moderator',
         enabled: true,
+        hasSettings: false,
+        hasHelp: true,
     },
     {
         id: 'cmd3',
@@ -45,6 +49,8 @@ const mockCommands: Command[] = [
         description: 'Flip a coin',
         category: 'Fun',
         enabled: false,
+        hasSettings: false,
+        hasHelp: true,
     },
 ]
 

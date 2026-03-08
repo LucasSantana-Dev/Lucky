@@ -31,8 +31,26 @@ import { useGuildSelection } from '@/hooks/useGuildSelection'
 
 function mockGuildSelection(guild: typeof mockGuild | null) {
     vi.mocked(useGuildSelection).mockReturnValue({
-        guilds: guild ? [guild] : [],
-        selectedGuild: guild as any,
+        guilds: guild
+            ? [
+                  {
+                      ...guild,
+                      icon: null,
+                      owner: true,
+                      permissions: '8',
+                      features: [],
+                  },
+              ]
+            : [],
+        selectedGuild: guild
+            ? ({
+                  ...guild,
+                  icon: null,
+                  owner: true,
+                  permissions: '8',
+                  features: [],
+              } as any)
+            : null,
         selectGuild: vi.fn(),
     })
 }
