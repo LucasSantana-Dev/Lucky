@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-03-08
+
+### Added
+
+- Lyrics search frontend page with song title and artist lookup
+- Track history frontend page with play stats, top artists/tracks rankings
+- Twitch notifications frontend page with add/remove streamer management
+- Redis caching for hot-path services (guild settings, feature toggles)
+- E2E Playwright tests for Lyrics, Track History, and Twitch pages (22 new tests)
+- Frontend unit tests for 13 new pages (197 total, 23 suites)
+
+### Fixed
+
+- Music player NoResultError — upgraded discord-player-youtubei to v2.0.0-dev.2
+- YouTube extractor switched from ANDROID to WEB client for reliability
+- Bot startup and play command loader refactored for stability
+- Docker build: added legacy-peer-deps for ESLint compat, Python3 for deps-production
+- Express 5 wildcard routes and dynamic import path resolution
+- Backend healthcheck uses API endpoint instead of root path
+- Cloudflare tunnel uses config file instead of remote token
+- Prisma 7 DATABASE_URL handling via prisma.config.ts
+
+### Changed
+
+- Docker multi-stage build optimized with separate base-runtime stages
+- Regenerated package-lock.json for Docker build compatibility
+
 ## [2.2.0] - 2026-03-07
 
 ### Added

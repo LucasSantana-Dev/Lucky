@@ -1,6 +1,6 @@
 {
     "name": "nexus-bot",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [

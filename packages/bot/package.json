@@ -8,7 +8,9 @@
         "build": "tsc && node add-js-extensions.js",
         "dev": "tsx watch src/index.ts",
         "start": "node dist/index.js",
-        "type:check": "tsc --noEmit"
+        "type:check": "tsc --noEmit",
+        "test": "jest",
+        "test:coverage": "jest --coverage"
     },
     "dependencies": {
         "@discord-player/extractor": "^7.2.0",
@@ -26,8 +28,11 @@
         "youtubei.js": "^16.0.1"
     },
     "devDependencies": {
+        "@types/jest": "^30.0.0",
         "@types/node": "^25.1.0",
         "@types/ws": "^8.5.13",
+        "jest": "^30.2.0",
+        "ts-jest": "^29.4.6",
         "tsup": "^8.5.1",
         "tsx": "^4.21.0",
         "typescript": "^5.9.3"

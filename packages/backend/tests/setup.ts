@@ -12,7 +12,9 @@ process.env.REDIS_PORT = '6379'
 
 jest.mock('ioredis', () => {
     return jest.fn().mockImplementation(() => ({
-        connect: jest.fn().mockRejectedValue(new Error('not available')),
+        connect: jest
+            .fn()
+            .mockRejectedValue(new Error('not available') as never),
         disconnect: jest.fn(),
         on: jest.fn(),
         status: 'wait',

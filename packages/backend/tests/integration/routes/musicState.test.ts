@@ -1,0 +1,108 @@
+import { errorHandler } from '../../../src/middleware/errorHandler'
+import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import request from 'supertest'
+import express from 'express'
+import { setupStateRoutes } from '../../../src/routes/music/stateRoutes'
+import { setupSessionMiddleware } from '../../../src/middleware/session'
+import { sessionService } from '../../../src/services/SessionService'
+import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+
+jest.mock('../../../src/services/SessionService', () => ({
+    sessionService: {
+        getSession: jest.fn(),
+    },
+}))
+
+const mockGetState = jest.fn<any>()
+
+jest.mock('@nexus/shared/services', () => ({
+    musicControlService: {
+        getState: (...args: any[]) => mockGetState(...args),
+    },
+}))
+
+const SESSION_COOKIE = ['sessionId=valid_session_id']
+
+describe('Music State Routes', () => {
+    let app: express.Express
+
+    beforeEach(() => {
+        app = express()
+        app.use(express.json())
+        setupSessionMiddleware(app)
+        setupStateRoutes(app)
+        app.use(errorHandler)
+        jest.clearAllMocks()
+    })
+
+    const GUILD_ID = '111111111111111111'
+
+    function authed() {
+        const mock = sessionService as jest.Mocked<typeof sessionService>
+        mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+    }
+
+    describe('GET /api/guilds/:guildId/music/state', () => {
+        test('returns 401 without auth', async () => {
+            await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/state`)
+                .expect(401)
+        })
+
+        test('returns current state', async () => {
+            authed()
+            const mockState = {
+                guildId: GUILD_ID,
+                currentTrack: {
+                    title: 'Test Track',
+                    author: 'Test Artist',
+                },
+                tracks: [],
+                isPlaying: true,
+                isPaused: false,
+                volume: 75,
+                repeatMode: 'off',
+                shuffled: false,
+                position: 5000,
+                voiceChannelId: '999',
+                voiceChannelName: 'General',
+                timestamp: Date.now(),
+            }
+            mockGetState.mockResolvedValue(mockState)
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/state`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(200)
+
+            expect(res.body.guildId).toBe(GUILD_ID)
+            expect(res.body.currentTrack.title).toBe('Test Track')
+            expect(res.body.isPlaying).toBe(true)
+            expect(res.body.volume).toBe(75)
+        })
+
+        test('returns empty state when no player', async () => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const res = await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/state`)
+                .set('Cookie', SESSION_COOKIE)
+                .expect(200)
+
+            expect(res.body.guildId).toBe(GUILD_ID)
+            expect(res.body.currentTrack).toBeNull()
+            expect(res.body.isPlaying).toBe(false)
+            expect(res.body.volume).toBe(50)
+            expect(res.body.tracks).toEqual([])
+        })
+    })
+
+    describe('GET /api/guilds/:guildId/music/stream', () => {
+        test('returns 401 without auth', async () => {
+            await request(app)
+                .get(`/api/guilds/${GUILD_ID}/music/stream`)
+                .expect(401)
+        })
+    })
+})

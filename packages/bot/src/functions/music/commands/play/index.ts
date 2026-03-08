@@ -48,8 +48,6 @@ export default new Command({
 
         const query = interaction.options.getString('query', true)
 
-        console.log(`[PLAY-DEBUG] /play invoked by ${interaction.user.tag} with query: ${query}`)
-
         await interaction.deferReply()
 
         try {
