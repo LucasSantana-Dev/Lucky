@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-03-07
+
+### Fixed
+
+- Removed `typePrisma()` workaround from all 6 services — now use fully-typed generated PrismaClient
+- Added 10 missing fields to Prisma schema (appealedAt, modRoleIds, adminRoleIds, embedData, trigger, exactMatch, description, lastUsed, action)
+- Fixed JsonValue/null type mismatches in memberHandler and messageHandler
+- Fixed Docker multi-stage build Prisma path and backend ESM output
+- Fixed Express 5 read-only `req.params` in validateParams middleware
+- Fixed Dockerfile workspace hoisting with single deps stage
+
+### Added
+
+- Guild settings API routes (GET/POST `/api/guilds/:guildId/settings`)
+- Module settings API routes (GET/POST `/api/guilds/:guildId/modules/:slug/settings`)
+- Jest mock for generated Prisma client (ESM import.meta compatibility)
+- Prisma migration for 10 missing service fields
+- 7 integration tests for guild settings routes
+
+### Changed
+
+- Backend test count: 361 → 368 tests (25 suites)
+- Services import PrismaClient from generated path instead of `@prisma/client`
+- `prismaHelpers.ts` (typePrisma/TypedPrisma) is now dead code
+
 ## [2.0.1] - 2026-03-07
 
 ### Fixed
