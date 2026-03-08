@@ -22,7 +22,7 @@ function getConnectUrl(discordId: string): string | null {
     )
     if (!base) return null
     const secret =
-        process.env.LASTFM_LINK_SECRET ?? process.env.WEBAPP_SESSION_SECRET
+        process.env.LASTFM_LINK_SECRET || process.env.WEBAPP_SESSION_SECRET
     if (!secret) return null
     const state = encodeState(discordId, secret)
     return `${base}/api/lastfm/connect?state=${encodeURIComponent(state)}`

@@ -73,6 +73,10 @@ services:
             - LASTFM_LINK_SECRET=${LASTFM_LINK_SECRET:-}
             - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI:-}
             - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET:-}
+            - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
+            - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
+            - TWITCH_ACCESS_TOKEN=${TWITCH_ACCESS_TOKEN:-}
+            - TWITCH_REFRESH_TOKEN=${TWITCH_REFRESH_TOKEN:-}
         volumes:
             - ./downloads:/app/downloads
             - ./logs:/app/logs

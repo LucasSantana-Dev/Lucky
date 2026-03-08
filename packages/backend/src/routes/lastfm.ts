@@ -12,7 +12,7 @@ const STATE_MAX_AGE_SEC = 600
 
 function getLinkSecret(): string {
     const secret =
-        process.env.LASTFM_LINK_SECRET ?? process.env.WEBAPP_SESSION_SECRET
+        process.env.LASTFM_LINK_SECRET || process.env.WEBAPP_SESSION_SECRET
     if (!secret)
         throw new Error(
             'LASTFM_LINK_SECRET or WEBAPP_SESSION_SECRET required for Last.fm link',

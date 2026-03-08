@@ -1,0 +1,33 @@
+name: Bundle Size
+
+on:
+    pull_request:
+        branches: [main]
+        paths:
+            - 'packages/frontend/**'
+            - 'package.json'
+            - 'package-lock.json'
+
+permissions:
+    pull-requests: write
+
+jobs:
+    compressed-size:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout PR
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+
+            - name: Compressed Size Diff
+              uses: preactjs/compressed-size-action@v2
+              with:
+                  build-script: 'build'
+                  pattern: 'packages/frontend/dist/**/*.{js,css}'
+                  strip-hash: '\\b\\w{8}\\.'
+                  minimum-change-threshold: 100

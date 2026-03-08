@@ -1,0 +1,39 @@
+bot:
+    - changed-files:
+          - any-glob-to-any-file: 'packages/bot/**'
+
+backend:
+    - changed-files:
+          - any-glob-to-any-file: 'packages/backend/**'
+
+frontend:
+    - changed-files:
+          - any-glob-to-any-file: 'packages/frontend/**'
+
+shared:
+    - changed-files:
+          - any-glob-to-any-file: 'packages/shared/**'
+
+infra:
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'Dockerfile*'
+                - 'docker-compose*.yml'
+                - 'nginx/**'
+                - 'deploy/**'
+                - 'scripts/**'
+
+ci:
+    - changed-files:
+          - any-glob-to-any-file: '.github/**'
+
+database:
+    - changed-files:
+          - any-glob-to-any-file: 'prisma/**'
+
+dependencies:
+    - changed-files:
+          - any-glob-to-any-file:
+                - 'package.json'
+                - 'package-lock.json'
+                - '**/package.json'
