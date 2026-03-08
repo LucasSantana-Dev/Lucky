@@ -65,7 +65,6 @@ module.exports = {
   ],
   collectCoverage: false,
   verbose: true,
-  forceExit: true,
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true
