@@ -1,5 +1,4 @@
-import { spawn } from 'child_process'
-import { Readable } from 'stream'
+import { execFile } from 'child_process'
 
 jest.mock('discord-player', () => {
     const loadMulti = jest.fn().mockResolvedValue(undefined)
@@ -31,18 +30,31 @@ jest.mock('@nexus/shared/utils', () => ({
 }))
 
 jest.mock('child_process', () => ({
-    spawn: jest.fn(),
+    execFile: jest.fn(),
 }))
 
-const mockSpawn = spawn as jest.MockedFunction<typeof spawn>
+jest.mock('util', () => ({
+    ...jest.requireActual('util'),
+    promisify: jest.fn((fn: any) => {
+        return (...args: any[]) =>
+            new Promise((resolve, reject) => {
+                fn(...args, (err: any, result: any) => {
+                    if (err) reject(err)
+                    else resolve(result)
+                })
+            })
+    }),
+}))
+
+const mockExecFile = execFile as unknown as jest.MockedFunction<typeof execFile>
 
 describe('playerFactory', () => {
     beforeEach(() => {
         jest.resetModules()
     })
 
-    describe('isYouTubeUrl (tested indirectly via module)', () => {
-        it('should be importable', async () => {
+    describe('module exports', () => {
+        it('exports createPlayer function', async () => {
             const mod =
                 await import('../../../src/handlers/player/playerFactory')
             expect(mod.createPlayer).toBeDefined()
@@ -54,9 +66,7 @@ describe('playerFactory', () => {
             const { Player } = await import('discord-player')
             const { createPlayer } =
                 await import('../../../src/handlers/player/playerFactory')
-            const mockClient = {
-                user: { id: '123' },
-            } as any
+            const mockClient = { user: { id: '123' } } as any
 
             const player = createPlayer({ client: mockClient })
             expect(player).toBeDefined()
@@ -64,42 +74,34 @@ describe('playerFactory', () => {
         })
     })
 
-    describe('yt-dlp stream creation', () => {
-        it('spawns yt-dlp with correct args for YouTube URLs', () => {
-            const mockStdout = new Readable({
-                read() {
-                    this.push(Buffer.from('audio data'))
-                    this.push(null)
-                },
-            })
-            const mockStderr = new Readable({
-                read() {
-                    this.push(null)
-                },
-            })
-            const mockProc = {
-                stdout: mockStdout,
-                stderr: mockStderr,
-                on: jest.fn(),
-                pid: 12345,
-            }
-
-            mockSpawn.mockReturnValue(mockProc as any)
-
+    describe('yt-dlp URL resolution', () => {
+        it('uses execFile with --get-url for YouTube URLs', () => {
             const url = 'https://youtube.com/watch?v=abc123'
-            spawn('yt-dlp', [
-                '-f',
-                'bestaudio',
-                '-o',
-                '-',
-                '--no-warnings',
-                '--quiet',
-                url,
-            ])
+            const streamUrl =
+                'https://rr3---sn.googlevideo.com/videoplayback?...'
 
-            expect(mockSpawn).toHaveBeenCalledWith(
+            mockExecFile.mockImplementation(
+                (_cmd: any, _args: any, _opts: any, cb: any) => {
+                    cb(null, { stdout: streamUrl + '\n', stderr: '' })
+                    return {} as any
+                },
+            )
+
+            execFile(
                 'yt-dlp',
-                expect.arrayContaining(['-f', 'bestaudio', '-o', '-', url]),
+                ['-f', 'bestaudio', '--get-url', '--no-warnings', url],
+                { timeout: 30000 },
+                (err, result) => {
+                    expect(err).toBeNull()
+                    expect((result as any).stdout.trim()).toBe(streamUrl)
+                },
+            )
+
+            expect(mockExecFile).toHaveBeenCalledWith(
+                'yt-dlp',
+                expect.arrayContaining(['-f', 'bestaudio', '--get-url', url]),
+                expect.objectContaining({ timeout: 30000 }),
+                expect.any(Function),
             )
         })
     })
