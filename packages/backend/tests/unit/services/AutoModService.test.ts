@@ -8,10 +8,6 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
-    typePrisma: (client: any) => client,
-}))
-
 jest.mock('@nexus/shared/utils/database/prismaClient', () => {
     return { getPrismaClient: () => mockPrisma }
 })

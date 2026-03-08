@@ -101,10 +101,6 @@ jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
     disconnectPrisma: jest.fn(),
 }))
 
-jest.mock('@nexus/shared/utils/database/prismaHelpers', () => ({
-    typePrisma: (client: any) => client,
-}))
-
 jest.mock('@nexus/shared/services', () => ({
     redisClient: {
         isHealthy: jest.fn(() => true),
