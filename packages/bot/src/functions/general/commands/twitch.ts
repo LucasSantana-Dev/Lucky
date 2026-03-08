@@ -5,6 +5,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { errorEmbed } from '../../../utils/general/embeds'
 import { errorLog } from '@nexus/shared/utils'
+import { featureToggleService } from '@nexus/shared/services'
 import {
     handleTwitchAdd,
     handleTwitchRemove,
@@ -56,6 +57,24 @@ export default new Command({
     execute: async ({ interaction }) => {
         if (!(await requireGuild(interaction))) return
         if (!interaction.guild) return
+
+        const enabled = await featureToggleService.isEnabled(
+            'TWITCH_NOTIFICATIONS',
+            {
+                guildId: interaction.guild.id,
+                userId: interaction.user.id,
+            },
+        )
+        if (!enabled) {
+            await interactionReply({
+                interaction,
+                content: {
+                    content: 'Twitch notifications are currently disabled.',
+                    ephemeral: true,
+                },
+            })
+            return
+        }
 
         const subcommand = interaction.options.getSubcommand()
 

@@ -79,12 +79,12 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     },
     TWITCH_NOTIFICATIONS: {
         name: 'TWITCH_NOTIFICATIONS',
-        enabled: false,
+        enabled: true,
         description: 'Enable Twitch stream notifications (requires API keys)',
     },
     LASTFM_INTEGRATION: {
         name: 'LASTFM_INTEGRATION',
-        enabled: false,
+        enabled: true,
         description: 'Enable Last.fm scrobbling and profile linking',
     },
     WELCOME_MESSAGES: {
