@@ -1,0 +1,18 @@
+[
+    {
+        "id": "deploy",
+        "execute-command": "/scripts/deploy.sh",
+        "command-working-directory": "/repo",
+        "response-message": "Deploy triggered",
+        "trigger-rule": {
+            "match": {
+                "type": "value",
+                "value": "{{getenv \"DEPLOY_WEBHOOK_SECRET\"}}",
+                "parameter": {
+                    "source": "header",
+                    "name": "X-Webhook-Secret"
+                }
+            }
+        }
+    }
+]

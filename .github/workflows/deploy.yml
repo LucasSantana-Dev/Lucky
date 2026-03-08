@@ -17,62 +17,40 @@ jobs:
         steps:
             - name: Validate secrets
               env:
-                  SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-                  SSH_USER: ${{ secrets.SSH_USER }}
-                  SSH_HOST: ${{ secrets.SSH_HOST }}
+                  WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+                  WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
               run: |
                   missing=""
-                  [ -z "$SSH_KEY" ] && missing="SSH_PRIVATE_KEY "
-                  [ -z "$SSH_USER" ] && missing="${missing}SSH_USER "
-                  [ -z "$SSH_HOST" ] && missing="${missing}SSH_HOST"
+                  [ -z "$WEBHOOK_SECRET" ] && missing="DEPLOY_WEBHOOK_SECRET "
+                  [ -z "$WEBHOOK_URL" ] && missing="${missing}DEPLOY_WEBHOOK_URL"
                   if [ -n "$missing" ]; then
                     echo "::error::Missing secrets: $missing"
                     exit 1
                   fi
 
-            - name: Setup SSH
-              uses: webfactory/ssh-agent@v0.9.1
-              with:
-                  ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-            - name: Deploy
+            - name: Trigger deploy webhook
               env:
-                  DEPLOY_USER: ${{ secrets.SSH_USER }}
-                  DEPLOY_HOST: ${{ secrets.SSH_HOST }}
-                  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+                  WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+                  WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
               run: |
-                  DEPLOY_DIR="${DEPLOY_PATH:-/home/luk-server/Nexus}"
-                  ssh -o StrictHostKeyChecking=no "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "$DEPLOY_DIR" << 'REMOTE'
-                    set -e
-                    cd "$1"
+                  echo "==> Triggering deploy webhook..."
+                  response=$(curl -s -w "\n%{http_code}" \
+                    -X POST \
+                    -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+                    --max-time 300 \
+                    "$WEBHOOK_URL")
 
-                    echo "==> Pulling latest changes..."
-                    git pull origin main
+                  http_code=$(echo "$response" | tail -1)
+                  body=$(echo "$response" | sed '$d')
 
-                    echo "==> Building images..."
-                    docker compose build --parallel
+                  echo "Response: $body (HTTP $http_code)"
 
-                    echo "==> Rolling out services..."
-                    docker compose up -d --remove-orphans
-
-                    echo "==> Waiting for health checks..."
-                    sleep 10
-
-                    echo "==> Service status:"
-                    docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-
-                    unhealthy=$(docker compose ps --format json | grep -c '"unhealthy"' || true)
-                    if [ "$unhealthy" -gt 0 ]; then
-                      echo "::error::$unhealthy unhealthy container(s)"
-                      docker compose logs --tail=20 --no-color
-                      exit 1
-                    fi
-
-                    echo "==> Pruning old images..."
-                    docker image prune -f --filter "until=24h"
-
-                    echo "==> Deploy complete!"
-                  REMOTE
+                  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                    echo "==> Deploy triggered successfully!"
+                  else
+                    echo "::error::Deploy webhook failed with HTTP $http_code"
+                    exit 1
+                  fi
 
             - name: Notify failure
               if: failure()

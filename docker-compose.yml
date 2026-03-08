@@ -145,8 +145,36 @@ services:
         depends_on:
             - backend
             - frontend
+            - webhook
         ports:
             - "${NGINX_PORT:-8080}:80"
+        networks:
+            - nexus-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    webhook:
+        build:
+            context: ./deploy
+            dockerfile: Dockerfile
+        container_name: nexus-webhook
+        restart: unless-stopped
+        command: >
+            -hooks /etc/webhook/hooks.json
+            -verbose
+            -hotreload
+            -template
+        environment:
+            - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}
+        volumes:
+            - ./deploy/hooks.json:/etc/webhook/hooks.json:ro
+            - ./scripts/deploy.sh:/scripts/deploy.sh:ro
+            - .:/repo
+            - /var/run/docker.sock:/var/run/docker.sock
+        working_dir: /repo
         networks:
             - nexus-network
         logging:
