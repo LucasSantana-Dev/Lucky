@@ -48,6 +48,8 @@ export default new Command({
 
         const query = interaction.options.getString('query', true)
 
+        console.log(`[PLAY-DEBUG] /play invoked by ${interaction.user.tag} with query: ${query}`)
+
         await interaction.deferReply()
 
         try {
@@ -57,6 +59,10 @@ export default new Command({
                         channel: interaction.channel,
                         requestedBy: interaction.user,
                     },
+                    leaveOnEmpty: true,
+                    leaveOnEmptyCooldown: 30_000,
+                    leaveOnEnd: true,
+                    leaveOnEndCooldown: 30_000,
                 },
                 requestedBy: interaction.user,
             })

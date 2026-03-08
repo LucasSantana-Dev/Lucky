@@ -1,7 +1,7 @@
 import { Player } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import type { CustomClient } from '../../types'
-import { errorLog, infoLog } from '@nexus/shared/utils'
+import { errorLog, infoLog, warnLog } from '@nexus/shared/utils'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -25,14 +25,28 @@ export const createPlayer = ({ client }: CreatePlayerParams): Player => {
 }
 
 const registerExtractors = (player: Player): void => {
-    try {
-        void player.extractors.loadMulti(DefaultExtractors)
+    void player.extractors.loadMulti(DefaultExtractors)
 
-        infoLog({
-            message:
-                'Registered default extractors (SoundCloud, Spotify, Apple Music, Vimeo, Attachments)',
+    void loadYoutubeExtractor(player)
+
+    infoLog({
+        message:
+            'Extractors: SoundCloud, Spotify, Apple Music, Vimeo, Attachments',
+    })
+}
+
+const loadYoutubeExtractor = async (player: Player): Promise<void> => {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mod = (await import('discord-player-youtubei')) as any
+        await player.extractors.register(mod.YoutubeiExtractor, {
+            streamOptions: { useClient: 'WEB' },
         })
-    } catch (error) {
-        errorLog({ message: 'Error registering extractors:', error })
+        infoLog({ message: 'Registered YoutubeiExtractor (YouTube)' })
+    } catch {
+        warnLog({
+            message:
+                'YouTube extractor unavailable (Node 22 undici compat). Using SoundCloud/Spotify.',
+        })
     }
 }

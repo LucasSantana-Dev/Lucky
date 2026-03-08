@@ -91,7 +91,9 @@
         "@prisma/client": "^7.4.2",
         "@snazzah/davey": "^0.1.10",
         "chalk": "^5.6.2",
-        "discord-player-youtubei": "^1.4.7-beta.2",
+        "discord-player-deezer": "^2.5.0",
+        "discord-player-youtubei": "^2.0.0-dev.2",
+        "jintr": "^3.3.1",
         "minipass-flush": "^1.0.5",
         "unleash-client": "^6.10.1"
     },
