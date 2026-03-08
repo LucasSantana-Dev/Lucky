@@ -25,10 +25,10 @@ log "Pulling latest changes..."
 git pull origin main
 
 log "Building images..."
-docker compose build --parallel
+docker compose build --parallel bot backend frontend nginx
 
 log "Rolling out services..."
-docker compose up -d --remove-orphans
+docker compose up -d --remove-orphans bot backend frontend nginx postgres redis
 
 log "Waiting for health checks..."
 sleep 10
