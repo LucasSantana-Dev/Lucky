@@ -45,51 +45,52 @@ export async function startClient({
 }: {
     client: CustomClient
 }): Promise<void> {
-    try {
-        const { TOKEN, CLIENT_ID } = config()
+    const { TOKEN, CLIENT_ID } = config()
 
-        if (!TOKEN || !CLIENT_ID) {
-            throw new Error('DISCORD_TOKEN or CLIENT_ID not configured')
-        }
+    if (!TOKEN || !CLIENT_ID) {
+        throw new Error('DISCORD_TOKEN or CLIENT_ID not configured')
+    }
 
-        await client.login(TOKEN)
-
+    const readyPromise = new Promise<void>((resolve) => {
         client.once('ready', async () => {
-            if (client.user) {
-                infoLog({
-                    message: `Bot logged in as ${client.user.tag}`,
-                })
+            try {
+                if (client.user) {
+                    infoLog({
+                        message: `Bot logged in as ${client.user.tag}`,
+                    })
+                    client.user.setActivity('Music', {
+                        type: ActivityType.Listening,
+                    })
+                }
 
-                client.user.setActivity('Music', {
-                    type: ActivityType.Listening,
+                const rest = new REST({ version: '10' }).setToken(TOKEN)
+                const commandsData = client.commands.map((cmd) =>
+                    cmd.data.toJSON(),
+                )
+
+                for (const guild of client.guilds.cache.values()) {
+                    await rest.put(
+                        Routes.applicationGuildCommands(CLIENT_ID, guild.id),
+                        { body: commandsData },
+                    )
+                    infoLog({
+                        message: `Guild commands registered: ${guild.name}`,
+                    })
+                }
+
+                const { startTwitchService } =
+                    await import('../../twitch/index.js')
+                await startTwitchService(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Error in ready handler:',
+                    error,
                 })
             }
-
-            const { startTwitchService } = await import('../../twitch/index.js')
-            await startTwitchService(client)
+            resolve()
         })
+    })
 
-        const rest = new REST({ version: '10' }).setToken(TOKEN)
-
-        try {
-            infoLog({
-                message: `Started refreshing ${client.commands.size} application (/) commands.`,
-            })
-
-            const commandsData = client.commands.map((cmd) => cmd.data.toJSON())
-
-            await rest.put(Routes.applicationCommands(CLIENT_ID), {
-                body: commandsData,
-            })
-
-            infoLog({
-                message: `Successfully reloaded ${commandsData.length} application (/) commands.`,
-            })
-        } catch (error) {
-            errorLog({ message: 'Error refreshing commands:', error })
-        }
-    } catch (error) {
-        errorLog({ message: 'Error starting Discord client:', error })
-        throw error
-    }
+    await client.login(TOKEN)
+    await readyPromise
 }
