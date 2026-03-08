@@ -128,6 +128,16 @@ export default new Command({
                 const settings = await autoModService.getSettings(
                     interaction.guild.id,
                 )
+                if (!settings) {
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            content:
+                                '❌ No auto-mod settings found. Use `/automod configure` first.',
+                        },
+                    })
+                    return
+                }
 
                 const embed = new EmbedBuilder()
                     .setColor(0x5865f2)

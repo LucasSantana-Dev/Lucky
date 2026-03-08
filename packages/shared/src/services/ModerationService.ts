@@ -17,7 +17,9 @@ export type ModerationCase = {
     caseNumber: number
     guildId: string
     userId: string
+    username: string
     moderatorId: string
+    moderatorName: string
     type: string
     reason: string | null
     duration: number | null
@@ -25,6 +27,10 @@ export type ModerationCase = {
     active: boolean
     appealed: boolean
     appealReason: string | null
+    appealReviewed: boolean
+    appealApproved: boolean
+    channelId: string | null
+    evidence: string[]
     createdAt: Date
     updatedAt: Date
 }

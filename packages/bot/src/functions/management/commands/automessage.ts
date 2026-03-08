@@ -6,7 +6,7 @@ import { interactionReply } from '../../../utils/general/interactionReply.js'
 import {
     handleAutoMessageConfig,
     handleAutoMessageList,
-} from './automessageHandlers.js'
+} from '../handlers/automessageHandlers.js'
 
 export default new Command({
     data: new SlashCommandBuilder()

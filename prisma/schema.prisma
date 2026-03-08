@@ -29,20 +29,20 @@ model User {
 }
 
 model UserPreferences {
-  id       String @id @default(cuid())
-  userId   String @unique
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Music preferences
-  preferredVolume    Int     @default(50)
-  autoPlayEnabled    Boolean @default(true)
-  repeatMode         Int     @default(0) // 0: off, 1: queue, 2: track
-  shuffleEnabled     Boolean @default(false)
+  preferredVolume Int     @default(50)
+  autoPlayEnabled Boolean @default(true)
+  repeatMode      Int     @default(0) // 0: off, 1: queue, 2: track
+  shuffleEnabled  Boolean @default(false)
 
   // UI preferences
-  embedColor        String? @default("0x5865F2")
-  showLyrics        Boolean @default(true)
-  showThumbnails    Boolean @default(true)
+  embedColor     String? @default("0x5865F2")
+  showLyrics     Boolean @default(true)
+  showThumbnails Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -61,24 +61,24 @@ model Guild {
   updatedAt DateTime @updatedAt
 
   // Relations
-  settings           GuildSettings?
-  sessions           GuildSession[]
-  userSessions       UserSession[]
-  trackHistory       TrackHistory[]
-  commandUsage       CommandUsage[]
+  settings            GuildSettings?
+  sessions            GuildSession[]
+  userSessions        UserSession[]
+  trackHistory        TrackHistory[]
+  commandUsage        CommandUsage[]
   twitchNotifications TwitchNotification[]
 
   @@map("guilds")
 }
 
 model TwitchNotification {
-  id                String   @id @default(cuid())
-  guildId           String
-  guild             Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  twitchUserId      String
-  twitchLogin       String
-  discordChannelId  String
-  createdAt         DateTime @default(now())
+  id               String   @id @default(cuid())
+  guildId          String
+  guild            Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  twitchUserId     String
+  twitchLogin      String
+  discordChannelId String
+  createdAt        DateTime @default(now())
 
   @@unique([guildId, twitchUserId])
   @@index([twitchUserId])
@@ -86,26 +86,26 @@ model TwitchNotification {
 }
 
 model GuildSettings {
-  id       String @id @default(cuid())
-  guildId  String @unique
-  guild    Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String @unique
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   // Music settings
-  defaultVolume    Int     @default(50)
-  maxQueueSize     Int     @default(100)
-  autoPlayEnabled  Boolean @default(true)
-  repeatMode       Int     @default(0)
-  shuffleEnabled   Boolean @default(false)
+  defaultVolume   Int     @default(50)
+  maxQueueSize    Int     @default(100)
+  autoPlayEnabled Boolean @default(true)
+  repeatMode      Int     @default(0)
+  shuffleEnabled  Boolean @default(false)
 
   // Bot settings
-  prefix           String? @default("/")
-  embedColor       String? @default("0x5865F2")
-  language         String  @default("en")
+  prefix     String? @default("/")
+  embedColor String? @default("0x5865F2")
+  language   String  @default("en")
 
   // Permissions
-  allowDownloads   Boolean @default(true)
-  allowPlaylists   Boolean @default(true)
-  allowSpotify     Boolean @default(true)
+  allowDownloads Boolean @default(true)
+  allowPlaylists Boolean @default(true)
+  allowSpotify   Boolean @default(true)
 
   // Rate limiting
   commandCooldown  Int @default(3) // seconds
@@ -119,16 +119,16 @@ model GuildSettings {
 
 // Session Management
 model UserSession {
-  id        String   @id @default(cuid())
-  userId    String
-  guildId   String
-  user      User     @relation(fields: [userId], references: [discordId], onDelete: Cascade)
-  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  id      String @id @default(cuid())
+  userId  String
+  guildId String
+  user    User   @relation(fields: [userId], references: [discordId], onDelete: Cascade)
+  guild   Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
   // Session data
-  lastActivity    DateTime @default(now())
-  commandHistory  String[] @default([])
-  preferences     Json?    // User-specific preferences for this guild
+  lastActivity   DateTime @default(now())
+  commandHistory String[] @default([])
+  preferences    Json? // User-specific preferences for this guild
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -138,22 +138,22 @@ model UserSession {
 }
 
 model GuildSession {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   // Queue session data
-  currentTrack    Json?    // Current playing track
-  queuePosition   Int      @default(0)
-  isPlaying       Boolean  @default(false)
-  isPaused        Boolean  @default(false)
-  volume          Int      @default(50)
-  repeatMode      Int      @default(0)
-  shuffleEnabled  Boolean  @default(false)
+  currentTrack   Json? // Current playing track
+  queuePosition  Int     @default(0)
+  isPlaying      Boolean @default(false)
+  isPaused       Boolean @default(false)
+  volume         Int     @default(50)
+  repeatMode     Int     @default(0)
+  shuffleEnabled Boolean @default(false)
 
   // Queue data
-  queue          Json?    // Full queue as JSON
-  queueHistory  Json?    // Recently played tracks
+  queue        Json? // Full queue as JSON
+  queueHistory Json? // Recently played tracks
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,28 +163,28 @@ model GuildSession {
 
 // Track History & Analytics
 model TrackHistory {
-  id        String   @id @default(cuid())
-  guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   // Track data
-  trackId       String
-  title         String
-  author        String
-  duration      String
-  url           String
-  thumbnail     String?
-  source        String // youtube, spotify, etc.
+  trackId   String
+  title     String
+  author    String
+  duration  String
+  url       String
+  thumbnail String?
+  source    String // youtube, spotify, etc.
 
   // Playback data
-  playedAt      DateTime @default(now())
-  playedBy      String? // Discord user ID
-  playDuration  Int?    // How long it was played (seconds)
-  skipped       Boolean @default(false)
+  playedAt     DateTime @default(now())
+  playedBy     String? // Discord user ID
+  playDuration Int? // How long it was played (seconds)
+  skipped      Boolean  @default(false)
 
   // Metadata
-  isAutoplay    Boolean @default(false)
-  isPlaylist    Boolean @default(false)
+  isAutoplay   Boolean @default(false)
+  isPlaylist   Boolean @default(false)
   playlistName String?
 
   createdAt DateTime @default(now())
@@ -196,17 +196,17 @@ model TrackHistory {
 
 // Command Usage Analytics
 model CommandUsage {
-  id        String   @id @default(cuid())
-  userId    String?
-  guildId   String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  guild     Guild?   @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  id      String  @id @default(cuid())
+  userId  String?
+  guildId String?
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guild   Guild?  @relation(fields: [guildId], references: [id], onDelete: SetNull)
 
   command   String
   category  String
   success   Boolean
   errorCode String?
-  duration  Int?     // Execution time in milliseconds
+  duration  Int? // Execution time in milliseconds
 
   createdAt DateTime @default(now())
 
@@ -218,7 +218,7 @@ model CommandUsage {
 // Rate Limiting
 model RateLimit {
   id        String   @id @default(cuid())
-  key       String   // Unique identifier (user:guild:command)
+  key       String // Unique identifier (user:guild:command)
   count     Int      @default(1)
   resetAt   DateTime
   createdAt DateTime @default(now())
@@ -230,25 +230,25 @@ model RateLimit {
 
 // Download Management
 model Download {
-  id        String   @id @default(cuid())
-  userId    String
-  guildId   String
+  id      String @id @default(cuid())
+  userId  String
+  guildId String
 
   // Download data
-  url       String
-  title     String
-  format    String // video, audio
-  quality   String
-  status    String // pending, processing, completed, failed
+  url     String
+  title   String
+  format  String // video, audio
+  quality String
+  status  String // pending, processing, completed, failed
 
   // File data
-  filename  String?
-  fileSize  BigInt?
-  filePath  String?
+  filename String?
+  fileSize BigInt?
+  filePath String?
 
   // Metadata
-  progress  Int      @default(0) // 0-100
-  error     String?
+  progress Int     @default(0) // 0-100
+  error    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -260,25 +260,25 @@ model Download {
 
 // Music Recommendations
 model Recommendation {
-  id        String   @id @default(cuid())
-  guildId   String
+  id      String @id @default(cuid())
+  guildId String
 
   // Recommendation data
-  trackId       String
-  title         String
-  author        String
-  url           String
-  thumbnail     String?
+  trackId   String
+  title     String
+  author    String
+  url       String
+  thumbnail String?
 
   // Recommendation metadata
-  algorithm     String // collaborative, content-based, hybrid
-  confidence    Float  // 0.0 - 1.0
-  reason        String?
+  algorithm  String // collaborative, content-based, hybrid
+  confidence Float // 0.0 - 1.0
+  reason     String?
 
   // User interaction
-  isAccepted    Boolean?
-  isRejected    Boolean?
-  feedback      String?
+  isAccepted Boolean?
+  isRejected Boolean?
+  feedback   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -296,23 +296,23 @@ model ReactionRoleMessage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  mappings  ReactionRoleMapping[]
+  mappings ReactionRoleMapping[]
 
   @@index([guildId])
   @@map("reaction_role_messages")
 }
 
 model ReactionRoleMapping {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   messageId String
   roleId    String
   emoji     String?
   buttonId  String?
-  type      String   // "reaction" | "button"
+  type      String // "reaction" | "button"
   label     String?
-  style     String?  // "Primary" | "Secondary" | "Success" | "Danger"
+  style     String? // "Primary" | "Secondary" | "Success" | "Danger"
 
-  message   ReactionRoleMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message ReactionRoleMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, roleId])
   @@index([messageId])
@@ -333,11 +333,11 @@ model LastFmLink {
 
 // Role Management
 model RoleExclusion {
-  id            String   @id @default(cuid())
-  guildId       String
-  roleId        String   // Role that triggers exclusion
+  id             String   @id @default(cuid())
+  guildId        String
+  roleId         String // Role that triggers exclusion
   excludedRoleId String // Role to be removed
-  createdAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
 
   @@unique([guildId, roleId, excludedRoleId])
   @@index([guildId])
@@ -347,20 +347,26 @@ model RoleExclusion {
 
 // Moderation System
 model ModerationCase {
-  id          String   @id @default(cuid())
-  caseNumber  Int
-  guildId     String
-  userId      String
-  moderatorId String
-  type        String   // "warn", "mute", "kick", "ban", "unban"
-  reason      String?
-  duration    Int?     // Duration in seconds for temporary actions
-  expiresAt   DateTime?
-  active      Boolean  @default(true)
-  appealed    Boolean  @default(false)
-  appealReason String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String    @id @default(cuid())
+  caseNumber     Int
+  guildId        String
+  userId         String
+  username       String    @default("Unknown")
+  moderatorId    String
+  moderatorName  String    @default("Unknown")
+  type           String // "warn", "mute", "kick", "ban", "unban"
+  reason         String?
+  duration       Int? // Duration in seconds for temporary actions
+  expiresAt      DateTime?
+  active         Boolean   @default(true)
+  appealed       Boolean   @default(false)
+  appealReason   String?
+  appealReviewed Boolean   @default(false)
+  appealApproved Boolean   @default(false)
+  channelId      String?
+  evidence       String[]  @default([])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([guildId, caseNumber])
   @@index([guildId])
@@ -370,39 +376,39 @@ model ModerationCase {
 }
 
 model ModerationSettings {
-  id                    String   @id @default(cuid())
-  guildId               String   @unique
-  modLogChannelId       String?
-  muteRoleId            String?
-  autoModEnabled        Boolean  @default(false)
-  maxWarnings           Int      @default(3)
-  warningExpiry         Int      @default(2592000) // 30 days in seconds
-  dmOnAction            Boolean  @default(true)
-  requireReason         Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id              String   @id @default(cuid())
+  guildId         String   @unique
+  modLogChannelId String?
+  muteRoleId      String?
+  autoModEnabled  Boolean  @default(false)
+  maxWarnings     Int      @default(3)
+  warningExpiry   Int      @default(2592000) // 30 days in seconds
+  dmOnAction      Boolean  @default(true)
+  requireReason   Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("moderation_settings")
 }
 
 model AutoModSettings {
-  id                    String   @id @default(cuid())
-  guildId               String   @unique
-  enabled               Boolean  @default(false)
-  spamEnabled           Boolean  @default(false)
-  spamThreshold         Int      @default(5)
-  spamTimeWindow        Int      @default(5)
-  capsEnabled           Boolean  @default(false)
-  capsThreshold         Int      @default(70)
-  linksEnabled          Boolean  @default(false)
-  allowedDomains        String[] @default([])
-  invitesEnabled        Boolean  @default(false)
-  wordsEnabled          Boolean  @default(false)
-  bannedWords           String[] @default([])
-  exemptRoles           String[] @default([])
-  exemptChannels        String[] @default([])
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id             String   @id @default(cuid())
+  guildId        String   @unique
+  enabled        Boolean  @default(false)
+  spamEnabled    Boolean  @default(false)
+  spamThreshold  Int      @default(5)
+  spamTimeWindow Int      @default(5)
+  capsEnabled    Boolean  @default(false)
+  capsThreshold  Int      @default(70)
+  linksEnabled   Boolean  @default(false)
+  allowedDomains String[] @default([])
+  invitesEnabled Boolean  @default(false)
+  wordsEnabled   Boolean  @default(false)
+  bannedWords    String[] @default([])
+  exemptRoles    String[] @default([])
+  exemptChannels String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@map("automod_settings")
 }
@@ -417,7 +423,7 @@ model EmbedTemplate {
   footer      String?
   thumbnail   String?
   image       String?
-  fields      Json?    // Array of {name, value, inline}
+  fields      Json? // Array of {name, value, inline}
   useCount    Int      @default(0)
   createdBy   String
   createdAt   DateTime @default(now())
@@ -429,17 +435,17 @@ model EmbedTemplate {
 }
 
 model AutoMessage {
-  id            String   @id @default(cuid())
-  guildId       String
-  type          String   // "welcome", "leave", "scheduled"
-  channelId     String?
-  message       String?
-  embedId       String?
-  enabled       Boolean  @default(true)
-  cronSchedule  String?  // For scheduled messages
-  lastSent      DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(cuid())
+  guildId      String
+  type         String // "welcome", "leave", "scheduled"
+  channelId    String?
+  message      String?
+  embedId      String?
+  enabled      Boolean   @default(true)
+  cronSchedule String? // For scheduled messages
+  lastSent     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([guildId])
   @@index([type])
@@ -468,7 +474,7 @@ model CustomCommand {
 model ServerLog {
   id          String   @id @default(cuid())
   guildId     String
-  type        String   // "member_join", "member_leave", "message_delete", etc.
+  type        String // "member_join", "member_leave", "message_delete", etc.
   userId      String?
   channelId   String?
   moderatorId String?

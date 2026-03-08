@@ -4,6 +4,8 @@ export {
     MusicControlService,
     musicControlService,
     type MusicCommand,
+    type MusicCommandResult,
+    type MusicCommandType,
     type RepeatMode,
     type QueueState,
     type TrackInfo as MusicTrackInfo,

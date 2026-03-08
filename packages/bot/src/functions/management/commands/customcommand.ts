@@ -272,7 +272,11 @@ export default new Command({
                     .setDescription(
                         commands
                             .map(
-                                (cmd) =>
+                                (cmd: {
+                                    name: string
+                                    description?: string
+                                    useCount: number
+                                }) =>
                                     `**${cmd.name}** - ${cmd.description || 'No description'}\n└ Used ${cmd.useCount} times`,
                             )
                             .join('\n\n'),
@@ -339,7 +343,7 @@ export default new Command({
                     embed.addFields({
                         name: 'Allowed Roles',
                         value: command.allowedRoles
-                            .map((id) => `<@&${id}>`)
+                            .map((id: string) => `<@&${id}>`)
                             .join(', '),
                     })
                 }

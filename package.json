@@ -60,10 +60,11 @@
         "@discordjs/opus": "^0.10.0"
     },
     "keywords": [
-        "discord",
-        "bot",
-        "music",
-        "typescript"
+        "discord-bot",
+        "typescript",
+        "music-bot",
+        "moderation",
+        "dashboard"
     ],
     "author": "",
     "license": "ISC",

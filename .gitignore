@@ -85,3 +85,4 @@ config.json
 # Cloudflare Tunnel (credentials; config.example.yml is committed)
 cloudflared/*.json
 cloudflared/config.yml
+.DS_Store

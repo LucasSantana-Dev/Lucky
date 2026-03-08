@@ -6,7 +6,7 @@ import {
     handleCaseView,
     handleCaseUpdate,
     handleCaseDelete,
-} from './caseHandlers.js'
+} from '../handlers/caseHandlers.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
