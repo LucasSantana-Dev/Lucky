@@ -1,0 +1,43 @@
+name: SonarCloud Analysis
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    sonarcloud:
+        name: SonarCloud Scan
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci --legacy-peer-deps
+
+            - name: Generate Prisma client
+              run: npx prisma generate
+
+            - name: Run backend tests with coverage
+              run: npm run test:ci
+              continue-on-error: true
+
+            - name: Run bot tests with coverage
+              run: npm run test --workspace=packages/bot -- --ci --coverage
+              continue-on-error: true
+
+            - name: SonarCloud Scan
+              uses: SonarSource/sonarqube-scan-action@v5
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
