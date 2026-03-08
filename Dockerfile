@@ -32,6 +32,7 @@ COPY package*.json ./
 COPY packages/shared/package*.json ./packages/shared/
 COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
+COPY packages/frontend/package*.json ./packages/frontend/
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
@@ -60,6 +61,7 @@ COPY package*.json ./
 COPY packages/shared/package*.json ./packages/shared/
 COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
+COPY packages/frontend/package*.json ./packages/frontend/
 
 RUN --mount=type=cache,target=/root/.npm \
     YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
