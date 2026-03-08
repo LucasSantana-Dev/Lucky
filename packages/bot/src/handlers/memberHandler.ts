@@ -62,9 +62,10 @@ async function handleMemberAdd(member: GuildMember): Promise<void> {
         // Send message
         if (welcomeMessage.embedData) {
             try {
-                const embedData = typeof welcomeMessage.embedData === 'string'
-                    ? JSON.parse(welcomeMessage.embedData)
-                    : welcomeMessage.embedData
+                const embedData =
+                    typeof welcomeMessage.embedData === 'string'
+                        ? JSON.parse(welcomeMessage.embedData)
+                        : welcomeMessage.embedData
                 const embed = new EmbedBuilder()
                     .setTitle(embedData.title || undefined)
                     .setDescription(content)
@@ -148,7 +149,10 @@ async function handleMemberRemove(
         // Send message
         if (leaveMessage.embedData) {
             try {
-                const embedData = JSON.parse(leaveMessage.embedData)
+                const embedData =
+                    typeof leaveMessage.embedData === 'string'
+                        ? JSON.parse(leaveMessage.embedData)
+                        : leaveMessage.embedData
                 const embed = new EmbedBuilder()
                     .setTitle(embedData.title || undefined)
                     .setDescription(content)

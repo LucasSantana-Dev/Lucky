@@ -41,7 +41,8 @@ module.exports = {
     '^@nexus/shared/utils$': '<rootDir>/../shared/src/utils/index',
     '^@nexus/shared/config$': '<rootDir>/../shared/src/config/index',
     '^@nexus/shared/types$': '<rootDir>/../shared/src/types/index',
-    '^@nexus/shared/(.*)$': '<rootDir>/../shared/src/$1'
+    '^@nexus/shared/(.*)$': '<rootDir>/../shared/src/$1',
+    'generated/prisma/client': '<rootDir>/tests/__mocks__/prismaClient.ts'
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {

@@ -243,7 +243,7 @@ async function handleCustomCommands(message: Message): Promise<void> {
 
         // Send response
         await message.reply({
-            content: matchedCommand.response,
+            content: matchedCommand.response ?? '',
             allowedMentions: { repliedUser: false },
         })
 
