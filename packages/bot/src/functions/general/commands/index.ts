@@ -2,18 +2,12 @@ import { getCommandsFromDirectory } from '../../../utils/command/getCommandsFrom
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { debugLog, errorLog } from '@nexus/shared/utils'
-import { normalizePath } from '../../../utils/misc/pathUtils'
 
 async function getGeneralCommands() {
     try {
         debugLog({ message: 'Loading general commands...' })
-        const isProd =
-            process.env.NODE_ENV === 'production' ||
-            process.argv[1].includes('dist')
         const dirName = path.dirname(fileURLToPath(import.meta.url))
-        const commandsPath = isProd
-            ? path.join(process.cwd(), 'dist/functions/general/commands')
-            : normalizePath(dirName)
+        const commandsPath = dirName
         const commands = await getCommandsFromDirectory({
             url: commandsPath,
             category: 'general',

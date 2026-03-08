@@ -5,7 +5,7 @@
     "type": "module",
     "main": "./dist/index.js",
     "scripts": {
-        "build": "tsup",
+        "build": "tsc && node add-js-extensions.js",
         "dev": "tsx watch src/index.ts",
         "start": "node dist/index.js",
         "type:check": "tsc --noEmit",

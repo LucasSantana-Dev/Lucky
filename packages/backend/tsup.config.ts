@@ -7,5 +7,16 @@ export default defineConfig({
     splitting: false,
     sourcemap: true,
     clean: true,
-    external: ['@nexus/shared'],
+    noExternal: [],
+    external: [
+        '@nexus/shared',
+        'ioredis',
+        'connect-redis',
+        'express-session',
+        'express',
+        'cors',
+        'cookie-parser',
+        'express-rate-limit',
+        'session-file-store',
+    ],
 })
