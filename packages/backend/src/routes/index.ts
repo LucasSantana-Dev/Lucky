@@ -12,8 +12,10 @@ import { setupLyricsRoutes } from './lyrics'
 import { setupRolesRoutes } from './roles'
 import { apiLimiter } from '../middleware/rateLimit'
 import { errorHandler } from '../middleware/errorHandler'
+import { setupHealthRoutes } from './health'
 
 export function setupRoutes(app: Express): void {
+    setupHealthRoutes(app)
     app.use('/api/', apiLimiter)
     setupAuthRoutes(app)
     setupToggleRoutes(app)

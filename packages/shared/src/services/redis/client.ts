@@ -17,6 +17,9 @@ export class RedisClient implements IRedisClient {
         maxReconnectAttempts: 5,
     }
     private operations: RedisOperations | null = null
+    private hits = 0
+    private misses = 0
+    private errors = 0
 
     constructor() {
         this.initializeClient()
@@ -67,9 +70,28 @@ export class RedisClient implements IRedisClient {
         return this.state.isConnected && this.client !== null
     }
 
-    // Delegate operations to the operations class
+    getMetrics() {
+        const total = this.hits + this.misses
+        return {
+            hits: this.hits,
+            misses: this.misses,
+            errors: this.errors,
+            total,
+            hitRate: total > 0 ? this.hits / total : 0,
+        }
+    }
+
+    resetMetrics() {
+        this.hits = 0
+        this.misses = 0
+        this.errors = 0
+    }
+
     async get(key: string): Promise<string | null> {
-        return this.operations?.get(key) ?? null
+        const result = await (this.operations?.get(key) ?? null)
+        if (result !== null) this.hits++
+        else this.misses++
+        return result
     }
 
     async set(key: string, value: string, ttl?: number): Promise<boolean> {
