@@ -1,43 +1,41 @@
-# Nexus — Known Gotchas
-
-Last updated: 2026-03-07 (Session 11)
+# Nexus Known Gotchas
 
 ## Prisma 7
-- `url` removed from `datasource` block — use `prisma.config.ts` for CLI
-- PrismaClient requires `@prisma/adapter-pg` driver adapter in constructor
-- Generator changed: `prisma-client-js` → `prisma-client` with `engineType = "client"`
-- Prisma 7 transitive vulns: @hono/node-server, lodash via chevrotain — fix with npm overrides
-- npm overrides don't always reach nested node_modules — run `npm audit fix` after adding overrides
+- **Custom output path**: `_require('../../generated/prisma/client.js')` not `@prisma/client` — Prisma 7 with custom output doesn't populate `.prisma/client/default`
+- **No `url` in datasource**: Must use `prisma.config.ts` for CLI datasource URL
+- **Driver adapter required**: `@prisma/adapter-pg` in PrismaClient constructor
+- **Manual ModerationCase type**: `ModerationService.ts` has manual type (not Prisma-generated). Must keep in sync with schema
+- **Dockerfile must run `npx prisma generate`** and copy `packages/shared/src/generated/` to production stage
 
-## Build
-- `packages/shared` must build first before other packages
-- `packages/backend/tsconfig.json` excludes `tests/` — test type errors don't block build
-- `@discord-player/extractor` is separate from `discord-player` — install explicitly
-- `connect-redis`: named import `{ RedisStore }`, not default — tsc rejects default
-- Mock must return `{ RedisStore: jest.fn()... }` to match named import
+## Redis / ioredis
+- **Empty password = AUTH hang**: `REDIS_PASSWORD=""` sends AUTH with empty string. Config uses `|| undefined` to skip AUTH
+- **lazyConnect: true** in config — `connect()` must be called explicitly
+- **Port 6380 in dev**: Supabase uses 6379, Docker Redis mapped to 6380 locally
+- **In Docker network**: Redis on port 6379 internally, no password needed
 
-## Testing
-- Jest 30 `forceExit` causes exit code 1 even when all tests pass — check `Tests:` line
-- Service unit tests use deep imports (`@nexus/shared/services/ModerationService`) bypassing barrel mock
-- `diagnostics: false` in ts-jest hides test type errors during `npm test`
-- Frontend tests need ResizeObserver mock + pointer capture polyfills in setup.ts
+## Discord Bot
+- **Handler import paths**: Commands in `commands/` import handlers from `../handlers/` (not `./handlers/`)
+- **Option description limit**: Discord slash command option descriptions must be ≤100 chars
+- **Feature flag changes require restart**: No hot-reload for env vars
+- **24 commands loaded** (not 38 — some categories may have fewer than expected)
+- **TrackInfo naming conflict**: Use `MusicTrackInfo` alias from `@nexus/shared/services`
 
-## E2E Tests (Playwright)
-- `networkidle` → `domcontentloaded` (Vite HMR blocks networkidle)
-- Always use `route.fulfill()` not `route.continue()`
-- Zustand persist interferes with logout/error tests — clear localStorage
-
-## Dependencies
-- `--legacy-peer-deps` required (eslint-plugin-react-hooks caps peer at eslint ^9)
-- Batch `sed` misses `.cjs` files — run separately
-
-## Git / CI
-- Commitlint requires lowercase subject, max 72 chars header
-- Pre-commit runs `npm audit --audit-level=critical` — use `HUSKY=0` for non-code commits
-
-## Deploy
-- `deploy.yml` uses `DEPLOY_PATH` secret — default `/opt/nexus`
-- Server-side directory may still be named `LukBot` — rename on server
+## TypeScript / Build
+- **Build order**: shared must build first (`npm run build:shared`)
+- **typePrisma returns any**: Service method callbacks need explicit type annotations
+- **commitlint**: Subject starts lowercase after prefix (e.g., `fix: resolve...` not `fix: Resolve...`)
 
 ## Express 5
-- `req.query` is read-only — cannot reassign in middleware
+- `req.params` and `req.query` are read-only (getter/setter)
+- `validateParams` middleware may silently fail on assignment
+
+## Frontend
+- Path alias `@/` → `src/`
+- E2E visual regression tests need `--update-snapshots` after UI changes
+- E2E auth tests need running backend for OAuth callback
+
+## Docker / Deployment
+- **Node 22 LTS** in Dockerfiles (not 24 — doesn't exist yet)
+- **Dockerfile.frontend** needs monorepo context (root package.json + shared types)
+- **Cloudflare Tunnel** via `--profile tunnel` in docker-compose
+- **NGINX_PORT** configurable via env var (default 8080)
