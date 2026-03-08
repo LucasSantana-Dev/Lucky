@@ -1,13 +1,24 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import { Prisma } from '../generated/prisma/client.js'
+import { redisClient } from './redis/index.js'
+import { errorLog } from '../utils/general/log.js'
 import type { EmbedData } from './embedValidation.js'
 
 const prisma = getPrismaClient()
+const CACHE_TTL = 300
+const CACHE_PREFIX = 'cmd:'
 
 export class CustomCommandService {
-    /**
-     * Create a custom command
-     */
+    private cacheKey(guildId: string, name: string): string {
+        return `${CACHE_PREFIX}${guildId}:${name.toLowerCase()}`
+    }
+
+    private invalidateCommand(guildId: string, name: string): void {
+        if (redisClient.isHealthy()) {
+            redisClient.del(this.cacheKey(guildId, name)).catch(() => {})
+        }
+    }
+
     async createCommand(
         guildId: string,
         name: string,
@@ -20,7 +31,7 @@ export class CustomCommandService {
             createdBy?: string
         },
     ) {
-        return await prisma.customCommand.create({
+        const result = await prisma.customCommand.create({
             data: {
                 guildId,
                 name: name.toLowerCase(),
@@ -34,12 +45,26 @@ export class CustomCommandService {
                 createdBy: options?.createdBy || 'unknown',
             },
         })
+        this.invalidateCommand(guildId, name)
+        return result
     }
 
-    /**
-     * Get a command by name
-     */
     async getCommand(guildId: string, name: string) {
+        const key = this.cacheKey(guildId, name)
+
+        if (redisClient.isHealthy()) {
+            try {
+                const cached = await redisClient.get(key)
+                if (cached) {
+                    const parsed = JSON.parse(cached)
+                    if (parsed === null) return null
+                    return parsed
+                }
+            } catch (err) {
+                errorLog({ message: 'Command cache read error', error: err })
+            }
+        }
+
         const command = await prisma.customCommand.findUnique({
             where: {
                 guildId_name: {
@@ -49,21 +74,26 @@ export class CustomCommandService {
             },
         })
 
-        if (!command) return null
+        const result = command
+            ? {
+                  ...command,
+                  embedData: command.embedData
+                      ? ((typeof command.embedData === 'string'
+                            ? JSON.parse(command.embedData)
+                            : command.embedData) as EmbedData)
+                      : null,
+              }
+            : null
 
-        return {
-            ...command,
-            embedData: command.embedData
-                ? (typeof command.embedData === 'string'
-                      ? JSON.parse(command.embedData)
-                      : command.embedData) as EmbedData
-                : null,
+        if (redisClient.isHealthy()) {
+            redisClient
+                .setex(key, CACHE_TTL, JSON.stringify(result))
+                .catch(() => {})
         }
+
+        return result
     }
 
-    /**
-     * List all commands for a guild
-     */
     async listCommands(guildId: string) {
         return await prisma.customCommand.findMany({
             where: { guildId },
@@ -71,15 +101,12 @@ export class CustomCommandService {
         })
     }
 
-    /**
-     * Update a command
-     */
     async updateCommand(
         guildId: string,
         name: string,
         data: Prisma.CustomCommandUpdateInput,
     ) {
-        return await prisma.customCommand.update({
+        const result = await prisma.customCommand.update({
             where: {
                 guildId_name: {
                     guildId,
@@ -88,13 +115,12 @@ export class CustomCommandService {
             },
             data,
         })
+        this.invalidateCommand(guildId, name)
+        return result
     }
 
-    /**
-     * Delete a command
-     */
     async deleteCommand(guildId: string, name: string) {
-        return await prisma.customCommand.delete({
+        const result = await prisma.customCommand.delete({
             where: {
                 guildId_name: {
                     guildId,
@@ -102,6 +128,8 @@ export class CustomCommandService {
                 },
             },
         })
+        this.invalidateCommand(guildId, name)
+        return result
     }
 
     /**
@@ -170,16 +198,10 @@ export class CustomCommandService {
 
         return {
             totalCommands: commands.length,
-            totalUses: commands.reduce(
-                (sum, cmd) => sum + cmd.useCount,
-                0,
-            ),
-            mostUsed: commands.sort(
-                (a, b) => b.useCount - a.useCount,
-            )[0],
+            totalUses: commands.reduce((sum, cmd) => sum + cmd.useCount, 0),
+            mostUsed: commands.sort((a, b) => b.useCount - a.useCount)[0],
             recentlyCreated: commands.sort(
-                (a, b) =>
-                    b.createdAt.getTime() - a.createdAt.getTime(),
+                (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
             )[0],
         }
     }

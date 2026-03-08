@@ -1,6 +1,10 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import { redisClient } from './redis/index.js'
+import { errorLog } from '../utils/general/log.js'
 
 const prisma = getPrismaClient()
+const CACHE_TTL = 300
+const CACHE_PREFIX = 'automod:'
 
 interface AutoModSettings {
     id: string
@@ -24,15 +28,46 @@ interface AutoModSettings {
 
 export class AutoModService {
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
-        return await prisma.autoModSettings.findUnique({
+        if (redisClient.isHealthy()) {
+            try {
+                const cached = await redisClient.get(
+                    `${CACHE_PREFIX}${guildId}`,
+                )
+                if (cached) return JSON.parse(cached)
+            } catch (err) {
+                errorLog({ message: 'AutoMod cache read error', error: err })
+            }
+        }
+
+        const settings = await prisma.autoModSettings.findUnique({
             where: { guildId },
         })
+
+        if (settings && redisClient.isHealthy()) {
+            redisClient
+                .setex(
+                    `${CACHE_PREFIX}${guildId}`,
+                    CACHE_TTL,
+                    JSON.stringify(settings),
+                )
+                .catch(() => {})
+        }
+
+        return settings
+    }
+
+    private invalidateCache(guildId: string): void {
+        if (redisClient.isHealthy()) {
+            redisClient.del(`${CACHE_PREFIX}${guildId}`).catch(() => {})
+        }
     }
 
     async createSettings(guildId: string): Promise<AutoModSettings> {
-        return await prisma.autoModSettings.create({
+        const result = await prisma.autoModSettings.create({
             data: { guildId },
         })
+        this.invalidateCache(guildId)
+        return result
     }
 
     async updateSettings(
@@ -41,11 +76,13 @@ export class AutoModService {
             Omit<AutoModSettings, 'id' | 'guildId' | 'createdAt' | 'updatedAt'>
         >,
     ): Promise<AutoModSettings> {
-        return await prisma.autoModSettings.upsert({
+        const result = await prisma.autoModSettings.upsert({
             where: { guildId },
             create: { guildId, ...settings },
             update: settings,
         })
+        this.invalidateCache(guildId)
+        return result
     }
 
     async checkSpam(
