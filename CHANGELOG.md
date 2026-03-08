@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-03-08
+
+### Fixed
+
+- YouTube audio streaming — pipe yt-dlp stdout as Readable stream instead of expiring URLs
+- Docker workspace builds run from root for correct resolution
+- Webhook excluded from deploy rebuilds to preserve logs
+- Shared package exports map includes types condition
+
+### Changed
+
+- Renamed remaining LukBot references to NexusBot (Docker images, Cursor rules, env vars)
+- YouTube extractor uses IOS client with 32MB buffer for stable playback
+
 ## [2.3.0] - 2026-03-08
 
 ### Added
