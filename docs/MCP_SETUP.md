@@ -22,7 +22,7 @@ Servers that need API keys or tokens are started via **`~/.cursor/scripts/run-mc
 Infisical uses project-specific scripts so two projects can use different credentials:
 
 - **infisical-craftvaria**: `run-mcp-infisical-craftvaria.sh` (uses `INFISICAL_CRAFTVARIA_*`)
-- **infisical-nexus**: `run-mcp-infisical-nexus.sh` (uses `INFISICAL_LUKBOT_*`)
+- **infisical-nexus**: `run-mcp-infisical-nexus.sh` (uses `INFISICAL_NEXUS_*`)
 
 Scripts live under `~/.cursor/scripts/` and must be executable (`chmod +x`).
 
@@ -34,7 +34,7 @@ The filesystem MCP server is configured with the Nexus workspace path so it can 
 
 **BrowserStack** uses `run-mcp-browserstack.sh` and reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from `.env.mcp`. If either is unset, the server is skipped (no error).
 
-**Infisical** wrappers skip cleanly when their env vars are unset. For Nexus, set `INFISICAL_LUKBOT_CLIENT_ID` and `INFISICAL_LUKBOT_CLIENT_SECRET` in one of: `~/.cursor/.env.mcp`, the project `.cursor/.env.mcp`, or the project root `.env`. The Nexus wrapper sources them in that order when the script runs with Nexus as the current directory. The `.cursor/` directory is gitignored.
+**Infisical** wrappers skip cleanly when their env vars are unset. For Nexus, set `INFISICAL_NEXUS_CLIENT_ID` and `INFISICAL_NEXUS_CLIENT_SECRET` in one of: `~/.cursor/.env.mcp`, the project `.cursor/.env.mcp`, or the project root `.env`. The Nexus wrapper sources them in that order when the script runs with Nexus as the current directory. The `.cursor/` directory is gitignored.
 
 ## MCP Gateway (Context Forge)
 
