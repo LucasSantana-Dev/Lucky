@@ -65,7 +65,7 @@ export async function startClient({
                 })
             }
 
-            const { startTwitchService } = await import('../../twitch')
+            const { startTwitchService } = await import('../../twitch/index.js')
             await startTwitchService(client)
         })
 

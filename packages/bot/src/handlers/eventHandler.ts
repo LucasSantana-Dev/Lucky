@@ -129,7 +129,7 @@ function handleGuildDelete(client: Client): void {
     client.on(Events.GuildDelete, async (guild) => {
         try {
             const duplicateDetection =
-                (await import('../utils/music/duplicateDetection')) as {
+                (await import('../utils/music/duplicateDetection/index.js')) as {
                     clearHistory: (guildId: string) => void
                     clearAllGuildCaches: (guildId: string) => void
                 }

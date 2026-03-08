@@ -21,7 +21,7 @@ export function startWebApp(): void {
     if (isProduction) {
         const frontendDistPath = path.join(__dirname, 'frontend', 'dist')
         app.use(express.static(frontendDistPath))
-        app.get('*', (_req, res) => {
+        app.get('/{*path}', (_req, res) => {
             res.sendFile(path.join(frontendDistPath, 'index.html'))
         })
     }

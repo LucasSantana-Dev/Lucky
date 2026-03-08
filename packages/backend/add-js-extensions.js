@@ -51,11 +51,16 @@ function resolveImportPath(importPath, baseDir) {
 }
 
 function addExtension(content, filePath) {
-    return content.replace(/from ['"](\.[^'"]+)['"]/g, (match, importPath) => {
-        const baseDir = dirname(filePath)
+    const baseDir = dirname(filePath)
+    let result = content.replace(/from ['"](\.[^'"]+)['"]/g, (match, importPath) => {
         const resolved = resolveImportPath(importPath, baseDir)
         return `from '${resolved}'`
     })
+    result = result.replace(/import\(['"](\.[^'"]+)['"]\)/g, (match, importPath) => {
+        const resolved = resolveImportPath(importPath, baseDir)
+        return `import('${resolved}')`
+    })
+    return result
 }
 
 const files = findJsFiles('dist')
