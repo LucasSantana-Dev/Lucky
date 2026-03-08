@@ -146,14 +146,14 @@ services:
                 max-file: "3"
 
     # Cloudflare Tunnel — exposes nginx to nexus.lucassantana.tech
-    # Set CLOUDFLARE_TUNNEL_TOKEN in .env.production
     cloudflared:
         image: cloudflare/cloudflared:latest
         container_name: nexus-tunnel
         restart: unless-stopped
-        command: tunnel run
-        environment:
-            - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+        command: tunnel --config /etc/cloudflared/config-nexus.yml run
+        user: root
+        volumes:
+            - ${HOME}/.cloudflared:/etc/cloudflared:ro
         depends_on:
             - nginx
         networks:
