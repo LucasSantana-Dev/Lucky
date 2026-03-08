@@ -63,9 +63,9 @@ services:
             - CLIENT_ID=${CLIENT_ID}
             - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD:-discordbot123}@postgres:5432/discordbot
             - REDIS_HOST=redis
-            - REDIS_PORT=${REDIS_PORT:-6379}
-            - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+            - REDIS_PORT=6379
             - REDIS_DB=${REDIS_DB:-0}
+            - BOT_NAME=${BOT_NAME:-Nexus}
         volumes:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
@@ -98,12 +98,11 @@ services:
             - CLIENT_SECRET=${CLIENT_SECRET}
             - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD:-discordbot123}@postgres:5432/discordbot
             - REDIS_HOST=redis
-            - REDIS_PORT=${REDIS_PORT:-6379}
-            - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+            - REDIS_PORT=6379
             - REDIS_DB=${REDIS_DB:-0}
             - WEBAPP_PORT=3000
-            - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI:-}
-            - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET:-}
+            - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI}
+            - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET}
             - DEVELOPER_USER_IDS=${DEVELOPER_USER_IDS:-}
         networks:
             - nexus-network
@@ -137,9 +136,30 @@ services:
             - backend
             - frontend
         ports:
-            - "8080:80"
+            - "${NGINX_PORT:-8080}:80"
         networks:
             - nexus-network
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    # Cloudflare Tunnel — exposes nginx to nexus.lucassantana.tech
+    # Set CLOUDFLARE_TUNNEL_TOKEN in .env.production
+    cloudflared:
+        image: cloudflare/cloudflared:latest
+        container_name: nexus-tunnel
+        restart: unless-stopped
+        command: tunnel run
+        environment:
+            - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+        depends_on:
+            - nginx
+        networks:
+            - nexus-network
+        profiles:
+            - tunnel
         logging:
             driver: "json-file"
             options:
