@@ -8,7 +8,7 @@ services:
             POSTGRES_USER: discordbot
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-discordbot123}
         ports:
-            - "5432:5432"
+            - "${POSTGRES_PORT:-5433}:5432"
         volumes:
             - postgres_dev_data:/var/lib/postgresql/data
         networks:

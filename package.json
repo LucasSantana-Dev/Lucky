@@ -86,9 +86,12 @@
         "unfetch": "^5.0.0"
     },
     "dependencies": {
+        "@discord-player/extractor": "^7.2.0",
         "@prisma/adapter-pg": "^7.4.2",
         "@prisma/client": "^7.4.2",
+        "@snazzah/davey": "^0.1.10",
         "chalk": "^5.6.2",
+        "discord-player-youtubei": "^1.4.7-beta.2",
         "minipass-flush": "^1.0.5",
         "unleash-client": "^6.10.1"
     },
