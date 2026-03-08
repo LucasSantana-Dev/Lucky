@@ -136,7 +136,7 @@ describe('CustomCommandsPage', () => {
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByText('Music')).toBeInTheDocument()
+            expect(screen.getByText('Misc')).toBeInTheDocument()
             expect(screen.getByText('Moderator')).toBeInTheDocument()
             expect(screen.getByText('Fun')).toBeInTheDocument()
         })
@@ -264,7 +264,7 @@ describe('CustomCommandsPage', () => {
             expect(screen.getByText(/All \(3\)/)).toBeInTheDocument()
         })
 
-        const musicChip = screen.getByRole('button', { name: /Music \(1\)/ })
+        const musicChip = screen.getByRole('button', { name: /Misc \(1\)/ })
         await user.click(musicChip)
 
         await waitFor(() => {

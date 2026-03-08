@@ -305,7 +305,9 @@ describe('ModerationPage', () => {
         })
 
         const buttons = screen.getAllByRole('button')
-        const prevButton = buttons.find((btn) => btn.disabled)
+        const prevButton = buttons.find(
+            (btn) => (btn as HTMLButtonElement).disabled,
+        )
         expect(prevButton).toBeDefined()
     })
 
