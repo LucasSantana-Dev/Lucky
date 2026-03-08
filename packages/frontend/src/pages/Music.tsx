@@ -102,6 +102,7 @@ export default function MusicPage() {
             <QueueList
                 tracks={player.state.tracks}
                 onRemove={(i) => player.removeTrack(i)}
+                onMove={(from, to) => player.moveTrack(from, to)}
                 onClear={() => player.clearQueue()}
             />
 

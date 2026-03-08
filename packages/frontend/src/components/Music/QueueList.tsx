@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, useRef } from 'react'
 import {
     ListMusic,
     Trash2,
@@ -16,6 +16,7 @@ interface QueueListProps {
     tracks: TrackInfo[]
     isLoading?: boolean
     onRemove: (index: number) => void
+    onMove: (from: number, to: number) => void
     onClear: () => void
 }
 
@@ -25,15 +26,45 @@ export default memo(function QueueList({
     tracks,
     isLoading,
     onRemove,
+    onMove,
     onClear,
 }: QueueListProps) {
     const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE)
     const visibleTracks = tracks.slice(0, visibleCount)
     const hasMore = tracks.length > visibleCount
+    const dragIndexRef = useRef<number | null>(null)
+    const [dropTarget, setDropTarget] = useState<number | null>(null)
 
     const showMore = useCallback(() => {
         setVisibleCount((c) => Math.min(c + 20, tracks.length))
     }, [tracks.length])
+
+    const handleDragStart = useCallback((index: number) => {
+        dragIndexRef.current = index
+    }, [])
+
+    const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+        e.preventDefault()
+        setDropTarget(index)
+    }, [])
+
+    const handleDrop = useCallback(
+        (index: number) => {
+            const from = dragIndexRef.current
+            if (from !== null && from !== index) {
+                onMove(from, index)
+                toast.success('Track moved')
+            }
+            dragIndexRef.current = null
+            setDropTarget(null)
+        },
+        [onMove],
+    )
+
+    const handleDragEnd = useCallback(() => {
+        dragIndexRef.current = null
+        setDropTarget(null)
+    }, [])
 
     if (isLoading) return <QueueSkeleton />
 
@@ -82,7 +113,12 @@ export default memo(function QueueList({
                                 key={`${track.id}-${index}`}
                                 track={track}
                                 index={index}
+                                isDropTarget={dropTarget === index}
                                 onRemove={onRemove}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onDragEnd={handleDragEnd}
                             />
                         ))}
                     </div>
@@ -151,16 +187,35 @@ function EmptyQueue() {
 const QueueItem = memo(function QueueItem({
     track,
     index,
+    isDropTarget,
     onRemove,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
 }: {
     track: TrackInfo
     index: number
+    isDropTarget: boolean
     onRemove: (i: number) => void
+    onDragStart: (index: number) => void
+    onDragOver: (e: React.DragEvent, index: number) => void
+    onDrop: (index: number) => void
+    onDragEnd: () => void
 }) {
     return (
         <div
-            className='flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary group transition-colors'
+            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary group transition-colors ${
+                isDropTarget
+                    ? 'ring-1 ring-nexus-red/50 bg-nexus-bg-tertiary'
+                    : ''
+            }`}
             role='listitem'
+            draggable
+            onDragStart={() => onDragStart(index)}
+            onDragOver={(e) => onDragOver(e, index)}
+            onDrop={() => onDrop(index)}
+            onDragEnd={onDragEnd}
         >
             <span
                 className='text-xs text-nexus-text-secondary w-5 sm:w-6 text-right font-mono tabular-nums shrink-0'
