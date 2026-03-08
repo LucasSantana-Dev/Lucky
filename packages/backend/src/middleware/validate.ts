@@ -40,7 +40,6 @@ export function validateParams<T extends z.ZodTypeAny>(schema: T) {
             }))
             return res.status(400).json({ error: 'Validation failed', errors })
         }
-        req.params = result.data
         next()
     }
 }
