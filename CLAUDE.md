@@ -51,7 +51,7 @@ Service: `packages/shared/src/services/FeatureToggleService.ts`
 - Backend: `npm run test --workspace=packages/backend` (362 tests, 24 suites)
 - Coverage: statements 96%, branches 84%, functions 100%, lines 96%
 - Frontend: `npm run test --workspace=packages/frontend` (30 tests, 4 suites, Vitest)
-- E2E: `npm run test:e2e` (Playwright, no tests written yet)
+- E2E: `npm run test:e2e` (Playwright, 135 tests, 13 spec files + visual/performance)
 
 ## Database
 - Prisma schema: `prisma/schema.prisma` (root level, shared across packages)

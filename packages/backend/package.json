@@ -5,7 +5,7 @@
     "type": "module",
     "main": "./dist/index.js",
     "scripts": {
-        "build": "tsc",
+        "build": "tsup",
         "dev": "tsx watch src/index.ts",
         "start": "node dist/index.js",
         "type:check": "tsc --noEmit",
@@ -38,6 +38,7 @@
         "supertest": "^7.0.0",
         "ts-jest": "^29.4.6",
         "tsx": "^4.21.0",
+        "tsup": "^8.5.1",
         "typescript": "^5.9.3"
     }
 }

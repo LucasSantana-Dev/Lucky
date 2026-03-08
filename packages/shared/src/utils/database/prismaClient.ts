@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg'
-import type { PrismaClient as PrismaClientType } from '@prisma/client'
+import type { PrismaClient } from '../../generated/prisma/client.js'
 import { createRequire } from 'module'
 
 let _require: NodeRequire
@@ -10,18 +10,22 @@ try {
     _require = require
 }
 
-let prismaInstance: PrismaClientType | null = null
+let prismaInstance: PrismaClient | null = null
 
-export function getPrismaClient(): PrismaClientType {
+export function getPrismaClient(): PrismaClient {
     if (!prismaInstance) {
         const { PrismaClient: PrismaClientConstructor } = _require(
             '../../generated/prisma/client.js',
         ) as {
-            PrismaClient: new (options?: unknown) => PrismaClientType
+            PrismaClient: new (
+                options?: unknown,
+            ) => PrismaClient
         }
         const databaseUrl = process.env.DATABASE_URL
         if (!databaseUrl) {
-            throw new Error('DATABASE_URL environment variable is required')
+            throw new Error(
+                'DATABASE_URL environment variable is required',
+            )
         }
         const adapter = new PrismaPg({
             connectionString: databaseUrl,

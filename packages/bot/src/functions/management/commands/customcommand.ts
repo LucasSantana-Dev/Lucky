@@ -274,7 +274,7 @@ export default new Command({
                             .map(
                                 (cmd: {
                                     name: string
-                                    description?: string
+                                    description: string | null
                                     useCount: number
                                 }) =>
                                     `**${cmd.name}** - ${cmd.description || 'No description'}\n└ Used ${cmd.useCount} times`,
@@ -311,7 +311,7 @@ export default new Command({
                     .setColor(0x5865f2)
                     .setTitle(`📋 Command: ${command.name}`)
                     .addFields(
-                        { name: 'Response', value: command.response },
+                        { name: 'Response', value: command.response ?? 'No response set' },
                         {
                             name: 'Use Count',
                             value: command.useCount.toString(),

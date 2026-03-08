@@ -1,7 +1,6 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import { typePrisma } from '../utils/database/prismaHelpers.js'
 
-const prisma = typePrisma(getPrismaClient())
+const prisma = getPrismaClient()
 
 interface AutoModSettings {
     id: string

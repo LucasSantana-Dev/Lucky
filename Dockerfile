@@ -83,6 +83,7 @@ COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared
 COPY --from=deps-production /app/packages/bot/package*.json ./packages/bot/
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
+COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build /app/packages/bot/dist ./packages/bot/dist
 COPY --from=build /app/prisma ./prisma
 
@@ -113,6 +114,7 @@ COPY --from=deps-production /app/packages/shared/package*.json ./packages/shared
 COPY --from=deps-production /app/packages/backend/package*.json ./packages/backend/
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/src/generated ./packages/shared/src/generated
+COPY --from=build /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build /app/packages/backend/dist ./packages/backend/dist
 COPY --from=build /app/prisma ./prisma
 

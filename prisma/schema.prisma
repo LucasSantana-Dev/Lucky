@@ -363,6 +363,7 @@ model ModerationCase {
   appealReason   String?
   appealReviewed Boolean   @default(false)
   appealApproved Boolean   @default(false)
+  appealedAt     DateTime?
   channelId      String?
   evidence       String[]  @default([])
   createdAt      DateTime  @default(now())
@@ -380,6 +381,8 @@ model ModerationSettings {
   guildId         String   @unique
   modLogChannelId String?
   muteRoleId      String?
+  modRoleIds      String[] @default([])
+  adminRoleIds    String[] @default([])
   autoModEnabled  Boolean  @default(false)
   maxWarnings     Int      @default(3)
   warningExpiry   Int      @default(2592000) // 30 days in seconds
@@ -437,10 +440,13 @@ model EmbedTemplate {
 model AutoMessage {
   id           String    @id @default(cuid())
   guildId      String
-  type         String // "welcome", "leave", "scheduled"
+  type         String // "welcome", "leave", "auto_response", "scheduled"
   channelId    String?
   message      String?
   embedId      String?
+  embedData    Json?
+  trigger      String?
+  exactMatch   Boolean   @default(false)
   enabled      Boolean   @default(true)
   cronSchedule String? // For scheduled messages
   lastSent     DateTime?
@@ -453,18 +459,21 @@ model AutoMessage {
 }
 
 model CustomCommand {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   guildId         String
   name            String
+  description     String?
   response        String?
   embedId         String?
-  enabled         Boolean  @default(true)
-  useCount        Int      @default(0)
-  allowedRoles    String[] @default([])
-  allowedChannels String[] @default([])
+  embedData       Json?
+  enabled         Boolean   @default(true)
+  useCount        Int       @default(0)
+  lastUsed        DateTime?
+  allowedRoles    String[]  @default([])
+  allowedChannels String[]  @default([])
   createdBy       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([guildId, name])
   @@index([guildId])
@@ -475,6 +484,7 @@ model ServerLog {
   id          String   @id @default(cuid())
   guildId     String
   type        String // "member_join", "member_leave", "message_delete", etc.
+  action      String?
   userId      String?
   channelId   String?
   moderatorId String?

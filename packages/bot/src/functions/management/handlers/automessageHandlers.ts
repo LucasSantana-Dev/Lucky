@@ -127,13 +127,14 @@ export async function handleAutoMessageList(
                         enabled: boolean
                         type: string
                         channelId: string | null
-                        message: string
+                        message: string | null
                     }) => {
                         const status = msg.enabled ? '✅' : '❌'
                         const channel = msg.channelId
                             ? `<#${msg.channelId}>`
                             : 'Not set'
-                        return `${status} **${msg.type.toUpperCase()}**\n└ Channel: ${channel}\n└ Message: ${msg.message.substring(0, 50)}${msg.message.length > 50 ? '...' : ''}`
+                        const text = msg.message || 'No message'
+                        return `${status} **${msg.type.toUpperCase()}**\n└ Channel: ${channel}\n└ Message: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`
                     },
                 )
                 .join('\n\n'),

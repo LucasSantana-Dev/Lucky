@@ -1,8 +1,8 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import { typePrisma } from '../utils/database/prismaHelpers.js'
+import { Prisma } from '../generated/prisma/client.js'
 import type { EmbedData } from './embedValidation.js'
 
-const prisma = typePrisma(getPrismaClient())
+const prisma = getPrismaClient()
 
 export type MessageType = 'welcome' | 'leave' | 'auto_response' | 'scheduled'
 
@@ -33,7 +33,7 @@ export class AutoMessageService {
                 message: data.message,
                 embedData: data.embedData
                     ? JSON.stringify(data.embedData)
-                    : null,
+                    : Prisma.JsonNull,
                 trigger: options?.trigger,
                 exactMatch: options?.exactMatch || false,
                 channelId: options?.channelId,
@@ -106,14 +106,7 @@ export class AutoMessageService {
      */
     async updateMessage(
         id: string,
-        data: Partial<{
-            message: string
-            embedData: string | null
-            enabled: boolean
-            trigger: string | null
-            exactMatch: boolean
-            channelId: string | null
-        }>,
+        data: Prisma.AutoMessageUpdateInput,
     ) {
         return await prisma.autoMessage.update({
             where: { id },

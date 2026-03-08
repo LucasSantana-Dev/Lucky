@@ -1,9 +1,8 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
-import { typePrisma } from '../utils/database/prismaHelpers.js'
+import { Prisma } from '../generated/prisma/client.js'
 import type { EmbedData } from './embedValidation.js'
 
-// Workaround: Type assertion for Prisma client with customCommand model
-const prisma = typePrisma(getPrismaClient())
+const prisma = getPrismaClient()
 
 export class CustomCommandService {
     /**
@@ -29,7 +28,7 @@ export class CustomCommandService {
                 response,
                 embedData: options?.embedData
                     ? JSON.stringify(options.embedData)
-                    : null,
+                    : Prisma.JsonNull,
                 allowedRoles: options?.allowedRoles || [],
                 allowedChannels: options?.allowedChannels || [],
                 createdBy: options?.createdBy || 'unknown',
@@ -55,7 +54,9 @@ export class CustomCommandService {
         return {
             ...command,
             embedData: command.embedData
-                ? (JSON.parse(command.embedData) as EmbedData)
+                ? (typeof command.embedData === 'string'
+                      ? JSON.parse(command.embedData)
+                      : command.embedData) as EmbedData
                 : null,
         }
     }
@@ -76,13 +77,7 @@ export class CustomCommandService {
     async updateCommand(
         guildId: string,
         name: string,
-        data: Partial<{
-            response: string
-            description: string | null
-            embedData: string | null
-            allowedRoles: string[]
-            allowedChannels: string[]
-        }>,
+        data: Prisma.CustomCommandUpdateInput,
     ) {
         return await prisma.customCommand.update({
             where: {
@@ -176,14 +171,14 @@ export class CustomCommandService {
         return {
             totalCommands: commands.length,
             totalUses: commands.reduce(
-                (sum: number, cmd: any) => sum + cmd.useCount,
+                (sum, cmd) => sum + cmd.useCount,
                 0,
             ),
             mostUsed: commands.sort(
-                (a: any, b: any) => b.useCount - a.useCount,
+                (a, b) => b.useCount - a.useCount,
             )[0],
             recentlyCreated: commands.sort(
-                (a: any, b: any) =>
+                (a, b) =>
                     b.createdAt.getTime() - a.createdAt.getTime(),
             )[0],
         }
