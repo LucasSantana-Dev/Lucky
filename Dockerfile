@@ -58,6 +58,8 @@ RUN npm run build
 # Production deps — slim install (no dev deps)
 FROM node:${NODE_VERSION} AS deps-production
 
+RUN apk add --no-cache python3 && rm -rf /var/cache/apk/*
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -66,6 +68,7 @@ COPY packages/bot/package*.json ./packages/bot/
 COPY packages/backend/package*.json ./packages/backend/
 
 RUN --mount=type=cache,target=/root/.npm \
+    YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
     npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
     npm cache clean --force
 
