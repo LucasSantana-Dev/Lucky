@@ -305,6 +305,17 @@ export const api = {
             ),
     },
 
+    lastfm: {
+        status: () =>
+            apiClient.get<{
+                configured: boolean
+                linked: boolean
+                username: string | null
+            }>('/lastfm/status'),
+        unlink: () => apiClient.delete<{ success: boolean }>('/lastfm/unlink'),
+        getConnectUrl: () => `/api/lastfm/connect`,
+    },
+
     lyrics: {
         search: (title: string, artist?: string) => {
             const params = new URLSearchParams({ title })

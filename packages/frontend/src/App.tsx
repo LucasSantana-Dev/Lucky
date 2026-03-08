@@ -22,6 +22,7 @@ const LyricsPage = lazy(() => import('./pages/Lyrics'))
 const TwitchNotificationsPage = lazy(
     () => import('./pages/TwitchNotifications'),
 )
+const LastFmPage = lazy(() => import('./pages/LastFm'))
 
 function AuthenticatedRoutes() {
     return (
@@ -40,6 +41,7 @@ function AuthenticatedRoutes() {
             <Route path='/music/history' element={<TrackHistoryPage />} />
             <Route path='/lyrics' element={<LyricsPage />} />
             <Route path='/twitch' element={<TwitchNotificationsPage />} />
+            <Route path='/lastfm' element={<LastFmPage />} />
             <Route path='*' element={<Navigate to='/' replace />} />
         </Routes>
     )
