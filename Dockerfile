@@ -44,16 +44,10 @@ COPY prisma ./prisma
 
 RUN npx prisma generate
 
-WORKDIR /app/packages/shared
-RUN npm run build
-
-# Build bot
-WORKDIR /app/packages/bot
-RUN npm run build
-
-# Build backend
-WORKDIR /app/packages/backend
-RUN npm run build
+WORKDIR /app
+RUN npm run build:shared
+RUN npm run build --workspace=packages/bot
+RUN npm run build --workspace=packages/backend
 
 # Production deps — slim install (no dev deps)
 FROM node:${NODE_VERSION} AS deps-production
