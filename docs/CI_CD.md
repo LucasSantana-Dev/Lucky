@@ -106,6 +106,18 @@ If `Deploy to Homelab` fails with `405 Not Allowed`:
 
 After this bootstrap, future deploys run without SSH through GitHub Actions.
 
+### Deploy webhook DNS troubleshooting
+
+If deploy fails with curl exit code `6` (Could not resolve host):
+
+1. Confirm `DEPLOY_WEBHOOK_URL` points to an existing DNS host (Lucky):
+    - `gh secret set DEPLOY_WEBHOOK_URL --body "https://lucky.lucassantana.tech/webhook/deploy"`
+2. Ensure Cloudflare DNS has `lucky.lucassantana.tech` published to the active tunnel.
+3. Verify from any machine:
+    - `curl -i -X POST https://lucky.lucassantana.tech/webhook/deploy`
+4. Re-run:
+    - `npm run deploy:homelab`
+
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 
 ## Local parity

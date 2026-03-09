@@ -5,6 +5,11 @@
 # Create tunnel: cloudflared tunnel create lucky-webapp
 # Route DNS:     cloudflared tunnel route dns lucky-webapp app.yourdomain.com
 # Run:           cloudflared tunnel run lucky-webapp
+#
+# Production example (Lucky):
+#   hostname: lucky.lucassantana.tech
+#   service: http://nginx:80   # when cloudflared runs as Docker service in same compose network
+#   service: http://localhost:8090  # when cloudflared runs natively on host
 
 tunnel: <TUNNEL_ID>
 credentials-file: /path/to/<TUNNEL_ID>.json

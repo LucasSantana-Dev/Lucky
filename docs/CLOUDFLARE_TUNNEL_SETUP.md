@@ -162,6 +162,53 @@ You get a random `*.trycloudflare.com` URL. Limitations: no custom domain, reque
 - **Remotely-managed**: Run the install command from the dashboard (it includes the token). Use a process manager (e.g. systemd, PM2, Docker) so the tunnel restarts with the app.
 - **Locally-managed**: Run `cloudflared tunnel run lucky-webapp` (or your tunnel name) with the same process manager. Keep credentials and config secure and out of version control.
 
+## 8. Production snippet (Lucky)
+
+For this project, use:
+
+- Hostname: `lucky.lucassantana.tech`
+- Webhook endpoint: `https://lucky.lucassantana.tech/webhook/deploy`
+
+Docker-based `cloudflared` (same compose network as nginx):
+
+```yaml
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+    - hostname: lucky.lucassantana.tech
+      service: http://nginx:80
+    - service: http_status:404
+```
+
+Host-native `cloudflared` (not in Docker network):
+
+```yaml
+tunnel: <TUNNEL_ID>
+credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+    - hostname: lucky.lucassantana.tech
+      service: http://localhost:8090
+    - service: http_status:404
+```
+
+Important: `localhost` in a container means the container itself. If `cloudflared` runs in Docker, prefer `http://nginx:80` and ensure it is attached to the same compose network.
+
+## 9. Zero-downtime migration checklist (`nexus` -> `lucky`)
+
+1. Add `lucky.lucassantana.tech` in Cloudflare DNS and map it to the existing tunnel.
+2. Keep `nexus.lucassantana.tech` active during migration (do not remove yet).
+3. Add both hostnames to tunnel ingress (or publish both in dashboard).
+4. Verify Lucky endpoint:
+    - `curl -i -X POST https://lucky.lucassantana.tech/webhook/deploy`
+5. Update GitHub secret:
+    - `gh secret set DEPLOY_WEBHOOK_URL --body "https://lucky.lucassantana.tech/webhook/deploy"`
+6. Run deployment via workflow:
+    - `npm run deploy:homelab`
+7. Monitor deploy and app health for at least one full release cycle.
+8. After stable operation, remove `nexus.lucassantana.tech` from tunnel and DNS.
+
 ## Troubleshooting
 
 - **Docker: "Cannot connect to the Docker daemon"**: The Docker daemon is not running. Either start Docker Desktop (or your Docker engine) and re-run the `docker run cloudflare/cloudflared ...` command, or run `cloudflared` natively (e.g. `brew install cloudflared` on macOS) and use the same tunnel token or config—no Docker required.
