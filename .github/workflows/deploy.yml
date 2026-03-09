@@ -47,23 +47,24 @@ jobs:
 
                   call_webhook_with_retry() {
                     local url="$1"
-                    local attempt http body response
-                    for attempt in $(seq 1 5); do
-                      response=$(call_webhook "$url")
+                    local attempt http body response max_attempts
+                    max_attempts=8
+
+                    for attempt in $(seq 1 "$max_attempts"); do
+                      response=$(call_webhook "$url" || true)
                       http=$(echo "$response" | tail -1)
                       body=$(echo "$response" | sed '$d')
-                      echo "Response from $url (attempt $attempt/5): $body (HTTP $http)"
+
+                      echo "Response from $url (attempt $attempt/$max_attempts): $body (HTTP $http)" >&2
 
                       if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
                         echo "$response"
                         return 0
                       fi
 
-                      if [ "$http" -ge 500 ] || [ "$http" = "000" ]; then
-                        if [ "$attempt" -lt 5 ]; then
-                          sleep $((attempt * 2))
-                          continue
-                        fi
+                      if [ "$attempt" -lt "$max_attempts" ] && { [ "$http" -ge 500 ] || [ "$http" = "000" ]; }; then
+                        sleep $((attempt * 4))
+                        continue
                       fi
 
                       echo "$response"
@@ -71,23 +72,40 @@ jobs:
                     done
                   }
 
-                  response=$(call_webhook_with_retry "$WEBHOOK_URL")
-
-                  http_code=$(echo "$response" | tail -1)
-                  body=$(echo "$response" | sed '$d')
-
-                  retry_url="${WEBHOOK_URL%/}/webhook/deploy"
-                  if [ "$WEBHOOK_URL" != "$retry_url" ] && { [ "$http_code" = "404" ] || [ "$http_code" = "405" ]; }; then
-                    echo "==> Retrying with canonical webhook path: $retry_url"
-                    response=$(call_webhook_with_retry "$retry_url")
+                  try_webhook_url() {
+                    local url="$1"
+                    local response http_code body
+                    response=$(call_webhook_with_retry "$url")
                     http_code=$(echo "$response" | tail -1)
                     body=$(echo "$response" | sed '$d')
+                    echo "$http_code"$'\n'"$body"
+                  }
+
+                  retry_url="${WEBHOOK_URL%/}/webhook/deploy"
+                  selected_code=""
+                  selected_body=""
+
+                  result=$(try_webhook_url "$WEBHOOK_URL")
+                  selected_code=$(echo "$result" | head -1)
+                  selected_body=$(echo "$result" | sed '1d')
+
+                  if [ "$selected_code" -ge 200 ] && [ "$selected_code" -lt 300 ]; then
+                    echo "==> Deploy triggered successfully!"
+                    exit 0
                   fi
 
-                  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+                  if [ "$WEBHOOK_URL" != "$retry_url" ]; then
+                    echo "==> Retrying against canonical webhook path: $retry_url" >&2
+                    result=$(try_webhook_url "$retry_url")
+                    selected_code=$(echo "$result" | head -1)
+                    selected_body=$(echo "$result" | sed '1d')
+                  fi
+
+                  if [ "$selected_code" -ge 200 ] && [ "$selected_code" -lt 300 ]; then
                     echo "==> Deploy triggered successfully!"
                   else
-                    echo "::error::Deploy webhook failed with HTTP $http_code"
+                    echo "::error::Deploy webhook failed with HTTP $selected_code"
+                    echo "::error::Response body: $selected_body"
                     exit 1
                   fi
 
