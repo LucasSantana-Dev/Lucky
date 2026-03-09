@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/node'
-import { infoLog } from '@nexus/shared/utils'
+import { infoLog } from '@lucky/shared/utils'
 // import { nodeProfilingIntegration } from '@sentry/profiling-node'
 
 /**

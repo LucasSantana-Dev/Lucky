@@ -1,10 +1,10 @@
-# Cloudflare Tunnel config for Nexus web app (locally-managed tunnel).
+# Cloudflare Tunnel config for Lucky web app (locally-managed tunnel).
 # Copy to config.yml and set tunnel ID + path to credentials.
 # See docs/CLOUDFLARE_TUNNEL_SETUP.md for setup.
 #
-# Create tunnel: cloudflared tunnel create nexus-webapp
-# Route DNS:     cloudflared tunnel route dns nexus-webapp app.yourdomain.com
-# Run:           cloudflared tunnel run nexus-webapp
+# Create tunnel: cloudflared tunnel create lucky-webapp
+# Route DNS:     cloudflared tunnel route dns lucky-webapp app.yourdomain.com
+# Run:           cloudflared tunnel run lucky-webapp
 
 tunnel: <TUNNEL_ID>
 credentials-file: /path/to/<TUNNEL_ID>.json

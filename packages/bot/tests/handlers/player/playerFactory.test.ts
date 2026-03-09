@@ -22,7 +22,7 @@ jest.mock('discord-player-youtubei', () => ({
     YoutubeiExtractor: class MockYoutubeiExtractor {},
 }))
 
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     infoLog: jest.fn(),
     warnLog: jest.fn(),

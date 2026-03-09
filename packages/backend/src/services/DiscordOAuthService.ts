@@ -1,4 +1,4 @@
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 
 export interface DiscordUser {
     id: string

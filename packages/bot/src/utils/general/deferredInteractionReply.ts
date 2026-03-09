@@ -2,7 +2,7 @@ import type {
     ChatInputCommandInteraction,
     InteractionReplyOptions as DjsInteractionReplyOptions,
 } from 'discord.js'
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 
 /**
  * Helper function to reply to a deferred interaction

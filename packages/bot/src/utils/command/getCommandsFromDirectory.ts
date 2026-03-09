@@ -1,8 +1,8 @@
 import fs from 'fs'
 import path from 'path'
-import { errorLog, debugLog, infoLog } from '@nexus/shared/utils'
+import { errorLog, debugLog, infoLog } from '@lucky/shared/utils'
 import type Command from '../../models/Command'
-import { config } from '@nexus/shared/config'
+import { config } from '@lucky/shared/config'
 
 type GetCommandsParams = {
     url: string

@@ -1,10 +1,10 @@
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     safeSetInterval: jest.fn(),
 }))
 
-jest.mock('@nexus/shared/config', () => ({
+jest.mock('@lucky/shared/config', () => ({
     artistTitlePatterns: [],
     youtubePatterns: [],
     artistPatterns: [],

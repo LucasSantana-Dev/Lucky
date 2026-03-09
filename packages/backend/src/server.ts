@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { infoLog, errorLog } from '@nexus/shared/utils'
+import { infoLog, errorLog } from '@lucky/shared/utils'
 import { setupRoutes } from './routes'
 import { setupMiddleware } from './middleware'
 

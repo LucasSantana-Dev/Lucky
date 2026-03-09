@@ -51,9 +51,9 @@ describe('Login', () => {
 
         renderLogin()
 
-        expect(screen.getByText('Nexus')).toBeInTheDocument()
+        expect(screen.getByText('Lucky')).toBeInTheDocument()
         expect(
-            screen.getByText('Welcome to Nexus Dashboard'),
+            screen.getByText('Welcome to Lucky Dashboard'),
         ).toBeInTheDocument()
         expect(
             screen.getByRole('button', { name: /login with discord/i }),
@@ -109,7 +109,7 @@ describe('Login', () => {
             screen.getByText(/manage your discord servers/i),
         ).toBeInTheDocument()
         expect(
-            screen.getByText(/© 2026 Nexus. All rights reserved./i),
+            screen.getByText(/© 2026 Lucky. All rights reserved./i),
         ).toBeInTheDocument()
     })
 })

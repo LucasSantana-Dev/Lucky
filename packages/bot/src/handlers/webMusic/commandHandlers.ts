@@ -3,7 +3,7 @@ import {
     musicControlService,
     type MusicCommand,
     type MusicCommandResult,
-} from '@nexus/shared/services'
+} from '@lucky/shared/services'
 import { buildQueueState, repeatModeToEnum } from './mappers'
 
 type Result = MusicCommandResult

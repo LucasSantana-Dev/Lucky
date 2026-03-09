@@ -6,7 +6,7 @@ import {
     type TextChannel,
 } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { reactionRolesService } from '@nexus/shared/services'
+import { reactionRolesService } from '@lucky/shared/services'
 import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
 
 function replyEmbed(

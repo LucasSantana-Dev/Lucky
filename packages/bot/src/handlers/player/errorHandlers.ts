@@ -1,11 +1,11 @@
 import { QueryType, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import {
     analyzeYouTubeError,
     logYouTubeError,
 } from '../../utils/music/youtubeErrorHandler'
-import { youtubeConfig } from '@nexus/shared/config'
+import { youtubeConfig } from '@lucky/shared/config'
 
 type PlayerEvents = {
     events: {

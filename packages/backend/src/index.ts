@@ -1,5 +1,5 @@
-import { ensureEnvironment } from '@nexus/shared/config'
-import { setupErrorHandlers, initializeSentry } from '@nexus/shared/utils'
+import { ensureEnvironment } from '@lucky/shared/config'
+import { setupErrorHandlers, initializeSentry } from '@lucky/shared/utils'
 import { startWebApp } from './server'
 
 async function main(): Promise<void> {

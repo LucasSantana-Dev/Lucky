@@ -1,5 +1,5 @@
 import type { GuildQueue, Track } from 'discord-player'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 /**
  * AsyncQueue manager for preventing race conditions in queue operations

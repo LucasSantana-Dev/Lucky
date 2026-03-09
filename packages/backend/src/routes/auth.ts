@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { sessionService } from '../services/SessionService'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { asyncHandler } from '../middleware/asyncHandler'

@@ -1,6 +1,6 @@
 # Discord Player Integration Guide
 
-Comprehensive guide for using Discord Player in Nexus for music playback, queue management, and audio streaming.
+Comprehensive guide for using Discord Player in Lucky for music playback, queue management, and audio streaming.
 
 ## Table of Contents
 

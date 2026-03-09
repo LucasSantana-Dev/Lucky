@@ -16,7 +16,7 @@ jest.mock('../../../src/services/SessionService', () => ({
 const mockListReactionRoles = jest.fn<any>()
 const mockListExclusiveRoles = jest.fn<any>()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
         listReactionRoleMessages: (...args: any[]) =>
             mockListReactionRoles(...args),

@@ -5,7 +5,7 @@ import {
     type ChatInputCommandInteraction,
 } from 'discord.js'
 import type { CustomClient } from '../types'
-import { errorLog, infoLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
 import { handleMessageCreate } from './messageHandler'

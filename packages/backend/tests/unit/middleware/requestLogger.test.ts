@@ -2,13 +2,13 @@ import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { EventEmitter } from 'events'
 import { requestLogger } from '../../../src/middleware/requestLogger'
 
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     warnLog: jest.fn(),
     errorLog: jest.fn(),
 }))
 
-import { infoLog, warnLog, errorLog } from '@nexus/shared/utils'
+import { infoLog, warnLog, errorLog } from '@lucky/shared/utils'
 
 function createRes(statusCode: number) {
     const emitter = new EventEmitter()

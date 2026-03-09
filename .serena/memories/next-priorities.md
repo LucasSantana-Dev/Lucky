@@ -20,11 +20,22 @@
 - ✅ Bot startup fixes — command loader (.js preference), ready event race condition, guild-only registration
 - ✅ /play command fix — creates queue via `createQueue`+`queueConnect` instead of `requireQueue`
 
+## Completed (Session 21-22)
+- ✅ Dependabot triage — auto-merged 5 docker action bumps
+- ✅ E2E expansion — 8 new spec files, 33 tests (moderation, commands, automod, music, config, settings, logs, automessages)
+- ✅ SonarCloud setup — project created, workflow v6, secrets, correct org key
+- ✅ Code quality — structured logging, Map eviction, cleanupOldData() simplification, scrobble dedup
+- ✅ CI fix — build:shared before type-check
+- ✅ Frontend test coverage — 8 page specs added (was priority #7)
+
+## Completed (Session 26 continued)
+- ✅ Docker build fix — all 4 images building on ghcr.io (bot, backend, frontend, nginx)
+- ✅ Last.fm OAuth hardening — apiKey validation, WEBAPP_BACKEND_URL callback
+- ✅ E2E visual baseline — 3 snapshots updated, 190/190 passing
+- ✅ DNS verified — nexus.lucassantana.tech → 172.67.145.91 / 104.21.55.61
+
 ## Remaining Work
-1. **Music player live testing**: Bot running, /play fixed — needs user to test in Discord voice channel
-2. **Commit bot fixes**: play/index.ts, service.ts, getCommandsFromDirectory.ts, docker-compose.dev.yml, Dockerfile.frontend
-3. **Docker deploy verification**: Build + deploy to homelab, verify all services healthy
-4. **Verify DNS propagation**: Check `dig nexus.lucassantana.tech @1.1.1.1 +short` returns IPs
-5. **Discord OAuth redirect**: Add callback URL in Discord Developer Portal
-6. **Lyrics search UI**: Frontend page for /api/lyrics endpoint (low priority)
-7. **Frontend test coverage**: More page tests (Moderation, AutoMod, CustomCommands)
+1. **Homelab webhook server**: Deploy webhook returns 405 — nginx needs POST endpoint config
+2. **Music player live testing**: Docker images built, needs actual deploy + Discord voice test
+3. **SonarCloud monitoring**: First scan clean (0 issues) — keep monitoring
+4. **WEBAPP_BACKEND_URL env var**: Add to .env.production on homelab for OAuth callbacks

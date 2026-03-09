@@ -229,12 +229,12 @@ build() {
     if is_development; then
         print_status "Building development Docker image..."
         check_docker || exit 1
-        docker build --target development --build-arg SERVICE=bot -t nexusbot-bot:dev .
+        docker build --target development --build-arg SERVICE=bot -t lucky-bot:dev .
         print_success "Development image built successfully!"
     else
         print_status "Building production Docker image..."
         check_docker || exit 1
-        docker build --target production-bot -t nexusbot-bot:latest .
+        docker build --target production-bot -t lucky-bot:latest .
         print_success "Production image built successfully!"
     fi
 }

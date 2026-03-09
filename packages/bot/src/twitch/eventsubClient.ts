@@ -1,6 +1,6 @@
 import WebSocket from 'ws'
 import type { Client } from 'discord.js'
-import { errorLog, infoLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import { getTwitchUserAccessToken } from './token'
 import {
     type NotificationPayload,

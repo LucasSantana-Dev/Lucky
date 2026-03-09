@@ -13,7 +13,7 @@ export default function ServersPage() {
     const fetchGuilds = useGuildStore((state) => state.fetchGuilds)
     const user = useAuthStore((state) => state.user)
     usePageMetadata({
-        title: 'Servers - Nexus',
+        title: 'Servers - Lucky',
         description: 'View and manage your Discord servers',
     })
 
@@ -41,12 +41,12 @@ export default function ServersPage() {
     return (
         <main className='space-y-6'>
             <header className='flex items-center gap-4'>
-                <Avatar className='w-16 h-16 border-2 border-nexus-border'>
+                <Avatar className='w-16 h-16 border-2 border-lucky-border'>
                     <AvatarImage
                         src={user?.avatar || undefined}
                         alt={user?.username || 'User avatar'}
                     />
-                    <AvatarFallback className='bg-nexus-red text-white text-xl'>
+                    <AvatarFallback className='bg-lucky-red text-white text-xl'>
                         {user?.username?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
@@ -54,32 +54,32 @@ export default function ServersPage() {
                     <h1 className='text-2xl font-bold text-white'>
                         {user?.username}
                     </h1>
-                    <p className='text-nexus-text-secondary'>
+                    <p className='text-lucky-text-secondary'>
                         @{user?.username}
                     </p>
                 </div>
             </header>
 
             <nav
-                className='flex border-b border-nexus-border'
+                className='flex border-b border-lucky-border'
                 aria-label='Server navigation'
             >
                 <button
-                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 border-nexus-red text-white'
+                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 border-lucky-red text-white'
                     aria-current='page'
                 >
                     <LayoutGrid className='w-4 h-4' aria-hidden='true' />
                     Servers
                 </button>
                 <button
-                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium text-nexus-text-secondary hover:text-white transition-colors'
+                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium text-lucky-text-secondary hover:text-white transition-colors'
                     aria-label='Premium features'
                 >
                     <Crown className='w-4 h-4' aria-hidden='true' />
                     Premium
                 </button>
                 <button
-                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium text-nexus-text-secondary hover:text-white transition-colors'
+                    className='flex items-center gap-2 px-6 py-3 text-sm font-medium text-lucky-text-secondary hover:text-white transition-colors'
                     aria-label='Settings'
                 >
                     <Settings className='w-4 h-4' aria-hidden='true' />
@@ -95,7 +95,7 @@ export default function ServersPage() {
                     >
                         Servers
                     </h2>
-                    <p className='text-sm text-nexus-text-secondary'>
+                    <p className='text-sm text-lucky-text-secondary'>
                         Servers you're in ({guilds.length} servers)
                     </p>
                 </div>

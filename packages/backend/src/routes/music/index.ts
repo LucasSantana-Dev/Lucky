@@ -1,6 +1,6 @@
 import type { Express } from 'express'
-import { musicControlService } from '@nexus/shared/services'
-import { infoLog, errorLog } from '@nexus/shared/utils'
+import { musicControlService } from '@lucky/shared/services'
+import { infoLog, errorLog } from '@lucky/shared/utils'
 import { setupPlaybackRoutes } from './playbackRoutes'
 import { setupQueueRoutes } from './queueRoutes'
 import { setupStateRoutes } from './stateRoutes'

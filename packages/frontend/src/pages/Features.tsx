@@ -19,7 +19,7 @@ export default function FeaturesPage() {
         handleServerToggle,
     } = useFeatures()
     usePageMetadata({
-        title: 'Features - Nexus',
+        title: 'Features - Lucky',
         description:
             'Manage and configure bot features for your Discord servers',
     })
@@ -40,7 +40,7 @@ export default function FeaturesPage() {
     return (
         <main className='p-4 md:p-6 space-y-8'>
             <header className='flex items-center gap-3'>
-                <Shield className='w-7 h-7 text-nexus-red' aria-hidden='true' />
+                <Shield className='w-7 h-7 text-lucky-red' aria-hidden='true' />
                 <h1 className='text-2xl font-bold text-white'>Features</h1>
             </header>
 

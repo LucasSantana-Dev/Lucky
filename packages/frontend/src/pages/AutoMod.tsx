@@ -50,7 +50,7 @@ function FilterCard({
             className={cn(
                 'p-0 overflow-hidden transition-all',
                 enabled
-                    ? 'border-nexus-border/80 ring-1 ring-nexus-border/30'
+                    ? 'border-lucky-border/80 ring-1 ring-lucky-border/30'
                     : 'opacity-80',
             )}
         >
@@ -63,7 +63,7 @@ function FilterCard({
                         <h3 className='text-sm font-semibold text-white'>
                             {title}
                         </h3>
-                        <p className='text-xs text-nexus-text-tertiary mt-0.5'>
+                        <p className='text-xs text-lucky-text-tertiary mt-0.5'>
                             {description}
                         </p>
                     </div>
@@ -76,7 +76,7 @@ function FilterCard({
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className='border-t border-nexus-border'
+                    className='border-t border-lucky-border'
                 >
                     <div className='p-4 pt-3 space-y-3'>{children}</div>
                 </motion.div>
@@ -100,14 +100,14 @@ function NumberInput({
 }) {
     return (
         <div className='space-y-1.5'>
-            <Label className='text-xs text-nexus-text-secondary'>{label}</Label>
+            <Label className='text-xs text-lucky-text-secondary'>{label}</Label>
             <Input
                 type='number'
                 value={value}
                 onChange={(e) => onChange(Number(e.target.value))}
                 min={min}
                 max={max}
-                className='h-9 bg-nexus-bg-tertiary border-nexus-border text-white text-sm'
+                className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm'
             />
         </div>
     )
@@ -144,12 +144,12 @@ function TagList({
                         e.key === 'Enter' && (e.preventDefault(), handleAdd())
                     }
                     placeholder={placeholder}
-                    className='h-9 bg-nexus-bg-tertiary border-nexus-border text-white text-sm flex-1'
+                    className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm flex-1'
                 />
                 <Button
                     size='sm'
                     onClick={handleAdd}
-                    className='h-9 px-3 bg-nexus-bg-active hover:bg-nexus-bg-active/80'
+                    className='h-9 px-3 bg-lucky-bg-active hover:bg-lucky-bg-active/80'
                 >
                     <Plus className='w-4 h-4' />
                 </Button>
@@ -160,12 +160,12 @@ function TagList({
                         <Badge
                             key={item}
                             variant='outline'
-                            className='bg-nexus-bg-tertiary border-nexus-border text-nexus-text-secondary text-xs gap-1 pr-1'
+                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
                         >
                             {item}
                             <button
                                 onClick={() => onRemove(item)}
-                                className='hover:text-nexus-error transition-colors p-0.5'
+                                className='hover:text-lucky-error transition-colors p-0.5'
                             >
                                 <X className='w-3 h-3' />
                             </button>
@@ -238,11 +238,11 @@ export default function AutoModPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <ShieldAlert className='w-16 h-16 text-nexus-text-tertiary mb-4' />
+                <ShieldAlert className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-nexus-text-secondary text-sm'>
+                <p className='text-lucky-text-secondary text-sm'>
                     Select a server to configure auto-moderation
                 </p>
             </div>
@@ -272,7 +272,7 @@ export default function AutoModPage() {
                     <h1 className='text-2xl font-bold text-white'>
                         Auto-Moderation
                     </h1>
-                    <p className='text-sm text-nexus-text-secondary mt-1'>
+                    <p className='text-sm text-lucky-text-secondary mt-1'>
                         Configure automatic content filters for{' '}
                         {selectedGuild.name}
                     </p>
@@ -280,7 +280,7 @@ export default function AutoModPage() {
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className='bg-nexus-red hover:bg-nexus-red/90 gap-2'
+                    className='bg-lucky-red hover:bg-lucky-red/90 gap-2'
                 >
                     {saving ? (
                         <Loader2 className='w-4 h-4 animate-spin' />
@@ -364,7 +364,7 @@ export default function AutoModPage() {
                         accent='bg-blue-500/20'
                     >
                         <div className='space-y-1.5'>
-                            <Label className='text-xs text-nexus-text-secondary'>
+                            <Label className='text-xs text-lucky-text-secondary'>
                                 Allowed domains
                             </Label>
                             <TagList
@@ -420,7 +420,7 @@ export default function AutoModPage() {
                         accent='bg-red-500/20'
                     >
                         <div className='space-y-1.5'>
-                            <Label className='text-xs text-nexus-text-secondary'>
+                            <Label className='text-xs text-lucky-text-secondary'>
                                 Banned words
                             </Label>
                             <TagList
@@ -454,18 +454,18 @@ export default function AutoModPage() {
             >
                 <Card className='p-5'>
                     <div className='flex items-center gap-2 mb-4'>
-                        <CheckCircle2 className='w-5 h-5 text-nexus-success' />
+                        <CheckCircle2 className='w-5 h-5 text-lucky-success' />
                         <h2 className='text-base font-semibold text-white'>
                             Exemptions
                         </h2>
                     </div>
-                    <p className='text-xs text-nexus-text-tertiary mb-4'>
+                    <p className='text-xs text-lucky-text-tertiary mb-4'>
                         Channels and roles that are exempt from auto-moderation
                         filters
                     </p>
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-nexus-text-secondary'>
+                            <Label className='text-xs text-lucky-text-secondary'>
                                 Exempt Channels (IDs)
                             </Label>
                             <TagList
@@ -488,7 +488,7 @@ export default function AutoModPage() {
                             />
                         </div>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-nexus-text-secondary'>
+                            <Label className='text-xs text-lucky-text-secondary'>
                                 Exempt Roles (IDs)
                             </Label>
                             <TagList
@@ -515,11 +515,11 @@ export default function AutoModPage() {
             </motion.div>
 
             {/* Sticky Save Bar (mobile) */}
-            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-nexus-bg-primary/95 backdrop-blur-sm border-t border-nexus-border z-30'>
+            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className='w-full bg-nexus-red hover:bg-nexus-red/90 gap-2'
+                    className='w-full bg-lucky-red hover:bg-lucky-red/90 gap-2'
                 >
                     {saving ? (
                         <Loader2 className='w-4 h-4 animate-spin' />

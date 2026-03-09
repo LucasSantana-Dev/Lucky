@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import {
     handleCaseView,

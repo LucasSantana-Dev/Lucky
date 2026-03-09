@@ -1,34 +1,41 @@
-# LukBot Current State (2026-03-08)
+# NexusBot Current State (2026-03-08)
 
-## Version: 2.3.0
+## Version: 2.5.0
 - Branch: main
-- Last commit: `0c1a746 feat: add comprehensive test coverage and bump to v2.3.0`
+- Last commit: `e775fbd feat: v2.5.0 with backend/frontend tests and changelog`
 
 ## Test Coverage
-- Backend: 435 tests, 33 suites (all passing)
-- Frontend unit: 197 tests, 23 suites (all passing)
-- Frontend E2E: 22 new tests (lyrics, track-history, twitch-notifications) + existing
-- Redis caching: 14 tests (cache hit/miss/invalidation for CustomCommandService + ModerationSettings)
+- Backend: 462 tests, 35 suites (all passing)
+- Bot: 99 tests, 10 suites (all passing)
+- Frontend unit: 217 tests, 25 suites (all passing)
+- Frontend E2E: 190 tests, 13 spec files + 8 new page specs
 
-## Recent Changes (v2.3.0)
-- 32 backend integration tests for music routes (playback, queue, state)
-- 14 Redis caching integration tests
-- 22 E2E Playwright tests for new pages
-- Fixed TS2345 in test setup (Jest 30 typing)
-- playerFactory updated with yt-dlp streaming fallback
+## Session Changes (2026-03-08, continued)
+- Docker fix: added missing workspace package.jsons in Dockerfile + Dockerfile.frontend — all 4 images now building (bot, backend, frontend, nginx) on ghcr.io
+- Last.fm OAuth hardening: validated apiKey before use, added WEBAPP_BACKEND_URL for callback
+- E2E visual baseline: updated 3 stale snapshots, 190/190 passing
+- Redis cache metrics: health endpoint + cache stats (another session)
+- Music queue drag-and-drop: QueueList DnD reordering (another session)
 
-## Key Gotchas Discovered
-- express-session mock in setup.ts only sets `req.sessionID` from cookie headers — tests must use `.set('Cookie', ['sessionId=valid_session_id'])` for authed requests
-- SSE endpoints (text/event-stream) don't work with supertest's request-response model
-- Backend tests must run from `packages/backend` directory for `diagnostics: false` to work
-- Redis caching tests use `@nexus/shared/services/CustomCommandService` import path (moduleNameMapper) to bypass setup.ts global mock
+## Previous Session Changes
+- 8 new E2E specs (33 tests), SonarCloud integration, CI build order fix
+- Structured logging migration, Map eviction, cleanupOldData() simplification
+- scrobbleAndRecord() extraction
 
-## Bot Test Infrastructure (NEW — Session 22)
-- Jest 30 + ts-jest configured for bot package
-- 99 tests, 10 suites, all passing (~7s)
-- Covers: trackSimilarity, similarityChecker, titleComparison, ytdlpExtractor, commandValidations, stringUtils, playerFactory, Command model, health, metrics
-- Mock factories: discord.ts (User/Guild/VoiceChannel/Member/Interaction), discordPlayer.ts (Track/Queue)
-- Run: `npm run test --workspace=packages/bot`
+## SonarCloud Setup
+- Org: `lucassantana-dev`, Project: `LucasSantana-Dev_NexusBot`
+- Config: `sonar-project.properties`
+- Workflow: `.github/workflows/sonarcloud.yml` (v6 action)
+- Coverage: backend + bot lcov reports
+- Exclusions: node_modules, dist, build, coverage, test files, generated code, public assets
 
-## Unstaged Files
-- `packages/bot/jest.config.cjs`, `packages/bot/tests/` — bot test infrastructure (ready to commit)
+## Key Files Modified
+- `.github/workflows/ci.yml` — build:shared step, setup-node v6
+- `.github/workflows/sonarcloud.yml` — full setup, v6 action
+- `sonar-project.properties` — correct org/project keys
+- `packages/shared/src/services/LyricsService.ts` — console.error → errorLog
+- `packages/shared/src/utils/monitoring/sentry.ts` — console.log → infoLog
+- `packages/bot/src/utils/monitoring/sentry.ts` — console.log → infoLog
+- `packages/bot/src/handlers/player/trackHandlers.ts` — eviction + scrobbleAndRecord()
+- `packages/shared/src/services/database/DatabaseService.ts` — cleanupOldData() simplified
+- `packages/frontend/src/hooks/useAuthRedirect.ts` — removed console.error

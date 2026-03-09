@@ -4,7 +4,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { musicEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
-import { featureToggleService } from '@nexus/shared/services'
+import { featureToggleService } from '@lucky/shared/services'
 
 export default new Command({
     data: new SlashCommandBuilder()

@@ -4,7 +4,7 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { twitchNotificationService } from '@nexus/shared/services'
+import { twitchNotificationService } from '@lucky/shared/services'
 import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 

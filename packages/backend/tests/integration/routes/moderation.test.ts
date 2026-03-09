@@ -13,7 +13,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     redisClient: {
         isHealthy: jest.fn(() => true),
         get: jest.fn(),
@@ -48,7 +48,7 @@ jest.mock('@nexus/shared/services', () => ({
     musicControlService: {},
 }))
 
-import { moderationService, serverLogService } from '@nexus/shared/services'
+import { moderationService, serverLogService } from '@lucky/shared/services'
 
 describe('Moderation Routes Integration', () => {
     let app: express.Express

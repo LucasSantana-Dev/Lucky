@@ -1,6 +1,6 @@
 # Cloudflare Tunnel, Domain, and DNS for Bot Frontend
 
-This guide configures Cloudflare Tunnel so the Nexus web app (frontend + API) is reachable at a custom domain over HTTPS, without opening ports or exposing your origin IP.
+This guide configures Cloudflare Tunnel so the Lucky web app (frontend + API) is reachable at a custom domain over HTTPS, without opening ports or exposing your origin IP.
 
 ## Overview
 
@@ -52,10 +52,10 @@ You can create a **remotely-managed** tunnel (recommended) from the dashboard, o
 
 1. In [Cloudflare Dashboard](https://dash.cloudflare.com) → **Zero Trust** (or **Networks** → **Tunnels**), open **Networks** → **Tunnels**.
 2. Click **Create a tunnel**. Choose **Cloudflared**.
-3. Name it (e.g. `nexus-webapp`) and save.
+3. Name it (e.g. `lucky-webapp`) and save.
 4. On **Configure** (or **Route Traffic** → **Published applications**):
-    - **Public hostname**: your subdomain + domain (e.g. `nexus.yourdomain.com`).
-    - **Service type**: **HTTP** (the Nexus web app serves HTTP; do not use HTTPS unless your origin has TLS).
+    - **Public hostname**: your subdomain + domain (e.g. `lucky.yourdomain.com`).
+    - **Service type**: **HTTP** (the Lucky web app serves HTTP; do not use HTTPS unless your origin has TLS).
     - **URL (Required)**: `http://localhost:3000` (or `http://localhost:YOUR_WEBAPP_PORT`). This is the origin the tunnel forwards to; leave blank causes "url is required".
 5. Install the connector using the command shown in the dashboard (it includes the tunnel token). Run that command on the host where the web app is running.
 
@@ -74,7 +74,7 @@ The tunnel will appear as “Connected” when `cloudflared` is running with tha
 2. Create the tunnel:
 
     ```bash
-    cloudflared tunnel create nexus-webapp
+    cloudflared tunnel create lucky-webapp
     ```
 
     Note the tunnel ID from the output.
@@ -98,13 +98,13 @@ The tunnel will appear as “Connected” when `cloudflared` is running with tha
 4. Route DNS (creates CNAME to the tunnel):
 
     ```bash
-    cloudflared tunnel route dns nexus-webapp app.yourdomain.com
+    cloudflared tunnel route dns lucky-webapp app.yourdomain.com
     ```
 
 5. Run the tunnel:
 
     ```bash
-    cloudflared tunnel run nexus-webapp
+    cloudflared tunnel run lucky-webapp
     ```
 
 References:
@@ -160,7 +160,7 @@ You get a random `*.trycloudflare.com` URL. Limitations: no custom domain, reque
 ## 7. Running the tunnel in production
 
 - **Remotely-managed**: Run the install command from the dashboard (it includes the token). Use a process manager (e.g. systemd, PM2, Docker) so the tunnel restarts with the app.
-- **Locally-managed**: Run `cloudflared tunnel run nexus-webapp` (or your tunnel name) with the same process manager. Keep credentials and config secure and out of version control.
+- **Locally-managed**: Run `cloudflared tunnel run lucky-webapp` (or your tunnel name) with the same process manager. Keep credentials and config secure and out of version control.
 
 ## Troubleshooting
 

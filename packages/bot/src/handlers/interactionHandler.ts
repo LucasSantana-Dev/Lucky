@@ -4,14 +4,14 @@ import {
     type CommandInteractionOptionResolver,
     type Interaction,
 } from 'discord.js'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import { executeCommand } from './commandsHandler'
 import type { CustomClient } from '../types'
 import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
-import { reactionRolesService } from '@nexus/shared/services'
+import { reactionRolesService } from '@lucky/shared/services'
 
 type HandleInteractionsParams = {
     client: CustomClient

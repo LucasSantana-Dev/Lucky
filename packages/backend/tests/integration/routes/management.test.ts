@@ -13,7 +13,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     autoModService: {
         getSettings: jest.fn(),
         updateSettings: jest.fn(),
@@ -47,7 +47,7 @@ import {
     autoModService,
     customCommandService,
     serverLogService,
-} from '@nexus/shared/services'
+} from '@lucky/shared/services'
 
 describe('Management Routes Integration', () => {
     let app: express.Express

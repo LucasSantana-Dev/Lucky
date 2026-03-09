@@ -9,9 +9,9 @@ import {
     type Role,
     AuditLogEvent,
 } from 'discord.js'
-import { serverLogService } from '@nexus/shared/services'
-import { featureToggleService } from '@nexus/shared/services'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { serverLogService } from '@lucky/shared/services'
+import { featureToggleService } from '@lucky/shared/services'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 
 async function isServerLogsEnabled(guildId: string): Promise<boolean> {
     return featureToggleService.isEnabled('SERVER_LOGS', { guildId })

@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import session from 'express-session'
 import { RedisStore } from 'connect-redis'
 import Redis from 'ioredis'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { Express } from 'express'
 
 function createRedisStore(): session.Store | undefined {
@@ -28,7 +28,7 @@ function createRedisStore(): session.Store | undefined {
             })
         })
 
-        return new RedisStore({ client, prefix: 'nexus:sess:' })
+        return new RedisStore({ client, prefix: 'lucky:sess:' })
     } catch {
         return undefined
     }

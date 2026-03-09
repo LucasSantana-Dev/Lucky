@@ -81,7 +81,7 @@ export default function TrackHistoryPage() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-64 text-nexus-text-secondary'>
+            <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
                 <History className='h-12 w-12 mb-4 opacity-50' />
                 <p className='text-lg'>Select a server to view track history</p>
             </div>
@@ -92,7 +92,7 @@ export default function TrackHistoryPage() {
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
-                    <History className='h-6 w-6 text-nexus-red' />
+                    <History className='h-6 w-6 text-lucky-red' />
                     <h1 className='text-xl font-bold text-white'>
                         Track History
                     </h1>
@@ -100,7 +100,7 @@ export default function TrackHistoryPage() {
                 {history.length > 0 && (
                     <button
                         onClick={handleClear}
-                        className='flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-nexus-error/10 text-nexus-error hover:bg-nexus-error/20 transition-colors'
+                        className='flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors'
                     >
                         <Trash2 className='w-4 h-4' />
                         Clear
@@ -109,7 +109,7 @@ export default function TrackHistoryPage() {
             </header>
 
             {error && (
-                <div className='p-3 rounded-lg bg-nexus-error/10 text-nexus-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
                     {error}
                 </div>
             )}
@@ -119,7 +119,7 @@ export default function TrackHistoryPage() {
                     {[...Array(3)].map((_, i) => (
                         <div
                             key={i}
-                            className='h-16 rounded-lg bg-nexus-bg-tertiary animate-pulse'
+                            className='h-16 rounded-lg bg-lucky-bg-tertiary animate-pulse'
                         />
                     ))}
                 </div>
@@ -170,11 +170,11 @@ export default function TrackHistoryPage() {
                     )}
 
                     <div className='space-y-1'>
-                        <h2 className='text-sm font-semibold text-nexus-text-secondary uppercase tracking-wider px-1'>
+                        <h2 className='text-sm font-semibold text-lucky-text-secondary uppercase tracking-wider px-1'>
                             Recent Tracks
                         </h2>
                         {history.length === 0 ? (
-                            <div className='text-center py-12 text-nexus-text-tertiary'>
+                            <div className='text-center py-12 text-lucky-text-tertiary'>
                                 No tracks played yet
                             </div>
                         ) : (
@@ -182,9 +182,9 @@ export default function TrackHistoryPage() {
                                 {history.map((track, i) => (
                                     <div
                                         key={`${track.trackId}-${i}`}
-                                        className='flex items-center gap-3 px-3 py-2.5 rounded-lg bg-nexus-bg-tertiary hover:bg-nexus-bg-active transition-colors'
+                                        className='flex items-center gap-3 px-3 py-2.5 rounded-lg bg-lucky-bg-tertiary hover:bg-lucky-bg-active transition-colors'
                                     >
-                                        <div className='w-8 h-8 rounded bg-nexus-bg-active flex items-center justify-center text-nexus-text-tertiary text-xs font-mono shrink-0'>
+                                        <div className='w-8 h-8 rounded bg-lucky-bg-active flex items-center justify-center text-lucky-text-tertiary text-xs font-mono shrink-0'>
                                             {i + 1}
                                         </div>
                                         <div className='flex-1 min-w-0'>
@@ -192,16 +192,16 @@ export default function TrackHistoryPage() {
                                                 href={track.url}
                                                 target='_blank'
                                                 rel='noopener noreferrer'
-                                                className='text-sm font-medium text-white truncate block hover:text-nexus-red transition-colors'
+                                                className='text-sm font-medium text-white truncate block hover:text-lucky-red transition-colors'
                                             >
                                                 {track.title}
                                             </a>
-                                            <p className='text-xs text-nexus-text-tertiary truncate'>
+                                            <p className='text-xs text-lucky-text-tertiary truncate'>
                                                 {track.author} ·{' '}
                                                 {track.duration}
                                             </p>
                                         </div>
-                                        <span className='text-xs text-nexus-text-tertiary shrink-0'>
+                                        <span className='text-xs text-lucky-text-tertiary shrink-0'>
                                             {formatTimeAgo(track.timestamp)}
                                         </span>
                                     </div>
@@ -225,10 +225,10 @@ function StatCard({
     value: string
 }) {
     return (
-        <div className='p-4 rounded-lg bg-nexus-bg-tertiary border border-nexus-border'>
+        <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
             <div className='flex items-center gap-2 mb-1'>
-                <Icon className='w-4 h-4 text-nexus-text-tertiary' />
-                <span className='text-xs text-nexus-text-tertiary'>
+                <Icon className='w-4 h-4 text-lucky-text-tertiary' />
+                <span className='text-xs text-lucky-text-tertiary'>
                     {label}
                 </span>
             </div>
@@ -246,12 +246,12 @@ function RankingCard({
 }) {
     const max = items[0]?.count ?? 1
     return (
-        <div className='p-4 rounded-lg bg-nexus-bg-tertiary border border-nexus-border'>
+        <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
             <h3 className='text-sm font-semibold text-white mb-3'>{title}</h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>
-                        <span className='text-xs text-nexus-text-tertiary w-4'>
+                        <span className='text-xs text-lucky-text-tertiary w-4'>
                             {i + 1}
                         </span>
                         <div className='flex-1 min-w-0'>
@@ -259,13 +259,13 @@ function RankingCard({
                                 <span className='text-sm text-white truncate'>
                                     {item.label}
                                 </span>
-                                <span className='text-xs text-nexus-text-tertiary ml-2 shrink-0'>
+                                <span className='text-xs text-lucky-text-tertiary ml-2 shrink-0'>
                                     {item.count}
                                 </span>
                             </div>
-                            <div className='h-1 bg-nexus-bg-active rounded-full overflow-hidden'>
+                            <div className='h-1 bg-lucky-bg-active rounded-full overflow-hidden'>
                                 <div
-                                    className='h-full bg-nexus-red rounded-full'
+                                    className='h-full bg-lucky-red rounded-full'
                                     style={{
                                         width: `${(item.count / max) * 100}%`,
                                     }}

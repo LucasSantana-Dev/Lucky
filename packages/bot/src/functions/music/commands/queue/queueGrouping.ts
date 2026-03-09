@@ -1,5 +1,5 @@
 import type { Track, GuildQueue } from 'discord-player'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { isSimilarTitle } from '../../../../utils/music/titleComparison'
 import type { CustomClient } from '../../../../types'
 import type { FormattedQueueData } from './queueFormatter'

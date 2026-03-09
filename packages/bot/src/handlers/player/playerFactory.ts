@@ -3,7 +3,7 @@ import type { Readable } from 'stream'
 import { Player } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import type { CustomClient } from '../../types'
-import { errorLog, infoLog, warnLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
 
 type CreatePlayerParams = {
     client: CustomClient

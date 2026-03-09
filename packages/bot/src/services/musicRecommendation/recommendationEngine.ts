@@ -9,7 +9,7 @@ import {
     createTrackVector,
     calculateVectorSimilarity,
 } from './vectorOperations'
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 import {
     createUserPreferenceSeed,
     applyDiversityFilter,

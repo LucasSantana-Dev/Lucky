@@ -4,7 +4,7 @@ import { requireVoiceChannel } from '../../../../utils/command/commandValidation
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
 

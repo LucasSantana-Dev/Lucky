@@ -1,6 +1,6 @@
 import { type Track } from 'discord-player'
-import { debugLog, errorLog } from '@nexus/shared/utils'
-import { trackHistoryService } from '@nexus/shared/services'
+import { debugLog, errorLog } from '@lucky/shared/utils'
+import { trackHistoryService } from '@lucky/shared/services'
 import {
     MusicRecommendationService,
     type RecommendationConfig,

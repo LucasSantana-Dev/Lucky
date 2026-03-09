@@ -9,7 +9,7 @@ export default defineConfig({
     clean: true,
     noExternal: [],
     external: [
-        '@nexus/shared',
+        '@lucky/shared',
         'ioredis',
         'connect-redis',
         'express-session',

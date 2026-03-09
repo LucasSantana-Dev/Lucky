@@ -241,8 +241,8 @@ The frontend can be run in Docker for development:
 
 ```bash
 cd src/webapp/frontend
-docker build -f Dockerfile.dev -t nexus-frontend-dev .
-docker run -p 5173:5173 nexus-frontend-dev
+docker build -f Dockerfile.dev -t lucky-frontend-dev .
+docker run -p 5173:5173 lucky-frontend-dev
 ```
 
 ## Troubleshooting

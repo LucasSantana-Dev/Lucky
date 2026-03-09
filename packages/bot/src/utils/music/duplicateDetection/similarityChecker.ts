@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import type { TrackHistoryEntry } from '@nexus/shared/services'
+import type { TrackHistoryEntry } from '@lucky/shared/services'
 import type { SimilarityConfig } from './types'
 
 /**

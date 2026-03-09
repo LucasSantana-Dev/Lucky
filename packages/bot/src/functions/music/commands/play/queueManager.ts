@@ -4,7 +4,7 @@
 
 import type { Track } from 'discord-player'
 import type { PlayCommandOptions } from './types'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export async function manageQueue(
     options: PlayCommandOptions,

@@ -2,7 +2,7 @@ import { QueueRepeatMode } from 'discord-player'
 import type {
     MusicTrackInfo as TrackInfo,
     QueueState,
-} from '@nexus/shared/services'
+} from '@lucky/shared/services'
 import type { CustomClient } from '../../types'
 
 interface RawTrack {

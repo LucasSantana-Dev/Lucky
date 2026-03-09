@@ -1,5 +1,5 @@
 {
-    "name": "nexus-bot",
+    "name": "lucky-bot",
     "version": "2.5.0",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
@@ -34,7 +34,9 @@
         "db:seed": "prisma db seed",
         "db:setup": "./scripts/setup-database.sh",
         "db:status": "prisma db status",
-        "db:studio": "prisma studio"
+        "db:studio": "prisma studio",
+        "deploy:remote": "./scripts/deploy-remote.sh",
+        "deploy:homelab": "./scripts/deploy-remote.sh main"
     },
     "lint-staged": {
         "*.{ts,tsx}": [

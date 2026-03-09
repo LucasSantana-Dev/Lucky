@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Database setup script for Nexus
+# Database setup script for Lucky
 # This script sets up PostgreSQL database and runs Prisma migrations
 
 set -e
 
-echo "🗄️  Setting up database for Nexus..."
+echo "🗄️  Setting up database for Lucky..."
 
 # Check if DATABASE_URL is set
 if [ -z "$DATABASE_URL" ]; then
@@ -45,4 +45,4 @@ echo "📊 Database status:"
 npx prisma db status
 
 echo ""
-echo "🎉 Nexus database is ready to use!"
+echo "🎉 Lucky database is ready to use!"

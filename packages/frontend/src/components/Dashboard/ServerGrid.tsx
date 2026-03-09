@@ -27,7 +27,7 @@ export default function ServerGrid() {
                 {[1, 2, 3].map((i) => (
                     <div
                         key={i}
-                        className='bg-nexus-bg-secondary border border-nexus-border rounded-lg p-6 space-y-4'
+                        className='bg-lucky-bg-secondary border border-lucky-border rounded-lg p-6 space-y-4'
                     >
                         <div className='flex items-center gap-4'>
                             <Skeleton className='w-16 h-16 rounded-full' />
@@ -54,8 +54,8 @@ export default function ServerGrid() {
                                 className={cn(
                                     'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
                                     filter === filterType
-                                        ? 'bg-nexus-red text-white'
-                                        : 'bg-nexus-bg-secondary text-nexus-text-secondary hover:bg-nexus-bg-tertiary hover:text-white',
+                                        ? 'bg-lucky-red text-white'
+                                        : 'bg-lucky-bg-secondary text-lucky-text-secondary hover:bg-lucky-bg-tertiary hover:text-white',
                                 )}
                                 aria-pressed={filter === filterType}
                             >
@@ -76,7 +76,7 @@ export default function ServerGrid() {
             </div>
             {filteredGuilds.length === 0 && (
                 <div
-                    className='text-center text-nexus-text-secondary py-12'
+                    className='text-center text-lucky-text-secondary py-12'
                     role='status'
                 >
                     No servers found matching the filter.

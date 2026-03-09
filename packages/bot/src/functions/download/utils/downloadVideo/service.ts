@@ -1,7 +1,7 @@
 import path from 'path'
 import play from 'play-dl'
 import fs from 'fs'
-import { errorLog, infoLog } from '@nexus/shared/utils'
+import { errorLog, infoLog } from '@lucky/shared/utils'
 import { convertStreamToFile } from '../../../../utils/ffmpeg/ffmpegWrapper'
 import type { Readable } from 'stream'
 

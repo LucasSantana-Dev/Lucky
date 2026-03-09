@@ -2,7 +2,7 @@ import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
 import { AppError } from '../../errors/AppError'
-import { musicControlService } from '@nexus/shared/services'
+import { musicControlService } from '@lucky/shared/services'
 import { param, buildCommand } from './helpers'
 
 export function setupPlaybackRoutes(app: Express): void {

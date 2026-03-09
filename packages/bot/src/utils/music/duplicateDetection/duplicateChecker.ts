@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { debugLog } from '@nexus/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 import { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 import { extractTags } from './tagExtractor'
 import type { DuplicateCheckResult, SimilarityConfig } from './types'

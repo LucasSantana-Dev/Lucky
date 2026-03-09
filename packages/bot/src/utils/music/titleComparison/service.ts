@@ -1,15 +1,15 @@
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import {
     artistTitlePatterns,
     youtubePatterns,
     artistPatterns,
-} from '@nexus/shared/config'
+} from '@lucky/shared/config'
 import {
     applyPatterns,
     calculateSimilarity,
     normalizeString,
 } from '../../misc/stringUtils'
-import { safeSetInterval } from '@nexus/shared/utils'
+import { safeSetInterval } from '@lucky/shared/utils'
 import type {
     ArtistTitle,
     TitleComparisonOptions,

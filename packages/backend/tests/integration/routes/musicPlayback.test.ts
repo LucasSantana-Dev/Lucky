@@ -15,7 +15,7 @@ jest.mock('../../../src/services/SessionService', () => ({
 
 const mockSendCommand = jest.fn<any>()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     musicControlService: {
         sendCommand: (...args: any[]) => mockSendCommand(...args),
     },

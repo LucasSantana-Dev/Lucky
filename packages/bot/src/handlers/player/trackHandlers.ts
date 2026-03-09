@@ -1,10 +1,10 @@
 import type { Track, GuildQueue } from 'discord-player'
-import { infoLog, debugLog, errorLog } from '@nexus/shared/utils'
+import { infoLog, debugLog, errorLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { replenishQueue } from '../../utils/music/trackManagement/queueOperations'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
-import { featureToggleService } from '@nexus/shared/services'
-import { constants } from '@nexus/shared/config'
+import { featureToggleService } from '@lucky/shared/services'
+import { constants } from '@lucky/shared/config'
 import {
     sendNowPlayingEmbed,
     updateLastFmNowPlaying,
@@ -52,11 +52,14 @@ export const setupTrackHandlers = ({
     player.events.on('playerStart', async (queue: GuildQueue, track: Track) => {
         await handlePlayerStart(queue, track, client)
     })
-    player.events.on('playerFinish', async (queue: GuildQueue) => {
-        await handlePlayerFinish(queue)
-    })
-    player.events.on('playerSkip', async (queue: GuildQueue) => {
-        await handlePlayerSkip(queue)
+    player.events.on(
+        'playerFinish',
+        async (queue: GuildQueue, track: Track) => {
+            await handlePlayerFinish(queue, track)
+        },
+    )
+    player.events.on('playerSkip', async (queue: GuildQueue, track: Track) => {
+        await handlePlayerSkip(queue, track)
     })
     player.events.on('audioTracksAdd', (queue: GuildQueue, tracks: Track[]) => {
         if (Array.isArray(tracks) && tracks.length > 0) {
@@ -153,25 +156,35 @@ async function replenishIfAutoplay(queue: GuildQueue): Promise<void> {
     if (autoplayEnabled) await replenishQueue(queue)
 }
 
-async function scrobbleAndRecord(queue: GuildQueue): Promise<void> {
-    if (!queue.currentTrack) return
-    await scrobbleCurrentTrackIfLastFm(queue)
-    addTrackToHistory(queue.currentTrack, queue.guild.id)
+async function scrobbleAndRecord(
+    queue: GuildQueue,
+    track?: Track,
+): Promise<void> {
+    const trackToRecord = track ?? queue.currentTrack
+    if (!trackToRecord) return
+    await scrobbleCurrentTrackIfLastFm(queue, trackToRecord)
+    addTrackToHistory(trackToRecord, queue.guild.id)
 }
 
-const handlePlayerFinish = async (queue: GuildQueue): Promise<void> => {
+const handlePlayerFinish = async (
+    queue: GuildQueue,
+    track?: Track,
+): Promise<void> => {
     try {
-        await scrobbleAndRecord(queue)
+        await scrobbleAndRecord(queue, track)
         await replenishIfAutoplay(queue)
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
     }
 }
 
-const handlePlayerSkip = async (queue: GuildQueue): Promise<void> => {
+const handlePlayerSkip = async (
+    queue: GuildQueue,
+    track?: Track,
+): Promise<void> => {
     try {
         debugLog({ message: 'Track skipped, checking queue...' })
-        await scrobbleAndRecord(queue)
+        await scrobbleAndRecord(queue, track)
         await replenishIfAutoplay(queue)
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })

@@ -13,7 +13,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     autoMessageService: {
         getMessagesByType: jest.fn(),
         getWelcomeMessage: jest.fn(),
@@ -28,7 +28,7 @@ jest.mock('@nexus/shared/services', () => ({
     },
 }))
 
-import { autoMessageService, serverLogService } from '@nexus/shared/services'
+import { autoMessageService, serverLogService } from '@lucky/shared/services'
 
 describe('Auto Message Routes Integration', () => {
     let app: express.Express

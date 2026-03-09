@@ -1,7 +1,7 @@
 import type { Client } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
-import { errorLog, debugLog } from '@nexus/shared/utils'
-import { twitchNotificationService } from '@nexus/shared/services'
+import { errorLog, debugLog } from '@lucky/shared/utils'
+import { twitchNotificationService } from '@lucky/shared/services'
 import { getTwitchUserAccessToken } from './token'
 
 const EVENTSUB_API_URL = 'https://api.twitch.tv/helix/eventsub/subscriptions'

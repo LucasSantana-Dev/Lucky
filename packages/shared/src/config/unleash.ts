@@ -3,7 +3,7 @@ import { infoLog, errorLog, debugLog } from '../utils/general/log'
 
 const unleashUrl = process.env.UNLEASH_URL ?? ''
 const unleashApiToken = process.env.UNLEASH_API_TOKEN ?? ''
-const unleashAppName = process.env.UNLEASH_APP_NAME ?? 'nexus'
+const unleashAppName = process.env.UNLEASH_APP_NAME ?? 'lucky'
 const unleashEnvironment = process.env.UNLEASH_ENVIRONMENT ?? 'development'
 
 type BootstrapData = unknown

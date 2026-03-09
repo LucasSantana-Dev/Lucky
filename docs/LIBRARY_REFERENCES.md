@@ -1,6 +1,6 @@
-# Nexus Library & Dependency References
+# Lucky Library & Dependency References
 
-Quick reference guide for all major dependencies used in Nexus. This document provides direct links to official documentation, common patterns, and quick start examples.
+Quick reference guide for all major dependencies used in Lucky. This document provides direct links to official documentation, common patterns, and quick start examples.
 
 ## Table of Contents
 
@@ -595,7 +595,7 @@ import { initialize } from 'unleash-client'
 
 const unleash = initialize({
     url: 'http://localhost:4242/api',
-    appName: 'nexus',
+    appName: 'lucky',
     customHeaders: {
         Authorization: 'your_api_token',
     },
@@ -744,7 +744,7 @@ Opinionated code formatter.
 
 ## Additional Resources
 
-### Nexus-Specific Guides
+### Lucky-Specific Guides
 
 - [FFmpeg Usage Guide](./FFMPEG_USAGE.md) - Detailed FFmpeg documentation
 - [Discord.js Reference](./DISCORD_JS_REFERENCE.md) - Discord.js quick reference

@@ -10,7 +10,7 @@ const mockRedisClient = {
     del: jest.fn<(key: string) => Promise<boolean>>(),
 }
 
-jest.mock('@nexus/shared/services/redis/index', () => ({
+jest.mock('@lucky/shared/services/redis/index', () => ({
     redisClient: mockRedisClient,
     RedisClient: jest.fn(),
 }))
@@ -30,24 +30,24 @@ const mockPrisma = {
     },
 }
 
-jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
+jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
-jest.mock('@nexus/shared/utils/general/log', () => ({
+jest.mock('@lucky/shared/utils/general/log', () => ({
     errorLog: jest.fn(),
     debugLog: jest.fn(),
     infoLog: jest.fn(),
     warnLog: jest.fn(),
 }))
 
-jest.mock('@nexus/shared/generated/prisma/client', () => ({
+jest.mock('@lucky/shared/generated/prisma/client', () => ({
     Prisma: { JsonNull: null },
 }))
 
-jest.mock('@nexus/shared/services/embedValidation', () => ({}))
+jest.mock('@lucky/shared/services/embedValidation', () => ({}))
 
-jest.mock('@nexus/shared/services/ModerationService', () => ({}))
+jest.mock('@lucky/shared/services/ModerationService', () => ({}))
 
 describe('Redis Caching Integration', () => {
     beforeEach(() => {
@@ -62,7 +62,7 @@ describe('Redis Caching Integration', () => {
 
         beforeEach(async () => {
             const mod =
-                await import('@nexus/shared/services/CustomCommandService')
+                await import('@lucky/shared/services/CustomCommandService')
             service = new mod.CustomCommandService()
         })
 
@@ -200,7 +200,7 @@ describe('Redis Caching Integration', () => {
 
         beforeEach(async () => {
             const mod =
-                await import('@nexus/shared/services/moderationSettings')
+                await import('@lucky/shared/services/moderationSettings')
             getModerationSettings = mod.getModerationSettings
             updateModerationSettings = mod.updateModerationSettings
         })

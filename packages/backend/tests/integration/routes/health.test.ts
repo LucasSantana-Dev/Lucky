@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
 import { setupHealthRoutes } from '../../../src/routes/health'
-import { redisClient } from '@nexus/shared/services'
+import { redisClient } from '@lucky/shared/services'
 
 const mockRedis = redisClient as jest.Mocked<typeof redisClient>
 

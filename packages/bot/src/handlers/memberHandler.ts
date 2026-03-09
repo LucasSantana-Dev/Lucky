@@ -6,9 +6,9 @@ import {
     ChannelType,
     EmbedBuilder,
 } from 'discord.js'
-import { autoMessageService } from '@nexus/shared/services'
-import { featureToggleService } from '@nexus/shared/services'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { autoMessageService } from '@lucky/shared/services'
+import { featureToggleService } from '@lucky/shared/services'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 
 async function handleMemberAdd(member: GuildMember): Promise<void> {
     if (!member.guild) return

@@ -1,1 +1,1 @@
-export { convertStreamToFile, convertFileToFile } from '@nexus/shared/utils'
+export { convertStreamToFile, convertFileToFile } from '@lucky/shared/utils'

@@ -1,7 +1,7 @@
 import { getCommandsFromDirectory } from '../../../utils/command/getCommandsFromDirectory'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 async function getDownloadCommands() {
     try {

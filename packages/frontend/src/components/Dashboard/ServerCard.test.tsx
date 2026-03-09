@@ -69,7 +69,7 @@ describe('ServerCard', () => {
 
         const badge = screen.getByText(/bot added/i)
         expect(badge).toBeInTheDocument()
-        expect(badge).toHaveClass('bg-nexus-success/20')
+        expect(badge).toHaveClass('bg-lucky-success/20')
     })
 
     test('shows "Not Added" badge when bot is not in server', () => {
@@ -77,7 +77,7 @@ describe('ServerCard', () => {
 
         const badge = screen.getByText(/not added/i)
         expect(badge).toBeInTheDocument()
-        expect(badge).toHaveClass('bg-nexus-error/20')
+        expect(badge).toHaveClass('bg-lucky-error/20')
     })
 
     test('shows Manage button when bot is added', () => {

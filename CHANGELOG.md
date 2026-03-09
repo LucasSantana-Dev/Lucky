@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Lucky branding artifacts in `packages/frontend/branding`:
+  `DESIGN_SYSTEM.md` and `BRANDING_GUIDE.md`
+- Lucky logo and favicon runtime assets in `packages/frontend/public`
+
+### Fixed
+
+- Music now-playing updates no longer send extra plain-text messages on every track change
+- Music now-playing embeds now reuse one message per guild channel to reduce chat spam
+- Music now-playing footer/requested fields now use plain text formatting in Discord footers
+- Last.fm scrobbling now records the finished/skipped track explicitly from player events
+- Last.fm connect route now supports authenticated dashboard flow without requiring query `state`
+- Autoplay queue replenishment now searches and enqueues a related track when queue is empty
+- Deploy workflow now retries webhook calls with `/webhook/deploy` after HTTP 405
+- Deploy script now restarts Cloudflare tunnel (`cloudflared`) during rollout
+- Deploy script now prevents concurrent runs with a lock to avoid overlapping container rollouts
+- Deploy script now falls back to restarting `lucky-tunnel` directly when compose profile restart is unavailable
+- Frontend theming now maps legacy `lucky-*` classes to the Lucky purple/gold palette
+- Frontend typography now uses Lucky type tokens (`Sora`, `Manrope`, `JetBrains Mono`) instead of the old default stack
+
+### Changed
+
+- Added root npm deploy shortcuts: `npm run deploy:remote` and `npm run deploy:homelab`
+- `scripts/deploy-remote.sh` now targets workflow file `deploy.yml` and waits for the dispatch run more reliably
+- `scripts/deploy-remote.sh` now always prints failed GitHub Actions logs before exiting
+- Added typography specification to Lucky brand docs (`DESIGN_SYSTEM.md` and `BRANDING_GUIDE.md`)
+
 ## [2.5.0] - 2026-03-08
 
 ### Added
@@ -48,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed remaining LukBot references to NexusBot (Docker images, Cursor rules, env vars)
+- Renamed remaining LukBot references to Lucky (Docker images, Cursor rules, env vars)
 - YouTube extractor uses IOS client with 32MB buffer for stable playback
 
 ## [2.3.0] - 2026-03-08
@@ -149,9 +177,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed - GitHub repo rename
 
-- Renamed GitHub repository from `LukBot` to `Nexus`
+- Renamed GitHub repository from `LukBot` to `Lucky`
 - Updated all remaining `LukBot` references in scripts, Dockerfile, and Cursor rules
-- Renamed `.cursor/rules/lukbot-*.mdc` to `nexus-*.mdc`
+- Renamed `.cursor/rules/lukbot-*.mdc` to `lucky-*.mdc`
 
 ### Added - Backend quality infrastructure
 
@@ -182,11 +210,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replaced emoji icons (☰, ⭐, ⚙) with Lucide icons in ServersPage tabs
 - Fixed 30+ broken CSS class references across 17 component files:
-  - `text-text-secondary` → `text-nexus-text-secondary`
+  - `text-text-secondary` → `text-lucky-text-secondary`
   - `text-text-primary` → `text-white`
-  - `bg-bg-tertiary/secondary/active/primary` → `bg-nexus-bg-*`
-  - `border-bg-border` → `border-nexus-border`
-- All pages and components now use consistent `nexus-*` design tokens
+  - `bg-bg-tertiary/secondary/active/primary` → `bg-lucky-bg-*`
+  - `border-bg-border` → `border-lucky-border`
+- All pages and components now use consistent `lucky-*` design tokens
 
 ### Fixed - Auth redirect loop
 
@@ -267,7 +295,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar already had all nav sections (Main, Moderation, Management, Extras) — now all routes are wired
 - All pages are fully responsive (mobile sidebar drawer, stacked layouts, sticky save bars on mobile)
 - Framer Motion animations for cards, lists, and page transitions
-- Dark theme consistent with Nexus design system (custom CSS variables)
+- Dark theme consistent with Lucky design system (custom CSS variables)
 
 ### Added - Moderation System Implementation
 
@@ -497,8 +525,8 @@ npm run db:generate
 - **Frontend**: Added `nginx/frontend.conf` for static-only serving (SPA fallback); frontend container no longer uses reverse-proxy config.
 - **Dockerfile**: Split production into `production-bot` (full runtime with ffmpeg/opus/yt-dlp) and `production-backend` (slim node:alpine). Backend healthcheck uses HTTP check on root.
 - **docker-compose.yml**: Expose only nginx (port 8080); removed frontend and backend host ports. Added json-file logging (max-size 10m, max-file 3) for all services. Build targets updated to `production-bot` and `production-backend`.
-- **docker-compose.dev.yml**: Renamed network and containers to `nexus-*`. Added postgres service for full-stack dev. Same logging limits.
-- **scripts/discord-bot.sh**: Dev build uses main Dockerfile with `--target development --build-arg SERVICE=bot` (no root Dockerfile.dev). Production build uses `--target production-bot`. Image tags: `nexus-bot:dev`, `nexus-bot:latest`.
+- **docker-compose.dev.yml**: Renamed network and containers to `lucky-*`. Added postgres service for full-stack dev. Same logging limits.
+- **scripts/discord-bot.sh**: Dev build uses main Dockerfile with `--target development --build-arg SERVICE=bot` (no root Dockerfile.dev). Production build uses `--target production-bot`. Image tags: `lucky-bot:dev`, `lucky-bot:latest`.
 - **Deploy workflow**: Build step uses `--target production-bot` for server image.
 - **.dockerignore**: Added `**/dist/` for package build outputs.
 - **docs**: Added [docs/DOCKER.md](docs/DOCKER.md); updated [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) Docker section.
@@ -508,7 +536,7 @@ npm run db:generate
 - **Commitlint**: Added `@commitlint/cli` and `@commitlint/config-conventional` to root devDependencies so the commit-msg hook works on fresh install.
 - **Env example**: Standardized on `.env.example`; updated README, scripts/discord-bot.sh, and CHANGELOG references from `env.example` to `.env.example`.
 - **docs/DEPENDENCIES.md**: Updated stack overview and packages/frontend section to Vite 7, React 19, Tailwind 4; noted Zod 4 deferred; adjusted upgrade order.
-- **README**: Aligned CI/Deploy badges, clone URL, and support links with canonical repo LucasSantana-Dev/Nexus.
+- **README**: Aligned CI/Deploy badges, clone URL, and support links with canonical repo LucasSantana-Dev/Lucky.
 
 ### Changed - Ignore Playwright report and test-results
 
@@ -653,7 +681,7 @@ npm run db:generate
 ### Added - Cloudflare Tunnel, domain, and DNS for bot frontend
 
 - **docs/CLOUDFLARE_TUNNEL_SETUP.md**
-  - Guide for exposing the Nexus web app at a custom domain over HTTPS using Cloudflare Tunnel: add domain to Cloudflare, change nameservers, install `cloudflared`, create tunnel (remote or local), configure DNS (CNAME), set `WEBAPP_FRONTEND_URL` and `WEBAPP_REDIRECT_URI`, and optional quick tunnel for dev.
+  - Guide for exposing the Lucky web app at a custom domain over HTTPS using Cloudflare Tunnel: add domain to Cloudflare, change nameservers, install `cloudflared`, create tunnel (remote or local), configure DNS (CNAME), set `WEBAPP_FRONTEND_URL` and `WEBAPP_REDIRECT_URI`, and optional quick tunnel for dev.
 - **cloudflared/config.example.yml**
   - Example ingress config for a locally-managed tunnel pointing a hostname to the web app backend port.
 - **.gitignore**
@@ -706,15 +734,15 @@ npm run db:generate
 
 - **Architecture**
   - Production runs only `packages/bot` and `packages/backend`; root `src/` and root `tests/` have been removed.
-  - Bot no longer depends on root `src/`: all bot code and services (music recommendation, autoplay, guild settings, track history) use `@nexus/shared` or live in `packages/bot`.
-  - PM2 `ecosystem.config.cjs`: two apps, `nexus-bot` (packages/bot/dist/index.js) and `nexus-backend` (packages/backend/dist/index.js). Root `dist/index.js` no longer used.
+  - Bot no longer depends on root `src/`: all bot code and services (music recommendation, autoplay, guild settings, track history) use `@lucky/shared` or live in `packages/bot`.
+  - PM2 `ecosystem.config.cjs`: two apps, `lucky-bot` (packages/bot/dist/index.js) and `lucky-backend` (packages/backend/dist/index.js). Root `dist/index.js` no longer used.
   - Root `tsup.config.ts` removed; build is workspace-only (`npm run build` builds shared, bot, backend).
 - **packages/shared**
-  - `TrackHistoryService`, `GuildSettingsService`, and related types exported from `@nexus/shared/services`.
+  - `TrackHistoryService`, `GuildSettingsService`, and related types exported from `@lucky/shared/services`.
   - Removed duplicate `TrackHistoryEntry` from `types/music.ts` (only exported from `TrackHistoryService`).
 - **packages/bot**
-  - `MusicRecommendationService` and `musicRecommendation/` (recommendationEngine, similarityCalculator, types, vectorOperations) moved from root into `packages/bot/src/services/`; uses `trackHistoryService` and `@nexus/shared/utils` for logging.
-  - Autoplay and counters use `guildSettingsService` and `trackHistoryService` from `@nexus/shared/services` instead of root `ServiceFactory`.
+  - `MusicRecommendationService` and `musicRecommendation/` (recommendationEngine, similarityCalculator, types, vectorOperations) moved from root into `packages/bot/src/services/`; uses `trackHistoryService` and `@lucky/shared/utils` for logging.
+  - Autoplay and counters use `guildSettingsService` and `trackHistoryService` from `@lucky/shared/services` instead of root `ServiceFactory`.
   - `stringUtils` and title comparison already in bot; no root dependency.
 - **Testing**
   - Root `test` script runs backend tests only: `npm run test --workspace=packages/backend`.
@@ -732,7 +760,7 @@ npm run db:generate
 ### Fixed - Shared package and code quality
 
 - **packages/shared**
-  - Removed broken `ServiceFactory` export (file did not exist in shared; bot uses `@nexus/shared` services directly).
+  - Removed broken `ServiceFactory` export (file did not exist in shared; bot uses `@lucky/shared` services directly).
   - Added `src/types/optional-infisical.d.ts` so the build passes when optional dependency `@infisical/sdk` is not installed.
 
 ### Added - Twitch stream-online notifications
@@ -750,21 +778,21 @@ npm run db:generate
 ### Added - .fmbot / Last.fm scrobbling
 
 - **Now Playing visibility for .fmbot**
-  - Nexus always sends a plain-text "Now playing: Artist – Title" message when a track starts (autoplay or manual), so .fmbot and other scrobblers can see and scrobble playback when they share the channel
+  - Lucky always sends a plain-text "Now playing: Artist – Title" message when a track starts (autoplay or manual), so .fmbot and other scrobblers can see and scrobble playback when they share the channel
 
 ### Added - Cursor rules, skills, and agents
 
 - **Cursor rules**
-  - `nexus-project.mdc`: project structure, stack, package layout, conventions (always apply)
-  - `nexus-discord-bot.mdc`: Discord commands, player, handlers (packages/bot)
-  - `nexus-backend-api.mdc`: Express API, auth, routes (packages/backend)
-  - `nexus-frontend.mdc`: React app, pages, components (packages/frontend)
-  - `nexus-shared.mdc`: shared config, DB, Redis, types, utils (packages/shared)
+  - `lucky-project.mdc`: project structure, stack, package layout, conventions (always apply)
+  - `lucky-discord-bot.mdc`: Discord commands, player, handlers (packages/bot)
+  - `lucky-backend-api.mdc`: Express API, auth, routes (packages/backend)
+  - `lucky-frontend.mdc`: React app, pages, components (packages/frontend)
+  - `lucky-shared.mdc`: shared config, DB, Redis, types, utils (packages/shared)
 - **Skills**
   - `discord-commands`: add or change slash commands
   - `music-queue-player`: play/queue/skip, player lifecycle, track handling
-  - `prisma-redis-nexus`: Prisma schema/migrations, Redis usage in shared
-  - `nexus-docker-dev`: Docker, compose, local dev runs
+  - `prisma-redis-lucky`: Prisma schema/migrations, Redis usage in shared
+  - `lucky-docker-dev`: Docker, compose, local dev runs
 - **AGENTS.md**
   - Project summary, rule/skill mapping, when to use which MCP (filesystem, GitHub, Context7, Tavily, Playwright, etc.), agent behavior and commands reference
 
@@ -773,7 +801,7 @@ npm run db:generate
 - **MCP configuration and docs**
   - `docs/MCP_SETUP.md`: how to configure MCP servers and secrets for Cursor
   - Wrapper scripts and `.env.mcp.example` live under `~/.cursor/` (global Cursor config); secrets are loaded from `~/.cursor/.env.mcp` instead of being hardcoded in `mcp.json`
-  - Filesystem MCP server path set to Nexus workspace; chrome-devtools and remote servers use `-y` for non-interactive npx
+  - Filesystem MCP server path set to Lucky workspace; chrome-devtools and remote servers use `-y` for non-interactive npx
 - **MCP failing-tools fixes**
   - GitHub: use npx `@modelcontextprotocol/server-github` via `run-mcp-github.sh` (no Docker)
   - cloudflare-observability / cloudflare-bindings: use distinct OAuth callback ports (3335, 3336) to avoid EADDRINUSE
@@ -1161,7 +1189,7 @@ npm run db:generate
 
 ### Added
 
-- **BREAKING**: Renamed project from Nexus to DiscordBot for generic use
+- **BREAKING**: Renamed project from Lucky to DiscordBot for generic use
 - Unified management script (`scripts/discord-bot.sh`) combining Docker and development operations
 - Comprehensive depcheck configuration (`depcheck.config.cjs`) for cleaner dependency management
 - Docker-first approach for all application operations
@@ -1210,15 +1238,15 @@ npm run db:generate
     - `BOT_COLOR`: Embed color (hex format)
     - `BOT_WEBSITE`: Website URL
     - `BOT_SUPPORT_SERVER`: Discord server invite link
-- **Generic Project Structure**: Renamed from Nexus to DiscordBot for universal use
+- **Generic Project Structure**: Renamed from Lucky to DiscordBot for universal use
 - **Enhanced Documentation**: Comprehensive customization guide and examples
 - **Docker Configuration**: Updated container and network names for generic use
 
 ### Changed
 
-- **BREAKING**: Project renamed from Nexus to DiscordBot
-- **BREAKING**: Package name changed from `nexus` to `discord-bot`
-- **BREAKING**: Script renamed from `nexus.sh` to `discord-bot.sh`
+- **BREAKING**: Project renamed from Lucky to DiscordBot
+- **BREAKING**: Package name changed from `lucky` to `discord-bot`
+- **BREAKING**: Script renamed from `lucky.sh` to `discord-bot.sh`
 - **BREAKING**: Docker images renamed to `discord-bot:latest` and `discord-bot:dev`
 - **BREAKING**: Container names changed to `discord-bot` and `discord-bot-dev`
 - **BREAKING**: Network names changed to `discord-bot-network`
@@ -1228,7 +1256,7 @@ npm run db:generate
 ### Removed
 
 - Personal branding references throughout the codebase
-- Nexus-specific naming in favor of generic DiscordBot naming
+- Lucky-specific naming in favor of generic DiscordBot naming
 
 ### Fixed
 
@@ -1282,7 +1310,7 @@ npm run db:generate
 
 ### Added
 
-- Initial release of Nexus
+- Initial release of Lucky
 - Basic Discord bot functionality
 - Music playback capabilities
 - YouTube integration
@@ -1315,7 +1343,7 @@ npm run db:generate
 - **Package.json scripts**: All scripts now use unified interface
 - **Docker-first approach**: Primary operations now use Docker by default
 - **Test removal**: Test support removed from development scripts
-- **Project renaming**: Nexus → DiscordBot (v1.0.0)
+- **Project renaming**: Lucky → DiscordBot (v1.0.0)
 - **Docker naming**: All container and network names updated for generic use
 - **Build system**: Unified tsup/tsx build system replaces mixed tsc/tsup/tsx usage
 

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { sessionService } from '../services/SessionService'
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 
 export interface AuthenticatedRequest extends Request {
     sessionId?: string

@@ -20,4 +20,4 @@ export {
     type EmbedColor,
     type EmbedEmoji,
     type CreateEmbedOptions,
-} from '@nexus/shared/utils'
+} from '@lucky/shared/utils'

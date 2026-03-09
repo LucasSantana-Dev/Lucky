@@ -9,11 +9,11 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
+jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
-import { AutoMessageService } from '@nexus/shared/services/AutoMessageService'
+import { AutoMessageService } from '@lucky/shared/services/AutoMessageService'
 
 describe('AutoMessageService', () => {
     let service: InstanceType<typeof AutoMessageService>

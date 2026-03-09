@@ -1,4 +1,4 @@
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import type { DependencyUpdate } from './types'
 
 const WEBHOOK_URL = process.env.DEPENDENCY_WEBHOOK_URL

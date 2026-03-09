@@ -2,7 +2,7 @@ import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { validateQuery } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
-import { lyricsService } from '@nexus/shared/services'
+import { lyricsService } from '@lucky/shared/services'
 import { z } from 'zod'
 
 const lyricsQuery = z.object({

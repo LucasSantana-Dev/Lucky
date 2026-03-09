@@ -12,11 +12,11 @@ const mockPrisma: any = {
     },
 }
 
-jest.mock('@nexus/shared/utils/database/prismaClient', () => {
+jest.mock('@lucky/shared/utils/database/prismaClient', () => {
     return { getPrismaClient: () => mockPrisma }
 })
 
-jest.mock('@nexus/shared/services/redis', () => ({
+jest.mock('@lucky/shared/services/redis', () => ({
     redisClient: {
         isHealthy: jest.fn(() => false),
         get: jest.fn(),
@@ -25,14 +25,14 @@ jest.mock('@nexus/shared/services/redis', () => ({
     },
 }))
 
-jest.mock('@nexus/shared/utils/general/log', () => ({
+jest.mock('@lucky/shared/utils/general/log', () => ({
     errorLog: jest.fn(),
     debugLog: jest.fn(),
     infoLog: jest.fn(),
     warnLog: jest.fn(),
 }))
 
-import { CustomCommandService } from '@nexus/shared/services/CustomCommandService'
+import { CustomCommandService } from '@lucky/shared/services/CustomCommandService'
 
 describe('CustomCommandService', () => {
     let service: InstanceType<typeof CustomCommandService>

@@ -154,9 +154,9 @@ test.describe('OAuth Login Flow', () => {
         await page.goto('/')
         await page.waitForLoadState('domcontentloaded')
 
-        await expect(page.locator('h1:has-text("Nexus")').first()).toBeVisible()
+        await expect(page.locator('h1:has-text("Lucky")').first()).toBeVisible()
         await expect(
-            page.locator('h2:has-text("Welcome to Nexus Dashboard")'),
+            page.locator('h2:has-text("Welcome to Lucky Dashboard")'),
         ).toBeVisible()
         await expect(
             page.locator('button:has-text("Login with Discord")'),

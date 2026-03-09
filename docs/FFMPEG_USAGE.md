@@ -1,6 +1,6 @@
 # FFmpeg Usage Guide
 
-Comprehensive guide for using FFmpeg in Nexus for audio processing, format conversion, and audio effects.
+Comprehensive guide for using FFmpeg in Lucky for audio processing, format conversion, and audio effects.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ Comprehensive guide for using FFmpeg in Nexus for audio processing, format conve
 
 ### Using ffmpeg-static (Recommended)
 
-Nexus uses `ffmpeg-static` which provides pre-compiled FFmpeg binaries for all platforms.
+Lucky uses `ffmpeg-static` which provides pre-compiled FFmpeg binaries for all platforms.
 
 ```bash
 npm install ffmpeg-static
@@ -77,7 +77,7 @@ ffmpeg -version
 
 ### Docker Setup
 
-Nexus's Dockerfile already includes FFmpeg via `ffmpeg-static`. No additional configuration needed.
+Lucky's Dockerfile already includes FFmpeg via `ffmpeg-static`. No additional configuration needed.
 
 ```dockerfile
 # FFmpeg is included via npm dependencies

@@ -49,7 +49,7 @@ function FeatureCard({
     const featureName = formatFeatureName(feature.name)
 
     return (
-        <article className='bg-nexus-bg-secondary rounded-xl p-5 border border-nexus-border'>
+        <article className='bg-lucky-bg-secondary rounded-xl p-5 border border-lucky-border'>
             <div className='flex items-start justify-between gap-4'>
                 <div className='flex-1'>
                     <div className='flex items-center gap-2 mb-1'>
@@ -60,8 +60,8 @@ function FeatureCard({
                             className={cn(
                                 'text-xs',
                                 isGlobal
-                                    ? 'bg-nexus-purple/20 text-nexus-purple'
-                                    : 'bg-nexus-blue/20 text-nexus-blue',
+                                    ? 'bg-lucky-purple/20 text-lucky-purple'
+                                    : 'bg-lucky-blue/20 text-lucky-blue',
                             )}
                             aria-label={
                                 isGlobal
@@ -72,7 +72,7 @@ function FeatureCard({
                             {isGlobal ? 'Global' : 'Per-Server'}
                         </Badge>
                     </div>
-                    <p className='text-sm text-nexus-text-secondary'>
+                    <p className='text-sm text-lucky-text-secondary'>
                         {feature.description}
                     </p>
                 </div>
@@ -81,8 +81,8 @@ function FeatureCard({
                         className={cn(
                             'text-sm',
                             enabled
-                                ? 'text-nexus-success'
-                                : 'text-nexus-text-tertiary',
+                                ? 'text-lucky-success'
+                                : 'text-lucky-text-tertiary',
                         )}
                         aria-live='polite'
                     >

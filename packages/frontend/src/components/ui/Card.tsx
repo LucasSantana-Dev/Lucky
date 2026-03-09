@@ -12,7 +12,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
             <div
                 ref={ref}
                 className={cn(
-                    'bg-nexus-bg-secondary border border-nexus-border rounded-lg',
+                    'bg-lucky-bg-secondary border border-lucky-border rounded-lg',
                     'transition-all duration-200 ease-out',
                     hover && 'hover:border-primary/50 hover:shadow-md',
                     interactive &&

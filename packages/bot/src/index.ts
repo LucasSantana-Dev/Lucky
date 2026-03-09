@@ -1,8 +1,8 @@
-import { ensureEnvironment } from '@nexus/shared/config'
-import { setupErrorHandlers } from '@nexus/shared/utils'
-import { initializeSentry } from '@nexus/shared/utils'
+import { ensureEnvironment } from '@lucky/shared/config'
+import { setupErrorHandlers } from '@lucky/shared/utils'
+import { initializeSentry } from '@lucky/shared/utils'
 import { initializeBot } from './bot/start'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { dependencyCheckService } from './services/DependencyCheckService'
 
 async function main(): Promise<void> {

@@ -16,7 +16,7 @@ jest.mock('../../../src/services/SessionService', () => ({
 const mockGetSettings = jest.fn<any>()
 const mockSetSettings = jest.fn<any>()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
         getGuildSettings: (...args: any[]) => mockGetSettings(...args),
         setGuildSettings: (...args: any[]) => mockSetSettings(...args),

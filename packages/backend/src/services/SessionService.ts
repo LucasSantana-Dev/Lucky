@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { redisClient } from '@nexus/shared/services'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { redisClient } from '@lucky/shared/services'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { DiscordUser } from './DiscordOAuthService'
 
 export interface SessionData {

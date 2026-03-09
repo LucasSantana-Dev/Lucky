@@ -36,7 +36,7 @@ test.describe('Layout and Navigation', () => {
         await expect(dashboardLink).toBeVisible({ timeout: 5000 })
         const dashboardClass = await dashboardLink.getAttribute('class')
 
-        expect(dashboardClass).toMatch(/bg-nexus-red|text-white/)
+        expect(dashboardClass).toMatch(/bg-lucky-red|text-white/)
     })
 
     test('user info in sidebar', async ({ page }) => {
@@ -152,10 +152,10 @@ test.describe('Layout and Navigation', () => {
         await page.waitForTimeout(2000)
     })
 
-    test('Nexus branding in sidebar', async ({ page }) => {
+    test('Lucky branding in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const branding = page.locator('text=Nexus').first()
+        const branding = page.locator('text=Lucky').first()
         await expect(branding).toBeVisible({ timeout: 5000 })
     })
 })

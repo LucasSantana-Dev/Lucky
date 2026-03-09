@@ -19,16 +19,16 @@ const mockModerationSettings = {
     getModerationStats: jest.fn<any>(),
 }
 
-jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
+jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
 }))
 
 jest.mock(
-    '@nexus/shared/services/moderationSettings',
+    '@lucky/shared/services/moderationSettings',
     () => mockModerationSettings,
 )
 
-import { ModerationService } from '@nexus/shared/services/ModerationService'
+import { ModerationService } from '@lucky/shared/services/ModerationService'
 
 describe('ModerationService', () => {
     let service: InstanceType<typeof ModerationService>

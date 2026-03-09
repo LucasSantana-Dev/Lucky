@@ -112,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
             },
         }),
         {
-            name: 'nexus-auth',
+            name: 'lucky-auth',
             partialize: (state) => ({
                 user: state.user,
                 isAuthenticated: state.isAuthenticated,

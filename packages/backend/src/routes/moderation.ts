@@ -9,7 +9,7 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { moderationSchemas as s } from '../schemas/moderation'
-import { moderationService, serverLogService } from '@nexus/shared/services'
+import { moderationService, serverLogService } from '@lucky/shared/services'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/nexus-logo.svg" alt="Nexus" width="320" />
+  <img src="assets/lucky-mascot/outline-v4-neon.jpeg" alt="Lucky" width="320" />
 </p>
 
 <p align="center">
@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Discord.js](https://img.shields.io/badge/Discord.js-14.25-purple.svg)](https://discord.js.org/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
-[![CI](https://github.com/LucasSantana-Dev/Nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Nexus/actions/workflows/ci.yml)
+[![CI](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml)
 
 ## Architecture
 
@@ -37,10 +37,18 @@ packages/
 | Build | tsup (bot), tsc (shared/backend), Vite 7 (frontend) |
 | Infra | Docker (postgres + redis + nginx), Cloudflare Tunnel |
 
+### Design System
+- Brand colors: Lucky purple + gold token palette.
+- Typography:
+  - Display: `Sora`
+  - Body/UI: `Manrope`
+  - Mono/technical: `JetBrains Mono`
+
 ## Features
 
 ### Bot
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
+- Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
 - Auto-mod: word filter, link filter, spam detection
@@ -75,8 +83,8 @@ packages/
 ### Setup
 
 ```bash
-git clone https://github.com/LucasSantana-Dev/Nexus.git
-cd Nexus
+git clone https://github.com/LucasSantana-Dev/Lucky.git
+cd Lucky
 cp .env.example .env    # Configure DISCORD_TOKEN, CLIENT_ID, DATABASE_URL
 npm install
 npm run build
@@ -104,6 +112,16 @@ npm run test            # Backend tests (Jest)
 npm run test:coverage   # With coverage report
 npm run format          # Prettier
 ```
+
+### Remote Deploy (No SSH)
+
+```bash
+./scripts/deploy-remote.sh main
+# or
+npm run deploy:homelab
+```
+
+Triggers the GitHub `Deploy to Homelab` workflow, waits for completion, and shows failed logs.
 
 ## Environment Variables
 

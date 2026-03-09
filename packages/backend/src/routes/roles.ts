@@ -6,7 +6,7 @@ import { managementSchemas as s } from '../schemas/management'
 import {
     reactionRolesService,
     roleManagementService,
-} from '@nexus/shared/services'
+} from '@lucky/shared/services'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]

@@ -6,7 +6,7 @@ import {
     type Track,
 } from 'discord-player'
 import { spawn } from 'child_process'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import type { YtDlpExtractorOptions, YtDlpExtractorResult } from './types'
 
 /**

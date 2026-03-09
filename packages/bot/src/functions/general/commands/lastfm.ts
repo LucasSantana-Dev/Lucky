@@ -4,7 +4,7 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
 import { isLastFmConfigured } from '../../../lastfm'
-import { lastFmLinkService } from '@nexus/shared/services'
+import { lastFmLinkService } from '@lucky/shared/services'
 
 function encodeState(discordId: string, secret: string): string {
     const payload = Buffer.from(discordId, 'utf8').toString('base64url')
@@ -88,7 +88,7 @@ export default new Command({
                     embeds: [
                         successEmbed(
                             'Connect your Last.fm account',
-                            `Click the link below to authorize Nexus with your Last.fm account. After you connect, tracks you request will be scrobbled to your profile.\n\n**[Click here to connect](${url})**\n\nThis link is valid for a short time and is only for you. Do not share it.`,
+                            `Click the link below to authorize Lucky with your Last.fm account. After you connect, tracks you request will be scrobbled to your profile.\n\n**[Click here to connect](${url})**\n\nThis link is valid for a short time and is only for you. Do not share it.`,
                         ),
                     ],
                     ephemeral: true,

@@ -1,4 +1,4 @@
-import { Bot, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { useAuthStore } from '@/stores/authStore'
 import { useAuthRedirect } from '@/hooks/useAuthRedirect'
@@ -9,8 +9,8 @@ export default function LoginPage() {
     const login = useAuthStore((state) => state.login)
     useAuthRedirect()
     usePageMetadata({
-        title: 'Login - Nexus',
-        description: 'Login to Nexus Dashboard to manage your Discord servers',
+        title: 'Login - Lucky',
+        description: 'Login to Lucky Dashboard to manage your Discord servers',
     })
 
     const handleLogin = () => {
@@ -18,28 +18,30 @@ export default function LoginPage() {
     }
 
     return (
-        <div className='min-h-screen bg-nexus-bg-primary flex flex-col items-center justify-center p-4 relative overflow-hidden'>
-            <div className='absolute inset-0 bg-linear-to-br from-nexus-red/5 via-transparent to-nexus-purple/5' />
+        <div className='min-h-screen bg-lucky-bg-primary flex flex-col items-center justify-center p-4 relative overflow-hidden'>
+            <div className='absolute inset-0 bg-linear-to-br from-lucky-purple/15 via-transparent to-lucky-red/10' />
 
-            <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-nexus-red/10 rounded-full blur-3xl animate-pulse-glow' />
+            <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-lucky-purple/20 rounded-full blur-3xl animate-pulse-glow' />
             <div
-                className='absolute bottom-1/4 right-1/4 w-96 h-96 bg-nexus-purple/10 rounded-full blur-3xl animate-pulse-glow'
+                className='absolute bottom-1/4 right-1/4 w-96 h-96 bg-lucky-red/20 rounded-full blur-3xl animate-pulse-glow'
                 style={{ animationDelay: '1s' }}
             />
 
             <div className='relative z-10 flex flex-col items-center text-center space-y-8'>
                 <div className='flex items-center gap-3'>
                     <div className='relative'>
-                        <div className='w-16 h-16 bg-nexus-red rounded-xl flex items-center justify-center shadow-lg shadow-nexus-red/30'>
-                            <Bot className='w-10 h-10 text-white' />
-                        </div>
-                        <div className='absolute -top-1 -right-1 w-4 h-4 bg-nexus-success rounded-full border-2 border-nexus-bg-primary' />
+                        <img
+                            src='/lucky-logo.png'
+                            alt='Lucky'
+                            className='w-16 h-16 rounded-xl object-cover shadow-lg shadow-lucky-purple/40'
+                        />
+                        <div className='absolute -top-1 -right-1 w-4 h-4 bg-lucky-success rounded-full border-2 border-lucky-bg-primary' />
                     </div>
                     <div className='text-left'>
                         <h1 className='text-4xl font-bold text-white tracking-tight'>
-                            Nexus
+                            Lucky
                         </h1>
-                        <p className='text-nexus-text-secondary text-sm'>
+                        <p className='text-lucky-text-secondary text-sm'>
                             Discord Bot Management
                         </p>
                     </div>
@@ -47,9 +49,9 @@ export default function LoginPage() {
 
                 <div className='max-w-md space-y-2'>
                     <h2 className='text-xl font-semibold text-white'>
-                        Welcome to Nexus Dashboard
+                        Welcome to Lucky Dashboard
                     </h2>
-                    <p className='text-nexus-text-secondary'>
+                    <p className='text-lucky-text-secondary'>
                         Manage your Discord servers, configure bot features, and
                         customize commands all in one place.
                     </p>
@@ -58,7 +60,7 @@ export default function LoginPage() {
                 <Button
                     onClick={handleLogin}
                     disabled={isLoading}
-                    className='bg-nexus-red hover:bg-nexus-red/90 text-white px-8 py-6 text-lg font-semibold rounded-lg shadow-lg shadow-nexus-red/30 transition-all hover:shadow-xl hover:shadow-nexus-red/40 disabled:opacity-50'
+                    className='bg-lucky-red hover:bg-lucky-red/90 text-white px-8 py-6 text-lg font-semibold rounded-lg shadow-lg shadow-lucky-red/30 transition-all hover:shadow-xl hover:shadow-lucky-red/40 disabled:opacity-50'
                 >
                     {isLoading ? (
                         <>
@@ -80,33 +82,33 @@ export default function LoginPage() {
                 </Button>
 
                 <div className='grid grid-cols-3 gap-4 mt-8 text-center'>
-                    <div className='p-4 bg-nexus-bg-secondary/50 rounded-lg border border-nexus-border'>
+                    <div className='p-4 bg-lucky-bg-secondary/50 rounded-lg border border-lucky-border'>
                         <div className='text-2xl font-bold text-white'>32+</div>
-                        <div className='text-xs text-nexus-text-tertiary'>
+                        <div className='text-xs text-lucky-text-tertiary'>
                             Modules
                         </div>
                     </div>
-                    <div className='p-4 bg-nexus-bg-secondary/50 rounded-lg border border-nexus-border'>
+                    <div className='p-4 bg-lucky-bg-secondary/50 rounded-lg border border-lucky-border'>
                         <div className='text-2xl font-bold text-white'>
                             100+
                         </div>
-                        <div className='text-xs text-nexus-text-tertiary'>
+                        <div className='text-xs text-lucky-text-tertiary'>
                             Commands
                         </div>
                     </div>
-                    <div className='p-4 bg-nexus-bg-secondary/50 rounded-lg border border-nexus-border'>
+                    <div className='p-4 bg-lucky-bg-secondary/50 rounded-lg border border-lucky-border'>
                         <div className='text-2xl font-bold text-white'>
                             24/7
                         </div>
-                        <div className='text-xs text-nexus-text-tertiary'>
+                        <div className='text-xs text-lucky-text-tertiary'>
                             Uptime
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className='absolute bottom-4 text-center text-nexus-text-disabled text-sm'>
-                © 2026 Nexus. All rights reserved.
+            <div className='absolute bottom-4 text-center text-lucky-text-disabled text-sm'>
+                © 2026 Lucky. All rights reserved.
             </div>
         </div>
     )

@@ -1,7 +1,7 @@
 services:
     postgres:
         image: postgres:18-alpine
-        container_name: nexus-postgres-dev
+        container_name: lucky-postgres-dev
         restart: unless-stopped
         environment:
             POSTGRES_DB: discordbot
@@ -12,7 +12,7 @@ services:
         volumes:
             - postgres_dev_data:/var/lib/postgresql/data
         networks:
-            - nexus-network
+            - lucky-network
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
             interval: 30s
@@ -26,7 +26,7 @@ services:
 
     redis:
         image: redis:8-alpine
-        container_name: nexus-redis-dev
+        container_name: lucky-redis-dev
         restart: unless-stopped
         command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
         ports:
@@ -34,7 +34,7 @@ services:
         volumes:
             - redis_dev_data:/data
         networks:
-            - nexus-network
+            - lucky-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 30s
@@ -46,7 +46,7 @@ services:
                 max-size: "10m"
                 max-file: "3"
 
-    nexus-bot-dev:
+    lucky-bot-dev:
         build:
             context: .
             dockerfile: Dockerfile
@@ -54,7 +54,7 @@ services:
             args:
                 SERVICE: bot
                 NODE_ENV: development
-        container_name: nexus-bot-dev
+        container_name: lucky-bot-dev
         restart: unless-stopped
         depends_on:
             postgres:
@@ -118,7 +118,7 @@ services:
             # Unleash Configuration
             - UNLEASH_URL=${UNLEASH_URL:-}
             - UNLEASH_API_TOKEN=${UNLEASH_API_TOKEN:-}
-            - UNLEASH_APP_NAME=${UNLEASH_APP_NAME:-nexus}
+            - UNLEASH_APP_NAME=${UNLEASH_APP_NAME:-lucky}
             - UNLEASH_ENVIRONMENT=${UNLEASH_ENVIRONMENT:-development}
             - UNLEASH_BOOTSTRAP_DATA=${UNLEASH_BOOTSTRAP_DATA:-}
             # Web Application
@@ -144,7 +144,7 @@ services:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
         networks:
-            - nexus-network
+            - lucky-network
         healthcheck:
             test: ["CMD", "node", "-e", "console.log('Bot is running')"]
             interval: 30s
@@ -162,5 +162,5 @@ volumes:
     redis_dev_data:
 
 networks:
-    nexus-network:
+    lucky-network:
         driver: bridge

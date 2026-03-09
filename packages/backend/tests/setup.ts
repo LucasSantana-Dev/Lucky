@@ -95,7 +95,7 @@ jest.mock('../src/middleware/rateLimit', () => ({
     writeLimiter: passthrough,
 }))
 
-jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
+jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: jest.fn(() => ({
         $connect: jest.fn(),
         $disconnect: jest.fn(),
@@ -103,7 +103,7 @@ jest.mock('@nexus/shared/utils/database/prismaClient', () => ({
     disconnectPrisma: jest.fn(),
 }))
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     redisClient: {
         isHealthy: jest.fn(() => true),
         get: jest.fn(),
@@ -125,7 +125,7 @@ jest.mock('@nexus/shared/services', () => ({
     musicControlService: {},
 }))
 
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     debugLog: jest.fn(),
     infoLog: jest.fn(),

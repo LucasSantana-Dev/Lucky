@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { QueueState } from './types'
-import { debugLog } from '@nexus/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 
 /**
  * Get current queue state

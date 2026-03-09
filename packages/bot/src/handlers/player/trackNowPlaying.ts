@@ -1,9 +1,9 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { ColorResolvable, TextChannel, User } from 'discord.js'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
-import { constants } from '@nexus/shared/config'
+import { constants } from '@lucky/shared/config'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
@@ -46,8 +46,9 @@ export async function sendNowPlayingEmbed(
 
     const requester = track.requestedBy
     const requesterInfo = requester
-        ? `Added by **${requester.username}**`
+        ? `Added by ${requester.username}`
         : 'Added automatically'
+    const requestedByInfo = requester ? requester.username : 'Autoplay'
     const footer = isAutoplay
         ? `Autoplay • ${getAutoplayCount(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
         : requesterInfo
@@ -65,16 +66,33 @@ export async function sendNowPlayingEmbed(
                 inline: true,
             },
             { name: '🌐 Source', value: getSource(track.url), inline: true },
-            { name: '👤 Requested', value: requesterInfo, inline: true },
+            { name: '👤 Requested', value: requestedByInfo, inline: true },
         ],
         footer,
     })
 
-    const nowPlayingText = `Now playing: ${track.author} – ${track.title}`
-    const message = await metadata.channel.send({
-        content: nowPlayingText,
-        embeds: [embed],
-    })
+    const previousMessage = songInfoMessages.get(queue.guild.id)
+    if (previousMessage && previousMessage.channelId === metadata.channel.id) {
+        try {
+            const message = await metadata.channel.messages.fetch(
+                previousMessage.messageId,
+            )
+            await message.edit({ content: null, embeds: [embed] })
+            debugLog({
+                message: 'Updated now playing message in channel',
+                data: {
+                    guildId: queue.guild.id,
+                    trackTitle: track.title,
+                    isAutoplay,
+                },
+            })
+            return
+        } catch {
+            songInfoMessages.delete(queue.guild.id)
+        }
+    }
+
+    const message = await metadata.channel.send({ embeds: [embed] })
 
     songInfoMessages.set(queue.guild.id, {
         messageId: message.id,
@@ -113,22 +131,25 @@ export async function updateLastFmNowPlaying(
 
 export async function scrobbleCurrentTrackIfLastFm(
     queue: GuildQueue,
+    track?: Track,
 ): Promise<void> {
-    const track = queue.currentTrack
-    if (!track || !isLastFmConfigured()) return
-    const sessionKey = await getSessionKeyForUser(track.requestedBy?.id)
+    const trackToScrobble = track ?? queue.currentTrack
+    if (!trackToScrobble || !isLastFmConfigured()) return
+    const sessionKey = await getSessionKeyForUser(
+        trackToScrobble.requestedBy?.id,
+    )
     if (!sessionKey) return
     const startedAt = lastFmTrackStartTime.get(queue.guild.id)
     lastFmTrackStartTime.delete(queue.guild.id)
     const timestamp = startedAt ?? Math.floor(Date.now() / 1000)
     const durationSec =
-        typeof track.duration === 'number'
-            ? Math.round(track.duration / 1000)
+        typeof trackToScrobble.duration === 'number'
+            ? Math.round(trackToScrobble.duration / 1000)
             : undefined
     try {
         await lastFmScrobble(
-            track.author,
-            track.title,
+            trackToScrobble.author,
+            trackToScrobble.title,
             timestamp,
             durationSec,
             sessionKey,

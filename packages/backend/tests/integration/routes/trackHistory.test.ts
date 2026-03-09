@@ -19,7 +19,7 @@ const mockGetTopTracks = jest.fn<any>()
 const mockGetTopArtists = jest.fn<any>()
 const mockClearHistory = jest.fn<any>()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: (...args: any[]) => mockGetHistory(...args),
         generateStats: (...args: any[]) => mockGenerateStats(...args),

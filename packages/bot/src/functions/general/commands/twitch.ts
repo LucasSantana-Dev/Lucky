@@ -4,8 +4,8 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { errorEmbed } from '../../../utils/general/embeds'
-import { errorLog } from '@nexus/shared/utils'
-import { featureToggleService } from '@nexus/shared/services'
+import { errorLog } from '@lucky/shared/utils'
+import { featureToggleService } from '@lucky/shared/services'
 import {
     handleTwitchAdd,
     handleTwitchRemove,

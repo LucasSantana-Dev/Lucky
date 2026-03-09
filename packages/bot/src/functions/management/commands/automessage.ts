@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command.js'
-import type { MessageType } from '@nexus/shared/services'
-import { errorLog } from '@nexus/shared/utils'
+import type { MessageType } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import {
     handleAutoMessageConfig,

@@ -4,7 +4,7 @@ import {
     type Message,
     type VoiceChannel,
 } from 'discord.js'
-import { infoLog, errorLog, debugLog } from '@nexus/shared/utils'
+import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,

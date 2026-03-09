@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 import { AppError } from '../errors/AppError'
 
 export function errorHandler(

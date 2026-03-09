@@ -79,11 +79,11 @@ export default function CustomCommandsPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <Terminal className='w-16 h-16 text-nexus-text-tertiary mb-4' />
+                <Terminal className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-nexus-text-secondary text-sm'>
+                <p className='text-lucky-text-secondary text-sm'>
                     Select a server to manage commands
                 </p>
             </div>
@@ -96,7 +96,7 @@ export default function CustomCommandsPage() {
                 <h1 className='text-2xl font-bold text-white'>
                     Custom Commands
                 </h1>
-                <p className='text-sm text-nexus-text-secondary mt-1'>
+                <p className='text-sm text-lucky-text-secondary mt-1'>
                     Manage and configure commands for {selectedGuild.name}
                 </p>
             </header>
@@ -105,17 +105,17 @@ export default function CustomCommandsPage() {
             <Card className='p-4'>
                 <div className='flex flex-col sm:flex-row gap-3'>
                     <div className='relative flex-1'>
-                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-tertiary' />
+                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
                         <Input
                             placeholder='Search commands...'
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className='pl-9 bg-nexus-bg-tertiary border-nexus-border text-white placeholder:text-nexus-text-tertiary'
+                            className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className='absolute right-3 top-1/2 -translate-y-1/2 text-nexus-text-tertiary hover:text-white'
+                                className='absolute right-3 top-1/2 -translate-y-1/2 text-lucky-text-tertiary hover:text-white'
                             >
                                 <X className='w-4 h-4' />
                             </button>
@@ -131,8 +131,8 @@ export default function CustomCommandsPage() {
                             className={cn(
                                 'px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
                                 !selectedCategory
-                                    ? 'bg-nexus-red/15 text-nexus-red border-nexus-red/30'
-                                    : 'bg-nexus-bg-tertiary text-nexus-text-secondary border-nexus-border hover:text-white',
+                                    ? 'bg-lucky-red/15 text-lucky-red border-lucky-red/30'
+                                    : 'bg-lucky-bg-tertiary text-lucky-text-secondary border-lucky-border hover:text-white',
                             )}
                         >
                             All ({commands.length})
@@ -149,8 +149,8 @@ export default function CustomCommandsPage() {
                                     'px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
                                     selectedCategory === cat
                                         ? CATEGORY_COLORS[cat] ||
-                                              'bg-nexus-bg-active text-white border-nexus-border'
-                                        : 'bg-nexus-bg-tertiary text-nexus-text-secondary border-nexus-border hover:text-white',
+                                              'bg-lucky-bg-active text-white border-lucky-border'
+                                        : 'bg-lucky-bg-tertiary text-lucky-text-secondary border-lucky-border hover:text-white',
                                 )}
                             >
                                 {cat} (
@@ -194,13 +194,13 @@ export default function CustomCommandsPage() {
                             >
                                 <Card
                                     className={cn(
-                                        'p-4 transition-all hover:border-nexus-border/80',
+                                        'p-4 transition-all hover:border-lucky-border/80',
                                         !cmd.enabled && 'opacity-60',
                                     )}
                                 >
                                     <div className='flex items-start gap-3'>
-                                        <div className='p-2 rounded-lg bg-nexus-bg-active shrink-0'>
-                                            <Code className='w-4 h-4 text-nexus-text-secondary' />
+                                        <div className='p-2 rounded-lg bg-lucky-bg-active shrink-0'>
+                                            <Code className='w-4 h-4 text-lucky-text-secondary' />
                                         </div>
                                         <div className='flex-1 min-w-0'>
                                             <div className='flex items-center gap-2'>
@@ -214,13 +214,13 @@ export default function CustomCommandsPage() {
                                                         CATEGORY_COLORS[
                                                             cmd.category
                                                         ] ||
-                                                            'bg-nexus-bg-tertiary text-nexus-text-secondary border-nexus-border',
+                                                            'bg-lucky-bg-tertiary text-lucky-text-secondary border-lucky-border',
                                                     )}
                                                 >
                                                     {cmd.category}
                                                 </Badge>
                                             </div>
-                                            <p className='text-xs text-nexus-text-tertiary mt-1 line-clamp-2'>
+                                            <p className='text-xs text-lucky-text-tertiary mt-1 line-clamp-2'>
                                                 {cmd.description}
                                             </p>
                                         </div>
@@ -237,11 +237,11 @@ export default function CustomCommandsPage() {
                     </AnimatePresence>
                 ) : (
                     <div className='col-span-full py-16 text-center'>
-                        <Terminal className='w-12 h-12 text-nexus-text-tertiary mx-auto mb-3' />
-                        <p className='text-sm text-nexus-text-secondary'>
+                        <Terminal className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
+                        <p className='text-sm text-lucky-text-secondary'>
                             No commands found
                         </p>
-                        <p className='text-xs text-nexus-text-tertiary mt-1'>
+                        <p className='text-xs text-lucky-text-tertiary mt-1'>
                             {searchQuery || selectedCategory
                                 ? 'Try adjusting your filters'
                                 : 'Commands will appear here'}

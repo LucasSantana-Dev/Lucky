@@ -1,8 +1,8 @@
-import { errorLog } from '@nexus/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 import {
     guildSettingsService,
     trackHistoryService,
-} from '@nexus/shared/services'
+} from '@lucky/shared/services'
 
 /**
  * Get autoplay statistics for a guild

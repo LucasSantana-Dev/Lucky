@@ -4,7 +4,7 @@ import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { guildSettingsService } from '@nexus/shared/services'
+import { guildSettingsService } from '@lucky/shared/services'
 import { z } from 'zod'
 
 function p(val: string | string[]): string {

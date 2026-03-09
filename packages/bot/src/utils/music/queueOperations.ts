@@ -6,7 +6,7 @@ import type {
 } from './types'
 import { validateTracks } from './trackValidator'
 import { AsyncQueueManager } from './queue/asyncQueueManager'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 export {
     clearQueue,
     shuffleQueue,

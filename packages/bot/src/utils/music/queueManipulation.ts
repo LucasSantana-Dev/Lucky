@@ -1,5 +1,6 @@
-import type { Track, GuildQueue } from 'discord-player'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { QueryType, type Track, type GuildQueue } from 'discord-player'
+import type { User } from 'discord.js'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export async function clearQueue(queue: GuildQueue): Promise<boolean> {
     try {
@@ -96,9 +97,41 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
     try {
         debugLog({
             message: 'Replenishing queue',
-            data: { guildId: queue.guild.id },
+            data: { guildId: queue.guild.id, queueSize: queue.tracks.size },
         })
-        debugLog({ message: 'Queue replenished successfully' })
+
+        if (queue.tracks.size > 0) return
+
+        const currentTrack = queue.currentTrack
+        if (!currentTrack) return
+
+        const metadata = queue.metadata as { requestedBy?: User | null }
+        const requestedBy = currentTrack.requestedBy ?? metadata?.requestedBy
+        const query = `${currentTrack.title} ${currentTrack.author}`.trim()
+
+        const searchResult = await queue.player.search(query, {
+            requestedBy: requestedBy ?? undefined,
+            searchEngine: QueryType.AUTO,
+        })
+
+        if (!searchResult || searchResult.tracks.length === 0) return
+
+        const nextTrack =
+            searchResult.tracks.find(
+                (track) => track.url !== currentTrack.url,
+            ) ?? null
+        if (!nextTrack) return
+
+        queue.addTrack(nextTrack)
+
+        debugLog({
+            message: 'Queue replenished successfully',
+            data: {
+                guildId: queue.guild.id,
+                addedTrack: nextTrack.title,
+                addedTrackUrl: nextTrack.url,
+            },
+        })
     } catch (error) {
         errorLog({ message: 'Error replenishing queue:', error })
     }

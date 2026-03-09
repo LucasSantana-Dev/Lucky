@@ -1,7 +1,7 @@
 import type { Track } from 'discord-player'
 // import { errorLog } from "../../general/log"
 import { isSimilarTitle } from '../titleComparison'
-import { safeSetInterval } from '@nexus/shared/utils'
+import { safeSetInterval } from '@lucky/shared/utils'
 import { TrackCacheManager } from './cacheManager'
 import type {
     TrackInfo,

@@ -1,12 +1,16 @@
 import type { Express, Request, Response } from 'express'
 import crypto from 'node:crypto'
-import { errorLog, debugLog } from '@nexus/shared/utils'
-import { lastFmLinkService } from '@nexus/shared/services'
+import { errorLog, debugLog } from '@lucky/shared/utils'
+import { lastFmLinkService } from '@lucky/shared/services'
 import {
     exchangeTokenForSession,
     isLastFmAuthConfigured,
 } from '../services/LastFmAuthService'
-import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import {
+    optionalAuth,
+    requireAuth,
+    type AuthenticatedRequest,
+} from '../middleware/auth'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
@@ -113,6 +117,7 @@ export function setupLastFmRoutes(app: Express): void {
 
     app.get(
         '/api/lastfm/connect',
+        optionalAuth,
         (req: AuthenticatedRequest, res: Response) => {
             try {
                 if (!isLastFmAuthConfigured()) {
@@ -121,21 +126,23 @@ export function setupLastFmRoutes(app: Express): void {
                         `${frontendUrl}/?error=lastfm_not_configured`,
                     )
                 }
-                const state = req.query.state
-                if (!state || typeof state !== 'string') {
-                    const frontendUrl = getFrontendUrl()
-                    return res.redirect(
-                        `${frontendUrl}/?error=lastfm_invalid_state`,
-                    )
-                }
                 const secret = getLinkSecret()
-                const discordId = decodeAndVerifyState(state, secret)
+                const stateFromQuery = req.query.state
+                const providedState =
+                    typeof stateFromQuery === 'string' ? stateFromQuery : null
+                const discordIdFromState = providedState
+                    ? decodeAndVerifyState(providedState, secret)
+                    : null
+                const discordId = discordIdFromState ?? req.user?.id
+
                 if (!discordId) {
                     const frontendUrl = getFrontendUrl()
                     return res.redirect(
                         `${frontendUrl}/?error=lastfm_invalid_state`,
                     )
                 }
+                const state = providedState ?? encodeState(discordId, secret)
+
                 res.cookie(LASTFM_STATE_COOKIE, state, {
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',

@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import chalk from 'chalk'
-import { infoLog } from '@nexus/shared/utils'
+import { infoLog } from '@lucky/shared/utils'
 
 export const name = 'clientReady'
 export const once = true

@@ -29,7 +29,7 @@ const mockGetByDiscordId = jest.fn()
 const mockSetLink = jest.fn()
 const mockUnlink = jest.fn()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     redisClient: {
         isHealthy: jest.fn(() => true),
         get: jest.fn(),
@@ -246,6 +246,24 @@ describe('Last.fm Routes Integration', () => {
                 .expect(302)
 
             expect(res.headers.location).toContain('error=lastfm_invalid_state')
+        })
+
+        test('should allow authenticated connect without state query', async () => {
+            authed()
+
+            const res = await request(app)
+                .get('/api/lastfm/connect')
+                .set('Cookie', SESSION_COOKIE)
+                .expect(302)
+
+            expect(res.headers.location).toContain('last.fm/api/auth')
+            expect(res.headers.location).toContain('api_key=test-api-key')
+            const cookies = res.headers['set-cookie']
+            const stateCookie = Array.isArray(cookies)
+                ? cookies.find((c: string) => c.startsWith('lastfm_state='))
+                : undefined
+            expect(stateCookie).toBeDefined()
+            expect(stateCookie).toContain('HttpOnly')
         })
 
         test('should redirect with error on invalid state', async () => {

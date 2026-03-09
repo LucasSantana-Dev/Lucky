@@ -10,9 +10,9 @@ import {
 } from 'discord.js'
 import type { ColorResolvable } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { embedBuilderService, hexToDecimal } from '@nexus/shared/services'
-import type { EmbedField } from '@nexus/shared/services'
-import { infoLog, errorLog } from '@nexus/shared/utils'
+import { embedBuilderService, hexToDecimal } from '@lucky/shared/services'
+import type { EmbedField } from '@lucky/shared/services'
+import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 export default new Command({

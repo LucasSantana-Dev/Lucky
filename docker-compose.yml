@@ -1,7 +1,7 @@
 services:
     postgres:
         image: postgres:18-alpine
-        container_name: nexus-postgres
+        container_name: lucky-postgres
         restart: unless-stopped
         environment:
             POSTGRES_DB: discordbot
@@ -10,7 +10,7 @@ services:
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:
-            - nexus-network
+            - lucky-network
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
             interval: 30s
@@ -24,13 +24,13 @@ services:
 
     redis:
         image: redis:8-alpine
-        container_name: nexus-redis
+        container_name: lucky-redis
         restart: unless-stopped
         command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
         volumes:
             - redis_data:/data
         networks:
-            - nexus-network
+            - lucky-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 30s
@@ -43,7 +43,7 @@ services:
                 max-file: "3"
 
     bot:
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-bot:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile
@@ -51,7 +51,7 @@ services:
             args:
                 SERVICE: bot
                 NODE_ENV: production
-        container_name: nexus-bot
+        container_name: lucky-bot
         restart: unless-stopped
         depends_on:
             postgres:
@@ -66,7 +66,7 @@ services:
             - REDIS_HOST=redis
             - REDIS_PORT=6379
             - REDIS_DB=${REDIS_DB:-0}
-            - BOT_NAME=${BOT_NAME:-Nexus}
+            - BOT_NAME=${BOT_NAME:-Lucky}
             - LASTFM_API_KEY=${LASTFM_API_KEY:-}
             - LASTFM_API_SECRET=${LASTFM_API_SECRET:-}
             - LASTFM_SESSION_KEY=${LASTFM_SESSION_KEY:-}
@@ -81,7 +81,7 @@ services:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
         networks:
-            - nexus-network
+            - lucky-network
         logging:
             driver: "json-file"
             options:
@@ -89,7 +89,7 @@ services:
                 max-file: "3"
 
     backend:
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-backend:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile
@@ -97,7 +97,7 @@ services:
             args:
                 SERVICE: backend
                 NODE_ENV: production
-        container_name: nexus-backend
+        container_name: lucky-backend
         restart: unless-stopped
         depends_on:
             postgres:
@@ -121,7 +121,7 @@ services:
             - LASTFM_LINK_SECRET=${LASTFM_LINK_SECRET:-}
             - WEBAPP_FRONTEND_URL=${WEBAPP_FRONTEND_URL:-}
         networks:
-            - nexus-network
+            - lucky-network
         logging:
             driver: "json-file"
             options:
@@ -129,14 +129,14 @@ services:
                 max-file: "3"
 
     frontend:
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-frontend:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile.frontend
-        container_name: nexus-frontend
+        container_name: lucky-frontend
         restart: unless-stopped
         networks:
-            - nexus-network
+            - lucky-network
         logging:
             driver: "json-file"
             options:
@@ -144,11 +144,11 @@ services:
                 max-file: "3"
 
     nginx:
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/nexus}-nginx:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile.nginx
-        container_name: nexus-nginx
+        container_name: lucky-nginx
         restart: unless-stopped
         depends_on:
             - backend
@@ -157,7 +157,7 @@ services:
         ports:
             - "${NGINX_PORT:-8080}:80"
         networks:
-            - nexus-network
+            - lucky-network
         logging:
             driver: "json-file"
             options:
@@ -168,7 +168,7 @@ services:
         build:
             context: ./deploy
             dockerfile: Dockerfile
-        container_name: nexus-webhook
+        container_name: lucky-webhook
         restart: unless-stopped
         command: >
             -hooks /etc/webhook/hooks.json
@@ -185,26 +185,26 @@ services:
             - /var/run/docker.sock:/var/run/docker.sock
         working_dir: /repo
         networks:
-            - nexus-network
+            - lucky-network
         logging:
             driver: "json-file"
             options:
                 max-size: "10m"
                 max-file: "3"
 
-    # Cloudflare Tunnel — exposes nginx to nexus.lucassantana.tech
+    # Cloudflare Tunnel — exposes nginx to lucky.lucassantana.tech
     cloudflared:
         image: cloudflare/cloudflared:latest
-        container_name: nexus-tunnel
+        container_name: lucky-tunnel
         restart: unless-stopped
-        command: tunnel --config /etc/cloudflared/config-nexus.yml run
+        command: tunnel --config /etc/cloudflared/config-lucky.yml run
         user: root
         volumes:
             - ${HOME}/.cloudflared:/etc/cloudflared:ro
         depends_on:
             - nginx
         networks:
-            - nexus-network
+            - lucky-network
         profiles:
             - tunnel
         logging:
@@ -218,5 +218,5 @@ volumes:
     redis_data:
 
 networks:
-    nexus-network:
+    lucky-network:
         driver: bridge

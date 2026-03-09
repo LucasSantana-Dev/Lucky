@@ -53,7 +53,7 @@ export default function LastFmPage() {
     if (isLoading) {
         return (
             <div className='flex items-center justify-center h-64'>
-                <Loader2 className='w-6 h-6 text-nexus-text-secondary animate-spin' />
+                <Loader2 className='w-6 h-6 text-lucky-text-secondary animate-spin' />
             </div>
         )
     }
@@ -66,38 +66,38 @@ export default function LastFmPage() {
                 </div>
                 <div>
                     <h1 className='text-xl font-bold text-white'>Last.fm</h1>
-                    <p className='text-sm text-nexus-text-secondary'>
+                    <p className='text-sm text-lucky-text-secondary'>
                         Scrobble tracks you play to your Last.fm profile
                     </p>
                 </div>
             </div>
 
             {error && (
-                <div className='px-4 py-3 rounded-lg bg-nexus-error/10 border border-nexus-error/20 text-nexus-error text-sm'>
+                <div className='px-4 py-3 rounded-lg bg-lucky-error/10 border border-lucky-error/20 text-lucky-error text-sm'>
                     {error}
                 </div>
             )}
 
             {!status?.configured ? (
-                <div className='rounded-xl bg-nexus-bg-secondary border border-nexus-border p-6'>
+                <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6'>
                     <h2 className='text-lg font-semibold text-white mb-2'>
                         Not Configured
                     </h2>
-                    <p className='text-nexus-text-secondary text-sm'>
+                    <p className='text-lucky-text-secondary text-sm'>
                         Last.fm integration is not configured on this bot. The
                         server owner needs to set{' '}
-                        <code className='text-xs bg-nexus-bg-tertiary px-1.5 py-0.5 rounded'>
+                        <code className='text-xs bg-lucky-bg-tertiary px-1.5 py-0.5 rounded'>
                             LASTFM_API_KEY
                         </code>{' '}
                         and{' '}
-                        <code className='text-xs bg-nexus-bg-tertiary px-1.5 py-0.5 rounded'>
+                        <code className='text-xs bg-lucky-bg-tertiary px-1.5 py-0.5 rounded'>
                             LASTFM_API_SECRET
                         </code>
                         .
                     </p>
                 </div>
             ) : status?.linked ? (
-                <div className='rounded-xl bg-nexus-bg-secondary border border-nexus-border p-6 space-y-4'>
+                <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6 space-y-4'>
                     <div className='flex items-center gap-3'>
                         <div className='w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center'>
                             <Link2 className='w-6 h-6 text-green-500' />
@@ -106,7 +106,7 @@ export default function LastFmPage() {
                             <h2 className='text-lg font-semibold text-white'>
                                 Connected
                             </h2>
-                            <p className='text-nexus-text-secondary text-sm'>
+                            <p className='text-lucky-text-secondary text-sm'>
                                 Linked as{' '}
                                 <a
                                     href={`https://www.last.fm/user/${status.username}`}
@@ -120,14 +120,14 @@ export default function LastFmPage() {
                             </p>
                         </div>
                     </div>
-                    <p className='text-nexus-text-secondary text-sm'>
+                    <p className='text-lucky-text-secondary text-sm'>
                         Tracks you request via the bot will be scrobbled to your
                         Last.fm profile automatically.
                     </p>
                     <button
                         onClick={handleUnlink}
                         disabled={isUnlinking}
-                        className='flex items-center gap-2 px-4 py-2 rounded-lg bg-nexus-error/10 text-nexus-error hover:bg-nexus-error/20 transition-colors text-sm font-medium disabled:opacity-50'
+                        className='flex items-center gap-2 px-4 py-2 rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors text-sm font-medium disabled:opacity-50'
                     >
                         {isUnlinking ? (
                             <Loader2 className='w-4 h-4 animate-spin' />
@@ -138,11 +138,11 @@ export default function LastFmPage() {
                     </button>
                 </div>
             ) : (
-                <div className='rounded-xl bg-nexus-bg-secondary border border-nexus-border p-6 space-y-4'>
+                <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6 space-y-4'>
                     <h2 className='text-lg font-semibold text-white'>
                         Connect Your Account
                     </h2>
-                    <p className='text-nexus-text-secondary text-sm'>
+                    <p className='text-lucky-text-secondary text-sm'>
                         Link your Last.fm account so tracks you play through the
                         bot are automatically scrobbled to your profile.
                     </p>
@@ -156,31 +156,31 @@ export default function LastFmPage() {
                 </div>
             )}
 
-            <div className='rounded-xl bg-nexus-bg-secondary border border-nexus-border p-6'>
+            <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6'>
                 <h3 className='text-sm font-semibold text-white mb-3'>
                     How it works
                 </h3>
-                <ul className='space-y-2 text-sm text-nexus-text-secondary'>
+                <ul className='space-y-2 text-sm text-lucky-text-secondary'>
                     <li className='flex items-start gap-2'>
-                        <span className='text-nexus-text-tertiary mt-0.5'>
+                        <span className='text-lucky-text-tertiary mt-0.5'>
                             1.
                         </span>
                         Connect your Last.fm account above
                     </li>
                     <li className='flex items-start gap-2'>
-                        <span className='text-nexus-text-tertiary mt-0.5'>
+                        <span className='text-lucky-text-tertiary mt-0.5'>
                             2.
                         </span>
                         Play music in a voice channel using the bot
                     </li>
                     <li className='flex items-start gap-2'>
-                        <span className='text-nexus-text-tertiary mt-0.5'>
+                        <span className='text-lucky-text-tertiary mt-0.5'>
                             3.
                         </span>
                         Tracks are automatically scrobbled to your profile
                     </li>
                     <li className='flex items-start gap-2'>
-                        <span className='text-nexus-text-tertiary mt-0.5'>
+                        <span className='text-lucky-text-tertiary mt-0.5'>
                             4.
                         </span>
                         External music bots (Rythm, Groovy, etc.) are also

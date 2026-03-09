@@ -24,7 +24,7 @@ function LoadingSpinner({
                 className={cn('text-primary animate-spin', sizeClasses[size])}
             />
             {message && (
-                <p className='text-sm text-nexus-text-secondary'>{message}</p>
+                <p className='text-sm text-lucky-text-secondary'>{message}</p>
             )}
         </div>
     )

@@ -1,6 +1,6 @@
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { roleManagementService } from '@nexus/shared/services'
+import { roleManagementService } from '@lucky/shared/services'
 import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
 
 async function replyError(

@@ -1,5 +1,5 @@
 import { Events, type GuildMember, type PartialGuildMember } from 'discord.js'
-import { roleManagementService } from '@nexus/shared/services'
+import { roleManagementService } from '@lucky/shared/services'
 
 export const name = Events.GuildMemberUpdate
 

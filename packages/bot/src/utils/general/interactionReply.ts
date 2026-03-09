@@ -12,7 +12,7 @@ import type {
     APIEmbed,
     JSONEncodable,
 } from 'discord.js'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import { errorEmbed, infoEmbed } from './embeds'
 
 // Type for interactions that support reply methods

@@ -7,8 +7,8 @@ import {
     ButtonStyle,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { moderationService } from '@nexus/shared/services'
-import { infoLog, errorLog } from '@nexus/shared/utils'
+import { moderationService } from '@lucky/shared/services'
+import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 export default new Command({

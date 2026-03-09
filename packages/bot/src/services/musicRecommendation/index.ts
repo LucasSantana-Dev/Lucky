@@ -5,14 +5,14 @@ import type {
     UserPreferenceSeed,
     RecommendationContext,
 } from './types'
-import type { TrackHistoryEntry } from '@nexus/shared/services'
+import type { TrackHistoryEntry } from '@lucky/shared/services'
 import {
     generateRecommendations,
     generateUserPreferenceRecommendations,
     generateHistoryBasedRecommendations,
 } from './recommendationEngine'
-import { trackHistoryService } from '@nexus/shared/services'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { trackHistoryService } from '@lucky/shared/services'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export class MusicRecommendationService {
     private readonly config: RecommendationConfig

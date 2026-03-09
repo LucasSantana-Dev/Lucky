@@ -1,5 +1,5 @@
 import type { GuildQueue, Track } from 'discord-player'
-import { debugLog } from '@nexus/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 
 /**
  * Queue strategy implementation for LIFO/FIFO operations

@@ -1,9 +1,9 @@
 import { Events, type Client, type Message } from 'discord.js'
-import { autoModService } from '@nexus/shared/services'
-import { customCommandService } from '@nexus/shared/services'
-import { featureToggleService } from '@nexus/shared/services'
-import { moderationService } from '@nexus/shared/services'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { autoModService } from '@lucky/shared/services'
+import { customCommandService } from '@lucky/shared/services'
+import { featureToggleService } from '@lucky/shared/services'
+import { moderationService } from '@lucky/shared/services'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 
 const AUTOMOD_MUTE_DURATION = 300
 

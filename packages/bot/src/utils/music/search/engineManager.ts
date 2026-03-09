@@ -1,5 +1,5 @@
 import { QueryType, type Player, type SearchResult } from 'discord-player'
-import { debugLog } from '@nexus/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 import {
     createYouTubeErrorMessage,
     logYouTubeError,

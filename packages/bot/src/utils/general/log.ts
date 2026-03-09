@@ -1,1 +1,1 @@
-export * from '@nexus/shared/utils'
+export * from '@lucky/shared/utils'

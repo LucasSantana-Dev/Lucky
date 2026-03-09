@@ -14,7 +14,9 @@
         "baseUrl": ".",
         "paths": {
             "@/*": ["./src/*"],
-            "discord.js": ["../../node_modules/discord.js"]
+            "discord.js": ["../../node_modules/discord.js"],
+            "@lucky/shared": ["../shared/src/index.ts"],
+            "@lucky/shared/*": ["../shared/src/*"]
         }
     },
     "include": ["src/**/*"],

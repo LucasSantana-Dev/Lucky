@@ -6,6 +6,7 @@ EXPECTED_SECRET="${DEPLOY_WEBHOOK_SECRET:-}"
 DEPLOY_DIR="${DEPLOY_DIR:-/repo}"
 DISCORD_WEBHOOK="${DISCORD_DEPLOY_WEBHOOK:-}"
 LOG_PREFIX="[deploy]"
+LOCK_DIR="/tmp/lucky-deploy.lock"
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
@@ -40,6 +41,13 @@ if [ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]; then
     exit 1
 fi
 
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    log "ERROR: another deploy is already running"
+    notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
+    exit 1
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+
 cd "$DEPLOY_DIR"
 git config --global --add safe.directory "$DEPLOY_DIR"
 
@@ -59,6 +67,16 @@ fi
 
 log "Rolling out services..."
 docker compose up -d --remove-orphans bot backend frontend nginx postgres redis
+
+log "Restarting Cloudflare tunnel..."
+if docker compose --profile tunnel up -d cloudflared >/dev/null 2>&1; then
+    log "Cloudflare tunnel restarted via compose profile"
+elif docker ps --format '{{.Names}}' | grep -qx "lucky-tunnel"; then
+    docker restart lucky-tunnel >/dev/null
+    log "Cloudflare tunnel restarted via container restart"
+else
+    log "WARN: Could not restart cloudflared (service unavailable)"
+fi
 
 log "Waiting for health checks..."
 sleep 10

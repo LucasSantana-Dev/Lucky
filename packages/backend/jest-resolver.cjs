@@ -1,5 +1,5 @@
 module.exports = (path, options) => {
-    if (path.startsWith('.') || path.startsWith('@nexus/')) {
+    if (path.startsWith('.') || path.startsWith('@lucky/')) {
         const stripped = path.replace(/\.js$/, '')
         return options.defaultResolver(stripped, options)
     }

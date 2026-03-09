@@ -3,8 +3,8 @@ import {
     type ChatInputCommandInteraction,
     PermissionFlagsBits,
 } from 'discord.js'
-import { moderationService } from '@nexus/shared/services'
-import { getPrismaClient, infoLog } from '@nexus/shared/utils'
+import { moderationService } from '@lucky/shared/services'
+import { getPrismaClient, infoLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 const prisma = getPrismaClient()

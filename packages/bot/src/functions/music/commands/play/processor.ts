@@ -1,4 +1,4 @@
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { detectQueryType } from './queryDetector'
 import { handleSpotifyTrack, handleSpotifyPlaylist } from './spotifyHandler'
 import { handleYouTubePlaylist, handleYouTubeSearch } from './youtubeHandler'

@@ -31,7 +31,7 @@ export default function ServerTogglesSection({
         <div className='space-y-4'>
             <div className='flex items-center gap-2 mb-4'>
                 <Server
-                    className='w-5 h-5 text-nexus-blue'
+                    className='w-5 h-5 text-lucky-blue'
                     aria-hidden='true'
                 />
                 <h2
@@ -47,10 +47,10 @@ export default function ServerTogglesSection({
                     value={selectedGuildId || ''}
                     onValueChange={(v: string) => onSelectGuild(v || null)}
                 >
-                    <SelectTrigger className='w-full max-w-xs bg-nexus-bg-tertiary border-nexus-border text-white'>
+                    <SelectTrigger className='w-full max-w-xs bg-lucky-bg-tertiary border-lucky-border text-white'>
                         <SelectValue placeholder='Select a server...' />
                     </SelectTrigger>
-                    <SelectContent className='bg-nexus-bg-secondary border-nexus-border'>
+                    <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                         {guilds
                             .filter((g) => g.botAdded)
                             .map((guild) => (
@@ -63,9 +63,9 @@ export default function ServerTogglesSection({
             </div>
 
             {!selectedGuildId ? (
-                <div className='bg-nexus-bg-secondary rounded-xl p-8 border border-nexus-border text-center'>
-                    <Server className='w-10 h-10 text-nexus-text-tertiary mx-auto mb-3' />
-                    <p className='text-nexus-text-secondary'>
+                <div className='bg-lucky-bg-secondary rounded-xl p-8 border border-lucky-border text-center'>
+                    <Server className='w-10 h-10 text-lucky-text-tertiary mx-auto mb-3' />
+                    <p className='text-lucky-text-secondary'>
                         Select a server to manage features
                     </p>
                 </div>

@@ -92,11 +92,11 @@ export default function ServerSettingsPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <Settings className='w-16 h-16 text-nexus-text-tertiary mb-4' />
+                <Settings className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-nexus-text-secondary text-sm'>
+                <p className='text-lucky-text-secondary text-sm'>
                     Select a server to manage settings
                 </p>
             </div>
@@ -128,14 +128,14 @@ export default function ServerSettingsPage() {
                     <h1 className='text-2xl font-bold text-white'>
                         Server Settings
                     </h1>
-                    <p className='text-sm text-nexus-text-secondary mt-1'>
+                    <p className='text-sm text-lucky-text-secondary mt-1'>
                         General configuration for {selectedGuild.name}
                     </p>
                 </header>
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className='bg-nexus-red hover:bg-nexus-red/90 gap-2'
+                    className='bg-lucky-red hover:bg-lucky-red/90 gap-2'
                 >
                     {saving ? (
                         <Loader2 className='w-4 h-4 animate-spin' />
@@ -154,7 +154,7 @@ export default function ServerSettingsPage() {
             >
                 <Card className='p-5 space-y-5'>
                     <div className='flex items-center gap-2'>
-                        <Settings className='w-5 h-5 text-nexus-text-secondary' />
+                        <Settings className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='text-base font-semibold text-white'>
                             General
                         </h2>
@@ -162,7 +162,7 @@ export default function ServerSettingsPage() {
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-nexus-text-secondary flex items-center gap-1.5'>
+                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
                                 <UserCog className='w-3 h-3' /> Bot Nickname
                             </Label>
                             <Input
@@ -170,12 +170,12 @@ export default function ServerSettingsPage() {
                                 onChange={(e) =>
                                     update('nickname', e.target.value)
                                 }
-                                placeholder='Nexus'
-                                className='bg-nexus-bg-tertiary border-nexus-border text-white'
+                                placeholder='Lucky'
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-nexus-text-secondary flex items-center gap-1.5'>
+                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Hash className='w-3 h-3' /> Command Prefix
                             </Label>
                             <Input
@@ -185,7 +185,7 @@ export default function ServerSettingsPage() {
                                 }
                                 placeholder='!'
                                 maxLength={3}
-                                className='bg-nexus-bg-tertiary border-nexus-border text-white w-24'
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white w-24'
                             />
                         </div>
                     </div>
@@ -200,7 +200,7 @@ export default function ServerSettingsPage() {
             >
                 <Card className='p-5 space-y-5'>
                     <div className='flex items-center gap-2'>
-                        <Globe className='w-5 h-5 text-nexus-text-secondary' />
+                        <Globe className='w-5 h-5 text-lucky-text-secondary' />
                         <h2 className='text-base font-semibold text-white'>
                             Region & Notifications
                         </h2>
@@ -208,17 +208,17 @@ export default function ServerSettingsPage() {
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-nexus-text-secondary flex items-center gap-1.5'>
+                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Clock className='w-3 h-3' /> Timezone
                             </Label>
                             <Select
                                 value={settings.timezone}
                                 onValueChange={(v) => update('timezone', v)}
                             >
-                                <SelectTrigger className='bg-nexus-bg-tertiary border-nexus-border text-white'>
+                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className='bg-nexus-bg-secondary border-nexus-border'>
+                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                     {TIMEZONES.map((tz) => (
                                         <SelectItem key={tz} value={tz}>
                                             {tz}
@@ -228,7 +228,7 @@ export default function ServerSettingsPage() {
                             </Select>
                         </div>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-nexus-text-secondary flex items-center gap-1.5'>
+                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Bell className='w-3 h-3' /> Updates Channel
                             </Label>
                             <Input
@@ -237,7 +237,7 @@ export default function ServerSettingsPage() {
                                     update('updatesChannel', e.target.value)
                                 }
                                 placeholder='Channel ID for bot updates'
-                                className='bg-nexus-bg-tertiary border-nexus-border text-white'
+                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
                             />
                         </div>
                     </div>
@@ -260,7 +260,7 @@ export default function ServerSettingsPage() {
                                 <h3 className='text-sm font-semibold text-white'>
                                     Disable Command Warnings
                                 </h3>
-                                <p className='text-xs text-nexus-text-tertiary mt-0.5'>
+                                <p className='text-xs text-lucky-text-tertiary mt-0.5'>
                                     Hide permission and cooldown warnings for
                                     users
                                 </p>
@@ -277,11 +277,11 @@ export default function ServerSettingsPage() {
             </motion.div>
 
             {/* Mobile Save Bar */}
-            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-nexus-bg-primary/95 backdrop-blur-sm border-t border-nexus-border z-30'>
+            <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
                 <Button
                     onClick={handleSave}
                     disabled={saving}
-                    className='w-full bg-nexus-red hover:bg-nexus-red/90 gap-2'
+                    className='w-full bg-lucky-red hover:bg-lucky-red/90 gap-2'
                 >
                     {saving ? (
                         <Loader2 className='w-4 h-4 animate-spin' />

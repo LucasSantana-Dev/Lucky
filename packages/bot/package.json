@@ -1,5 +1,5 @@
 {
-    "name": "@nexus/bot",
+    "name": "@lucky/bot",
     "version": "1.0.0",
     "description": "Discord bot application",
     "type": "module",
@@ -15,7 +15,7 @@
     "dependencies": {
         "@discord-player/extractor": "^7.2.0",
         "@discordjs/builders": "^1.13.1",
-        "@nexus/shared": "file:../shared",
+        "@lucky/shared": "file:../shared",
         "@sentry/node": "^10.38.0",
         "chalk": "^5.6.2",
         "discord-player": "^7.1.0",

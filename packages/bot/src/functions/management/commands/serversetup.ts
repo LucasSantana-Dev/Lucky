@@ -10,7 +10,7 @@ import {
     type OverwriteResolvable,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { infoLog, errorLog } from '@nexus/shared/utils'
+import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 interface ChannelDef {
@@ -138,7 +138,7 @@ const FORGE_CATEGORIES: CategoryDef[] = [
             },
             {
                 name: 'music-bot',
-                topic: 'Nexus music commands go here',
+                topic: 'Lucky music commands go here',
             },
         ],
     },

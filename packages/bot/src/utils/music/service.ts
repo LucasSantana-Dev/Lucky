@@ -20,8 +20,8 @@ import {
     isQueueEmpty,
     isQueueFull,
 } from './queueStateManager'
-import { trackHistoryService } from '@nexus/shared/services'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { trackHistoryService } from '@lucky/shared/services'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export class TrackManagementService {
     private readonly options: TrackManagementOptions

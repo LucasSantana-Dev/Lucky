@@ -1,5 +1,5 @@
 import type { GuildQueue } from 'discord-player'
-import { infoLog, debugLog } from '@nexus/shared/utils'
+import { infoLog, debugLog } from '@lucky/shared/utils'
 
 export const setupLifecycleHandlers = (player: {
     events: { on: (event: string, handler: Function) => void }

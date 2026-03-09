@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { debugLog } from '@nexus/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 
 function _getGenreKeywords(): string[] {
     return [

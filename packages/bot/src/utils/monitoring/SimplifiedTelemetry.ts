@@ -4,7 +4,7 @@
 
 import type { ChatInputCommandInteraction, Interaction } from 'discord.js'
 import type { CustomClient } from '../../types'
-import { infoLog, errorLog, debugLog } from '@nexus/shared/utils'
+import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
 
 export interface TelemetrySpan {
     setAttributes: (attrs: Record<string, string>) => void

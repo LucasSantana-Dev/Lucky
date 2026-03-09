@@ -22,19 +22,19 @@ Servers that need API keys or tokens are started via **`~/.cursor/scripts/run-mc
 Infisical uses project-specific scripts so two projects can use different credentials:
 
 - **infisical-craftvaria**: `run-mcp-infisical-craftvaria.sh` (uses `INFISICAL_CRAFTVARIA_*`)
-- **infisical-nexus**: `run-mcp-infisical-nexus.sh` (uses `INFISICAL_NEXUS_*`)
+- **infisical-lucky**: `run-mcp-infisical-lucky.sh` (uses `INFISICAL_LUCKY_*`)
 
 Scripts live under `~/.cursor/scripts/` and must be executable (`chmod +x`).
 
 ## Filesystem server
 
-The filesystem MCP server is configured with the Nexus workspace path so it can read this repo. To point it at another directory, edit the `filesystem` entry in `~/.cursor/mcp.json` and change the path in `args`.
+The filesystem MCP server is configured with the Lucky workspace path so it can read this repo. To point it at another directory, edit the `filesystem` entry in `~/.cursor/mcp.json` and change the path in `args`.
 
 **GitHub** uses `run-mcp-github.sh` and reads `GITHUB_PERSONAL_ACCESS_TOKEN` from `.env.mcp` (no Docker required).
 
 **BrowserStack** uses `run-mcp-browserstack.sh` and reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from `.env.mcp`. If either is unset, the server is skipped (no error).
 
-**Infisical** wrappers skip cleanly when their env vars are unset. For Nexus, set `INFISICAL_NEXUS_CLIENT_ID` and `INFISICAL_NEXUS_CLIENT_SECRET` in one of: `~/.cursor/.env.mcp`, the project `.cursor/.env.mcp`, or the project root `.env`. The Nexus wrapper sources them in that order when the script runs with Nexus as the current directory. The `.cursor/` directory is gitignored.
+**Infisical** wrappers skip cleanly when their env vars are unset. For Lucky, set `INFISICAL_LUCKY_CLIENT_ID` and `INFISICAL_LUCKY_CLIENT_SECRET` in one of: `~/.cursor/.env.mcp`, the project `.cursor/.env.mcp`, or the project root `.env`. The Lucky wrapper sources them in that order when the script runs with Lucky as the current directory. The `.cursor/` directory is gitignored.
 
 ## MCP Gateway (Context Forge)
 
@@ -77,7 +77,7 @@ For each [mcpmarket.com/tools/skills/...](https://mcpmarket.com/tools/skills/) o
 - **BrowserStack**: Set `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` in `.env.mcp`; if unset, the server exits without error.
 - **fetch**: Removed from the default `mcp.json` (requires Docker). To use it, add a `fetch` entry with `"command": "docker"` and `"args": ["run", "-i", "--rm", "mcp/fetch"]` and ensure Docker is running.
 - **cloudflare-observability / cloudflare-bindings**: Each uses a distinct OAuth callback port (3335 and 3336) to avoid port conflicts.
-- **infisical-craftvaria / infisical-nexus**: Set the corresponding vars in `.env.mcp` to enable; when unset, the wrapper exits without error.
+- **infisical-craftvaria / infisical-lucky**: Set the corresponding vars in `.env.mcp` to enable; when unset, the wrapper exits without error.
 
 ## After changes
 

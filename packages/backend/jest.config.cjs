@@ -36,12 +36,12 @@ module.exports = {
   testTimeout: 30000,
   maxWorkers: '50%',
   moduleNameMapper: {
-    '^@nexus/shared$': '<rootDir>/../shared/src/index',
-    '^@nexus/shared/services$': '<rootDir>/../shared/src/services/index',
-    '^@nexus/shared/utils$': '<rootDir>/../shared/src/utils/index',
-    '^@nexus/shared/config$': '<rootDir>/../shared/src/config/index',
-    '^@nexus/shared/types$': '<rootDir>/../shared/src/types/index',
-    '^@nexus/shared/(.*)$': '<rootDir>/../shared/src/$1',
+    '^@lucky/shared$': '<rootDir>/../shared/src/index',
+    '^@lucky/shared/services$': '<rootDir>/../shared/src/services/index',
+    '^@lucky/shared/utils$': '<rootDir>/../shared/src/utils/index',
+    '^@lucky/shared/config$': '<rootDir>/../shared/src/config/index',
+    '^@lucky/shared/types$': '<rootDir>/../shared/src/types/index',
+    '^@lucky/shared/(.*)$': '<rootDir>/../shared/src/$1',
     'generated/prisma/client': '<rootDir>/tests/__mocks__/prismaClient.ts'
   },
   transform: {
@@ -54,7 +54,7 @@ module.exports = {
     }]
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(chalk|#ansi-styles|uuid|@nexus)/)',
+    'node_modules/(?!(chalk|#ansi-styles|uuid|@lucky)/)',
     '<rootDir>/../shared/dist/'
   ],
   moduleFileExtensions: ['ts', 'js', 'json'],

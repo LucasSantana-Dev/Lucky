@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express'
-import { redisClient } from '@nexus/shared/services'
+import { redisClient } from '@lucky/shared/services'
 
 export function setupHealthRoutes(app: Express): void {
     app.get('/api/health', (_req: Request, res: Response) => {

@@ -7,5 +7,5 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['@nexus/shared', 'unfetch', 'isomorphic-unfetch'],
+  external: ['@lucky/shared', 'unfetch', 'isomorphic-unfetch'],
 })

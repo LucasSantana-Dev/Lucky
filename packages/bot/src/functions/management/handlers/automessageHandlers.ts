@@ -1,6 +1,6 @@
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
-import { autoMessageService, type MessageType } from '@nexus/shared/services'
-import { infoLog } from '@nexus/shared/utils'
+import { autoMessageService, type MessageType } from '@lucky/shared/services'
+import { infoLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 async function getMessageByType(guildId: string, type: MessageType) {

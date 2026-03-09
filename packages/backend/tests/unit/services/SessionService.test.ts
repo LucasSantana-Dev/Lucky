@@ -13,11 +13,11 @@ const mockRedisClient = {
     del: jest.fn<any>(),
 }
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     redisClient: mockRedisClient,
 }))
 
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
 }))

@@ -11,7 +11,7 @@ function Header() {
     }
 
     return (
-        <header className='h-16 bg-nexus-bg-secondary border-b border-nexus-border flex items-center justify-between px-4 md:px-6'>
+        <header className='h-16 bg-lucky-bg-secondary border-b border-lucky-border flex items-center justify-between px-4 md:px-6'>
             <div className='flex-1'>
                 <ServerSelector />
             </div>
@@ -32,7 +32,7 @@ function Header() {
                 )}
                 <button
                     onClick={handleLogout}
-                    className='px-3 md:px-4 py-2 bg-nexus-bg-tertiary hover:bg-nexus-bg-active text-white rounded-lg transition-colors text-sm md:text-base'
+                    className='px-3 md:px-4 py-2 bg-lucky-bg-tertiary hover:bg-lucky-bg-active text-white rounded-lg transition-colors text-sm md:text-base'
                 >
                     Logout
                 </button>

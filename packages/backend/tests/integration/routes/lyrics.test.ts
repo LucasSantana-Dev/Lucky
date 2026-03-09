@@ -15,7 +15,7 @@ jest.mock('../../../src/services/SessionService', () => ({
 
 const mockSearchLyrics = jest.fn<any>()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     lyricsService: {
         searchLyrics: (...args: any[]) => mockSearchLyrics(...args),
     },

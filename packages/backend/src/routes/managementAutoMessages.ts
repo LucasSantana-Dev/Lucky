@@ -8,7 +8,7 @@ import {
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { autoMessageSchemas as s } from '../schemas/autoMessages'
-import { autoMessageService, serverLogService } from '@nexus/shared/services'
+import { autoMessageService, serverLogService } from '@lucky/shared/services'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]

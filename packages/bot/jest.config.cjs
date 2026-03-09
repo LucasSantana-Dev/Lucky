@@ -13,13 +13,13 @@ module.exports = {
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],
     moduleNameMapper: {
-        '^@nexus/shared$': '<rootDir>/../shared/src/index',
-        '^@nexus/shared/services$':
+        '^@lucky/shared$': '<rootDir>/../shared/src/index',
+        '^@lucky/shared/services$':
             '<rootDir>/../shared/src/services/index',
-        '^@nexus/shared/utils$': '<rootDir>/../shared/src/utils/index',
-        '^@nexus/shared/config$': '<rootDir>/../shared/src/config/index',
-        '^@nexus/shared/types$': '<rootDir>/../shared/src/types/index',
-        '^@nexus/shared/(.*)$': '<rootDir>/../shared/src/$1',
+        '^@lucky/shared/utils$': '<rootDir>/../shared/src/utils/index',
+        '^@lucky/shared/config$': '<rootDir>/../shared/src/config/index',
+        '^@lucky/shared/types$': '<rootDir>/../shared/src/types/index',
+        '^@lucky/shared/(.*)$': '<rootDir>/../shared/src/$1',
     },
     transform: {
         '^.+\\.ts$': [
@@ -34,7 +34,7 @@ module.exports = {
         ],
     },
     transformIgnorePatterns: [
-        'node_modules/(?!(chalk|@nexus)/)',
+        'node_modules/(?!(chalk|@lucky)/)',
     ],
     moduleFileExtensions: ['ts', 'js', 'json'],
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],

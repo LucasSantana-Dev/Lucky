@@ -1,6 +1,6 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { infoLog, errorLog, debugLog } from '@nexus/shared/utils'
+import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
 import { sendDependencyWebhook } from '../utils/dependency/webhook'
 import type { DependencyUpdate } from '../utils/dependency/types'
 

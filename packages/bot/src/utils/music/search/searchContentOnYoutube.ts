@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction, User } from 'discord.js'
 import type { CustomClient } from '../../../types'
 import type { SearchResult } from 'discord-player'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import { enhancedYouTubeSearch, enhancedAutoSearch } from './index'
 import {
     logYouTubeError,

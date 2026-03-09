@@ -2,7 +2,7 @@ import downloadCommands from './functions/download/commands/index'
 import generalCommands from './functions/general/commands/index'
 import { groupCommands } from './handlers/commandsHandler'
 import musicCommands from './functions/music/commands/index'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import type Command from './models/Command'
 
 export const getCommands = async (): Promise<Command[]> => {

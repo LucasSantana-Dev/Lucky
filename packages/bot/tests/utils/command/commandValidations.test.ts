@@ -3,7 +3,7 @@ import {
     createMockMember,
 } from '../../__mocks__/discord'
 
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     handleError: jest.fn((err: Error) => ({
         message: err.message,
         code: 'TEST_ERROR',

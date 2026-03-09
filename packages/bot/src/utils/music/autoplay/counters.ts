@@ -1,5 +1,5 @@
-import { debugLog, errorLog } from '@nexus/shared/utils'
-import { guildSettingsService } from '@nexus/shared/services'
+import { debugLog, errorLog } from '@lucky/shared/utils'
+import { guildSettingsService } from '@lucky/shared/services'
 
 export const autoplayCounters = new Map<string, number>()
 

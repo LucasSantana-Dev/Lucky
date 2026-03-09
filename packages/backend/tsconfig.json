@@ -13,7 +13,9 @@
         "outDir": "./dist",
         "baseUrl": ".",
         "paths": {
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            "@lucky/shared": ["../shared/src/index.ts"],
+            "@lucky/shared/*": ["../shared/src/*"]
         }
     },
     "include": ["src/**/*"],

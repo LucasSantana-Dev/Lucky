@@ -19,7 +19,7 @@ export default function GlobalTogglesSection({
         <div className='space-y-4'>
             <div className='flex items-center gap-2 mb-4'>
                 <Globe
-                    className='w-5 h-5 text-nexus-purple'
+                    className='w-5 h-5 text-lucky-purple'
                     aria-hidden='true'
                 />
                 <h2
@@ -28,11 +28,11 @@ export default function GlobalTogglesSection({
                 >
                     Global Toggles
                 </h2>
-                <Badge className='bg-nexus-purple/20 text-nexus-purple text-xs'>
+                <Badge className='bg-lucky-purple/20 text-lucky-purple text-xs'>
                     Developer Only
                 </Badge>
             </div>
-            <p className='text-sm text-nexus-text-secondary mb-4'>
+            <p className='text-sm text-lucky-text-secondary mb-4'>
                 These toggles affect all servers using the bot. Only developers
                 can modify these.
             </p>

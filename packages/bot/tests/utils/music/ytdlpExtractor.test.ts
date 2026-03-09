@@ -3,7 +3,7 @@ import { EventEmitter } from 'events'
 import { Readable } from 'stream'
 
 jest.mock('child_process')
-jest.mock('@nexus/shared/utils', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     debugLog: jest.fn(),
 }))

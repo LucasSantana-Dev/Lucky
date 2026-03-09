@@ -9,11 +9,11 @@
 
 | Image                | Command                                                                        |
 | -------------------- | ------------------------------------------------------------------------------ |
-| Bot (production)     | `docker build --target production-bot -t nexus-bot:latest .`                   |
-| Backend (production) | `docker build --target production-backend -t nexus-backend:latest .`           |
-| Bot (development)    | `docker build --target development --build-arg SERVICE=bot -t nexus-bot:dev .` |
-| Frontend             | `docker build -f Dockerfile.frontend -t nexus-frontend:latest .`               |
-| Nginx                | `docker build -f Dockerfile.nginx -t nexus-nginx:latest .`                     |
+| Bot (production)     | `docker build --target production-bot -t lucky-bot:latest .`                   |
+| Backend (production) | `docker build --target production-backend -t lucky-backend:latest .`           |
+| Bot (development)    | `docker build --target development --build-arg SERVICE=bot -t lucky-bot:dev .` |
+| Frontend             | `docker build -f Dockerfile.frontend -t lucky-frontend:latest .`               |
+| Nginx                | `docker build -f Dockerfile.nginx -t lucky-nginx:latest .`                     |
 
 Compose builds these when you run `docker compose up -d` or `docker compose -f docker-compose.dev.yml up -d`.
 

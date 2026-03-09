@@ -13,7 +13,7 @@ import {
     customCommandService,
     serverLogService,
     type LogType,
-} from '@nexus/shared/services'
+} from '@lucky/shared/services'
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
 

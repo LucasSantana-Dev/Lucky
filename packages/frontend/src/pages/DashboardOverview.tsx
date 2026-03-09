@@ -80,7 +80,7 @@ function StatCard({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay }}
         >
-            <Card className='relative overflow-hidden p-5 hover:border-nexus-border/80 transition-colors'>
+            <Card className='relative overflow-hidden p-5 hover:border-lucky-border/80 transition-colors'>
                 <div
                     className={cn(
                         'absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-10',
@@ -89,7 +89,7 @@ function StatCard({
                 />
                 <div className='flex items-start justify-between'>
                     <div className='space-y-2'>
-                        <p className='text-sm text-nexus-text-secondary'>
+                        <p className='text-sm text-lucky-text-secondary'>
                             {title}
                         </p>
                         <p className='text-2xl font-bold text-white'>
@@ -102,8 +102,8 @@ function StatCard({
                                 className={cn(
                                     'flex items-center gap-1 text-xs font-medium',
                                     change >= 0
-                                        ? 'text-nexus-success'
-                                        : 'text-nexus-error',
+                                        ? 'text-lucky-success'
+                                        : 'text-lucky-error',
                                 )}
                             >
                                 {change >= 0 ? (
@@ -136,16 +136,16 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2, delay: index * 0.05 }}
-            className='flex items-center gap-4 p-3 rounded-lg hover:bg-nexus-bg-tertiary/50 transition-colors group'
+            className='flex items-center gap-4 p-3 rounded-lg hover:bg-lucky-bg-tertiary/50 transition-colors group'
         >
             <div className='w-8 text-center'>
-                <span className='text-xs font-mono text-nexus-text-tertiary'>
+                <span className='text-xs font-mono text-lucky-text-tertiary'>
                     #{c.caseNumber}
                 </span>
             </div>
             <div className='flex items-center gap-2.5 flex-1 min-w-0'>
-                <div className='w-8 h-8 rounded-full bg-nexus-bg-active flex items-center justify-center shrink-0'>
-                    <span className='text-xs font-medium text-nexus-text-secondary'>
+                <div className='w-8 h-8 rounded-full bg-lucky-bg-active flex items-center justify-center shrink-0'>
+                    <span className='text-xs font-medium text-lucky-text-secondary'>
                         {(c.userName || c.userId).substring(0, 2).toUpperCase()}
                     </span>
                 </div>
@@ -153,7 +153,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
                     <p className='text-sm font-medium text-white truncate'>
                         {c.userName || c.userId}
                     </p>
-                    <p className='text-xs text-nexus-text-tertiary truncate'>
+                    <p className='text-xs text-lucky-text-tertiary truncate'>
                         {c.reason || 'No reason provided'}
                     </p>
                 </div>
@@ -168,7 +168,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
                 <ActionIcon className='w-3 h-3' />
                 {c.type}
             </Badge>
-            <span className='text-xs text-nexus-text-tertiary whitespace-nowrap hidden sm:block'>
+            <span className='text-xs text-lucky-text-tertiary whitespace-nowrap hidden sm:block'>
                 {timeAgo(c.createdAt)}
             </span>
         </motion.div>
@@ -190,17 +190,17 @@ function QuickActionButton({
         <Link
             to={to}
             className={cn(
-                'flex items-center gap-3 p-3 rounded-xl border border-nexus-border bg-nexus-bg-tertiary/50',
-                'hover:bg-nexus-bg-active hover:border-nexus-border/80 transition-all group',
+                'flex items-center gap-3 p-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50',
+                'hover:bg-lucky-bg-active hover:border-lucky-border/80 transition-all group',
             )}
         >
             <div className={cn('p-2 rounded-lg', accent)}>
                 <Icon className='w-4 h-4 text-white' />
             </div>
-            <span className='text-sm font-medium text-nexus-text-secondary group-hover:text-white transition-colors'>
+            <span className='text-sm font-medium text-lucky-text-secondary group-hover:text-white transition-colors'>
                 {label}
             </span>
-            <ArrowRight className='w-4 h-4 ml-auto text-nexus-text-tertiary group-hover:text-white transition-colors' />
+            <ArrowRight className='w-4 h-4 ml-auto text-lucky-text-tertiary group-hover:text-white transition-colors' />
         </Link>
     )
 }
@@ -222,13 +222,13 @@ export default function DashboardOverview() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <div className='w-20 h-20 bg-nexus-bg-tertiary rounded-2xl flex items-center justify-center mb-4'>
-                    <Activity className='w-10 h-10 text-nexus-text-tertiary' />
+                <div className='w-20 h-20 bg-lucky-bg-tertiary rounded-2xl flex items-center justify-center mb-4'>
+                    <Activity className='w-10 h-10 text-lucky-text-tertiary' />
                 </div>
                 <h2 className='text-xl font-semibold text-white mb-2'>
                     Select a Server
                 </h2>
-                <p className='text-nexus-text-secondary text-sm'>
+                <p className='text-lucky-text-secondary text-sm'>
                     Choose a server from the sidebar to view its dashboard
                 </p>
             </div>
@@ -239,7 +239,7 @@ export default function DashboardOverview() {
         <div className='space-y-6'>
             <header>
                 <h1 className='text-2xl font-bold text-white'>Dashboard</h1>
-                <p className='text-sm text-nexus-text-secondary mt-1'>
+                <p className='text-sm text-lucky-text-secondary mt-1'>
                     Overview of {selectedGuild.name}
                 </p>
             </header>
@@ -260,7 +260,7 @@ export default function DashboardOverview() {
                             title='Total Members'
                             value={selectedGuild.memberCount || 0}
                             icon={Users}
-                            accent='bg-nexus-blue'
+                            accent='bg-lucky-blue'
                             delay={0}
                         />
                         <StatCard
@@ -268,14 +268,14 @@ export default function DashboardOverview() {
                             value={stats?.activeCases || 0}
                             change={stats?.recentCases ? 12 : undefined}
                             icon={Shield}
-                            accent='bg-nexus-red'
+                            accent='bg-lucky-red'
                             delay={0.05}
                         />
                         <StatCard
                             title='Total Cases'
                             value={stats?.totalCases || 0}
                             icon={MessageSquare}
-                            accent='bg-nexus-purple'
+                            accent='bg-lucky-purple'
                             delay={0.1}
                         />
                         <StatCard
@@ -298,23 +298,23 @@ export default function DashboardOverview() {
                     transition={{ duration: 0.3, delay: 0.2 }}
                 >
                     <Card className='p-0 overflow-hidden'>
-                        <div className='flex items-center justify-between px-5 py-4 border-b border-nexus-border'>
+                        <div className='flex items-center justify-between px-5 py-4 border-b border-lucky-border'>
                             <div>
                                 <h2 className='text-base font-semibold text-white'>
                                     Recent Cases
                                 </h2>
-                                <p className='text-xs text-nexus-text-tertiary mt-0.5'>
+                                <p className='text-xs text-lucky-text-tertiary mt-0.5'>
                                     Latest moderation actions
                                 </p>
                             </div>
                             <Link
                                 to='/moderation'
-                                className='text-xs font-medium text-nexus-red hover:text-nexus-red/80 transition-colors flex items-center gap-1'
+                                className='text-xs font-medium text-lucky-red hover:text-lucky-red/80 transition-colors flex items-center gap-1'
                             >
                                 View all <ArrowRight className='w-3 h-3' />
                             </Link>
                         </div>
-                        <div className='divide-y divide-nexus-border/50'>
+                        <div className='divide-y divide-lucky-border/50'>
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <div
@@ -336,11 +336,11 @@ export default function DashboardOverview() {
                                 ))
                             ) : (
                                 <div className='py-12 text-center'>
-                                    <Shield className='w-10 h-10 text-nexus-text-tertiary mx-auto mb-3' />
-                                    <p className='text-sm text-nexus-text-secondary'>
+                                    <Shield className='w-10 h-10 text-lucky-text-tertiary mx-auto mb-3' />
+                                    <p className='text-sm text-lucky-text-secondary'>
                                         No moderation cases yet
                                     </p>
-                                    <p className='text-xs text-nexus-text-tertiary mt-1'>
+                                    <p className='text-xs text-lucky-text-tertiary mt-1'>
                                         Cases will appear here when moderators
                                         take action
                                     </p>
@@ -360,7 +360,7 @@ export default function DashboardOverview() {
                         <h2 className='text-base font-semibold text-white mb-1'>
                             Quick Actions
                         </h2>
-                        <p className='text-xs text-nexus-text-tertiary mb-4'>
+                        <p className='text-xs text-lucky-text-tertiary mb-4'>
                             Common management tasks
                         </p>
                         <div className='space-y-2'>
@@ -368,7 +368,7 @@ export default function DashboardOverview() {
                                 icon={Shield}
                                 label='Moderation Cases'
                                 to='/moderation'
-                                accent='bg-nexus-red/20'
+                                accent='bg-lucky-red/20'
                             />
                             <QuickActionButton
                                 icon={ShieldAlert}
@@ -380,20 +380,20 @@ export default function DashboardOverview() {
                                 icon={Activity}
                                 label='Server Logs'
                                 to='/logs'
-                                accent='bg-nexus-blue/20'
+                                accent='bg-lucky-blue/20'
                             />
                             <QuickActionButton
                                 icon={MessageSquare}
                                 label='Custom Commands'
                                 to='/commands'
-                                accent='bg-nexus-purple/20'
+                                accent='bg-lucky-purple/20'
                             />
                         </div>
 
                         {/* Case Type Breakdown */}
                         {stats && (
-                            <div className='mt-6 pt-4 border-t border-nexus-border'>
-                                <h3 className='text-sm font-medium text-nexus-text-secondary mb-3'>
+                            <div className='mt-6 pt-4 border-t border-lucky-border'>
+                                <h3 className='text-sm font-medium text-lucky-text-secondary mb-3'>
                                     Cases by Type
                                 </h3>
                                 <div className='space-y-2.5'>
@@ -407,14 +407,14 @@ export default function DashboardOverview() {
                                         return (
                                             <div key={type}>
                                                 <div className='flex items-center justify-between mb-1'>
-                                                    <span className='text-xs text-nexus-text-secondary capitalize'>
+                                                    <span className='text-xs text-lucky-text-secondary capitalize'>
                                                         {type}
                                                     </span>
                                                     <span className='text-xs font-medium text-white'>
                                                         {count}
                                                     </span>
                                                 </div>
-                                                <div className='h-1.5 bg-nexus-bg-active rounded-full overflow-hidden'>
+                                                <div className='h-1.5 bg-lucky-bg-active rounded-full overflow-hidden'>
                                                     <motion.div
                                                         className={cn(
                                                             'h-full rounded-full',
@@ -429,7 +429,7 @@ export default function DashboardOverview() {
                                                                     : type ===
                                                                         'ban'
                                                                       ? 'bg-red-600'
-                                                                      : 'bg-nexus-blue',
+                                                                      : 'bg-lucky-blue',
                                                         )}
                                                         initial={{ width: 0 }}
                                                         animate={{

@@ -42,7 +42,7 @@ export default function ProfileModal({
             <DialogContent className='sm:max-w-md'>
                 <DialogHeader>
                     <div className='flex items-center gap-4 mb-4'>
-                        <Avatar className='w-16 h-16 border-2 border-nexus-border'>
+                        <Avatar className='w-16 h-16 border-2 border-lucky-border'>
                             <AvatarImage
                                 src={
                                     user.avatar
@@ -51,7 +51,7 @@ export default function ProfileModal({
                                 }
                                 alt={user.username || 'User avatar'}
                             />
-                            <AvatarFallback className='bg-nexus-red text-white text-xl'>
+                            <AvatarFallback className='bg-lucky-red text-white text-xl'>
                                 {user.username?.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>

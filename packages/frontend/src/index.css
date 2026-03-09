@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap');
+
 @import 'tailwindcss';
 
 @plugin 'tailwindcss-animate';
@@ -52,20 +54,38 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --color-nexus-red: #c33d41;
-  --color-nexus-bg-primary: #151516;
-  --color-nexus-bg-secondary: #1a1a1b;
-  --color-nexus-bg-tertiary: #202021;
-  --color-nexus-bg-active: #252526;
-  --color-nexus-border: #2d2d2e;
-  --color-nexus-text-primary: #ffffff;
-  --color-nexus-text-secondary: #b3b3b3;
-  --color-nexus-text-tertiary: #808080;
-  --color-nexus-text-disabled: #4d4d4d;
-  --color-nexus-blue: #3b82f6;
-  --color-nexus-purple: #8b5cf6;
-  --color-nexus-success: #22c55e;
-  --color-nexus-error: #ef4444;
+  --color-lucky-purple-900: #190d2f;
+  --color-lucky-purple-800: #231245;
+  --color-lucky-purple-700: #331a63;
+  --color-lucky-purple-600: #4a2387;
+  --color-lucky-purple-500: #6d34bf;
+  --color-lucky-purple-400: #8b5cf6;
+  --color-lucky-gold-500: #d4a017;
+  --color-lucky-gold-400: #e4b83f;
+  --color-lucky-gold-300: #f3cc64;
+  --color-lucky-success: #22c55e;
+  --color-lucky-error: #ef4444;
+
+  --color-lucky-red: var(--color-lucky-gold-500);
+  --color-lucky-bg-primary: var(--color-lucky-purple-900);
+  --color-lucky-bg-secondary: var(--color-lucky-purple-800);
+  --color-lucky-bg-tertiary: var(--color-lucky-purple-700);
+  --color-lucky-bg-active: var(--color-lucky-purple-600);
+  --color-lucky-border: #3c2c5f;
+  --color-lucky-text-primary: #ffffff;
+  --color-lucky-text-secondary: #d0c7e6;
+  --color-lucky-text-tertiary: #a898c9;
+  --color-lucky-text-disabled: #7f6ca4;
+  --color-lucky-blue: var(--color-lucky-purple-400);
+  --color-lucky-purple: var(--color-lucky-purple-400);
+  --color-lucky-success: #22c55e;
+  --color-lucky-error: #ef4444;
+  --font-lucky-display: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-lucky-body: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-lucky-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+  --font-sans: var(--font-lucky-body);
+  --font-mono: var(--font-lucky-mono);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -131,7 +151,7 @@
 
 @utility scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--nexus-border) transparent;
+  scrollbar-color: var(--lucky-border) transparent;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -143,107 +163,115 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: var(--nexus-border);
+    background-color: var(--lucky-border);
     border-radius: 3px;
   }
 }
 
 @layer base {
   :root {
-    /* Nexus Dark Theme - Default */
-    --background: 240 3% 8%;
+    /* Lucky Dark Theme - Purple and Gold */
+    --background: 264 56% 12%;
     --foreground: 0 0% 100%;
 
-    --card: 240 3% 10%;
+    --card: 264 49% 17%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 240 3% 10%;
+    --popover: 264 49% 17%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 359 57% 50%;
+    --primary: 264 89% 67%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3% 13%;
+    --secondary: 45 78% 47%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 3% 15%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 264 37% 24%;
+    --muted-foreground: 260 30% 82%;
 
-    --accent: 240 3% 15%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 78% 47%;
+    --accent-foreground: 20 17% 12%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 3% 18%;
-    --input: 240 3% 13%;
-    --ring: 359 57% 50%;
+    --border: 264 36% 28%;
+    --input: 264 44% 20%;
+    --ring: 45 78% 57%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 3% 8%;
+    --sidebar-background: 264 56% 12%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 359 57% 50%;
+    --sidebar-primary: 264 89% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3% 13%;
+    --sidebar-accent: 264 44% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 3% 18%;
-    --sidebar-ring: 359 57% 50%;
+    --sidebar-border: 264 36% 28%;
+    --sidebar-ring: 45 78% 57%;
 
-    /* Nexus Custom Colors */
-    --nexus-red: #c33d41;
-    --nexus-bg-primary: #151516;
-    --nexus-bg-secondary: #1a1a1b;
-    --nexus-bg-tertiary: #202021;
-    --nexus-bg-active: #252526;
-    --nexus-border: #2d2d2e;
-    --nexus-text-primary: #ffffff;
-    --nexus-text-secondary: #b3b3b3;
-    --nexus-text-tertiary: #808080;
-    --nexus-text-disabled: #4d4d4d;
-    --nexus-blue: #3b82f6;
-    --nexus-purple: #8b5cf6;
-    --nexus-success: #22c55e;
-    --nexus-error: #ef4444;
+    --lucky-red: var(--color-lucky-gold-500);
+    --lucky-bg-primary: var(--color-lucky-purple-900);
+    --lucky-bg-secondary: var(--color-lucky-purple-800);
+    --lucky-bg-tertiary: var(--color-lucky-purple-700);
+    --lucky-bg-active: var(--color-lucky-purple-600);
+    --lucky-border: #3c2c5f;
+    --lucky-text-primary: #ffffff;
+    --lucky-text-secondary: #d0c7e6;
+    --lucky-text-tertiary: #a898c9;
+    --lucky-text-disabled: #7f6ca4;
+    --lucky-blue: var(--color-lucky-purple-400);
+    --lucky-purple: var(--color-lucky-purple-400);
+    --lucky-success: var(--color-lucky-success);
+    --lucky-error: var(--color-lucky-error);
+
+    --lucky-brand: var(--color-lucky-purple-400);
+    --lucky-brand-strong: var(--color-lucky-purple-500);
+    --lucky-accent: var(--color-lucky-gold-500);
+    --lucky-accent-soft: var(--color-lucky-gold-400);
+    --lucky-surface-1: var(--color-lucky-purple-900);
+    --lucky-surface-2: var(--color-lucky-purple-800);
+    --lucky-surface-3: var(--color-lucky-purple-700);
+    --lucky-text-muted: #a898c9;
   }
 
   .dark {
-    --background: 240 3% 8%;
+    --background: 264 56% 12%;
     --foreground: 0 0% 100%;
 
-    --card: 240 3% 10%;
+    --card: 264 49% 17%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 240 3% 10%;
+    --popover: 264 49% 17%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 359 57% 50%;
+    --primary: 264 89% 67%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3% 13%;
+    --secondary: 45 78% 47%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 3% 15%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 264 37% 24%;
+    --muted-foreground: 260 30% 82%;
 
-    --accent: 240 3% 15%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 78% 47%;
+    --accent-foreground: 20 17% 12%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 3% 18%;
-    --input: 240 3% 13%;
-    --ring: 359 57% 50%;
+    --border: 264 36% 28%;
+    --input: 264 44% 20%;
+    --ring: 45 78% 57%;
 
-    --sidebar-background: 240 3% 8%;
+    --sidebar-background: 264 56% 12%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 359 57% 50%;
+    --sidebar-primary: 264 89% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3% 13%;
+    --sidebar-accent: 264 44% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 3% 18%;
-    --sidebar-ring: 359 57% 50%;
+    --sidebar-border: 264 36% 28%;
+    --sidebar-ring: 45 78% 57%;
   }
 }
 
@@ -253,6 +281,21 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-lucky-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: var(--font-lucky-display);
+    letter-spacing: -0.015em;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: var(--font-lucky-mono);
   }
 }

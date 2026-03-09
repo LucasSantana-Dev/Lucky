@@ -6,7 +6,7 @@ import {
 } from '../../../src/utils/music/duplicateDetection/similarityChecker'
 import { defaultSimilarityConfig } from '../../../src/utils/music/duplicateDetection/types'
 import { createMockTrack } from '../../__mocks__/discordPlayer'
-import type { TrackHistoryEntry } from '@nexus/shared/services'
+import type { TrackHistoryEntry } from '@lucky/shared/services'
 
 describe('similarityChecker', () => {
     describe('calculateStringSimilarity (Levenshtein)', () => {

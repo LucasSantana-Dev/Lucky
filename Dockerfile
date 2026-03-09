@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Multi-stage Dockerfile for Nexus services
+# Multi-stage Dockerfile for Lucky services
 # Usage: docker compose --env-file .env.production up -d --build
 
 ARG NODE_VERSION=22-alpine

@@ -6,7 +6,7 @@ import {
     EMBED_COLORS,
     EMOJIS,
 } from '../../../utils/general/embeds'
-import { errorLog, debugLog } from '@nexus/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import { QueueRepeatMode, type GuildQueue } from 'discord-player'
 import {
     requireGuild,

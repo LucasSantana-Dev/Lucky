@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
-import { debugLog, errorLog } from '@nexus/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 
 let botClient: Client | null = null
 

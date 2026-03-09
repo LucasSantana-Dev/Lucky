@@ -17,7 +17,7 @@ const mockListByGuild = jest.fn<any>()
 const mockAdd = jest.fn<any>()
 const mockRemove = jest.fn<any>()
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     twitchNotificationService: {
         listByGuild: (...args: any[]) => mockListByGuild(...args),
         add: (...args: any[]) => mockAdd(...args),

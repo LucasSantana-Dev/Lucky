@@ -79,7 +79,7 @@ export default memo(function QueueList({
                     <h3 className='text-base sm:text-lg font-semibold text-white'>
                         Queue
                     </h3>
-                    <span className='text-xs sm:text-sm text-nexus-text-secondary tabular-nums'>
+                    <span className='text-xs sm:text-sm text-lucky-text-secondary tabular-nums'>
                         ({tracks.length} track{tracks.length !== 1 ? 's' : ''})
                     </span>
                 </div>
@@ -125,7 +125,7 @@ export default memo(function QueueList({
                     {hasMore && (
                         <button
                             onClick={showMore}
-                            className='w-full mt-2 py-2.5 text-sm text-nexus-text-secondary hover:text-white flex items-center justify-center gap-1 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary transition-colors'
+                            className='w-full mt-2 py-2.5 text-sm text-lucky-text-secondary hover:text-white flex items-center justify-center gap-1 rounded-lg hover:bg-lucky-bg-tertiary active:bg-lucky-bg-tertiary transition-colors'
                             aria-label={`Show more tracks (${tracks.length - visibleCount} remaining)`}
                         >
                             <ChevronDown
@@ -169,7 +169,7 @@ function QueueSkeleton() {
 function EmptyQueue() {
     return (
         <div
-            className='text-center py-8 sm:py-12 text-nexus-text-secondary'
+            className='text-center py-8 sm:py-12 text-lucky-text-secondary'
             role='status'
         >
             <ListMusic
@@ -205,9 +205,9 @@ const QueueItem = memo(function QueueItem({
 }) {
     return (
         <div
-            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-nexus-bg-tertiary active:bg-nexus-bg-tertiary group transition-colors ${
+            className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-lucky-bg-tertiary active:bg-lucky-bg-tertiary group transition-colors ${
                 isDropTarget
-                    ? 'ring-1 ring-nexus-red/50 bg-nexus-bg-tertiary'
+                    ? 'ring-1 ring-lucky-red/50 bg-lucky-bg-tertiary'
                     : ''
             }`}
             role='listitem'
@@ -218,14 +218,14 @@ const QueueItem = memo(function QueueItem({
             onDragEnd={onDragEnd}
         >
             <span
-                className='text-xs text-nexus-text-secondary w-5 sm:w-6 text-right font-mono tabular-nums shrink-0'
+                className='text-xs text-lucky-text-secondary w-5 sm:w-6 text-right font-mono tabular-nums shrink-0'
                 aria-hidden='true'
             >
                 {index + 1}
             </span>
 
             <GripVertical
-                className='h-4 w-4 text-nexus-text-secondary opacity-0 group-hover:opacity-100 cursor-grab shrink-0 hidden sm:block'
+                className='h-4 w-4 text-lucky-text-secondary opacity-0 group-hover:opacity-100 cursor-grab shrink-0 hidden sm:block'
                 aria-hidden='true'
             />
 
@@ -233,12 +233,12 @@ const QueueItem = memo(function QueueItem({
 
             <div className='flex-1 min-w-0'>
                 <p className='text-sm text-white truncate'>{track.title}</p>
-                <p className='text-xs text-nexus-text-secondary truncate'>
+                <p className='text-xs text-lucky-text-secondary truncate'>
                     {track.author}
                 </p>
             </div>
 
-            <span className='text-xs text-nexus-text-secondary font-mono tabular-nums shrink-0 hidden sm:block'>
+            <span className='text-xs text-lucky-text-secondary font-mono tabular-nums shrink-0 hidden sm:block'>
                 {track.durationFormatted}
             </span>
 
@@ -247,7 +247,7 @@ const QueueItem = memo(function QueueItem({
                     onRemove(index)
                     toast.success('Track removed')
                 }}
-                className='p-2 sm:p-1.5 rounded hover:bg-red-500/10 active:bg-red-500/10 text-nexus-text-secondary hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0'
+                className='p-2 sm:p-1.5 rounded hover:bg-red-500/10 active:bg-red-500/10 text-lucky-text-secondary hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0'
                 aria-label={`Remove ${track.title} from queue`}
             >
                 <Trash2 className='h-4 w-4 sm:h-3.5 sm:w-3.5' />
@@ -269,9 +269,9 @@ function TrackThumbnail({ thumbnail }: { thumbnail?: string }) {
         )
     }
     return (
-        <div className='w-9 h-9 sm:w-10 sm:h-10 rounded bg-nexus-bg-secondary flex items-center justify-center shrink-0'>
+        <div className='w-9 h-9 sm:w-10 sm:h-10 rounded bg-lucky-bg-secondary flex items-center justify-center shrink-0'>
             <Music2
-                className='h-4 w-4 text-nexus-text-secondary'
+                className='h-4 w-4 text-lucky-text-secondary'
                 aria-hidden='true'
             />
         </div>

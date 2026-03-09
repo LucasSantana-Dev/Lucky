@@ -5,7 +5,7 @@
  */
 
 import crypto from 'node:crypto'
-import { lastFmLinkService } from '@nexus/shared/services'
+import { lastFmLinkService } from '@lucky/shared/services'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 

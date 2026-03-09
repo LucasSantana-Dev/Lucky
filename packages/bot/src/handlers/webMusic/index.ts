@@ -3,8 +3,8 @@ import {
     musicControlService,
     type MusicCommand,
     type MusicCommandResult,
-} from '@nexus/shared/services'
-import { infoLog, errorLog, debugLog } from '@nexus/shared/utils'
+} from '@lucky/shared/services'
+import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
 import { buildQueueState } from './mappers'
 import * as playback from './commandHandlers'
 import * as queue from './queueHandlers'

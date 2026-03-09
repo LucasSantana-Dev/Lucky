@@ -33,17 +33,33 @@ jobs:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
               run: |
+                  set -euo pipefail
                   echo "==> Triggering deploy webhook..."
-                  response=$(curl -s -w "\n%{http_code}" \
-                    -X POST \
-                    -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
-                    --max-time 300 \
-                    "$WEBHOOK_URL")
+
+                  call_webhook() {
+                    local url="$1"
+                    curl -s -w "\n%{http_code}" \
+                      -X POST \
+                      -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+                      --max-time 300 \
+                      "$url"
+                  }
+
+                  response=$(call_webhook "$WEBHOOK_URL")
 
                   http_code=$(echo "$response" | tail -1)
                   body=$(echo "$response" | sed '$d')
 
-                  echo "Response: $body (HTTP $http_code)"
+                  echo "Response from $WEBHOOK_URL: $body (HTTP $http_code)"
+
+                  retry_url="${WEBHOOK_URL%/}/webhook/deploy"
+                  if [ "$http_code" = "405" ] && [ "$WEBHOOK_URL" != "$retry_url" ]; then
+                    echo "==> Retrying with canonical webhook path: $retry_url"
+                    response=$(call_webhook "$retry_url")
+                    http_code=$(echo "$response" | tail -1)
+                    body=$(echo "$response" | sed '$d')
+                    echo "Response from $retry_url: $body (HTTP $http_code)"
+                  fi
 
                   if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
                     echo "==> Deploy triggered successfully!"

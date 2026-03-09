@@ -1,6 +1,6 @@
 import { spawn } from 'child_process'
 import { unlink } from 'fs/promises'
-import { debugLog } from '@nexus/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 import { YtDlpPathManager } from './pathManager'
 import type { YtDlpDownloadResult, YtDlpOptions, YtDlpArgs } from './types'
 

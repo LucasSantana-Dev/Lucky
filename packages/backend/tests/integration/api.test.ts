@@ -37,7 +37,7 @@ jest.mock('../../src/services/GuildService', () => ({
     },
 }))
 
-jest.mock('@nexus/shared/services', () => ({
+jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
         getAllToggles: jest.fn(() => new Map()),
         isEnabledGlobal: jest.fn(),
@@ -45,7 +45,7 @@ jest.mock('@nexus/shared/services', () => ({
     },
 }))
 
-jest.mock('@nexus/shared/config', () => ({
+jest.mock('@lucky/shared/config', () => ({
     getFeatureToggleConfig: jest.fn(() => ({})),
 }))
 

@@ -1,11 +1,11 @@
 # CI/CD Pipeline
 
-This document describes the continuous integration and deployment setup for Nexus.
+This document describes the continuous integration and deployment setup for Lucky.
 
 ## Overview
 
 - **CI**: Runs on every push and pull request to `main` and `develop`. Two jobs: **Quality Gates** (lint, type-check, build, unit/integration tests, coverage, security audit) and **E2E** (Playwright tests for the frontend), with E2E depending on Quality Gates.
-- **CD**: Deploy workflow runs on push to `main` (and manual trigger). Deploys via SSH to the target server: pull, Docker build, restart services.
+- **CD**: Deploy workflow runs on push to `main` (and manual trigger). It calls a protected homelab webhook that performs pull/build/restart.
 
 ## Lock file
 
@@ -47,60 +47,64 @@ Runs after Quality Gates succeed:
 
 ## Deployment
 
-The deploy workflow (`.github/workflows/deploy.yml`) runs on push to `main` and on manual dispatch. It:
+The deploy workflow (`.github/workflows/deploy.yml`) runs on push to `main` and on
+manual dispatch. It:
 
-1. Checks out the repo.
-2. Uses `webfactory/ssh-agent` with `SSH_PRIVATE_KEY`.
-3. SSHs to the server (`SSH_USER`@`SSH_HOST`), then:
-    - `cd /home/nexus-server/Nexus`
-    - `git pull origin main`
-    - `docker build -t nexus:latest .`
-    - `./scripts/discord-bot.sh stop` then `./scripts/discord-bot.sh start`
-    - `./scripts/discord-bot.sh status`
+1. Validates `DEPLOY_WEBHOOK_SECRET` and `DEPLOY_WEBHOOK_URL`.
+2. Sends a signed POST request to the deploy webhook endpoint.
+3. If the first URL responds with `405`, retries with `/webhook/deploy`.
+4. Fails the job on any non-2xx response.
 
-Required GitHub secrets: `SSH_PRIVATE_KEY`, `SSH_USER`, `SSH_HOST`. If any are missing, the deploy job fails at "Check deploy secrets" with the list of missing names.
+Required GitHub secrets: `DEPLOY_WEBHOOK_SECRET`, `DEPLOY_WEBHOOK_URL`.
+
+`DEPLOY_WEBHOOK_URL` should point to the webhook route exposed by nginx:
+
+```text
+https://<your-domain>/webhook/deploy
+```
+
+If the configured URL returns HTTP 405, the workflow retries once with `/webhook/deploy`.
 
 ### Deploy secrets (how to add)
 
-GitHub Actions runs in the cloud and cannot use your local SSH config. Add these repository secrets in **Settings → Secrets and variables → Actions**:
+Add these repository secrets in **Settings → Secrets and variables → Actions**:
 
-| Secret            | Description                                                                                                                                                                             |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SSH_PRIVATE_KEY` | Full contents of the private key file (e.g. `~/.ssh/id_ed25519` or the key used for your server). Paste the whole file including `-----BEGIN ... KEY-----` and `-----END ... KEY-----`. |
-| `SSH_USER`        | SSH login user (e.g. `nexus-server` or `root`).                                                                                                                                         |
-| `SSH_HOST`        | Server hostname or IP.                                                                                                                                                                  |
-
-If you use a host alias locally (e.g. `server-do-luk` in `~/.ssh/config`), you can get user and host with:
-
-```bash
-ssh -G server-do-luk | grep -E '^user |^hostname '
-```
-
-Use that user and hostname as `SSH_USER` and `SSH_HOST`. For `SSH_PRIVATE_KEY`, use the key file path from your config (`IdentityFile`) and paste its contents into the secret.
+| Secret                  | Description                                                |
+| ----------------------- | ---------------------------------------------------------- |
+| `DEPLOY_WEBHOOK_SECRET` | Shared secret validated by `scripts/deploy.sh`             |
+| `DEPLOY_WEBHOOK_URL`    | Public deploy endpoint (`https://<domain>/webhook/deploy`) |
 
 #### One-time setup via GitHub CLI
 
 From the repo root, with [GitHub CLI](https://cli.github.com/) installed and authenticated (`gh auth login`):
 
 ```bash
-gh secret set SSH_USER --body "nexus-server"
-gh secret set SSH_HOST --body "100.95.204.103"
-gh secret set SSH_PRIVATE_KEY < ~/.ssh/YOUR_KEY_FILE
+gh secret set DEPLOY_WEBHOOK_SECRET --body "your-random-secret"
+gh secret set DEPLOY_WEBHOOK_URL --body "https://lucky.lucassantana.tech/webhook/deploy"
 ```
 
-Replace `YOUR_KEY_FILE` with the key you use for the server. SSH lists default paths in order (`ssh -G server-do-luk | grep identityfile`); use the first one that exists on your machine (e.g. `id_ed25519` or `id_rsa`). To see which private keys you have:
+#### Manual no-SSH trigger from local machine
 
 ```bash
-ls ~/.ssh/id_* 2>/dev/null | grep -v '.pub'
+./scripts/deploy-remote.sh main
+# or
+npm run deploy:homelab
 ```
 
-Then set the secret (example for `id_ed25519`):
+This dispatches `Deploy to Homelab`, waits for completion, and prints failed logs.
 
-```bash
-gh secret set SSH_PRIVATE_KEY < ~/.ssh/id_ed25519
-```
+### Deploy webhook 405 troubleshooting
 
-If `gh` reports an invalid token, run `gh auth login` and try again.
+If `Deploy to Homelab` fails with `405 Not Allowed`:
+
+1. Validate endpoint from your machine:
+   `curl -i -X POST https://<domain>/webhook/deploy`
+2. If the response is frontend HTML, your running nginx image does not include webhook routing yet.
+3. Run one bootstrap deploy on the homelab host to update nginx/webhook services:
+   `docker compose up -d --remove-orphans nginx webhook`
+4. Re-run `npm run deploy:homelab`.
+
+After this bootstrap, future deploys run without SSH through GitHub Actions.
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 

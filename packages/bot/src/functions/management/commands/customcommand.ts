@@ -4,8 +4,8 @@ import {
     EmbedBuilder,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
-import { customCommandService } from '@nexus/shared/services'
-import { infoLog, errorLog } from '@nexus/shared/utils'
+import { customCommandService } from '@lucky/shared/services'
+import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
 export default new Command({
@@ -311,7 +311,10 @@ export default new Command({
                     .setColor(0x5865f2)
                     .setTitle(`📋 Command: ${command.name}`)
                     .addFields(
-                        { name: 'Response', value: command.response ?? 'No response set' },
+                        {
+                            name: 'Response',
+                            value: command.response ?? 'No response set',
+                        },
                         {
                             name: 'Use Count',
                             value: command.useCount.toString(),

@@ -72,7 +72,7 @@ export default function TwitchNotificationsPage() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-64 text-nexus-text-secondary'>
+            <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
                 <Tv className='h-12 w-12 mb-4 opacity-50' />
                 <p className='text-lg'>
                     Select a server to manage Twitch notifications
@@ -89,7 +89,7 @@ export default function TwitchNotificationsPage() {
                     <h1 className='text-xl font-bold text-white'>
                         Twitch Notifications
                     </h1>
-                    <span className='text-sm text-nexus-text-tertiary'>
+                    <span className='text-sm text-lucky-text-tertiary'>
                         ({notifications.length})
                     </span>
                 </div>
@@ -103,13 +103,13 @@ export default function TwitchNotificationsPage() {
             </header>
 
             {error && (
-                <div className='p-3 rounded-lg bg-nexus-error/10 text-nexus-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
                     {error}
                 </div>
             )}
 
             {showAdd && (
-                <div className='p-4 rounded-lg bg-nexus-bg-tertiary border border-nexus-border space-y-3'>
+                <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border space-y-3'>
                     <h3 className='text-sm font-semibold text-white'>
                         Add Twitch Notification
                     </h3>
@@ -119,21 +119,21 @@ export default function TwitchNotificationsPage() {
                             placeholder='Twitch username'
                             value={newLogin}
                             onChange={(e) => setNewLogin(e.target.value)}
-                            className='px-3 py-2 text-sm rounded-lg bg-nexus-bg-active border border-nexus-border text-white placeholder:text-nexus-text-tertiary focus:outline-none focus:border-purple-500'
+                            className='px-3 py-2 text-sm rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-purple-500'
                         />
                         <input
                             type='text'
                             placeholder='Twitch user ID'
                             value={newUserId}
                             onChange={(e) => setNewUserId(e.target.value)}
-                            className='px-3 py-2 text-sm rounded-lg bg-nexus-bg-active border border-nexus-border text-white placeholder:text-nexus-text-tertiary focus:outline-none focus:border-purple-500'
+                            className='px-3 py-2 text-sm rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-purple-500'
                         />
                         <input
                             type='text'
                             placeholder='Discord channel ID'
                             value={newChannelId}
                             onChange={(e) => setNewChannelId(e.target.value)}
-                            className='px-3 py-2 text-sm rounded-lg bg-nexus-bg-active border border-nexus-border text-white placeholder:text-nexus-text-tertiary focus:outline-none focus:border-purple-500'
+                            className='px-3 py-2 text-sm rounded-lg bg-lucky-bg-active border border-lucky-border text-white placeholder:text-lucky-text-tertiary focus:outline-none focus:border-purple-500'
                         />
                     </div>
                     <div className='flex gap-2'>
@@ -146,7 +146,7 @@ export default function TwitchNotificationsPage() {
                         </button>
                         <button
                             onClick={() => setShowAdd(false)}
-                            className='px-4 py-1.5 text-sm rounded-lg bg-nexus-bg-active text-nexus-text-secondary hover:text-white transition-colors'
+                            className='px-4 py-1.5 text-sm rounded-lg bg-lucky-bg-active text-lucky-text-secondary hover:text-white transition-colors'
                         >
                             Cancel
                         </button>
@@ -159,12 +159,12 @@ export default function TwitchNotificationsPage() {
                     {[...Array(3)].map((_, i) => (
                         <div
                             key={i}
-                            className='h-14 rounded-lg bg-nexus-bg-tertiary animate-pulse'
+                            className='h-14 rounded-lg bg-lucky-bg-tertiary animate-pulse'
                         />
                     ))}
                 </div>
             ) : notifications.length === 0 ? (
-                <div className='text-center py-12 text-nexus-text-tertiary'>
+                <div className='text-center py-12 text-lucky-text-tertiary'>
                     No Twitch notifications configured
                 </div>
             ) : (
@@ -172,7 +172,7 @@ export default function TwitchNotificationsPage() {
                     {notifications.map((notif) => (
                         <div
                             key={notif.id}
-                            className='flex items-center gap-3 px-4 py-3 rounded-lg bg-nexus-bg-tertiary hover:bg-nexus-bg-active transition-colors group'
+                            className='flex items-center gap-3 px-4 py-3 rounded-lg bg-lucky-bg-tertiary hover:bg-lucky-bg-active transition-colors group'
                         >
                             <div className='w-8 h-8 rounded bg-purple-600/20 flex items-center justify-center shrink-0'>
                                 <Tv className='w-4 h-4 text-purple-400' />
@@ -181,14 +181,14 @@ export default function TwitchNotificationsPage() {
                                 <p className='text-sm font-medium text-white'>
                                     {notif.twitchLogin}
                                 </p>
-                                <p className='text-xs text-nexus-text-tertiary flex items-center gap-1'>
+                                <p className='text-xs text-lucky-text-tertiary flex items-center gap-1'>
                                     <Hash className='w-3 h-3' />
                                     {notif.discordChannelId}
                                 </p>
                             </div>
                             <button
                                 onClick={() => handleRemove(notif.twitchUserId)}
-                                className='p-1.5 rounded-md text-nexus-text-tertiary hover:text-nexus-error hover:bg-nexus-error/10 transition-colors opacity-0 group-hover:opacity-100'
+                                className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100'
                                 aria-label={`Remove ${notif.twitchLogin}`}
                             >
                                 <Trash2 className='w-4 h-4' />

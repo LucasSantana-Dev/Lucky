@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Nexus frontend is a modern React-based web application that provides a user-friendly interface for managing Discord bot features. It enables Discord server administrators to authenticate via Discord OAuth2, view their servers, check bot status, and manage feature toggles (both global developer toggles and per-server admin toggles).
+The Lucky frontend is a modern React-based web application that provides a user-friendly interface for managing Discord bot features. It enables Discord server administrators to authenticate via Discord OAuth2, view their servers, check bot status, and manage feature toggles (both global developer toggles and per-server admin toggles).
 
 ### Key Features
 
@@ -1393,8 +1393,8 @@ A development Dockerfile is provided:
 
 ```bash
 cd src/webapp/frontend
-docker build -f Dockerfile.dev -t nexus-frontend-dev .
-docker run -p 5173:5173 nexus-frontend-dev
+docker build -f Dockerfile.dev -t lucky-frontend-dev .
+docker run -p 5173:5173 lucky-frontend-dev
 ```
 
 ### Deployment

@@ -6,7 +6,7 @@
     "rewrites": [
         {
             "source": "/api/:path*",
-            "destination": "https://nexus.lucassantana.tech/api/:path*"
+            "destination": "https://lucky.lucassantana.tech/api/:path*"
         }
     ]
 }

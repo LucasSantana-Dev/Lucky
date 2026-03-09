@@ -1,6 +1,6 @@
 # Last.fm API integration
 
-Nexus can send **Now Playing** and **Scrobbles** to Last.fm. Users connect their own Last.fm accounts via `/lastfm link`; optionally a global session key in env can be used as fallback for unlinked users.
+Lucky can send **Now Playing** and **Scrobbles** to Last.fm. Users connect their own Last.fm accounts via `/lastfm link`; optionally a global session key in env can be used as fallback for unlinked users.
 
 ## Requirements
 
@@ -58,8 +58,8 @@ Alternatively use [auth.getMobileSession](https://www.last.fm/api/show/auth.getM
 
 ## Behaviour
 
-- When a track **starts** playing, Nexus calls Last.fm `track.updateNowPlaying` for the **requester’s** session (linked account or env fallback).
-- When a track **finishes** or is **skipped**, Nexus calls `track.scrobble` for the same session.
+- When a track **starts** playing, Lucky calls Last.fm `track.updateNowPlaying` for the **requester’s** session (linked account or env fallback).
+- When a track **finishes** or is **skipped**, Lucky calls `track.scrobble` for the same session.
 - The Discord channel still receives the plain-text "Now playing: Artist – Title" message so .fmbot and other channel-based scrobblers continue to work.
 
 ## Discord commands

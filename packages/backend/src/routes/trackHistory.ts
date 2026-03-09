@@ -4,7 +4,7 @@ import { validateParams, validateQuery } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import { trackHistoryService } from '@nexus/shared/services'
+import { trackHistoryService } from '@lucky/shared/services'
 import { z } from 'zod'
 
 function p(val: string | string[]): string {

@@ -1,6 +1,6 @@
 # Twitch stream-online notifications
 
-Nexus can notify a Discord channel when a configured Twitch streamer goes live, using Twitch EventSub over WebSocket.
+Lucky can notify a Discord channel when a configured Twitch streamer goes live, using Twitch EventSub over WebSocket.
 
 ## Requirements
 
@@ -14,10 +14,10 @@ Twitch requires a **user access token** for EventSub WebSocket subscriptions; ap
 1. Open the [Twitch Developer Console](https://dev.twitch.tv/console), log in with your Twitch account, and go to **Applications**.
 2. Click **Register your application** (or **+ Register**).
 3. Fill the form:
-    - **Name**: Application name (e.g. `Nexus`), 3–100 characters. Shown to users when they authorize the app.
+    - **Name**: Application name (e.g. `Lucky`), 3–100 characters. Shown to users when they authorize the app.
     - **OAuth Redirect URLs**: Add at least one redirect URI. **Must use HTTPS** except for localhost. **What to add now:** add `http://localhost:3000`. After you authorize the app, Twitch will redirect you to that URL with `?code=...` in the query string; you copy the `code` and exchange it for tokens (see "Getting a user access token" below). No callback server is required—you can copy the code from the address bar even if nothing is running on port 3000. Later, if you host a real callback page, add that URL (e.g. `https://yourdomain.com/auth/twitch/callback`) as well.
     - **Category**: Choose the option that best fits (e.g. Application Integration, Bot).
-    - **Client type**: Select **Confidential** for a server-side app like Nexus (credentials stay on the server). Use **Public** only for client-side or mobile apps where the secret cannot be kept private.
+    - **Client type**: Select **Confidential** for a server-side app like Lucky (credentials stay on the server). Use **Public** only for client-side or mobile apps where the secret cannot be kept private.
 4. Complete any CAPTCHA and click **Create**.
 5. On the app’s **Manage** page, copy the **Client ID** and create/copy a **Client Secret** (e.g. **New Secret**). Set these as `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` in your `.env`.
 
@@ -34,7 +34,7 @@ If `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, or `TWITCH_ACCESS_TOKEN` are miss
 
 ## Getting a user access token
 
-You need one user (e.g. the bot owner) to authorize the app so Nexus can create EventSub subscriptions and call the Helix API.
+You need one user (e.g. the bot owner) to authorize the app so Lucky can create EventSub subscriptions and call the Helix API.
 
 ### Option 1: Authorization code flow
 
@@ -82,7 +82,7 @@ If you prefer a different channel than the one you run the command in, use the `
 
 ## Behaviour
 
-- On bot ready, if Twitch env is set, Nexus connects to `wss://eventsub.wss.twitch.tv/ws`, receives a session id, and creates `stream.online` subscriptions for each distinct Twitch user id stored in the database.
+- On bot ready, if Twitch env is set, Lucky connects to `wss://eventsub.wss.twitch.tv/ws`, receives a session id, and creates `stream.online` subscriptions for each distinct Twitch user id stored in the database.
 - When Twitch sends a `stream.online` notification, the bot looks up all configured Discord channels for that streamer and sends an embed (streamer name, link, timestamp).
 - Adding or removing a streamer updates the database and refreshes EventSub subscriptions so the WebSocket session stays in sync.
 

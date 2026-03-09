@@ -12,7 +12,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 const mockSettings = {
-    nickname: 'Nexus',
+    nickname: 'Lucky',
     commandPrefix: '!',
     managerRoles: [],
     updatesChannel: '',
@@ -91,7 +91,7 @@ describe('ServerSettingsPage', () => {
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByPlaceholderText('Nexus')).toBeInTheDocument()
+            expect(screen.getByPlaceholderText('Lucky')).toBeInTheDocument()
         })
 
         expect(screen.getByPlaceholderText('!')).toBeInTheDocument()
@@ -120,7 +120,7 @@ describe('ServerSettingsPage', () => {
             expect(api.guilds.updateSettings).toHaveBeenCalledWith(
                 '123',
                 expect.objectContaining({
-                    nickname: 'Nexus',
+                    nickname: 'Lucky',
                     commandPrefix: '!',
                 }),
             )

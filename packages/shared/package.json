@@ -1,7 +1,7 @@
 {
-    "name": "@nexus/shared",
+    "name": "@lucky/shared",
     "version": "1.0.0",
-    "description": "Shared code for Nexus modular monolith",
+    "description": "Shared code for Lucky modular monolith",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
