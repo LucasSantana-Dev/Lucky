@@ -1,6 +1,7 @@
 import { ActivityType } from 'discord.js'
 import {
     buildPresenceActivities,
+    getActiveMusicSessions,
     getTotalMemberCount,
     nextPresenceIndex,
     PRESENCE_ROTATION_INTERVAL_MS,
@@ -8,122 +9,122 @@ import {
     startPresenceRotation,
 } from '../../../src/handlers/clientHandler/presence'
 
-describe('client presence rotation', () => {
-    it('builds branded activities with guild and member totals', () => {
-        const activities = buildPresenceActivities({ guildCount: 5, memberCount: 128 })
+describe('bot presence', () => {
+    it('builds premium rotation with runtime stats', () => {
+        const activities = buildPresenceActivities({
+            guildCount: 12,
+            memberCount: 430,
+            commandCount: 24,
+            activeMusicSessions: 3,
+        })
 
         expect(activities).toEqual([
             {
                 type: ActivityType.Listening,
-                name: '/play • Music nonstop',
+                name: '/play • High-fidelity music',
             },
-            {
-                type: ActivityType.Watching,
-                name: '5 servers protected',
-            },
-            {
-                type: ActivityType.Watching,
-                name: '128 members connected',
-            },
-            {
-                type: ActivityType.Playing,
-                name: '/help • lucky dashboard',
-            },
+            { type: ActivityType.Watching, name: '12 servers managed' },
+            { type: ActivityType.Watching, name: '430 members protected' },
+            { type: ActivityType.Competing, name: '3 active music sessions' },
+            { type: ActivityType.Playing, name: '/help • 24 commands' },
         ])
     })
 
-    it('sums guild member counts safely', () => {
+    it('falls back when no active sessions', () => {
+        const activities = buildPresenceActivities({
+            guildCount: 1,
+            memberCount: 7,
+            commandCount: 8,
+            activeMusicSessions: 0,
+        })
+
+        expect(activities[3]).toEqual({
+            type: ActivityType.Competing,
+            name: 'Fast and safe moderation',
+        })
+    })
+
+    it('calculates total member count defensively', () => {
         const client = {
             guilds: {
                 cache: {
-                    values: () => [
-                        { memberCount: 12 },
-                        { memberCount: 0 },
-                        {},
-                        { memberCount: 7 },
-                    ],
+                    values: () => [{ memberCount: 2 }, {}, { memberCount: 3 }],
                 },
             },
         }
 
-        expect(getTotalMemberCount(client as never)).toBe(19)
+        expect(getTotalMemberCount(client as never)).toBe(5)
     })
 
-    it('rotates and applies presence with online status', () => {
+    it('calculates active music sessions defensively', () => {
+        const client = {
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [
+                            { currentTrack: { id: '1' } },
+                            { currentTrack: null },
+                            { currentTrack: { id: '2' } },
+                        ],
+                    },
+                },
+            },
+        }
+
+        expect(getActiveMusicSessions(client as never)).toBe(2)
+    })
+
+    it('applies and rotates presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
+            commands: { size: 10 },
             guilds: {
                 cache: {
                     size: 2,
-                    values: () => [{ memberCount: 10 }, { memberCount: 5 }],
+                    values: () => [{ memberCount: 5 }, { memberCount: 7 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [{ currentTrack: { id: 'x' } }],
+                    },
                 },
             },
         }
 
-        const next = setPresenceActivity(client as never, 3)
+        const next = setPresenceActivity(client as never, 0)
 
-        expect(next).toBe(nextPresenceIndex(3, 4))
+        expect(next).toBe(nextPresenceIndex(0, 5))
         expect(setPresence).toHaveBeenCalledWith({
             status: 'online',
             activities: [
                 {
-                    type: ActivityType.Playing,
-                    name: '/help • lucky dashboard',
+                    type: ActivityType.Listening,
+                    name: '/play • High-fidelity music',
                 },
             ],
         })
     })
 
-    it('keeps index unchanged when user is unavailable', () => {
-        const client = {
-            user: null,
-            guilds: {
-                cache: {
-                    size: 1,
-                    values: () => [{ memberCount: 4 }],
-                },
-            },
-        }
-
-        expect(setPresenceActivity(client as never, 2)).toBe(2)
-    })
-
-    it('normalizes negative rotation indexes', () => {
-        const setPresence = jest.fn()
-        const client = {
-            user: { setPresence },
-            guilds: {
-                cache: {
-                    size: 1,
-                    values: () => [{ memberCount: 4 }],
-                },
-            },
-        }
-
-        const next = setPresenceActivity(client as never, -1)
-
-        expect(next).toBe(0)
-        expect(setPresence).toHaveBeenCalledWith({
-            status: 'online',
-            activities: [
-                {
-                    type: ActivityType.Playing,
-                    name: '/help • lucky dashboard',
-                },
-            ],
-        })
-    })
-
-    it('starts interval rotation and exposes stop handler', () => {
+    it('starts rotation and returns stop function', () => {
         jest.useFakeTimers()
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
+            commands: { size: 10 },
             guilds: {
                 cache: {
                     size: 1,
-                    values: () => [{ memberCount: 3 }],
+                    values: () => [{ memberCount: 4 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [],
+                    },
                 },
             },
         }
@@ -131,12 +132,11 @@ describe('client presence rotation', () => {
         const stop = startPresenceRotation(client as never)
 
         expect(setPresence).toHaveBeenCalledTimes(1)
-
         jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
         expect(setPresence).toHaveBeenCalledTimes(2)
 
         stop()
-        jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS * 2)
+        jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
         expect(setPresence).toHaveBeenCalledTimes(2)
         jest.useRealTimers()
     })

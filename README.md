@@ -33,7 +33,7 @@ packages/
 | Bot | Discord.js 14, Discord Player 7.1, FFmpeg, yt-dlp |
 | Backend | Express 5, Prisma 7, Redis (ioredis) |
 | Frontend | React 19, React Router 7, TanStack Query 5, Zustand 5, Tailwind 4 |
-| Testing | Jest 30 (backend), Vitest (frontend, 200 tests), Playwright (E2E, 194 tests) |
+| Testing | Jest 30 (backend, 462 tests), Vitest (frontend, 197 tests), Playwright (E2E, 190 tests) |
 | Build | tsup (bot), tsc (shared/backend), Vite 7 (frontend) |
 | Infra | Docker (postgres + redis + nginx), Cloudflare Tunnel |
 
@@ -46,18 +46,12 @@ packages/
   - Display: `Sora`
   - Body/UI: `Manrope`
   - Mono/technical: `JetBrains Mono`
-- Domain-based dashboard IA (paths preserved):
-  - Overview: `/`, `/servers`
-  - Server: `/settings`, `/config`
-  - Moderation: `/moderation`, `/automod`, `/logs`
-  - Automation: `/features`, `/commands`, `/automessages`
-  - Music: `/music`, `/music/history`, `/lyrics`
-  - Integrations: `/lastfm`, `/twitch`
 
 ## Features
 
 ### Bot
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
+- Dynamic Discord presence rotation with live guild/member/session stats and command CTA
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
@@ -69,29 +63,11 @@ packages/
 
 ### Dashboard
 - Discord OAuth authentication
-- Rotating branded Discord activity presence with live server/member counts
-- Domain navigation shell with responsive sidebar, top context rail, and typed route metadata
 - Guild management with bot status
-- Server settings and configuration pages
-- Modules catalog with category grouping, tier badges, and per-module toggles/settings
-- Advanced module controls with status filters and sorting presets
-- Command categories with bulk enable/disable and per-command toggles
-- Command view-level bulk actions for visible results plus command capability badges
-- Command category matrix rail with grouped command sections for denser admin workflows
+- Module/command toggle per server
 - Moderation case viewer and settings
 - Auto-mod configuration
-- Server logs with tab categories, backend pagination metadata, and date-range filters
-- Log quick-range presets (`Last 24h`, `Last 7d`, `Last 30d`) and event-type visual labels
-- Server listing management (description, invite defaults, language, categories/tags, social links)
-- Server listing live preview panel with reset/save guardrails
-- Professionalized admin visual language (less decorative chrome, stronger hierarchy, denser controls) across Modules, Commands, Logs, and Server Listing
-- Refined global shell tokens for a cleaner production style (subtle background depth, reduced blur/glow, tighter cards/buttons)
-- Unified visual treatment for Dashboard, Features, Config, and Moderation pages to match the updated admin control surfaces
-- OAuth login now resolves Discord auth URLs from current request origin/host fallback to reduce stale-domain redirect failures in production
-- Backend startup fails in production (warns in non-production) if legacy `nexus.lucassantana.tech` values are present in OAuth frontend/redirect environment variables
-- Login view now displays inline OAuth error diagnostics to support faster incident triage
-- Health API includes OAuth config inspection at `/api/health/auth-config`
-- Automation pages for feature toggles and auto messages
+- Server logs with filtering
 - Music player with real-time SSE updates
 - Feature toggle management (Unleash + env var fallback)
 
@@ -100,8 +76,7 @@ packages/
 - Rate limiting (API 100/min, auth 20/15min, write 30/min)
 - Centralized error handling (AppError + asyncHandler + errorHandler)
 - Request logging middleware
-- Backend has 400+ tests with high coverage; frontend quality gates include
-  200 Vitest tests and 194 Playwright E2E tests
+- 421 tests (361 backend + 60 frontend), 96% statement coverage
 
 ## Quick Start
 
@@ -140,16 +115,7 @@ npm run type:check      # TypeScript validation
 npm run test            # Backend tests (Jest)
 npm run test:coverage   # With coverage report
 npm run format          # Prettier
-
-# Frontend-only quality gates
-npm run lint --workspace=packages/frontend
-npm run type:check --workspace=packages/frontend
-npm run test --workspace=packages/frontend
-npm run test:e2e --workspace=packages/frontend
 ```
-
-Backend dev startup now loads root `.env` before module initialization, so
-`DATABASE_URL` and related vars are available without manual export.
 
 ### Remote Deploy (No SSH)
 
@@ -160,9 +126,6 @@ npm run deploy:homelab
 ```
 
 Triggers the GitHub `Deploy to Homelab` workflow, waits for completion, and shows failed logs.
-After webhook rollout, the workflow runs an OAuth smoke gate against
-`/api/health/auth-config` and fails if auth config is degraded (warnings, legacy domain,
-or non-`ok` status).
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 

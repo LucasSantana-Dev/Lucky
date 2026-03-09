@@ -12,33 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lucky branding artifacts in `packages/frontend/branding`:
   `DESIGN_SYSTEM.md` and `BRANDING_GUIDE.md`
 - Lucky logo and favicon runtime assets in `packages/frontend/public`
-- Frontend route metadata model in `packages/frontend/src/config/routes.ts`
-  (`RouteDomain`, `RoutePath`, `RouteMeta`, `ROUTE_META`, `resolveRouteMeta`, `groupedRoutes`)
-- Reusable page-level UI contracts in `packages/frontend/src/components/ui/page-contracts.tsx`
-  (`PageHeader`, `Panel`, `StatTile`, `ActionBar`, `EmptyState`)
-- Frontend flat lint configuration for ESLint 10 in `packages/frontend/eslint.config.js`
-- Shared dashboard admin types in `packages/frontend/src/types/admin-dashboard.ts`
-  (`ModuleSummary`, `ModuleSettingsMeta`, `CommandSummary`, `CommandCategorySummary`, `LogEntry`, `LogTab`, `PaginatedLogs<T>`, `ServerListingSettings`, `ApiEnvelope<T>`)
-- Backend module/listing management endpoints:
-  - `GET /api/guilds/:guildId/modules`
-  - `PATCH /api/guilds/:guildId/modules/:moduleId/toggle`
-  - `PUT /api/guilds/:guildId/modules/:slug/settings`
-  - `GET /api/guilds/:guildId/listing`
-  - `PUT /api/guilds/:guildId/listing`
-- Backend command parity endpoints:
-  - `GET /api/guilds/:guildId/commands/categories`
-  - `PATCH /api/guilds/:guildId/commands/categories/:category/toggle`
-  - `PATCH /api/guilds/:guildId/commands/:commandId/toggle`
-- Bot presence rotation module with branded activity templates and live guild/member counters
+- Bot presence rotation module with richer profile-facing activities and live runtime stats
 
 ### Fixed
 
-- OAuth/login redirect flow now prefers request origin/forwarded host fallback to avoid stale-domain redirects (e.g. deprecated `nexus.*`) during Discord auth
-- Backend startup now fails fast in production (and warns in non-production) when `WEBAPP_FRONTEND_URL` or `WEBAPP_REDIRECT_URI` still target deprecated `nexus.lucassantana.tech`
-- Login page now surfaces inline OAuth failure diagnostics (error text + code) in addition to toast feedback for faster troubleshooting
-- Added `GET /api/health/auth-config` endpoint to inspect OAuth runtime config (`CLIENT_ID`, frontend URL, redirect URI, legacy-domain detection)
-- Frontend unit tests no longer emit jsdom `window.scrollTo` warnings by stubbing scroll in shared Vitest setup
-- Moderation table no longer emits `AnimatePresence mode="wait"` multi-child warnings during test and runtime renders
 - Music now-playing updates no longer send extra plain-text messages on every track change
 - Music now-playing embeds now reuse one message per guild channel to reduce chat spam
 - Music now-playing footer/requested fields now use plain text formatting in Discord footers
@@ -46,55 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Last.fm connect route now supports authenticated dashboard flow without requiring query `state`
 - Autoplay queue replenishment now searches and enqueues a related track when queue is empty
 - Deploy workflow now retries webhook calls with `/webhook/deploy` after HTTP 405
-- Deploy workflow webhook retry now also handles HTTP 404 fallback responses
-- Deploy webhook trigger now retries transient 5xx/network responses before failing
-- Deploy workflow now includes a post-rollout OAuth smoke gate on `/api/health/auth-config` and fails on warning/legacy-domain states
 - Deploy script now restarts Cloudflare tunnel (`cloudflared`) during rollout
 - Deploy script now prevents concurrent runs with a lock to avoid overlapping container rollouts
 - Deploy script now falls back to restarting `lucky-tunnel` directly when compose profile restart is unavailable
 - Frontend theming now maps legacy `lucky-*` classes to the Lucky purple/gold palette
 - Frontend typography now uses Lucky type tokens (`Sora`, `Manrope`, `JetBrains Mono`) instead of the old default stack
 - Vercel build now generates Prisma client before shared/frontend builds to prevent missing generated client errors
-- Sidebar navigation tests now avoid label collisions after shell branding updates
-- Playwright local runs now avoid web-server instability by capping workers and removing forced Chromium DevTools launch
-- Moderation case detail dialog now includes descriptive accessibility text for screen readers
-- SonarCloud scanner now points to the active project key (`LucasSantana-Dev_NexusBot`)
-- Root build now runs `db:generate` before package builds so CI preview/build-size jobs have Prisma client available
-- CI dependency installs now use `--ignore-scripts` to avoid flaky `youtube-dl-exec` postinstall rate-limit failures in GitHub Actions
-- Added `netlify.toml` monorepo build settings (frontend-focused publish command) for stable deploy previews
-- Guild module settings routes now return both legacy and envelope response shapes for compatibility
-- Backend session middleware now skips Redis session-store boot during tests to avoid socket exhaustion
-- Backend startup now loads environment before importing server modules that require database config
-- Discord OAuth in development now derives redirect URI from request origin and accepts `/auth/callback` legacy path
-- Frontend interactive controls now enforce pointer cursor on clickable buttons/links
-- Added staged entrance animations on login and shared page contracts with reduced-motion support
 
 ### Changed
 
-- Dashboard information architecture now uses domain-based grouping while preserving paths:
-  - Overview: `/`, `/servers`
-  - Server: `/settings`, `/config`
-  - Moderation: `/moderation`, `/automod`, `/logs`
-  - Automation: `/features`, `/commands`, `/automessages`
-  - Music: `/music`, `/music/history`, `/lyrics`
-  - Integrations: `/lastfm`, `/twitch`
-- Header context rail now includes stable server/user context and quick actions for logs/settings
-- `Modules` page now includes parity-oriented category grouping, status badges, and summary stat cards
-- `Modules` page now includes advanced status filters and sorting controls for faster admin scanning
-- `CustomCommands` page migrated to category navigation + bulk enable/disable controls
-- `CustomCommands` page now includes category counters, visible-result bulk actions, and command capability badges
-- `CustomCommands` page now includes a category matrix side panel and grouped command sections
-- `ServerLogs` page migrated to tabbed log categories with backend pagination metadata
-- `ServerLogs` page now supports date-range filtering (`from/to`) and richer event-type row labeling
-- `ServerLogs` page now includes quick time presets (`24h`, `7d`, `30d`) and observability context header
-- `ServerListing` page now includes reset/save workflow with dirty-state guard and live listing preview panel
-- Admin pages (`Modules`, `Commands`, `Logs`, `Server Listing`) received a professional visual polish pass with denser control bars, restrained surfaces, and reduced ornamental effects
-- Commands and Modules screens now prioritize operational readability with cleaner category/filter rails and tighter metadata presentation
-- Global dashboard shell styling now uses a more restrained SaaS aesthetic (reduced glow/blur effects, tighter card/button geometry, neutralized header context copy)
-- Visual language was unified across `Dashboard`, `Features`, `Config`, and `Moderation` with consistent section rails, card density, and control styling
-- Added typed `api.admin` frontend client using deterministic envelope contracts (`{ data, meta, error }`)
-- `GET /api/guilds/:guildId/logs` now supports parity query parameters:
-  `{ tab, page, pageSize, from, to }` (legacy query shape remains supported)
 - Added root npm deploy shortcuts: `npm run deploy:remote` and `npm run deploy:homelab`
 - `scripts/deploy-remote.sh` now targets workflow file `deploy.yml` and waits for the dispatch run more reliably
 - `scripts/deploy-remote.sh` now always prints failed GitHub Actions logs before exiting
@@ -102,11 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated Lucky design/branding docs to define purple (`#8b5cf6`) and gold (`#d4a017`) as main brand colors with usage roles
 - Added Lucky production tunnel snippet and `nexus` -> `lucky` zero-downtime migration checklist to Cloudflare/deploy docs
 - Pinned Node engine to `22.x` to avoid unexpected major-version upgrades in CI/Vercel builds
-- Fully regenerated frontend UI/UX with a dark-first premium neon shell and purple/gold brand semantics
-- Rebuilt navigation IA to domain-based grouping while preserving existing route paths
-- Replaced legacy layout stack (`Header`, `Navbar`, `DashboardLayout`, `DashboardSidebar`, `ServerSelector`) with canonical `Layout` + metadata-driven `Sidebar`
-- Regenerated core UI primitives (`Button`, `Card`, `Input`, `Select`, `Dialog`, `Badge`, loading primitives) with unified variant semantics
-- Migrated dashboard and domain pages to standardized page scaffolding and semantic token usage
 
 ## [2.5.0] - 2026-03-08
 
