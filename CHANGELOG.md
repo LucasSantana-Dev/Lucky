@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Deploy webhook trigger now retries longer on 5xx/network failures, logs every attempt, and falls back to canonical `/webhook/deploy` path for all non-2xx responses
 - Music now-playing updates no longer send extra plain-text messages on every track change
 - Music now-playing embeds now reuse one message per guild channel to reduce chat spam
 - Music now-playing footer/requested fields now use plain text formatting in Discord footers
