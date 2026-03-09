@@ -1,10 +1,4 @@
-import {
-    Client,
-    GatewayIntentBits,
-    REST,
-    Routes,
-    Collection,
-} from 'discord.js'
+import { Client, GatewayIntentBits, REST, Routes, Collection } from 'discord.js'
 import type { Player } from 'discord-player'
 import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../../types'
