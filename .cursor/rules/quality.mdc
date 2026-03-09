@@ -1,0 +1,115 @@
+---
+description: Comprehensive testing strategy, quality gates, performance monitoring, and observability guidance. Apply when creating or updating tests, modifying quality thresholds, adding logging/metrics, performance tuning, or health/readiness endpoints.
+alwaysApply: false
+---
+
+# Quality: Testing, Performance & Observability
+
+## Testing Strategy
+
+### Testing Framework
+- **Use Jest** for unit and integration tests as applicable
+- Add integration tests where appropriate
+- Test behavior, not implementation details
+
+### Coverage Requirements
+- **Minimum recommended coverage threshold: 90%** (raise per project risk)
+- CI must run: lint → build → test → quality checks
+
+### Test File Organization
+
+#### File Naming Conventions
+- **Unit tests**: `*.spec.ts`
+- **Integration tests**: `*.test.ts`
+- **E2E tests**: placed under `tests/e2e/`
+
+#### File Locations
+- **Unit tests**: Located in the same place as the file being tested
+- **Integration tests**: Located inside a `/tests` folder at the project's root
+
+### Testing Best Practices
+- Test behavior, not implementation details
+- Prefer unit tests for core logic
+- Add integration tests at meaningful boundaries
+- Keep modules small and testable by construction (pure functions where possible)
+
+## Performance & Monitoring
+
+### Performance Budgets
+- Add performance budgets for frontend bundles
+- Monitor common regression signals:
+  - Latency percentiles
+  - Critical path render time
+
+### Observability Requirements
+
+#### Backend Services
+- Add basic metrics and health endpoints
+- Use logging standards (structured logs, include correlation IDs)
+- Monitor system health and performance
+
+#### Logging Standards
+- **Structured logs** with consistent format
+- **Include correlation IDs** for request tracing
+- **Avoid logging secrets/PII**
+- **Mark retryable vs nonRetryable** where helpful for operations
+
+#### Metrics & Health Checks
+- Implement health/readiness endpoints
+- Add performance monitoring
+- Track key business metrics
+- Monitor error rates and response times
+
+## Quality Gates
+
+### CI Quality Checks
+- **Lint**: TypeScript typecheck + linter
+- **Build**: Production build verification
+- **Test**: Unit + integration + coverage report
+- **Quality**: Static analysis, vulnerability scan
+- **Security**: SAST / secrets scan on PRs
+
+### Pre-commit Quality
+- Format → lint autofix → type-check → fast tests
+- Enforce code quality standards before commit
+
+## Performance Optimization
+
+### Frontend Performance
+- Leverage performance optimizations
+- Monitor bundle size and loading times
+- Implement lazy loading where appropriate
+- Optimize critical rendering path
+
+### Backend Performance
+- Monitor API response times
+- Track database query performance
+- Implement caching strategies where appropriate
+- Monitor memory usage and garbage collection
+
+## Error Handling & Monitoring
+
+### Error Tracking
+- Log errors with structure (message, code, stack, cause, correlationId, user context where appropriate)
+- Implement error boundaries for render-time exceptions
+- Use structured error reporting
+
+### Performance Monitoring
+- Track key performance indicators
+- Monitor system resource usage
+- Alert on performance regressions
+- Implement performance budgets and alerts
+
+## Quality Metrics
+
+### Code Quality
+- Maintain high test coverage (≥90%)
+- Monitor code complexity metrics
+- Track technical debt
+- Regular code reviews and refactoring
+
+### System Quality
+- Monitor uptime and availability
+- Track error rates and response times
+- Monitor system health
+- Implement proactive monitoring and alerting

@@ -1,4 +1,4 @@
-# Nexus — Database and Services
+# Lucky — Database and Services
 
 ## Database
 

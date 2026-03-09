@@ -1,4 +1,4 @@
-# Nexus — Project Overview
+# Lucky — Project Overview
 
 ## What It Is
 
