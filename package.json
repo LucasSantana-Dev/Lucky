@@ -7,7 +7,7 @@
         "packages/*"
     ],
     "scripts": {
-        "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
+        "build": "npm run db:generate && npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
         "build:shared": "npm run build --workspace=packages/shared",
         "build:bot": "npm run build --workspace=packages/bot",
         "build:backend": "npm run build --workspace=packages/backend",
@@ -56,7 +56,7 @@
         }
     },
     "engines": {
-        "node": ">=22.x"
+        "node": "22.x"
     },
     "optionalDependencies": {
         "@discordjs/opus": "^0.10.0"

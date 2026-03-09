@@ -1,5 +1,5 @@
 {
-    "buildCommand": "npm run build:shared && npm run build:frontend",
+    "buildCommand": "npm run db:generate && npm run build:shared && npm run build:frontend",
     "outputDirectory": "packages/frontend/dist",
     "installCommand": "npm ci",
     "framework": "vite",

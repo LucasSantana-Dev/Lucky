@@ -45,20 +45,43 @@ jobs:
                       "$url"
                   }
 
-                  response=$(call_webhook "$WEBHOOK_URL")
+                  call_webhook_with_retry() {
+                    local url="$1"
+                    local attempt http body response
+                    for attempt in $(seq 1 5); do
+                      response=$(call_webhook "$url")
+                      http=$(echo "$response" | tail -1)
+                      body=$(echo "$response" | sed '$d')
+                      echo "Response from $url (attempt $attempt/5): $body (HTTP $http)"
+
+                      if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+                        echo "$response"
+                        return 0
+                      fi
+
+                      if [ "$http" -ge 500 ] || [ "$http" = "000" ]; then
+                        if [ "$attempt" -lt 5 ]; then
+                          sleep $((attempt * 2))
+                          continue
+                        fi
+                      fi
+
+                      echo "$response"
+                      return 0
+                    done
+                  }
+
+                  response=$(call_webhook_with_retry "$WEBHOOK_URL")
 
                   http_code=$(echo "$response" | tail -1)
                   body=$(echo "$response" | sed '$d')
 
-                  echo "Response from $WEBHOOK_URL: $body (HTTP $http_code)"
-
                   retry_url="${WEBHOOK_URL%/}/webhook/deploy"
-                  if [ "$http_code" = "405" ] && [ "$WEBHOOK_URL" != "$retry_url" ]; then
+                  if [ "$WEBHOOK_URL" != "$retry_url" ] && { [ "$http_code" = "404" ] || [ "$http_code" = "405" ]; }; then
                     echo "==> Retrying with canonical webhook path: $retry_url"
-                    response=$(call_webhook "$retry_url")
+                    response=$(call_webhook_with_retry "$retry_url")
                     http_code=$(echo "$response" | tail -1)
                     body=$(echo "$response" | sed '$d')
-                    echo "Response from $retry_url: $body (HTTP $http_code)"
                   fi
 
                   if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
@@ -67,6 +90,60 @@ jobs:
                     echo "::error::Deploy webhook failed with HTTP $http_code"
                     exit 1
                   fi
+
+            - name: Auth config smoke check
+              env:
+                  WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+              run: |
+                  set -euo pipefail
+
+                  base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
+                  health_url="${base_url}/api/health/auth-config"
+
+                  echo "==> Running deploy smoke check: $health_url"
+
+                  for attempt in $(seq 1 18); do
+                    echo "Attempt ${attempt}/18..."
+                    response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
+                    http_code=$(echo "$response" | tail -1)
+                    body=$(echo "$response" | sed '$d')
+
+                    if [ "$http_code" = "200" ]; then
+                      HEALTH_BODY="$body" node - <<'NODE'
+                      const body = process.env.HEALTH_BODY ?? '';
+                      let parsed;
+                      try {
+                        parsed = JSON.parse(body);
+                      } catch {
+                        console.error('::error::auth-config returned invalid JSON');
+                        process.exit(1);
+                      }
+
+                      const status = parsed?.status ?? 'unknown';
+                      const hasLegacyDomain = Boolean(parsed?.auth?.hasLegacyDomain);
+                      const warnings = Array.isArray(parsed?.warnings) ? parsed.warnings : [];
+
+                      if (status !== 'ok' || hasLegacyDomain || warnings.length > 0) {
+                        console.error(
+                          `::error::OAuth auth-config smoke check failed (status=${status}, hasLegacyDomain=${hasLegacyDomain}, warnings=${warnings.length})`,
+                        );
+                        if (warnings.length > 0) {
+                          console.error(`::error::Warnings: ${warnings.join(' | ')}`);
+                        }
+                        process.exit(1);
+                      }
+
+                      console.log('==> OAuth auth-config smoke check passed');
+                      NODE
+                      exit 0
+                    fi
+
+                    echo "Service not ready yet (HTTP $http_code). Waiting 10s..."
+                    sleep 10
+                  done
+
+                  echo "::error::Timed out waiting for /api/health/auth-config to become available"
+                  exit 1
 
             - name: Notify failure
               if: failure()

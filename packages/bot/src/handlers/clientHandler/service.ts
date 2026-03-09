@@ -1,7 +1,6 @@
 import {
     Client,
     GatewayIntentBits,
-    ActivityType,
     REST,
     Routes,
     Collection,
@@ -11,6 +10,9 @@ import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../../types'
 import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
+import { startPresenceRotation } from './presence'
+
+let stopPresenceRotation: (() => void) | null = null
 
 export async function createClient(): Promise<CustomClient> {
     try {
@@ -58,9 +60,8 @@ export async function startClient({
                     infoLog({
                         message: `Bot logged in as ${client.user.tag}`,
                     })
-                    client.user.setActivity('Music', {
-                        type: ActivityType.Listening,
-                    })
+                    stopPresenceRotation?.()
+                    stopPresenceRotation = startPresenceRotation(client)
                 }
 
                 const rest = new REST({ version: '10' }).setToken(TOKEN)

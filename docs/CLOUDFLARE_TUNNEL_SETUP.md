@@ -195,7 +195,7 @@ ingress:
 
 Important: `localhost` in a container means the container itself. If `cloudflared` runs in Docker, prefer `http://nginx:80` and ensure it is attached to the same compose network.
 
-## 9. Zero-downtime migration checklist (`lucky` -> `lucky`)
+## 9. Zero-downtime migration checklist (`nexus` -> `lucky`)
 
 1. Add `lucky.lucassantana.tech` in Cloudflare DNS and map it to the existing tunnel.
 2. Keep `lucky.lucassantana.tech` active during migration (do not remove yet).
