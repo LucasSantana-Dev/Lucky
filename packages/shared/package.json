@@ -28,7 +28,7 @@
         }
     },
     "scripts": {
-        "build": "tsc && node add-js-extensions.js",
+        "build": "tsc -b --force && node add-js-extensions.js",
         "dev": "tsc --watch",
         "type:check": "tsc --noEmit"
     },
