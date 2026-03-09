@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moderation case detail dialog now includes descriptive accessibility text for screen readers
 - SonarCloud scanner now points to the active project key (`LucasSantana-Dev_NexusBot`)
 - Root build now runs `db:generate` before package builds so CI preview/build-size jobs have Prisma client available
+- CI dependency installs now use `--ignore-scripts` to avoid flaky `youtube-dl-exec` postinstall rate-limit failures in GitHub Actions
 - Guild module settings routes now return both legacy and envelope response shapes for compatibility
 - Backend session middleware now skips Redis session-store boot during tests to avoid socket exhaustion
 - Backend startup now loads environment before importing server modules that require database config
