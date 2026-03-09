@@ -32,7 +32,7 @@
 - ✅ Docker build fix — all 4 images building on ghcr.io (bot, backend, frontend, nginx)
 - ✅ Last.fm OAuth hardening — apiKey validation, WEBAPP_BACKEND_URL callback
 - ✅ E2E visual baseline — 3 snapshots updated, 190/190 passing
-- ✅ DNS verified — nexus.lucassantana.tech → 172.67.145.91 / 104.21.55.61
+- ✅ DNS verified — lucky.lucassantana.tech → 172.67.145.91 / 104.21.55.61
 
 ## Remaining Work
 1. **Homelab webhook server**: Deploy webhook returns 405 — nginx needs POST endpoint config

@@ -4,7 +4,7 @@
 - **express-session mock**: setup.ts only sets `req.sessionID` from cookie header. All authed supertest requests MUST include `.set('Cookie', ['sessionId=valid_session_id'])` or requireAuth returns 401
 - **SSE endpoints**: `text/event-stream` responses keep connection open — incompatible with supertest's `.expect()`. Use raw `http.get()` or skip SSE-specific assertions
 - **Backend test directory**: Must run `npx jest` from `packages/backend/` for `diagnostics: false` in ts-jest to work. Running from root with `--workspace` may show TS errors
-- **Redis caching tests**: Import services via `@nexus/shared/services/CustomCommandService` (moduleNameMapper path) to get real implementation instead of setup.ts global mock of `@nexus/shared/services`
+- **Redis caching tests**: Import services via `@lucky/shared/services/CustomCommandService` (moduleNameMapper path) to get real implementation instead of setup.ts global mock of `@lucky/shared/services`
 - **Jest 30 typing**: `mockRejectedValue(new Error('msg'))` needs `as never` cast: `mockRejectedValue(new Error('msg') as never)`
 - **Pre-commit hook**: Runs `npm audit --audit-level=critical` which can fail on transitive deps. Use `HUSKY=0` for non-code commits
 - **shared package**: Must `npm run build:shared` before running backend tests if shared source changed
