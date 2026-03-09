@@ -1,15 +1,15 @@
 ---
-description: Nexus project structure, stack, and conventions. Apply when navigating or changing project layout.
+description: Lucky project structure, stack, and conventions. Apply when navigating or changing project layout.
 alwaysApply: true
 ---
 
-# Nexus Project
+# Lucky Project
 
 ## Stack
 
 - **Monorepo**: npm workspaces (`packages/*`)
-- **Bot**: Discord.js, Discord Player, `@nexus/shared`
-- **Backend**: Express, `@nexus/shared`
+- **Bot**: Discord.js, Discord Player, `@lucky/shared`
+- **Backend**: Express, `@lucky/shared`
 - **Frontend**: React (Vite), independent of shared
 - **Data**: Prisma (PostgreSQL), Redis (shared client)
 - **Runtime**: Node.js ≥22, ESM only

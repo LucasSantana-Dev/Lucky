@@ -1,9 +1,9 @@
 ---
 name: e2e-playwright
-description: Run and write E2E tests with Playwright for Nexus frontend. Use when adding or changing E2E flows, or verifying web UI.
+description: Run and write E2E tests with Playwright for Lucky frontend. Use when adding or changing E2E flows, or verifying web UI.
 ---
 
-# Nexus E2E (Playwright)
+# Lucky E2E (Playwright)
 
 ## When to use
 

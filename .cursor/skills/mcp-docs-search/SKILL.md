@@ -1,9 +1,9 @@
 ---
 name: mcp-docs-search
-description: Use MCP tools for docs lookup and web search in Nexus. Use when needing up-to-date docs, APIs, or best practices.
+description: Use MCP tools for docs lookup and web search in Lucky. Use when needing up-to-date docs, APIs, or best practices.
 ---
 
-# MCP Docs & Search (Nexus)
+# MCP Docs & Search (Lucky)
 
 ## When to use
 
@@ -21,12 +21,12 @@ description: Use MCP tools for docs lookup and web search in Nexus. Use when nee
 | GitHub               | **user-GitHub**                                                     | Issues, PRs, repo metadata                      |
 | Browser/E2E          | **user-playwright**, **cursor-ide-browser**, **user-browser-tools** | E2E tests, UI verification                      |
 | UI ideas             | **user-v0**, **user-@magicuidesign/mcp**                            | Reference only; adapt to repo                   |
-| Cloudflare           | **user-cloudflare-observability**, **user-cloudflare-bindings**     | Only if Nexus is on Cloudflare Workers          |
+| Cloudflare           | **user-cloudflare-observability**, **user-cloudflare-bindings**     | Only if Lucky is on Cloudflare Workers          |
 
 ## Use when needed (not default)
 
 - **radar_search**, **mcp-gateway**, **user-desktop-commander**, **user-apify-dribbble**, **MCP_DOCKER**, **curl**: Only when the task clearly requires them (e.g. Docker API, desktop automation, scraping).
-- **user-minecraft**, **composio**: Not used for Nexus unless explicitly required.
+- **user-minecraft**, **composio**: Not used for Lucky unless explicitly required.
 
 ## Conventions
 

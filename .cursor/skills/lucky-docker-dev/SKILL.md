@@ -1,9 +1,9 @@
 ---
-name: nexus-docker-dev
-description: Run and test Nexus with Docker. Use when changing docker-compose, Dockerfiles, or local dev/CI runs.
+name: lucky-docker-dev
+description: Run and test Lucky with Docker. Use when changing docker-compose, Dockerfiles, or local dev/CI runs.
 ---
 
-# Nexus Docker & Local Dev
+# Lucky Docker & Local Dev
 
 ## When to use
 

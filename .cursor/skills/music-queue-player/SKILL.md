@@ -1,9 +1,9 @@
 ---
 name: music-queue-player
-description: Work with Discord Player, queue, and music commands in Nexus. Use when changing play/queue/skip/volume, track handling, or player lifecycle.
+description: Work with Discord Player, queue, and music commands in Lucky. Use when changing play/queue/skip/volume, track handling, or player lifecycle.
 ---
 
-# Nexus Music & Queue
+# Lucky Music & Queue
 
 ## When to use
 
@@ -29,7 +29,7 @@ description: Work with Discord Player, queue, and music commands in Nexus. Use w
 
 ## Shared state
 
-- Track history and recommendations: use services from `@nexus/shared` (e.g. TrackHistoryService, recommendation) when persisting; do not duplicate queue state in Redis/DB beyond what shared exposes.
+- Track history and recommendations: use services from `@lucky/shared` (e.g. TrackHistoryService, recommendation) when persisting; do not duplicate queue state in Redis/DB beyond what shared exposes.
 
 ## Validations
 

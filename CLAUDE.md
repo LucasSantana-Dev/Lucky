@@ -1,4 +1,4 @@
-# Nexus - Project Guide
+# Lucky - Project Guide
 
 ## Overview
 All-in-one Discord bot platform with web dashboard. Music, moderation, auto-mod, custom commands, feature toggles, and server management — TypeScript monorepo with 4 packages.

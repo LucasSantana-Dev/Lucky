@@ -195,10 +195,10 @@ ingress:
 
 Important: `localhost` in a container means the container itself. If `cloudflared` runs in Docker, prefer `http://nginx:80` and ensure it is attached to the same compose network.
 
-## 9. Zero-downtime migration checklist (`nexus` -> `lucky`)
+## 9. Zero-downtime migration checklist (`lucky` -> `lucky`)
 
 1. Add `lucky.lucassantana.tech` in Cloudflare DNS and map it to the existing tunnel.
-2. Keep `nexus.lucassantana.tech` active during migration (do not remove yet).
+2. Keep `lucky.lucassantana.tech` active during migration (do not remove yet).
 3. Add both hostnames to tunnel ingress (or publish both in dashboard).
 4. Verify Lucky endpoint:
     - `curl -i -X POST https://lucky.lucassantana.tech/webhook/deploy`
@@ -207,7 +207,7 @@ Important: `localhost` in a container means the container itself. If `cloudflare
 6. Run deployment via workflow:
     - `npm run deploy:homelab`
 7. Monitor deploy and app health for at least one full release cycle.
-8. After stable operation, remove `nexus.lucassantana.tech` from tunnel and DNS.
+8. After stable operation, remove `lucky.lucassantana.tech` from tunnel and DNS.
 
 ## Troubleshooting
 

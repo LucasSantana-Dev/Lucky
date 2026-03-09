@@ -28,7 +28,7 @@ BEFORE claiming any status or expressing satisfaction:
 4. VERIFY: Does output confirm the claim?
 5. ONLY THEN: Make the claim
 
-## Nexus Verification Commands
+## Lucky Verification Commands
 
 ```bash
 npm run lint          # ESLint across all packages

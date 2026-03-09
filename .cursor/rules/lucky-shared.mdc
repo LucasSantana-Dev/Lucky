@@ -4,7 +4,7 @@ globs: ["packages/shared/**/*.ts"]
 alwaysApply: false
 ---
 
-# Nexus Shared Package
+# Lucky Shared Package
 
 ## Layout
 

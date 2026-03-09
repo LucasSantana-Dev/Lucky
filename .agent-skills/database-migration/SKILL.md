@@ -6,7 +6,7 @@ source: https://github.com/wshobson/agents
 
 # Database Migration
 
-Master database schema migrations with Prisma for Nexus.
+Master database schema migrations with Prisma for Lucky.
 
 ## When to Use This Skill
 
@@ -15,7 +15,7 @@ Master database schema migrations with Prisma for Nexus.
 - Running `npm run db:migrate`
 - Zero-downtime schema changes
 
-## Nexus Migration Commands
+## Lucky Migration Commands
 
 ```bash
 npm run db:generate    # Regenerate Prisma client after schema changes
@@ -50,7 +50,7 @@ Step 2: Backfill data
 Step 3: Make required (String) in separate migration
 ```
 
-## Nexus Schema Location
+## Lucky Schema Location
 
 - Schema: `prisma/schema.prisma`
 - Migrations: `prisma/migrations/`

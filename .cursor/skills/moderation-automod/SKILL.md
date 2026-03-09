@@ -1,9 +1,9 @@
 ---
 name: moderation-automod
-description: Work with Nexus moderation commands and AutoModService. Use when adding or editing /warn, /mute, /ban, /kick, /case commands, ModerationService, AutoModService, or moderation settings in packages/shared or packages/bot.
+description: Work with Lucky moderation commands and AutoModService. Use when adding or editing /warn, /mute, /ban, /kick, /case commands, ModerationService, AutoModService, or moderation settings in packages/shared or packages/bot.
 ---
 
-# Nexus Moderation & Auto-Mod
+# Lucky Moderation & Auto-Mod
 
 ## When to use
 

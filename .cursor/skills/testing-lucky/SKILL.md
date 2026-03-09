@@ -1,9 +1,9 @@
 ---
-name: testing-nexus
-description: Write and fix tests in Nexus. Use when adding unit tests, fixing disabled tests, or understanding Jest ESM mock patterns specific to this project.
+name: testing-lucky
+description: Write and fix tests in Lucky. Use when adding unit tests, fixing disabled tests, or understanding Jest ESM mock patterns specific to this project.
 ---
 
-# Nexus Testing
+# Lucky Testing
 
 ## When to use
 
@@ -24,8 +24,8 @@ Tests run from `packages/backend/` roots only. Bot package tests do not exist ye
 ## Jest config key facts
 
 - Preset: `ts-jest` (not Vitest, not native ESM)
-- `moduleNameMapper` maps `@nexus/shared/services` → `packages/shared/src/services/index.ts`
-- `transformIgnorePatterns` allows `chalk`, `uuid`, and `@nexus` through transform
+- `moduleNameMapper` maps `@lucky/shared/services` → `packages/shared/src/services/index.ts`
+- `transformIgnorePatterns` allows `chalk`, `uuid`, and `@lucky` through transform
 - Coverage threshold: 70% for branches, functions, lines, statements
 - `clearMocks`, `resetMocks`, `restoreMocks` all true — mocks reset between tests automatically
 - `testTimeout`: 30000ms
@@ -46,15 +46,15 @@ const mockPrisma: any = {
 }
 
 // Must come BEFORE the import, at top level
-jest.unstable_mockModule('@nexus/shared/utils/database/prismaClient', () => ({
+jest.unstable_mockModule('@lucky/shared/utils/database/prismaClient', () => ({
     getPrismaClient: () => mockPrisma,
     prisma: mockPrisma,
 }))
 
-let MyService: typeof import('@nexus/shared/services').MyService
+let MyService: typeof import('@lucky/shared/services').MyService
 
 beforeAll(async () => {
-    const module = await import('@nexus/shared/services')
+    const module = await import('@lucky/shared/services')
     MyService = module.MyService
 })
 ```
@@ -92,7 +92,7 @@ Currently disabled (as of 2026-03-06):
 ## Writing a new service test
 
 1. Copy the mock setup pattern above
-2. Only mock `@nexus/shared/utils/database/prismaClient` (and Redis if needed)
+2. Only mock `@lucky/shared/utils/database/prismaClient` (and Redis if needed)
 3. Test the public service API — not Prisma internals
 4. Use realistic Discord snowflake IDs as constants (18-digit strings)
 5. Keep each `describe` block scoped to one service method
@@ -108,7 +108,7 @@ const mockRedis: any = {
     setex: jest.fn(),
 }
 
-jest.unstable_mockModule('@nexus/shared/services/redis', () => ({
+jest.unstable_mockModule('@lucky/shared/services/redis', () => ({
     redisClient: mockRedis,
 }))
 ```
@@ -121,7 +121,7 @@ jest.unstable_mockModule('@nexus/shared/services/redis', () => ({
 | Importing service at top level (before mock)          | Move import into `beforeAll`                               |
 | Using `fail('message')`                               | Use `throw new Error('message')` — `fail` is not available |
 | Checking mock call count without `clearMocks`         | Already handled by jest config; no need to call manually   |
-| Importing `@nexus/shared` (root) instead of subpath   | Use `@nexus/shared/services` to get module mapper          |
+| Importing `@lucky/shared` (root) instead of subpath   | Use `@lucky/shared/services` to get module mapper          |
 
 ## Integration test pattern
 

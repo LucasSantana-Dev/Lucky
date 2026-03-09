@@ -1,9 +1,9 @@
 ---
-name: prisma-redis-nexus
-description: Use Prisma and Redis in Nexus. Use when changing schema, migrations, shared DB/Redis services, or key patterns.
+name: prisma-redis-lucky
+description: Use Prisma and Redis in Lucky. Use when changing schema, migrations, shared DB/Redis services, or key patterns.
 ---
 
-# Nexus Prisma & Redis
+# Lucky Prisma & Redis
 
 ## When to use
 
@@ -26,5 +26,5 @@ description: Use Prisma and Redis in Nexus. Use when changing schema, migrations
 
 ## Conventions
 
-- No raw Prisma/Redis usage in `packages/bot` or `packages/backend`; go through `@nexus/shared` services.
+- No raw Prisma/Redis usage in `packages/bot` or `packages/backend`; go through `@lucky/shared` services.
 - Migrations: additive changes preferred; avoid destructive changes without a clear migration path and backup.

@@ -38,7 +38,7 @@ When a user provides a file or pattern argument:
 
 If no files specified, ask the user which files to review.
 
-## Nexus Usage
+## Lucky Usage
 
 Apply to frontend components in `packages/frontend/src/`:
 

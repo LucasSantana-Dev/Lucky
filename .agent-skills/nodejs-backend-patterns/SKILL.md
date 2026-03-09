@@ -16,7 +16,7 @@ Comprehensive guidance for building scalable, maintainable, production-ready Nod
 - Setting up error handling
 - Implementing authentication/authorization
 
-## Nexus Backend Structure
+## Lucky Backend Structure
 
 ```
 packages/backend/src/
@@ -27,7 +27,7 @@ packages/backend/src/
 │   ├── managementAutoMessages.ts
 │   └── music.ts
 ├── middleware/      # auth.ts, requireAuth
-├── services/        # (use @nexus/shared/services)
+├── services/        # (use @lucky/shared/services)
 └── index.ts         # App entry point
 ```
 
@@ -38,8 +38,8 @@ packages/backend/src/
 ```typescript
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
-import { someService } from '@nexus/shared/services'
-import { errorLog } from '@nexus/shared/utils'
+import { someService } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
 
 export function setupSomeRoutes(app: Express): void {
     app.get(
@@ -59,7 +59,7 @@ export function setupSomeRoutes(app: Express): void {
 }
 ```
 
-**Error handling:** Use `errorLog` from `@nexus/shared/utils`. Return structured `{ error: 'message' }` JSON.
+**Error handling:** Use `errorLog` from `@lucky/shared/utils`. Return structured `{ error: 'message' }` JSON.
 
 **Auth:** All protected routes use `requireAuth` middleware from `../middleware/auth`.
 

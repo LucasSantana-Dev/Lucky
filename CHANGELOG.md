@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/deploy-remote.sh` now targets workflow file `deploy.yml` and waits for the dispatch run more reliably
 - `scripts/deploy-remote.sh` now always prints failed GitHub Actions logs before exiting
 - Added typography specification to Lucky brand docs (`DESIGN_SYSTEM.md` and `BRANDING_GUIDE.md`)
-- Added Lucky production tunnel snippet and `nexus` -> `lucky` zero-downtime migration checklist to Cloudflare/deploy docs
+- Added Lucky production tunnel snippet and `lucky` -> `lucky` zero-downtime migration checklist to Cloudflare/deploy docs
 
 ## [2.5.0] - 2026-03-08
 
