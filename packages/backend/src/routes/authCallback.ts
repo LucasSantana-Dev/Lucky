@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { discordOAuthService } from '../services/DiscordOAuthService'
 import { sessionService } from '../services/SessionService'
+import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 
 export async function handleOAuthCallback(
     req: Request,
@@ -9,8 +10,7 @@ export async function handleOAuthCallback(
 ): Promise<void> {
     try {
         const { code, error } = req.query
-        const frontendUrl =
-            process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
+        const frontendUrl = getPrimaryFrontendUrl()
 
         if (error) {
             errorLog({ message: 'Discord OAuth error', data: { error } })
@@ -92,8 +92,7 @@ export async function handleOAuthCallback(
         res.redirect(`${frontendUrl}/?authenticated=true`)
     } catch (error) {
         errorLog({ message: 'Error in Discord OAuth callback:', error })
-        const frontendUrl =
-            process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
+        const frontendUrl = getPrimaryFrontendUrl()
         res.redirect(
             `${frontendUrl}/?error=auth_failed&message=authentication_error`,
         )

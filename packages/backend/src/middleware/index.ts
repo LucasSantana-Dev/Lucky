@@ -5,17 +5,13 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { setupSessionMiddleware } from './session'
 import { requestLogger } from './requestLogger'
+import { getFrontendOrigins } from '../utils/frontendOrigin'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export function setupMiddleware(app: Express): void {
-    const frontendUrl =
-        process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
-    const configuredOrigins = frontendUrl
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter((origin) => origin.length > 0)
+    const configuredOrigins = getFrontendOrigins()
 
     const isAllowedOrigin = (origin: string): boolean => {
         if (configuredOrigins.includes(origin)) {

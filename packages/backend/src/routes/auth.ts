@@ -6,9 +6,10 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { authLimiter } from '../middleware/rateLimit'
 import { handleOAuthCallback } from './authCallback'
+import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 
 const getFrontendUrl = (): string => {
-    return process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
+    return getPrimaryFrontendUrl()
 }
 
 export function setupAuthRoutes(app: Express): void {

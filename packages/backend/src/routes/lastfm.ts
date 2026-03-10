@@ -11,6 +11,7 @@ import {
     requireAuth,
     type AuthenticatedRequest,
 } from '../middleware/auth'
+import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
@@ -60,7 +61,7 @@ function decodeAndVerifyState(state: string, secret: string): string | null {
 }
 
 function getFrontendUrl(): string {
-    return process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
+    return getPrimaryFrontendUrl()
 }
 
 export function setupLastFmRoutes(app: Express): void {

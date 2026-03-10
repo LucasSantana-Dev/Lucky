@@ -17,10 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Backend CORS now accepts configured origins plus `*.lucassantana.tech` and `*.luk-homeserver.com.br` hosts for dashboard/API split-domain setups
+- Backend auth/Last.fm redirect targets now use the primary frontend origin when `WEBAPP_FRONTEND_URL` contains multiple comma-separated domains
 - Frontend API client now auto-resolves hosted API base to `lucky-api.lucassantana.tech` or `api.luk-homeserver.com.br` when `VITE_API_BASE_URL` is not set
 - Deploy smoke check now falls back to `/api/health` when `/api/health/auth-config` is unavailable
 - Vercel routing no longer rewrites `/api/*` back to the same Lucky host, preventing `508 INFINITE_LOOP` on OAuth login
 - Frontend API base URL now supports `VITE_API_BASE_URL` for hosted deployments that use a separate backend origin
+- Vercel now forwards `/api/*` directly to `https://lucky-api.lucassantana.tech/api/*` to prevent frontend-host `404 NOT_FOUND` on OAuth/API routes
 - Deploy webhook trigger now uses strict curl connect/request timeouts to avoid long hangs in CI deploy jobs
 - Deploy webhook trigger now retries longer on 5xx/network failures, logs every attempt, and falls back to canonical `/webhook/deploy` path for all non-2xx responses
 - Music now-playing updates no longer send extra plain-text messages on every track change

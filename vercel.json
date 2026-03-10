@@ -2,5 +2,11 @@
     "buildCommand": "npm run db:generate && npm run build:shared && npm run build:frontend",
     "outputDirectory": "packages/frontend/dist",
     "installCommand": "npm ci",
-    "framework": "vite"
+    "framework": "vite",
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://lucky-api.lucassantana.tech/api/:path*"
+        }
+    ]
 }
