@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (PID-aware) after interrupted deploys instead of blocking all future runs
 - Backend startup now attempts to connect the shared Redis client before serving
   requests, while continuing with fallback behavior if Redis is unavailable
+- Deploy workflow auth smoke gate now strictly requires
+  `/api/health/auth-config` with `status=ok`, no warnings, and healthy
+  auth-session/Redis flags (no fallback to generic health endpoint)
 
 ### Added
 
