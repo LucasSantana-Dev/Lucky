@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy webhook script now pins `COMPOSE_PROJECT_NAME=lucky` and auto-resolves
   the live compose working directory so webhook rollouts executed from `/repo`
   target the existing stack instead of failing on container-name conflicts
+- Webhook service now runs deploy commands from `/home/luk-server/Lucky` so
+  compose metadata matches the homelab stack and avoids container recreation
+  conflicts during webhook-driven deploys
 
 ## [2.6.6] - 2026-03-10
 
