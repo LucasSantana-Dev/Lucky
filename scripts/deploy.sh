@@ -7,6 +7,9 @@ DEPLOY_DIR="${DEPLOY_DIR:-/repo}"
 DISCORD_WEBHOOK="${DISCORD_DEPLOY_WEBHOOK:-}"
 LOG_PREFIX="[deploy]"
 LOCK_DIR="/tmp/lucky-deploy.lock"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
+
+export COMPOSE_PROJECT_NAME
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
