@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Webhook service now runs deploy commands from `/home/luk-server/Lucky` so
   compose metadata matches the homelab stack and avoids container recreation
   conflicts during webhook-driven deploys
+- Deploy lock handling now recovers stale `/tmp/lucky-deploy.lock` directories
+  (PID-aware) after interrupted deploys instead of blocking all future runs
 
 ## [2.6.6] - 2026-03-10
 

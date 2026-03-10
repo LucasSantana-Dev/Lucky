@@ -7,6 +7,7 @@ DEPLOY_DIR="${DEPLOY_DIR:-/repo}"
 DISCORD_WEBHOOK="${DISCORD_DEPLOY_WEBHOOK:-}"
 LOG_PREFIX="[deploy]"
 LOCK_DIR="/tmp/lucky-deploy.lock"
+LOCK_PID_FILE="$LOCK_DIR/pid"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
 
 export COMPOSE_PROJECT_NAME
@@ -60,6 +61,27 @@ notify() {
         }" || true
 }
 
+acquire_lock() {
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" >"$LOCK_PID_FILE"
+        return 0
+    fi
+
+    local existing_pid=""
+    if [ -f "$LOCK_PID_FILE" ]; then
+        existing_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || true)
+    fi
+
+    if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+        return 1
+    fi
+
+    rm -rf "$LOCK_DIR" 2>/dev/null || true
+    mkdir "$LOCK_DIR" 2>/dev/null || return 1
+    echo "$$" >"$LOCK_PID_FILE"
+    return 0
+}
+
 if [ -z "$EXPECTED_SECRET" ]; then
     log "ERROR: DEPLOY_WEBHOOK_SECRET not configured"
     exit 1
@@ -70,12 +92,12 @@ if [ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]; then
     exit 1
 fi
 
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+if ! acquire_lock; then
     log "ERROR: another deploy is already running"
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 
