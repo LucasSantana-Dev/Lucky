@@ -16,9 +16,14 @@ import { createAutoModApi } from './automodApi'
 import { createLogsApi } from './logsApi'
 import { inferApiBase } from './apiBase'
 
+const browserLocation =
+    typeof globalThis !== 'undefined' && 'window' in globalThis
+        ? globalThis.window.location
+        : undefined
+
 const API_BASE = inferApiBase(
     import.meta.env.VITE_API_BASE_URL,
-    typeof window !== 'undefined' ? window.location : undefined,
+    browserLocation,
 ).replace(/\/+$/, '')
 
 interface BackendGuild {
@@ -69,8 +74,12 @@ apiClient.interceptors.response.use(
             | undefined
         const message = data?.error || error.message || 'An error occurred'
 
-        if (status === 401) {
-            window.location.href = `${API_BASE}/auth/discord`
+        if (
+            status === 401 &&
+            typeof globalThis !== 'undefined' &&
+            'window' in globalThis
+        ) {
+            globalThis.window.location.assign('/api/auth/discord')
         }
 
         return Promise.reject(new ApiError(status, message, data?.details))

@@ -11,32 +11,30 @@ describe('inferApiBase', () => {
         expect(result).toBe('https://custom.example.com/api')
     })
 
-    test('uses same-origin /api for lucky.lucassantana.tech', () => {
-        const result = inferApiBase(undefined, {
-            protocol: 'https:',
+    test.each([
+        {
             hostname: 'lucky.lucassantana.tech',
-        })
-
-        expect(result).toBe('/api')
-    })
-
-    test('uses same-origin /api for lucassantana.tech', () => {
-        const result = inferApiBase(undefined, {
-            protocol: 'https:',
+            expected: '/api',
+        },
+        {
             hostname: 'lucassantana.tech',
-        })
-
-        expect(result).toBe('/api')
-    })
-
-    test('uses homeserver api host for luk-homeserver domains', () => {
-        const result = inferApiBase(undefined, {
-            protocol: 'https:',
+            expected: '/api',
+        },
+        {
             hostname: 'panel.luk-homeserver.com.br',
-        })
+            expected: 'https://api.luk-homeserver.com.br/api',
+        },
+    ])(
+        'infers API base for $hostname',
+        ({ hostname, expected }) => {
+            const result = inferApiBase(undefined, {
+                protocol: 'https:',
+                hostname,
+            })
 
-        expect(result).toBe('https://api.luk-homeserver.com.br/api')
-    })
+            expect(result).toBe(expected)
+        },
+    )
 
     test('falls back to /api when location is unavailable', () => {
         expect(inferApiBase()).toBe('/api')
