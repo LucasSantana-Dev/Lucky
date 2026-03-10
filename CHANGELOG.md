@@ -18,12 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Frontend lint now uses ESLint flat config (`packages/frontend/eslint.config.js`) so TypeScript/TSX parsing works correctly with ESLint 10
 - CI quality gates now run package-level lint commands for frontend and backend, matching local verification workflow
-- OAuth authorize/callback now canonicalize to the API-domain callback in production via `WEBAPP_BACKEND_URL`, preventing Discord `redirect_uri inválido` mismatches
+- OAuth authorize/callback now resolves callback URI with same-origin precedence (`session` -> `WEBAPP_REDIRECT_URI` -> forwarded host), preventing split-session landing loops
 - Added `/auth/callback` compatibility alias and callback-path normalization so legacy `/auth/callback` values still resolve to `/api/auth/callback`
 - Backend server now enables `trust proxy` in production so secure session cookies are correctly issued behind nginx/Cloudflare
 - Backend CORS now accepts configured origins plus `*.lucassantana.tech` and `*.luk-homeserver.com.br` hosts for dashboard/API split-domain setups
 - Backend auth/Last.fm redirect targets now use the primary frontend origin when `WEBAPP_FRONTEND_URL` contains multiple comma-separated domains
-- Frontend API client now auto-resolves hosted API base to `lucky-api.lucassantana.tech` or `api.luk-homeserver.com.br` when `VITE_API_BASE_URL` is not set
 - Backend OAuth session persistence now uses a connect-redis v9 compatibility adapter for ioredis clients, preventing callback save failures
 - Frontend API inference now uses same-origin `/api` for `*.lucassantana.tech` to keep OAuth/session requests on one browser origin
 - Nginx now normalizes `X-Forwarded-Proto` from edge headers (defaulting to `https`) so secure dashboard session cookies are emitted behind Cloudflare Tunnel
@@ -55,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Backend lint scripts now include scoped guardrails for legacy strict-rule debt files and expose `npm run lint:full --workspace=packages/backend` for full debt tracking (follow-up: #136)
-- Added `WEBAPP_BACKEND_URL` env propagation in Docker compose stacks and updated OAuth setup docs/examples to use API-domain callback URLs in production
+- Added `WEBAPP_BACKEND_URL` env propagation in Docker compose stacks and updated OAuth setup docs/examples to use same-origin callback URLs in production
 - Added root npm deploy shortcuts: `npm run deploy:remote` and `npm run deploy:homelab`
 - `scripts/deploy-remote.sh` now targets workflow file `deploy.yml` and waits for the dispatch run more reliably
 - `scripts/deploy-remote.sh` now always prints failed GitHub Actions logs before exiting

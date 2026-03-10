@@ -137,13 +137,13 @@ WEBAPP_PORT=3000
 # Public URL of the web app (Cloudflare Tunnel / custom domain)
 WEBAPP_FRONTEND_URL=https://app.yourdomain.com
 WEBAPP_BACKEND_URL=https://api.yourdomain.com
-WEBAPP_REDIRECT_URI=https://api.yourdomain.com/api/auth/callback
+WEBAPP_REDIRECT_URI=https://app.yourdomain.com/api/auth/callback
 ```
 
 Discord OAuth2 redirect URI must match exactly:
 
 1. In [Discord Developer Portal](https://discord.com/developers/applications) → your app → **OAuth2** → **Redirects**, add:
-   `https://api.yourdomain.com/api/auth/callback`
+   `https://app.yourdomain.com/api/auth/callback`
 2. Use the same value for `WEBAPP_REDIRECT_URI`.
 
 See [WEBAPP_SETUP.md](WEBAPP_SETUP.md) and [DISCORD_OAUTH2_SETUP.md](DISCORD_OAUTH2_SETUP.md) for full OAuth and session configuration.
@@ -225,7 +225,7 @@ Important: `localhost` in a container means the container itself. If `cloudflare
 3. Point a hostname (e.g. `app.yourdomain.com`) to the tunnel and set ingress to `http://localhost:WEBAPP_PORT`.
 4. Set `WEBAPP_FRONTEND_URL=https://app.yourdomain.com`,
    `WEBAPP_BACKEND_URL=https://api.yourdomain.com`, and
-   `WEBAPP_REDIRECT_URI=https://api.yourdomain.com/api/auth/callback`.
+   `WEBAPP_REDIRECT_URI=https://app.yourdomain.com/api/auth/callback`.
 5. Add the same callback URL in the Discord Developer Portal.
 
 After that, the bot frontend is served over HTTPS at your custom domain via Cloudflare Tunnel and DNS.

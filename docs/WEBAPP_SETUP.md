@@ -85,7 +85,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 - **CLIENT_SECRET**: Your Discord application's Client Secret (keep this secure!)
 - **WEBAPP_REDIRECT_URI**: The callback URL registered in Discord OAuth2 settings. Must match exactly.
 - **WEBAPP_FRONTEND_URL**: The frontend application URL (used for OAuth redirects after authentication)
-- **WEBAPP_BACKEND_URL**: Public backend/API origin used to canonicalize OAuth callback URLs in production
+- **WEBAPP_BACKEND_URL**: Public backend/API origin used for API links when backend is exposed on a dedicated host
 - **WEBAPP_SESSION_SECRET**: A random secret string for signing session cookies (use a strong random value)
 - **DEVELOPER_USER_IDS**: Comma-separated list of Discord user IDs with developer access
 
@@ -101,7 +101,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 
 1. In the "Redirects" section, add your callback URL:
     - Development: `http://localhost:3000/api/auth/callback`
-    - Production: `https://api.yourdomain.com/api/auth/callback`
+    - Production: `https://app.yourdomain.com/api/auth/callback`
 2. Save changes
 
 ### Step 3: Get Credentials
@@ -241,8 +241,8 @@ The Express server automatically serves the built frontend in production mode (`
 For production, ensure:
 
 - `WEBAPP_FRONTEND_URL` points to your production frontend URL
-- `WEBAPP_BACKEND_URL` points to your production backend/API URL
-- `WEBAPP_REDIRECT_URI` matches your production callback URL on the API domain
+- `WEBAPP_BACKEND_URL` points to your production backend/API URL (if separate host is used)
+- `WEBAPP_REDIRECT_URI` matches your production callback URL on the web app origin
 - `WEBAPP_SESSION_SECRET` is a strong random value
 - `NODE_ENV=production` for secure cookies
 
@@ -275,7 +275,7 @@ If OAuth isn't working:
 
 - Verify `CLIENT_ID` and `CLIENT_SECRET` are correct
 - Check `WEBAPP_REDIRECT_URI` matches Discord OAuth settings exactly
-- Check `WEBAPP_BACKEND_URL` matches the backend/API public origin
+- Check `WEBAPP_BACKEND_URL` matches the backend/API public origin when configured
 - Ensure redirect URI is whitelisted in Discord Developer Portal
 - Check browser console for CORS errors
 - Verify `WEBAPP_FRONTEND_URL` is set correctly
