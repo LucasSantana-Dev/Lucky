@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.6] - 2026-03-10
+
 ### Added
 
 - Lucky branding artifacts in `packages/frontend/branding`:
