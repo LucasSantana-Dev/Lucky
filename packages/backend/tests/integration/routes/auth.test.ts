@@ -62,15 +62,15 @@ describe('Auth Routes Integration', () => {
                 .get('/api/auth/discord')
                 .expect(302)
 
-            expect(response.headers.location).toContain(
-                'discord.com/api/oauth2/authorize',
-            )
-            expect(response.headers.location).toContain(
-                'client_id=test-client-id',
-            )
-            expect(response.headers.location).toContain('response_type=code')
-            expect(response.headers.location).toContain(
-                'scope=identify%20guilds',
+            const location = response.headers.location
+            expect(location).toContain('discord.com/api/oauth2/authorize')
+
+            const url = new URL(location)
+            expect(url.searchParams.get('client_id')).toBe('test-client-id')
+            expect(url.searchParams.get('response_type')).toBe('code')
+            expect(url.searchParams.get('scope')).toBe('identify guilds')
+            expect(url.searchParams.get('redirect_uri')).toBe(
+                'http://localhost:3000/api/auth/callback',
             )
         })
 
