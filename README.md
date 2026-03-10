@@ -128,6 +128,8 @@ npm run deploy:homelab
 Triggers the GitHub `Deploy to Homelab` workflow, waits for completion, and shows failed logs.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
+For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin
+(example: `https://api.yourdomain.com/api`) to avoid auth/API loop misrouting.
 
 ## Environment Variables
 

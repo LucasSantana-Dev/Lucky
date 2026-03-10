@@ -69,6 +69,12 @@ WEBAPP_SESSION_SECRET=your_random_session_secret_here
 DEVELOPER_USER_IDS=user_id_1,user_id_2
 ```
 
+For hosted frontend builds (Vercel/Netlify), set frontend env:
+
+```env
+VITE_API_BASE_URL=https://api.yourdomain.com/api
+```
+
 ### Environment Variable Descriptions
 
 - **CLIENT_ID**: Your Discord application's Client ID from the [Discord Developer Portal](https://discord.com/developers/applications)

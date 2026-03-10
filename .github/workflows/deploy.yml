@@ -41,7 +41,8 @@ jobs:
                     curl -s -w "\n%{http_code}" \
                       -X POST \
                       -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
-                      --max-time 300 \
+                      --connect-timeout 10 \
+                      --max-time 20 \
                       "$url"
                   }
 

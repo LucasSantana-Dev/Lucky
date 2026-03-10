@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Vercel routing no longer rewrites `/api/*` back to the same Lucky host, preventing `508 INFINITE_LOOP` on OAuth login
+- Frontend API base URL now supports `VITE_API_BASE_URL` for hosted deployments that use a separate backend origin
+- Deploy webhook trigger now uses strict curl connect/request timeouts to avoid long hangs in CI deploy jobs
 - Deploy webhook trigger now retries longer on 5xx/network failures, logs every attempt, and falls back to canonical `/webhook/deploy` path for all non-2xx responses
 - Music now-playing updates no longer send extra plain-text messages on every track change
 - Music now-playing embeds now reuse one message per guild channel to reduce chat spam

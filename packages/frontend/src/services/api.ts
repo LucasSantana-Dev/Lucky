@@ -15,7 +15,11 @@ import { createModerationApi } from './moderationApi'
 import { createAutoModApi } from './automodApi'
 import { createLogsApi } from './logsApi'
 
-const API_BASE = '/api'
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim()
+const API_BASE = (configuredApiBase && configuredApiBase.length > 0
+    ? configuredApiBase
+    : '/api'
+).replace(/\/+$/, '')
 
 interface BackendGuild {
     id: string
