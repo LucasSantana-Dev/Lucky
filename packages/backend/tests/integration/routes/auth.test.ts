@@ -57,6 +57,27 @@ describe('Auth Routes Integration', () => {
             )
         })
 
+        test('should derive redirect uri from forwarded host when env is unset', async () => {
+            const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
+            delete process.env.WEBAPP_REDIRECT_URI
+
+            const response = await request(app)
+                .get('/api/auth/discord')
+                .set('x-forwarded-proto', 'https')
+                .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                .expect(302)
+
+            expect(response.headers.location).toContain(
+                encodeURIComponent(
+                    'https://lucky.lucassantana.tech/api/auth/callback',
+                ),
+            )
+
+            if (originalRedirectUri) {
+                process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+            }
+        })
+
         test('should return 500 when CLIENT_ID is missing', async () => {
             const originalClientId = process.env.CLIENT_ID
             delete process.env.CLIENT_ID
@@ -76,6 +97,40 @@ describe('Auth Routes Integration', () => {
     })
 
     describe('GET /api/auth/callback', () => {
+        test('should resolve callback redirect uri from forwarded host when env is unset', async () => {
+            const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
+            delete process.env.WEBAPP_REDIRECT_URI
+
+            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
+                typeof discordOAuthService
+            >
+            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
+                MOCK_TOKEN_RESPONSE,
+            )
+            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.setSession.mockResolvedValue()
+
+            await request(app)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE })
+                .set('x-forwarded-proto', 'https')
+                .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                .expect(302)
+
+            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
+                MOCK_AUTH_CODE,
+                'https://lucky.lucassantana.tech/api/auth/callback',
+            )
+
+            if (originalRedirectUri) {
+                process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+            }
+        })
+
         test('should handle successful OAuth callback', async () => {
             const mockDiscordOAuth = discordOAuthService as jest.Mocked<
                 typeof discordOAuthService
@@ -99,6 +154,7 @@ describe('Auth Routes Integration', () => {
             expect(response.headers.location).toContain('authenticated=true')
             expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
                 MOCK_AUTH_CODE,
+                expect.stringContaining('/api/auth/callback'),
             )
             expect(mockDiscordOAuth.getUserInfo).toHaveBeenCalledWith(
                 MOCK_TOKEN_RESPONSE.access_token,

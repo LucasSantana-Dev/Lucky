@@ -7,6 +7,7 @@ import { AppError } from '../errors/AppError'
 import { authLimiter } from '../middleware/rateLimit'
 import { handleOAuthCallback } from './authCallback'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
+import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
 const getFrontendUrl = (): string => {
     return getPrimaryFrontendUrl()
@@ -19,6 +20,7 @@ export function setupAuthRoutes(app: Express): void {
         async (req: Request, res: Response) => {
             try {
                 req.session.oauthInitiated = true
+                req.session.oauthRedirectUri = getOAuthRedirectUri(req)
 
                 await new Promise<void>((resolve) => {
                     req.session.save((err) => {
@@ -38,9 +40,7 @@ export function setupAuthRoutes(app: Express): void {
                 })
 
                 const clientId = process.env.CLIENT_ID
-                const redirectUri =
-                    process.env.WEBAPP_REDIRECT_URI ??
-                    `http://localhost:${process.env.WEBAPP_PORT ?? '3000'}/api/auth/callback`
+                const redirectUri = req.session.oauthRedirectUri
                 const scope = 'identify guilds'
 
                 if (!clientId) {

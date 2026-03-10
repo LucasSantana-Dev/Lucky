@@ -48,9 +48,9 @@ test.describe('Dashboard Page', () => {
         await navigateToDashboard(page)
         await waitForDashboard(page)
 
-        const noServerState = page.locator(
-            'text=/No Server Selected|Select a server/i',
-        )
+        const noServerState = page.getByRole('heading', {
+            name: /No Server Selected|Select a Server/i,
+        })
         await expect(noServerState).toBeVisible({ timeout: 5000 })
     })
 
