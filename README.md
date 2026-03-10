@@ -137,6 +137,7 @@ Webhook deployments pin `COMPOSE_PROJECT_NAME=lucky` and resolve the active
 compose working directory, so runs from `/repo` target the existing homelab stack.
 The webhook container now executes deploy commands from
 `/home/luk-server/Lucky` to match the live compose stack metadata.
+Interrupted deploys now auto-recover stale lock directories on the next run.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin
