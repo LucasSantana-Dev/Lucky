@@ -133,8 +133,8 @@ npm run deploy:homelab
 ```
 
 Triggers the GitHub `Deploy to Homelab` workflow, waits for completion, and shows failed logs.
-Webhook deployments force `COMPOSE_PROJECT_NAME=lucky` to avoid container-name
-conflicts when the repo is mounted under `/repo` on the homelab host.
+Webhook deployments pin `COMPOSE_PROJECT_NAME=lucky` and resolve the active
+compose working directory, so runs from `/repo` target the existing homelab stack.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin

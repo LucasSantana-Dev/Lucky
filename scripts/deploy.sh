@@ -13,6 +13,25 @@ export COMPOSE_PROJECT_NAME
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
+resolve_compose_workdir() {
+    if [ -n "${COMPOSE_WORKDIR:-}" ]; then
+        echo "$COMPOSE_WORKDIR"
+        return
+    fi
+
+    local existing_workdir
+    existing_workdir=$(docker inspect lucky-backend \
+        --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' \
+        2>/dev/null || true)
+
+    if [ -n "$existing_workdir" ]; then
+        echo "$existing_workdir"
+        return
+    fi
+
+    echo "$DEPLOY_DIR"
+}
+
 notify() {
     local color="$1" title="$2" desc="$3"
     [ -z "$DISCORD_WEBHOOK" ] && return
@@ -51,13 +70,23 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
+COMPOSE_WORKDIR="$(resolve_compose_workdir)"
+
+if [ "$COMPOSE_WORKDIR" != "$DEPLOY_DIR" ] && [ ! -e "$COMPOSE_WORKDIR" ]; then
+    mkdir -p "$(dirname "$COMPOSE_WORKDIR")"
+    ln -s "$DEPLOY_DIR" "$COMPOSE_WORKDIR"
+fi
+
 cd "$DEPLOY_DIR"
 git config --global --add safe.directory "$DEPLOY_DIR"
+git config --global --add safe.directory "$COMPOSE_WORKDIR"
 
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
 
 log "Pulling latest changes..."
 git pull origin main
+
+cd "$COMPOSE_WORKDIR"
 
 log "Pulling images..."
 if ! docker compose pull bot backend frontend nginx; then
