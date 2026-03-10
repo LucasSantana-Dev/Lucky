@@ -33,7 +33,10 @@ resolve_compose_workdir() {
 }
 
 docker_compose() {
-    docker compose -p "$COMPOSE_PROJECT_NAME" "$@"
+    docker compose \
+        --project-directory "$COMPOSE_WORKDIR" \
+        -p "$COMPOSE_PROJECT_NAME" \
+        "$@"
 }
 
 notify() {
@@ -76,21 +79,13 @@ trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 
-if [ "$COMPOSE_WORKDIR" != "$DEPLOY_DIR" ] && [ ! -e "$COMPOSE_WORKDIR" ]; then
-    mkdir -p "$(dirname "$COMPOSE_WORKDIR")"
-    ln -s "$DEPLOY_DIR" "$COMPOSE_WORKDIR"
-fi
-
 cd "$DEPLOY_DIR"
 git config --global --add safe.directory "$DEPLOY_DIR"
-git config --global --add safe.directory "$COMPOSE_WORKDIR"
 
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
 
 log "Pulling latest changes..."
 git pull origin main
-
-cd "$COMPOSE_WORKDIR"
 
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
