@@ -1,5 +1,6 @@
 import type { Track } from 'discord-player'
-import { debugLog } from '@lucky/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
+import { trackHistoryService } from '@lucky/shared/services'
 import { areTracksSimilar, calculateSimilarityScore } from './similarityChecker'
 import { extractTags } from './tagExtractor'
 import type { DuplicateCheckResult, SimilarityConfig } from './types'
@@ -130,6 +131,29 @@ export async function addTrackToHistory(
     guildId: string,
 ): Promise<void> {
     try {
+        const rawMetadata = (track as unknown as { metadata?: unknown })
+            .metadata
+        const metadata =
+            rawMetadata && typeof rawMetadata === 'object'
+                ? (rawMetadata as { isAutoplay?: boolean })
+                : undefined
+
+        await trackHistoryService.addTrackToHistory(
+            {
+                id: track.id || track.url,
+                title: track.title,
+                author: track.author,
+                duration:
+                    typeof track.duration === 'string'
+                        ? track.duration
+                        : String(track.duration),
+                url: track.url,
+                metadata: { isAutoplay: Boolean(metadata?.isAutoplay) },
+            },
+            guildId,
+            track.requestedBy?.id,
+        )
+
         debugLog({
             message: 'Track added to history',
             data: {
@@ -139,7 +163,7 @@ export async function addTrackToHistory(
             },
         })
     } catch (error) {
-        debugLog({
+        errorLog({
             message: 'Error adding track to history',
             error,
         })

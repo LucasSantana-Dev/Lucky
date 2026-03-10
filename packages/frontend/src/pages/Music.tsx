@@ -18,10 +18,11 @@ export default function MusicPage() {
     }, [player])
 
     const handleRepeatCycle = useCallback(() => {
-        const modes: Array<'off' | 'track' | 'queue'> = [
+        const modes: Array<'off' | 'track' | 'queue' | 'autoplay'> = [
             'off',
             'track',
             'queue',
+            'autoplay',
         ]
         const idx = modes.indexOf(player.state.repeatMode)
         player.setRepeatMode(modes[(idx + 1) % modes.length])

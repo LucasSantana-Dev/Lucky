@@ -112,8 +112,10 @@ export function setupPlaybackRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
             const { mode } = req.body
-            if (!['off', 'track', 'queue'].includes(mode)) {
-                throw AppError.badRequest('Mode must be off, track, or queue')
+            if (!['off', 'track', 'queue', 'autoplay'].includes(mode)) {
+                throw AppError.badRequest(
+                    'Mode must be off, track, queue, or autoplay',
+                )
             }
             res.json(
                 await musicControlService.sendCommand(

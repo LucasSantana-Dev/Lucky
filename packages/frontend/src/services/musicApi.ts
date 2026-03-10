@@ -31,7 +31,10 @@ export function createMusicApi(apiClient: AxiosInstance) {
             apiClient.post<MusicCommandResult>(
                 `/guilds/${guildId}/music/shuffle`,
             ),
-        repeat: (guildId: string, mode: 'off' | 'track' | 'queue') =>
+        repeat: (
+            guildId: string,
+            mode: 'off' | 'track' | 'queue' | 'autoplay',
+        ) =>
             apiClient.post<MusicCommandResult>(
                 `/guilds/${guildId}/music/repeat`,
                 { mode },

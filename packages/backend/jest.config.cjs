@@ -19,6 +19,7 @@ module.exports = {
     '!src/middleware/index.ts',
     '!src/routes/index.ts',
     '!src/routes/music/**',
+    'src/routes/music/playbackRoutes.ts',
     '!src/routes/lastfm.ts'
   ],
   coverageDirectory: 'coverage',

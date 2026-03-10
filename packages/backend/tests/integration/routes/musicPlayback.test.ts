@@ -248,6 +248,24 @@ describe('Music Playback Routes', () => {
                 }),
             )
         })
+
+        test('sets repeat mode to autoplay', async () => {
+            authed()
+            mockSendCommand.mockResolvedValue({ success: true })
+
+            await request(app)
+                .post(`/api/guilds/${GUILD_ID}/music/repeat`)
+                .set('Cookie', SESSION_COOKIE)
+                .send({ mode: 'autoplay' })
+                .expect(200)
+
+            expect(mockSendCommand).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'repeat',
+                    data: { mode: 'autoplay' },
+                }),
+            )
+        })
     })
 
     describe('POST /api/guilds/:guildId/music/seek', () => {

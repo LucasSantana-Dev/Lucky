@@ -37,12 +37,14 @@ export function mapTrack(track: RawTrack): TrackInfo {
 
 export function repeatModeToString(
     mode: QueueRepeatMode,
-): 'off' | 'track' | 'queue' {
+): 'off' | 'track' | 'queue' | 'autoplay' {
     switch (mode) {
         case QueueRepeatMode.TRACK:
             return 'track'
         case QueueRepeatMode.QUEUE:
             return 'queue'
+        case QueueRepeatMode.AUTOPLAY:
+            return 'autoplay'
         default:
             return 'off'
     }
@@ -54,6 +56,8 @@ export function repeatModeToEnum(mode: string): QueueRepeatMode {
             return QueueRepeatMode.TRACK
         case 'queue':
             return QueueRepeatMode.QUEUE
+        case 'autoplay':
+            return QueueRepeatMode.AUTOPLAY
         default:
             return QueueRepeatMode.OFF
     }

@@ -17,7 +17,7 @@ export interface QueueState {
     isPlaying: boolean
     isPaused: boolean
     volume: number
-    repeatMode: 'off' | 'track' | 'queue'
+    repeatMode: 'off' | 'track' | 'queue' | 'autoplay'
     shuffled: boolean
     position: number
     voiceChannelId: string | null

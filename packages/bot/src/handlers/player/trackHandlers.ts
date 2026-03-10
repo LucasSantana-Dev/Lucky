@@ -1,4 +1,5 @@
 import type { Track, GuildQueue } from 'discord-player'
+import { QueueRepeatMode } from 'discord-player'
 import { infoLog, debugLog, errorLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { replenishQueue } from '../../utils/music/trackManagement/queueOperations'
@@ -91,11 +92,11 @@ async function handleQueueReplenishment(
     queue: GuildQueue,
     track: Track,
 ): Promise<void> {
-    const autoplayEnabled = await featureToggleService.isEnabled('AUTOPLAY', {
-        guildId: queue.guild.id,
-        userId: track.requestedBy?.id,
-    })
-    if (autoplayEnabled) {
+    const autoplayEnabled = await isAutoplayReplenishmentEnabled(
+        queue,
+        track.requestedBy?.id,
+    )
+    if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
         try {
             await replenishQueue(queue)
             debugLog({
@@ -150,10 +151,10 @@ const handlePlayerStart = async (
 }
 
 async function replenishIfAutoplay(queue: GuildQueue): Promise<void> {
-    const autoplayEnabled = await featureToggleService.isEnabled('AUTOPLAY', {
-        guildId: queue.guild.id,
-    })
-    if (autoplayEnabled) await replenishQueue(queue)
+    const autoplayEnabled = await isAutoplayReplenishmentEnabled(queue)
+    if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
+        await replenishQueue(queue)
+    }
 }
 
 async function scrobbleAndRecord(
@@ -163,7 +164,7 @@ async function scrobbleAndRecord(
     const trackToRecord = track ?? queue.currentTrack
     if (!trackToRecord) return
     await scrobbleCurrentTrackIfLastFm(queue, trackToRecord)
-    addTrackToHistory(trackToRecord, queue.guild.id)
+    await addTrackToHistory(trackToRecord, queue.guild.id)
 }
 
 const handlePlayerFinish = async (
@@ -189,4 +190,14 @@ const handlePlayerSkip = async (
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })
     }
+}
+
+async function isAutoplayReplenishmentEnabled(
+    queue: GuildQueue,
+    userId?: string,
+): Promise<boolean> {
+    return featureToggleService.isEnabled('AUTOPLAY', {
+        guildId: queue.guild.id,
+        userId,
+    })
 }

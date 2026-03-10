@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vercel build now generates Prisma client before shared/frontend builds to prevent missing generated client errors
 - OAuth callback now reuses the same redirect URI across auth start/callback token exchange, with forwarded-host fallback for proxied HTTPS deployments
 - E2E stability improvements: dashboard/servers/track-history tests now use deterministic locators and route-delay handling
+- Autoplay no longer keeps cycling the same recommendations; queue top-up now uses anti-repeat filtering and keeps a 4-track buffer
+- Shuffle now works reliably while autoplay is enabled because autoplay maintains enough upcoming tracks
+- Web music repeat mode now supports `autoplay` end-to-end (bot mapper, backend validation, shared/frontend types)
 
 ### Changed
 

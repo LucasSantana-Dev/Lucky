@@ -69,7 +69,7 @@ export function useMusicCommands(
     }, [guildId, sendCommand])
 
     const setRepeatMode = useCallback(
-        (mode: 'off' | 'track' | 'queue') => {
+        (mode: 'off' | 'track' | 'queue' | 'autoplay') => {
             if (!guildId) return
             return sendCommand(() => api.music.repeat(guildId, mode), {
                 repeatMode: mode,

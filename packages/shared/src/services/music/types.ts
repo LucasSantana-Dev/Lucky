@@ -14,7 +14,7 @@ export type MusicCommandType =
     | 'seek'
     | 'get_state'
 
-export type RepeatMode = 'off' | 'track' | 'queue'
+export type RepeatMode = 'off' | 'track' | 'queue' | 'autoplay'
 
 export interface MusicCommand {
     id: string
