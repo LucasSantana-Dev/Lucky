@@ -6,6 +6,87 @@ import Redis from 'ioredis'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { Express } from 'express'
 
+type RedisExpiration = {
+    type: 'EX' | 'PX'
+    value: number
+}
+
+type RedisSetOptions = {
+    expiration?: RedisExpiration
+}
+
+type RedisScanOptions = {
+    MATCH: string
+    COUNT: number
+}
+
+type ConnectRedisClient = {
+    get: (key: string) => Promise<string | null>
+    set: (
+        key: string,
+        value: string,
+        options?: RedisSetOptions,
+    ) => Promise<unknown>
+    expire: (key: string, ttl: number) => Promise<number>
+    del: (keys: string[]) => Promise<number>
+    mGet: (keys: string[]) => Promise<(string | null)[]>
+    scanIterator: (options: RedisScanOptions) => AsyncIterable<string[]>
+}
+
+type RedisStoreClient = ConstructorParameters<typeof RedisStore>[0]['client']
+
+async function* scanWithIoredis(
+    client: Redis,
+    match: string,
+    count: number,
+): AsyncIterable<string[]> {
+    let cursor = '0'
+
+    do {
+        const [nextCursor, keys] = (await client.scan(
+            cursor,
+            'MATCH',
+            match,
+            'COUNT',
+            String(count),
+        )) as [string, string[]]
+
+        cursor = nextCursor
+
+        if (keys.length > 0) {
+            yield keys
+        }
+    } while (cursor !== '0')
+}
+
+export function createConnectRedisClientAdapter(
+    client: Redis,
+): ConnectRedisClient {
+    return {
+        get: (key) => client.get(key),
+        set: async (key, value, options) => {
+            const expiration = options?.expiration
+
+            if (expiration?.type === 'EX') {
+                return client.set(key, value, 'EX', expiration.value)
+            }
+
+            if (expiration?.type === 'PX') {
+                return client.set(key, value, 'PX', expiration.value)
+            }
+
+            return client.set(key, value)
+        },
+        expire: (key, ttl) => client.expire(key, ttl),
+        del: (keys) =>
+            keys.length > 0 ? client.del(...keys) : Promise.resolve(0),
+        mGet: (keys) =>
+            keys.length > 0 ? client.mget(...keys) : Promise.resolve([]),
+        scanIterator: ({ MATCH, COUNT }) =>
+            scanWithIoredis(client, MATCH, COUNT),
+    }
+}
+
 function createRedisStore(): session.Store | undefined {
     const host = process.env.REDIS_HOST || 'localhost'
     const port = Number(process.env.REDIS_PORT) || 6379
@@ -28,7 +109,11 @@ function createRedisStore(): session.Store | undefined {
             })
         })
 
-        return new RedisStore({ client, prefix: 'lucky:sess:' })
+        const storeClient = createConnectRedisClientAdapter(client)
+        return new RedisStore({
+            client: storeClient as unknown as RedisStoreClient,
+            prefix: 'lucky:sess:',
+        })
     } catch {
         return undefined
     }

@@ -14,37 +14,12 @@ import { createMusicApi } from './musicApi'
 import { createModerationApi } from './moderationApi'
 import { createAutoModApi } from './automodApi'
 import { createLogsApi } from './logsApi'
+import { inferApiBase } from './apiBase'
 
-const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim()
-
-const inferApiBase = (): string => {
-    if (configuredApiBase && configuredApiBase.length > 0) {
-        return configuredApiBase
-    }
-
-    if (typeof window !== 'undefined') {
-        const protocol = window.location.protocol || 'https:'
-        const hostname = window.location.hostname
-
-        if (
-            hostname === 'lucassantana.tech' ||
-            hostname.endsWith('.lucassantana.tech')
-        ) {
-            return `${protocol}//lucky-api.lucassantana.tech/api`
-        }
-
-        if (
-            hostname === 'luk-homeserver.com.br' ||
-            hostname.endsWith('.luk-homeserver.com.br')
-        ) {
-            return `${protocol}//api.luk-homeserver.com.br/api`
-        }
-    }
-
-    return '/api'
-}
-
-const API_BASE = inferApiBase().replace(/\/+$/, '')
+const API_BASE = inferApiBase(
+    import.meta.env.VITE_API_BASE_URL,
+    typeof window !== 'undefined' ? window.location : undefined,
+).replace(/\/+$/, '')
 
 interface BackendGuild {
     id: string

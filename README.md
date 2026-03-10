@@ -130,8 +130,9 @@ Triggers the GitHub `Deploy to Homelab` workflow, waits for completion, and show
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin
 (example: `https://api.yourdomain.com/api`) to avoid auth/API loop misrouting.
-Without `VITE_API_BASE_URL`, frontend now auto-targets `lucky-api.lucassantana.tech` for
-`*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for `*.luk-homeserver.com.br`.
+Without `VITE_API_BASE_URL`, frontend uses same-origin `/api` for
+`*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for
+`*.luk-homeserver.com.br`.
 When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
