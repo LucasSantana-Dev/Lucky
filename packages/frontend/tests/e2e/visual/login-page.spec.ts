@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Visual Regression - Login Page', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 720 })
+    })
+
     test('Login page screenshot', async ({ page }) => {
         await page.goto('/')
         await page.waitForLoadState('domcontentloaded')
@@ -46,7 +50,7 @@ test.describe('Visual Regression - Login Page', () => {
         )
 
         await page.route('**/api/auth/discord', async (route) => {
-            await page.waitForTimeout(1000)
+            await new Promise((resolve) => setTimeout(resolve, 1000))
             await route.continue()
         })
 

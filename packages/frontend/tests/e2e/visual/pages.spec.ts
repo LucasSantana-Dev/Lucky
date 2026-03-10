@@ -8,6 +8,7 @@ import {
 
 test.describe('Visual Regression - Pages', () => {
     test.beforeEach(async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 720 })
         await setupMockApiResponses(page)
     })
 
