@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Deploy webhook script now pins `COMPOSE_PROJECT_NAME=lucky` so webhook-driven
+  rollouts do not fail with container-name conflicts when executed from `/repo`
+
 ## [2.6.6] - 2026-03-10
 
 ### Added
