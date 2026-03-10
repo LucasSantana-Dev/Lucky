@@ -1,9 +1,35 @@
 import type { Express, Response } from 'express'
+import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
 import { AppError } from '../../errors/AppError'
 import { musicControlService } from '@lucky/shared/services'
 import { param, buildCommand } from './helpers'
+
+const playBodySchema = z.object({
+    query: z.string().min(1),
+    voiceChannelId: z.string().min(1).optional(),
+})
+
+const volumeBodySchema = z.object({
+    volume: z.number().min(0).max(100),
+})
+
+const repeatBodySchema = z.object({
+    mode: z.enum(['off', 'track', 'queue', 'autoplay']),
+})
+
+const seekBodySchema = z.object({
+    position: z.number().min(0),
+})
+
+function requireUserId(req: AuthenticatedRequest): string {
+    if (!req.userId) {
+        throw AppError.unauthorized()
+    }
+
+    return req.userId
+}
 
 export function setupPlaybackRoutes(app: Express): void {
     app.post(
@@ -11,10 +37,15 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { query, voiceChannelId } = req.body
-            if (!query) throw AppError.badRequest('Query is required')
+            const userId = requireUserId(req)
+            const body = playBodySchema.safeParse(req.body)
 
-            const cmd = buildCommand(guildId, req.userId!, 'play', {
+            if (!body.success) {
+                throw AppError.badRequest('Query is required')
+            }
+
+            const { query, voiceChannelId } = body.data
+            const cmd = buildCommand(guildId, userId, 'play', {
                 query,
                 voiceChannelId,
             })
@@ -27,9 +58,10 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
+            const userId = requireUserId(req)
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'pause'),
+                    buildCommand(guildId, userId, 'pause'),
                 ),
             )
         }),
@@ -40,9 +72,10 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
+            const userId = requireUserId(req)
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'resume'),
+                    buildCommand(guildId, userId, 'resume'),
                 ),
             )
         }),
@@ -53,9 +86,10 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
+            const userId = requireUserId(req)
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'skip'),
+                    buildCommand(guildId, userId, 'skip'),
                 ),
             )
         }),
@@ -66,9 +100,10 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
+            const userId = requireUserId(req)
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'stop'),
+                    buildCommand(guildId, userId, 'stop'),
                 ),
             )
         }),
@@ -79,14 +114,17 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { volume } = req.body
-            if (typeof volume !== 'number' || volume < 0 || volume > 100) {
+            const userId = requireUserId(req)
+            const body = volumeBodySchema.safeParse(req.body)
+
+            if (!body.success) {
                 throw AppError.badRequest('Volume must be 0-100')
             }
+
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'volume', {
-                        volume,
+                    buildCommand(guildId, userId, 'volume', {
+                        volume: body.data.volume,
                     }),
                 ),
             )
@@ -98,9 +136,10 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
+            const userId = requireUserId(req)
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'shuffle'),
+                    buildCommand(guildId, userId, 'shuffle'),
                 ),
             )
         }),
@@ -111,15 +150,20 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { mode } = req.body
-            if (!['off', 'track', 'queue', 'autoplay'].includes(mode)) {
+            const userId = requireUserId(req)
+            const body = repeatBodySchema.safeParse(req.body)
+
+            if (!body.success) {
                 throw AppError.badRequest(
                     'Mode must be off, track, queue, or autoplay',
                 )
             }
+
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'repeat', { mode }),
+                    buildCommand(guildId, userId, 'repeat', {
+                        mode: body.data.mode,
+                    }),
                 ),
             )
         }),
@@ -130,16 +174,19 @@ export function setupPlaybackRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { position } = req.body
-            if (typeof position !== 'number' || position < 0) {
+            const userId = requireUserId(req)
+            const body = seekBodySchema.safeParse(req.body)
+
+            if (!body.success) {
                 throw AppError.badRequest(
                     'Position must be a positive number (ms)',
                 )
             }
+
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'seek', {
-                        position,
+                    buildCommand(guildId, userId, 'seek', {
+                        position: body.data.position,
                     }),
                 ),
             )

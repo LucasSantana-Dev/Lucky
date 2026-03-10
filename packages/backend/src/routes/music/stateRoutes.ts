@@ -23,8 +23,12 @@ export function setupStateRoutes(app: Express): void {
                 res.write(`data: ${JSON.stringify(currentState)}\n\n`)
             }
 
-            if (!sseClients.has(guildId)) sseClients.set(guildId, new Set())
-            sseClients.get(guildId)!.add(res)
+            let clients = sseClients.get(guildId)
+            if (!clients) {
+                clients = new Set()
+                sseClients.set(guildId, clients)
+            }
+            clients.add(res)
 
             const heartbeat = setInterval(
                 () => res.write(': heartbeat\n\n'),
@@ -33,9 +37,12 @@ export function setupStateRoutes(app: Express): void {
 
             req.on('close', () => {
                 clearInterval(heartbeat)
-                sseClients.get(guildId)?.delete(res)
-                if (sseClients.get(guildId)?.size === 0)
+                const guildClients = sseClients.get(guildId)
+                guildClients?.delete(res)
+
+                if (guildClients && guildClients.size === 0) {
                     sseClients.delete(guildId)
+                }
             })
         },
     )

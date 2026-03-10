@@ -90,7 +90,8 @@ export function setupTwitchRoutes(app: Express): void {
         validateBody(addTwitchBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            const { twitchUserId, twitchLogin, discordChannelId } = req.body
+            const body = addTwitchBody.parse(req.body)
+            const { twitchUserId, twitchLogin, discordChannelId } = body
             const success = await twitchNotificationService.add(
                 guildId,
                 discordChannelId,
@@ -109,7 +110,7 @@ export function setupTwitchRoutes(app: Express): void {
         validateBody(removeTwitchBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            const { twitchUserId } = req.body
+            const { twitchUserId } = removeTwitchBody.parse(req.body)
             const success = await twitchNotificationService.remove(
                 guildId,
                 twitchUserId,

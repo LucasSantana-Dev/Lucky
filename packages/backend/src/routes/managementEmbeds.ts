@@ -5,10 +5,22 @@ import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { embedSchemas as s } from '../schemas/embeds'
-import { embedBuilderService, serverLogService } from '@lucky/shared/services'
+import {
+    embedBuilderService,
+    serverLogService,
+    type EmbedData,
+} from '@lucky/shared/services'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
+}
+
+function requireUserId(req: AuthenticatedRequest): string {
+    if (!req.userId) {
+        throw AppError.unauthorized()
+    }
+
+    return req.userId
 }
 
 export function setupEmbedRoutes(app: Express): void {
@@ -32,7 +44,10 @@ export function setupEmbedRoutes(app: Express): void {
         validateBody(s.createEmbedBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            const { name, embedData, description } = req.body
+            const userId = requireUserId(req)
+            const body = s.createEmbedBody.parse(req.body)
+            const { name, description } = body
+            const embedData = body.embedData as unknown as Partial<EmbedData>
             const validation = embedBuilderService.validateEmbedData(embedData)
             if (!validation.valid) {
                 throw AppError.badRequest(
@@ -45,13 +60,13 @@ export function setupEmbedRoutes(app: Express): void {
                 name,
                 embedData,
                 description,
-                req.userId,
+                userId,
             )
             await serverLogService.logEmbedTemplateChange(
                 guildId,
                 'created',
                 { templateName: name },
-                req.userId!,
+                userId,
             )
             res.status(201).json(template)
         }),
@@ -65,17 +80,22 @@ export function setupEmbedRoutes(app: Express): void {
         validateBody(s.updateEmbedBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const name = p(req.params.name)
+            const body = s.updateEmbedBody.parse(req.body)
+            const updates = body as unknown as Partial<
+                EmbedData & { description: string }
+            >
             const template = await embedBuilderService.updateTemplate(
                 guildId,
                 name,
-                req.body,
+                updates,
             )
             await serverLogService.logEmbedTemplateChange(
                 guildId,
                 'updated',
                 { templateName: name },
-                req.userId!,
+                userId,
             )
             res.json(template)
         }),
@@ -88,13 +108,14 @@ export function setupEmbedRoutes(app: Express): void {
         validateParams(s.embedNameParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const name = p(req.params.name)
             await embedBuilderService.deleteTemplate(guildId, name)
             await serverLogService.logEmbedTemplateChange(
                 guildId,
                 'deleted',
                 { templateName: name },
-                req.userId!,
+                userId,
             )
             res.json({ success: true })
         }),

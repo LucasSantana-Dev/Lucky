@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express'
 import crypto from 'node:crypto'
+import { z } from 'zod'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 import { lastFmLinkService } from '@lucky/shared/services'
 import {
@@ -15,6 +16,7 @@ import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
+const lastFmCallbackQuery = z.object({ token: z.string().min(1) })
 
 function getLinkSecret(): string {
     const secret =
@@ -174,14 +176,17 @@ export function setupLastFmRoutes(app: Express): void {
     app.get('/api/lastfm/callback', async (req: Request, res: Response) => {
         const frontendUrl = getFrontendUrl()
         try {
-            const token = req.query.token
-            const stateFromCookie = req.cookies?.[LASTFM_STATE_COOKIE]
+            const cookies = req.cookies as Record<string, unknown> | undefined
+            const stateFromCookie = cookies?.[LASTFM_STATE_COOKIE]
+            const parsedQuery = lastFmCallbackQuery.safeParse(req.query)
             res.clearCookie(LASTFM_STATE_COOKIE, { path: '/' })
-            if (!token || typeof token !== 'string') {
+
+            if (!parsedQuery.success) {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_missing_token`,
                 )
             }
+
             if (!stateFromCookie || typeof stateFromCookie !== 'string') {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_missing_state`,
@@ -194,7 +199,9 @@ export function setupLastFmRoutes(app: Express): void {
                     `${frontendUrl}/?error=lastfm_invalid_state`,
                 )
             }
-            const session = await exchangeTokenForSession(token)
+            const session = await exchangeTokenForSession(
+                parsedQuery.data.token,
+            )
             if (!session) {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_exchange_failed`,

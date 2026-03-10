@@ -17,12 +17,21 @@ function requireDeveloper(userId?: string): void {
     }
 }
 
+function requireUserId(req: AuthenticatedRequest): string {
+    if (!req.userId) {
+        throw AppError.unauthorized()
+    }
+
+    return req.userId
+}
+
 export function setupToggleRoutes(app: Express): void {
     app.get(
         '/api/toggles/global',
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            requireDeveloper(req.userId)
+            const userId = requireUserId(req)
+            requireDeveloper(userId)
 
             const toggles = featureToggleService.getAllToggles()
             const result: Record<string, boolean> = {}
@@ -30,7 +39,7 @@ export function setupToggleRoutes(app: Express): void {
             for (const [name] of toggles) {
                 result[name] = await featureToggleService.isEnabledGlobal(
                     name,
-                    req.userId!,
+                    userId,
                 )
             }
 
@@ -42,7 +51,8 @@ export function setupToggleRoutes(app: Express): void {
         '/api/toggles/global/:name',
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            requireDeveloper(req.userId)
+            const userId = requireUserId(req)
+            requireDeveloper(userId)
 
             const toggleName =
                 typeof req.params.name === 'string'
@@ -60,7 +70,7 @@ export function setupToggleRoutes(app: Express): void {
 
             const enabled = await featureToggleService.isEnabledGlobal(
                 toggleName as FeatureToggleName,
-                req.userId!,
+                userId,
             )
 
             res.json({ name: toggleName, enabled })

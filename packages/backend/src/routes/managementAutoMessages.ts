@@ -7,11 +7,20 @@ import {
 } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
+import { AppError } from '../errors/AppError'
 import { autoMessageSchemas as s } from '../schemas/autoMessages'
 import { autoMessageService, serverLogService } from '@lucky/shared/services'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
+}
+
+function requireUserId(req: AuthenticatedRequest): string {
+    if (!req.userId) {
+        throw AppError.unauthorized()
+    }
+
+    return req.userId
 }
 
 export function setupAutoMessageRoutes(app: Express): void {
@@ -22,7 +31,9 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateQuery(s.messagesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            const type = req.query.type ? (req.query.type as string) : undefined
+            const query = s.messagesQuery.parse(req.query)
+            const type = query.type
+
             if (type) {
                 const messages = await autoMessageService.getMessagesByType(
                     guildId,
@@ -31,6 +42,7 @@ export function setupAutoMessageRoutes(app: Express): void {
                 res.json({ messages })
                 return
             }
+
             const [welcome, leave] = await Promise.all([
                 autoMessageService.getWelcomeMessage(guildId),
                 autoMessageService.getLeaveMessage(guildId),
@@ -47,6 +59,8 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateBody(s.createMessageBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
+            const body = s.createMessageBody.parse(req.body)
             const {
                 type,
                 message,
@@ -54,7 +68,7 @@ export function setupAutoMessageRoutes(app: Express): void {
                 trigger,
                 exactMatch,
                 cronSchedule,
-            } = req.body
+            } = body
             const autoMsg = await autoMessageService.createMessage(
                 guildId,
                 type,
@@ -65,7 +79,7 @@ export function setupAutoMessageRoutes(app: Express): void {
                 guildId,
                 'created',
                 { type, channelId },
-                req.userId!,
+                userId,
             )
             res.status(201).json(autoMsg)
         }),
@@ -79,13 +93,15 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateBody(s.updateMessageBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const id = p(req.params.id)
-            const updated = await autoMessageService.updateMessage(id, req.body)
+            const body = s.updateMessageBody.parse(req.body)
+            const updated = await autoMessageService.updateMessage(id, body)
             await serverLogService.logAutoMessageChange(
                 guildId,
                 'updated',
-                { type: updated.type, changes: req.body },
-                req.userId!,
+                { type: updated.type, changes: body },
+                userId,
             )
             res.json(updated)
         }),
@@ -99,14 +115,15 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateBody(s.toggleBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const id = p(req.params.id)
-            const { enabled } = req.body
+            const { enabled } = s.toggleBody.parse(req.body)
             const updated = await autoMessageService.toggleMessage(id, enabled)
             await serverLogService.logAutoMessageChange(
                 guildId,
                 enabled ? 'enabled' : 'disabled',
                 { type: updated.type },
-                req.userId!,
+                userId,
             )
             res.json(updated)
         }),
@@ -119,13 +136,14 @@ export function setupAutoMessageRoutes(app: Express): void {
         validateParams(s.messageIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const id = p(req.params.id)
             await autoMessageService.deleteMessage(id)
             await serverLogService.logAutoMessageChange(
                 guildId,
                 'disabled',
                 { type: 'deleted' },
-                req.userId!,
+                userId,
             )
             res.json({ success: true })
         }),

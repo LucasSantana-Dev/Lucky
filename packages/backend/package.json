@@ -12,9 +12,8 @@
         "test": "jest",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
-        "lint:base": "eslint . -c ../../eslint.config.js --ignore-pattern src/middleware/session.ts --ignore-pattern src/middleware/validate.ts --ignore-pattern src/routes/lastfm.ts --ignore-pattern src/routes/management.ts --ignore-pattern src/routes/managementAutoMessages.ts --ignore-pattern src/routes/managementEmbeds.ts --ignore-pattern src/routes/moderation.ts --ignore-pattern src/routes/music/playbackRoutes.ts --ignore-pattern src/routes/music/queueRoutes.ts --ignore-pattern src/routes/music/stateRoutes.ts --ignore-pattern src/routes/toggles.ts --ignore-pattern src/routes/twitch.ts",
-        "lint": "npm run lint:base",
-        "lint:fix": "npm run lint:base -- --fix",
+        "lint": "eslint . -c ../../eslint.config.js",
+        "lint:fix": "npm run lint -- --fix",
         "lint:full": "eslint . -c ../../eslint.config.js"
     },
     "dependencies": {
