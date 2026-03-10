@@ -46,6 +46,26 @@ describe('Redis session adapter', () => {
         expect(del).toHaveBeenCalledWith('sess:1', 'sess:2')
     })
 
+    test('maps PX expiration in set()', async () => {
+        const { client, set } = createRedisMock()
+        const adapter = createConnectRedisClientAdapter(client)
+
+        await adapter.set('session-key', 'value', {
+            expiration: { type: 'PX', value: 5000 },
+        })
+
+        expect(set).toHaveBeenCalledWith('session-key', 'value', 'PX', 5000)
+    })
+
+    test('uses plain set() without expiration options', async () => {
+        const { client, set } = createRedisMock()
+        const adapter = createConnectRedisClientAdapter(client)
+
+        await adapter.set('session-key', 'value')
+
+        expect(set).toHaveBeenCalledWith('session-key', 'value')
+    })
+
     test('forwards arrays in mGet()', async () => {
         const { client, mget } = createRedisMock()
         const adapter = createConnectRedisClientAdapter(client)
@@ -84,5 +104,16 @@ describe('Redis session adapter', () => {
             'COUNT',
             '100',
         )
+    })
+
+    test('returns defaults for empty key lists', async () => {
+        const { client, del, mget } = createRedisMock()
+        const adapter = createConnectRedisClientAdapter(client)
+
+        await expect(adapter.del([])).resolves.toBe(0)
+        await expect(adapter.mGet([])).resolves.toEqual([])
+
+        expect(del).not.toHaveBeenCalled()
+        expect(mget).not.toHaveBeenCalled()
     })
 })

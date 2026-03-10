@@ -89,7 +89,7 @@ export function createConnectRedisClientAdapter(
     }
 }
 
-class ResilientSessionStore extends session.Store {
+export class ResilientSessionStore extends session.Store {
     private fallbackActive = false
 
     constructor(
