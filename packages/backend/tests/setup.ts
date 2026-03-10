@@ -30,9 +30,7 @@ jest.mock('connect-redis', () => ({
 }))
 
 jest.mock('express-session', () => {
-    class MockStore {
-        readonly __mockStore = true
-    }
+    class MockStore {}
 
     class MockMemoryStore extends MockStore {
         get(
@@ -56,45 +54,124 @@ jest.mock('express-session', () => {
         ): void {
             callback()
         }
+    }
 
-        touch(
-            _sid: string,
-            _data: unknown,
-            callback: () => void = () => {},
-        ): void {
-            callback()
+    const getCookieValue = (cookieHeader: string, cookieName: string) => {
+        const match = cookieHeader.match(
+            new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`),
+        )
+
+        if (!match?.[1]) {
+            return undefined
         }
+
+        const decoded = decodeURIComponent(match[1])
+
+        if (decoded.startsWith('s:')) {
+            const unsigned = decoded.slice(2).split('.')[0]
+            return unsigned || undefined
+        }
+
+        return decoded
+    }
+
+    const isHttpsForwarded = (req: {
+        headers?: Record<string, string | string[] | undefined>
+    }) => {
+        const header = req.headers?.['x-forwarded-proto']
+        const value = Array.isArray(header) ? header[0] : header
+        return (
+            typeof value === 'string' && value.toLowerCase().includes('https')
+        )
+    }
+
+    const normalizeSameSite = (value: unknown) => {
+        if (value === 'none') return 'None'
+        if (value === 'strict') return 'Strict'
+        return 'Lax'
     }
 
     const sessionFactory = Object.assign(
-        (options?: { name?: string }) => {
+        (options?: {
+            name?: string
+            cookie?: {
+                secure?: boolean
+                sameSite?: 'lax' | 'strict' | 'none' | boolean
+                path?: string
+                maxAge?: number
+            }
+        }) => {
             const cookieName = options?.name ?? 'connect.sid'
+            const cookiePath = options?.cookie?.path ?? '/'
+            const cookieSecure = Boolean(options?.cookie?.secure)
+            const cookieSameSite = normalizeSameSite(options?.cookie?.sameSite)
+            const cookieMaxAge = options?.cookie?.maxAge
+
             return (
                 req: {
                     sessionID?: string
+                    headers?: Record<string, string | string[] | undefined>
                     session?: {
                         save: (cb: (err?: Error) => void) => void
+                        destroy: (cb: (err?: Error) => void) => void
                         cookie?: unknown
                         [k: string]: unknown
                     }
-                    headers?: { cookie?: string }
                 },
-                _res: unknown,
+                res: {
+                    setHeader?: (name: string, value: string) => void
+                },
                 next: () => void,
             ) => {
-                const cookie = req.headers?.cookie ?? ''
-                const match = cookie.match(new RegExp(`${cookieName}=([^;]+)`))
-                if (match) {
-                    req.sessionID = match[1]
-                }
+                const cookie = req.headers?.cookie
+                const cookieHeader = Array.isArray(cookie) ? cookie[0] : cookie
+                const sessionId =
+                    typeof cookieHeader === 'string'
+                        ? getCookieValue(cookieHeader, cookieName)
+                        : undefined
+
+                req.sessionID = sessionId
                 req.session = {
                     save(cb: (err?: Error) => void) {
+                        if (!req.sessionID) {
+                            req.sessionID = 'mock-session-id'
+                        }
+
+                        const canSetCookie =
+                            !cookieSecure || isHttpsForwarded(req)
+
+                        if (
+                            canSetCookie &&
+                            typeof res.setHeader === 'function'
+                        ) {
+                            const encoded = encodeURIComponent(
+                                `s:${req.sessionID}.mock-signature`,
+                            )
+                            const expiresAt =
+                                typeof cookieMaxAge === 'number'
+                                    ? new Date(
+                                          Date.now() + cookieMaxAge,
+                                      ).toUTCString()
+                                    : undefined
+                            const expires = expiresAt
+                                ? `; Expires=${expiresAt}`
+                                : ''
+                            const secure = cookieSecure ? '; Secure' : ''
+                            const setCookieValue =
+                                `${cookieName}=${encoded}` +
+                                `; Path=${cookiePath}; HttpOnly` +
+                                `${secure}; SameSite=${cookieSameSite}` +
+                                expires
+
+                            res.setHeader('Set-Cookie', setCookieValue)
+                        }
+
                         cb()
                     },
                     destroy(cb: (err?: Error) => void) {
                         cb()
                     },
-                    cookie: {},
+                    cookie: options?.cookie ?? {},
                 } as {
                     save: (cb: (err?: Error) => void) => void
                     destroy: (cb: (err?: Error) => void) => void

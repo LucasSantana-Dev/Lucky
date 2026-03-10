@@ -123,6 +123,62 @@ describe('Auth Routes Integration', () => {
             }
         })
 
+        test('should emit secure session cookie for https forwarded requests', async () => {
+            const originalNodeEnv = process.env.NODE_ENV
+            process.env.NODE_ENV = 'production'
+
+            try {
+                const localApp = express()
+                setupSessionMiddleware(localApp)
+                setupAuthRoutes(localApp)
+                localApp.use(errorHandler)
+
+                const response = await request(localApp)
+                    .get('/api/auth/discord')
+                    .set('x-forwarded-proto', 'https')
+                    .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                    .expect(302)
+
+                const cookies = response.headers['set-cookie'] as
+                    | string[]
+                    | undefined
+
+                expect(cookies).toBeDefined()
+                expect(
+                    cookies?.some(
+                        (cookie) =>
+                            cookie.includes('sessionId=') &&
+                            cookie.includes('Secure') &&
+                            cookie.includes('SameSite=Lax'),
+                    ),
+                ).toBe(true)
+            } finally {
+                process.env.NODE_ENV = originalNodeEnv
+            }
+        })
+
+        test('should not emit secure session cookie for http forwarded requests', async () => {
+            const originalNodeEnv = process.env.NODE_ENV
+            process.env.NODE_ENV = 'production'
+
+            try {
+                const localApp = express()
+                setupSessionMiddleware(localApp)
+                setupAuthRoutes(localApp)
+                localApp.use(errorHandler)
+
+                const response = await request(localApp)
+                    .get('/api/auth/discord')
+                    .set('x-forwarded-proto', 'http')
+                    .set('x-forwarded-host', 'lucky.lucassantana.tech')
+                    .expect(302)
+
+                expect(response.headers['set-cookie']).toBeUndefined()
+            } finally {
+                process.env.NODE_ENV = originalNodeEnv
+            }
+        })
+
         test('should return 500 when CLIENT_ID is missing', async () => {
             const originalClientId = process.env.CLIENT_ID
             delete process.env.CLIENT_ID
@@ -137,6 +193,52 @@ describe('Auth Routes Integration', () => {
 
             if (originalClientId) {
                 process.env.CLIENT_ID = originalClientId
+            }
+        })
+
+        test('should enforce canonical callback and secure cookie in production', async () => {
+            const originalNodeEnv = process.env.NODE_ENV
+            const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
+            const originalBackendUrl = process.env.WEBAPP_BACKEND_URL
+
+            process.env.NODE_ENV = 'production'
+            process.env.WEBAPP_REDIRECT_URI =
+                'https://lucky.lucassantana.tech/api/auth/callback'
+            process.env.WEBAPP_BACKEND_URL =
+                'https://lucky-api.lucassantana.tech'
+
+            const productionApp = express()
+            productionApp.set('trust proxy', 1)
+            setupSessionMiddleware(productionApp)
+            setupAuthRoutes(productionApp)
+            productionApp.use(errorHandler)
+
+            const response = await request(productionApp)
+                .get('/api/auth/discord')
+                .set('x-forwarded-proto', 'https')
+                .expect(302)
+
+            expect(response.headers.location).toContain(
+                encodeURIComponent(
+                    'https://lucky-api.lucassantana.tech/api/auth/callback',
+                ),
+            )
+
+            const cookies = response.headers['set-cookie'] ?? []
+            expect(cookies.join(';')).toContain('Secure')
+            expect(cookies.join(';')).toContain('HttpOnly')
+            expect(cookies.join(';')).toContain('SameSite=Lax')
+
+            process.env.NODE_ENV = originalNodeEnv
+            if (originalRedirectUri) {
+                process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
+            } else {
+                delete process.env.WEBAPP_REDIRECT_URI
+            }
+            if (originalBackendUrl) {
+                process.env.WEBAPP_BACKEND_URL = originalBackendUrl
+            } else {
+                delete process.env.WEBAPP_BACKEND_URL
             }
         })
     })
@@ -155,7 +257,9 @@ describe('Auth Routes Integration', () => {
                 .set('x-forwarded-host', 'lucky.lucassantana.tech')
                 .expect(302)
 
-            expect(getDiscordOAuthMock().exchangeCodeForToken).toHaveBeenCalledWith(
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).toHaveBeenCalledWith(
                 MOCK_AUTH_CODE,
                 'https://lucky.lucassantana.tech/api/auth/callback',
             )
@@ -176,7 +280,9 @@ describe('Auth Routes Integration', () => {
                     .set('Cookie', ['sessionId=callback_session_id'])
                     .expect(302)
 
-                expect(response.headers.location).toContain('authenticated=true')
+                expect(response.headers.location).toContain(
+                    'authenticated=true',
+                )
                 expect(
                     getDiscordOAuthMock().exchangeCodeForToken,
                 ).toHaveBeenCalledWith(
@@ -223,6 +329,33 @@ describe('Auth Routes Integration', () => {
                 .expect(302)
 
             expect(response.headers.location).toContain('error=session_failed')
+        })
+
+        test('should handle callback alias route', async () => {
+            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
+                typeof discordOAuthService
+            >
+            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
+                MOCK_TOKEN_RESPONSE,
+            )
+            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.setSession.mockResolvedValue()
+
+            const response = await request(app)
+                .get('/auth/callback')
+                .query({ code: MOCK_AUTH_CODE })
+                .set('Cookie', ['sessionId=callback_session_id'])
+                .expect(302)
+
+            expect(response.headers.location).toContain('authenticated=true')
+            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
+                MOCK_AUTH_CODE,
+                expect.stringContaining('/api/auth/callback'),
+            )
         })
     })
 

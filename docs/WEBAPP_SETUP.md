@@ -63,6 +63,7 @@ WEBAPP_REDIRECT_URI=http://localhost:3000/api/auth/callback
 WEBAPP_ENABLED=true
 WEBAPP_PORT=3000
 WEBAPP_FRONTEND_URL=http://localhost:5173
+WEBAPP_BACKEND_URL=http://localhost:3000
 WEBAPP_SESSION_SECRET=your_random_session_secret_here
 
 # Developer Access
@@ -77,12 +78,14 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 
 `WEBAPP_FRONTEND_URL` also supports comma-separated origins for CORS
 (for example `https://lucky.lucassantana.tech,https://app.lucassantana.tech`).
+
 ### Environment Variable Descriptions
 
 - **CLIENT_ID**: Your Discord application's Client ID from the [Discord Developer Portal](https://discord.com/developers/applications)
 - **CLIENT_SECRET**: Your Discord application's Client Secret (keep this secure!)
 - **WEBAPP_REDIRECT_URI**: The callback URL registered in Discord OAuth2 settings. Must match exactly.
 - **WEBAPP_FRONTEND_URL**: The frontend application URL (used for OAuth redirects after authentication)
+- **WEBAPP_BACKEND_URL**: Public backend/API origin used to canonicalize OAuth callback URLs in production
 - **WEBAPP_SESSION_SECRET**: A random secret string for signing session cookies (use a strong random value)
 - **DEVELOPER_USER_IDS**: Comma-separated list of Discord user IDs with developer access
 
@@ -98,7 +101,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 
 1. In the "Redirects" section, add your callback URL:
     - Development: `http://localhost:3000/api/auth/callback`
-    - Production: `https://yourdomain.com/api/auth/callback`
+    - Production: `https://api.yourdomain.com/api/auth/callback`
 2. Save changes
 
 ### Step 3: Get Credentials
@@ -193,6 +196,7 @@ The web interface supports two types of feature toggles:
 
 - `GET /api/auth/discord` - Initiate Discord OAuth flow (redirects to Discord)
 - `GET /api/auth/callback` - OAuth callback handler (redirects to frontend)
+- `GET /auth/callback` - Compatibility alias for OAuth callback handler
 - `GET /api/auth/logout` - Logout user
 - `GET /api/auth/status` - Check authentication status
 - `GET /api/auth/user` - Get current user info
@@ -237,7 +241,8 @@ The Express server automatically serves the built frontend in production mode (`
 For production, ensure:
 
 - `WEBAPP_FRONTEND_URL` points to your production frontend URL
-- `WEBAPP_REDIRECT_URI` matches your production callback URL
+- `WEBAPP_BACKEND_URL` points to your production backend/API URL
+- `WEBAPP_REDIRECT_URI` matches your production callback URL on the API domain
 - `WEBAPP_SESSION_SECRET` is a strong random value
 - `NODE_ENV=production` for secure cookies
 
@@ -270,6 +275,7 @@ If OAuth isn't working:
 
 - Verify `CLIENT_ID` and `CLIENT_SECRET` are correct
 - Check `WEBAPP_REDIRECT_URI` matches Discord OAuth settings exactly
+- Check `WEBAPP_BACKEND_URL` matches the backend/API public origin
 - Ensure redirect URI is whitelisted in Discord Developer Portal
 - Check browser console for CORS errors
 - Verify `WEBAPP_FRONTEND_URL` is set correctly

@@ -15,6 +15,10 @@ const isProduction = process.env.NODE_ENV === 'production'
 export function startWebApp(): void {
     const app = express()
 
+    if (isProduction) {
+        app.set('trust proxy', 1)
+    }
+
     setupMiddleware(app)
     setupRoutes(app)
 
