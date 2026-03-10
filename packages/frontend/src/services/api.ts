@@ -14,37 +14,27 @@ import { createMusicApi } from './musicApi'
 import { createModerationApi } from './moderationApi'
 import { createAutoModApi } from './automodApi'
 import { createLogsApi } from './logsApi'
+import { inferApiBase } from './apiBase'
 
-const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim()
+const browserLocation =
+    typeof globalThis !== 'undefined' && 'window' in globalThis
+        ? globalThis.window.location
+        : undefined
 
-const inferApiBase = (): string => {
-    if (configuredApiBase && configuredApiBase.length > 0) {
-        return configuredApiBase
+function removeTrailingSlashes(value: string): string {
+    let result = value
+    while (result.length > 1 && result.endsWith('/')) {
+        result = result.slice(0, -1)
     }
-
-    if (typeof window !== 'undefined') {
-        const protocol = window.location.protocol || 'https:'
-        const hostname = window.location.hostname
-
-        if (
-            hostname === 'lucassantana.tech' ||
-            hostname.endsWith('.lucassantana.tech')
-        ) {
-            return `${protocol}//lucky-api.lucassantana.tech/api`
-        }
-
-        if (
-            hostname === 'luk-homeserver.com.br' ||
-            hostname.endsWith('.luk-homeserver.com.br')
-        ) {
-            return `${protocol}//api.luk-homeserver.com.br/api`
-        }
-    }
-
-    return '/api'
+    return result
 }
 
-const API_BASE = inferApiBase().replace(/\/+$/, '')
+const API_BASE = inferApiBase(
+    import.meta.env.VITE_API_BASE_URL,
+    browserLocation,
+)
+
+const NORMALIZED_API_BASE = removeTrailingSlashes(API_BASE)
 
 interface BackendGuild {
     id: string
@@ -71,7 +61,7 @@ const mapGuild = (backendGuild: BackendGuild): Guild => {
 }
 
 const apiClient: AxiosInstance = axios.create({
-    baseURL: API_BASE,
+    baseURL: NORMALIZED_API_BASE,
     withCredentials: true,
     timeout: 10000,
     headers: {
@@ -94,8 +84,12 @@ apiClient.interceptors.response.use(
             | undefined
         const message = data?.error || error.message || 'An error occurred'
 
-        if (status === 401) {
-            window.location.href = `${API_BASE}/auth/discord`
+        if (
+            status === 401 &&
+            typeof globalThis !== 'undefined' &&
+            'window' in globalThis
+        ) {
+            globalThis.window.location.assign('/api/auth/discord')
         }
 
         return Promise.reject(new ApiError(status, message, data?.details))
@@ -118,7 +112,7 @@ export const api = {
             }
         },
         logout: () => apiClient.get<{ success: boolean }>('/auth/logout'),
-        getDiscordLoginUrl: () => `${API_BASE}/auth/discord`,
+        getDiscordLoginUrl: () => `${NORMALIZED_API_BASE}/auth/discord`,
     },
 
     guilds: {

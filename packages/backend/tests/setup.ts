@@ -30,43 +30,87 @@ jest.mock('connect-redis', () => ({
 }))
 
 jest.mock('express-session', () => {
-    return function session(options?: { name?: string }) {
-        const cookieName = options?.name ?? 'connect.sid'
-        return (
-            req: {
-                sessionID?: string
-                session?: {
-                    save: (cb: (err?: Error) => void) => void
-                    cookie?: unknown
-                    [k: string]: unknown
-                }
-                headers?: { cookie?: string }
-            },
-            _res: unknown,
-            next: () => void,
-        ) => {
-            const cookie = req.headers?.cookie ?? ''
-            const match = cookie.match(new RegExp(`${cookieName}=([^;]+)`))
-            if (match) {
-                req.sessionID = match[1]
-            }
-            req.session = {
-                save(cb: (err?: Error) => void) {
-                    cb()
-                },
-                destroy(cb: (err?: Error) => void) {
-                    cb()
-                },
-                cookie: {},
-            } as {
-                save: (cb: (err?: Error) => void) => void
-                destroy: (cb: (err?: Error) => void) => void
-                cookie: unknown
-                [k: string]: unknown
-            }
-            next()
+    class MockStore {
+        readonly __mockStore = true
+    }
+
+    class MockMemoryStore extends MockStore {
+        get(
+            _sid: string,
+            callback: (error?: Error, data?: unknown) => void,
+        ): void {
+            callback(undefined, null)
+        }
+
+        set(
+            _sid: string,
+            _data: unknown,
+            callback: (error?: Error) => void = () => {},
+        ): void {
+            callback()
+        }
+
+        destroy(
+            _sid: string,
+            callback: (error?: Error) => void = () => {},
+        ): void {
+            callback()
+        }
+
+        touch(
+            _sid: string,
+            _data: unknown,
+            callback: () => void = () => {},
+        ): void {
+            callback()
         }
     }
+
+    const sessionFactory = Object.assign(
+        (options?: { name?: string }) => {
+            const cookieName = options?.name ?? 'connect.sid'
+            return (
+                req: {
+                    sessionID?: string
+                    session?: {
+                        save: (cb: (err?: Error) => void) => void
+                        cookie?: unknown
+                        [k: string]: unknown
+                    }
+                    headers?: { cookie?: string }
+                },
+                _res: unknown,
+                next: () => void,
+            ) => {
+                const cookie = req.headers?.cookie ?? ''
+                const match = cookie.match(new RegExp(`${cookieName}=([^;]+)`))
+                if (match) {
+                    req.sessionID = match[1]
+                }
+                req.session = {
+                    save(cb: (err?: Error) => void) {
+                        cb()
+                    },
+                    destroy(cb: (err?: Error) => void) {
+                        cb()
+                    },
+                    cookie: {},
+                } as {
+                    save: (cb: (err?: Error) => void) => void
+                    destroy: (cb: (err?: Error) => void) => void
+                    cookie: unknown
+                    [k: string]: unknown
+                }
+                next()
+            }
+        },
+        {
+            Store: MockStore,
+            MemoryStore: MockMemoryStore,
+        },
+    )
+
+    return sessionFactory
 })
 
 jest.mock('chalk', () => ({

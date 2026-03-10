@@ -111,7 +111,7 @@ test.describe('Servers Page', () => {
 
     test('shows loading skeleton during data fetch', async ({ page }) => {
         await page.route('**/api/guilds', async (route) => {
-            await page.waitForTimeout(1000)
+            await new Promise((resolve) => setTimeout(resolve, 1000))
             await route.continue()
         })
 
@@ -127,6 +127,8 @@ test.describe('Servers Page', () => {
         if (isVisible) {
             await expect(skeleton).toBeVisible()
         }
+
+        await page.unroute('**/api/guilds')
     })
 
     test('handles empty state when no servers available', async ({ page }) => {
