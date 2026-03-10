@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.7] - 2026-03-10
+
 ### Fixed
 
 - Deploy webhook script now pins `COMPOSE_PROJECT_NAME=lucky` and auto-resolves
