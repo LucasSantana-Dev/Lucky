@@ -78,6 +78,7 @@ packages/
 - Centralized error handling (AppError + asyncHandler + errorHandler)
 - Request logging middleware
 - Auth readiness health contract at `GET /api/health/auth-config`
+  (includes `clientId` and generated `authorizeUrlPreview`, without secrets)
 - 421 tests (361 backend + 60 frontend), 96% statement coverage
 
 ## Quick Start
@@ -141,6 +142,9 @@ The webhook container now executes deploy commands from
 Interrupted deploys now auto-recover stale lock directories on the next run.
 Deploy workflow smoke checks now require `GET /api/health/auth-config` to return
 `status=ok` with no warnings (including healthy Redis/auth-session flags).
+Deploy workflow now also validates the `/api/auth/discord` redirect contract:
+`302` to Discord authorize URL with expected `client_id` and same-origin
+`redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin

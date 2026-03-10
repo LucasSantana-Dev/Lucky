@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Auth config health response now includes non-secret OAuth diagnostics
+  (`auth.clientId`, `auth.authorizeUrlPreview`) and marks `degraded` when the
+  OAuth redirect origin does not match configured frontend origins
+- Deploy workflow now enforces OAuth redirect contract validation on
+  `/api/auth/discord` (HTTP 302, expected Discord `client_id`, expected
+  `redirect_uri`) before treating deploy as successful
+
 ## [2.6.7] - 2026-03-10
 
 ### Fixed

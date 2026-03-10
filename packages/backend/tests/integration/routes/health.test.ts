@@ -116,6 +116,7 @@ describe('Health Routes Integration', () => {
             expect(response.body).toEqual({
                 status: 'ok',
                 auth: {
+                    clientId: 'test-client-id',
                     redirectUri:
                         'https://lucky.lucassantana.tech/api/auth/callback',
                     frontendOrigins: [
@@ -125,9 +126,15 @@ describe('Health Routes Integration', () => {
                     clientIdConfigured: true,
                     sessionSecretConfigured: true,
                     redisHealthy: true,
+                    authorizeUrlPreview:
+                        'https://discord.com/api/oauth2/authorize?client_id=test-client-id&redirect_uri=https%3A%2F%2Flucky.lucassantana.tech%2Fapi%2Fauth%2Fcallback&response_type=code&scope=identify%20guilds',
                 },
                 warnings: [],
             })
+            expect(response.body.auth.clientSecret).toBeUndefined()
+            expect(response.body.auth.authorizeUrlPreview).not.toContain(
+                'client_secret=',
+            )
         })
 
         test('should return degraded status with warnings when required values are missing', async () => {
@@ -142,18 +149,35 @@ describe('Health Routes Integration', () => {
                 .expect(200)
 
             expect(response.body.status).toBe('degraded')
+            expect(response.body.auth.clientId).toBe('')
             expect(response.body.auth.clientIdConfigured).toBe(false)
             expect(response.body.auth.sessionSecretConfigured).toBe(false)
             expect(response.body.auth.redisHealthy).toBe(false)
             expect(response.body.auth.redirectUri).toBe(
                 'http://localhost:3000/api/auth/callback',
             )
+            expect(response.body.auth.authorizeUrlPreview).toBe('')
             expect(response.body.warnings).toContain('CLIENT_ID not configured')
             expect(response.body.warnings).toContain(
                 'WEBAPP_SESSION_SECRET not configured',
             )
             expect(response.body.warnings).toContain(
                 'Redis is not healthy for shared services',
+            )
+        })
+
+        test('should return degraded when redirect origin does not match configured frontend origins', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            process.env.WEBAPP_REDIRECT_URI =
+                'https://other.lucassantana.tech/api/auth/callback'
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .expect(200)
+
+            expect(response.body.status).toBe('degraded')
+            expect(response.body.warnings).toContain(
+                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
             )
         })
     })
