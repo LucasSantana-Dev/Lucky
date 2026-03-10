@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy workflow OAuth smoke gates now retry contract validation during rollout
   (auth-config and `/api/auth/discord`) instead of failing immediately when
   checking a still-updating backend
+- Auth config health now marks `degraded` when `CLIENT_ID` differs from the
+  expected production app id (`WEBAPP_EXPECTED_CLIENT_ID`, with production
+  fallback) to detect Discord OAuth credential drift
 
 ## [2.6.8] - 2026-03-10
 

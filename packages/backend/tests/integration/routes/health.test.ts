@@ -19,6 +19,7 @@ describe('Health Routes Integration', () => {
             'https://lucky.lucassantana.tech,https://lukbot.vercel.app'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
+        delete process.env.WEBAPP_EXPECTED_CLIENT_ID
     })
 
     describe('GET /api/health', () => {
@@ -178,6 +179,21 @@ describe('Health Routes Integration', () => {
             expect(response.body.status).toBe('degraded')
             expect(response.body.warnings).toContain(
                 'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
+            )
+        })
+
+        test('should return degraded when CLIENT_ID differs from expected app id', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            process.env.CLIENT_ID = 'different-client-id'
+            process.env.WEBAPP_EXPECTED_CLIENT_ID = 'expected-client-id'
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .expect(200)
+
+            expect(response.body.status).toBe('degraded')
+            expect(response.body.warnings).toContain(
+                'CLIENT_ID does not match expected production app id (expected-client-id)',
             )
         })
     })

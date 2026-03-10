@@ -78,5 +78,22 @@ describe('authHealth utils', () => {
                 'OAuth callback path should be /api/auth/callback',
             )
         })
+
+        test('returns degraded when client id differs from expected production app id', () => {
+            const response = buildAuthConfigHealth({
+                clientId: '111111111111111111',
+                expectedClientId: '962198089161134131',
+                redirectUri:
+                    'https://lucky.lucassantana.tech/api/auth/callback',
+                frontendOrigins: ['https://lucky.lucassantana.tech'],
+                sessionSecretConfigured: true,
+                redisHealthy: true,
+            })
+
+            expect(response.status).toBe('degraded')
+            expect(response.warnings).toContain(
+                'CLIENT_ID does not match expected production app id (962198089161134131)',
+            )
+        })
     })
 })

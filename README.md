@@ -159,6 +159,8 @@ When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
 Discord Developer Portal (example: `https://lucky.lucassantana.tech/api/auth/callback`).
+Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
+`/api/health/auth-config` return `degraded` on credential drift.
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
 through a dedicated host.
 
@@ -175,6 +177,7 @@ See `.env.example` for all available options. Key variables:
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
 | `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings) |
+| `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection |
 | `WEBAPP_BACKEND_URL` | No | Public backend/API origin used by backend links that must target the API host |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |

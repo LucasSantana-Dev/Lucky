@@ -4,6 +4,7 @@ interface AuthConfigHealthInput {
     frontendOrigins: string[]
     sessionSecretConfigured: boolean
     redisHealthy: boolean
+    expectedClientId?: string
 }
 
 interface AuthConfigHealthResponse {
@@ -63,12 +64,24 @@ export function buildAuthConfigHealth({
     frontendOrigins,
     sessionSecretConfigured,
     redisHealthy,
+    expectedClientId,
 }: AuthConfigHealthInput): AuthConfigHealthResponse {
     const warnings: string[] = []
     const clientIdConfigured = clientId.length > 0
+    const normalizedExpectedClientId = expectedClientId?.trim() ?? ''
 
     if (!clientIdConfigured) {
         warnings.push('CLIENT_ID not configured')
+    }
+
+    if (
+        normalizedExpectedClientId.length > 0 &&
+        clientIdConfigured &&
+        clientId !== normalizedExpectedClientId
+    ) {
+        warnings.push(
+            `CLIENT_ID does not match expected production app id (${normalizedExpectedClientId})`,
+        )
     }
 
     if (!sessionSecretConfigured) {
