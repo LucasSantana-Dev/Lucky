@@ -12,10 +12,45 @@ const __dirname = path.dirname(__filename)
 export function setupMiddleware(app: Express): void {
     const frontendUrl =
         process.env.WEBAPP_FRONTEND_URL ?? 'http://localhost:5173'
+    const configuredOrigins = frontendUrl
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter((origin) => origin.length > 0)
+
+    const isAllowedOrigin = (origin: string): boolean => {
+        if (configuredOrigins.includes(origin)) {
+            return true
+        }
+
+        try {
+            const parsed = new URL(origin)
+            const host = parsed.hostname.toLowerCase()
+
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return true
+            }
+
+            return (
+                host === 'lucassantana.tech' ||
+                host.endsWith('.lucassantana.tech') ||
+                host === 'luk-homeserver.com.br' ||
+                host.endsWith('.luk-homeserver.com.br')
+            )
+        } catch {
+            return false
+        }
+    }
 
     app.use(
         cors({
-            origin: frontendUrl,
+            origin: (origin, callback) => {
+                if (!origin || isAllowedOrigin(origin)) {
+                    callback(null, true)
+                    return
+                }
+
+                callback(new Error('Not allowed by CORS'))
+            },
             credentials: true,
             methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization'],

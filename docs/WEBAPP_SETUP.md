@@ -75,6 +75,8 @@ For hosted frontend builds (Vercel/Netlify), set frontend env:
 VITE_API_BASE_URL=https://api.yourdomain.com/api
 ```
 
+`WEBAPP_FRONTEND_URL` also supports comma-separated origins for CORS
+(for example `https://lucky.lucassantana.tech,https://app.lucassantana.tech`).
 ### Environment Variable Descriptions
 
 - **CLIENT_ID**: Your Discord application's Client ID from the [Discord Developer Portal](https://discord.com/developers/applications)

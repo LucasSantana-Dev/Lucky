@@ -16,10 +16,35 @@ import { createAutoModApi } from './automodApi'
 import { createLogsApi } from './logsApi'
 
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL?.trim()
-const API_BASE = (configuredApiBase && configuredApiBase.length > 0
-    ? configuredApiBase
-    : '/api'
-).replace(/\/+$/, '')
+
+const inferApiBase = (): string => {
+    if (configuredApiBase && configuredApiBase.length > 0) {
+        return configuredApiBase
+    }
+
+    if (typeof window !== 'undefined') {
+        const protocol = window.location.protocol || 'https:'
+        const hostname = window.location.hostname
+
+        if (
+            hostname === 'lucassantana.tech' ||
+            hostname.endsWith('.lucassantana.tech')
+        ) {
+            return `${protocol}//api.lucassantana.tech/api`
+        }
+
+        if (
+            hostname === 'luk-homeserver.com.br' ||
+            hostname.endsWith('.luk-homeserver.com.br')
+        ) {
+            return `${protocol}//api.luk-homeserver.com.br/api`
+        }
+    }
+
+    return '/api'
+}
+
+const API_BASE = inferApiBase().replace(/\/+$/, '')
 
 interface BackendGuild {
     id: string

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Backend CORS now accepts configured origins plus `*.lucassantana.tech` and `*.luk-homeserver.com.br` hosts for dashboard/API split-domain setups
+- Frontend API client now auto-resolves hosted API base to `api.lucassantana.tech` or `api.luk-homeserver.com.br` when `VITE_API_BASE_URL` is not set
 - Vercel routing no longer rewrites `/api/*` back to the same Lucky host, preventing `508 INFINITE_LOOP` on OAuth login
 - Frontend API base URL now supports `VITE_API_BASE_URL` for hosted deployments that use a separate backend origin
 - Deploy webhook trigger now uses strict curl connect/request timeouts to avoid long hangs in CI deploy jobs
