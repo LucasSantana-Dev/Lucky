@@ -30,7 +30,7 @@ const inferApiBase = (): string => {
             hostname === 'lucassantana.tech' ||
             hostname.endsWith('.lucassantana.tech')
         ) {
-            return `${protocol}//api.lucassantana.tech/api`
+            return `${protocol}//lucky-api.lucassantana.tech/api`
         }
 
         if (

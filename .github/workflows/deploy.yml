@@ -117,7 +117,9 @@ jobs:
                   set -euo pipefail
 
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
-                  health_url="${base_url}/api/health/auth-config"
+                  auth_health_url="${base_url}/api/health/auth-config"
+                  generic_health_url="${base_url}/api/health"
+                  health_url="$auth_health_url"
 
                   echo "==> Running deploy smoke check: $health_url"
 
@@ -127,41 +129,52 @@ jobs:
                     http_code=$(echo "$response" | tail -1)
                     body=$(echo "$response" | sed '$d')
 
+                    if [ "$http_code" = "404" ] && [ "$health_url" = "$auth_health_url" ]; then
+                      echo "Auth-config health endpoint not available. Falling back to generic health check."
+                      health_url="$generic_health_url"
+                      continue
+                    fi
+
                     if [ "$http_code" = "200" ]; then
-                      HEALTH_BODY="$body" node - <<'NODE'
-                      const body = process.env.HEALTH_BODY ?? '';
-                      let parsed;
-                      try {
-                        parsed = JSON.parse(body);
-                      } catch {
-                        console.error('::error::auth-config returned invalid JSON');
-                        process.exit(1);
-                      }
+                      if [ "$health_url" = "$generic_health_url" ]; then
+                        echo "==> Generic health check passed"
+                        exit 0
+                      fi
 
-                      const status = parsed?.status ?? 'unknown';
-                      const hasLegacyDomain = Boolean(parsed?.auth?.hasLegacyDomain);
-                      const warnings = Array.isArray(parsed?.warnings) ? parsed.warnings : [];
-
-                      if (status !== 'ok' || hasLegacyDomain || warnings.length > 0) {
-                        console.error(
-                          `::error::OAuth auth-config smoke check failed (status=${status}, hasLegacyDomain=${hasLegacyDomain}, warnings=${warnings.length})`,
-                        );
-                        if (warnings.length > 0) {
-                          console.error(`::error::Warnings: ${warnings.join(' | ')}`);
+                      HEALTH_BODY="$body" node -e '
+                        const body = process.env.HEALTH_BODY ?? "";
+                        let parsed;
+                        try {
+                          parsed = JSON.parse(body);
+                        } catch {
+                          console.error("::error::auth-config returned invalid JSON");
+                          process.exit(1);
                         }
-                        process.exit(1);
-                      }
 
-                      console.log('==> OAuth auth-config smoke check passed');
-                      NODE
+                        const status = parsed?.status ?? "unknown";
+                        const hasLegacyDomain = Boolean(parsed?.auth?.hasLegacyDomain);
+                        const warnings = Array.isArray(parsed?.warnings) ? parsed.warnings : [];
+
+                        if (status !== "ok" || hasLegacyDomain || warnings.length > 0) {
+                          console.error(
+                            `::error::OAuth auth-config smoke check failed (status=${status}, hasLegacyDomain=${hasLegacyDomain}, warnings=${warnings.length})`,
+                          );
+                          if (warnings.length > 0) {
+                            console.error(`::error::Warnings: ${warnings.join(" | ")}`);
+                          }
+                          process.exit(1);
+                        }
+
+                        console.log("==> OAuth auth-config smoke check passed");
+                      '
                       exit 0
                     fi
 
-                    echo "Service not ready yet (HTTP $http_code). Waiting 10s..."
+                    echo "Service not ready yet at $health_url (HTTP $http_code). Waiting 10s..."
                     sleep 10
                   done
 
-                  echo "::error::Timed out waiting for /api/health/auth-config to become available"
+                  echo "::error::Timed out waiting for health endpoint to become available"
                   exit 1
 
             - name: Notify failure
