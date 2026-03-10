@@ -32,6 +32,10 @@ resolve_compose_workdir() {
     echo "$DEPLOY_DIR"
 }
 
+docker_compose() {
+    docker compose -p "$COMPOSE_PROJECT_NAME" "$@"
+}
+
 notify() {
     local color="$1" title="$2" desc="$3"
     [ -z "$DISCORD_WEBHOOK" ] && return
@@ -89,19 +93,19 @@ git pull origin main
 cd "$COMPOSE_WORKDIR"
 
 log "Pulling images..."
-if ! docker compose pull bot backend frontend nginx; then
+if ! docker_compose pull bot backend frontend nginx; then
     log "WARN: Pull failed, falling back to local build..."
-    if ! docker compose build --parallel bot backend frontend nginx; then
+    if ! docker_compose build --parallel bot backend frontend nginx; then
         notify 16711680 "Deploy Failed" "Docker build failed"
         exit 1
     fi
 fi
 
 log "Rolling out services..."
-docker compose up -d --remove-orphans bot backend frontend nginx postgres redis
+docker_compose up -d --remove-orphans bot backend frontend nginx postgres redis
 
 log "Restarting Cloudflare tunnel..."
-if docker compose --profile tunnel up -d cloudflared >/dev/null 2>&1; then
+if docker_compose --profile tunnel up -d cloudflared >/dev/null 2>&1; then
     log "Cloudflare tunnel restarted via compose profile"
 elif docker ps --format '{{.Names}}' | grep -qx "lucky-tunnel"; then
     docker restart lucky-tunnel >/dev/null
@@ -114,12 +118,12 @@ log "Waiting for health checks..."
 sleep 10
 
 log "Service status:"
-docker compose ps --format "table {{.Name}}\t{{.Status}}"
+docker_compose ps --format "table {{.Name}}\t{{.Status}}"
 
-unhealthy=$(docker compose ps --format json | grep -c '"unhealthy"' || true)
+unhealthy=$(docker_compose ps --format json | grep -c '"unhealthy"' || true)
 if [ "$unhealthy" -gt 0 ]; then
     log "ERROR: $unhealthy unhealthy container(s)"
-    docker compose logs --tail=20 --no-color
+    docker_compose logs --tail=20 --no-color
     notify 16711680 "Deploy Failed" "$unhealthy unhealthy container(s)"
     exit 1
 fi
