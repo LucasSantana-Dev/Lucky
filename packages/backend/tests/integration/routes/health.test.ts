@@ -13,6 +13,12 @@ describe('Health Routes Integration', () => {
         app = express()
         setupHealthRoutes(app)
         jest.clearAllMocks()
+        process.env.CLIENT_ID = 'test-client-id'
+        process.env.WEBAPP_SESSION_SECRET = 'test-session-secret'
+        process.env.WEBAPP_FRONTEND_URL =
+            'https://lucky.lucassantana.tech,https://lukbot.vercel.app'
+        process.env.WEBAPP_REDIRECT_URI =
+            'https://lucky.lucassantana.tech/api/auth/callback'
     })
 
     describe('GET /api/health', () => {
@@ -96,6 +102,59 @@ describe('Health Routes Integration', () => {
                 .expect(200)
 
             expect(response.body.redis).toBe(false)
+        })
+    })
+
+    describe('GET /api/health/auth-config', () => {
+        test('should return ok auth-config status when required values are present', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .expect(200)
+
+            expect(response.body).toEqual({
+                status: 'ok',
+                auth: {
+                    redirectUri:
+                        'https://lucky.lucassantana.tech/api/auth/callback',
+                    frontendOrigins: [
+                        'https://lucky.lucassantana.tech',
+                        'https://lukbot.vercel.app',
+                    ],
+                    clientIdConfigured: true,
+                    sessionSecretConfigured: true,
+                    redisHealthy: true,
+                },
+                warnings: [],
+            })
+        })
+
+        test('should return degraded status with warnings when required values are missing', async () => {
+            mockRedis.isHealthy.mockReturnValue(false)
+            process.env.CLIENT_ID = ''
+            process.env.WEBAPP_SESSION_SECRET = ''
+            process.env.WEBAPP_REDIRECT_URI =
+                'http://localhost:3000/auth/callback'
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .expect(200)
+
+            expect(response.body.status).toBe('degraded')
+            expect(response.body.auth.clientIdConfigured).toBe(false)
+            expect(response.body.auth.sessionSecretConfigured).toBe(false)
+            expect(response.body.auth.redisHealthy).toBe(false)
+            expect(response.body.auth.redirectUri).toBe(
+                'http://localhost:3000/api/auth/callback',
+            )
+            expect(response.body.warnings).toContain('CLIENT_ID not configured')
+            expect(response.body.warnings).toContain(
+                'WEBAPP_SESSION_SECRET not configured',
+            )
+            expect(response.body.warnings).toContain(
+                'Redis is not healthy for shared services',
+            )
         })
     })
 })

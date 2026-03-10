@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   conflicts during webhook-driven deploys
 - Deploy lock handling now recovers stale `/tmp/lucky-deploy.lock` directories
   (PID-aware) after interrupted deploys instead of blocking all future runs
+- Backend startup now attempts to connect the shared Redis client before serving
+  requests, while continuing with fallback behavior if Redis is unavailable
+
+### Added
+
+- New auth readiness endpoint: `GET /api/health/auth-config` returning
+  `status`, auth/runtime flags, and deploy-safe warnings for OAuth/session
+  validation
 
 ## [2.6.6] - 2026-03-10
 
