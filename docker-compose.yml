@@ -178,13 +178,13 @@ services:
         environment:
             - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}
             - DISCORD_DEPLOY_WEBHOOK=${DISCORD_DEPLOY_WEBHOOK:-}
-            - DEPLOY_DIR=/repo
+            - DEPLOY_DIR=/home/luk-server/Lucky
         volumes:
             - ./deploy/hooks.json:/etc/webhook/hooks.json:ro
             - ./scripts/deploy.sh:/scripts/deploy.sh:ro
-            - .:/repo
+            - .:/home/luk-server/Lucky
             - /var/run/docker.sock:/var/run/docker.sock
-        working_dir: /repo
+        working_dir: /home/luk-server/Lucky
         networks:
             - lucky-network
         logging:

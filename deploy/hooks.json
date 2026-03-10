@@ -2,7 +2,7 @@
     {
         "id": "deploy",
         "execute-command": "/scripts/deploy.sh",
-        "command-working-directory": "/repo",
+        "command-working-directory": "/home/luk-server/Lucky",
         "response-message": "Deploy triggered",
         "pass-arguments-to-command": [
             {
