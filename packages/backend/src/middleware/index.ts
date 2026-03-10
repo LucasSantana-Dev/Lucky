@@ -1,17 +1,19 @@
 import express, { type Express } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import { existsSync } from 'node:fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { setupSessionMiddleware } from './session'
 import { requestLogger } from './requestLogger'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
 export function setupMiddleware(app: Express): void {
     const configuredOrigins = getFrontendOrigins()
+    const isProduction = process.env.NODE_ENV === 'production'
+
+    if (isProduction) {
+        app.set('trust proxy', 1)
+    }
 
     const isAllowedOrigin = (origin: string): boolean => {
         if (configuredOrigins.includes(origin)) {
@@ -59,9 +61,18 @@ export function setupMiddleware(app: Express): void {
     app.use(cookieParser())
     setupSessionMiddleware(app)
 
-    // Only serve static files in production mode
-    const isProduction = process.env.NODE_ENV === 'production'
     if (isProduction) {
-        app.use(express.static(path.join(__dirname, '../public')))
+        const monorepoPublicPath = path.join(
+            process.cwd(),
+            'packages',
+            'backend',
+            'public',
+        )
+        const localPublicPath = path.join(process.cwd(), 'public')
+        const staticPath = existsSync(monorepoPublicPath)
+            ? monorepoPublicPath
+            : localPublicPath
+
+        app.use(express.static(staticPath))
     }
 }

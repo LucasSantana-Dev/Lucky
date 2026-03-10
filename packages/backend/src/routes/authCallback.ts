@@ -3,6 +3,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import { discordOAuthService } from '../services/DiscordOAuthService'
 import { sessionService } from '../services/SessionService'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
+import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
 export async function handleOAuthCallback(
     req: Request,
@@ -30,7 +31,14 @@ export async function handleOAuthCallback(
             data: { code: code.substring(0, 10) },
         })
 
-        const tokenData = await discordOAuthService.exchangeCodeForToken(code)
+        const redirectUri = getOAuthRedirectUri(
+            req,
+            req.session.oauthRedirectUri,
+        )
+        const tokenData = await discordOAuthService.exchangeCodeForToken(
+            code,
+            redirectUri,
+        )
         const userInfo = await discordOAuthService.getUserInfo(
             tokenData.access_token,
         )

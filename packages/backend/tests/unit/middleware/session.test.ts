@@ -85,4 +85,24 @@ describe('Session Middleware', () => {
 
         process.env.NODE_ENV = originalEnv
     })
+
+    test('should provide adapted client to RedisStore', async () => {
+        const { setupSessionMiddleware } =
+            await import('../../../src/middleware/session')
+        const { RedisStore } = await import('connect-redis')
+
+        setupSessionMiddleware(app)
+
+        const redisStoreMock = RedisStore as unknown as jest.Mock
+        const options = redisStoreMock.mock.calls[0][0] as {
+            client: Record<string, unknown>
+        }
+
+        expect(typeof options.client.set).toBe('function')
+        expect(typeof options.client.del).toBe('function')
+        expect(typeof options.client.mGet).toBe('function')
+        expect(typeof options.client.scanIterator).toBe('function')
+        expect(typeof options.client.expire).toBe('function')
+        expect(typeof options.client.get).toBe('function')
+    })
 })

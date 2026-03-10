@@ -128,7 +128,7 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Track History/i')
+        const heading = page.getByRole('heading', { name: /Track History/i })
         const isVisible = await heading
             .isVisible({ timeout: 5000 })
             .catch(() => false)

@@ -88,6 +88,7 @@ describe('API Integration Flows', () => {
             )
             expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
                 MOCK_AUTH_CODE,
+                expect.stringContaining('/api/auth/callback'),
             )
             expect(mockDiscordOAuth.getUserInfo).toHaveBeenCalledWith(
                 MOCK_TOKEN_RESPONSE.access_token,

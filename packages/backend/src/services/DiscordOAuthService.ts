@@ -52,7 +52,10 @@ class DiscordOAuthService {
         )
     }
 
-    async exchangeCodeForToken(code: string): Promise<TokenResponse> {
+    async exchangeCodeForToken(
+        code: string,
+        redirectUri?: string,
+    ): Promise<TokenResponse> {
         try {
             const response = await fetch(`${this.apiBaseUrl}/oauth2/token`, {
                 method: 'POST',
@@ -64,7 +67,7 @@ class DiscordOAuthService {
                     client_secret: this.getClientSecret(),
                     grant_type: 'authorization_code',
                     code,
-                    redirect_uri: this.getRedirectUri(),
+                    redirect_uri: redirectUri ?? this.getRedirectUri(),
                 }),
             })
 

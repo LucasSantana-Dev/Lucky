@@ -52,6 +52,7 @@ packages/
 ### Bot
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
+- Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
@@ -130,11 +131,15 @@ Triggers the GitHub `Deploy to Homelab` workflow, waits for completion, and show
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin
 (example: `https://api.yourdomain.com/api`) to avoid auth/API loop misrouting.
-Without `VITE_API_BASE_URL`, frontend now auto-targets `lucky-api.lucassantana.tech` for
-`*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for `*.luk-homeserver.com.br`.
+Without `VITE_API_BASE_URL`, frontend uses same-origin `/api` for
+`*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for
+`*.luk-homeserver.com.br`.
 When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
+Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
+Discord Developer Portal (example:
+`https://lucky-api.lucassantana.tech/api/auth/callback`).
 
 ## Environment Variables
 
@@ -148,6 +153,7 @@ See `.env.example` for all available options. Key variables:
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
+| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (for split domains use API host, e.g. `https://lucky-api.lucassantana.tech/api/auth/callback`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 

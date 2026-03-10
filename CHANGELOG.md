@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backend CORS now accepts configured origins plus `*.lucassantana.tech` and `*.luk-homeserver.com.br` hosts for dashboard/API split-domain setups
 - Backend auth/Last.fm redirect targets now use the primary frontend origin when `WEBAPP_FRONTEND_URL` contains multiple comma-separated domains
 - Frontend API client now auto-resolves hosted API base to `lucky-api.lucassantana.tech` or `api.luk-homeserver.com.br` when `VITE_API_BASE_URL` is not set
+- Backend OAuth session persistence now uses a connect-redis v9 compatibility adapter for ioredis clients, preventing callback save failures
+- Frontend API inference now uses same-origin `/api` for `*.lucassantana.tech` to keep OAuth/session requests on one browser origin
 - Deploy smoke check now falls back to `/api/health` when `/api/health/auth-config` is unavailable
 - Vercel routing no longer rewrites `/api/*` back to the same Lucky host, preventing `508 INFINITE_LOOP` on OAuth login
 - Frontend API base URL now supports `VITE_API_BASE_URL` for hosted deployments that use a separate backend origin
@@ -38,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend theming now maps legacy `lucky-*` classes to the Lucky purple/gold palette
 - Frontend typography now uses Lucky type tokens (`Sora`, `Manrope`, `JetBrains Mono`) instead of the old default stack
 - Vercel build now generates Prisma client before shared/frontend builds to prevent missing generated client errors
+- OAuth callback now reuses the same redirect URI across auth start/callback token exchange, with forwarded-host fallback for proxied HTTPS deployments
+- E2E stability improvements: dashboard/servers/track-history tests now use deterministic locators and route-delay handling
 
 ### Changed
 
