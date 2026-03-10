@@ -104,19 +104,25 @@ test.describe('Features Page', () => {
     })
 
     test('shows loading states during data fetch', async ({ page }) => {
+        await page.unroute('**/api/features')
         await page.route('**/api/features', async (route) => {
-            await page.waitForTimeout(1000)
-            await route.continue()
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 1000)
+            })
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ features: MOCK_FEATURES }),
+            })
         })
 
         await navigateToFeatures(page)
 
         const skeleton = page
-            .locator('[class*="skeleton"], [class*="Skeleton"]')
+            .locator('.animate-pulse.bg-lucky-bg-tertiary')
             .first()
-        const isVisible = await skeleton
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
+        await expect(skeleton).toBeVisible({ timeout: 2000 })
+        await waitForFeatures(page)
     })
 
     test('shows toast notifications on toggle success', async ({ page }) => {
