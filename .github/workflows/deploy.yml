@@ -128,13 +128,13 @@ jobs:
                       body=$(echo "$response" | sed '$d')
 
                       if [ "$http_code" = "200" ]; then
-                          HEALTH_BODY="$body" node -e '
+                          if HEALTH_BODY="$body" node -e '
                             const body = process.env.HEALTH_BODY ?? "";
                             let parsed;
                             try {
                               parsed = JSON.parse(body);
                             } catch {
-                              console.error("::error::auth-config returned invalid JSON");
+                              console.log("auth-config returned invalid JSON");
                               process.exit(1);
                             }
 
@@ -164,25 +164,27 @@ jobs:
                               !callbackPathOk ||
                               !authorizePreviewOk
                             ) {
-                              console.error(
-                                `::error::OAuth auth-config smoke check failed (status=${status}, warnings=${warnings.length}, clientId=${clientId}, clientIdConfigured=${clientIdConfigured}, sessionSecretConfigured=${sessionSecretConfigured}, redisHealthy=${redisHealthy}, callbackPathOk=${callbackPathOk}, authorizePreviewOk=${authorizePreviewOk})`,
+                              console.log(
+                                `auth-config contract not ready (status=${status}, warnings=${warnings.length}, clientId=${clientId}, clientIdConfigured=${clientIdConfigured}, sessionSecretConfigured=${sessionSecretConfigured}, redisHealthy=${redisHealthy}, callbackPathOk=${callbackPathOk}, authorizePreviewOk=${authorizePreviewOk})`,
                               );
                               if (warnings.length > 0) {
-                                console.error(`::error::Warnings: ${warnings.join(" | ")}`);
+                                console.log(`warnings: ${warnings.join(" | ")}`);
                               }
                               process.exit(1);
                             }
 
-                            console.log("==> OAuth auth-config smoke check passed");
-                          '
-                          exit 0
+                            console.log("OAuth auth-config contract ready");
+                          '; then
+                              echo "==> OAuth auth-config smoke check passed"
+                              exit 0
+                          fi
                       fi
 
                       echo "Service not ready yet at $health_url (HTTP $http_code). Waiting 10s..."
                       sleep 10
                   done
 
-                  echo "::error::Timed out waiting for health endpoint to become available"
+                  echo "::error::Timed out waiting for OAuth auth-config contract"
                   exit 1
 
             - name: OAuth redirect contract smoke check
@@ -199,63 +201,61 @@ jobs:
 
                   echo "==> Running OAuth redirect contract smoke check: $auth_url"
 
-                  headers_file="$(mktemp)"
-                  http_code="$(curl -sS -o /dev/null -D "$headers_file" --max-time 20 "$auth_url" -w "%{http_code}" || true)"
+                  for attempt in $(seq 1 18); do
+                    echo "Attempt ${attempt}/18..."
+                    headers_file="$(mktemp)"
+                    http_code="$(curl -sS -o /dev/null -D "$headers_file" --max-time 20 "$auth_url" -w "%{http_code}" || true)"
 
-                  if [ "$http_code" != "302" ]; then
-                    echo "::error::Expected /api/auth/discord to return 302, got $http_code"
-                    cat "$headers_file"
+                    if [ "$http_code" = "302" ]; then
+                      location_header="$(awk 'BEGIN{IGNORECASE=1} /^location: /{print $2}' "$headers_file" | tr -d '\r')"
+                      if [ -n "$location_header" ] && OAUTH_LOCATION="$location_header" \
+                      EXPECTED_CLIENT_ID="$expected_client_id" \
+                      EXPECTED_REDIRECT_URI="$expected_redirect_uri" \
+                      node -e '
+                        const location = process.env.OAUTH_LOCATION ?? "";
+                        const expectedClientId = process.env.EXPECTED_CLIENT_ID ?? "";
+                        const expectedRedirectUri = process.env.EXPECTED_REDIRECT_URI ?? "";
+
+                        const parsed = new URL(location);
+                        const actualClientId = parsed.searchParams.get("client_id") ?? "";
+                        const actualRedirectUri = parsed.searchParams.get("redirect_uri") ?? "";
+                        const isDiscordHost = parsed.hostname === "discord.com";
+                        const isAuthorizePath = parsed.pathname.endsWith("/oauth2/authorize");
+
+                        if (!isDiscordHost || !isAuthorizePath) {
+                          console.log(
+                            `OAuth location host/path not ready: ${parsed.hostname}${parsed.pathname}`,
+                          );
+                          process.exit(1);
+                        }
+
+                        if (actualClientId !== expectedClientId) {
+                          console.log(
+                            `OAuth client_id not ready (expected=${expectedClientId}, actual=${actualClientId})`,
+                          );
+                          process.exit(1);
+                        }
+
+                        if (actualRedirectUri !== expectedRedirectUri) {
+                          console.log(
+                            `OAuth redirect_uri not ready (expected=${expectedRedirectUri}, actual=${actualRedirectUri})`,
+                          );
+                          process.exit(1);
+                        }
+                      '; then
+                        rm -f "$headers_file"
+                        echo "==> OAuth redirect contract smoke check passed"
+                        exit 0
+                      fi
+                    fi
+
                     rm -f "$headers_file"
-                    exit 1
-                  fi
+                    echo "OAuth redirect contract not ready yet (HTTP $http_code). Waiting 10s..."
+                    sleep 10
+                  done
 
-                  location_header="$(awk 'BEGIN{IGNORECASE=1} /^location: /{print $2}' "$headers_file" | tr -d '\r')"
-                  if [ -z "$location_header" ]; then
-                    echo "::error::Missing Location header from /api/auth/discord"
-                    cat "$headers_file"
-                    rm -f "$headers_file"
-                    exit 1
-                  fi
-
-                  OAUTH_LOCATION="$location_header" \
-                  EXPECTED_CLIENT_ID="$expected_client_id" \
-                  EXPECTED_REDIRECT_URI="$expected_redirect_uri" \
-                  node -e '
-                    const location = process.env.OAUTH_LOCATION ?? "";
-                    const expectedClientId = process.env.EXPECTED_CLIENT_ID ?? "";
-                    const expectedRedirectUri = process.env.EXPECTED_REDIRECT_URI ?? "";
-
-                    const parsed = new URL(location);
-                    const actualClientId = parsed.searchParams.get("client_id") ?? "";
-                    const actualRedirectUri = parsed.searchParams.get("redirect_uri") ?? "";
-                    const isDiscordHost = parsed.hostname === "discord.com";
-                    const isAuthorizePath = parsed.pathname.endsWith("/oauth2/authorize");
-
-                    if (!isDiscordHost || !isAuthorizePath) {
-                      console.error(
-                        `::error::Invalid OAuth location target host/path: ${parsed.hostname}${parsed.pathname}`,
-                      );
-                      process.exit(1);
-                    }
-
-                    if (actualClientId !== expectedClientId) {
-                      console.error(
-                        `::error::OAuth client_id mismatch (expected=${expectedClientId}, actual=${actualClientId})`,
-                      );
-                      process.exit(1);
-                    }
-
-                    if (actualRedirectUri !== expectedRedirectUri) {
-                      console.error(
-                        `::error::OAuth redirect_uri mismatch (expected=${expectedRedirectUri}, actual=${actualRedirectUri})`,
-                      );
-                      process.exit(1);
-                    }
-
-                    console.log("==> OAuth redirect contract smoke check passed");
-                  '
-
-                  rm -f "$headers_file"
+                  echo "::error::Timed out waiting for OAuth redirect contract"
+                  exit 1
 
             - name: Notify failure
               if: failure()

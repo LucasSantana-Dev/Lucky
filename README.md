@@ -145,6 +145,8 @@ Deploy workflow smoke checks now require `GET /api/health/auth-config` to return
 Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `302` to Discord authorize URL with expected `client_id` and same-origin
 `redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
+Both deploy smoke checks now retry during rollout until the new backend
+containers are serving the expected contract.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin
