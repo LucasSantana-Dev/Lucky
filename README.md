@@ -112,11 +112,17 @@ npm run dev:backend     # Backend with hot reload
 npm run dev:frontend    # Vite dev server
 
 npm run lint            # ESLint
+npm run lint --workspace=packages/frontend
+npm run lint --workspace=packages/backend
 npm run type:check      # TypeScript validation
 npm run test            # Backend tests (Jest)
 npm run test:coverage   # With coverage report
 npm run format          # Prettier
 ```
+
+Backend lint is currently scoped to active quality-gate paths while legacy strict
+rule debt is tracked in [issue #136](https://github.com/LucasSantana-Dev/Lucky/issues/136)
+and auditable via `npm run lint:full --workspace=packages/backend`.
 
 ### Remote Deploy (No SSH)
 

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Frontend lint now uses ESLint flat config (`packages/frontend/eslint.config.js`) so TypeScript/TSX parsing works correctly with ESLint 10
+- CI quality gates now run package-level lint commands for frontend and backend, matching local verification workflow
 - OAuth authorize/callback now canonicalize to the API-domain callback in production via `WEBAPP_BACKEND_URL`, preventing Discord `redirect_uri inválido` mismatches
 - Added `/auth/callback` compatibility alias and callback-path normalization so legacy `/auth/callback` values still resolve to `/api/auth/callback`
 - Backend server now enables `trust proxy` in production so secure session cookies are correctly issued behind nginx/Cloudflare
@@ -52,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Backend lint scripts now include scoped guardrails for legacy strict-rule debt files and expose `npm run lint:full --workspace=packages/backend` for full debt tracking (follow-up: #136)
 - Added `WEBAPP_BACKEND_URL` env propagation in Docker compose stacks and updated OAuth setup docs/examples to use API-domain callback URLs in production
 - Added root npm deploy shortcuts: `npm run deploy:remote` and `npm run deploy:homelab`
 - `scripts/deploy-remote.sh` now targets workflow file `deploy.yml` and waits for the dispatch run more reliably

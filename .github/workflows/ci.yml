@@ -27,11 +27,13 @@ jobs:
             - name: Generate Prisma client
               run: npx prisma generate
 
+            - name: Lint code
+              run: |
+                  npm run lint --workspace=packages/frontend
+                  npm run lint --workspace=packages/backend
+
             - name: Build shared package
               run: npm run build:shared
-
-            - name: Lint code
-              run: npm run lint
 
             - name: Type check
               run: npm run type:check
