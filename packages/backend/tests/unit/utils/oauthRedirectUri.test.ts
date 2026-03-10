@@ -2,9 +2,6 @@ import type { Request } from 'express'
 import { beforeEach, afterEach, describe, expect, test } from '@jest/globals'
 import { getOAuthRedirectUri } from '../../../src/utils/oauthRedirectUri'
 
-const CANONICAL_PRODUCTION_CALLBACK =
-    'https://lucky-api.lucassantana.tech/api/auth/callback'
-
 function createRequest(
     headers: Record<string, string> = {},
     protocol = 'http',
@@ -24,7 +21,8 @@ describe('getOAuthRedirectUri', () => {
 
     beforeEach(() => {
         process.env.NODE_ENV = 'test'
-        process.env.WEBAPP_REDIRECT_URI = 'http://localhost:3000/api/auth/callback'
+        process.env.WEBAPP_REDIRECT_URI =
+            'http://localhost:3000/api/auth/callback'
     })
 
     afterEach(() => {
@@ -59,7 +57,7 @@ describe('getOAuthRedirectUri', () => {
         expect(uri).toBe('https://api.example.com/api/auth/callback')
     })
 
-    test('should use canonical callback in production when env is unset', () => {
+    test('should derive callback from forwarded host in production when env is unset', () => {
         process.env.NODE_ENV = 'production'
         delete process.env.WEBAPP_REDIRECT_URI
 
@@ -70,17 +68,17 @@ describe('getOAuthRedirectUri', () => {
             }),
         )
 
-        expect(uri).toBe(CANONICAL_PRODUCTION_CALLBACK)
+        expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
     })
 
-    test('should normalize legacy production frontend callback from env', () => {
+    test('should normalize legacy /auth/callback from env', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
-            'https://lucky.lucassantana.tech/api/auth/callback'
+            'https://lucky.lucassantana.tech/auth/callback'
 
         const uri = getOAuthRedirectUri(createRequest())
 
-        expect(uri).toBe(CANONICAL_PRODUCTION_CALLBACK)
+        expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
     })
 
     test('should use forwarded host in non-production when env is unset', () => {

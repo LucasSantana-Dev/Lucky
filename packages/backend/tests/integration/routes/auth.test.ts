@@ -97,7 +97,7 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test('should use canonical API callback in production when env is unset', async () => {
+        test('should derive callback from forwarded host in production when env is unset', async () => {
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             const originalNodeEnv = process.env.NODE_ENV
             delete process.env.WEBAPP_REDIRECT_URI
@@ -112,7 +112,7 @@ describe('Auth Routes Integration', () => {
 
                 expect(response.headers.location).toContain(
                     encodeURIComponent(
-                        'https://lucky-api.lucassantana.tech/api/auth/callback',
+                        'https://lucky.lucassantana.tech/api/auth/callback',
                     ),
                 )
             } finally {
@@ -196,7 +196,7 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test('should enforce canonical callback and secure cookie in production', async () => {
+        test('should enforce same-origin callback and secure cookie in production', async () => {
             const originalNodeEnv = process.env.NODE_ENV
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             const originalBackendUrl = process.env.WEBAPP_BACKEND_URL
@@ -204,8 +204,6 @@ describe('Auth Routes Integration', () => {
             process.env.NODE_ENV = 'production'
             process.env.WEBAPP_REDIRECT_URI =
                 'https://lucky.lucassantana.tech/api/auth/callback'
-            process.env.WEBAPP_BACKEND_URL =
-                'https://lucky-api.lucassantana.tech'
 
             const productionApp = express()
             productionApp.set('trust proxy', 1)
@@ -220,7 +218,7 @@ describe('Auth Routes Integration', () => {
 
             expect(response.headers.location).toContain(
                 encodeURIComponent(
-                    'https://lucky-api.lucassantana.tech/api/auth/callback',
+                    'https://lucky.lucassantana.tech/api/auth/callback',
                 ),
             )
 
