@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.8] - 2026-03-10
+
 ### Fixed
 
 - Auth config health response now includes non-secret OAuth diagnostics
