@@ -16,11 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- OAuth authorize/callback now canonicalize to the API-domain callback in production via `WEBAPP_BACKEND_URL`, preventing Discord `redirect_uri inválido` mismatches
+- Added `/auth/callback` compatibility alias and callback-path normalization so legacy `/auth/callback` values still resolve to `/api/auth/callback`
+- Backend server now enables `trust proxy` in production so secure session cookies are correctly issued behind nginx/Cloudflare
 - Backend CORS now accepts configured origins plus `*.lucassantana.tech` and `*.luk-homeserver.com.br` hosts for dashboard/API split-domain setups
 - Backend auth/Last.fm redirect targets now use the primary frontend origin when `WEBAPP_FRONTEND_URL` contains multiple comma-separated domains
 - Frontend API client now auto-resolves hosted API base to `lucky-api.lucassantana.tech` or `api.luk-homeserver.com.br` when `VITE_API_BASE_URL` is not set
 - Backend OAuth session persistence now uses a connect-redis v9 compatibility adapter for ioredis clients, preventing callback save failures
 - Frontend API inference now uses same-origin `/api` for `*.lucassantana.tech` to keep OAuth/session requests on one browser origin
+- Nginx now normalizes `X-Forwarded-Proto` from edge headers (defaulting to `https`) so secure dashboard session cookies are emitted behind Cloudflare Tunnel
 - Deploy smoke check now falls back to `/api/health` when `/api/health/auth-config` is unavailable
 - Vercel routing no longer rewrites `/api/*` back to the same Lucky host, preventing `508 INFINITE_LOOP` on OAuth login
 - Frontend API base URL now supports `VITE_API_BASE_URL` for hosted deployments that use a separate backend origin
@@ -48,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Added `WEBAPP_BACKEND_URL` env propagation in Docker compose stacks and updated OAuth setup docs/examples to use API-domain callback URLs in production
 - Added root npm deploy shortcuts: `npm run deploy:remote` and `npm run deploy:homelab`
 - `scripts/deploy-remote.sh` now targets workflow file `deploy.yml` and waits for the dispatch run more reliably
 - `scripts/deploy-remote.sh` now always prints failed GitHub Actions logs before exiting

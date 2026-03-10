@@ -120,6 +120,7 @@ services:
             - LASTFM_API_SECRET=${LASTFM_API_SECRET:-}
             - LASTFM_LINK_SECRET=${LASTFM_LINK_SECRET:-}
             - WEBAPP_FRONTEND_URL=${WEBAPP_FRONTEND_URL:-}
+            - WEBAPP_BACKEND_URL=${WEBAPP_BACKEND_URL:-}
         networks:
             - lucky-network
         logging:
