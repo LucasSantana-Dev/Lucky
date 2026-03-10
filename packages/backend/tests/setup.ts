@@ -226,6 +226,7 @@ jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
 
 jest.mock('@lucky/shared/services', () => ({
     redisClient: {
+        connect: jest.fn(() => Promise.resolve(true)),
         isHealthy: jest.fn(() => true),
         get: jest.fn(),
         set: jest.fn(),

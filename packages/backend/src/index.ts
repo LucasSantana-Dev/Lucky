@@ -1,15 +1,14 @@
-import { ensureEnvironment } from '@lucky/shared/config'
-import { setupErrorHandlers, initializeSentry } from '@lucky/shared/utils'
-import { startWebApp } from './server'
+import { errorLog } from '@lucky/shared/utils'
+import { bootstrapBackend } from './bootstrap'
 
 async function main(): Promise<void> {
-    await ensureEnvironment()
-    setupErrorHandlers()
-    initializeSentry()
-    startWebApp()
+    await bootstrapBackend()
 }
 
 main().catch((err: unknown) => {
-    console.error('Failed to start backend:', err)
+    errorLog({
+        message: 'Failed to start backend:',
+        error: err,
+    })
     process.exit(1)
 })

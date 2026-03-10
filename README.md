@@ -77,6 +77,7 @@ packages/
 - Rate limiting (API 100/min, auth 20/15min, write 30/min)
 - Centralized error handling (AppError + asyncHandler + errorHandler)
 - Request logging middleware
+- Auth readiness health contract at `GET /api/health/auth-config`
 - 421 tests (361 backend + 60 frontend), 96% statement coverage
 
 ## Quick Start
