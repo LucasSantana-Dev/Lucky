@@ -1,9 +1,32 @@
 import type { Express, Response } from 'express'
+import { z } from 'zod'
 import { requireAuth, type AuthenticatedRequest } from '../../middleware/auth'
 import { asyncHandler } from '../../middleware/asyncHandler'
 import { AppError } from '../../errors/AppError'
 import { musicControlService } from '@lucky/shared/services'
 import { param, buildCommand } from './helpers'
+
+const moveQueueBodySchema = z.object({
+    from: z.number(),
+    to: z.number(),
+})
+
+const removeQueueBodySchema = z.object({
+    index: z.number(),
+})
+
+const importBodySchema = z.object({
+    url: z.string().min(1),
+    voiceChannelId: z.string().min(1).optional(),
+})
+
+function requireUserId(req: AuthenticatedRequest): string {
+    if (!req.userId) {
+        throw AppError.unauthorized()
+    }
+
+    return req.userId
+}
 
 export function setupQueueRoutes(app: Express): void {
     app.get(
@@ -25,13 +48,16 @@ export function setupQueueRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { from, to } = req.body
-            if (typeof from !== 'number' || typeof to !== 'number') {
+            const userId = requireUserId(req)
+            const body = moveQueueBodySchema.safeParse(req.body)
+
+            if (!body.success) {
                 throw AppError.badRequest('From and to positions are required')
             }
-            const cmd = buildCommand(guildId, req.userId!, 'queue_move', {
-                from,
-                to,
+
+            const cmd = buildCommand(guildId, userId, 'queue_move', {
+                from: body.data.from,
+                to: body.data.to,
             })
             res.json(await musicControlService.sendCommand(cmd))
         }),
@@ -42,12 +68,15 @@ export function setupQueueRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { index } = req.body
-            if (typeof index !== 'number') {
+            const userId = requireUserId(req)
+            const body = removeQueueBodySchema.safeParse(req.body)
+
+            if (!body.success) {
                 throw AppError.badRequest('Track index is required')
             }
-            const cmd = buildCommand(guildId, req.userId!, 'queue_remove', {
-                index,
+
+            const cmd = buildCommand(guildId, userId, 'queue_remove', {
+                index: body.data.index,
             })
             res.json(await musicControlService.sendCommand(cmd))
         }),
@@ -58,9 +87,10 @@ export function setupQueueRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
+            const userId = requireUserId(req)
             res.json(
                 await musicControlService.sendCommand(
-                    buildCommand(guildId, req.userId!, 'queue_clear'),
+                    buildCommand(guildId, userId, 'queue_clear'),
                 ),
             )
         }),
@@ -71,12 +101,16 @@ export function setupQueueRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { url, voiceChannelId } = req.body
-            if (!url) throw AppError.badRequest('Playlist URL is required')
+            const userId = requireUserId(req)
+            const body = importBodySchema.safeParse(req.body)
 
-            const cmd = buildCommand(guildId, req.userId!, 'import_playlist', {
-                url,
-                voiceChannelId,
+            if (!body.success) {
+                throw AppError.badRequest('Playlist URL is required')
+            }
+
+            const cmd = buildCommand(guildId, userId, 'import_playlist', {
+                url: body.data.url,
+                voiceChannelId: body.data.voiceChannelId,
             })
             res.json(await musicControlService.sendCommand(cmd, 30000))
         }),

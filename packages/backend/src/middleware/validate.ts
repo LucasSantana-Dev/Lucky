@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 
-export function validateBody<T extends z.ZodTypeAny>(schema: T) {
+type Schema<TOutput> = z.ZodType<TOutput, z.ZodTypeDef, unknown>
+
+export function validateBody<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
-        const result = schema.safeParse(req.body)
+        const result = schema.safeParse(req.body as unknown)
         if (!result.success) {
             const errors = result.error.errors.map((e) => ({
                 field: e.path.join('.'),
@@ -11,14 +13,15 @@ export function validateBody<T extends z.ZodTypeAny>(schema: T) {
             }))
             return res.status(400).json({ error: 'Validation failed', errors })
         }
+
         req.body = result.data
         next()
     }
 }
 
-export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
+export function validateQuery<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
-        const result = schema.safeParse(req.query)
+        const result = schema.safeParse(req.query as unknown)
         if (!result.success) {
             const errors = result.error.errors.map((e) => ({
                 field: e.path.join('.'),
@@ -26,13 +29,14 @@ export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
             }))
             return res.status(400).json({ error: 'Validation failed', errors })
         }
+
         next()
     }
 }
 
-export function validateParams<T extends z.ZodTypeAny>(schema: T) {
+export function validateParams<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
-        const result = schema.safeParse(req.params)
+        const result = schema.safeParse(req.params as unknown)
         if (!result.success) {
             const errors = result.error.errors.map((e) => ({
                 field: e.path.join('.'),
@@ -40,6 +44,7 @@ export function validateParams<T extends z.ZodTypeAny>(schema: T) {
             }))
             return res.status(400).json({ error: 'Validation failed', errors })
         }
+
         next()
     }
 }

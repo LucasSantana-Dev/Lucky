@@ -22,12 +22,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy workflow auth smoke gate now strictly requires
   `/api/health/auth-config` with `status=ok`, no warnings, and healthy
   auth-session/Redis flags (no fallback to generic health endpoint)
+- Backend route handlers now use schema-typed request parsing and explicit auth
+  user-id guards (removed unsafe `any` request/body/query reads and non-null
+  assertions across management, moderation, music, toggles, and twitch routes)
+- Session middleware now uses typed `session-file-store` import wiring and
+  strict `connect-redis` adapter wiring without unsafe casts
 
 ### Added
 
 - New auth readiness endpoint: `GET /api/health/auth-config` returning
   `status`, auth/runtime flags, and deploy-safe warnings for OAuth/session
   validation
+
+### Changed
+
+- Backend lint no longer uses scoped ignore guardrails; strict lint now runs
+  across the full backend package by default (issue #136 closure)
 
 ## [2.6.6] - 2026-03-10
 

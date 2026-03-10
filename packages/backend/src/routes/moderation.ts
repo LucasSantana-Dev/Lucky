@@ -15,6 +15,14 @@ function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
 }
 
+function requireUserId(req: AuthenticatedRequest): string {
+    if (!req.userId) {
+        throw AppError.unauthorized()
+    }
+
+    return req.userId
+}
+
 export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/cases',
@@ -22,7 +30,8 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         validateQuery(s.casesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const limit = parseInt(req.query.limit as string) || 25
+            const query = s.casesQuery.parse(req.query)
+            const limit = query.limit ?? 25
             const cases = await moderationService.getRecentCases(
                 p(req.params.guildId),
                 limit,
@@ -53,7 +62,8 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.userCasesParam),
         validateQuery(s.userCasesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const activeOnly = req.query.activeOnly === 'true'
+            const query = s.userCasesQuery.parse(req.query)
+            const activeOnly = query.activeOnly === 'true'
             const cases = await moderationService.getUserCases(
                 p(req.params.guildId),
                 p(req.params.userId),
@@ -71,8 +81,9 @@ export function setupModerationRoutes(app: Express): void {
         validateBody(s.updateReasonBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const caseNumber = Number(req.params.caseNumber)
-            const { reason } = req.body
+            const { reason } = s.updateReasonBody.parse(req.body)
 
             const modCase = await moderationService.getCase(guildId, caseNumber)
             if (!modCase) {
@@ -87,7 +98,7 @@ export function setupModerationRoutes(app: Express): void {
                     oldValue: modCase.reason ?? undefined,
                     newValue: reason,
                 },
-                req.userId!,
+                userId,
             )
             res.json({ success: true })
         }),
@@ -100,6 +111,7 @@ export function setupModerationRoutes(app: Express): void {
         validateParams(s.caseIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
             const caseId = p(req.params.caseId)
             const updated = await moderationService.deactivateCase(caseId)
             await serverLogService.logCaseUpdate(
@@ -108,7 +120,7 @@ export function setupModerationRoutes(app: Express): void {
                     caseNumber: updated.caseNumber,
                     changeType: 'deactivated',
                 },
-                req.userId!,
+                userId,
             )
             res.json(updated)
         }),
@@ -134,14 +146,16 @@ export function setupModerationRoutes(app: Express): void {
         validateBody(s.updateSettingsBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
+            const body = s.updateSettingsBody.parse(req.body)
             const settings = await moderationService.updateSettings(
                 guildId,
-                req.body,
+                body,
             )
             await serverLogService.logSettingsChange(
                 guildId,
-                { setting: 'moderation', newValue: req.body },
-                req.userId!,
+                { setting: 'moderation', newValue: body },
+                userId,
             )
             res.json(settings)
         }),

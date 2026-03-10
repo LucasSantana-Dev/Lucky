@@ -121,9 +121,9 @@ npm run test:coverage   # With coverage report
 npm run format          # Prettier
 ```
 
-Backend lint is currently scoped to active quality-gate paths while legacy strict
-rule debt is tracked in [issue #136](https://github.com/LucasSantana-Dev/Lucky/issues/136)
-and auditable via `npm run lint:full --workspace=packages/backend`.
+Backend lint now runs in strict mode across all backend routes and middleware.
+Use `npm run lint:full --workspace=packages/backend` for explicit backend-only
+verification in CI or local checks.
 
 ### Remote Deploy (No SSH)
 

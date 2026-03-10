@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs'
 import session from 'express-session'
 import { RedisStore } from 'connect-redis'
 import Redis from 'ioredis'
+import sessionFileStoreFactory from 'session-file-store'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { Express } from 'express'
 
@@ -33,7 +34,6 @@ type ConnectRedisClient = {
     scanIterator: (options: RedisScanOptions) => AsyncIterable<string[]>
 }
 
-type RedisStoreClient = ConstructorParameters<typeof RedisStore>[0]['client']
 type SessionMethodName = 'get' | 'set' | 'destroy' | 'touch'
 type SessionCallback = (error?: unknown, data?: unknown) => void
 
@@ -144,7 +144,12 @@ export class ResilientSessionStore extends session.Store {
         callback: SessionCallback,
     ): void {
         if (this.fallbackActive) {
-            this.invokeStoreMethod(this.fallbackStore, methodName, args, callback)
+            this.invokeStoreMethod(
+                this.fallbackStore,
+                methodName,
+                args,
+                callback,
+            )
             return
         }
 
@@ -171,7 +176,10 @@ export class ResilientSessionStore extends session.Store {
 
     get(
         sid: string,
-        callback: (error?: unknown, sessionData?: session.SessionData | null) => void,
+        callback: (
+            error?: unknown,
+            sessionData?: session.SessionData | null,
+        ) => void,
     ): void {
         this.execute('get', [sid], callback as SessionCallback)
     }
@@ -184,10 +192,7 @@ export class ResilientSessionStore extends session.Store {
         this.execute('set', [sid, sessionData], callback as SessionCallback)
     }
 
-    destroy(
-        sid: string,
-        callback: (error?: unknown) => void = () => {},
-    ): void {
+    destroy(sid: string, callback: (error?: unknown) => void = () => {}): void {
         this.execute('destroy', [sid], callback as SessionCallback)
     }
 
@@ -230,7 +235,7 @@ function createRedisStore(): session.Store | undefined {
 
         const storeClient = createConnectRedisClientAdapter(client)
         return new RedisStore({
-            client: storeClient as unknown as RedisStoreClient,
+            client: storeClient,
             prefix: 'lucky:sess:',
         })
     } catch (error) {
@@ -246,9 +251,7 @@ function createRedisStore(): session.Store | undefined {
 function createFileStore(sessionPath: string): session.Store | undefined {
     try {
         mkdirSync(sessionPath, { recursive: true })
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const FileStoreFactory = require('session-file-store')
-        const FileStore = FileStoreFactory(session)
+        const FileStore = sessionFileStoreFactory(session)
         return new FileStore({
             path: sessionPath,
             ttl: 7 * 24 * 60 * 60,
@@ -288,32 +291,35 @@ export function setupSessionMiddleware(app: Express): void {
         : fallbackStore
 
     const isMemoryFallback = fallbackStore.constructor.name === 'MemoryStore'
-    let storeType = 'file-based'
-    if (redisStore) {
-        storeType = isMemoryFallback
-            ? 'Redis with in-memory fallback'
-            : 'Redis with file fallback'
-    } else if (isMemoryFallback) {
-        storeType = 'in-memory'
-    }
-
-    debugLog({ message: `Using ${storeType} session store` })
 
     app.use(
         session({
-            store,
-            secret: sessionSecret ?? 'default-secret-change-in-production',
+            secret: sessionSecret || 'fallback-secret-change-in-production',
+            name: 'sessionId',
             resave: false,
             saveUninitialized: false,
-            name: 'sessionId',
-            proxy: isProduction,
             cookie: {
                 secure: isProduction,
                 httpOnly: true,
-                maxAge: 7 * 24 * 60 * 60 * 1000,
                 sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
                 path: '/',
             },
+            store,
+            rolling: true,
+            unset: 'destroy',
         }),
     )
+
+    debugLog({
+        message: 'Session middleware configured',
+        data: {
+            sessionPath,
+            store: redisStore
+                ? `redis+fallback:${isMemoryFallback ? 'memory' : 'file'}`
+                : isMemoryFallback
+                  ? 'memory'
+                  : 'file',
+        },
+    })
 }
