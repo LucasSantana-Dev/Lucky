@@ -33,6 +33,9 @@ export const COMMAND_CATEGORIES = {
             'volume',
             'stop',
             'leave',
+            'music',
+            'session',
+            'playlist',
         ],
     },
     download: {

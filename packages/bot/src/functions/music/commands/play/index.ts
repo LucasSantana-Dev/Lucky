@@ -7,6 +7,7 @@ import Command from '../../../../models/Command'
 import { errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
+import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -47,6 +48,23 @@ export default new Command({
         if (!voiceChannel) return
 
         const query = interaction.options.getString('query', true)
+        const collaborativeCheck = collaborativePlaylistService.canAddTracks(
+            interaction.guildId,
+            interaction.user.id,
+            1,
+        )
+        if (!collaborativeCheck.allowed) {
+            await interaction.reply({
+                embeds: [
+                    createErrorEmbed(
+                        'Contribution limit reached',
+                        `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
+                    ),
+                ],
+                ephemeral: true,
+            })
+            return
+        }
 
         await interaction.deferReply()
 
@@ -75,6 +93,12 @@ export default new Command({
                       'Now Playing',
                       `**${track.title}** by ${track.author}`,
                   )
+
+            collaborativePlaylistService.recordContribution(
+                interaction.guildId,
+                interaction.user.id,
+                1,
+            )
 
             await interaction.editReply({ embeds: [embed] })
         } catch (error) {

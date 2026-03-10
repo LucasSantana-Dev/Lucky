@@ -1,6 +1,13 @@
-import { QueryType, type Track, type GuildQueue } from 'discord-player'
+import {
+    QueryType,
+    QueueRepeatMode,
+    type Track,
+    type GuildQueue,
+} from 'discord-player'
+import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 
 const AUTOPLAY_BUFFER_SIZE = 4
 const HISTORY_SEED_LIMIT = 3
@@ -9,6 +16,13 @@ const SEARCH_RESULTS_LIMIT = 8
 type ScoredTrack = {
     track: Track
     score: number
+    reason: string
+}
+
+export type QueueRescueResult = {
+    removedTracks: number
+    keptTracks: number
+    addedTracks: number
 }
 
 export async function clearQueue(queue: GuildQueue): Promise<boolean> {
@@ -28,7 +42,7 @@ export async function shuffleQueue(queue: GuildQueue): Promise<boolean> {
         if (tracks.length <= 1) return true
 
         for (let i = tracks.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1))
+            const j = randomIndex(i + 1)
             ;[tracks[i], tracks[j]] = [tracks[j], tracks[i]]
         }
 
@@ -41,6 +55,61 @@ export async function shuffleQueue(queue: GuildQueue): Promise<boolean> {
         return true
     } catch (error) {
         errorLog({ message: 'Error shuffling queue:', error })
+        return false
+    }
+}
+
+export async function smartShuffleQueue(queue: GuildQueue): Promise<boolean> {
+    try {
+        const tracks = queue.tracks.toArray()
+        if (tracks.length <= 1) return true
+
+        const pool = [...tracks]
+        const shuffled: Track[] = []
+        const initialByUser = new Map<string, number>()
+        const placedByUser = new Map<string, number>()
+
+        for (const track of pool) {
+            const userId = track.requestedBy?.id ?? 'autoplay'
+            initialByUser.set(userId, (initialByUser.get(userId) ?? 0) + 1)
+        }
+
+        while (pool.length > 0) {
+            const scored = pool.map((track, index) => {
+                const userId = track.requestedBy?.id ?? 'autoplay'
+                const totalForUser = initialByUser.get(userId) ?? 1
+                const placedForUser = placedByUser.get(userId) ?? 0
+                const fairnessScore = placedForUser / totalForUser
+                return {
+                    track,
+                    index,
+                    score: fairnessScore + randomJitter(0.05),
+                }
+            })
+
+            scored.sort((a, b) => a.score - b.score)
+            const candidateWindow = scored.slice(0, Math.min(3, scored.length))
+            const chosen = candidateWindow[randomIndex(candidateWindow.length)]
+            if (!chosen) break
+
+            const userId = chosen.track.requestedBy?.id ?? 'autoplay'
+            placedByUser.set(userId, (placedByUser.get(userId) ?? 0) + 1)
+            shuffled.push(chosen.track)
+            pool.splice(chosen.index, 1)
+        }
+
+        queue.clear()
+        for (const track of shuffled) {
+            queue.addTrack(track)
+        }
+
+        debugLog({
+            message: 'Queue smart-shuffled successfully',
+            data: { guildId: queue.guild.id, queueSize: queue.tracks.size },
+        })
+        return true
+    } catch (error) {
+        errorLog({ message: 'Error smart-shuffling queue:', error })
         return false
     }
 }
@@ -115,76 +184,33 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
         const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
         if (missingTracks <= 0) return
 
-        const metadata = queue.metadata as { requestedBy?: User | null }
-        const requestedBy = currentTrack.requestedBy ?? metadata?.requestedBy
         const historyTracks = getHistoryTracks(queue)
-        const seeds = [currentTrack, ...historyTracks].slice(
+        const seedTracks = [currentTrack, ...historyTracks].slice(
             0,
             HISTORY_SEED_LIMIT + 1,
         )
-        const excludedUrls = new Set<string>([
-            currentTrack.url,
-            ...historyTracks.map((track) => track.url),
-            ...queue.tracks.toArray().map((track) => track.url),
-        ])
-        const excludedKeys = new Set<string>([
-            normalizeTrackKey(currentTrack.title, currentTrack.author),
-            ...historyTracks.map((track) =>
-                normalizeTrackKey(track.title, track.author),
-            ),
-            ...queue.tracks
-                .toArray()
-                .map((track) => normalizeTrackKey(track.title, track.author)),
-        ])
-        const recentArtists = new Set<string>(
-            [currentTrack.author, ...historyTracks.map((track) => track.author)]
-                .filter(Boolean)
-                .map((artist) => artist.toLowerCase()),
-        )
-
-        const candidates = new Map<string, ScoredTrack>()
-
-        for (const seed of seeds) {
-            const query = `${seed.title} ${seed.author}`.trim()
-            const searchResult = await queue.player.search(query, {
-                requestedBy: requestedBy ?? undefined,
-                searchEngine: QueryType.AUTO,
-            })
-            for (const candidate of searchResult.tracks.slice(
-                0,
-                SEARCH_RESULTS_LIMIT,
-            )) {
-                if (isDuplicateCandidate(candidate, excludedUrls, excludedKeys))
-                    continue
-
-                const candidateKey = getTrackKey(candidate)
-                const score = calculateRecommendationScore(
-                    candidate,
-                    currentTrack,
-                    recentArtists,
-                )
-                const existing = candidates.get(candidateKey)
-                if (!existing || score > existing.score) {
-                    candidates.set(candidateKey, { track: candidate, score })
-                }
-            }
-        }
-
-        const selected = Array.from(candidates.values())
-            .sort((a, b) => b.score - a.score)
-            .slice(0, missingTracks)
-
-        for (const candidate of selected) {
-            markAsAutoplayTrack(candidate.track)
-            queue.addTrack(candidate.track)
-            excludedUrls.add(candidate.track.url)
-            excludedKeys.add(
-                normalizeTrackKey(
-                    candidate.track.title,
-                    candidate.track.author,
-                ),
+        const requestedBy = getRequestedBy(queue, currentTrack)
+        const dislikedTrackKeys =
+            await recommendationFeedbackService.getDislikedTrackKeys(
+                queue.guild.id,
+                requestedBy?.id,
             )
-        }
+        const excludedUrls = buildExcludedUrls(queue, currentTrack, historyTracks)
+        const excludedKeys = buildExcludedKeys(queue, currentTrack, historyTracks)
+        const recentArtists = buildRecentArtists(currentTrack, historyTracks)
+        const candidates = await collectRecommendationCandidates(
+            queue,
+            seedTracks,
+            requestedBy,
+            excludedUrls,
+            excludedKeys,
+            dislikedTrackKeys,
+            currentTrack,
+            recentArtists,
+        )
+        const selected = selectDiverseCandidates(candidates, missingTracks)
+
+        addSelectedTracks(queue, selected, excludedUrls, excludedKeys)
 
         if (selected.length === 0) return
 
@@ -198,6 +224,214 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
         })
     } catch (error) {
         errorLog({ message: 'Error replenishing queue:', error })
+    }
+}
+
+function randomIndex(maxExclusive: number): number {
+    if (maxExclusive <= 1) return 0
+    return randomInt(maxExclusive)
+}
+
+function randomJitter(max: number): number {
+    if (max <= 0) return 0
+    return (randomInt(10_000) / 10_000) * max
+}
+
+function getRequestedBy(queue: GuildQueue, currentTrack: Track): User | null {
+    const metadata = queue.metadata as { requestedBy?: User | null }
+    return currentTrack.requestedBy ?? metadata?.requestedBy ?? null
+}
+
+function buildExcludedUrls(
+    queue: GuildQueue,
+    currentTrack: Track,
+    historyTracks: Track[],
+): Set<string> {
+    return new Set<string>([
+        currentTrack.url,
+        ...historyTracks.map((track) => track.url),
+        ...queue.tracks.toArray().map((track) => track.url),
+    ])
+}
+
+function buildExcludedKeys(
+    queue: GuildQueue,
+    currentTrack: Track,
+    historyTracks: Track[],
+): Set<string> {
+    return new Set<string>([
+        normalizeTrackKey(currentTrack.title, currentTrack.author),
+        ...historyTracks.map((track) =>
+            normalizeTrackKey(track.title, track.author),
+        ),
+        ...queue.tracks
+            .toArray()
+            .map((track) => normalizeTrackKey(track.title, track.author)),
+    ])
+}
+
+function buildRecentArtists(
+    currentTrack: Track,
+    historyTracks: Track[],
+): Set<string> {
+    return new Set<string>(
+        [currentTrack.author, ...historyTracks.map((track) => track.author)]
+            .filter(Boolean)
+            .map((artist) => artist.toLowerCase()),
+    )
+}
+
+async function collectRecommendationCandidates(
+    queue: GuildQueue,
+    seedTracks: Track[],
+    requestedBy: User | null,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+    dislikedTrackKeys: Set<string>,
+    currentTrack: Track,
+    recentArtists: Set<string>,
+): Promise<Map<string, ScoredTrack>> {
+    const candidates = new Map<string, ScoredTrack>()
+
+    for (const seed of seedTracks) {
+        const seedCandidates = await searchSeedCandidates(queue, seed, requestedBy)
+        for (const candidate of seedCandidates) {
+            if (!shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)) {
+                continue
+            }
+            const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
+            if (dislikedTrackKeys.has(normalizedKey)) {
+                continue
+            }
+            upsertScoredCandidate(
+                candidates,
+                candidate,
+                calculateRecommendationScore(candidate, currentTrack, recentArtists),
+            )
+        }
+    }
+
+    return candidates
+}
+
+async function searchSeedCandidates(
+    queue: GuildQueue,
+    seed: Track,
+    requestedBy: User | null,
+): Promise<Track[]> {
+    const query = `${seed.title} ${seed.author}`.trim()
+    const searchResult = await queue.player.search(query, {
+        requestedBy: requestedBy ?? undefined,
+        searchEngine: QueryType.AUTO,
+    })
+    return searchResult.tracks.slice(0, SEARCH_RESULTS_LIMIT)
+}
+
+function shouldIncludeCandidate(
+    track: Track,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+): boolean {
+    return !isDuplicateCandidate(track, excludedUrls, excludedKeys)
+}
+
+function upsertScoredCandidate(
+    candidates: Map<string, ScoredTrack>,
+    candidate: Track,
+    recommendation: { score: number; reason: string },
+): void {
+    const candidateKey = getTrackKey(candidate)
+    const existing = candidates.get(candidateKey)
+
+    if (!existing || recommendation.score > existing.score) {
+        candidates.set(candidateKey, {
+            track: candidate,
+            score: recommendation.score,
+            reason: recommendation.reason,
+        })
+    }
+}
+
+function selectDiverseCandidates(
+    candidates: Map<string, ScoredTrack>,
+    missingTracks: number,
+): ScoredTrack[] {
+    const sortedCandidates = Array.from(candidates.values()).sort(
+        (a, b) => b.score - a.score,
+    )
+    const selected: ScoredTrack[] = []
+    const selectedArtists = new Set<string>()
+
+    for (const candidate of sortedCandidates) {
+        const artistKey = candidate.track.author.toLowerCase()
+        if (selectedArtists.has(artistKey)) {
+            continue
+        }
+        selected.push(candidate)
+        selectedArtists.add(artistKey)
+        if (selected.length >= missingTracks) {
+            break
+        }
+    }
+
+    return selected
+}
+
+function addSelectedTracks(
+    queue: GuildQueue,
+    selected: ScoredTrack[],
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+): void {
+    for (const candidate of selected) {
+        markAsAutoplayTrack(candidate.track, candidate.reason)
+        queue.addTrack(candidate.track)
+        excludedUrls.add(candidate.track.url)
+        excludedKeys.add(
+            normalizeTrackKey(candidate.track.title, candidate.track.author),
+        )
+    }
+}
+
+function isPlayableTrack(track: Track): boolean {
+    return Boolean(track.url) && Boolean(track.title) && Boolean(track.author)
+}
+
+export async function rescueQueue(
+    queue: GuildQueue,
+): Promise<QueueRescueResult> {
+    try {
+        const tracks = queue.tracks.toArray()
+        const keptTracks = tracks.filter((track) => isPlayableTrack(track))
+        const removedTracks = tracks.length - keptTracks.length
+
+        queue.clear()
+        for (const track of keptTracks) {
+            queue.addTrack(track)
+        }
+
+        const beforeReplenish = queue.tracks.size
+        if (
+            queue.repeatMode === QueueRepeatMode.AUTOPLAY &&
+            queue.currentTrack &&
+            queue.tracks.size < 4
+        ) {
+            await replenishQueue(queue)
+        }
+        const addedTracks = Math.max(0, queue.tracks.size - beforeReplenish)
+
+        return {
+            removedTracks,
+            keptTracks: keptTracks.length,
+            addedTracks,
+        }
+    } catch (error) {
+        errorLog({ message: 'Error rescuing queue:', error })
+        return {
+            removedTracks: 0,
+            keptTracks: queue.tracks.size,
+            addedTracks: 0,
+        }
     }
 }
 
@@ -246,17 +480,38 @@ function calculateRecommendationScore(
     candidate: Track,
     currentTrack: Track,
     recentArtists: Set<string>,
-): number {
+): { score: number; reason: string } {
     let score = 1
+    const reasons: string[] = []
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
 
-    if (candidateArtist === currentArtist) score -= 0.35
-    if (recentArtists.has(candidateArtist)) score -= 0.25
-    if (candidate.source === currentTrack.source) score += 0.1
-    score += sharedTitleTokenScore(candidate.title, currentTrack.title)
+    if (candidateArtist === currentArtist) {
+        score -= 0.35
+    } else {
+        reasons.push('fresh artist rotation')
+    }
+    if (recentArtists.has(candidateArtist)) {
+        score -= 0.25
+    }
+    if (candidate.source === currentTrack.source) {
+        score += 0.1
+        reasons.push('same source profile')
+    }
+    const tokenScore = sharedTitleTokenScore(
+        candidate.title,
+        currentTrack.title,
+    )
+    score += tokenScore
+    if (tokenScore > 0) {
+        reasons.push('similar title mood')
+    }
 
-    return score
+    return {
+        score,
+        reason:
+            reasons.length > 0 ? reasons.join(' • ') : 'balanced autoplay pick',
+    }
 }
 
 function sharedTitleTokenScore(titleA: string, titleB: string): number {
@@ -279,7 +534,7 @@ function splitTokens(value: string): string[] {
         .filter((token) => token.length > 2)
 }
 
-function markAsAutoplayTrack(track: Track): void {
+function markAsAutoplayTrack(track: Track, recommendationReason: string): void {
     const trackWithMetadata = track as unknown as {
         metadata?: Record<string, unknown>
     }
@@ -288,5 +543,6 @@ function markAsAutoplayTrack(track: Track): void {
     trackWithMetadata.metadata = {
         ...metadata,
         isAutoplay: true,
+        recommendationReason,
     }
 }

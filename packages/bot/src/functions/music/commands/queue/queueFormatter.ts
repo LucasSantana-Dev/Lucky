@@ -25,6 +25,10 @@ export function formatCurrentTrackEmbed(
     const trackInfo = getTrackInfo(currentTrack)
     const isAutoplay = currentTrack.requestedBy?.id === client.user?.id
     const tag = isAutoplay ? '🤖 Autoplay' : '👤 Manual'
+    const reasonLine =
+        isAutoplay && trackInfo.recommendationReason
+            ? `\nWhy this track: ${trackInfo.recommendationReason}`
+            : ''
 
     let nextTrackInfo = ''
     const nextTrack = queue?.tracks.at(0)
@@ -32,12 +36,17 @@ export function formatCurrentTrackEmbed(
         const nextTrackData = getTrackInfo(nextTrack)
         const isNextAutoplay = nextTrack.requestedBy?.id === client.user?.id
         const nextTag = isNextAutoplay ? '🤖 Autoplay' : '👤 Manual'
+        const nextReason =
+            isNextAutoplay && nextTrackData.recommendationReason
+                ? `\nWhy this track: ${nextTrackData.recommendationReason}`
+                : ''
         nextTrackInfo = `\n\n⏭️ Next song:\n**${nextTrackData.title}**\nDuration: ${nextTrackData.duration}\nRequested by: ${nextTrackData.requester}\n${nextTag}`
+        nextTrackInfo += nextReason
     }
 
     return {
         name: '▶️ Now Playing',
-        value: `**${trackInfo.title}**\nDuration: ${trackInfo.duration}\nRequested by: ${trackInfo.requester}\n${tag}${nextTrackInfo}`,
+        value: `**${trackInfo.title}**\nDuration: ${trackInfo.duration}\nRequested by: ${trackInfo.requester}\n${tag}${reasonLine}${nextTrackInfo}`,
     }
 }
 
@@ -73,8 +82,11 @@ export function formatAutoplayTracksList(
         if (!track) continue
 
         const trackInfo = getTrackInfo(track)
+        const reason = trackInfo.recommendationReason
+            ? `\n   Why: ${trackInfo.recommendationReason}`
+            : ''
         tracksList.push(
-            `${i + 1}. **${trackInfo.title}**\n   Duration: ${trackInfo.duration} | Requested by: ${trackInfo.requester} 🤖 Autoplay`,
+            `${i + 1}. **${trackInfo.title}**\n   Duration: ${trackInfo.duration} | Requested by: ${trackInfo.requester} 🤖 Autoplay${reason}`,
         )
     }
 

@@ -4,117 +4,138 @@ import {
     createYouTubeErrorMessage,
     logYouTubeError,
 } from '../youtubeErrorHandler'
-import type {
-    EnhancedSearchOptions,
-    EnhancedSearchResult,
-    SearchEngineConfig,
-} from './types'
+import {
+    providerHealthService,
+    providerFromQueryType,
+    type MusicProvider,
+} from './providerHealth'
+import type { EnhancedSearchOptions, EnhancedSearchResult } from './types'
 
-/**
- * Search engine manager with fallback mechanisms
- */
+type SearchAttempt = {
+    provider: MusicProvider
+    engine: QueryType
+}
+
+const SPOTIFY_SEARCH = 'spotifySearch' as QueryType
+const SOUNDCLOUD_SEARCH = 'soundcloud' as QueryType
+
+const FALLBACK_ATTEMPTS: SearchAttempt[] = [
+    {
+        provider: 'youtube',
+        engine: QueryType.YOUTUBE_SEARCH,
+    },
+    {
+        provider: 'spotify',
+        engine: SPOTIFY_SEARCH,
+    },
+    {
+        provider: 'soundcloud',
+        engine: SOUNDCLOUD_SEARCH,
+    },
+]
+
 export class SearchEngineManager {
     constructor(private readonly player: Player) {}
 
-    /**
-     * Try primary search engine
-     */
-    private async tryPrimarySearch(
+    private buildAttempts(options: EnhancedSearchOptions): SearchAttempt[] {
+        const preferredEngine = options.preferredEngine ?? QueryType.AUTO
+        const preferredProvider = providerFromQueryType(preferredEngine)
+        const attempts: SearchAttempt[] = [
+            {
+                provider: preferredProvider,
+                engine: preferredEngine,
+            },
+        ]
+
+        if (!options.enableFallbacks) {
+            return attempts
+        }
+
+        for (const fallback of FALLBACK_ATTEMPTS) {
+            if (
+                attempts.some(
+                    (candidate) => candidate.provider === fallback.provider,
+                )
+            ) {
+                continue
+            }
+            attempts.push(fallback)
+        }
+
+        return attempts
+    }
+
+    private async executeSearchAttempt(
         options: EnhancedSearchOptions,
-        _config: SearchEngineConfig,
+        attempt: SearchAttempt,
     ): Promise<{ success: boolean; result?: SearchResult; error?: Error }> {
+        if (!providerHealthService.isAvailable(attempt.provider)) {
+            return { success: false }
+        }
+
         try {
             const result = await this.player.search(options.query, {
                 requestedBy: options.requestedBy,
+                searchEngine: attempt.engine,
             })
 
             if (result.tracks.length > 0) {
+                providerHealthService.recordSuccess(attempt.provider)
                 return { success: true, result }
             }
+
+            providerHealthService.recordFailure(
+                attempt.provider,
+                Date.now(),
+                'No tracks found',
+            )
             return { success: false }
         } catch (error) {
             const errorObj = error as Error
             logYouTubeError(errorObj, options.query, options.requestedBy.id)
+            providerHealthService.recordFailure(
+                attempt.provider,
+                Date.now(),
+                errorObj.message,
+            )
             return { success: false, error: errorObj }
         }
-    }
-
-    /**
-     * Try fallback search engines
-     */
-    private async tryFallbackSearch(
-        options: EnhancedSearchOptions,
-        _config: SearchEngineConfig,
-    ): Promise<{
-        success: boolean
-        result?: SearchResult
-        error?: Error
-        attempts: number
-    }> {
-        const fallbackEngines = ['youtube', 'spotify'] // Default fallback engines
-        let attempts = 0
-
-        for (const _engine of fallbackEngines) {
-            attempts++
-            try {
-                const result = await this.player.search(options.query, {
-                    requestedBy: options.requestedBy,
-                })
-
-                if (result.tracks.length > 0) {
-                    return { success: true, result, attempts }
-                }
-            } catch (error) {
-                const errorObj = error as Error
-                logYouTubeError(errorObj, options.query, options.requestedBy.id)
-                return { success: false, error: errorObj, attempts }
-            }
-        }
-
-        return { success: false, attempts }
     }
 
     async performSearch(
         options: EnhancedSearchOptions,
     ): Promise<EnhancedSearchResult> {
-        const config: SearchEngineConfig = {
-            maxRetries: options.maxRetries ?? 3,
+        const attempts = this.buildAttempts({
+            ...options,
             enableFallbacks: options.enableFallbacks ?? true,
-            preferredEngine: options.preferredEngine ?? QueryType.AUTO,
-        }
+        })
+        let executedAttempts = 0
+        let lastError: Error | undefined
 
-        // Try primary search engine
-        const primaryResult = await this.tryPrimarySearch(options, config)
-        if (primaryResult.success && primaryResult.result) {
-            return {
-                success: true,
-                result: primaryResult.result as SearchResult,
-                attempts: 1,
-            }
-        }
-
-        // Try fallback engines if enabled
-        if (config.enableFallbacks) {
-            const fallbackResult = await this.tryFallbackSearch(options, config)
-            if (fallbackResult.success && fallbackResult.result) {
+        for (const attempt of attempts) {
+            const result = await this.executeSearchAttempt(options, attempt)
+            executedAttempts += 1
+            if (result.success && result.result) {
                 return {
                     success: true,
-                    result: fallbackResult.result as SearchResult,
-                    usedFallback: true,
-                    attempts: fallbackResult.attempts,
+                    result: result.result as SearchResult,
+                    usedFallback: executedAttempts > 1,
+                    attempts: executedAttempts,
                 }
+            }
+            if (result.error) {
+                lastError = result.error
             }
         }
 
-        // All attempts failed
-        const errorMessage = primaryResult.error
-            ? createYouTubeErrorMessage(primaryResult.error)
+        const errorMessage = lastError
+            ? createYouTubeErrorMessage(lastError)
             : 'No tracks found for the given query'
 
         return {
             success: false,
             error: errorMessage,
-            attempts: 0,
+            attempts: executedAttempts,
         }
     }
 
@@ -130,24 +151,23 @@ export class SearchEngineManager {
                 data: { query: options.query.substring(0, 100) },
             })
 
-            // Use primary search directly to avoid recursion
-            const primaryResult = await this.tryPrimarySearch(options, {
+            const result = await this.performSearch({
+                ...options,
                 maxRetries: 1,
-                enableFallbacks: false,
-                preferredEngine: options.preferredEngine ?? QueryType.AUTO,
+                enableFallbacks: options.enableFallbacks ?? true,
             })
 
-            if (primaryResult.success && primaryResult.result) {
+            if (result.success && result.result) {
                 return {
                     success: true,
-                    result: primaryResult.result as SearchResult,
+                    result: result.result as SearchResult,
                     attempts: attempt,
                 }
             }
 
             lastResult = {
                 success: false,
-                error: primaryResult.error?.message || 'Search failed',
+                error: result.error ?? 'Search failed',
                 attempts: attempt,
             }
 

@@ -103,13 +103,26 @@ export const clearConfigCache = (): void => {
 export const constants = {
     VOLUME: 50,
     MAX_AUTOPLAY_TRACKS: 50,
+    MUSIC_WATCHDOG_TIMEOUT_MS: parseInt(
+        process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000',
+    ),
+    MUSIC_PROVIDER_COOLDOWN_MS: parseInt(
+        process.env.MUSIC_PROVIDER_COOLDOWN_MS ?? '120000',
+    ),
+    MUSIC_SESSION_RESTORE_ENABLED:
+        process.env.MUSIC_SESSION_RESTORE_ENABLED !== 'false',
+    AUTOPLAY_DISLIKE_TTL_HOURS: parseInt(
+        process.env.AUTOPLAY_DISLIKE_TTL_HOURS ?? '24',
+    ),
 }
 
 export const ENVIRONMENT_CONFIG = {
     DATABASE: {
         URL: process.env.DATABASE_URL,
         MAX_CONNECTIONS: parseInt(process.env.DATABASE_MAX_CONNECTIONS ?? '10'),
-        CONNECTION_TIMEOUT: parseInt(process.env.DATABASE_CONNECTION_TIMEOUT ?? '30000'),
+        CONNECTION_TIMEOUT: parseInt(
+            process.env.DATABASE_CONNECTION_TIMEOUT ?? '30000',
+        ),
         QUERY_TIMEOUT: parseInt(process.env.DATABASE_QUERY_TIMEOUT ?? '10000'),
     },
     REDIS: {
@@ -198,6 +211,19 @@ export const ENVIRONMENT_CONFIG = {
     SEARCH: {
         TIMEOUT: parseInt(process.env.SEARCH_TIMEOUT ?? '15000'),
         RETRY_DELAY: parseInt(process.env.SEARCH_RETRY_DELAY ?? '5000'),
+    },
+    MUSIC: {
+        WATCHDOG_TIMEOUT_MS: parseInt(
+            process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000',
+        ),
+        PROVIDER_COOLDOWN_MS: parseInt(
+            process.env.MUSIC_PROVIDER_COOLDOWN_MS ?? '120000',
+        ),
+        SESSION_RESTORE_ENABLED:
+            process.env.MUSIC_SESSION_RESTORE_ENABLED !== 'false',
+        AUTOPLAY_DISLIKE_TTL_HOURS: parseInt(
+            process.env.AUTOPLAY_DISLIKE_TTL_HOURS ?? '24',
+        ),
     },
     SPOTIFY: {
         CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,

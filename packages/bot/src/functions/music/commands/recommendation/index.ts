@@ -1,85 +1,86 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../../models/Command'
-import { requireGuild } from "../../../../utils/command/commandValidations"
-import type { CommandExecuteParams } from "../../../../types/CommandData"
+import { requireGuild } from '../../../../utils/command/commandValidations'
+import type { CommandExecuteParams } from '../../../../types/CommandData'
 import {
     handleShowSettings,
     handleUpdateSettings,
     handleApplyPreset,
-    handleResetSettings
+    handleResetSettings,
+    handleFeedback,
 } from './handlers'
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('recommendation')
         .setDescription('🎵 Manage music recommendation settings')
-        .addSubcommand(subcommand =>
+        .addSubcommand((subcommand) =>
             subcommand
                 .setName('show')
-                .setDescription('Show current recommendation settings')
+                .setDescription('Show current recommendation settings'),
         )
-        .addSubcommand(subcommand =>
+        .addSubcommand((subcommand) =>
             subcommand
                 .setName('update')
                 .setDescription('Update recommendation settings')
-                .addBooleanOption(option =>
+                .addBooleanOption((option) =>
                     option
                         .setName('enabled')
                         .setDescription('Enable/disable recommendations')
-                        .setRequired(false)
+                        .setRequired(false),
                 )
-                .addIntegerOption(option =>
+                .addIntegerOption((option) =>
                     option
                         .setName('max_recommendations')
                         .setDescription('Maximum number of recommendations')
                         .setMinValue(1)
                         .setMaxValue(20)
-                        .setRequired(false)
+                        .setRequired(false),
                 )
-                .addNumberOption(option =>
+                .addNumberOption((option) =>
                     option
                         .setName('similarity_threshold')
                         .setDescription('Similarity threshold (0.0-1.0)')
                         .setMinValue(0.0)
                         .setMaxValue(1.0)
-                        .setRequired(false)
+                        .setRequired(false),
                 )
-                .addNumberOption(option =>
+                .addNumberOption((option) =>
                     option
                         .setName('genre_weight')
                         .setDescription('Genre weight (0.0-1.0)')
                         .setMinValue(0.0)
                         .setMaxValue(1.0)
-                        .setRequired(false)
+                        .setRequired(false),
                 )
-                .addNumberOption(option =>
+                .addNumberOption((option) =>
                     option
                         .setName('tag_weight')
                         .setDescription('Tag weight (0.0-1.0)')
                         .setMinValue(0.0)
                         .setMaxValue(1.0)
-                        .setRequired(false)
+                        .setRequired(false),
                 )
-                .addNumberOption(option =>
+                .addNumberOption((option) =>
                     option
                         .setName('artist_weight')
                         .setDescription('Artist weight (0.0-1.0)')
                         .setMinValue(0.0)
                         .setMaxValue(1.0)
-                        .setRequired(false)
+                        .setRequired(false),
                 )
-                .addBooleanOption(option =>
+                .addBooleanOption((option) =>
                     option
                         .setName('learning_enabled')
                         .setDescription('Enable learning from user preferences')
-                        .setRequired(false)
-                )
+                        .setRequired(false),
+                ),
         )
-        .addSubcommand(subcommand =>
+        .addSubcommand((subcommand) =>
             subcommand
                 .setName('preset')
                 .setDescription('Apply a recommendation preset')
-                .addStringOption(option =>
+                .addStringOption((option) =>
                     option
                         .setName('preset')
                         .setDescription('Preset to apply')
@@ -88,23 +89,44 @@ export default new Command({
                             { name: 'Balanced', value: 'balanced' },
                             { name: 'Conservative', value: 'conservative' },
                             { name: 'Experimental', value: 'experimental' },
-                            { name: 'Disabled', value: 'disabled' }
-                        )
-                )
+                            { name: 'Disabled', value: 'disabled' },
+                        ),
+                ),
         )
-        .addSubcommand(subcommand =>
+        .addSubcommand((subcommand) =>
             subcommand
                 .setName('reset')
                 .setDescription('Reset settings to defaults')
-                .addBooleanOption(option =>
+                .addBooleanOption((option) =>
                     option
                         .setName('confirm')
                         .setDescription('Confirm the reset')
+                        .setRequired(true),
+                ),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('feedback')
+                .setDescription('Provide recommendation feedback for learning')
+                .addStringOption((option) =>
+                    option
+                        .setName('feedback')
+                        .setDescription('Feedback type')
                         .setRequired(true)
+                        .addChoices(
+                            { name: 'Like', value: 'like' },
+                            { name: 'Dislike', value: 'dislike' },
+                        ),
                 )
+                .addStringOption((option) =>
+                    option
+                        .setName('track_url')
+                        .setDescription('Optional track URL to rate')
+                        .setRequired(false),
+                ),
         ),
     category: 'music',
-    execute: async ({ client: _client, interaction }: CommandExecuteParams) => {
+    execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
         const subcommand = interaction.options.getSubcommand()
@@ -121,6 +143,9 @@ export default new Command({
                 break
             case 'reset':
                 await handleResetSettings(interaction)
+                break
+            case 'feedback':
+                await handleFeedback(interaction, client)
                 break
             default:
                 await interaction.reply({

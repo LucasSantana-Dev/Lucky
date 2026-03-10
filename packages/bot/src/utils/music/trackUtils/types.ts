@@ -9,6 +9,9 @@ export type TrackInfo = {
     duration: string
     requester: string
     isAutoplay: boolean
+    recommendationReason?: string
+    recommendationFeedback?: string
+    sessionSnapshotId?: string
 }
 
 export type TrackCacheKey = {

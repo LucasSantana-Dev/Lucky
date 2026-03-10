@@ -49,9 +49,32 @@ export async function sendNowPlayingEmbed(
         ? `Added by ${requester.username}`
         : 'Added automatically'
     const requestedByInfo = requester ? requester.username : 'Autoplay'
+    const trackMetadata = (track.metadata ?? {}) as {
+        recommendationReason?: string
+    }
+    const autoplayCount = isAutoplay
+        ? await getAutoplayCount(queue.guild.id)
+        : null
     const footer = isAutoplay
-        ? `Autoplay • ${getAutoplayCount(queue.guild.id)}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
+        ? `Autoplay • ${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
         : requesterInfo
+
+    const fields = [
+        {
+            name: '⏱️ Duration',
+            value: formatDuration(track.duration),
+            inline: true,
+        },
+        { name: '🌐 Source', value: getSource(track.url), inline: true },
+        { name: '👤 Requested', value: requestedByInfo, inline: true },
+    ]
+    if (isAutoplay && trackMetadata.recommendationReason) {
+        fields.push({
+            name: '🤖 Why this track',
+            value: trackMetadata.recommendationReason,
+            inline: false,
+        })
+    }
 
     const embed = createEmbed({
         title: '🎵 Now Playing',
@@ -59,15 +82,7 @@ export async function sendNowPlayingEmbed(
         color: EMBED_COLORS.MUSIC as ColorResolvable,
         thumbnail: track.thumbnail,
         timestamp: true,
-        fields: [
-            {
-                name: '⏱️ Duration',
-                value: formatDuration(track.duration),
-                inline: true,
-            },
-            { name: '🌐 Source', value: getSource(track.url), inline: true },
-            { name: '👤 Requested', value: requestedByInfo, inline: true },
-        ],
+        fields,
         footer,
     })
 

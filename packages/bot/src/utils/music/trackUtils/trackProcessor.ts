@@ -21,13 +21,21 @@ export class TrackProcessor {
     }
 
     getTrackInfo(track: Track): TrackInfo {
+        const metadata = (track.metadata ?? {}) as {
+            isAutoplay?: boolean
+            recommendationReason?: string
+            recommendationFeedback?: string
+            sessionSnapshotId?: string
+        }
+
         return {
             title: track.title,
             duration: track.duration,
             requester: track.requestedBy?.username ?? 'Unknown',
-            isAutoplay:
-                (track.metadata as { isAutoplay?: boolean })?.isAutoplay ??
-                false,
+            isAutoplay: metadata.isAutoplay ?? false,
+            recommendationReason: metadata.recommendationReason,
+            recommendationFeedback: metadata.recommendationFeedback,
+            sessionSnapshotId: metadata.sessionSnapshotId,
         }
     }
 

@@ -1,5 +1,8 @@
 import type { GuildQueue } from 'discord-player'
 import { infoLog, debugLog } from '@lucky/shared/utils'
+import { musicWatchdogService } from '../../utils/music/watchdog'
+import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
+import type { User } from 'discord.js'
 
 export const setupLifecycleHandlers = (player: {
     events: { on: (event: string, handler: Function) => void }
@@ -10,7 +13,7 @@ export const setupLifecycleHandlers = (player: {
         })
     })
 
-    player.events.on('connection', (queue: GuildQueue) => {
+    player.events.on('connection', async (queue: GuildQueue) => {
         infoLog({
             message: `Created connection to voice channel in ${queue.guild.name}`,
         })
@@ -25,21 +28,42 @@ export const setupLifecycleHandlers = (player: {
                 },
             })
         }
+
+        if (process.env.MUSIC_SESSION_RESTORE_ENABLED !== 'false') {
+            const metadata = queue.metadata as
+                | { requestedBy?: User | null }
+                | undefined
+
+            await musicSessionSnapshotService.restoreSnapshot(
+                queue,
+                metadata?.requestedBy ?? undefined,
+            )
+        }
+
+        musicWatchdogService.arm(queue)
     })
 
-    player.events.on('connectionDestroyed', (queue: GuildQueue) => {
+    player.events.on('connectionDestroyed', async (queue: GuildQueue) => {
         infoLog({
             message: `Destroyed connection to voice channel in ${queue.guild.name}`,
         })
+
+        await musicSessionSnapshotService.saveSnapshot(queue)
+        await musicWatchdogService.checkAndRecover(queue)
     })
 
-    player.events.on('emptyChannel', (queue: GuildQueue) => {
+    player.events.on('emptyChannel', async (queue: GuildQueue) => {
         infoLog({ message: `Channel is empty in ${queue.guild.name}` })
+        await musicSessionSnapshotService.saveSnapshot(queue)
+        musicWatchdogService.clear(queue.guild.id)
     })
 
-    player.events.on('disconnect', (queue: GuildQueue) => {
+    player.events.on('disconnect', async (queue: GuildQueue) => {
         infoLog({
             message: `Disconnected from voice channel in ${queue.guild.name}`,
         })
+
+        await musicSessionSnapshotService.saveSnapshot(queue)
+        await musicWatchdogService.checkAndRecover(queue)
     })
 }

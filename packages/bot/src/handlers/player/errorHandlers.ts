@@ -6,6 +6,10 @@ import {
     logYouTubeError,
 } from '../../utils/music/youtubeErrorHandler'
 import { youtubeConfig } from '@lucky/shared/config'
+import {
+    providerFromTrack,
+    providerHealthService,
+} from '../../utils/music/search/providerHealth'
 
 type PlayerEvents = {
     events: {
@@ -130,6 +134,7 @@ async function recoverFromStreamExtractionError(
         queue.addTrack(alternativeTrack)
         if (!queue.node.isPlaying()) {
             await queue.node.play()
+            providerHealthService.recordSuccess(providerFromTrack(currentTrack))
             debugLog({
                 message: 'Successfully recovered from stream extraction error',
             })
@@ -144,6 +149,15 @@ const handlePlayerError = async (
     error: Error,
 ): Promise<void> => {
     try {
+        const currentTrackProvider = providerFromTrack(
+            queue.currentTrack ?? undefined,
+        )
+        providerHealthService.recordFailure(
+            currentTrackProvider,
+            Date.now(),
+            error.message,
+        )
+
         const youtubeErrorInfo = analyzeYouTubeError(error)
 
         if (youtubeErrorInfo.isParserError) {

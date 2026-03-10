@@ -9,6 +9,9 @@ const sendNowPlayingEmbedMock = jest.fn()
 const updateLastFmNowPlayingMock = jest.fn()
 const scrobbleCurrentTrackIfLastFmMock = jest.fn()
 const resetAutoplayCountMock = jest.fn()
+const watchdogArmMock = jest.fn()
+const watchdogClearMock = jest.fn()
+const saveSnapshotMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -28,7 +31,8 @@ jest.mock('../../utils/music/duplicateDetection', () => ({
 }))
 
 jest.mock('./trackNowPlaying', () => ({
-    sendNowPlayingEmbed: (...args: unknown[]) => sendNowPlayingEmbedMock(...args),
+    sendNowPlayingEmbed: (...args: unknown[]) =>
+        sendNowPlayingEmbedMock(...args),
     updateLastFmNowPlaying: (...args: unknown[]) =>
         updateLastFmNowPlayingMock(...args),
     scrobbleCurrentTrackIfLastFm: (...args: unknown[]) =>
@@ -37,6 +41,19 @@ jest.mock('./trackNowPlaying', () => ({
 
 jest.mock('../../utils/music/autoplayManager', () => ({
     resetAutoplayCount: (...args: unknown[]) => resetAutoplayCountMock(...args),
+}))
+
+jest.mock('../../utils/music/watchdog', () => ({
+    musicWatchdogService: {
+        arm: (...args: unknown[]) => watchdogArmMock(...args),
+        clear: (...args: unknown[]) => watchdogClearMock(...args),
+    },
+}))
+
+jest.mock('../../utils/music/sessionSnapshots', () => ({
+    musicSessionSnapshotService: {
+        saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
+    },
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -79,7 +96,9 @@ function createQueue(repeatMode: QueueRepeatMode): GuildQueue {
     } as unknown as GuildQueue
 }
 
-function setupHandlers(botUserId = 'bot-1'): Record<string, PlayerEventHandler> {
+function setupHandlers(
+    botUserId = 'bot-1',
+): Record<string, PlayerEventHandler> {
     const handlers: Record<string, PlayerEventHandler> = {}
     const player = {
         events: {
@@ -106,6 +125,7 @@ describe('trackHandlers autoplay replenishment', () => {
         sendNowPlayingEmbedMock.mockResolvedValue(undefined)
         updateLastFmNowPlayingMock.mockResolvedValue(undefined)
         scrobbleCurrentTrackIfLastFmMock.mockResolvedValue(undefined)
+        saveSnapshotMock.mockResolvedValue(undefined)
     })
 
     it('replenishes queue on playerStart only when repeat mode is autoplay', async () => {
@@ -121,6 +141,8 @@ describe('trackHandlers autoplay replenishment', () => {
             userId: 'listener-1',
         })
         expect(replenishQueueMock).toHaveBeenCalledWith(autoplayQueue)
+        expect(saveSnapshotMock).toHaveBeenCalledWith(autoplayQueue)
+        expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
 
         replenishQueueMock.mockClear()
         featureEnabledMock.mockClear()
@@ -157,6 +179,8 @@ describe('trackHandlers autoplay replenishment', () => {
             userId: undefined,
         })
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+        expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
+        expect(watchdogArmMock).toHaveBeenCalledWith(queue)
     })
 
     it('does not replenish on playerSkip when autoplay feature is disabled', async () => {
@@ -174,11 +198,15 @@ describe('trackHandlers autoplay replenishment', () => {
             queue,
             skippedTrack,
         )
-        expect(addTrackToHistoryMock).toHaveBeenCalledWith(skippedTrack, 'guild-1')
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(
+            skippedTrack,
+            'guild-1',
+        )
         expect(featureEnabledMock).toHaveBeenCalledWith('AUTOPLAY', {
             guildId: 'guild-1',
             userId: undefined,
         })
         expect(replenishQueueMock).not.toHaveBeenCalled()
+        expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
     })
 })

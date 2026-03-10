@@ -11,6 +11,8 @@ import {
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
+import { musicWatchdogService } from '../../utils/music/watchdog'
+import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 
 const MAX_GUILD_ENTRIES = 500
 
@@ -145,6 +147,9 @@ const handlePlayerStart = async (
         } catch (error) {
             errorLog({ message: 'Error sending now playing message:', error })
         }
+
+        await musicSessionSnapshotService.saveSnapshot(queue)
+        musicWatchdogService.arm(queue)
     } catch (error) {
         errorLog({ message: 'Error in player start handler:', error })
     }
@@ -174,6 +179,13 @@ const handlePlayerFinish = async (
     try {
         await scrobbleAndRecord(queue, track)
         await replenishIfAutoplay(queue)
+        await musicSessionSnapshotService.saveSnapshot(queue)
+
+        if (queue.currentTrack || queue.tracks.size > 0) {
+            musicWatchdogService.arm(queue)
+        } else {
+            musicWatchdogService.clear(queue.guild.id)
+        }
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
     }
@@ -187,6 +199,13 @@ const handlePlayerSkip = async (
         debugLog({ message: 'Track skipped, checking queue...' })
         await scrobbleAndRecord(queue, track)
         await replenishIfAutoplay(queue)
+        await musicSessionSnapshotService.saveSnapshot(queue)
+
+        if (queue.currentTrack || queue.tracks.size > 0) {
+            musicWatchdogService.arm(queue)
+        } else {
+            musicWatchdogService.clear(queue.guild.id)
+        }
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })
     }

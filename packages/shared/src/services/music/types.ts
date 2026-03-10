@@ -35,6 +35,16 @@ export interface TrackInfo {
     durationFormatted: string
     requestedBy?: string
     source: 'youtube' | 'spotify' | 'soundcloud' | 'deezer' | 'unknown'
+    recommendationReason?: string
+    recommendationFeedback?: 'like' | 'dislike'
+    sessionSnapshotId?: string
+}
+
+export interface ProviderHealthState {
+    provider: string
+    score: number
+    consecutiveFailures: number
+    cooldownUntil: number | null
 }
 
 export interface QueueState {
@@ -49,6 +59,9 @@ export interface QueueState {
     position: number
     voiceChannelId: string | null
     voiceChannelName: string | null
+    providerHealth?: ProviderHealthState[]
+    lastRecoveryAction?: string
+    sessionSnapshotId?: string
     timestamp: number
 }
 
