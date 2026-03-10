@@ -135,6 +135,8 @@ Without `VITE_API_BASE_URL`, frontend now auto-targets `lucky-api.lucassantana.t
 When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
+Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
+Discord Developer Portal (example: `https://lucky.lucassantana.tech/api/auth/callback`).
 
 ## Environment Variables
 
@@ -148,6 +150,7 @@ See `.env.example` for all available options. Key variables:
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
+| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 

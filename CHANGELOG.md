@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend theming now maps legacy `lucky-*` classes to the Lucky purple/gold palette
 - Frontend typography now uses Lucky type tokens (`Sora`, `Manrope`, `JetBrains Mono`) instead of the old default stack
 - Vercel build now generates Prisma client before shared/frontend builds to prevent missing generated client errors
+- OAuth callback now reuses the same redirect URI across auth start/callback token exchange, with forwarded-host fallback for proxied HTTPS deployments
+- E2E stability improvements: dashboard/servers/track-history tests now use deterministic locators and route-delay handling
 
 ### Changed
 
