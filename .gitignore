@@ -8,6 +8,7 @@ packages/*/package-lock.json
 .env.production
 .env.development
 .env.*.local
+.env.vercel.*
 *.env
 
 # AI Agents

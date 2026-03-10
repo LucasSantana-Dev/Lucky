@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Backend lint no longer uses scoped ignore guardrails; strict lint now runs
   across the full backend package by default (issue #136 closure)
+- Repository hygiene now ignores local Vercel environment artifacts
+  (`.env.vercel.*`) and removes merged stale branches conservatively (merged
+  local + merged remote only)
 
 ## [2.6.6] - 2026-03-10
 

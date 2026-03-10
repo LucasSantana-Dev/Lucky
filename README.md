@@ -173,6 +173,9 @@ See `.env.example` for all available options. Key variables:
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 
+Local Vercel export files (`.env.vercel.*`) are treated as machine-local
+artifacts and are git-ignored by default.
+
 ### Feature Toggles
 
 Two-tier system: Unleash (optional) → env vars (`FEATURE_<NAME>=true|false`) → defaults.
