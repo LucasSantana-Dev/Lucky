@@ -26,11 +26,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
+import { hasModuleAccess } from '@/lib/rbac'
+import type { ModuleKey } from '@/types'
 
 interface NavItem {
     path: string
     label: string
     icon: React.ComponentType<{ className?: string }>
+    module: ModuleKey
     badge?: number
 }
 
@@ -43,38 +46,99 @@ const navSections: NavSection[] = [
     {
         title: 'Main',
         items: [
-            { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-            { path: '/settings', label: 'Server Settings', icon: Settings },
+            {
+                path: '/',
+                label: 'Dashboard',
+                icon: LayoutDashboard,
+                module: 'overview',
+            },
+            {
+                path: '/settings',
+                label: 'Server Settings',
+                icon: Settings,
+                module: 'settings',
+            },
         ],
     },
     {
         title: 'Moderation',
         items: [
-            { path: '/moderation', label: 'Mod Cases', icon: Shield },
-            { path: '/automod', label: 'Auto-Moderation', icon: ShieldAlert },
-            { path: '/logs', label: 'Server Logs', icon: ScrollText },
+            {
+                path: '/moderation',
+                label: 'Mod Cases',
+                icon: Shield,
+                module: 'moderation',
+            },
+            {
+                path: '/automod',
+                label: 'Auto-Moderation',
+                icon: ShieldAlert,
+                module: 'moderation',
+            },
+            {
+                path: '/logs',
+                label: 'Server Logs',
+                icon: ScrollText,
+                module: 'moderation',
+            },
         ],
     },
     {
         title: 'Management',
         items: [
-            { path: '/commands', label: 'Custom Commands', icon: Terminal },
+            {
+                path: '/commands',
+                label: 'Custom Commands',
+                icon: Terminal,
+                module: 'automation',
+            },
             {
                 path: '/automessages',
                 label: 'Auto Messages',
                 icon: MessageSquare,
+                module: 'automation',
             },
         ],
     },
     {
         title: 'Extras',
         items: [
-            { path: '/music', label: 'Music Player', icon: Music },
-            { path: '/music/history', label: 'Track History', icon: History },
-            { path: '/lyrics', label: 'Lyrics', icon: MicVocal },
-            { path: '/lastfm', label: 'Last.fm', icon: Disc3 },
-            { path: '/twitch', label: 'Twitch', icon: Tv },
-            { path: '/features', label: 'Features', icon: ToggleLeft },
+            {
+                path: '/music',
+                label: 'Music Player',
+                icon: Music,
+                module: 'music',
+            },
+            {
+                path: '/music/history',
+                label: 'Track History',
+                icon: History,
+                module: 'music',
+            },
+            {
+                path: '/lyrics',
+                label: 'Lyrics',
+                icon: MicVocal,
+                module: 'music',
+            },
+            {
+                path: '/lastfm',
+                label: 'Last.fm',
+                icon: Disc3,
+                module: 'integrations',
+            },
+            {
+                path: '/twitch',
+                label: 'Twitch',
+                icon: Tv,
+                module: 'integrations',
+            },
+            {
+                path: '/features',
+                label: 'Features',
+                icon: ToggleLeft,
+                module: 'settings',
+            },
         ],
     },
 ]
@@ -82,7 +146,8 @@ const navSections: NavSection[] = [
 function Sidebar() {
     const location = useLocation()
     const { user, logout } = useAuthStore()
-    const { guilds, selectedGuild, selectGuild } = useGuildStore()
+    const { guilds, selectedGuild, selectGuild, memberContext } =
+        useGuildStore()
     const [mobileOpen, setMobileOpen] = useState(false)
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false)
 
@@ -91,12 +156,25 @@ function Sidebar() {
         setServerDropdownOpen(false)
     }, [location.pathname])
 
-    const botGuilds = guilds.filter((guild) => guild.botAdded)
-
     const isActive = (path: string) => {
         if (path === '/') return location.pathname === '/'
         return location.pathname.startsWith(path)
     }
+
+    const effectiveAccess =
+        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
+
+    const canViewModule = (module: ModuleKey) => {
+        if (!selectedGuild || !effectiveAccess) {
+            return true
+        }
+
+        return hasModuleAccess(effectiveAccess, module, 'view')
+    }
+
+    const profileName =
+        memberContext?.nickname || user?.globalName || user?.username || 'User'
+    const profileSubtitle = user?.username ? `@${user.username}` : 'Online'
 
     const sidebarContent = (
         <div className='flex h-full flex-col'>
@@ -108,8 +186,12 @@ function Sidebar() {
                         className='h-10 w-10 rounded-xl object-cover ring-1 ring-lucky-border'
                     />
                     <div className='min-w-0'>
-                        <p className='type-title truncate text-lucky-text-primary'>Lucky</p>
-                        <p className='type-body-sm text-lucky-text-tertiary'>Discord control center</p>
+                        <p className='type-title truncate text-lucky-text-primary'>
+                            Lucky
+                        </p>
+                        <p className='type-body-sm text-lucky-text-tertiary'>
+                            Discord control center
+                        </p>
                     </div>
                     <button
                         type='button'
@@ -123,7 +205,9 @@ function Sidebar() {
             </div>
 
             <div className='border-b border-lucky-border px-3 py-3'>
-                <p className='type-meta mb-2 text-lucky-text-tertiary'>Server context</p>
+                <p className='type-meta mb-2 text-lucky-text-tertiary'>
+                    Server context
+                </p>
                 <div className='relative'>
                     <button
                         type='button'
@@ -143,7 +227,9 @@ function Sidebar() {
                                         }
                                     />
                                     <AvatarFallback className='bg-lucky-bg-active text-[10px] text-white'>
-                                        {selectedGuild.name.substring(0, 2).toUpperCase()}
+                                        {selectedGuild.name
+                                            .substring(0, 2)
+                                            .toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <span className='type-body-sm flex-1 truncate text-lucky-text-primary'>
@@ -173,29 +259,14 @@ function Sidebar() {
                                 className='absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-lucky-border bg-lucky-bg-secondary shadow-2xl'
                             >
                                 <ScrollArea className='max-h-56'>
-                                    {botGuilds.length === 0 ? (
+                                    {guilds.length === 0 ? (
                                         <div className='space-y-2 px-3 py-4 text-center'>
                                             <p className='type-body-sm text-lucky-text-tertiary'>
-                                                {guilds.length > 0
-                                                    ? 'No servers with Lucky yet'
-                                                    : 'No admin servers found'}
+                                                No accessible servers found
                                             </p>
-                                            {guilds.length > 0 && (
-                                                <>
-                                                    <p className='type-body-sm text-lucky-text-tertiary'>
-                                                        Invite Lucky to one of your servers from the Dashboard.
-                                                    </p>
-                                                    <Link
-                                                        to='/servers'
-                                                        className='type-body-sm inline-flex rounded-md border border-lucky-border px-2.5 py-1 text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:text-lucky-text-primary'
-                                                    >
-                                                        Open Servers page
-                                                    </Link>
-                                                </>
-                                            )}
                                         </div>
                                     ) : (
-                                        botGuilds.map((guild) => (
+                                        guilds.map((guild) => (
                                             <button
                                                 key={guild.id}
                                                 type='button'
@@ -205,7 +276,8 @@ function Sidebar() {
                                                 }}
                                                 className={cn(
                                                     'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
-                                                    selectedGuild?.id === guild.id &&
+                                                    selectedGuild?.id ===
+                                                        guild.id &&
                                                         'bg-lucky-bg-active/70',
                                                 )}
                                             >
@@ -218,15 +290,25 @@ function Sidebar() {
                                                         }
                                                     />
                                                     <AvatarFallback className='bg-lucky-bg-active text-[9px] text-white'>
-                                                        {guild.name.substring(0, 2).toUpperCase()}
+                                                        {guild.name
+                                                            .substring(0, 2)
+                                                            .toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <span className='type-body-sm truncate text-lucky-text-primary'>
                                                     {guild.name}
                                                 </span>
-                                                {selectedGuild?.id === guild.id && (
-                                                    <Sparkles className='ml-auto h-3.5 w-3.5 text-lucky-accent' />
-                                                )}
+                                                <span className='ml-auto flex items-center gap-2'>
+                                                    {!guild.botAdded && (
+                                                        <span className='rounded-md border border-lucky-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-lucky-text-tertiary'>
+                                                            Invite bot
+                                                        </span>
+                                                    )}
+                                                    {selectedGuild?.id ===
+                                                        guild.id && (
+                                                        <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
+                                                    )}
+                                                </span>
                                             </button>
                                         ))
                                     )}
@@ -245,45 +327,56 @@ function Sidebar() {
                                 {section.title}
                             </p>
                             <div className='space-y-1'>
-                                {section.items.map((item) => {
-                                    const active = isActive(item.path)
-                                    return (
-                                        <Link
-                                            key={item.path}
-                                            to={item.path}
-                                            data-active={active ? 'true' : 'false'}
-                                            className={cn(
-                                                'lucky-focus-visible group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all',
-                                                active
-                                                    ? 'bg-lucky-bg-active/80 text-lucky-text-primary ring-1 ring-lucky-border-strong'
-                                                    : 'text-lucky-text-secondary hover:bg-lucky-bg-tertiary/70 hover:text-lucky-text-primary',
-                                            )}
-                                        >
-                                            <span
-                                                className={cn(
-                                                    'absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r',
-                                                    active
-                                                        ? 'bg-lucky-accent'
-                                                        : 'bg-transparent',
-                                                )}
-                                            />
-                                            <item.icon
-                                                className={cn(
-                                                    'h-[18px] w-[18px] shrink-0 transition-colors',
-                                                    active
-                                                        ? 'text-lucky-accent'
-                                                        : 'text-lucky-text-tertiary group-hover:text-lucky-text-secondary',
-                                                )}
-                                            />
-                                            <span className='type-body-sm truncate'>{item.label}</span>
-                                            {item.badge !== undefined && item.badge > 0 && (
-                                                <span className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-accent px-1 text-[10px] font-bold text-black'>
-                                                    {item.badge > 99 ? '99+' : item.badge}
-                                                </span>
-                                            )}
-                                        </Link>
+                                {section.items
+                                    .filter((item) =>
+                                        canViewModule(item.module),
                                     )
-                                })}
+                                    .map((item) => {
+                                        const active = isActive(item.path)
+                                        return (
+                                            <Link
+                                                key={item.path}
+                                                to={item.path}
+                                                data-active={
+                                                    active ? 'true' : 'false'
+                                                }
+                                                className={cn(
+                                                    'lucky-focus-visible group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all',
+                                                    active
+                                                        ? 'bg-lucky-bg-active/80 text-lucky-text-primary ring-1 ring-lucky-border-strong'
+                                                        : 'text-lucky-text-secondary hover:bg-lucky-bg-tertiary/70 hover:text-lucky-text-primary',
+                                                )}
+                                            >
+                                                <span
+                                                    className={cn(
+                                                        'absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r',
+                                                        active
+                                                            ? 'bg-lucky-accent'
+                                                            : 'bg-transparent',
+                                                    )}
+                                                />
+                                                <item.icon
+                                                    className={cn(
+                                                        'h-[18px] w-[18px] shrink-0 transition-colors',
+                                                        active
+                                                            ? 'text-lucky-accent'
+                                                            : 'text-lucky-text-tertiary group-hover:text-lucky-text-secondary',
+                                                    )}
+                                                />
+                                                <span className='type-body-sm truncate'>
+                                                    {item.label}
+                                                </span>
+                                                {item.badge !== undefined &&
+                                                    item.badge > 0 && (
+                                                        <span className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-accent px-1 text-[10px] font-bold text-black'>
+                                                            {item.badge > 99
+                                                                ? '99+'
+                                                                : item.badge}
+                                                        </span>
+                                                    )}
+                                            </Link>
+                                        )
+                                    })}
                             </div>
                         </div>
                     ))}
@@ -301,21 +394,23 @@ function Sidebar() {
                             }
                         />
                         <AvatarFallback className='bg-lucky-bg-active text-xs text-white'>
-                            {(user?.username || 'U').substring(0, 2).toUpperCase()}
+                            {(user?.username || 'U')
+                                .substring(0, 2)
+                                .toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div className='min-w-0 flex-1'>
                         <p className='type-body-sm truncate text-lucky-text-primary'>
-                            {user?.username || 'User'}
+                            {profileName}
                         </p>
                         <p className='type-body-sm truncate text-lucky-text-tertiary'>
-                            {user?.discriminator ? `#${user.discriminator}` : 'Online'}
+                            {profileSubtitle}
                         </p>
                     </div>
                     <button
                         type='button'
                         onClick={logout}
-                        className='lucky-focus-visible rounded-md p-1.5 text-lucky-text-tertiary transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
+                        className='lucky-focus-visible cursor-pointer rounded-md p-1.5 text-lucky-text-tertiary transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
                         aria-label='Logout'
                     >
                         <LogOut className='h-4 w-4' />
@@ -355,7 +450,11 @@ function Sidebar() {
                         initial={{ x: '-100%' }}
                         animate={{ x: 0 }}
                         exit={{ x: '-100%' }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                        transition={{
+                            type: 'spring',
+                            stiffness: 300,
+                            damping: 28,
+                        }}
                         className='fixed inset-y-0 left-0 z-50 w-72 bg-lucky-bg-secondary lg:hidden'
                     >
                         {sidebarContent}

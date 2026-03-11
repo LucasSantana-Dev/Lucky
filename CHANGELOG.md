@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `packages/frontend/src/index.css` plus reusable primitives (`Shell`,
   `SectionHeader`, `EmptyState`, `StatTile`, `ActionPanel`) for consistent
   dashboard composition
+- Added guild RBAC persistence model (`guild_role_grants`) and shared evaluator
+  service with module keys (`overview`, `settings`, `moderation`, `automation`,
+  `music`, `integrations`) plus `view`/`manage` modes
+- Added backend RBAC and member-context endpoints:
+  `GET/PUT /api/guilds/:guildId/rbac` and `GET /api/guilds/:id/me`
+- Added frontend Access Control section in Server Settings to manage module
+  grants by Discord role as full-policy replacement
 
 ### Fixed
 
@@ -29,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   callback state can be validated from cookie or query for split-origin setups
 - Autoplay Last.fm scrobbling now falls back to stored requester metadata so
   recommended tracks keep the original requester attribution
+- Guild list/dashboard metrics now return nullable live values from bot/API
+  enrichment (no forced `0` fallback when metrics are unavailable)
+- Sidebar profile identity now resolves as `nick > global_name > username`
+  with secondary label `@username` (removed legacy `#0` discriminator behavior)
 - Frontend shell now initializes guild selection on all authenticated routes,
   so the server selector is populated right after login instead of only after
   visiting pages that manually triggered guild loading (PR #162)
@@ -44,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard overview, servers page, and Last.fm page now use the shared
   neo-editorial primitives for denser status cards, clearer loading/empty/error
   states, and more consistent scan hierarchy
+- Guild selector now shows authorized guilds directly (including admin-visible
+  guilds without bot presence) and labels missing-bot guilds with an invite
+  indicator
+- Guild/module routes now use module-aware access middleware so read requests
+  require `view` and mutating requests require `manage`
 
 ## [2.6.9] - 2026-03-10
 

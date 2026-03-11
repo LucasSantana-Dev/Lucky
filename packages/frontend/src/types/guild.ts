@@ -1,3 +1,5 @@
+import type { EffectiveAccessMap } from './rbac'
+
 export interface Guild {
     id: string
     name: string
@@ -5,12 +7,14 @@ export interface Guild {
     owner: boolean
     permissions: string
     features: string[]
-    memberCount?: number
-    categoryCount?: number
-    textChannelCount?: number
-    voiceChannelCount?: number
-    roleCount?: number
+    memberCount?: number | null
+    categoryCount?: number | null
+    textChannelCount?: number | null
+    voiceChannelCount?: number | null
+    roleCount?: number | null
     botAdded: boolean
+    effectiveAccess?: EffectiveAccessMap
+    canManageRbac?: boolean
 }
 
 export interface ServerSettings {

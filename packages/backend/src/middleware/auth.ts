@@ -5,10 +5,20 @@ import { errorLog } from '@lucky/shared/utils'
 export interface AuthenticatedRequest extends Request {
     sessionId?: string
     userId?: string
+    guildContext?: {
+        guildId: string
+        owner: boolean
+        isAdmin: boolean
+        effectiveAccess: Record<string, 'none' | 'view' | 'manage'>
+        roleIds: string[]
+        nickname: string | null
+        canManageRbac: boolean
+    }
     user?: {
         id: string
         username: string
         discriminator: string
+        globalName?: string | null
         avatar: string | null
     }
 }
@@ -39,6 +49,7 @@ export function requireAuth(
                 id: sessionData.user.id,
                 username: sessionData.user.username,
                 discriminator: sessionData.user.discriminator,
+                globalName: sessionData.user.global_name,
                 avatar: sessionData.user.avatar,
             }
 
@@ -72,6 +83,7 @@ export function optionalAuth(
                     id: sessionData.user.id,
                     username: sessionData.user.username,
                     discriminator: sessionData.user.discriminator,
+                    globalName: sessionData.user.global_name,
                     avatar: sessionData.user.avatar,
                 }
             }

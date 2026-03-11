@@ -38,4 +38,14 @@ export {
 } from './GuildSettingsService'
 export { roleManagementService } from './RoleManagementService'
 export { reactionRolesService } from './ReactionRolesService'
+export {
+    guildRoleAccessService,
+    RBAC_MODULES,
+    type ModuleKey,
+    type AccessMode,
+    type EffectiveAccess,
+    type RoleGrant,
+    type RoleGrantInput,
+    type EffectiveAccessMap,
+} from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'
