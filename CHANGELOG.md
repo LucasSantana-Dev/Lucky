@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Bot `/autoplay` command now resolves guild queue from player node cache when
+  direct node lookup misses, preventing false `No music queue found` errors
+  while a track is actively playing
+
 ## [2.6.9] - 2026-03-10
 
 ### Fixed
