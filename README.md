@@ -71,6 +71,7 @@ packages/
 ### Dashboard
 - Discord OAuth authentication
 - Guild management with bot status
+- Neo-editorial shell with responsive sidebar and contextual page framing
 - Module/command toggle per server
 - Moderation case viewer and settings
 - Auto-mod configuration
