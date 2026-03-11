@@ -12,6 +12,11 @@ import {
 import Command from '../../../models/Command.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import {
+    formatCriativariaSummary,
+    resolveSetupMode,
+    runCriativariaSetup,
+} from './serversetupCriativaria.js'
 
 interface ChannelDef {
     name: string
@@ -252,10 +257,32 @@ export default new Command({
                 .setName('template')
                 .setDescription('Server template to apply')
                 .setRequired(true)
-                .addChoices({
-                    name: 'forge-space',
-                    value: 'forge-space',
-                }),
+                .addChoices(
+                    {
+                        name: 'forge-space',
+                        value: 'forge-space',
+                    },
+                    {
+                        name: 'criativaria',
+                        value: 'criativaria',
+                    },
+                ),
+        )
+        .addStringOption((option) =>
+            option
+                .setName('mode')
+                .setDescription('Execution mode')
+                .setRequired(false)
+                .addChoices(
+                    {
+                        name: 'apply',
+                        value: 'apply',
+                    },
+                    {
+                        name: 'dry-run',
+                        value: 'dry-run',
+                    },
+                ),
         ),
     category: 'management',
     execute: async ({ interaction }) => {
@@ -270,12 +297,35 @@ export default new Command({
         }
 
         const template = interaction.options.getString('template', true)
+        const mode = resolveSetupMode(interaction.options.getString('mode'))
+
+        if (template === 'criativaria') {
+            await interaction.deferReply({ ephemeral: true })
+            const result = await runCriativariaSetup(interaction.guild, mode)
+            await interaction.editReply(formatCriativariaSummary(result, mode))
+            infoLog({
+                message: `serversetup: Criativaria template executed in ${mode} mode for ${interaction.guild.name}`,
+            })
+            return
+        }
 
         if (template !== 'forge-space') {
             await interactionReply({
                 interaction,
                 content: {
                     content: `❌ Unknown template: ${template}`,
+                },
+            })
+            return
+        }
+
+        if (mode === 'dry-run') {
+            await interactionReply({
+                interaction,
+                content: {
+                    content:
+                        '🧪 **Forge Space dry-run**\n- Planejado: criar cargos base\n- Planejado: criar categorias/canais padrão\n- Planejado: enviar embed de boas-vindas',
+                    ephemeral: true,
                 },
             })
             return

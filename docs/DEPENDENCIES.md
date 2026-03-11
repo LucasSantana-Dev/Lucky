@@ -22,7 +22,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 
 - **dependencies**: `@prisma/client` only – used by shared (workspace). `cors` lives in `packages/backend` only so root stays minimal.
 - **devDependencies**: ESLint, Prettier, TypeScript tooling, Jest, `unfetch` (Jest/polyfill if needed). Keep one source of truth for lint/format/TS versions at root when possible.
-- **optionalDependencies**: `@discordjs/opus` – native binding for voice; optional so install works without build tools.
+- **Voice codec**: `opusscript` – pure JS Opus runtime used across environments without native build friction.
 
 ### `packages/shared`
 
@@ -36,7 +36,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 - **Discord**: `discord.js` 14, `@discordjs/builders`, `discord-player`, `discord-player-youtubei`, `youtubei.js` – all maintained; discord-player 7 is the current major.
 - **Runtime**: `tsx` (dev), `tsup` (build) – bundler resolves modules; no need for `module-alias` at runtime.
 - **Removed**: `module-alias` – unused in `packages/bot/src`; tsup handles resolution. Removed to avoid legacy runtime patching.
-- **Optional**: `@discordjs/opus` (from root), `ffmpeg-static` – voice/encoding.
+- **Optional**: `ffmpeg-static` – voice/encoding.
 
 ### `packages/backend`
 
@@ -65,7 +65,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 - **No duplicate type packages in dependencies**: Put `@types/*` only in devDependencies where they are used.
 - **Single source for shared deps**: Prefer one version of `@prisma/client`, `zod`, `typescript` in the monorepo (root or shared) and align workspaces.
 - **No redundant runtimes**: Bot uses tsup; no `module-alias` or extra path hacks.
-- **Optional deps**: Keep `@infisical/sdk`, `@discordjs/opus` optional so install and CI work without optional build steps when possible.
+- **Optional deps**: Keep `@infisical/sdk` optional so install and CI work without optional build steps when possible.
 
 ## Upgrade order (suggested)
 

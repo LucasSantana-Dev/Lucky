@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
-import type { CommandExecuteParams } from "../../../types/CommandData"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import {
@@ -10,7 +10,8 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
-} from "../../../utils/command/commandValidations"
+} from '../../../utils/command/commandValidations'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 /**
  * Validate volume value
@@ -77,7 +78,7 @@ export default new Command({
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
-        const queue = client.player.nodes.get(interaction.guildId ?? '')
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
         if (!(await requireCurrentTrack(queue, interaction))) return
@@ -97,7 +98,10 @@ export default new Command({
         }
 
         if (value === null) {
-            await showCurrentVolume(queue as { node: { volume: number } }, interaction)
+            await showCurrentVolume(
+                queue as { node: { volume: number } },
+                interaction,
+            )
         } else {
             if (queue) {
                 await setVolume(queue, value, interaction)

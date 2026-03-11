@@ -53,7 +53,7 @@ function ServerCard({ guild }: ServerCardProps) {
     const navigate = useNavigate()
 
     const handleManage = useCallback(() => {
-        navigate('/dashboard')
+        navigate('/')
     }, [navigate])
 
     return (

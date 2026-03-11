@@ -3,6 +3,23 @@ import { test, expect } from '@playwright/test'
 test.describe('Visual Regression - Login Page', () => {
     test.beforeEach(async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 720 })
+        await page.route('**/api/auth/status', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ authenticated: false }),
+            })
+        })
+        await page.route('**/api/auth/discord', async (route) => {
+            await route.fulfill({
+                status: 302,
+                headers: {
+                    location:
+                        'https://discord.com/api/oauth2/authorize?client_id=test&redirect_uri=http%3A%2F%2Flocalhost%2Fapi%2Fauth%2Fcallback',
+                },
+                body: '',
+            })
+        })
     })
 
     test('Login page screenshot', async ({ page }) => {
@@ -49,9 +66,19 @@ test.describe('Visual Regression - Login Page', () => {
             'button:has-text("Login with Discord")',
         )
 
+        await page.unroute('**/api/auth/discord')
         await page.route('**/api/auth/discord', async (route) => {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
-            await route.continue()
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 1000)
+            })
+            await route.fulfill({
+                status: 302,
+                headers: {
+                    location:
+                        'https://discord.com/api/oauth2/authorize?client_id=test&redirect_uri=http%3A%2F%2Flocalhost%2Fapi%2Fauth%2Fcallback',
+                },
+                body: '',
+            })
         })
 
         await loginButton.click()

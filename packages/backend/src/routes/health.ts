@@ -29,6 +29,7 @@ export function setupHealthRoutes(app: Express): void {
     app.get('/api/health/auth-config', (req: Request, res: Response) => {
         const redirectUri = getOAuthRedirectUri(req)
         const frontendOrigins = getFrontendOrigins()
+        const backendOrigin = process.env.WEBAPP_BACKEND_URL?.trim()
         const clientId = process.env.CLIENT_ID?.trim() ?? ''
         const expectedClientId =
             process.env.WEBAPP_EXPECTED_CLIENT_ID?.trim() ??
@@ -44,6 +45,7 @@ export function setupHealthRoutes(app: Express): void {
             clientId,
             redirectUri,
             frontendOrigins,
+            backendOrigin,
             sessionSecretConfigured,
             redisHealthy,
             expectedClientId,

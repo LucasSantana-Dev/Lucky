@@ -1,10 +1,5 @@
 import { test, expect } from '@playwright/test'
-import {
-    setupMockApiResponses,
-    mockGuildsList,
-    mockAuthStatus,
-    mockInviteUrl,
-} from './helpers/api-helpers'
+import { setupMockApiResponses, mockInviteUrl } from './helpers/api-helpers'
 import { navigateToServers, waitForServerList } from './helpers/page-helpers'
 import {
     getServerCard,
@@ -12,7 +7,11 @@ import {
     getManageButton,
     verifyBadge,
 } from './helpers/ui-helpers'
-import { MOCK_GUILDS, MOCK_DISCORD_USER } from './fixtures/test-data'
+import {
+    MOCK_GUILDS,
+    MOCK_DISCORD_USER,
+    MOCK_API_RESPONSES,
+} from './fixtures/test-data'
 
 test.describe('Servers Page', () => {
     test.beforeEach(async ({ page }) => {
@@ -23,12 +22,10 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
 
         const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
-        await expect(username).toBeVisible()
-
-        const heading = page.getByRole('heading', {
-            name: MOCK_DISCORD_USER.username,
-        })
-        await expect(heading).toBeVisible()
+        await expect(username.first()).toBeVisible()
+        await expect(
+            page.locator(`text=@${MOCK_DISCORD_USER.username}`).first(),
+        ).toBeVisible()
     })
 
     test('lists all user Discord servers', async ({ page }) => {
@@ -75,7 +72,7 @@ test.describe('Servers Page', () => {
         }
     })
 
-    test('Manage button navigates to dashboard for servers with bot', async ({
+    test('Manage button navigates to root dashboard for servers with bot', async ({
         page,
     }) => {
         await navigateToServers(page)
@@ -86,9 +83,7 @@ test.describe('Servers Page', () => {
             const manageButton = getManageButton(page, serverWithBot.name)
             await expect(manageButton).toBeVisible()
             await manageButton.click()
-
-            await page.waitForTimeout(1000)
-            expect(page.url()).not.toContain('/servers')
+            await expect(page).toHaveURL(/^https?:\/\/[^/]+\/$/)
         }
     })
 
@@ -111,8 +106,14 @@ test.describe('Servers Page', () => {
 
     test('shows loading skeleton during data fetch', async ({ page }) => {
         await page.route('**/api/guilds', async (route) => {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
-            await route.continue()
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 1000)
+            })
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
+            })
         })
 
         await navigateToServers(page)

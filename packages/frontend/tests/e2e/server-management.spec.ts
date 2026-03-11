@@ -80,6 +80,7 @@ test.describe('Server Management', () => {
 
     test('server card interactions', async ({ page }) => {
         await navigateToServers(page)
+        await page.waitForSelector('h2#servers-heading', { timeout: 10000 })
 
         const firstServer = MOCK_GUILDS[0]
         const serverCard = getServerCard(page, firstServer.name)

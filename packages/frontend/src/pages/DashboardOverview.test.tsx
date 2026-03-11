@@ -11,7 +11,19 @@ import {
 vi.mock('@/stores/guildStore')
 vi.mock('@/hooks/useModerationQueries')
 
-const mockGuild = { id: '123', name: 'Test Guild', memberCount: 150 }
+const mockGuild = {
+    id: '123',
+    name: 'Test Guild',
+    memberCount: 150,
+    effectiveAccess: {
+        overview: 'manage',
+        settings: 'manage',
+        moderation: 'manage',
+        automation: 'manage',
+        music: 'manage',
+        integrations: 'manage',
+    },
+}
 
 const mockStats = {
     totalCases: 25,
@@ -38,10 +50,19 @@ function mockGuildStoreFn(guild: typeof mockGuild | null) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
         selectedGuild: guild as any,
+        memberContext: null,
+        memberContextLoading: false,
+        selectedGuildId: guild?.id ?? null,
         selectGuild: vi.fn(),
+        setSelectedGuild: vi.fn(),
+        fetchMemberContext: vi.fn(),
+        getSelectedGuild: vi.fn(),
         isLoading: false,
-        error: null,
         fetchGuilds: vi.fn(),
+        serverSettings: null,
+        serverListing: null,
+        updateServerSettings: vi.fn(),
+        updateServerListing: vi.fn(),
     } as any)
 }
 

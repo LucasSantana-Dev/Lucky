@@ -9,6 +9,7 @@ const createEmbedMock = jest.fn((payload: unknown) => payload)
 const replenishQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
@@ -35,6 +36,10 @@ jest.mock('../../../utils/music/trackManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
+jest.mock('../../../utils/music/queueResolver', () => ({
+    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -56,31 +61,12 @@ function createQueue(repeatMode = QueueRepeatMode.OFF) {
     } as any
 }
 
-function createClient({
-    directQueue = null,
-    cachedQueues = [],
-    includeCache = true,
-}: {
-    directQueue?: unknown
-    cachedQueues?: unknown[]
-    includeCache?: boolean
-}) {
-    const nodes: {
-        get: () => unknown
-        cache?: { values: () => Iterable<unknown> }
-    } = {
-        get: jest.fn(() => directQueue),
-    }
-
-    if (includeCache) {
-        nodes.cache = {
-            values: jest.fn(() => cachedQueues.values()),
-        }
-    }
-
+function createClient({ directQueue = null }: { directQueue?: unknown }) {
     return {
         player: {
-            nodes,
+            nodes: {
+                get: jest.fn(() => directQueue),
+            },
         },
     } as any
 }
@@ -92,21 +78,39 @@ describe('autoplay command', () => {
         requireQueueMock.mockImplementation(async (queue: unknown) =>
             Boolean(queue),
         )
+        resolveGuildQueueMock.mockReturnValue({
+            queue: null,
+            source: 'miss',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 0,
+                cacheSampleKeys: [],
+            },
+        })
     })
 
-    it('uses cached guild queue when direct lookup misses', async () => {
+    it('uses resolved guild queue when fallback source recovers queue', async () => {
         const queue = createQueue(QueueRepeatMode.OFF)
         const client = createClient({
             directQueue: null,
-            cachedQueues: [queue],
         })
         const interaction = createInteraction()
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'cache.guild',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
 
         await autoplayCommand.execute({
             client,
             interaction,
         } as any)
 
+        expect(resolveGuildQueueMock).toHaveBeenCalledWith(client, 'guild-1')
         expect(requireQueueMock).toHaveBeenCalledWith(queue, interaction)
         expect(queue.setRepeatMode).toHaveBeenCalledWith(
             QueueRepeatMode.AUTOPLAY,
@@ -119,9 +123,17 @@ describe('autoplay command', () => {
         const queue = createQueue(QueueRepeatMode.AUTOPLAY)
         const client = createClient({
             directQueue: queue,
-            cachedQueues: [queue],
         })
         const interaction = createInteraction()
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
 
         await autoplayCommand.execute({
             client,
@@ -137,7 +149,6 @@ describe('autoplay command', () => {
         const queue = createQueue(QueueRepeatMode.OFF)
         const client = createClient({
             directQueue: queue,
-            cachedQueues: [queue],
         })
         const interaction = createInteraction(null as unknown as string)
 
@@ -148,13 +159,11 @@ describe('autoplay command', () => {
 
         expect(requireQueueMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).not.toHaveBeenCalled()
+        expect(resolveGuildQueueMock).not.toHaveBeenCalled()
     })
 
-    it('passes null queue to validator when cache is unavailable', async () => {
-        const client = createClient({
-            directQueue: null,
-            includeCache: false,
-        })
+    it('passes null queue to validator when resolver misses', async () => {
+        const client = createClient({ directQueue: null })
         const interaction = createInteraction()
         requireQueueMock.mockResolvedValue(false)
 
@@ -167,17 +176,21 @@ describe('autoplay command', () => {
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
 
-    it('passes null queue to validator when cache has no matching guild', async () => {
-        const queue = {
-            ...createQueue(QueueRepeatMode.OFF),
-            guild: { id: 'guild-2' },
-        }
+    it('passes null queue to validator when resolver returns miss diagnostics', async () => {
         const client = createClient({
             directQueue: null,
-            cachedQueues: [queue],
         })
         const interaction = createInteraction('guild-1')
         requireQueueMock.mockResolvedValue(false)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: null,
+            source: 'miss',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 2,
+                cacheSampleKeys: ['guild-2', 'guild-3'],
+            },
+        })
 
         await autoplayCommand.execute({
             client,
@@ -192,10 +205,18 @@ describe('autoplay command', () => {
         const queue = createQueue(QueueRepeatMode.OFF)
         const client = createClient({
             directQueue: queue,
-            cachedQueues: [queue],
         })
         const interaction = createInteraction()
         replenishQueueMock.mockRejectedValue(new Error('replenish failed'))
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
 
         await autoplayCommand.execute({
             client,
@@ -220,9 +241,17 @@ describe('autoplay command', () => {
         })
         const client = createClient({
             directQueue: queue,
-            cachedQueues: [queue],
         })
         const interaction = createInteraction()
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
 
         await autoplayCommand.execute({
             client,

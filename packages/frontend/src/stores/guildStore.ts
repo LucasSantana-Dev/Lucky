@@ -40,9 +40,27 @@ export const useGuildStore = create<GuildState>((set, get) => ({
         try {
             const response = await api.guilds.list()
             const guilds = response.data.guilds
+            const selectedGuildId = get().selectedGuildId
+
             set({ guilds, isLoading: false })
-            if (guilds.length > 0 && !get().selectedGuild) {
-                get().selectGuild(guilds[0])
+
+            const targetGuildId =
+                selectedGuildId &&
+                guilds.some((guild) => guild.id === selectedGuildId)
+                    ? selectedGuildId
+                    : (guilds[0]?.id ?? null)
+
+            if (targetGuildId) {
+                get().setSelectedGuild(targetGuildId)
+            } else {
+                set({
+                    selectedGuild: null,
+                    selectedGuildId: null,
+                    memberContext: null,
+                    memberContextLoading: false,
+                    serverSettings: null,
+                    serverListing: null,
+                })
             }
         } catch {
             set({ guilds: [], isLoading: false })
@@ -59,6 +77,29 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             serverListing: null,
         })
         if (guild) {
+            api.guilds
+                .get(guild.id)
+                .then((response) => {
+                    const refreshedGuild = response.data.guild
+                    set((state) => ({
+                        guilds: state.guilds.map((item) =>
+                            item.id === refreshedGuild.id
+                                ? {
+                                      ...item,
+                                      ...refreshedGuild,
+                                  }
+                                : item,
+                        ),
+                        selectedGuild:
+                            state.selectedGuild?.id === refreshedGuild.id
+                                ? {
+                                      ...state.selectedGuild,
+                                      ...refreshedGuild,
+                                  }
+                                : state.selectedGuild,
+                    }))
+                })
+                .catch(() => {})
             get()
                 .fetchMemberContext(guild.id)
                 .catch(() => {})

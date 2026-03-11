@@ -5,6 +5,7 @@ import {
     type MusicCommandResult,
 } from '@lucky/shared/services'
 import { buildQueueState } from './mappers'
+import { resolveGuildQueue } from '../../utils/music/queueResolver'
 
 type Result = MusicCommandResult
 
@@ -24,7 +25,7 @@ export async function handleQueueMove(
     client: CustomClient,
     cmd: MusicCommand,
 ): Promise<Result> {
-    const queue = client.player.queues.get(cmd.guildId)
+    const queue = resolveGuildQueue(client, cmd.guildId).queue
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
 
     const from = cmd.data?.from as number
@@ -54,7 +55,7 @@ export async function handleQueueRemove(
     client: CustomClient,
     cmd: MusicCommand,
 ): Promise<Result> {
-    const queue = client.player.queues.get(cmd.guildId)
+    const queue = resolveGuildQueue(client, cmd.guildId).queue
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
 
     const index = cmd.data?.index as number
@@ -72,7 +73,7 @@ export async function handleQueueClear(
     client: CustomClient,
     cmd: MusicCommand,
 ): Promise<Result> {
-    const queue = client.player.queues.get(cmd.guildId)
+    const queue = resolveGuildQueue(client, cmd.guildId).queue
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
 
     queue.tracks.clear()
@@ -88,7 +89,7 @@ export async function handleImportPlaylist(
     const url = cmd.data?.url as string
     if (!url) return fail(cmd.id, cmd.guildId, 'No URL provided')
 
-    const queue = client.player.queues.get(cmd.guildId)
+    const queue = resolveGuildQueue(client, cmd.guildId).queue
     if (!queue)
         return fail(
             cmd.id,
@@ -117,6 +118,5 @@ export async function handleImportPlaylist(
 function detectSource(url: string): string {
     if (url.includes('spotify')) return 'spotify'
     if (url.includes('youtube') || url.includes('youtu.be')) return 'youtube'
-    if (url.includes('deezer')) return 'deezer'
     return 'unknown'
 }

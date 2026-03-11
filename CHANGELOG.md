@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.10] - 2026-03-11
+
 ### Added
 
+- New Lucky visual identity asset pack in `assets/branding` with neon and flat
+  mascot marks, lockups (dark/neon), wordmarks, avatar, banner, badge, and a
+  reusable `lucky-brand-tokens.css` token file
+- Generated raster exports for the canonical branding set in
+  `assets/branding` with one `.png` and one lossless `.webp` per source `.svg`
+- Refreshed branding documentation in
+  `packages/frontend/branding/{BRANDING_GUIDE.md,DESIGN_SYSTEM.md}` with
+  defined color palette, typography rules, and logo usage constraints
+- Added `/release preview|publish` management command for Criativaria updates:
+  fixed channel delivery (`1481201519545028618`), PT-first + EN auto notes from
+  CHANGELOG, branded embed images, and mentions disabled by default
 - Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
   command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
   matrix, and a one-command-per-PR rollout plan for the next 6 weeks
@@ -32,9 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bot `/autoplay` command now resolves guild queue from player node cache when
-  direct node lookup misses, preventing false `No music queue found` errors
-  while a track is actively playing
+- Queue-dependent music controls now use a shared resilient guild-queue
+  resolver across node/queue/cache fallbacks, preventing intermittent false
+  `No music queue found` errors while playback is active
 - Dashboard guild listing now resolves bot membership through a backend Discord
   API fallback when the bot client cache is unavailable, restoring server
   visibility for split-process deployments
@@ -54,9 +67,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (General Information, Installation, and Activities URL Mappings)
 - `/install` now proxies to `/api/auth/discord` so the public install URL
   reliably returns Discord OAuth redirect (`302`) on production
+- Production OAuth callback resolution now canonicalizes to the API-domain
+  callback using `WEBAPP_BACKEND_URL` with request-host fallback for legacy
+  frontend-origin callback values
+- Auth config health now accepts OAuth callback origins from
+  `WEBAPP_FRONTEND_URL` or `WEBAPP_BACKEND_URL` to support split frontend/API
+  deployments without false degraded status
 
 ### Changed
 
+- README brand presentation now uses the new lockup asset and links to the
+  updated branding/design-system docs
 - Removed unused legacy layout components (`DashboardLayout`, `Header`,
   `Navbar`) from frontend layout module to reduce duplicate shell patterns
 - Frontend app shell (`Layout` + `Sidebar`) and login page now use the
@@ -71,6 +92,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   indicator
 - Guild/module routes now use module-aware access middleware so read requests
   require `view` and mutating requests require `manage`
+- Removed Deezer from music source contracts, provider surfaces, and dashboard
+  import/display flows
+- Replaced optional native `@discordjs/opus` dependency with `opusscript`
+  runtime codec path
+- Security overrides pinned to patched ranges:
+  `tar>=7.5.11`, `hono>=4.12.7`, `file-type>=21.3.1`
 
 ## [2.6.9] - 2026-03-10
 

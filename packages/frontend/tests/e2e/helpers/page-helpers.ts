@@ -23,7 +23,9 @@ export async function selectServer(
     serverId: string,
 ): Promise<void> {
     const serverSelector = page
-        .locator('button:has-text("Test Server")')
+        .locator(
+            'button[aria-haspopup="listbox"], button:has-text("Select a server"), button:has-text("Test Server")',
+        )
         .first()
     await serverSelector.click()
 
@@ -77,7 +79,7 @@ export async function waitForFeatures(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('text=/Features|Feature|Toggle/i', { timeout })
+    await page.waitForSelector('h1:has-text("Features")', { timeout })
     await page.waitForLoadState('domcontentloaded')
 }
 
@@ -85,8 +87,11 @@ export async function waitForDashboard(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('text=/Dashboard|No Server Selected/i', {
-        timeout,
-    })
+    await page.waitForSelector(
+        'h1:has-text("Dashboard"), h3:has-text("Select a Server")',
+        {
+            timeout,
+        },
+    )
     await page.waitForLoadState('domcontentloaded')
 }

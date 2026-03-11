@@ -1,0 +1,21 @@
+:root {
+  --lucky-bg-950: #0b0018;
+  --lucky-bg-900: #120127;
+  --lucky-bg-800: #21033b;
+  --lucky-bg-700: #30085a;
+
+  --lucky-neon-pink: #ff58e4;
+  --lucky-neon-pink-soft: #f5a5ff;
+  --lucky-neon-violet: #b251ff;
+
+  --lucky-neon-gold: #ffc66e;
+  --lucky-neon-gold-soft: #ffe4a8;
+
+  --lucky-ink-light: #fbf8ff;
+  --lucky-ink-muted: #cfc0e7;
+  --lucky-ink-dark: #14052a;
+
+  --lucky-font-display: 'Sora', 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  --lucky-font-body: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  --lucky-font-mono: 'JetBrains Mono', 'SFMono-Regular', 'Menlo', monospace;
+}

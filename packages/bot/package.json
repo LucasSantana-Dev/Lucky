@@ -24,6 +24,7 @@
         "dotenv": "^17.2.3",
         "ffmpeg-static": "^5.3.0",
         "play-dl": "^1.9.7",
+        "opusscript": "^0.1.1",
         "ws": "^8.19.0",
         "youtubei.js": "^16.0.1"
     },

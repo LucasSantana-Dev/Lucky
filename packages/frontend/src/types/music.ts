@@ -7,7 +7,7 @@ export interface TrackInfo {
     duration: number
     durationFormatted: string
     requestedBy?: string
-    source: 'youtube' | 'spotify' | 'soundcloud' | 'deezer' | 'unknown'
+    source: 'youtube' | 'spotify' | 'soundcloud' | 'unknown'
 }
 
 export interface QueueState {

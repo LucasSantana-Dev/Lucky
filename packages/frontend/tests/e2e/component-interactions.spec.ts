@@ -5,9 +5,13 @@ import {
     getServerCard,
     getFeatureCard,
     getAddBotButton,
-    verifyToast,
+    getServerSelector,
 } from './helpers/ui-helpers'
-import { MOCK_GUILDS, MOCK_FEATURES } from './fixtures/test-data'
+import {
+    MOCK_GUILDS,
+    MOCK_FEATURES,
+    MOCK_API_RESPONSES,
+} from './fixtures/test-data'
 
 test.describe('Component Interactions', () => {
     test.beforeEach(async ({ page }) => {
@@ -46,9 +50,11 @@ test.describe('Component Interactions', () => {
     test('AddBotButton click and invite flow', async ({ page }) => {
         const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)
         if (serverWithoutBot) {
+            let inviteRequested = false
             await page.route(
                 `**/api/guilds/${serverWithoutBot.id}/invite`,
                 async (route) => {
+                    inviteRequested = true
                     await route.fulfill({
                         status: 200,
                         contentType: 'application/json',
@@ -66,13 +72,14 @@ test.describe('Component Interactions', () => {
             await addBotButton.click()
 
             await page.waitForTimeout(1000)
+            expect(inviteRequested).toBe(true)
         }
     })
 
     test('dropdown menu interactions', async ({ page }) => {
         await navigateToServers(page)
 
-        const serverSelector = page.locator('text=Select a server').first()
+        const serverSelector = getServerSelector(page)
         const isVisible = await serverSelector
             .isVisible({ timeout: 3000 })
             .catch(() => false)
@@ -85,18 +92,20 @@ test.describe('Component Interactions', () => {
 
     test('button states (loading, disabled)', async ({ page }) => {
         await page.route('**/api/guilds', async (route) => {
-            await page.waitForTimeout(2000)
-            await route.continue()
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 1000)
+            })
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
+            })
         })
 
         await navigateToServers(page)
 
-        const loadingButton = page
-            .locator('button:has-text("Loading"), button[disabled]')
-            .first()
-        const isVisible = await loadingButton
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
+        const loadingState = page.getByLabel('Loading servers')
+        await expect(loadingState).toBeVisible({ timeout: 5000 })
     })
 
     test('toast notifications display', async ({ page }) => {

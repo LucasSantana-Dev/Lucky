@@ -40,10 +40,7 @@ function determineUpdateType(
     return 'patch'
 }
 
-function isSecurityUpdate(
-    _packageName: string,
-    updateType: string,
-): boolean {
+function isSecurityUpdate(_packageName: string, updateType: string): boolean {
     return updateType === 'major' || updateType === 'security'
 }
 
@@ -86,7 +83,9 @@ async function checkDependencies(): Promise<void> {
             readFileSync(packageJsonPath, 'utf-8'),
         ) as PackageJson
 
-        const { stdout } = await execAsync('npx npm-check-updates --json')
+        const { stdout } = await execAsync(
+            'npx npm-check-updates --jsonUpgraded',
+        )
         const updates = JSON.parse(stdout) as Record<string, string>
 
         const dependencyUpdates = parseUpdates(updates, packageJson)

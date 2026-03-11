@@ -98,7 +98,10 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Twitch Notifications/i')
+        const heading = page.getByRole('heading', {
+            level: 1,
+            name: /Twitch Notifications/i,
+        })
         const isVisible = await heading
             .isVisible({ timeout: 5000 })
             .catch(() => false)
@@ -106,7 +109,7 @@ test.describe('Twitch Notifications Page', () => {
         if (isVisible) {
             await expect(heading).toBeVisible()
 
-            const count = page.locator('text=/(2)/').first()
+            const count = page.locator('header span').filter({ hasText: '(2)' })
             await expect(count).toBeVisible({ timeout: 3000 })
 
             const streamer1 = page.locator('text=/shroud/i')
@@ -141,7 +144,7 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
 
-        const addButton = page.locator('button:has-text("Add")')
+        const addButton = page.getByRole('button', { name: /^Add$/ })
         const isVisible = await addButton
             .isVisible({ timeout: 5000 })
             .catch(() => false)
@@ -178,7 +181,7 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
 
-        const addButton = page.locator('button:has-text("Add")')
+        const addButton = page.getByRole('button', { name: /^Add$/ })
         const isVisible = await addButton
             .isVisible({ timeout: 5000 })
             .catch(() => false)
@@ -200,7 +203,7 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
 
-        const addButton = page.locator('button:has-text("Add")')
+        const addButton = page.getByRole('button', { name: /^Add$/ })
         const isVisible = await addButton
             .isVisible({ timeout: 5000 })
             .catch(() => false)

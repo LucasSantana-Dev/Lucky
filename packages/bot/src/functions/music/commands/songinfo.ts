@@ -1,17 +1,20 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
+import { interactionReply } from '../../../utils/general/interactionReply'
 import { musicEmbed } from '../../../utils/general/embeds'
-import type { CommandExecuteParams } from "../../../types/CommandData"
+import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireQueue,
     requireCurrentTrack,
-} from "../../../utils/command/commandValidations"
+} from '../../../utils/command/commandValidations'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 /**
  * Get time left text from queue timestamp
  */
-function getTimeLeftText(queue: { node: { getTimestamp: () => { current: number; total: number } | null } }): string {
+function getTimeLeftText(queue: {
+    node: { getTimestamp: () => { current: number; total: number } | null }
+}): string {
     if (!queue?.node || typeof queue.node.getTimestamp !== 'function') {
         return ''
     }
@@ -56,7 +59,9 @@ function formatTrackTitle(track: { title: string; url: string }): string {
 /**
  * Format track metadata
  */
-function formatTrackMetadata(track: { requestedBy?: { username: string } }): string {
+function formatTrackMetadata(track: {
+    requestedBy?: { username: string }
+}): string {
     const author = getTrackProperty(track, 'author', 'Unknown')
     const duration = getTrackProperty(track, 'duration', 'Unknown')
     const requester = track?.requestedBy?.username ?? 'Desconhecido'
@@ -69,7 +74,9 @@ function formatTrackMetadata(track: { requestedBy?: { username: string } }): str
  */
 function formatTrackInfo(track: unknown, timeLeftText: string): string {
     const title = formatTrackTitle(track as { title: string; url: string })
-    const metadata = formatTrackMetadata(track as { requestedBy?: { username: string } })
+    const metadata = formatTrackMetadata(
+        track as { requestedBy?: { username: string } },
+    )
 
     return `${title}\n${metadata}${timeLeftText}`
 }
@@ -82,13 +89,22 @@ export default new Command({
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        const queue = client.player.nodes.get(interaction.guildId ?? '')
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         const track = queue?.currentTrack
 
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 
-        const timeLeftText = getTimeLeftText(queue as { node: { getTimestamp: () => { current: number; total: number } | null } })
+        const timeLeftText = getTimeLeftText(
+            queue as {
+                node: {
+                    getTimestamp: () => {
+                        current: number
+                        total: number
+                    } | null
+                }
+            },
+        )
         const trackInfo = formatTrackInfo(track, timeLeftText)
         const embed = musicEmbed('Tocando Agora', trackInfo)
 

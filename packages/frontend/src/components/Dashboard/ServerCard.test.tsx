@@ -87,14 +87,14 @@ describe('ServerCard', () => {
         expect(manageButton).toBeInTheDocument()
     })
 
-    test('Manage button navigates to dashboard', async () => {
+    test('Manage button navigates to overview route', async () => {
         const user = userEvent.setup()
         renderCard(mockGuild)
 
         const manageButton = screen.getByRole('button', { name: /manage/i })
         await user.click(manageButton)
 
-        expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+        expect(mockNavigate).toHaveBeenCalledWith('/')
     })
 
     test('shows Add Bot button when bot is not added', () => {

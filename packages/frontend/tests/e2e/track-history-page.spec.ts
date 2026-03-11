@@ -53,7 +53,7 @@ const GUILD_STORAGE = JSON.stringify({
 })
 
 function mockTrackHistoryApi(page: import('@playwright/test').Page) {
-    return page.route('**/*track-history*', async (route) => {
+    return page.route('**/api/guilds/*/music/history**', async (route) => {
         const url = route.request().url()
         const isStats = url.includes('/stats')
 
@@ -75,7 +75,7 @@ function mockTrackHistoryApi(page: import('@playwright/test').Page) {
 
 function mockTrackHistoryClear(page: import('@playwright/test').Page) {
     return page.route(
-        `**/api/guilds/${GUILD_ID}/track-history`,
+        `**/api/guilds/${GUILD_ID}/music/history`,
         async (route) => {
             if (route.request().method() === 'DELETE') {
                 await route.fulfill({
@@ -204,7 +204,7 @@ test.describe('Track History Page', () => {
     })
 
     test('shows empty state when no tracks played', async ({ page }) => {
-        await page.route('**/*track-history*', async (route) => {
+        await page.route('**/api/guilds/*/music/history**', async (route) => {
             const url = route.request().url()
             const isStats = url.includes('/stats')
             await route.fulfill({
@@ -227,7 +227,7 @@ test.describe('Track History Page', () => {
     })
 
     test('shows error state on API failure', async ({ page }) => {
-        await page.route('**/*track-history*', async (route) => {
+        await page.route('**/api/guilds/*/music/history**', async (route) => {
             await route.fulfill({ status: 500 })
         })
         await page.addInitScript((guild) => {

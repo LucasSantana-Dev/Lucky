@@ -1,0 +1,160 @@
+{
+    "version": "1.0.0",
+    "required_fields": [
+        "visual_type",
+        "canvas_size",
+        "safe_frame",
+        "header_zone",
+        "headline_zone",
+        "accent_budget",
+        "export_profile"
+    ],
+    "profiles": {
+        "discord_announcement_banner": {
+            "visual_type": "announcement_banner",
+            "canvas_size": {
+                "width": 1200,
+                "height": 675,
+                "aspect_ratio": "16:9"
+            },
+            "safe_frame": {
+                "left": 120,
+                "top": 68,
+                "right": 1080,
+                "bottom": 608,
+                "padding_percent": 10
+            },
+            "header_zone": {
+                "left": 150,
+                "top": 92,
+                "right": 1050,
+                "bottom": 182,
+                "minimum_horizontal_gap": 56
+            },
+            "headline_zone": {
+                "left": 175,
+                "top": 258,
+                "right": 980,
+                "bottom": 520,
+                "line_height_range": "1.20-1.25",
+                "inter_line_gap_px": "22-30"
+            },
+            "accent_budget": {
+                "max_visual_accent_elements": 4,
+                "max_glow_opacity": 0.28,
+                "noise_policy": "subtle"
+            },
+            "export_profile": {
+                "format": "png",
+                "colorspace": "sRGB",
+                "quality_goal": "text-first clarity"
+            }
+        },
+        "social_landscape_post": {
+            "visual_type": "social_card",
+            "canvas_size": {
+                "width": 1600,
+                "height": 900,
+                "aspect_ratio": "16:9"
+            },
+            "safe_frame": {
+                "left": 160,
+                "top": 90,
+                "right": 1440,
+                "bottom": 810,
+                "padding_percent": 10
+            },
+            "header_zone": {
+                "left": 190,
+                "top": 120,
+                "right": 1410,
+                "bottom": 240,
+                "minimum_horizontal_gap": 64
+            },
+            "headline_zone": {
+                "left": 220,
+                "top": 340,
+                "right": 1230,
+                "bottom": 700,
+                "line_height_range": "1.20-1.25",
+                "inter_line_gap_px": "26-34"
+            },
+            "accent_budget": {
+                "max_visual_accent_elements": 5,
+                "max_glow_opacity": 0.24,
+                "noise_policy": "subtle"
+            },
+            "export_profile": {
+                "format": "png",
+                "colorspace": "sRGB",
+                "quality_goal": "text-first clarity"
+            }
+        },
+        "discord_announcement_banner_premium_editorial": {
+            "visual_type": "announcement_banner",
+            "canvas_size": {
+                "width": 1200,
+                "height": 675,
+                "aspect_ratio": "16:9"
+            },
+            "safe_frame": {
+                "left": 120,
+                "top": 68,
+                "right": 1080,
+                "bottom": 608,
+                "padding_percent": 10
+            },
+            "header_zone": {
+                "left": 150,
+                "top": 88,
+                "right": 1040,
+                "bottom": 188,
+                "minimum_horizontal_gap": 72
+            },
+            "headline_zone": {
+                "left": 176,
+                "top": 266,
+                "right": 966,
+                "bottom": 548,
+                "line_height_range": "1.18-1.24",
+                "inter_line_gap_px": "24-34"
+            },
+            "accent_budget": {
+                "max_visual_accent_elements": 3,
+                "max_glow_opacity": 0.2,
+                "noise_policy": "subtle"
+            },
+            "typography_hierarchy": {
+                "line_1_style": "supporting_statement",
+                "line_1_weight": "medium",
+                "line_1_relative_size": 0.68,
+                "line_2_style": "primary_statement",
+                "line_2_weight": "bold",
+                "line_2_relative_size": 1.0
+            },
+            "composition_zones": {
+                "layout_mode": "asymmetric_editorial",
+                "identity_anchor": "top_left",
+                "headline_anchor": "left_center",
+                "verification_anchor": "top_right_compact"
+            },
+            "verification_chip": {
+                "style": "discord_compact_check_chip",
+                "max_width_px": 240,
+                "max_height_px": 52,
+                "icon_required": true,
+                "text": "Verified"
+            },
+            "texture_budget": {
+                "mesh_gradient_layers": "2-4",
+                "grain_opacity_range": "0.015-0.04",
+                "forbidden_effects": ["heavy_bloom", "stacked_glow_halos"]
+            },
+            "export_profile": {
+                "format": "png",
+                "colorspace": "sRGB",
+                "quality_goal": "premium_editorial_readability"
+            }
+        }
+    }
+}

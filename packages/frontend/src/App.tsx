@@ -66,15 +66,10 @@ function RouteModuleGuard({
     module: ModuleKey
     children: ReactNode
 }) {
-    const { selectedGuild, memberContext, memberContextLoading } =
-        useGuildStore()
+    const { selectedGuild, memberContext } = useGuildStore()
 
     if (!selectedGuild) {
         return <>{children}</>
-    }
-
-    if (memberContextLoading) {
-        return <PageLoader />
     }
 
     const effectiveAccess =
@@ -104,7 +99,7 @@ function AuthenticatedRoutes() {
             />
             <Route
                 path='/features'
-                element={guardedRoute('settings', <FeaturesPage />)}
+                element={guardedRoute('automation', <FeaturesPage />)}
             />
             <Route
                 path='/config'

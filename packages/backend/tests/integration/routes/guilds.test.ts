@@ -255,4 +255,104 @@ describe('Guilds Routes Integration', () => {
             })
         })
     })
+
+    describe('GET /api/guilds/:id/me', () => {
+        test('should return member context for authorized users without overview access', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.resolveGuildContext.mockResolvedValue({
+                ...defaultAccess,
+                nickname: 'Mod Nick',
+                roleIds: ['333333333333333333'],
+                effectiveAccess: {
+                    overview: 'none',
+                    settings: 'none',
+                    moderation: 'none',
+                    automation: 'view',
+                    music: 'none',
+                    integrations: 'none',
+                },
+                canManageRbac: false,
+            })
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/me')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({
+                guildId: '111111111111111111',
+                nickname: 'Mod Nick',
+                username: MOCK_SESSION_DATA.user.username,
+                globalName: MOCK_SESSION_DATA.user.global_name ?? null,
+                roleIds: ['333333333333333333'],
+                effectiveAccess: {
+                    overview: 'none',
+                    settings: 'none',
+                    moderation: 'none',
+                    automation: 'view',
+                    music: 'none',
+                    integrations: 'none',
+                },
+                canManageRbac: false,
+            })
+        })
+
+        test('should return 403 when user has no authorized guild access', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.resolveGuildContext.mockResolvedValue(null)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/me')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(403)
+
+            expect(response.body).toEqual({
+                error: 'No access to this server',
+            })
+        })
+    })
+
+    describe('GET /api/install', () => {
+        test('should redirect to app installation URL', async () => {
+            const inviteUrl =
+                'https://discord.com/api/oauth2/authorize?client_id=test'
+
+            const mockGuildService = guildService as jest.Mocked<
+                typeof guildService
+            >
+            mockGuildService.generateBotInviteUrl.mockReturnValue(inviteUrl)
+
+            const response = await request(app).get('/api/install').expect(302)
+
+            expect(response.headers.location).toBe(inviteUrl)
+            expect(mockGuildService.generateBotInviteUrl).toHaveBeenCalledWith()
+        })
+
+        test('should return 500 when invite URL generation fails', async () => {
+            const mockGuildService = guildService as jest.Mocked<
+                typeof guildService
+            >
+            mockGuildService.generateBotInviteUrl.mockImplementation(() => {
+                throw new Error('Invite generation failed')
+            })
+
+            const response = await request(app).get('/api/install').expect(500)
+
+            expect(response.body).toEqual({ error: 'Internal server error' })
+        })
+    })
 })
