@@ -74,6 +74,11 @@ packages/
 - Neo-editorial shell with responsive sidebar and contextual page framing
 - Dashboard, Servers, and Last.fm pages aligned to shared status/empty-state primitives
 - Module/command toggle per server
+- Guild RBAC by Discord role (`view`/`manage`) with deny-by-default for
+  non-admin users
+- Sidebar identity resolution chain: `nick > globalName > username`
+- Dashboard guild metrics now use live bot/API counts, rendering unknown values
+  as `—` instead of `0`
 - Moderation case viewer and settings
 - Auto-mod configuration
 - Server logs with filtering
@@ -152,7 +157,7 @@ Deploy workflow smoke checks now require `GET /api/health/auth-config` to return
 `status=ok` with no warnings (including healthy Redis/auth-session flags).
 Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `302` to Discord authorize URL with expected `client_id` and same-origin
-`redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
+`redirect_uri=https://lucky-api.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
 
@@ -168,7 +173,8 @@ When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
-Discord Developer Portal (example: `https://lucky.lucassantana.tech/api/auth/callback`).
+Discord Developer Portal (example:
+`https://lucky-api.lucassantana.tech/api/auth/callback`).
 Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
 `/api/health/auth-config` return `degraded` on credential drift.
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
@@ -226,6 +232,18 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 
 ### Twitch
 `/twitch add` `/twitch remove` `/twitch list`
+
+### Server Setup
+`/serversetup template:forge-space mode:apply|dry-run`
+`/serversetup template:criativaria mode:apply|dry-run`
+
+Criativaria template behavior:
+- Validates fixed Criativaria channel/role mappings and continues with warnings if any are missing
+- Applies branding from `assets/lucky-logo.png` and `assets/lucky-banner.png`
+- Uploads `assets/Gemini_Generated_Image_udmhrpudmhrpudmh.png` to asset cache once and reuses Discord CDN URL in embed templates
+- Falls back to guild splash CDN image for templates when attachment upload is unavailable
+- Skips guild banner by default unless Discord `BANNER` feature is available
+- Idempotent upserts for moderation/automod/guild settings, auto-messages, embed templates, custom commands, role exclusivity, and Twitch notification seed
 
 ## Contributing
 

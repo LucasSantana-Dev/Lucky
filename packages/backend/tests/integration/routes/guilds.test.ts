@@ -6,10 +6,10 @@ import { setupGuildRoutes } from '../../../src/routes/guilds'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildService } from '../../../src/services/GuildService'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
 import {
     MOCK_SESSION_DATA,
     MOCK_DISCORD_GUILDS,
-    MOCK_TOKEN_RESPONSE,
 } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
@@ -20,15 +20,37 @@ jest.mock('../../../src/services/SessionService', () => ({
 
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
-        getUserGuilds: jest.fn(),
-        enrichGuildsWithBotStatus: jest.fn(),
-        getGuildDetails: jest.fn(),
         generateBotInviteUrl: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        listAuthorizedGuilds: jest.fn(),
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
 describe('Guilds Routes Integration', () => {
     let app: express.Express
+    const defaultAccess = {
+        guildId: '111111111111111111',
+        owner: true,
+        isAdmin: true,
+        hasBot: true,
+        roleIds: [],
+        nickname: null,
+        effectiveAccess: {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        },
+        canManageRbac: true,
+    }
 
     beforeEach(() => {
         app = express()
@@ -36,6 +58,14 @@ describe('Guilds Routes Integration', () => {
         setupGuildRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            defaultAccess,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     })
 
     describe('GET /api/guilds', () => {
@@ -49,15 +79,19 @@ describe('Guilds Routes Integration', () => {
                 ...guild,
                 hasBot: true,
                 botInviteUrl: undefined,
+                memberCount: null,
+                categoryCount: null,
+                textChannelCount: null,
+                voiceChannelCount: null,
+                roleCount: null,
+                effectiveAccess: defaultAccess.effectiveAccess,
+                canManageRbac: true,
             }))
 
-            const mockGuildService = guildService as jest.Mocked<
-                typeof guildService
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
             >
-            mockGuildService.getUserGuilds.mockResolvedValue(
-                MOCK_DISCORD_GUILDS,
-            )
-            mockGuildService.enrichGuildsWithBotStatus.mockResolvedValue(
+            mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue(
                 enrichedGuilds,
             )
 
@@ -67,12 +101,9 @@ describe('Guilds Routes Integration', () => {
                 .expect(200)
 
             expect(response.body).toEqual({ guilds: enrichedGuilds })
-            expect(mockGuildService.getUserGuilds).toHaveBeenCalledWith(
-                MOCK_SESSION_DATA.accessToken,
-            )
             expect(
-                mockGuildService.enrichGuildsWithBotStatus,
-            ).toHaveBeenCalledWith(MOCK_DISCORD_GUILDS)
+                mockGuildAccessService.listAuthorizedGuilds,
+            ).toHaveBeenCalledWith(MOCK_SESSION_DATA)
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -94,10 +125,10 @@ describe('Guilds Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const mockGuildService = guildService as jest.Mocked<
-                typeof guildService
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
             >
-            mockGuildService.getUserGuilds.mockRejectedValue(
+            mockGuildAccessService.listAuthorizedGuilds.mockRejectedValue(
                 new Error('Service error'),
             )
 
@@ -122,12 +153,21 @@ describe('Guilds Routes Integration', () => {
                 hasBot: true,
                 botInviteUrl:
                     'https://discord.com/api/oauth2/authorize?client_id=test&guild_id=111111111111111111',
+                memberCount: null,
+                categoryCount: null,
+                textChannelCount: null,
+                voiceChannelCount: null,
+                roleCount: null,
+                effectiveAccess: defaultAccess.effectiveAccess,
+                canManageRbac: true,
             }
 
-            const mockGuildService = guildService as jest.Mocked<
-                typeof guildService
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
             >
-            mockGuildService.getGuildDetails.mockResolvedValue(guildDetails)
+            mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue([
+                guildDetails,
+            ])
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111')
@@ -135,9 +175,6 @@ describe('Guilds Routes Integration', () => {
                 .expect(200)
 
             expect(response.body).toEqual(guildDetails)
-            expect(mockGuildService.getGuildDetails).toHaveBeenCalledWith(
-                '111111111111111111',
-            )
         })
 
         test('should return 404 when guild not found', async () => {
@@ -146,10 +183,10 @@ describe('Guilds Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const mockGuildService = guildService as jest.Mocked<
-                typeof guildService
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
             >
-            mockGuildService.getGuildDetails.mockResolvedValue(null)
+            mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue([])
 
             const response = await request(app)
                 .get('/api/guilds/999999999999999999')
@@ -157,7 +194,7 @@ describe('Guilds Routes Integration', () => {
                 .expect(404)
 
             expect(response.body).toEqual({
-                error: 'Guild not found or bot not in guild',
+                error: 'Guild not found',
             })
         })
 

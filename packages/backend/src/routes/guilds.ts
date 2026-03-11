@@ -1,9 +1,11 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { sessionService } from '../services/SessionService'
 import { guildService } from '../services/GuildService'
+import { guildAccessService } from '../services/GuildAccessService'
 
 export function setupGuildRoutes(app: Express): void {
     app.get(
@@ -20,29 +22,38 @@ export function setupGuildRoutes(app: Express): void {
                 throw AppError.unauthorized('Session expired')
             }
 
-            const guilds = await guildService.getUserGuilds(
-                sessionData.accessToken,
-            )
-            const enrichedGuilds =
-                await guildService.enrichGuildsWithBotStatus(guilds)
+            const guilds =
+                await guildAccessService.listAuthorizedGuilds(sessionData)
 
-            res.json({ guilds: enrichedGuilds })
+            res.json({ guilds })
         }),
     )
 
     app.get(
         '/api/guilds/:id',
         requireAuth,
+        requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id =
                 typeof req.params.id === 'string'
                     ? req.params.id
                     : req.params.id[0]
 
-            const guildDetails = await guildService.getGuildDetails(id)
+            if (!req.sessionId) {
+                throw AppError.unauthorized()
+            }
+
+            const sessionData = await sessionService.getSession(req.sessionId)
+            if (!sessionData) {
+                throw AppError.unauthorized('Session expired')
+            }
+
+            const guilds =
+                await guildAccessService.listAuthorizedGuilds(sessionData)
+            const guildDetails = guilds.find((guild) => guild.id === id)
 
             if (!guildDetails) {
-                throw AppError.notFound('Guild not found or bot not in guild')
+                throw AppError.notFound('Guild not found')
             }
 
             res.json(guildDetails)
@@ -52,6 +63,7 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/invite',
         requireAuth,
+        requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id =
                 typeof req.params.id === 'string'
@@ -61,6 +73,44 @@ export function setupGuildRoutes(app: Express): void {
             const inviteUrl = guildService.generateBotInviteUrl(id)
 
             res.json({ inviteUrl })
+        }),
+    )
+
+    app.get(
+        '/api/guilds/:id/me',
+        requireAuth,
+        requireGuildModuleAccess('overview'),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const id =
+                typeof req.params.id === 'string'
+                    ? req.params.id
+                    : req.params.id[0]
+
+            if (!req.sessionId) {
+                throw AppError.unauthorized()
+            }
+
+            const sessionData = await sessionService.getSession(req.sessionId)
+            if (!sessionData) {
+                throw AppError.unauthorized('Session expired')
+            }
+
+            const guildContext =
+                req.guildContext ??
+                (await guildAccessService.resolveGuildContext(sessionData, id))
+            if (!guildContext) {
+                throw AppError.forbidden('No access to this server')
+            }
+
+            res.json({
+                guildId: id,
+                nickname: guildContext.nickname,
+                username: sessionData.user.username,
+                globalName: sessionData.user.global_name ?? null,
+                roleIds: guildContext.roleIds,
+                effectiveAccess: guildContext.effectiveAccess,
+                canManageRbac: guildContext.canManageRbac,
+            })
         }),
     )
 }

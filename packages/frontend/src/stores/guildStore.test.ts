@@ -6,6 +6,7 @@ vi.mock('@/services/api', () => ({
     api: {
         guilds: {
             list: vi.fn(),
+            getMe: vi.fn(),
             getSettings: vi.fn(),
             getListing: vi.fn(),
         },
@@ -32,6 +33,8 @@ describe('guildStore', () => {
             selectedGuild: null,
             selectedGuildId: null,
             isLoading: false,
+            memberContext: null,
+            memberContextLoading: false,
             serverSettings: null,
             serverListing: null,
         })
@@ -50,6 +53,24 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.getListing).mockResolvedValue({
                 data: { listing: null },
             } as never)
+            vi.mocked(api.guilds.getMe).mockResolvedValue({
+                data: {
+                    guildId: guilds[0].id,
+                    nickname: null,
+                    username: 'user',
+                    globalName: null,
+                    roleIds: [],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                },
+            } as never)
 
             await useGuildStore.getState().fetchGuilds()
 
@@ -57,7 +78,7 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().isLoading).toBe(false)
         })
 
-        test('should auto-select first guild with bot', async () => {
+        test('should auto-select first authorized guild', async () => {
             const guilds = [
                 mockGuild({ id: '1', botAdded: false }),
                 mockGuild({ id: '2', botAdded: true }),
@@ -71,10 +92,28 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.getListing).mockResolvedValue({
                 data: { listing: null },
             } as never)
+            vi.mocked(api.guilds.getMe).mockResolvedValue({
+                data: {
+                    guildId: guilds[0].id,
+                    nickname: null,
+                    username: 'user',
+                    globalName: null,
+                    roleIds: [],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                },
+            } as never)
 
             await useGuildStore.getState().fetchGuilds()
 
-            expect(useGuildStore.getState().selectedGuildId).toBe('2')
+            expect(useGuildStore.getState().selectedGuildId).toBe('1')
         })
 
         test('should reset on fetch error', async () => {
@@ -97,6 +136,24 @@ describe('guildStore', () => {
             } as never)
             vi.mocked(api.guilds.getListing).mockResolvedValue({
                 data: { listing: null },
+            } as never)
+            vi.mocked(api.guilds.getMe).mockResolvedValue({
+                data: {
+                    guildId: guild.id,
+                    nickname: null,
+                    username: 'user',
+                    globalName: null,
+                    roleIds: [],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                },
             } as never)
 
             useGuildStore.getState().selectGuild(guild)
@@ -152,6 +209,24 @@ describe('guildStore', () => {
             } as never)
             vi.mocked(api.guilds.getListing).mockResolvedValue({
                 data: { listing: null },
+            } as never)
+            vi.mocked(api.guilds.getMe).mockResolvedValue({
+                data: {
+                    guildId: guild.id,
+                    nickname: null,
+                    username: 'user',
+                    globalName: null,
+                    roleIds: [],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                },
             } as never)
 
             useGuildStore.getState().setSelectedGuild('42')

@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import type { Guild, ServerSettings, ServerListing } from '@/types'
+import type {
+    Guild,
+    GuildMemberContext,
+    ServerSettings,
+    ServerListing,
+} from '@/types'
 import { api } from '@/services/api'
 
 interface GuildState {
@@ -7,10 +12,13 @@ interface GuildState {
     selectedGuild: Guild | null
     selectedGuildId: string | null
     isLoading: boolean
+    memberContext: GuildMemberContext | null
+    memberContextLoading: boolean
     serverSettings: ServerSettings | null
     serverListing: ServerListing | null
     fetchGuilds: () => Promise<void>
     selectGuild: (guild: Guild | null) => void
+    fetchMemberContext: (guildId: string) => Promise<void>
     setSelectedGuild: (guildId: string | null) => void
     getSelectedGuild: () => Guild | null
     updateServerSettings: (settings: Partial<ServerSettings>) => void
@@ -22,6 +30,8 @@ export const useGuildStore = create<GuildState>((set, get) => ({
     selectedGuild: null,
     selectedGuildId: null,
     isLoading: false,
+    memberContext: null,
+    memberContextLoading: false,
     serverSettings: null,
     serverListing: null,
 
@@ -32,10 +42,7 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             const guilds = response.data.guilds
             set({ guilds, isLoading: false })
             if (guilds.length > 0 && !get().selectedGuild) {
-                const firstBotGuild = guilds.find((g) => g.botAdded)
-                if (firstBotGuild) {
-                    get().selectGuild(firstBotGuild)
-                }
+                get().selectGuild(guilds[0])
             }
         } catch {
             set({ guilds: [], isLoading: false })
@@ -46,10 +53,15 @@ export const useGuildStore = create<GuildState>((set, get) => ({
         set({
             selectedGuild: guild,
             selectedGuildId: guild?.id || null,
-            serverSettings: guild ? null : null,
-            serverListing: guild ? null : null,
+            memberContext: null,
+            memberContextLoading: Boolean(guild),
+            serverSettings: null,
+            serverListing: null,
         })
         if (guild) {
+            get()
+                .fetchMemberContext(guild.id)
+                .catch(() => {})
             api.guilds
                 .getSettings(guild.id)
                 .then((response) => {
@@ -66,6 +78,22 @@ export const useGuildStore = create<GuildState>((set, get) => ({
                 .catch(() => {
                     set({ serverListing: null })
                 })
+        }
+    },
+
+    fetchMemberContext: async (guildId) => {
+        set({ memberContextLoading: true })
+        try {
+            const response = await api.guilds.getMe(guildId)
+            set({
+                memberContext: response.data,
+                memberContextLoading: false,
+            })
+        } catch {
+            set({
+                memberContext: null,
+                memberContextLoading: false,
+            })
         }
     },
 

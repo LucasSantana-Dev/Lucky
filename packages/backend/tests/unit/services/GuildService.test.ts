@@ -160,6 +160,9 @@ describe('GuildService', () => {
         test('should enrich guilds with bot status', async () => {
             const mockGuild = {
                 id: '111111111111111111',
+                memberCount: 10,
+                channels: { cache: new Map() },
+                roles: { cache: new Map() },
             } as Guild
 
             const mockClient = {
@@ -236,7 +239,7 @@ describe('GuildService', () => {
             await guildService.enrichGuildsWithBotStatus(MOCK_DISCORD_GUILDS)
             await guildService.enrichGuildsWithBotStatus(MOCK_DISCORD_GUILDS)
 
-            expect(fetchMock).toHaveBeenCalledTimes(1)
+            expect(fetchMock).toHaveBeenCalledTimes(4)
         })
 
         test('should set botInviteUrl when bot is not in guild', async () => {
@@ -259,6 +262,9 @@ describe('GuildService', () => {
                 name: 'Test Server',
                 icon: 'test_icon',
                 features: ['COMMUNITY'],
+                memberCount: 10,
+                channels: { cache: new Map() },
+                roles: { cache: new Map() },
             } as Guild
 
             const mockClient = {

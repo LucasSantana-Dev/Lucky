@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import Sidebar from './Sidebar'
@@ -132,7 +132,7 @@ describe('Sidebar', () => {
         renderSidebar()
 
         expect(screen.getByText('TestUser')).toBeInTheDocument()
-        expect(screen.getByText('#1234')).toBeInTheDocument()
+        expect(screen.getByText('@TestUser')).toBeInTheDocument()
     })
 
     test('calls logout when logout button clicked', async () => {
@@ -165,7 +165,7 @@ describe('Sidebar', () => {
         expect(screen.getByText('Select a server')).toBeInTheDocument()
     })
 
-    test('filters only guilds with bot added in dropdown', async () => {
+    test('shows authorized guilds even when bot is not added', async () => {
         const guildWithoutBot: Guild = {
             ...mockGuild2,
             botAdded: false,
@@ -192,11 +192,12 @@ describe('Sidebar', () => {
         await user.click(dropdownButton!)
 
         await waitFor(() => {
-            expect(screen.queryByText('Another Server')).not.toBeInTheDocument()
+            expect(screen.getByText('Another Server')).toBeInTheDocument()
+            expect(screen.getByText('Invite bot')).toBeInTheDocument()
         })
     })
 
-    test('shows invite guidance when user has admin guilds without Lucky', async () => {
+    test('shows invite badges when all accessible guilds are missing bot', async () => {
         const noBotGuilds: Guild[] = [
             { ...mockGuild, botAdded: false },
             { ...mockGuild2, botAdded: false },
@@ -224,14 +225,9 @@ describe('Sidebar', () => {
         )
 
         await waitFor(() => {
-            expect(
-                screen.getByText('No servers with Lucky yet'),
-            ).toBeInTheDocument()
-            expect(
-                screen.getByText(
-                    'Invite Lucky to one of your servers from the Dashboard.',
-                ),
-            ).toBeInTheDocument()
+            expect(screen.getByText('Test Server')).toBeInTheDocument()
+            expect(screen.getByText('Another Server')).toBeInTheDocument()
+            expect(screen.getAllByText('Invite bot')).toHaveLength(2)
         })
     })
 
@@ -253,10 +249,14 @@ describe('Sidebar', () => {
         const user = userEvent.setup()
         renderSidebar()
 
-        await user.click(screen.getByRole('button', { name: /select a server/i }))
+        await user.click(
+            screen.getByRole('button', { name: /select a server/i }),
+        )
 
         await waitFor(() => {
-            expect(screen.getByText('No admin servers found')).toBeInTheDocument()
+            expect(
+                screen.getByText('No accessible servers found'),
+            ).toBeInTheDocument()
             expect(
                 screen.queryByText(
                     'Invite Lucky to one of your servers from the Dashboard.',
@@ -282,15 +282,27 @@ describe('Sidebar', () => {
             ).toHaveLength(2)
         })
 
-        const [mobileCloseButton] = screen.getAllByRole('button', {
+        const mobileSidebar = document.querySelector(
+            'aside.fixed.inset-y-0.left-0.z-50.w-72.bg-lucky-bg-secondary.lg\\:hidden',
+        )
+        expect(mobileSidebar).toBeTruthy()
+
+        const mobileCloseButton = within(
+            mobileSidebar as HTMLElement,
+        ).getByRole('button', {
             name: /close sidebar/i,
         })
         await user.click(mobileCloseButton)
 
         await waitFor(() => {
-            expect(
-                screen.getAllByRole('button', { name: /close sidebar/i }),
-            ).toHaveLength(1)
+            if (mobileSidebar && document.body.contains(mobileSidebar)) {
+                expect(mobileSidebar).toHaveStyle({
+                    transform: 'translateX(-100%)',
+                })
+                return
+            }
+
+            expect(mobileSidebar).not.toBeInTheDocument()
         })
     })
 })

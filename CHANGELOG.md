@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `packages/frontend/src/index.css` plus reusable primitives (`Shell`,
   `SectionHeader`, `EmptyState`, `StatTile`, `ActionPanel`) for consistent
   dashboard composition
+- Added `criativaria` template to `/serversetup` with `mode:apply|dry-run`,
+  fixed guild mapping validation, branding asset application, and idempotent
+  setup upserts (moderation, automod, guild settings, auto-messages, embed
+  templates, custom commands, role exclusivity, Twitch seed)
+- Added bot tests for command registration coverage, command file filtering,
+  and `/serversetup` template/mode handling (`register.spec`,
+  `getCommandsFromDirectory.spec`, `serversetup.spec`,
+  `serversetupCriativaria.spec`)
+- Added guild RBAC persistence model (`guild_role_grants`) and shared evaluator
+  service with module keys (`overview`, `settings`, `moderation`, `automation`,
+  `music`, `integrations`) plus `view`/`manage` modes
+- Added backend RBAC and member-context endpoints:
+  `GET/PUT /api/guilds/:guildId/rbac` and `GET /api/guilds/:id/me`
+- Added frontend Access Control section in Server Settings to manage module
+  grants by Discord role as full-policy replacement
 
 ### Fixed
 
@@ -29,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   callback state can be validated from cookie or query for split-origin setups
 - Autoplay Last.fm scrobbling now falls back to stored requester metadata so
   recommended tracks keep the original requester attribution
+- Bot runtime command loading now includes `management`, `moderation`, and
+  `automod` categories
+- Command directory loader now ignores `*.spec.ts|*.test.ts` (and JS
+  equivalents) to avoid registering test files as slash commands
+- Guild list/dashboard metrics now return nullable live values from bot/API
+  enrichment (no forced `0` fallback when metrics are unavailable)
+- Sidebar profile identity now resolves as `nick > global_name > username`
+  with secondary label `@username` (removed legacy `#0` discriminator behavior)
 
 ### Changed
 
@@ -41,6 +64,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard overview, servers page, and Last.fm page now use the shared
   neo-editorial primitives for denser status cards, clearer loading/empty/error
   states, and more consistent scan hierarchy
+- Bot Jest config now maps relative `.js` imports to source modules during
+  tests, matching the project ESM build import style
+- Criativaria setup execution is now step-resilient (continues applying other
+  items on single-step failure) and uses guild splash CDN as embed image
+  fallback when Discord attachment upload is unavailable
+- Guild selector now shows authorized guilds directly (including admin-visible
+  guilds without bot presence) and labels missing-bot guilds with an invite
+  indicator
+- Guild/module routes now use module-aware access middleware so read requests
+  require `view` and mutating requests require `manage`
 
 ## [2.6.9] - 2026-03-10
 
