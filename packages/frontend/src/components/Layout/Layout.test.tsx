@@ -2,10 +2,10 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Layout from './Layout'
-import { useGuildStore } from '@/stores/guildStore'
+import { useGuildSelection } from '@/hooks/useGuildSelection'
 import type { Guild } from '@/types'
 
-vi.mock('@/stores/guildStore')
+vi.mock('@/hooks/useGuildSelection')
 vi.mock('./Sidebar', () => ({
     default: () => <aside data-testid='sidebar'>Sidebar</aside>,
 }))
@@ -23,18 +23,10 @@ const mockGuild: Guild = {
 describe('Layout', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        vi.mocked(useGuildStore).mockReturnValue({
+        vi.mocked(useGuildSelection).mockReturnValue({
             guilds: [mockGuild],
             selectedGuild: mockGuild,
-            selectedGuildId: mockGuild.id,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
             selectGuild: vi.fn(),
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
         })
     })
 
@@ -75,23 +67,17 @@ describe('Layout', () => {
 
         expect(screen.getByText('Music Player')).toBeInTheDocument()
         expect(
-            screen.getByText('Manage queue, autoplay, and real-time playback controls.'),
+            screen.getByText(
+                'Manage queue, autoplay, and real-time playback controls.',
+            ),
         ).toBeInTheDocument()
     })
 
     test('renders fallback route copy without selected guild', () => {
-        vi.mocked(useGuildStore).mockReturnValue({
+        vi.mocked(useGuildSelection).mockReturnValue({
             guilds: [],
             selectedGuild: null,
-            selectedGuildId: null,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
             selectGuild: vi.fn(),
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
         })
 
         renderLayout('/unknown')

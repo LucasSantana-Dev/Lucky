@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   callback state can be validated from cookie or query for split-origin setups
 - Autoplay Last.fm scrobbling now falls back to stored requester metadata so
   recommended tracks keep the original requester attribution
+- Frontend shell now initializes guild selection on all authenticated routes,
+  so the server selector is populated right after login instead of only after
+  visiting pages that manually triggered guild loading (PR #162)
 
 ### Changed
 

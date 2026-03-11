@@ -161,6 +161,9 @@ For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API ori
 (example: `https://api.yourdomain.com/api`) to avoid auth/API loop misrouting.
 Last.fm dashboard connect links use this same API base, so split-origin
 deployments should keep `VITE_API_BASE_URL` aligned with the public backend.
+Authenticated frontend shell routes now bootstrap guild selection globally, so
+the server selector is populated immediately after login without requiring a
+visit to `/servers` first.
 Without `VITE_API_BASE_URL`, frontend uses same-origin `/api` for
 `*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for
 `*.luk-homeserver.com.br`.
