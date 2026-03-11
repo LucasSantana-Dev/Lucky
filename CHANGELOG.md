@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard guild listing now resolves bot membership through a backend Discord
   API fallback when the bot client cache is unavailable, restoring server
   visibility for split-process deployments
+- Last.fm dashboard connect flow now respects configured API base/origin and
+  callback state can be validated from cookie or query for split-origin setups
+- Autoplay Last.fm scrobbling now falls back to stored requester metadata so
+  recommended tracks keep the original requester attribution
 
 ## [2.6.9] - 2026-03-10
 

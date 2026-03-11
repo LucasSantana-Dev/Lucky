@@ -88,18 +88,18 @@ describe('api service bootstrap', () => {
         expect(module.api.auth.getDiscordLoginUrl()).toBe(
             'https://example.com/api/auth/discord',
         )
+        expect(module.api.lastfm.getConnectUrl()).toBe(
+            'https://example.com/api/lastfm/connect',
+        )
     })
 
     test('redirects to Discord login on 401 responses', async () => {
         const assignMock = vi.fn()
-        vi.stubGlobal(
-            'window',
-            {
-                location: {
-                    assign: assignMock,
-                },
-            } as unknown as Window & typeof globalThis,
-        )
+        vi.stubGlobal('window', {
+            location: {
+                assign: assignMock,
+            },
+        } as unknown as Window & typeof globalThis)
         const { responseUse } = await loadApiModule('/api/')
 
         const onError = responseUse.mock.calls[0][1] as ResponseErrorHandler
@@ -123,19 +123,18 @@ describe('api service bootstrap', () => {
 
     test('returns connectivity ApiError when response is missing', async () => {
         const assignMock = vi.fn()
-        vi.stubGlobal(
-            'window',
-            {
-                location: {
-                    assign: assignMock,
-                },
-            } as unknown as Window & typeof globalThis,
-        )
+        vi.stubGlobal('window', {
+            location: {
+                assign: assignMock,
+            },
+        } as unknown as Window & typeof globalThis)
         const { responseUse } = await loadApiModule('/api')
 
         const onError = responseUse.mock.calls[0][1] as ResponseErrorHandler
 
-        await expect(onError({ message: 'Network Error' })).rejects.toMatchObject({
+        await expect(
+            onError({ message: 'Network Error' }),
+        ).rejects.toMatchObject({
             status: 0,
             message: 'Unable to connect to the server',
         })
