@@ -5,6 +5,7 @@ import {
     type MusicCommandResult,
 } from '@lucky/shared/services'
 import { buildQueueState, repeatModeToEnum } from './mappers'
+import { resolveGuildQueue } from '../../utils/music/queueResolver'
 
 type Result = MusicCommandResult
 
@@ -30,7 +31,7 @@ async function publishAndOk(
 }
 
 function getQueue(client: CustomClient, guildId: string) {
-    return client.player.queues.get(guildId)
+    return resolveGuildQueue(client, guildId).queue
 }
 
 export async function handleGetState(

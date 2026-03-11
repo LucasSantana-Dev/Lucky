@@ -8,6 +8,7 @@ import {
     requireQueue,
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -20,7 +21,7 @@ export default new Command({
     }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
-        const queue = client.player.nodes.get(interaction.guildId ?? '')
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
         try {

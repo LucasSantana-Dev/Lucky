@@ -9,6 +9,7 @@ import {
 } from "../../../utils/command/commandValidations"
 import type { CommandExecuteParams } from "../../../types/CommandData"
 import type { GuildQueue } from 'discord-player'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 /**
  * Validate remove position
@@ -48,7 +49,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
-        const queue = client.player.nodes.get(interaction.guildId ?? '')
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 

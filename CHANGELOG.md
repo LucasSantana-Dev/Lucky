@@ -19,9 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bot `/autoplay` command now resolves guild queue from player node cache when
-  direct node lookup misses, preventing false `No music queue found` errors
-  while a track is actively playing
+- Queue-dependent music controls now use a shared resilient guild-queue
+  resolver across node/queue/cache fallbacks, preventing intermittent false
+  `No music queue found` errors while playback is active
 - Dashboard guild listing now resolves bot membership through a backend Discord
   API fallback when the bot client cache is unavailable, restoring server
   visibility for split-process deployments
