@@ -190,4 +190,25 @@ describe('trackNowPlaying', () => {
             scenario.expectedSessionKey,
         )
     })
+
+    it('skips now-playing and scrobble updates when requester cannot be resolved', async () => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue(null)
+
+        const { queue } = createQueue('guild-9')
+        const track = {
+            title: 'Song E',
+            author: 'Artist E',
+            duration: '4:00',
+            metadata: {},
+        }
+
+        await updateLastFmNowPlaying(queue as any, track as any)
+        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(1, undefined)
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(2, undefined)
+        expect(updateNowPlayingMock).not.toHaveBeenCalled()
+        expect(scrobbleMock).not.toHaveBeenCalled()
+    })
 })

@@ -228,6 +228,22 @@ describe('Last.fm Routes Integration', () => {
             )
         })
 
+        test('should normalize trailing slash in WEBAPP_BACKEND_URL callback origin', async () => {
+            process.env.WEBAPP_BACKEND_URL = 'https://api.example.com/'
+            const state = buildState(DISCORD_ID, LINK_SECRET)
+
+            const res = await request(app)
+                .get('/api/lastfm/connect')
+                .query({ state })
+                .expect(302)
+
+            expect(res.headers.location).toContain(
+                encodeURIComponent(
+                    `https://api.example.com/api/lastfm/callback?state=${state}`,
+                ),
+            )
+        })
+
         test('should derive callback origin from WEBAPP_REDIRECT_URI when backend url is unset', async () => {
             process.env.WEBAPP_REDIRECT_URI =
                 'https://lucky.example.com/api/auth/callback'

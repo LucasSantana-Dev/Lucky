@@ -294,6 +294,67 @@ describe('queueManipulation.replenishQueue', () => {
             }),
         )
     })
+
+    it('keeps requester metadata undefined when no requester context exists', async () => {
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+            } as unknown as Track,
+            metadata: {},
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Song B',
+                            author: 'Artist B',
+                            url: 'https://example.com/b',
+                            metadata: {},
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    requestedById: undefined,
+                }),
+            }),
+        )
+    })
+
+    it('returns without adding tracks when candidate set is exhausted', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Song A clone',
+                            author: 'Artist A',
+                            url: 'https://example.com/a',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.addTrack).not.toHaveBeenCalled()
+    })
 })
 
 describe('queueManipulation.queueOperations', () => {
