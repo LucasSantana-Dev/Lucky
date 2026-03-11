@@ -12,6 +12,7 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 async function handleNotPlaying(
     interaction: ChatInputCommandInteraction,
@@ -90,7 +91,7 @@ export default new Command({
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
-        const queue = client.player.nodes.get(interaction.guildId ?? '')
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return

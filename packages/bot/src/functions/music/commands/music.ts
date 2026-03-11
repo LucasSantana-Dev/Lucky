@@ -12,6 +12,7 @@ import { requireGuild } from '../../../utils/command/commandValidations'
 import { providerHealthService } from '../../../utils/music/search/providerHealth'
 import { musicWatchdogService } from '../../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 function formatProviderHealth(): string {
     const statuses = providerHealthService.getAllStatuses()
@@ -66,7 +67,7 @@ export default new Command({
             return
         }
 
-        const queue = client.player.nodes.get(guildId)
+        const { queue } = resolveGuildQueue(client, guildId)
         const queueState = queue
             ? `Playing: ${queue.node.isPlaying() ? 'yes' : 'no'}\nTracks in queue: ${queue.tracks.size}\nRepeat mode: ${queue.repeatMode}`
             : 'No active queue'

@@ -7,6 +7,7 @@ import {
     requireQueue,
     requireCurrentTrack,
 } from "../../../utils/command/commandValidations"
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 /**
  * Get time left text from queue timestamp
@@ -82,7 +83,7 @@ export default new Command({
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        const queue = client.player.nodes.get(interaction.guildId ?? '')
+        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         const track = queue?.currentTrack
 
         if (!(await requireQueue(queue, interaction))) return
