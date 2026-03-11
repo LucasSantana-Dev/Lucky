@@ -46,6 +46,11 @@ packages/
   - Display: `Sora`
   - Body/UI: `Manrope`
   - Mono/technical: `JetBrains Mono`
+- Semantic UI foundation:
+  - Tokens: `--lucky-surface-*`, `--lucky-text-*`, `--lucky-motion-*`,
+    `--lucky-shadow-*` in `packages/frontend/src/index.css`
+  - Primitives: `Shell`, `SectionHeader`, `EmptyState`, `StatTile`,
+    `ActionPanel` in `packages/frontend/src/components/ui`
 
 ## Features
 
