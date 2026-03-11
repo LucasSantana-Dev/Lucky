@@ -3,9 +3,12 @@ import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
 let botClient: Client | null = null
+const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
+const BOT_GUILD_CACHE_TTL_MS = 60_000
 
 export function setBotClient(client: Client | null): void {
     botClient = client
+    guildService.clearBotGuildCache()
 }
 
 function getClient(): Client | null {
@@ -18,8 +21,110 @@ export interface GuildWithBotStatus extends DiscordGuild {
 }
 
 class GuildService {
+    private botGuildIdsCache: {
+        guildIds: Set<string>
+        expiresAt: number
+    } | null = null
+
+    private botGuildIdsInFlight: Promise<Set<string> | null> | null = null
+
     private getBotClient(): Client | null {
         return getClient()
+    }
+
+    clearBotGuildCache(): void {
+        this.botGuildIdsCache = null
+        this.botGuildIdsInFlight = null
+    }
+
+    private getBotToken(): string | null {
+        const token = process.env.DISCORD_TOKEN?.trim()
+        return token && token.length > 0 ? token : null
+    }
+
+    private async fetchBotGuildIds(token: string): Promise<Set<string> | null> {
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/users/@me/guilds`,
+                {
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                    },
+                },
+            )
+
+            if (!response.ok) {
+                const responseBody = await response.text()
+                errorLog({
+                    message: 'Failed to fetch bot guilds from Discord API',
+                    data: {
+                        status: response.status,
+                        responseBody,
+                    },
+                })
+                return null
+            }
+
+            const payload = (await response.json()) as unknown
+            if (!Array.isArray(payload)) {
+                errorLog({
+                    message: 'Invalid bot guild payload from Discord API',
+                })
+                return null
+            }
+
+            const guildIds = new Set<string>()
+            for (const item of payload) {
+                if (
+                    typeof item === 'object' &&
+                    item !== null &&
+                    typeof (item as { id?: unknown }).id === 'string'
+                ) {
+                    guildIds.add((item as { id: string }).id)
+                }
+            }
+
+            this.botGuildIdsCache = {
+                guildIds,
+                expiresAt: Date.now() + BOT_GUILD_CACHE_TTL_MS,
+            }
+
+            debugLog({
+                message: 'Fetched bot guild ids from Discord API',
+                data: { guildCount: guildIds.size },
+            })
+
+            return guildIds
+        } catch (error) {
+            errorLog({
+                message: 'Error fetching bot guild ids from Discord API',
+                error,
+            })
+            return null
+        }
+    }
+
+    private async getBotGuildIds(): Promise<Set<string> | null> {
+        const token = this.getBotToken()
+        if (!token) {
+            this.clearBotGuildCache()
+            return null
+        }
+
+        const now = Date.now()
+        if (this.botGuildIdsCache && this.botGuildIdsCache.expiresAt > now) {
+            return this.botGuildIdsCache.guildIds
+        }
+
+        if (this.botGuildIdsInFlight) {
+            return this.botGuildIdsInFlight
+        }
+
+        this.botGuildIdsInFlight = this.fetchBotGuildIds(token).finally(() => {
+            this.botGuildIdsInFlight = null
+        })
+
+        return this.botGuildIdsInFlight
     }
 
     async getUserGuilds(accessToken: string): Promise<DiscordGuild[]> {
@@ -74,8 +179,12 @@ class GuildService {
     async enrichGuildsWithBotStatus(
         guilds: DiscordGuild[],
     ): Promise<GuildWithBotStatus[]> {
+        const botGuildIds = await this.getBotGuildIds()
+
         return guilds.map((guild) => {
-            const hasBot = this.checkBotInGuild(guild.id)
+            const hasBot =
+                this.checkBotInGuild(guild.id) ||
+                (botGuildIds?.has(guild.id) ?? false)
             const botInviteUrl = hasBot
                 ? undefined
                 : this.generateBotInviteUrl(guild.id)

@@ -195,4 +195,43 @@ describe('Sidebar', () => {
             expect(screen.queryByText('Another Server')).not.toBeInTheDocument()
         })
     })
+
+    test('shows invite guidance when user has admin guilds without Lucky', async () => {
+        const noBotGuilds: Guild[] = [
+            { ...mockGuild, botAdded: false },
+            { ...mockGuild2, botAdded: false },
+        ]
+
+        vi.mocked(useGuildStore).mockReturnValue({
+            guilds: noBotGuilds,
+            selectedGuild: null,
+            selectedGuildId: null,
+            isLoading: false,
+            serverSettings: null,
+            serverListing: null,
+            fetchGuilds: vi.fn(),
+            selectGuild: mockSelectGuild,
+            setSelectedGuild: vi.fn(),
+            updateServerSettings: vi.fn(),
+            updateServerListing: vi.fn(),
+        })
+
+        const user = userEvent.setup()
+        renderSidebar()
+
+        await user.click(
+            screen.getByRole('button', { name: /select a server/i }),
+        )
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('No servers with Lucky yet'),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByText(
+                    'Invite Lucky to one of your servers from the Dashboard.',
+                ),
+            ).toBeInTheDocument()
+        })
+    })
 })

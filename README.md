@@ -171,7 +171,7 @@ See `.env.example` for all available options. Key variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DISCORD_TOKEN` | Yes | Discord bot token |
+| `DISCORD_TOKEN` | Yes | Discord bot token (bot runtime + backend guild membership checks) |
 | `CLIENT_ID` | Yes | Discord application client ID |
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `REDIS_HOST` | No | Redis host (default: localhost) |

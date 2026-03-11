@@ -174,8 +174,18 @@ function Sidebar() {
                             >
                                 <ScrollArea className='max-h-48'>
                                     {botGuilds.length === 0 ? (
-                                        <div className='px-3 py-4 text-sm text-lucky-text-tertiary text-center'>
-                                            No servers with bot
+                                        <div className='px-3 py-4 text-center space-y-1'>
+                                            <p className='text-sm text-lucky-text-tertiary'>
+                                                {guilds.length > 0
+                                                    ? 'No servers with Lucky yet'
+                                                    : 'No admin servers found'}
+                                            </p>
+                                            {guilds.length > 0 && (
+                                                <p className='text-xs text-lucky-text-tertiary'>
+                                                    Invite Lucky to one of your
+                                                    servers from the Dashboard.
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
                                         botGuilds.map((guild) => (
