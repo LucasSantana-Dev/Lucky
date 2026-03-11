@@ -63,6 +63,44 @@ describe('queueManipulation.replenishQueue', () => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
     })
 
+    async function replenishWithSingleCandidate(options: {
+        queueRequestedById?: string
+        candidateMetadata?: Record<string, unknown>
+        candidateTitle?: string
+        candidateAuthor?: string
+        candidateUrl?: string
+    }): Promise<QueueMock> {
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+            } as unknown as Track,
+            metadata: options.queueRequestedById
+                ? { requestedBy: { id: options.queueRequestedById } }
+                : {},
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: options.candidateTitle ?? 'Song B',
+                            author: options.candidateAuthor ?? 'Artist B',
+                            url: options.candidateUrl ?? 'https://example.com/b',
+                            metadata: options.candidateMetadata ?? {},
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+        return queue
+    }
+
     it('tops up autoplay queue with multiple tracks when below buffer', async () => {
         const queue = createQueueMock({
             tracks: {
@@ -222,136 +260,46 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
-    it('stores queue metadata requester on autoplay recommendations', async () => {
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Song A',
-                author: 'Artist A',
-                url: 'https://example.com/a',
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'queue-user' } },
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Song B',
-                            author: 'Artist B',
-                            url: 'https://example.com/b',
-                        },
-                    ],
-                }),
-            },
+    it.each([
+        {
+            name: 'stores queue metadata requester on autoplay recommendations',
+            queueRequestedById: 'queue-user',
+            candidateMetadata: {},
+            expectedRequestedById: 'queue-user',
+        },
+        {
+            name: 'keeps existing candidate requester metadata when no queue requester is present',
+            queueRequestedById: undefined,
+            candidateMetadata: { requestedById: 'seed-user' },
+            expectedRequestedById: 'seed-user',
+        },
+        {
+            name: 'keeps requester metadata undefined when no requester context exists',
+            queueRequestedById: undefined,
+            candidateMetadata: {},
+            expectedRequestedById: undefined,
+        },
+    ])('$name', async (scenario) => {
+        const queue = await replenishWithSingleCandidate({
+            queueRequestedById: scenario.queueRequestedById,
+            candidateMetadata: scenario.candidateMetadata,
         })
-
-        await replenishQueue(queue as unknown as GuildQueue)
 
         expect(queue.addTrack).toHaveBeenCalledWith(
             expect.objectContaining({
                 metadata: expect.objectContaining({
-                    requestedById: 'queue-user',
-                }),
-            }),
-        )
-    })
-
-    it('keeps existing candidate requester metadata when no queue requester is present', async () => {
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Song A',
-                author: 'Artist A',
-                url: 'https://example.com/a',
-            } as unknown as Track,
-            metadata: {},
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Song B',
-                            author: 'Artist B',
-                            url: 'https://example.com/b',
-                            metadata: { requestedById: 'seed-user' },
-                        },
-                    ],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(queue.addTrack).toHaveBeenCalledWith(
-            expect.objectContaining({
-                metadata: expect.objectContaining({
-                    requestedById: 'seed-user',
-                }),
-            }),
-        )
-    })
-
-    it('keeps requester metadata undefined when no requester context exists', async () => {
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Song A',
-                author: 'Artist A',
-                url: 'https://example.com/a',
-            } as unknown as Track,
-            metadata: {},
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Song B',
-                            author: 'Artist B',
-                            url: 'https://example.com/b',
-                            metadata: {},
-                        },
-                    ],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(queue.addTrack).toHaveBeenCalledWith(
-            expect.objectContaining({
-                metadata: expect.objectContaining({
-                    requestedById: undefined,
+                    requestedById: scenario.expectedRequestedById,
                 }),
             }),
         )
     })
 
     it('returns without adding tracks when candidate set is exhausted', async () => {
-        const queue = createQueueMock({
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Song A clone',
-                            author: 'Artist A',
-                            url: 'https://example.com/a',
-                        },
-                    ],
-                }),
-            },
+        const queue = await replenishWithSingleCandidate({
+            candidateTitle: 'Song A clone',
+            candidateAuthor: 'Artist A',
+            candidateUrl: 'https://example.com/a',
         })
-
-        await replenishQueue(queue as unknown as GuildQueue)
 
         expect(queue.addTrack).not.toHaveBeenCalled()
     })
