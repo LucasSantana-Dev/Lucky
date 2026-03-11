@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
 import { guildService, setBotClient } from '../../../src/services/GuildService'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
 import {
@@ -6,6 +13,8 @@ import {
     MOCK_TOKEN_RESPONSE,
 } from '../../fixtures/mock-data'
 import type { Client, Guild } from 'discord.js'
+
+const originalFetch = global.fetch
 
 jest.mock('../../../src/services/DiscordOAuthService', () => ({
     discordOAuthService: {
@@ -15,9 +24,23 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
 }))
 
 describe('GuildService', () => {
+    let originalDiscordToken: string | undefined
+
     beforeEach(() => {
         jest.clearAllMocks()
         setBotClient(null)
+        originalDiscordToken = process.env.DISCORD_TOKEN
+        delete process.env.DISCORD_TOKEN
+        global.fetch = originalFetch
+    })
+
+    afterEach(() => {
+        if (originalDiscordToken === undefined) {
+            delete process.env.DISCORD_TOKEN
+        } else {
+            process.env.DISCORD_TOKEN = originalDiscordToken
+        }
+        global.fetch = originalFetch
     })
 
     describe('getUserGuilds', () => {
@@ -157,6 +180,63 @@ describe('GuildService', () => {
             expect(result[0].botInviteUrl).toBeUndefined()
             expect(result[1].hasBot).toBe(false)
             expect(result[1].botInviteUrl).toBeDefined()
+        })
+
+        test('should use Discord API fallback when bot client is unavailable', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => [{ id: '111111111111111111' }],
+            } as never) as unknown as typeof fetch
+
+            const result =
+                await guildService.enrichGuildsWithBotStatus(
+                    MOCK_DISCORD_GUILDS,
+                )
+
+            expect(result[0].hasBot).toBe(true)
+            expect(result[0].botInviteUrl).toBeUndefined()
+            expect(result[1].hasBot).toBe(false)
+            expect(result[1].botInviteUrl).toBeDefined()
+            expect(global.fetch).toHaveBeenCalledWith(
+                'https://discord.com/api/v10/users/@me/guilds',
+                expect.objectContaining({
+                    headers: { Authorization: 'Bot test-bot-token' },
+                }),
+            )
+        })
+
+        test('should keep processing guilds when Discord API fallback fails', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false,
+                status: 500,
+                text: async () => 'discord api unavailable',
+            } as never) as unknown as typeof fetch
+
+            const result =
+                await guildService.enrichGuildsWithBotStatus(
+                    MOCK_DISCORD_GUILDS,
+                )
+
+            expect(result[0].hasBot).toBe(false)
+            expect(result[1].hasBot).toBe(false)
+            expect(result[0].botInviteUrl).toBeDefined()
+            expect(result[1].botInviteUrl).toBeDefined()
+        })
+
+        test('should cache Discord API fallback guild ids for short periods', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const fetchMock = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => [{ id: '111111111111111111' }],
+            } as never)
+            global.fetch = fetchMock as unknown as typeof fetch
+
+            await guildService.enrichGuildsWithBotStatus(MOCK_DISCORD_GUILDS)
+            await guildService.enrichGuildsWithBotStatus(MOCK_DISCORD_GUILDS)
+
+            expect(fetchMock).toHaveBeenCalledTimes(1)
         })
 
         test('should set botInviteUrl when bot is not in guild', async () => {
