@@ -23,6 +23,20 @@ const songInfoMessages = new Map<
 >()
 const lastFmTrackStartTime = new Map<string, number>()
 
+function getLastFmRequesterId(
+    queue: GuildQueue,
+    track: Track,
+): string | undefined {
+    const metadataRequester = (
+        track.metadata as { requestedById?: unknown } | undefined
+    )?.requestedById
+    const queueRequester = (queue.metadata as IQueueMetadata | undefined)
+        ?.requestedBy?.id
+    const fallbackRequester =
+        typeof metadataRequester === 'string' ? metadataRequester : undefined
+    return track.requestedBy?.id ?? fallbackRequester ?? queueRequester
+}
+
 function formatDuration(duration: string) {
     if (!duration || duration === '0:00') return 'Unknown duration'
     return duration
@@ -125,7 +139,8 @@ export async function updateLastFmNowPlaying(
     track: Track,
 ): Promise<void> {
     if (!isLastFmConfigured()) return
-    const sessionKey = await getSessionKeyForUser(track.requestedBy?.id)
+    const requesterId = getLastFmRequesterId(queue, track)
+    const sessionKey = await getSessionKeyForUser(requesterId)
     if (!sessionKey) return
     const durationSec =
         typeof track.duration === 'number'
@@ -150,9 +165,8 @@ export async function scrobbleCurrentTrackIfLastFm(
 ): Promise<void> {
     const trackToScrobble = track ?? queue.currentTrack
     if (!trackToScrobble || !isLastFmConfigured()) return
-    const sessionKey = await getSessionKeyForUser(
-        trackToScrobble.requestedBy?.id,
-    )
+    const requesterId = getLastFmRequesterId(queue, trackToScrobble)
+    const sessionKey = await getSessionKeyForUser(requesterId)
     if (!sessionKey) return
     const startedAt = lastFmTrackStartTime.get(queue.guild.id)
     lastFmTrackStartTime.delete(queue.guild.id)

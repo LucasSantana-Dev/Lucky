@@ -336,7 +336,7 @@ export const api = {
                 username: string | null
             }>('/lastfm/status'),
         unlink: () => apiClient.delete<{ success: boolean }>('/lastfm/unlink'),
-        getConnectUrl: () => `/api/lastfm/connect`,
+        getConnectUrl: () => `${NORMALIZED_API_BASE}/lastfm/connect`,
     },
 
     lyrics: {

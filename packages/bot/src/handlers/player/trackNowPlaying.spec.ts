@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { sendNowPlayingEmbed } from './trackNowPlaying'
+import {
+    sendNowPlayingEmbed,
+    updateLastFmNowPlaying,
+    scrobbleCurrentTrackIfLastFm,
+} from './trackNowPlaying'
 
 const debugLogMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
 const getAutoplayCountMock = jest.fn()
+const isLastFmConfiguredMock = jest.fn()
+const getSessionKeyForUserMock = jest.fn()
+const updateNowPlayingMock = jest.fn()
+const scrobbleMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -24,10 +32,11 @@ jest.mock('@lucky/shared/config', () => ({
 }))
 
 jest.mock('../../lastfm', () => ({
-    isLastFmConfigured: jest.fn(() => false),
-    getSessionKeyForUser: jest.fn(),
-    updateNowPlaying: jest.fn(),
-    scrobble: jest.fn(),
+    isLastFmConfigured: (...args: unknown[]) => isLastFmConfiguredMock(...args),
+    getSessionKeyForUser: (...args: unknown[]) =>
+        getSessionKeyForUserMock(...args),
+    updateNowPlaying: (...args: unknown[]) => updateNowPlayingMock(...args),
+    scrobble: (...args: unknown[]) => scrobbleMock(...args),
 }))
 
 function createQueue(guildId: string) {
@@ -45,7 +54,7 @@ function createQueue(guildId: string) {
     return {
         queue: {
             guild: { id: guildId },
-            metadata: { channel },
+            metadata: { channel, requestedBy: undefined },
             currentTrack: null,
             tracks: { at: jest.fn(() => null) },
         },
@@ -53,10 +62,12 @@ function createQueue(guildId: string) {
     }
 }
 
-describe('sendNowPlayingEmbed', () => {
+describe('trackNowPlaying', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         getAutoplayCountMock.mockResolvedValue(7)
+        isLastFmConfiguredMock.mockReturnValue(false)
+        getSessionKeyForUserMock.mockResolvedValue(null)
     })
 
     it('adds autoplay reason field and footer progress for autoplay tracks', async () => {
@@ -105,5 +116,99 @@ describe('sendNowPlayingEmbed', () => {
 
         expect(channel.send).toHaveBeenCalledTimes(1)
         expect(channel.messages.fetch).toHaveBeenCalledWith('message-1')
+    })
+
+    it.each([
+        {
+            name: 'track requester id over metadata and queue fallback',
+            queueRequestedBy: 'queue-user',
+            track: {
+                title: 'Song C2',
+                author: 'Artist C2',
+                duration: '4:10',
+                requestedBy: { id: 'track-user' },
+                metadata: { requestedById: 'meta-user' },
+            },
+            expectedRequesterId: 'track-user',
+            expectedSessionKey: 'session-track',
+        },
+        {
+            name: 'track metadata requester id fallback',
+            queueRequestedBy: undefined,
+            track: {
+                title: 'Song C',
+                author: 'Artist C',
+                duration: '4:12',
+                metadata: { requestedById: 'meta-user' },
+            },
+            expectedRequesterId: 'meta-user',
+            expectedSessionKey: 'session-meta',
+        },
+        {
+            name: 'queue requester id fallback for scrobble',
+            queueRequestedBy: 'queue-user',
+            track: {
+                title: 'Song D',
+                author: 'Artist D',
+                duration: '3:48',
+                metadata: {},
+            },
+            expectedRequesterId: 'queue-user',
+            expectedSessionKey: 'session-queue',
+        },
+    ])('resolves requester from $name', async (scenario) => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue(scenario.expectedSessionKey)
+
+        const { queue } = createQueue('guild-3')
+        queue.metadata.requestedBy = scenario.queueRequestedBy
+            ? { id: scenario.queueRequestedBy }
+            : undefined
+
+        await updateLastFmNowPlaying(queue as any, scenario.track as any)
+        await scrobbleCurrentTrackIfLastFm(queue as any, scenario.track as any)
+
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(
+            1,
+            scenario.expectedRequesterId,
+        )
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(
+            2,
+            scenario.expectedRequesterId,
+        )
+        expect(updateNowPlayingMock).toHaveBeenCalledWith(
+            scenario.track.author,
+            scenario.track.title,
+            undefined,
+            scenario.expectedSessionKey,
+        )
+        expect(scrobbleMock).toHaveBeenCalledWith(
+            scenario.track.author,
+            scenario.track.title,
+            expect.any(Number),
+            undefined,
+            scenario.expectedSessionKey,
+        )
+    })
+
+    it('skips now-playing and scrobble updates when requester cannot be resolved', async () => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue(null)
+
+        const { queue } = createQueue('guild-9')
+        const track = {
+            title: 'Song E',
+            author: 'Artist E',
+            duration: '4:00',
+            metadata: {},
+        }
+
+        await updateLastFmNowPlaying(queue as any, track as any)
+        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(1, undefined)
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(2, undefined)
+        expect(updateNowPlayingMock).not.toHaveBeenCalled()
+        expect(scrobbleMock).not.toHaveBeenCalled()
     })
 })

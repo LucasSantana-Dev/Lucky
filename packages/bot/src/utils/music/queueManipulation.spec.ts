@@ -63,6 +63,44 @@ describe('queueManipulation.replenishQueue', () => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
     })
 
+    async function replenishWithSingleCandidate(options: {
+        queueRequestedById?: string
+        candidateMetadata?: Record<string, unknown>
+        candidateTitle?: string
+        candidateAuthor?: string
+        candidateUrl?: string
+    }): Promise<QueueMock> {
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+            } as unknown as Track,
+            metadata: options.queueRequestedById
+                ? { requestedBy: { id: options.queueRequestedById } }
+                : {},
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: options.candidateTitle ?? 'Song B',
+                            author: options.candidateAuthor ?? 'Artist B',
+                            url: options.candidateUrl ?? 'https://example.com/b',
+                            metadata: options.candidateMetadata ?? {},
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+        return queue
+    }
+
     it('tops up autoplay queue with multiple tracks when below buffer', async () => {
         const queue = createQueueMock({
             tracks: {
@@ -112,6 +150,7 @@ describe('queueManipulation.replenishQueue', () => {
                 metadata: expect.objectContaining({
                     isAutoplay: true,
                     recommendationReason: expect.any(String),
+                    requestedById: 'user-1',
                 }),
             }),
         )
@@ -219,6 +258,50 @@ describe('queueManipulation.replenishQueue', () => {
                 url: 'https://example.com/allowed',
             }),
         )
+    })
+
+    it.each([
+        {
+            name: 'stores queue metadata requester on autoplay recommendations',
+            queueRequestedById: 'queue-user',
+            candidateMetadata: {},
+            expectedRequestedById: 'queue-user',
+        },
+        {
+            name: 'keeps existing candidate requester metadata when no queue requester is present',
+            queueRequestedById: undefined,
+            candidateMetadata: { requestedById: 'seed-user' },
+            expectedRequestedById: 'seed-user',
+        },
+        {
+            name: 'keeps requester metadata undefined when no requester context exists',
+            queueRequestedById: undefined,
+            candidateMetadata: {},
+            expectedRequestedById: undefined,
+        },
+    ])('$name', async (scenario) => {
+        const queue = await replenishWithSingleCandidate({
+            queueRequestedById: scenario.queueRequestedById,
+            candidateMetadata: scenario.candidateMetadata,
+        })
+
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    requestedById: scenario.expectedRequestedById,
+                }),
+            }),
+        )
+    })
+
+    it('returns without adding tracks when candidate set is exhausted', async () => {
+        const queue = await replenishWithSingleCandidate({
+            candidateTitle: 'Song A clone',
+            candidateAuthor: 'Artist A',
+            candidateUrl: 'https://example.com/a',
+        })
+
+        expect(queue.addTrack).not.toHaveBeenCalled()
     })
 })
 
@@ -343,7 +426,12 @@ describe('queueManipulation.queueOperations', () => {
             url: '',
         } as Track
         const queue = {
-            tracks: { toArray: jest.fn().mockReturnValue([playableTrack, brokenTrack]), size: 2 },
+            tracks: {
+                toArray: jest
+                    .fn()
+                    .mockReturnValue([playableTrack, brokenTrack]),
+                size: 2,
+            },
             clear: jest.fn(),
             addTrack: jest.fn(),
             repeatMode: 0,

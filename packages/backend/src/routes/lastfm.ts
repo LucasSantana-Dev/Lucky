@@ -13,10 +13,11 @@ import {
     type AuthenticatedRequest,
 } from '../middleware/auth'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
+import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
-const lastFmCallbackQuery = z.object({ token: z.string().min(1) })
+const lastFmCallbackQuery = z.object({ token: z.string().min(1), state: z.string().min(1).optional() })
 
 function getLinkSecret(): string {
     const secret =
@@ -64,6 +65,11 @@ function decodeAndVerifyState(state: string, secret: string): string | null {
 
 function getFrontendUrl(): string {
     return getPrimaryFrontendUrl()
+}
+
+function resolveBackendBaseUrl(req: Request): string {
+    const base = process.env.WEBAPP_BACKEND_URL?.trim() ?? new URL(getOAuthRedirectUri(req)).origin
+    return base.endsWith('/') ? base.slice(0, -1) : base
 }
 
 export function setupLastFmRoutes(app: Express): void {
@@ -160,9 +166,8 @@ export function setupLastFmRoutes(app: Express): void {
                         `${frontendUrl}/?error=lastfm_not_configured`,
                     )
                 }
-                const backendUrl =
-                    process.env.WEBAPP_BACKEND_URL ?? getFrontendUrl()
-                const callbackUrl = `${backendUrl}/api/lastfm/callback`
+                const backendBaseUrl = resolveBackendBaseUrl(req)
+                const callbackUrl = `${backendBaseUrl}/api/lastfm/callback?state=${encodeURIComponent(state)}`
                 const authUrl = `https://www.last.fm/api/auth?api_key=${encodeURIComponent(apiKey)}&cb=${encodeURIComponent(callbackUrl)}`
                 res.redirect(authUrl)
             } catch (error) {
@@ -187,13 +192,18 @@ export function setupLastFmRoutes(app: Express): void {
                 )
             }
 
-            if (!stateFromCookie || typeof stateFromCookie !== 'string') {
+            const state =
+                typeof parsedQuery.data.state === 'string'
+                    ? parsedQuery.data.state
+                    : (typeof stateFromCookie === 'string' ? stateFromCookie : null)
+
+            if (!state) {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_missing_state`,
                 )
             }
             const secret = getLinkSecret()
-            const discordId = decodeAndVerifyState(stateFromCookie, secret)
+            const discordId = decodeAndVerifyState(state, secret)
             if (!discordId) {
                 return res.redirect(
                     `${frontendUrl}/?error=lastfm_invalid_state`,

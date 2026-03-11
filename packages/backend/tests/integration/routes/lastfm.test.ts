@@ -93,6 +93,7 @@ describe('Last.fm Routes Integration', () => {
         delete process.env.LASTFM_API_KEY
         delete process.env.LASTFM_LINK_SECRET
         delete process.env.WEBAPP_BACKEND_URL
+        delete process.env.WEBAPP_REDIRECT_URI
         delete process.env.WEBAPP_FRONTEND_URL
     })
 
@@ -222,7 +223,40 @@ describe('Last.fm Routes Integration', () => {
 
             expect(res.headers.location).toContain(
                 encodeURIComponent(
-                    'https://api.example.com/api/lastfm/callback',
+                    `https://api.example.com/api/lastfm/callback?state=${state}`,
+                ),
+            )
+        })
+
+        test('should normalize trailing slash in WEBAPP_BACKEND_URL callback origin', async () => {
+            process.env.WEBAPP_BACKEND_URL = 'https://api.example.com/'
+            const state = buildState(DISCORD_ID, LINK_SECRET)
+
+            const res = await request(app)
+                .get('/api/lastfm/connect')
+                .query({ state })
+                .expect(302)
+
+            expect(res.headers.location).toContain(
+                encodeURIComponent(
+                    `https://api.example.com/api/lastfm/callback?state=${state}`,
+                ),
+            )
+        })
+
+        test('should derive callback origin from WEBAPP_REDIRECT_URI when backend url is unset', async () => {
+            process.env.WEBAPP_REDIRECT_URI =
+                'https://lucky.example.com/api/auth/callback'
+            const state = buildState(DISCORD_ID, LINK_SECRET)
+
+            const res = await request(app)
+                .get('/api/lastfm/connect')
+                .query({ state })
+                .expect(302)
+
+            expect(res.headers.location).toContain(
+                encodeURIComponent(
+                    `https://lucky.example.com/api/lastfm/callback?state=${state}`,
                 ),
             )
         })
@@ -329,6 +363,27 @@ describe('Last.fm Routes Integration', () => {
 
             expect(res.headers.location).toContain('lastfm_linked=true')
             expect(mockExchangeToken).toHaveBeenCalledWith('valid_token')
+            expect(mockSetLink).toHaveBeenCalledWith(
+                DISCORD_ID,
+                'sk_123',
+                'fmuser',
+            )
+        })
+
+        test('should link account when valid state comes from query', async () => {
+            const state = buildState(DISCORD_ID, LINK_SECRET)
+            mockExchangeToken.mockResolvedValue({
+                sessionKey: 'sk_123',
+                username: 'fmuser',
+            })
+            mockSetLink.mockResolvedValue(true)
+
+            const res = await request(app)
+                .get('/api/lastfm/callback')
+                .query({ token: 'valid_token', state })
+                .expect(302)
+
+            expect(res.headers.location).toContain('lastfm_linked=true')
             expect(mockSetLink).toHaveBeenCalledWith(
                 DISCORD_ID,
                 'sk_123',
