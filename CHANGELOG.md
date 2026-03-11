@@ -31,11 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   root prefix `/` targets `lucky.lucassantana.tech` with no proxy path mappings
 - `/serversetup` now supports `template:criativaria` with optional
   `mode:apply|dry-run`, including idempotent setup orchestration and dry-run
-  summaries
+  summaries (PR #164)
 - Added bot tests for command registration coverage, command-file filtering, and
   `/serversetup` template/mode behavior (`register.spec`,
-  `getCommandsFromDirectory.spec`, `serversetup.spec`,
-  `serversetupCriativaria.spec`)
+  `getCommandsFromDirectory.spec`, `serversetup.spec`, `serversetupCriativaria.spec`) (PR #164)
 
 ### Fixed
 
@@ -68,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/install` now proxies to `/api/auth/discord` so the public install URL
   reliably returns Discord OAuth redirect (`302`) on production
 - `/serversetup` now explicitly preserves managed server visual identity and
-  does not modify guild icon/splash/banner
+  does not modify guild icon/splash/banner (PR #164)
 - Bot runtime command loading now includes `management`, `moderation`, and
   `automod` categories
 - Command directory loading now ignores `*.spec.*` and `*.test.*` modules so
