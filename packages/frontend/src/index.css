@@ -65,21 +65,37 @@
   --color-lucky-gold-300: #f3cc64;
   --color-lucky-success: #22c55e;
   --color-lucky-error: #ef4444;
+  --color-lucky-warning: #f59e0b;
+  --color-lucky-info: #38bdf8;
+
+  --color-lucky-surface-canvas: #130826;
+  --color-lucky-surface-sidebar: #1c0d36;
+  --color-lucky-surface-panel: #241246;
+  --color-lucky-surface-elevated: #30165b;
+  --color-lucky-surface-highlight: #3a1f68;
+  --color-lucky-border-soft: #3f2c64;
+  --color-lucky-border-strong: #5a3a8b;
+  --color-lucky-text-strong: #ffffff;
+  --color-lucky-text-body: #ddd2ef;
+  --color-lucky-text-muted: #b5a3d5;
+  --color-lucky-text-subtle: #8a75b0;
+  --color-lucky-shadow-soft: 0 12px 40px rgb(7 2 20 / 0.35);
+  --color-lucky-shadow-panel: 0 22px 64px rgb(4 1 16 / 0.45);
+  --color-lucky-shadow-focus: 0 0 0 2px rgb(212 160 23 / 0.6);
 
   --color-lucky-red: var(--color-lucky-gold-500);
-  --color-lucky-bg-primary: var(--color-lucky-purple-900);
-  --color-lucky-bg-secondary: var(--color-lucky-purple-800);
-  --color-lucky-bg-tertiary: var(--color-lucky-purple-700);
-  --color-lucky-bg-active: var(--color-lucky-purple-600);
-  --color-lucky-border: #3c2c5f;
-  --color-lucky-text-primary: #ffffff;
-  --color-lucky-text-secondary: #d0c7e6;
-  --color-lucky-text-tertiary: #a898c9;
-  --color-lucky-text-disabled: #7f6ca4;
+  --color-lucky-bg-primary: var(--color-lucky-surface-canvas);
+  --color-lucky-bg-secondary: var(--color-lucky-surface-sidebar);
+  --color-lucky-bg-tertiary: var(--color-lucky-surface-panel);
+  --color-lucky-bg-active: var(--color-lucky-surface-highlight);
+  --color-lucky-border: var(--color-lucky-border-soft);
+  --color-lucky-text-primary: var(--color-lucky-text-strong);
+  --color-lucky-text-secondary: var(--color-lucky-text-body);
+  --color-lucky-text-tertiary: var(--color-lucky-text-muted);
+  --color-lucky-text-disabled: var(--color-lucky-text-subtle);
   --color-lucky-blue: var(--color-lucky-purple-400);
   --color-lucky-purple: var(--color-lucky-purple-400);
-  --color-lucky-success: #22c55e;
-  --color-lucky-error: #ef4444;
+
   --font-lucky-display: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
   --font-lucky-body: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
   --font-lucky-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
@@ -95,6 +111,8 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-shimmer: shimmer 2s infinite;
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-fade-up: fade-up 0.25s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
 
   @keyframes accordion-down {
     from {
@@ -129,16 +147,26 @@
       opacity: 1;
     }
   }
+  @keyframes fade-up {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
   *,
   ::after,
@@ -168,26 +196,106 @@
   }
 }
 
+@utility type-display {
+  font-family: var(--font-lucky-display);
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 750;
+}
+
+@utility type-h1 {
+  font-family: var(--font-lucky-display);
+  font-size: clamp(1.9rem, 3vw, 2.8rem);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  font-weight: 700;
+}
+
+@utility type-h2 {
+  font-family: var(--font-lucky-display);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  font-weight: 650;
+}
+
+@utility type-title {
+  font-family: var(--font-lucky-display);
+  font-size: 1.125rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+@utility type-body-lg {
+  font-family: var(--font-lucky-body);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+@utility type-body {
+  font-family: var(--font-lucky-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+@utility type-body-sm {
+  font-family: var(--font-lucky-body);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+@utility type-meta {
+  font-family: var(--font-lucky-body);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  letter-spacing: 0.09em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+@utility surface-panel {
+  border: 1px solid var(--lucky-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 0.03),
+    rgb(255 255 255 / 0)
+  );
+  background-color: var(--lucky-bg-secondary);
+  box-shadow: var(--lucky-shadow-soft);
+}
+
+@utility surface-card {
+  border: 1px solid rgb(90 58 139 / 0.34);
+  border-radius: calc(var(--radius) + 0.3rem);
+  background-color: var(--lucky-bg-tertiary);
+  box-shadow: var(--lucky-shadow-panel);
+}
+
 @layer base {
   :root {
-    /* Lucky Dark Theme - Purple and Gold */
-    --background: 264 56% 12%;
+    --background: 262 61% 9%;
     --foreground: 0 0% 100%;
 
-    --card: 264 49% 17%;
+    --card: 263 48% 16%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 264 49% 17%;
+    --popover: 263 48% 16%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 264 89% 67%;
+    --primary: 265 89% 67%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 45 78% 47%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary-foreground: 20 17% 12%;
 
-    --muted: 264 37% 24%;
-    --muted-foreground: 260 30% 82%;
+    --muted: 262 34% 26%;
+    --muted-foreground: 260 36% 80%;
 
     --accent: 45 78% 47%;
     --accent-foreground: 20 17% 12%;
@@ -195,64 +303,80 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 264 36% 28%;
-    --input: 264 44% 20%;
+    --border: 262 35% 29%;
+    --input: 263 43% 21%;
     --ring: 45 78% 57%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 264 56% 12%;
+    --sidebar-background: 262 58% 11%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 264 89% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 264 44% 20%;
+    --sidebar-accent: 263 43% 21%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 264 36% 28%;
+    --sidebar-border: 262 35% 29%;
     --sidebar-ring: 45 78% 57%;
 
-    --lucky-red: var(--color-lucky-gold-500);
-    --lucky-bg-primary: var(--color-lucky-purple-900);
-    --lucky-bg-secondary: var(--color-lucky-purple-800);
-    --lucky-bg-tertiary: var(--color-lucky-purple-700);
-    --lucky-bg-active: var(--color-lucky-purple-600);
-    --lucky-border: #3c2c5f;
-    --lucky-text-primary: #ffffff;
-    --lucky-text-secondary: #d0c7e6;
-    --lucky-text-tertiary: #a898c9;
-    --lucky-text-disabled: #7f6ca4;
-    --lucky-blue: var(--color-lucky-purple-400);
-    --lucky-purple: var(--color-lucky-purple-400);
-    --lucky-success: var(--color-lucky-success);
-    --lucky-error: var(--color-lucky-error);
+    --lucky-surface-canvas: var(--color-lucky-surface-canvas);
+    --lucky-surface-sidebar: var(--color-lucky-surface-sidebar);
+    --lucky-surface-panel: var(--color-lucky-surface-panel);
+    --lucky-surface-elevated: var(--color-lucky-surface-elevated);
+    --lucky-surface-highlight: var(--color-lucky-surface-highlight);
+    --lucky-border-soft: var(--color-lucky-border-soft);
+    --lucky-border-strong: var(--color-lucky-border-strong);
+    --lucky-text-strong: var(--color-lucky-text-strong);
+    --lucky-text-body: var(--color-lucky-text-body);
+    --lucky-text-muted: var(--color-lucky-text-muted);
+    --lucky-text-subtle: var(--color-lucky-text-subtle);
+    --lucky-shadow-soft: var(--color-lucky-shadow-soft);
+    --lucky-shadow-panel: var(--color-lucky-shadow-panel);
+    --lucky-shadow-focus: var(--color-lucky-shadow-focus);
+    --lucky-motion-fast: 140ms;
+    --lucky-motion-standard: 220ms;
+    --lucky-motion-slow: 320ms;
 
     --lucky-brand: var(--color-lucky-purple-400);
     --lucky-brand-strong: var(--color-lucky-purple-500);
     --lucky-accent: var(--color-lucky-gold-500);
     --lucky-accent-soft: var(--color-lucky-gold-400);
-    --lucky-surface-1: var(--color-lucky-purple-900);
-    --lucky-surface-2: var(--color-lucky-purple-800);
-    --lucky-surface-3: var(--color-lucky-purple-700);
-    --lucky-text-muted: #a898c9;
+    --lucky-success: var(--color-lucky-success);
+    --lucky-error: var(--color-lucky-error);
+    --lucky-warning: var(--color-lucky-warning);
+    --lucky-info: var(--color-lucky-info);
+
+    --lucky-red: var(--lucky-accent);
+    --lucky-bg-primary: var(--lucky-surface-canvas);
+    --lucky-bg-secondary: var(--lucky-surface-sidebar);
+    --lucky-bg-tertiary: var(--lucky-surface-panel);
+    --lucky-bg-active: var(--lucky-surface-highlight);
+    --lucky-border: var(--lucky-border-soft);
+    --lucky-text-primary: var(--lucky-text-strong);
+    --lucky-text-secondary: var(--lucky-text-body);
+    --lucky-text-tertiary: var(--lucky-text-muted);
+    --lucky-text-disabled: var(--lucky-text-subtle);
+    --lucky-blue: var(--lucky-brand);
+    --lucky-purple: var(--lucky-brand);
   }
 
   .dark {
-    --background: 264 56% 12%;
+    --background: 262 61% 9%;
     --foreground: 0 0% 100%;
 
-    --card: 264 49% 17%;
+    --card: 263 48% 16%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 264 49% 17%;
+    --popover: 263 48% 16%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 264 89% 67%;
+    --primary: 265 89% 67%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 45 78% 47%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary-foreground: 20 17% 12%;
 
-    --muted: 264 37% 24%;
-    --muted-foreground: 260 30% 82%;
+    --muted: 262 34% 26%;
+    --muted-foreground: 260 36% 80%;
 
     --accent: 45 78% 47%;
     --accent-foreground: 20 17% 12%;
@@ -260,17 +384,17 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 264 36% 28%;
-    --input: 264 44% 20%;
+    --border: 262 35% 29%;
+    --input: 263 43% 21%;
     --ring: 45 78% 57%;
 
-    --sidebar-background: 264 56% 12%;
+    --sidebar-background: 262 58% 11%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 264 89% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 264 44% 20%;
+    --sidebar-accent: 263 43% 21%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 264 36% 28%;
+    --sidebar-border: 262 35% 29%;
     --sidebar-ring: 45 78% 57%;
   }
 }
@@ -279,9 +403,15 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: var(--font-lucky-body);
+    background-image:
+      radial-gradient(circle at 15% 20%, rgb(139 92 246 / 0.14), transparent 36%),
+      radial-gradient(circle at 80% 8%, rgb(212 160 23 / 0.1), transparent 28%),
+      radial-gradient(circle at 85% 85%, rgb(139 92 246 / 0.1), transparent 30%);
+    background-attachment: fixed;
   }
 
   h1,
@@ -297,5 +427,54 @@
   pre,
   .font-mono {
     font-family: var(--font-lucky-mono);
+  }
+
+  ::selection {
+    background-color: rgb(212 160 23 / 0.3);
+    color: var(--lucky-text-primary);
+  }
+}
+
+@layer components {
+  .lucky-shell {
+    position: relative;
+    min-height: 100vh;
+    color: var(--lucky-text-primary);
+  }
+
+  .lucky-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background-image:
+      linear-gradient(140deg, rgb(255 255 255 / 0.032), rgb(255 255 255 / 0) 22%),
+      radial-gradient(circle at 88% 12%, rgb(212 160 23 / 0.12), transparent 42%),
+      radial-gradient(circle at 14% 78%, rgb(139 92 246 / 0.12), transparent 46%);
+    opacity: 0.98;
+  }
+
+  .lucky-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.18;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        rgb(255 255 255 / 0.06) 0,
+        rgb(255 255 255 / 0.06) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    mix-blend-mode: soft-light;
+  }
+
+  .lucky-focus-visible:focus-visible {
+    outline: none;
+    box-shadow: var(--lucky-shadow-focus);
   }
 }

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
   command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
   matrix, and a one-command-per-PR rollout plan for the next 6 weeks
+- Frontend neo-editorial design foundation: semantic UI tokens in
+  `packages/frontend/src/index.css` plus reusable primitives (`Shell`,
+  `SectionHeader`, `EmptyState`, `StatTile`, `ActionPanel`) for consistent
+  dashboard composition
 
 ### Fixed
 
@@ -25,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   callback state can be validated from cookie or query for split-origin setups
 - Autoplay Last.fm scrobbling now falls back to stored requester metadata so
   recommended tracks keep the original requester attribution
+
+### Changed
+
+- Removed unused legacy layout components (`DashboardLayout`, `Header`,
+  `Navbar`) from frontend layout module to reduce duplicate shell patterns
 
 ## [2.6.9] - 2026-03-10
 
