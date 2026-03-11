@@ -58,6 +58,9 @@ const loadApiModule = async (inferredBase = '/api') => {
     const apiClient = {
         get: vi.fn(),
         post: vi.fn(),
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn(),
         interceptors: {
             response: {
                 use: responseUse,
@@ -67,7 +70,7 @@ const loadApiModule = async (inferredBase = '/api') => {
     axiosCreateMock.mockReturnValue(apiClient)
 
     const module = await import('./api')
-    return { module, responseUse }
+    return { module, responseUse, apiClient }
 }
 
 describe('api service bootstrap', () => {
@@ -139,5 +142,82 @@ describe('api service bootstrap', () => {
             message: 'Unable to connect to the server',
         })
         expect(assignMock).not.toHaveBeenCalled()
+    })
+
+    test('maps guild listing fields including nullable metrics and RBAC metadata', async () => {
+        const { module, apiClient } = await loadApiModule('/api')
+        const effectiveAccess = {
+            overview: 'manage',
+            settings: 'view',
+            moderation: 'none',
+            automation: 'none',
+            music: 'none',
+            integrations: 'none',
+        } as const
+
+        apiClient.get.mockResolvedValue({
+            data: {
+                guilds: [
+                    {
+                        id: '123',
+                        name: 'Guild 123',
+                        icon: null,
+                        owner: false,
+                        permissions: '0',
+                        features: [],
+                        hasBot: true,
+                        botInviteUrl: 'https://discord.com/oauth2/authorize',
+                        memberCount: null,
+                        categoryCount: 4,
+                        textChannelCount: 12,
+                        voiceChannelCount: 3,
+                        roleCount: null,
+                        effectiveAccess,
+                        canManageRbac: true,
+                    },
+                ],
+            },
+        })
+
+        const response = await module.api.guilds.list()
+
+        expect(response.data.guilds).toEqual([
+            expect.objectContaining({
+                id: '123',
+                memberCount: null,
+                categoryCount: 4,
+                textChannelCount: 12,
+                voiceChannelCount: 3,
+                roleCount: null,
+                effectiveAccess,
+                canManageRbac: true,
+            }),
+        ])
+    })
+
+    test('exposes RBAC and member-context endpoints on guilds api', async () => {
+        const { module, apiClient } = await loadApiModule('/api')
+
+        await module.api.guilds.getMe('guild-1')
+        await module.api.guilds.getRbac('guild-1')
+        await module.api.guilds.updateRbac('guild-1', [
+            {
+                roleId: '222222222222222222',
+                module: 'moderation',
+                mode: 'manage',
+            },
+        ])
+
+        expect(apiClient.get).toHaveBeenNthCalledWith(1, '/guilds/guild-1/me')
+        expect(apiClient.get).toHaveBeenNthCalledWith(2, '/guilds/guild-1/rbac')
+        expect(apiClient.put).toHaveBeenCalledWith('/guilds/guild-1/rbac', {
+            grants: [
+                {
+                    roleId: '222222222222222222',
+                    module: 'moderation',
+                    mode: 'manage',
+                },
+            ],
+        })
     })
 })
