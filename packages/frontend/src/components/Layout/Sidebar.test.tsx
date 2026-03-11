@@ -234,4 +234,63 @@ describe('Sidebar', () => {
             ).toBeInTheDocument()
         })
     })
+
+    test('shows no-admin state when user has no guilds', async () => {
+        vi.mocked(useGuildStore).mockReturnValue({
+            guilds: [],
+            selectedGuild: null,
+            selectedGuildId: null,
+            isLoading: false,
+            serverSettings: null,
+            serverListing: null,
+            fetchGuilds: vi.fn(),
+            selectGuild: mockSelectGuild,
+            setSelectedGuild: vi.fn(),
+            updateServerSettings: vi.fn(),
+            updateServerListing: vi.fn(),
+        })
+
+        const user = userEvent.setup()
+        renderSidebar()
+
+        await user.click(screen.getByRole('button', { name: /select a server/i }))
+
+        await waitFor(() => {
+            expect(screen.getByText('No admin servers found')).toBeInTheDocument()
+            expect(
+                screen.queryByText(
+                    'Invite Lucky to one of your servers from the Dashboard.',
+                ),
+            ).not.toBeInTheDocument()
+        })
+    })
+
+    test('opens and closes mobile sidebar', async () => {
+        const user = userEvent.setup()
+        renderSidebar()
+
+        expect(
+            screen.getAllByRole('button', { name: /close sidebar/i }),
+        ).toHaveLength(1)
+
+        const openButton = screen.getByRole('button', { name: /open sidebar/i })
+        await user.click(openButton)
+
+        await waitFor(() => {
+            expect(
+                screen.getAllByRole('button', { name: /close sidebar/i }),
+            ).toHaveLength(2)
+        })
+
+        const [mobileCloseButton] = screen.getAllByRole('button', {
+            name: /close sidebar/i,
+        })
+        await user.click(mobileCloseButton)
+
+        await waitFor(() => {
+            expect(
+                screen.getAllByRole('button', { name: /close sidebar/i }),
+            ).toHaveLength(1)
+        })
+    })
 })
