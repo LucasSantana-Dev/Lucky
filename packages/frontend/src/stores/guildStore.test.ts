@@ -26,6 +26,35 @@ const mockGuild = (overrides?: Partial<Guild>): Guild => ({
     ...overrides,
 })
 
+const MANAGE_ACCESS = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+} as const
+
+function setupSelectedGuildApiMocks(guildId: string) {
+    vi.mocked(api.guilds.getSettings).mockResolvedValue({
+        data: { settings: null },
+    } as never)
+    vi.mocked(api.guilds.getListing).mockResolvedValue({
+        data: { listing: null },
+    } as never)
+    vi.mocked(api.guilds.getMe).mockResolvedValue({
+        data: {
+            guildId,
+            nickname: null,
+            username: 'user',
+            globalName: null,
+            roleIds: [],
+            effectiveAccess: MANAGE_ACCESS,
+            canManageRbac: true,
+        },
+    } as never)
+}
+
 describe('guildStore', () => {
     beforeEach(() => {
         useGuildStore.setState({
@@ -47,30 +76,7 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.list).mockResolvedValue({
                 data: { guilds },
             } as never)
-            vi.mocked(api.guilds.getSettings).mockResolvedValue({
-                data: { settings: null },
-            } as never)
-            vi.mocked(api.guilds.getListing).mockResolvedValue({
-                data: { listing: null },
-            } as never)
-            vi.mocked(api.guilds.getMe).mockResolvedValue({
-                data: {
-                    guildId: guilds[0].id,
-                    nickname: null,
-                    username: 'user',
-                    globalName: null,
-                    roleIds: [],
-                    effectiveAccess: {
-                        overview: 'manage',
-                        settings: 'manage',
-                        moderation: 'manage',
-                        automation: 'manage',
-                        music: 'manage',
-                        integrations: 'manage',
-                    },
-                    canManageRbac: true,
-                },
-            } as never)
+            setupSelectedGuildApiMocks(guilds[0].id)
 
             await useGuildStore.getState().fetchGuilds()
 
@@ -86,30 +92,7 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.list).mockResolvedValue({
                 data: { guilds },
             } as never)
-            vi.mocked(api.guilds.getSettings).mockResolvedValue({
-                data: { settings: null },
-            } as never)
-            vi.mocked(api.guilds.getListing).mockResolvedValue({
-                data: { listing: null },
-            } as never)
-            vi.mocked(api.guilds.getMe).mockResolvedValue({
-                data: {
-                    guildId: guilds[0].id,
-                    nickname: null,
-                    username: 'user',
-                    globalName: null,
-                    roleIds: [],
-                    effectiveAccess: {
-                        overview: 'manage',
-                        settings: 'manage',
-                        moderation: 'manage',
-                        automation: 'manage',
-                        music: 'manage',
-                        integrations: 'manage',
-                    },
-                    canManageRbac: true,
-                },
-            } as never)
+            setupSelectedGuildApiMocks(guilds[0].id)
 
             await useGuildStore.getState().fetchGuilds()
 
@@ -131,30 +114,7 @@ describe('guildStore', () => {
     describe('selectGuild', () => {
         test('should set selected guild and id', () => {
             const guild = mockGuild()
-            vi.mocked(api.guilds.getSettings).mockResolvedValue({
-                data: { settings: null },
-            } as never)
-            vi.mocked(api.guilds.getListing).mockResolvedValue({
-                data: { listing: null },
-            } as never)
-            vi.mocked(api.guilds.getMe).mockResolvedValue({
-                data: {
-                    guildId: guild.id,
-                    nickname: null,
-                    username: 'user',
-                    globalName: null,
-                    roleIds: [],
-                    effectiveAccess: {
-                        overview: 'manage',
-                        settings: 'manage',
-                        moderation: 'manage',
-                        automation: 'manage',
-                        music: 'manage',
-                        integrations: 'manage',
-                    },
-                    canManageRbac: true,
-                },
-            } as never)
+            setupSelectedGuildApiMocks(guild.id)
 
             useGuildStore.getState().selectGuild(guild)
 
@@ -204,30 +164,7 @@ describe('guildStore', () => {
         test('should find guild by id and select it', () => {
             const guild = mockGuild({ id: '42' })
             useGuildStore.setState({ guilds: [guild] })
-            vi.mocked(api.guilds.getSettings).mockResolvedValue({
-                data: { settings: null },
-            } as never)
-            vi.mocked(api.guilds.getListing).mockResolvedValue({
-                data: { listing: null },
-            } as never)
-            vi.mocked(api.guilds.getMe).mockResolvedValue({
-                data: {
-                    guildId: guild.id,
-                    nickname: null,
-                    username: 'user',
-                    globalName: null,
-                    roleIds: [],
-                    effectiveAccess: {
-                        overview: 'manage',
-                        settings: 'manage',
-                        moderation: 'manage',
-                        automation: 'manage',
-                        music: 'manage',
-                        integrations: 'manage',
-                    },
-                    canManageRbac: true,
-                },
-            } as never)
+            setupSelectedGuildApiMocks(guild.id)
 
             useGuildStore.getState().setSelectedGuild('42')
 

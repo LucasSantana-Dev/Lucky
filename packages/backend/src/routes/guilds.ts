@@ -7,21 +7,30 @@ import { sessionService } from '../services/SessionService'
 import { guildService } from '../services/GuildService'
 import { guildAccessService } from '../services/GuildAccessService'
 
+function getGuildId(req: AuthenticatedRequest): string {
+    return typeof req.params.id === 'string' ? req.params.id : req.params.id[0]
+}
+
+async function getSessionData(req: AuthenticatedRequest) {
+    const sessionId = req.sessionId
+    if (!sessionId) {
+        throw AppError.unauthorized()
+    }
+
+    const sessionData = await sessionService.getSession(sessionId)
+    if (!sessionData) {
+        throw AppError.unauthorized('Session expired')
+    }
+
+    return sessionData
+}
+
 export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds',
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const sessionId = req.sessionId
-            if (!sessionId) {
-                throw AppError.unauthorized()
-            }
-
-            const sessionData = await sessionService.getSession(sessionId)
-            if (!sessionData) {
-                throw AppError.unauthorized('Session expired')
-            }
-
+            const sessionData = await getSessionData(req)
             const guilds =
                 await guildAccessService.listAuthorizedGuilds(sessionData)
 
@@ -34,19 +43,8 @@ export function setupGuildRoutes(app: Express): void {
         requireAuth,
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const id =
-                typeof req.params.id === 'string'
-                    ? req.params.id
-                    : req.params.id[0]
-
-            if (!req.sessionId) {
-                throw AppError.unauthorized()
-            }
-
-            const sessionData = await sessionService.getSession(req.sessionId)
-            if (!sessionData) {
-                throw AppError.unauthorized('Session expired')
-            }
+            const id = getGuildId(req)
+            const sessionData = await getSessionData(req)
 
             const guilds =
                 await guildAccessService.listAuthorizedGuilds(sessionData)
@@ -65,11 +63,7 @@ export function setupGuildRoutes(app: Express): void {
         requireAuth,
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const id =
-                typeof req.params.id === 'string'
-                    ? req.params.id
-                    : req.params.id[0]
-
+            const id = getGuildId(req)
             const inviteUrl = guildService.generateBotInviteUrl(id)
 
             res.json({ inviteUrl })
@@ -81,19 +75,8 @@ export function setupGuildRoutes(app: Express): void {
         requireAuth,
         requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const id =
-                typeof req.params.id === 'string'
-                    ? req.params.id
-                    : req.params.id[0]
-
-            if (!req.sessionId) {
-                throw AppError.unauthorized()
-            }
-
-            const sessionData = await sessionService.getSession(req.sessionId)
-            if (!sessionData) {
-                throw AppError.unauthorized('Session expired')
-            }
+            const id = getGuildId(req)
+            const sessionData = await getSessionData(req)
 
             const guildContext =
                 req.guildContext ??

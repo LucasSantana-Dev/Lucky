@@ -40,6 +40,33 @@ const mockGuild2: Guild = {
 describe('Sidebar', () => {
     const mockLogout = vi.fn()
     const mockSelectGuild = vi.fn()
+    const mockFetchGuilds = vi.fn()
+    const mockSetSelectedGuild = vi.fn()
+    const mockUpdateServerSettings = vi.fn()
+    const mockUpdateServerListing = vi.fn()
+
+    function mockGuildStoreState(
+        overrides: Partial<ReturnType<typeof useGuildStore>>,
+    ) {
+        vi.mocked(useGuildStore).mockReturnValue({
+            guilds: [mockGuild, mockGuild2],
+            selectedGuild: mockGuild,
+            selectedGuildId: mockGuild.id,
+            isLoading: false,
+            memberContext: null,
+            memberContextLoading: false,
+            serverSettings: null,
+            serverListing: null,
+            fetchGuilds: mockFetchGuilds,
+            selectGuild: mockSelectGuild,
+            fetchMemberContext: vi.fn(),
+            setSelectedGuild: mockSetSelectedGuild,
+            getSelectedGuild: vi.fn(),
+            updateServerSettings: mockUpdateServerSettings,
+            updateServerListing: mockUpdateServerListing,
+            ...overrides,
+        })
+    }
 
     beforeEach(() => {
         vi.clearAllMocks()
@@ -53,19 +80,7 @@ describe('Sidebar', () => {
             checkAuth: vi.fn(),
             checkDeveloperStatus: vi.fn(),
         })
-        vi.mocked(useGuildStore).mockReturnValue({
-            guilds: [mockGuild, mockGuild2],
-            selectedGuild: mockGuild,
-            selectedGuildId: mockGuild.id,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
-            selectGuild: mockSelectGuild,
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
-        })
+        mockGuildStoreState({})
     })
 
     const renderSidebar = (initialRoute = '/') => {
@@ -146,18 +161,10 @@ describe('Sidebar', () => {
     })
 
     test('shows "Select a server" when no guild selected', () => {
-        vi.mocked(useGuildStore).mockReturnValue({
+        mockGuildStoreState({
             guilds: [mockGuild],
             selectedGuild: null,
             selectedGuildId: null,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
-            selectGuild: mockSelectGuild,
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
         })
 
         renderSidebar()
@@ -171,18 +178,10 @@ describe('Sidebar', () => {
             botAdded: false,
         }
 
-        vi.mocked(useGuildStore).mockReturnValue({
+        mockGuildStoreState({
             guilds: [mockGuild, guildWithoutBot],
             selectedGuild: mockGuild,
             selectedGuildId: mockGuild.id,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
-            selectGuild: mockSelectGuild,
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
         })
 
         const user = userEvent.setup()
@@ -203,18 +202,10 @@ describe('Sidebar', () => {
             { ...mockGuild2, botAdded: false },
         ]
 
-        vi.mocked(useGuildStore).mockReturnValue({
+        mockGuildStoreState({
             guilds: noBotGuilds,
             selectedGuild: null,
             selectedGuildId: null,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
-            selectGuild: mockSelectGuild,
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
         })
 
         const user = userEvent.setup()
@@ -232,18 +223,10 @@ describe('Sidebar', () => {
     })
 
     test('shows no-admin state when user has no guilds', async () => {
-        vi.mocked(useGuildStore).mockReturnValue({
+        mockGuildStoreState({
             guilds: [],
             selectedGuild: null,
             selectedGuildId: null,
-            isLoading: false,
-            serverSettings: null,
-            serverListing: null,
-            fetchGuilds: vi.fn(),
-            selectGuild: mockSelectGuild,
-            setSelectedGuild: vi.fn(),
-            updateServerSettings: vi.fn(),
-            updateServerListing: vi.fn(),
         })
 
         const user = userEvent.setup()
