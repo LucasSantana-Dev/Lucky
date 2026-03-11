@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 const autoMessageService = {
     createMessage: jest.fn(),
     updateMessage: jest.fn(),
+    upsertGuildTypeMessage: jest.fn(),
 }
 
 const autoModService = {
@@ -13,12 +14,14 @@ const customCommandService = {
     getCommand: jest.fn(),
     createCommand: jest.fn(),
     updateCommand: jest.fn(),
+    upsertCommand: jest.fn(),
 }
 
 const embedBuilderService = {
     getTemplate: jest.fn(),
     createTemplate: jest.fn(),
     updateTemplate: jest.fn(),
+    upsertTemplate: jest.fn(),
 }
 
 const guildSettingsService = {
@@ -116,6 +119,7 @@ function createMockGuild(options: MockGuildOptions = {}) {
         setIcon: jest.fn().mockResolvedValue(undefined),
         setSplash: jest.fn().mockResolvedValue(undefined),
         setBanner: jest.fn().mockResolvedValue(undefined),
+        edit: jest.fn().mockResolvedValue(undefined),
         channels: {
             cache: {
                 get: jest.fn((channelId: string) => channelMap.get(channelId) ?? null),
@@ -169,25 +173,18 @@ function createBaseChannelMap(options?: {
 }
 
 function createPrismaMock(options?: {
-    autoMessageFindFirst?: jest.Mock
     guildUpsert?: jest.Mock
 }) {
-    const autoMessageFindFirst = options?.autoMessageFindFirst
-        ?? jest.fn().mockResolvedValue(null)
     const guildUpsert = options?.guildUpsert
         ?? jest.fn().mockResolvedValue({ id: 'guild-record' })
 
     getPrismaClientMock.mockReturnValue({
-        autoMessage: {
-            findFirst: autoMessageFindFirst,
-        },
         guild: {
             upsert: guildUpsert,
         },
     })
 
     return {
-        autoMessageFindFirst,
         guildUpsert,
     }
 }
@@ -199,13 +196,16 @@ describe('serversetupCriativaria helpers', () => {
 
         autoMessageService.createMessage.mockResolvedValue(undefined)
         autoMessageService.updateMessage.mockResolvedValue(undefined)
+        autoMessageService.upsertGuildTypeMessage.mockResolvedValue('updated')
         autoModService.updateSettings.mockResolvedValue(undefined)
         customCommandService.getCommand.mockResolvedValue(null)
         customCommandService.createCommand.mockResolvedValue(undefined)
         customCommandService.updateCommand.mockResolvedValue(undefined)
+        customCommandService.upsertCommand.mockResolvedValue('updated')
         embedBuilderService.getTemplate.mockResolvedValue(null)
         embedBuilderService.createTemplate.mockResolvedValue(undefined)
         embedBuilderService.updateTemplate.mockResolvedValue(undefined)
+        embedBuilderService.upsertTemplate.mockResolvedValue('updated')
         guildSettingsService.setGuildSettings.mockResolvedValue(undefined)
         moderationService.updateSettings.mockResolvedValue(undefined)
         roleManagementService.setExclusiveRole.mockResolvedValue(undefined)
@@ -269,9 +269,9 @@ describe('serversetupCriativaria helpers', () => {
     })
 
     it('upserts custom commands without creating duplicates', async () => {
-        customCommandService.getCommand
-            .mockResolvedValueOnce(null as any)
-            .mockResolvedValueOnce({ id: 'existing' } as any)
+        customCommandService.upsertCommand
+            .mockResolvedValueOnce('created')
+            .mockResolvedValueOnce('updated')
 
         const seed = {
             name: 'regras',
@@ -284,15 +284,13 @@ describe('serversetupCriativaria helpers', () => {
 
         expect(first).toBe('created')
         expect(second).toBe('updated')
-        expect(customCommandService.getCommand).toHaveBeenCalledTimes(2)
-        expect(customCommandService.createCommand).toHaveBeenCalledTimes(1)
-        expect(customCommandService.updateCommand).toHaveBeenCalledTimes(1)
+        expect(customCommandService.upsertCommand).toHaveBeenCalledTimes(2)
     })
 
     it('upserts embed templates without creating duplicates', async () => {
-        embedBuilderService.getTemplate
-            .mockResolvedValueOnce(null as any)
-            .mockResolvedValueOnce({ id: 'existing-template' } as any)
+        embedBuilderService.upsertTemplate
+            .mockResolvedValueOnce('created')
+            .mockResolvedValueOnce('updated')
 
         const seed = {
             name: 'boas-vindas',
@@ -314,9 +312,7 @@ describe('serversetupCriativaria helpers', () => {
 
         expect(first).toBe('created')
         expect(second).toBe('updated')
-        expect(embedBuilderService.getTemplate).toHaveBeenCalledTimes(2)
-        expect(embedBuilderService.createTemplate).toHaveBeenCalledTimes(1)
-        expect(embedBuilderService.updateTemplate).toHaveBeenCalledTimes(1)
+        expect(embedBuilderService.upsertTemplate).toHaveBeenCalledTimes(2)
     })
 
     it('does not mutate guild visuals during apply', async () => {
@@ -326,6 +322,21 @@ describe('serversetupCriativaria helpers', () => {
         expect(guild.setIcon).not.toHaveBeenCalled()
         expect(guild.setSplash).not.toHaveBeenCalled()
         expect(guild.setBanner).not.toHaveBeenCalled()
+        expect(guild.edit).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                icon: expect.anything(),
+            }),
+        )
+        expect(guild.edit).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                splash: expect.anything(),
+            }),
+        )
+        expect(guild.edit).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                banner: expect.anything(),
+            }),
+        )
         expect(result.applied).toContain(
             'Perfil visual do servidor preservado (sem mudanças de ícone/splash/banner).',
         )
@@ -469,7 +480,7 @@ describe('serversetupCriativaria helpers', () => {
         )
         expect(autoModService.updateSettings).toHaveBeenCalledTimes(1)
         expect(guildSettingsService.setGuildSettings).toHaveBeenCalledTimes(1)
-        expect(customCommandService.createCommand).toHaveBeenCalled()
+        expect(customCommandService.upsertCommand).toHaveBeenCalled()
         expect(modSend).toHaveBeenCalledTimes(1)
     })
 
@@ -496,11 +507,12 @@ describe('serversetupCriativaria helpers', () => {
             } as any)
             .mockResolvedValue(null)
 
-        const autoMessageFindFirst = jest.fn()
-            .mockResolvedValueOnce(null as any)
-            .mockResolvedValueOnce({ id: 'leave-msg' } as any)
         const guildUpsert = jest.fn().mockResolvedValue({ id: 'guild-db-id' })
-        createPrismaMock({ autoMessageFindFirst, guildUpsert })
+        createPrismaMock({ guildUpsert })
+
+        autoMessageService.upsertGuildTypeMessage
+            .mockResolvedValueOnce('created')
+            .mockResolvedValueOnce('updated')
 
         getTwitchUserByLoginMock.mockResolvedValue({ id: 'tw-id', login: 'criativaria' })
         twitchNotificationService.add.mockResolvedValue(true)
@@ -511,8 +523,7 @@ describe('serversetupCriativaria helpers', () => {
 
         expect(staffSend).not.toHaveBeenCalled()
         expect(result.unchanged).toContain('Imagem CDN existente reutilizada para templates.')
-        expect(autoMessageService.createMessage).toHaveBeenCalledTimes(1)
-        expect(autoMessageService.updateMessage).toHaveBeenCalledTimes(1)
+        expect(autoMessageService.upsertGuildTypeMessage).toHaveBeenCalledTimes(2)
         expect(guildUpsert).toHaveBeenCalledTimes(1)
         expect(twitchNotificationService.add).toHaveBeenCalledWith(
             'guild-db-id',

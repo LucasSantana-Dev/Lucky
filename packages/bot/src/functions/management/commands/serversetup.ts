@@ -295,11 +295,21 @@ export default new Command({
 
         if (template === 'criativaria') {
             await interaction.deferReply({ ephemeral: true })
-            const result = await runCriativariaSetup(interaction.guild, mode)
-            await interaction.editReply(formatCriativariaSummary(result, mode))
-            infoLog({
-                message: `serversetup: Criativaria template executed in ${mode} mode for ${interaction.guild.name}`,
-            })
+            try {
+                const result = await runCriativariaSetup(interaction.guild, mode)
+                await interaction.editReply(formatCriativariaSummary(result, mode))
+                infoLog({
+                    message: `serversetup: Criativaria template executed in ${mode} mode for ${interaction.guild.name}`,
+                })
+            } catch (error) {
+                errorLog({
+                    message: 'serversetup: Failed to execute Criativaria template',
+                    error,
+                })
+                await interaction.editReply(
+                    '❌ Failed to run Criativaria setup. Check logs and try again.',
+                )
+            }
             return
         }
 
@@ -367,7 +377,9 @@ export default new Command({
             progress.push('🎉 **Forge Space server setup complete!**')
             progress.push('')
             progress.push('**Next steps:**')
-            progress.push('• Set the server icon and banner')
+            progress.push(
+                '• Keep your current server icon/splash/banner (Lucky preserves guild identity)',
+            )
             progress.push('• Configure community features in Server Settings')
             progress.push('• Set up verification level')
             progress.push('• Post first announcement in #announcements')

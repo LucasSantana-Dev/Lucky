@@ -286,14 +286,6 @@ async function applyBrandingAssets(
     staffAssetsChannel: SendableChannel | null,
     result: SetupResult,
 ): Promise<string | null> {
-    const welcomeImagePath = projectRootAsset('assets/criativaria-banner.png')
-    const welcomeImageAvailable = await fileExists(welcomeImagePath)
-    if (!welcomeImageAvailable) {
-        result.warnings.push(
-            'Arquivo de imagem estática da Criativaria não encontrado: assets/criativaria-banner.png',
-        )
-    }
-
     if (mode === 'dry-run') {
         result.applied.push(
             'Perfil visual do servidor preservado (sem mudanças de ícone/splash/banner).',
@@ -310,17 +302,22 @@ async function applyBrandingAssets(
 
     const cachedTemplate = await embedBuilderService.getTemplate(guild.id, 'boas-vindas')
     const cachedImage = cachedTemplate?.image
-    if (cachedImage && cachedImage.startsWith('https://cdn.discordapp.com/')) {
+    if (cachedImage?.startsWith('https://cdn.discordapp.com/')) {
         result.unchanged.push('Imagem CDN existente reutilizada para templates.')
         return cachedImage
     }
 
-    if (!staffAssetsChannel) {
-        result.warnings.push('Sem canal de assets disponível para upload da imagem estática da Criativaria.')
+    const welcomeImagePath = projectRootAsset('assets/criativaria-banner.png')
+    const welcomeImageAvailable = await fileExists(welcomeImagePath)
+    if (!welcomeImageAvailable) {
+        result.warnings.push(
+            'Arquivo de imagem estática da Criativaria não encontrado: assets/criativaria-banner.png',
+        )
         return null
     }
 
-    if (!welcomeImageAvailable) {
+    if (!staffAssetsChannel) {
+        result.warnings.push('Sem canal de assets disponível para upload da imagem estática da Criativaria.')
         return null
     }
 
@@ -474,29 +471,12 @@ async function upsertAutoMessage(
     channelId: string,
     message: string,
 ): Promise<'created' | 'updated'> {
-    const prisma = getPrismaClient()
-    const existing = await prisma.autoMessage.findFirst({
-        where: { guildId, type },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-    })
-
-    if (!existing) {
-        await autoMessageService.createMessage(
-            guildId,
-            type,
-            { message },
-            { channelId },
-        )
-        return 'created'
-    }
-
-    await autoMessageService.updateMessage(existing.id, {
-        enabled: true,
-        channelId,
-        message,
-    })
-    return 'updated'
+    return await autoMessageService.upsertGuildTypeMessage(
+        guildId,
+        type,
+        { message },
+        { channelId },
+    )
 }
 
 async function applyAutoMessages(
@@ -538,7 +518,6 @@ export async function upsertEmbedTemplate(
     seed: EmbedSeed,
     imageUrl: string | null,
 ): Promise<'created' | 'updated'> {
-    const existing = await embedBuilderService.getTemplate(guildId, seed.name)
     const payload = {
         title: seed.title,
         description: seed.description,
@@ -547,13 +526,12 @@ export async function upsertEmbedTemplate(
         image: imageUrl ?? undefined,
     }
 
-    if (!existing) {
-        await embedBuilderService.createTemplate(guildId, seed.name, payload, seed.description, 'serversetup:criativaria')
-        return 'created'
-    }
-
-    await embedBuilderService.updateTemplate(guildId, seed.name, payload)
-    return 'updated'
+    return await embedBuilderService.upsertTemplate(
+        guildId,
+        seed.name,
+        payload,
+        'serversetup:criativaria',
+    )
 }
 
 async function applyEmbedTemplates(
@@ -577,21 +555,15 @@ export async function upsertCustomCommand(
     guildId: string,
     seed: CustomCommandSeed,
 ): Promise<'created' | 'updated'> {
-    const existing = await customCommandService.getCommand(guildId, seed.name)
-    if (!existing) {
-        await customCommandService.createCommand(guildId, seed.name, seed.response, {
+    return await customCommandService.upsertCommand(
+        guildId,
+        seed.name,
+        seed.response,
+        {
             description: seed.description,
             createdBy: 'serversetup:criativaria',
-        })
-        return 'created'
-    }
-
-    await customCommandService.updateCommand(guildId, seed.name, {
-        description: seed.description,
-        response: seed.response,
-        enabled: true,
-    })
-    return 'updated'
+        },
+    )
 }
 
 async function applyCustomCommands(
