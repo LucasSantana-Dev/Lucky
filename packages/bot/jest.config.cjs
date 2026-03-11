@@ -13,6 +13,7 @@ module.exports = {
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],
     moduleNameMapper: {
+        '^chalk$': '<rootDir>/tests/__mocks__/chalk.ts',
         '^@lucky/shared$': '<rootDir>/../shared/src/index',
         '^@lucky/shared/services$':
             '<rootDir>/../shared/src/services/index',
@@ -33,9 +34,7 @@ module.exports = {
             },
         ],
     },
-    transformIgnorePatterns: [
-        'node_modules/(?!(chalk|@lucky)/)',
-    ],
+    transformIgnorePatterns: ['node_modules/(?!(?:@lucky)/)'],
     moduleFileExtensions: ['ts', 'js', 'json'],
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     verbose: true,

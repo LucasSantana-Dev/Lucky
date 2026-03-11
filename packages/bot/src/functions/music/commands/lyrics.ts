@@ -5,6 +5,7 @@ import { musicEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
 import { featureToggleService } from '@lucky/shared/services'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -40,7 +41,19 @@ export default new Command({
         let title = query
 
         if (title === null || title === '') {
-            const queue = client.player.nodes.get(interaction.guildId ?? '')
+            const guildId = interaction.guildId
+            if (!guildId) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: 'This command can only be used in a server.',
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
+            const { queue } = resolveGuildQueue(client, guildId)
             const track = queue?.currentTrack
 
             if (!(await requireCurrentTrack(queue, interaction))) return
