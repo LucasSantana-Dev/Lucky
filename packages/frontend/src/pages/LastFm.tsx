@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Music, Link2, Unlink, ExternalLink, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ExternalLink, Link2, Loader2, Music, Unlink } from 'lucide-react'
 import { api } from '@/services/api'
+import SectionHeader from '@/components/ui/SectionHeader'
+import ActionPanel from '@/components/ui/ActionPanel'
 
 interface LastFmStatus {
     configured: boolean
@@ -17,9 +19,10 @@ export default function LastFmPage() {
     const loadStatus = useCallback(async () => {
         setIsLoading(true)
         setError(null)
+
         try {
-            const res = await api.lastfm.status()
-            setStatus(res.data)
+            const response = await api.lastfm.status()
+            setStatus(response.data)
         } catch {
             setError('Failed to load Last.fm status')
         } finally {
@@ -31,13 +34,19 @@ export default function LastFmPage() {
         loadStatus()
     }, [loadStatus])
 
+    const handleConnect = () => {
+        window.location.href = api.lastfm.getConnectUrl()
+    }
+
     const handleUnlink = async () => {
         if (!confirm('Disconnect your Last.fm account?')) return
+
         setIsUnlinking(true)
+
         try {
             await api.lastfm.unlink()
-            setStatus((prev) =>
-                prev ? { ...prev, linked: false, username: null } : prev,
+            setStatus((previous) =>
+                previous ? { ...previous, linked: false, username: null } : previous,
             )
         } catch {
             setError('Failed to unlink account')
@@ -46,148 +55,137 @@ export default function LastFmPage() {
         }
     }
 
-    const handleConnect = () => {
-        window.location.href = api.lastfm.getConnectUrl()
-    }
-
     if (isLoading) {
         return (
-            <div className='flex items-center justify-center h-64'>
-                <Loader2 className='w-6 h-6 text-lucky-text-secondary animate-spin' />
+            <div className='flex h-64 items-center justify-center'>
+                <Loader2 className='h-6 w-6 animate-spin text-lucky-text-secondary' />
             </div>
         )
     }
 
     return (
         <div className='space-y-6'>
-            <div className='flex items-center gap-3'>
-                <div className='w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center'>
-                    <Music className='w-5 h-5 text-red-500' />
-                </div>
-                <div>
-                    <h1 className='text-xl font-bold text-white'>Last.fm</h1>
-                    <p className='text-sm text-lucky-text-secondary'>
-                        Scrobble tracks you play to your Last.fm profile
-                    </p>
-                </div>
-            </div>
+            <SectionHeader
+                eyebrow='Music identity'
+                title='Last.fm'
+                description='Scrobble tracks you play to your Last.fm profile'
+                actions={<Music className='h-5 w-5 text-lucky-accent' />}
+            />
 
             {error && (
-                <div className='px-4 py-3 rounded-lg bg-lucky-error/10 border border-lucky-error/20 text-lucky-error text-sm'>
+                <div className='rounded-xl border border-lucky-error/30 bg-lucky-error/10 px-4 py-3 type-body-sm text-lucky-error'>
                     {error}
                 </div>
             )}
 
             {!status?.configured ? (
-                <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6'>
-                    <h2 className='text-lg font-semibold text-white mb-2'>
-                        Not Configured
-                    </h2>
-                    <p className='text-lucky-text-secondary text-sm'>
-                        Last.fm integration is not configured on this bot. The
-                        server owner needs to set{' '}
-                        <code className='text-xs bg-lucky-bg-tertiary px-1.5 py-0.5 rounded'>
+                <section className='surface-panel space-y-3 p-6'>
+                    <h2 className='type-h2 text-lucky-text-primary'>Not Configured</h2>
+                    <p className='type-body-sm text-lucky-text-secondary'>
+                        Last.fm integration is not configured on this bot. The server owner needs
+                        to set
+                        <code className='mx-1 rounded bg-lucky-bg-tertiary px-1.5 py-0.5 text-xs'>
                             LASTFM_API_KEY
-                        </code>{' '}
-                        and{' '}
-                        <code className='text-xs bg-lucky-bg-tertiary px-1.5 py-0.5 rounded'>
+                        </code>
+                        and
+                        <code className='mx-1 rounded bg-lucky-bg-tertiary px-1.5 py-0.5 text-xs'>
                             LASTFM_API_SECRET
                         </code>
                         .
                     </p>
-                </div>
-            ) : status?.linked ? (
-                <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6 space-y-4'>
-                    <div className='flex items-center gap-3'>
-                        <div className='w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center'>
-                            <Link2 className='w-6 h-6 text-green-500' />
-                        </div>
+                </section>
+            ) : status.linked ? (
+                <section className='surface-panel space-y-4 p-6'>
+                    <div className='flex items-start gap-3'>
+                        <span className='rounded-full bg-lucky-success/20 p-3 text-lucky-success'>
+                            <Link2 className='h-5 w-5' />
+                        </span>
                         <div>
-                            <h2 className='text-lg font-semibold text-white'>
-                                Connected
-                            </h2>
-                            <p className='text-lucky-text-secondary text-sm'>
-                                Linked as{' '}
+                            <h2 className='type-h2 text-lucky-text-primary'>Connected</h2>
+                            <p className='type-body-sm text-lucky-text-secondary'>
+                                Linked as
                                 <a
                                     href={`https://www.last.fm/user/${status.username}`}
                                     target='_blank'
                                     rel='noopener noreferrer'
-                                    className='text-red-400 hover:text-red-300 inline-flex items-center gap-1'
+                                    className='ml-1 inline-flex items-center gap-1 text-lucky-accent hover:text-lucky-accent-soft'
                                 >
                                     {status.username}
-                                    <ExternalLink className='w-3 h-3' />
+                                    <ExternalLink className='h-3.5 w-3.5' />
                                 </a>
                             </p>
                         </div>
                     </div>
-                    <p className='text-lucky-text-secondary text-sm'>
-                        Tracks you request via the bot will be scrobbled to your
-                        Last.fm profile automatically.
+
+                    <p className='type-body-sm text-lucky-text-secondary'>
+                        Tracks you request via the bot will be scrobbled to your Last.fm profile
+                        automatically.
                     </p>
+
                     <button
                         onClick={handleUnlink}
                         disabled={isUnlinking}
-                        className='flex items-center gap-2 px-4 py-2 rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors text-sm font-medium disabled:opacity-50'
+                        className='lucky-focus-visible inline-flex items-center gap-2 rounded-lg border border-lucky-error/30 bg-lucky-error/10 px-4 py-2 type-body-sm text-lucky-error transition-colors hover:bg-lucky-error/20 disabled:opacity-60'
                     >
                         {isUnlinking ? (
-                            <Loader2 className='w-4 h-4 animate-spin' />
+                            <Loader2 className='h-4 w-4 animate-spin' />
                         ) : (
-                            <Unlink className='w-4 h-4' />
+                            <Unlink className='h-4 w-4' />
                         )}
                         Disconnect
                     </button>
-                </div>
+                </section>
             ) : (
-                <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6 space-y-4'>
-                    <h2 className='text-lg font-semibold text-white'>
-                        Connect Your Account
-                    </h2>
-                    <p className='text-lucky-text-secondary text-sm'>
-                        Link your Last.fm account so tracks you play through the
-                        bot are automatically scrobbled to your profile.
+                <section className='surface-panel space-y-4 p-6'>
+                    <h2 className='type-h2 text-lucky-text-primary'>Connect Your Account</h2>
+                    <p className='type-body-sm text-lucky-text-secondary'>
+                        Link your Last.fm account so tracks you play through the bot are
+                        automatically scrobbled to your profile.
                     </p>
                     <button
                         onClick={handleConnect}
-                        className='flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors text-sm font-medium'
+                        className='lucky-focus-visible inline-flex items-center gap-2 rounded-lg bg-lucky-accent px-4 py-2 type-body-sm text-black transition-colors hover:bg-lucky-accent-soft'
                     >
-                        <Link2 className='w-4 h-4' />
+                        <Link2 className='h-4 w-4' />
                         Connect Last.fm
                     </button>
-                </div>
+                </section>
             )}
 
-            <div className='rounded-xl bg-lucky-bg-secondary border border-lucky-border p-6'>
-                <h3 className='text-sm font-semibold text-white mb-3'>
-                    How it works
-                </h3>
-                <ul className='space-y-2 text-sm text-lucky-text-secondary'>
+            <div className='grid gap-4 lg:grid-cols-2'>
+                <ActionPanel
+                    title='Scrobble coverage'
+                    description='Lucky tracks requested songs and forwards play activity once linked.'
+                    icon={<Music className='h-4 w-4' />}
+                />
+                <ActionPanel
+                    title='Privacy control'
+                    description='You can disconnect anytime without affecting server playback.'
+                    icon={<Unlink className='h-4 w-4' />}
+                />
+            </div>
+
+            <section className='surface-panel p-6'>
+                <h3 className='type-title mb-3 text-lucky-text-primary'>How it works</h3>
+                <ul className='space-y-2 type-body-sm text-lucky-text-secondary'>
                     <li className='flex items-start gap-2'>
-                        <span className='text-lucky-text-tertiary mt-0.5'>
-                            1.
-                        </span>
+                        <span className='text-lucky-text-tertiary'>1.</span>
                         Connect your Last.fm account above
                     </li>
                     <li className='flex items-start gap-2'>
-                        <span className='text-lucky-text-tertiary mt-0.5'>
-                            2.
-                        </span>
+                        <span className='text-lucky-text-tertiary'>2.</span>
                         Play music in a voice channel using the bot
                     </li>
                     <li className='flex items-start gap-2'>
-                        <span className='text-lucky-text-tertiary mt-0.5'>
-                            3.
-                        </span>
+                        <span className='text-lucky-text-tertiary'>3.</span>
                         Tracks are automatically scrobbled to your profile
                     </li>
                     <li className='flex items-start gap-2'>
-                        <span className='text-lucky-text-tertiary mt-0.5'>
-                            4.
-                        </span>
-                        External music bots (Rythm, Groovy, etc.) are also
-                        detected
+                        <span className='text-lucky-text-tertiary'>4.</span>
+                        External music bots (Rythm, Groovy, etc.) are also detected
                     </li>
                 </ul>
-            </div>
+            </section>
         </div>
     )
 }
