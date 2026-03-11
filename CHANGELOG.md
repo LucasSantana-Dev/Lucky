@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
+  command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
+  matrix, and a one-command-per-PR rollout plan for the next 6 weeks
+
 ### Fixed
 
 - Bot `/autoplay` command now resolves guild queue from player node cache when

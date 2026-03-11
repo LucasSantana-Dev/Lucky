@@ -197,6 +197,8 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — Package layout, entry points, adding new code
+- [Bot Command Roadmap](docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md) — Benchmark-driven,
+  6-week command rollout plan inspired by top Discord bots
 - [CI/CD](docs/CI_CD.md) — Pipeline, pre-commit hooks, deploy workflow
 - [Testing](docs/TESTING.md) — Strategy, running tests, coverage
 - [Docker Setup](docs/WEBAPP_SETUP.md) — Web app configuration
