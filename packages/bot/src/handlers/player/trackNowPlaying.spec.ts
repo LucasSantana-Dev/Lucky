@@ -118,77 +118,76 @@ describe('trackNowPlaying', () => {
         expect(channel.messages.fetch).toHaveBeenCalledWith('message-1')
     })
 
-    it('uses track metadata requester id for last.fm now playing fallback', async () => {
+    it.each([
+        {
+            name: 'track requester id over metadata and queue fallback',
+            queueRequestedBy: 'queue-user',
+            track: {
+                title: 'Song C2',
+                author: 'Artist C2',
+                duration: '4:10',
+                requestedBy: { id: 'track-user' },
+                metadata: { requestedById: 'meta-user' },
+            },
+            expectedRequesterId: 'track-user',
+            expectedSessionKey: 'session-track',
+        },
+        {
+            name: 'track metadata requester id fallback',
+            queueRequestedBy: undefined,
+            track: {
+                title: 'Song C',
+                author: 'Artist C',
+                duration: '4:12',
+                metadata: { requestedById: 'meta-user' },
+            },
+            expectedRequesterId: 'meta-user',
+            expectedSessionKey: 'session-meta',
+        },
+        {
+            name: 'queue requester id fallback for scrobble',
+            queueRequestedBy: 'queue-user',
+            track: {
+                title: 'Song D',
+                author: 'Artist D',
+                duration: '3:48',
+                metadata: {},
+            },
+            expectedRequesterId: 'queue-user',
+            expectedSessionKey: 'session-queue',
+        },
+    ])('resolves requester from $name', async (scenario) => {
         isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-meta')
+        getSessionKeyForUserMock.mockResolvedValue(scenario.expectedSessionKey)
 
         const { queue } = createQueue('guild-3')
-        const track = {
-            title: 'Song C',
-            author: 'Artist C',
-            duration: '4:12',
-            metadata: { requestedById: 'meta-user' },
-        }
+        queue.metadata.requestedBy = scenario.queueRequestedBy
+            ? { id: scenario.queueRequestedBy }
+            : undefined
 
-        await updateLastFmNowPlaying(queue as any, track as any)
+        await updateLastFmNowPlaying(queue as any, scenario.track as any)
+        await scrobbleCurrentTrackIfLastFm(queue as any, scenario.track as any)
 
-        expect(getSessionKeyForUserMock).toHaveBeenCalledWith('meta-user')
-        expect(updateNowPlayingMock).toHaveBeenCalledWith(
-            'Artist C',
-            'Song C',
-            undefined,
-            'session-meta',
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(
+            1,
+            scenario.expectedRequesterId,
         )
-    })
-
-    it('prefers track requester id over metadata and queue fallback', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-track')
-
-        const { queue } = createQueue('guild-3b')
-        queue.metadata.requestedBy = { id: 'queue-user' }
-        const track = {
-            title: 'Song C2',
-            author: 'Artist C2',
-            duration: '4:10',
-            requestedBy: { id: 'track-user' },
-            metadata: { requestedById: 'meta-user' },
-        }
-
-        await updateLastFmNowPlaying(queue as any, track as any)
-
-        expect(getSessionKeyForUserMock).toHaveBeenCalledWith('track-user')
-        expect(updateNowPlayingMock).toHaveBeenCalledWith(
-            'Artist C2',
-            'Song C2',
-            undefined,
-            'session-track',
+        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(
+            2,
+            scenario.expectedRequesterId,
         )
-    })
-
-    it('uses queue requester fallback when scrobbling autoplay tracks', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-queue')
-
-        const { queue } = createQueue('guild-4')
-        queue.metadata.requestedBy = { id: 'queue-user' }
-
-        const track = {
-            title: 'Song D',
-            author: 'Artist D',
-            duration: '3:48',
-            metadata: {},
-        }
-
-        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
-
-        expect(getSessionKeyForUserMock).toHaveBeenCalledWith('queue-user')
+        expect(updateNowPlayingMock).toHaveBeenCalledWith(
+            scenario.track.author,
+            scenario.track.title,
+            undefined,
+            scenario.expectedSessionKey,
+        )
         expect(scrobbleMock).toHaveBeenCalledWith(
-            'Artist D',
-            'Song D',
+            scenario.track.author,
+            scenario.track.title,
             expect.any(Number),
             undefined,
-            'session-queue',
+            scenario.expectedSessionKey,
         )
     })
 })
