@@ -267,8 +267,7 @@ describe('GuildService', () => {
                 json: async () => [{ id: '111111111111111111' }],
             } as never) as unknown as typeof fetch
 
-            const result =
-                await guildService.hasBotInGuild('111111111111111111')
+            const result = await guildService.hasBotInGuild('111111111111111111')
 
             expect(result).toBe(true)
         })
@@ -317,9 +316,7 @@ describe('GuildService', () => {
             const mockClient = {
                 guilds: {
                     cache: new Map(),
-                    fetch: jest
-                        .fn()
-                        .mockRejectedValue(new Error('unavailable')),
+                    fetch: jest.fn().mockRejectedValue(new Error('unavailable')),
                 },
             } as unknown as Client
 
@@ -391,8 +388,9 @@ describe('GuildService', () => {
 
             setBotClient(mockClient)
 
-            const result =
-                await guildService.getGuildRoleOptions('111111111111111111')
+            const result = await guildService.getGuildRoleOptions(
+                '111111111111111111',
+            )
 
             expect(result).toEqual([
                 {
@@ -431,8 +429,9 @@ describe('GuildService', () => {
                 ],
             } as never) as unknown as typeof fetch
 
-            const result =
-                await guildService.getGuildRoleOptions('111111111111111111')
+            const result = await guildService.getGuildRoleOptions(
+                '111111111111111111',
+            )
 
             expect(result).toEqual([
                 {
@@ -626,37 +625,6 @@ describe('GuildService', () => {
                 textChannelCount: null,
                 voiceChannelCount: null,
                 roleCount: null,
-            })
-        })
-
-        test('keeps unknown metric fields as null when partial API requests fail', async () => {
-            process.env.DISCORD_TOKEN = 'test-bot-token'
-            setBotClient(null)
-            global.fetch = jest
-                .fn()
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => ({
-                        approximate_member_count: 99,
-                    }),
-                } as never)
-                .mockResolvedValueOnce({
-                    ok: false,
-                } as never)
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => [],
-                } as never) as unknown as typeof fetch
-
-            const metrics =
-                await guildService.getGuildMetrics('111111111111111111')
-
-            expect(metrics).toEqual({
-                memberCount: 99,
-                categoryCount: null,
-                textChannelCount: null,
-                voiceChannelCount: null,
-                roleCount: 0,
             })
         })
     })

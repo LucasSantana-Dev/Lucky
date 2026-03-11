@@ -17,7 +17,6 @@ import {
     smartShuffleQueue,
     rescueQueue,
 } from '../../../../utils/music/queueManipulation'
-import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 
 type QueueAction = 'show' | 'smartshuffle' | 'rescue'
 
@@ -49,7 +48,7 @@ export default new Command({
     }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
-        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        const queue = client.player.nodes.get(interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
         try {

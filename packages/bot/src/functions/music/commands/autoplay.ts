@@ -16,7 +16,42 @@ import type { CommandExecuteParams } from '../../../types/CommandData'
 import { messages } from '../../../utils/general/messages'
 import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
 import { replenishQueue } from '../../../utils/music/trackManagement/queueOperations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+
+type QueueNodeCache = {
+    values: () => Iterable<GuildQueue | null | undefined>
+}
+
+function resolveGuildQueue(
+    client: CommandExecuteParams['client'],
+    guildId: string,
+): GuildQueue | null {
+    const queue = client.player.nodes.get(guildId)
+    if (queue) {
+        return queue
+    }
+
+    const nodeCache = (
+        client.player as {
+            nodes?: { cache?: QueueNodeCache }
+        }
+    )?.nodes?.cache
+
+    if (!nodeCache?.values) {
+        return null
+    }
+
+    for (const node of nodeCache.values()) {
+        if (node?.guild?.id === guildId) {
+            debugLog({
+                message: 'Recovered autoplay queue from node cache fallback',
+                data: { guildId },
+            })
+            return node
+        }
+    }
+
+    return null
+}
 
 /**
  * Handle disabling autoplay
@@ -144,7 +179,7 @@ export default new Command({
         const guildId = interaction.guildId
         if (!guildId) return
 
-        const { queue } = resolveGuildQueue(client, guildId)
+        const queue = resolveGuildQueue(client, guildId)
         if (!(await requireQueue(queue, interaction))) return
 
         try {

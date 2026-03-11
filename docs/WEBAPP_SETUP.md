@@ -101,7 +101,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 
 1. In the "Redirects" section, add your callback URL:
     - Development: `http://localhost:3000/api/auth/callback`
-    - Production: `https://api.yourdomain.com/api/auth/callback`
+    - Production: `https://app.yourdomain.com/api/auth/callback`
 2. Save changes
 
 ### Step 3: Get Credentials
@@ -242,7 +242,7 @@ For production, ensure:
 
 - `WEBAPP_FRONTEND_URL` points to your production frontend URL
 - `WEBAPP_BACKEND_URL` points to your production backend/API URL (if separate host is used)
-- `WEBAPP_REDIRECT_URI` matches your production callback URL on the API origin
+- `WEBAPP_REDIRECT_URI` matches your production callback URL on the web app origin
 - `WEBAPP_SESSION_SECRET` is a strong random value
 - `NODE_ENV=production` for secure cookies
 

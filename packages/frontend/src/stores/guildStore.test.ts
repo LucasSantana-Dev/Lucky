@@ -6,7 +6,6 @@ vi.mock('@/services/api', () => ({
     api: {
         guilds: {
             list: vi.fn(),
-            get: vi.fn(),
             getMe: vi.fn(),
             getSettings: vi.fn(),
             getListing: vi.fn(),
@@ -37,13 +36,6 @@ const MANAGE_ACCESS = {
 } as const
 
 function setupSelectedGuildApiMocks(guildId: string) {
-    vi.mocked(api.guilds.get).mockResolvedValue({
-        data: {
-            guild: mockGuild({
-                id: guildId,
-            }),
-        },
-    } as never)
     vi.mocked(api.guilds.getSettings).mockResolvedValue({
         data: { settings: null },
     } as never)
@@ -105,30 +97,6 @@ describe('guildStore', () => {
             await useGuildStore.getState().fetchGuilds()
 
             expect(useGuildStore.getState().selectedGuildId).toBe('1')
-        })
-
-        test('should keep selected guild when it still exists after refresh', async () => {
-            const firstGuild = mockGuild({ id: '1', name: 'One' })
-            const secondGuild = mockGuild({ id: '2', name: 'Two' })
-            setupSelectedGuildApiMocks(secondGuild.id)
-            useGuildStore.setState({
-                selectedGuild: secondGuild,
-                selectedGuildId: secondGuild.id,
-            })
-            vi.mocked(api.guilds.list).mockResolvedValue({
-                data: {
-                    guilds: [
-                        mockGuild({ id: firstGuild.id, name: 'One updated' }),
-                        mockGuild({ id: secondGuild.id, name: 'Two updated' }),
-                    ],
-                },
-            } as never)
-
-            await useGuildStore.getState().fetchGuilds()
-
-            expect(useGuildStore.getState().selectedGuildId).toBe(
-                secondGuild.id,
-            )
         })
 
         test('should reset on fetch error', async () => {

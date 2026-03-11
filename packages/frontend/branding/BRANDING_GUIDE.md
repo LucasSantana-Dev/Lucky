@@ -1,105 +1,68 @@
 # Lucky Branding Guide
 
-## Brand Core
+## Brand Name
 
-- Name: `Lucky`
-- Character: playful, confident, fast
-- Signature style: neon mascot on deep-plum backgrounds with gold accents
-- Brand motif: waving lucky-cat mark
+- Primary product name: `Lucky`.
+- Replace user-facing `Lucky` naming with `Lucky`.
 
-## Canonical Asset Pack
+## Logo Source
 
-Source directory: `assets/branding`
+- Canonical source file:
+    - `/Users/lucassantana/Desenvolvimento/Lucky/assets/lucky-mascot/outline-v4-neon.jpeg`
+- Frontend runtime asset:
+    - `packages/frontend/public/lucky-logo.png`
+- Favicon:
+    - `packages/frontend/public/favicon.png`
 
-- `lucky-logo-lockup-neon.{svg,png,webp}`: primary lockup for dark surfaces
-- `lucky-logo-lockup-dark.{svg,png,webp}`: primary lockup for light surfaces
-- `lucky-mark-neon.{svg,png,webp}`: mascot icon with glow treatment
-- `lucky-mark-flat.{svg,png,webp}`: mascot icon without glow
-- `lucky-mark-mono-light.{svg,png,webp}`: single-color white icon
-- `lucky-mark-mono-dark.{svg,png,webp}`: single-color dark icon
-- `lucky-wordmark-neon.{svg,png,webp}`: wordmark on dark surfaces
-- `lucky-wordmark-dark.{svg,png,webp}`: wordmark on light surfaces
-- `lucky-avatar-neon.{svg,png,webp}`: square avatar format
-- `lucky-banner-neon.{svg,png,webp}`: wide hero/banner format
-- `lucky-badge-neon.{svg,png,webp}`: circular badge format
-- `lucky-brand-tokens.css`: reusable color + typography variables
+## Logo Usage
 
-### Format Usage
+- Minimum display size:
+    - App header/sidebar: `36x36`.
+    - Login hero: `64x64`.
+- Clear space:
+    - Keep at least `0.25x` logo width padding from surrounding elements.
+- Allowed backgrounds:
+    - Deep purple surfaces.
+    - Neutral dark backgrounds.
+- Avoid:
+    - Stretching or non-proportional scaling.
+    - Recoloring mascot artwork.
+    - Low-contrast overlays.
 
-- Use `.svg` as the editable/source-of-truth format in product UI and design tooling.
-- Use `.webp` for web delivery when broad browser support is available.
-- Use `.png` for Discord uploads, embed attachments, and clients/tools that need raster alpha.
+## Color System
 
-## Logo Rules
-
-- Preferred: neon lockup on deep background
-- On light backgrounds: use `lucky-logo-lockup-dark.svg`
-- Keep proportions locked; do not redraw or stretch mark/wordmark
-- Minimum clear space: `0.25x` of logo height on all sides
-- Minimum size:
-    - Lockup: `180px` width
-    - Mark-only: `32px` width (UI), `512px` width (export source)
-
-## Color Palette
-
-### Core Colors
-
-| Token           | Hex       | Role                         |
-| --------------- | --------- | ---------------------------- |
-| Lucky Night 950 | `#0B0018` | Deep background              |
-| Lucky Night 900 | `#120127` | Primary dark surface         |
-| Lucky Night 800 | `#21033B` | Elevated dark surface        |
-| Lucky Night 700 | `#30085A` | Highlighted dark areas       |
-| Neon Pink       | `#FF58E4` | Primary brand stroke         |
-| Neon Pink Soft  | `#F5A5FF` | Glow + hover accents         |
-| Neon Violet     | `#B251FF` | Secondary glow and gradients |
-| Neon Gold       | `#FFC66E` | Accent details               |
-| Neon Gold Soft  | `#FFE4A8` | Subtle highlights            |
-| Ink Light       | `#FBF8FF` | Text on dark surfaces        |
-| Ink Muted       | `#CFC0E7` | Secondary text               |
-| Ink Dark        | `#14052A` | Text on light surfaces       |
-
-### Contrast Guidance
-
-- Use `Ink Light` text on `Night 900/950`
-- Use `Ink Dark` text on white or light neutral backgrounds
-- Keep long text in neutral ink tones; reserve neon colors for accents and calls to action
+- Brand purple family:
+    - `#190d2f`, `#231245`, `#331a63`, `#4a2387`, `#6d34bf`, `#8b5cf6`
+- Gold accent family:
+    - `#d4a017`, `#e4b83f`, `#f3cc64`
 
 ## Typography
 
-### Families
+- Display font: `Sora`
+    - Use for page titles, section headers, campaign/hero text.
+- Body font: `Manrope`
+    - Use for UI labels, forms, body copy, table content.
+- Mono font: `JetBrains Mono`
+    - Use for command snippets, IDs, technical metadata.
 
-- Display / headlines: `Sora`
-- Body / UI: `Manrope`
-- Mono / technical: `JetBrains Mono`
+## Typography Rules
 
-### Fallback Stacks
+- Never use default browser/system stacks as primary typography.
+- Keep body text at `16px` minimum for dashboard readability.
+- Avoid all-caps for long labels; use sentence/title case.
+- Keep heading tracking slightly condensed (`-0.01em` to `-0.02em`) for brand voice.
+- Use mono only for technical context, not for generic UI copy.
 
-- Display: `'Sora', 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif`
-- Body: `'Manrope', 'Avenir Next', 'Segoe UI', sans-serif`
-- Mono: `'JetBrains Mono', 'SFMono-Regular', 'Menlo', monospace`
+## Voice and Copy
 
-### Type Scale
+- Product references should read:
+    - `Lucky`
+    - `Lucky Dashboard`
+- Keep messaging direct and operational:
+    - Clear action labels.
+    - Minimal marketing language in admin screens.
 
-- Display XL: `64/72`, `700`
-- Display L: `48/56`, `700`
-- H1: `40/48`, `700`
-- H2: `32/40`, `700`
-- H3: `24/32`, `600`
-- Body: `16/24`, `400-500`
-- Small: `14/20`, `400-500`
-- Caption: `12/16`, `500`
+## Migration Rule
 
-## Do / Do Not
-
-- Do use neon versions on dark backgrounds
-- Do use dark lockups on light backgrounds
-- Do keep mascot and wordmark together in lockup contexts
-- Do not place white/neon lockups directly on white backgrounds
-- Do not recolor mascot details with non-brand hues
-- Do not apply extra outlines, bevels, or photo effects
-
-## Voice and Naming
-
-- Product naming: `Lucky` and `Lucky Dashboard`
-- Tone: concise, operational, direct
+- New UI and copy must use Lucky naming and tokens.
+- Existing legacy token names may remain temporarily if mapped to Lucky values.

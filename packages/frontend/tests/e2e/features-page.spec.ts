@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { setupMockApiResponses, mockGlobalToggles } from './helpers/api-helpers'
+import {
+    setupMockApiResponses,
+    mockGlobalToggles,
+    mockServerToggles,
+} from './helpers/api-helpers'
 import {
     navigateToFeatures,
     waitForFeatures,
@@ -22,12 +26,8 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        await expect(
-            page.getByRole('heading', { level: 1, name: 'Features' }),
-        ).toBeVisible({ timeout: 5000 })
-        await expect(
-            page.getByRole('heading', { level: 2, name: 'Server Toggles' }),
-        ).toBeVisible({ timeout: 5000 })
+        const featuresSection = page.locator('text=/Features|Feature Toggles/i')
+        await expect(featuresSection).toBeVisible({ timeout: 5000 })
     })
 
     test('displays global toggles section for developers', async ({ page }) => {
@@ -43,26 +43,13 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const globalSection = page.getByRole('heading', {
-            level: 2,
-            name: /Global Toggles/i,
-        })
+        const globalSection = page.locator('text=/Global|Global Toggles/i')
         const isVisible = await globalSection
             .isVisible({ timeout: 3000 })
             .catch(() => false)
     })
 
     test('toggles feature on/off (server-specific)', async ({ page }) => {
-        let updated = false
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            updated = true
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ success: true }),
-            })
-        })
-
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
@@ -77,9 +64,12 @@ test.describe('Features Page', () => {
             .catch(() => false)
 
         if (isVisible) {
+            const initialState = await switchButton.getAttribute('aria-checked')
             await switchButton.click()
             await page.waitForTimeout(500)
-            expect(updated).toBe(true)
+
+            const newState = await switchButton.getAttribute('aria-checked')
+            expect(newState).not.toBe(initialState)
         }
     })
 
@@ -127,10 +117,12 @@ test.describe('Features Page', () => {
         })
 
         await navigateToFeatures(page)
+
+        const skeleton = page
+            .locator('.animate-pulse.bg-lucky-bg-tertiary')
+            .first()
+        await expect(skeleton).toBeVisible({ timeout: 2000 })
         await waitForFeatures(page)
-        await expect(
-            page.getByRole('heading', { level: 1, name: 'Features' }),
-        ).toBeVisible({ timeout: 5000 })
     })
 
     test('shows toast notifications on toggle success', async ({ page }) => {

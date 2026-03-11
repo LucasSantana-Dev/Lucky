@@ -16,6 +16,10 @@ const SOURCES = [
     },
     { label: 'YouTube', cls: 'bg-red-500/10 text-red-400 border-red-500/20' },
     {
+        label: 'Deezer',
+        cls: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    },
+    {
         label: 'SoundCloud',
         cls: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
     },
@@ -51,7 +55,7 @@ export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
                 </h3>
             </div>
             <p className='text-xs sm:text-sm text-lucky-text-secondary mb-3 sm:mb-4'>
-                Import from Spotify, YouTube, or SoundCloud
+                Import from Spotify, YouTube, or Deezer
             </p>
             <form
                 className='flex flex-col sm:flex-row gap-2'

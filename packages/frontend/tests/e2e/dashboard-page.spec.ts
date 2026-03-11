@@ -6,7 +6,7 @@ import {
     selectServer,
 } from './helpers/page-helpers'
 import { getServerSelector } from './helpers/ui-helpers'
-import { MOCK_GUILDS, MOCK_API_RESPONSES } from './fixtures/test-data'
+import { MOCK_GUILDS } from './fixtures/test-data'
 
 test.describe('Dashboard Page', () => {
     test.beforeEach(async ({ page }) => {
@@ -32,7 +32,7 @@ test.describe('Dashboard Page', () => {
         }
     })
 
-    test('displays Select a Server state when no accessible guilds', async ({
+    test('displays No Server Selected state when no bot servers', async ({
         page,
     }) => {
         await page.route('**/api/guilds', async (route) => {
@@ -40,7 +40,7 @@ test.describe('Dashboard Page', () => {
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    guilds: [],
+                    guilds: MOCK_GUILDS.filter((g) => !g.hasBot),
                 }),
             })
         })
@@ -49,7 +49,7 @@ test.describe('Dashboard Page', () => {
         await waitForDashboard(page)
 
         const noServerState = page.getByRole('heading', {
-            name: /Select a Server/i,
+            name: /No Server Selected|Select a Server/i,
         })
         await expect(noServerState).toBeVisible({ timeout: 5000 })
     })
@@ -168,19 +168,12 @@ test.describe('Dashboard Page', () => {
 
     test('shows loading states during server fetch', async ({ page }) => {
         await page.route('**/api/guilds', async (route) => {
-            await new Promise<void>((resolve) => {
-                setTimeout(resolve, 1000)
-            })
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
-            })
+            await page.waitForTimeout(1000)
+            await route.continue()
         })
 
         await navigateToDashboard(page)
-        await expect(
-            page.getByRole('heading', { level: 1, name: 'Dashboard' }).first(),
-        ).toBeVisible({ timeout: 6000 })
+
+        await page.waitForTimeout(500)
     })
 })

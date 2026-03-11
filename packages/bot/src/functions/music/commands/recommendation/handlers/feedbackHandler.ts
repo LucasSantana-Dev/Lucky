@@ -7,7 +7,6 @@ import {
 } from '../../../../../utils/general/embeds'
 import { recommendationFeedbackService } from '../../../../../services/musicRecommendation/feedbackService'
 import type { CustomClient } from '../../../../../types'
-import { resolveGuildQueue } from '../../../../../utils/music/queueResolver'
 
 export async function handleFeedback(
     interaction: ChatInputCommandInteraction,
@@ -33,7 +32,7 @@ export async function handleFeedback(
         | 'like'
         | 'dislike'
     const trackUrl = interaction.options.getString('track_url')
-    const { queue } = resolveGuildQueue(client, guildId)
+    const queue = client.player.nodes.get(guildId)
     const currentTrack = queue?.currentTrack
 
     if (!trackUrl && !currentTrack) {

@@ -34,7 +34,7 @@ export interface TrackInfo {
     duration: number
     durationFormatted: string
     requestedBy?: string
-    source: 'youtube' | 'spotify' | 'soundcloud' | 'unknown'
+    source: 'youtube' | 'spotify' | 'soundcloud' | 'deezer' | 'unknown'
     recommendationReason?: string
     recommendationFeedback?: 'like' | 'dislike'
     sessionSnapshotId?: string

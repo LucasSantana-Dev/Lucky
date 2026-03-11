@@ -28,6 +28,7 @@ const SOURCE_META: Record<string, { icon: typeof Disc3; color: string }> = {
     spotify: { icon: Disc3, color: 'text-green-400' },
     youtube: { icon: ExternalLink, color: 'text-red-400' },
     soundcloud: { icon: Radio, color: 'text-orange-400' },
+    deezer: { icon: Music2, color: 'text-purple-400' },
     unknown: { icon: Music2, color: 'text-lucky-text-secondary' },
 }
 

@@ -7,14 +7,6 @@
         {
             "source": "/api/:path*",
             "destination": "https://lucky-api.lucassantana.tech/api/:path*"
-        },
-        {
-            "source": "/install",
-            "destination": "https://lucky-api.lucassantana.tech/api/auth/discord"
-        },
-        {
-            "source": "/:path*",
-            "destination": "/index.html"
         }
     ]
 }

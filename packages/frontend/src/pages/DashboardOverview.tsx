@@ -21,7 +21,6 @@ import EmptyState from '@/components/ui/EmptyState'
 import StatTile from '@/components/ui/StatTile'
 import ActionPanel from '@/components/ui/ActionPanel'
 import { useGuildStore } from '@/stores/guildStore'
-import { hasModuleAccess } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
 import {
     useModerationCases,
@@ -107,56 +106,17 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
 }
 
 export default function DashboardOverview() {
-    const { selectedGuild, memberContext } = useGuildStore()
-    const effectiveAccess =
-        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
-    const canViewModeration = hasModuleAccess(
-        effectiveAccess,
-        'moderation',
-        'view',
-    )
+    const { selectedGuild } = useGuildStore()
     const { data: stats, isLoading: statsLoading } = useModerationStats(
-        canViewModeration ? selectedGuild?.id : undefined,
+        selectedGuild?.id,
     )
     const { data: casesData, isLoading: casesLoading } = useModerationCases(
-        canViewModeration ? selectedGuild?.id : undefined,
+        selectedGuild?.id,
         { limit: 8 },
     )
 
     const recentCases = casesData?.cases ?? []
-    const loading = canViewModeration && (statsLoading || casesLoading)
-    const quickActions = [
-        {
-            module: 'moderation' as const,
-            title: 'Moderation Cases',
-            description: 'Review warnings, mutes, kicks, and bans.',
-            icon: <Shield className='h-4 w-4' />,
-            to: '/moderation',
-        },
-        {
-            module: 'moderation' as const,
-            title: 'Auto-Moderation',
-            description: 'Tune filters and anti-spam automation.',
-            icon: <ShieldAlert className='h-4 w-4' />,
-            to: '/automod',
-        },
-        {
-            module: 'moderation' as const,
-            title: 'Server Logs',
-            description: 'Audit events and moderation activity.',
-            icon: <ScrollText className='h-4 w-4' />,
-            to: '/logs',
-        },
-        {
-            module: 'automation' as const,
-            title: 'Custom Commands',
-            description: 'Manage scripted server shortcuts.',
-            icon: <MessageSquare className='h-4 w-4' />,
-            to: '/commands',
-        },
-    ].filter((action) =>
-        hasModuleAccess(effectiveAccess, action.module, 'view'),
-    )
+    const loading = statsLoading || casesLoading
 
     if (!selectedGuild) {
         return (
@@ -195,36 +155,20 @@ export default function DashboardOverview() {
                         />
                         <StatTile
                             label='Active Cases'
-                            value={
-                                canViewModeration
-                                    ? (stats?.activeCases ?? 0)
-                                    : '—'
-                            }
-                            delta={
-                                canViewModeration && stats?.recentCases
-                                    ? 12
-                                    : undefined
-                            }
+                            value={stats?.activeCases || 0}
+                            delta={stats?.recentCases ? 12 : undefined}
                             icon={<Shield className='h-4 w-4' />}
                             tone='accent'
                         />
                         <StatTile
                             label='Total Cases'
-                            value={
-                                canViewModeration
-                                    ? (stats?.totalCases ?? 0)
-                                    : '—'
-                            }
+                            value={stats?.totalCases || 0}
                             icon={<MessageSquare className='h-4 w-4' />}
                             tone='neutral'
                         />
                         <StatTile
                             label='Auto-Mod Actions'
-                            value={
-                                canViewModeration
-                                    ? (stats?.casesByType?.warn ?? 0)
-                                    : '—'
-                            }
+                            value={stats?.casesByType?.warn || 0}
                             icon={<ShieldAlert className='h-4 w-4' />}
                             tone='warning'
                         />
@@ -258,18 +202,7 @@ export default function DashboardOverview() {
                     </div>
 
                     <div className='divide-y divide-lucky-border/50'>
-                        {!canViewModeration ? (
-                            <div className='px-4 py-10 text-center'>
-                                <Shield className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
-                                <p className='type-body text-lucky-text-secondary'>
-                                    Moderation insights unavailable
-                                </p>
-                                <p className='type-body-sm text-lucky-text-tertiary'>
-                                    You need moderation view access to inspect
-                                    case activity.
-                                </p>
-                            </div>
-                        ) : loading ? (
+                        {loading ? (
                             Array.from({ length: 5 }).map((_, index) => (
                                 <div
                                     key={index}
@@ -315,31 +248,58 @@ export default function DashboardOverview() {
                     <h2 className='type-title text-lucky-text-primary'>
                         Quick Actions
                     </h2>
-                    {quickActions.length === 0 ? (
-                        <div className='surface-panel px-4 py-6 text-center'>
-                            <p className='type-body-sm text-lucky-text-tertiary'>
-                                No quick actions available for your access
-                                level.
-                            </p>
-                        </div>
-                    ) : (
-                        quickActions.map((action) => (
-                            <ActionPanel
-                                key={action.to}
-                                title={action.title}
-                                description={action.description}
-                                icon={action.icon}
-                                action={
-                                    <Link
-                                        to={action.to}
-                                        className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
-                                    >
-                                        Open
-                                    </Link>
-                                }
-                            />
-                        ))
-                    )}
+                    <ActionPanel
+                        title='Moderation Cases'
+                        description='Review warnings, mutes, kicks, and bans.'
+                        icon={<Shield className='h-4 w-4' />}
+                        action={
+                            <Link
+                                to='/moderation'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                    <ActionPanel
+                        title='Auto-Moderation'
+                        description='Tune filters and anti-spam automation.'
+                        icon={<ShieldAlert className='h-4 w-4' />}
+                        action={
+                            <Link
+                                to='/automod'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                    <ActionPanel
+                        title='Server Logs'
+                        description='Audit events and moderation activity.'
+                        icon={<ScrollText className='h-4 w-4' />}
+                        action={
+                            <Link
+                                to='/logs'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                    <ActionPanel
+                        title='Custom Commands'
+                        description='Manage scripted server shortcuts.'
+                        icon={<MessageSquare className='h-4 w-4' />}
+                        action={
+                            <Link
+                                to='/commands'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
                 </motion.section>
             </div>
 

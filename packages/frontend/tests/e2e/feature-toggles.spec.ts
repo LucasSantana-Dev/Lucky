@@ -21,16 +21,6 @@ test.describe('Feature Toggles', () => {
     })
 
     test('toggles individual features', async ({ page }) => {
-        let toggleRequested = false
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            toggleRequested = true
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ success: true }),
-            })
-        })
-
         await navigateToFeatures(page)
 
         const firstFeature = MOCK_FEATURES[0]
@@ -42,9 +32,12 @@ test.describe('Feature Toggles', () => {
             .catch(() => false)
 
         if (isVisible) {
+            const initialState = await switchButton.getAttribute('aria-checked')
             await switchButton.click()
             await page.waitForTimeout(500)
-            expect(toggleRequested).toBe(true)
+
+            const newState = await switchButton.getAttribute('aria-checked')
+            expect(newState).not.toBe(initialState)
         }
     })
 
@@ -76,16 +69,6 @@ test.describe('Feature Toggles', () => {
     })
 
     test('state updates after toggle', async ({ page }) => {
-        let toggleRequested = false
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            toggleRequested = true
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ success: true }),
-            })
-        })
-
         await navigateToFeatures(page)
 
         const firstFeature = MOCK_FEATURES[0]
@@ -97,9 +80,12 @@ test.describe('Feature Toggles', () => {
             .catch(() => false)
 
         if (isVisible) {
+            const beforeState = await switchButton.getAttribute('aria-checked')
             await switchButton.click()
             await page.waitForTimeout(1000)
-            expect(toggleRequested).toBe(true)
+
+            const afterState = await switchButton.getAttribute('aria-checked')
+            expect(afterState).not.toBe(beforeState)
         }
     })
 

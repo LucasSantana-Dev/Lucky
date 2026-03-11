@@ -76,6 +76,7 @@ describe('ProviderHealthService', () => {
         expect(status.lastError).toBe('unknown failure')
         expect(status.score).toBe(0.7)
         expect(all.youtube.provider).toBe('youtube')
+        expect(all.deezer.provider).toBe('deezer')
         expect(all.unknown.provider).toBe('unknown')
     })
 
@@ -102,7 +103,7 @@ describe('provider mappers', () => {
         expect(providerFromQueryType('youtubeSearch' as any)).toBe('youtube')
         expect(providerFromQueryType('spotifySearch' as any)).toBe('spotify')
         expect(providerFromQueryType('soundcloud' as any)).toBe('soundcloud')
-        expect(providerFromQueryType('appleMusicSearch' as any)).toBe('unknown')
+        expect(providerFromQueryType('deezerSearch' as any)).toBe('deezer')
         expect(providerFromQueryType(undefined as any)).toBe('unknown')
     })
 
@@ -127,12 +128,12 @@ describe('provider mappers', () => {
         ).toBe('soundcloud')
         expect(
             providerFromTrack({
-                source: 'applemusic',
-                url: 'https://music.apple.com/us/album/test',
+                source: 'deezer',
+                url: 'https://deezer.com/track/9',
             }),
-        ).toBe('unknown')
-        expect(
-            providerFromTrack({ source: 'other', url: 'https://x.com' }),
-        ).toBe('unknown')
+        ).toBe('deezer')
+        expect(providerFromTrack({ source: 'other', url: 'https://x.com' })).toBe(
+            'unknown',
+        )
     })
 })

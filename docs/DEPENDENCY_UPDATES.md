@@ -89,8 +89,7 @@ Do these only after Phase 1 is merged and stable.
 - **@smithy/config-resolver** (via @infisical/sdk): Override `@smithy/config-resolver@>=4.4.0` was tried; incompatible with AWS SDK v3 chain (SDK v3 uses @smithy v3). Wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
 - **hono** (via prisma): Prisma 7.3+ may pull fixed hono; keep Prisma updated.
 - **lodash** (via chevrotain → @mrleebo/prisma-ast): Prisma/ecosystem updates may resolve; no override unless patched.
-- **tar** (via transitive tooling chains): keep `overrides.tar>=7.5.11` pinned and
-  re-run `npm audit` after workspace upgrades.
+- **tar** (via @discordjs/opus, cacache): `audit fix --force` would downgrade @discordjs/opus; **do not** use. Track upstream.
 - **undici** (via discord.js, youtubei.js): Same; keep discord.js and youtubei.js at latest 14.x / 16.x and track releases.
 
 **Actions:**

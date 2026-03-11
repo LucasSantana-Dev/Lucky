@@ -14,7 +14,6 @@ import {
 } from '../../../utils/command/commandValidations'
 import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
 import { createQueue, queueConnect } from '../../../handlers/queueHandler'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -40,7 +39,7 @@ export default new Command({
         const subcommand = interaction.options.getSubcommand()
 
         if (subcommand === 'save') {
-            const { queue } = resolveGuildQueue(client, guildId)
+            const queue = client.player.nodes.get(guildId)
             if (!queue) {
                 await interactionReply({
                     interaction,
@@ -92,7 +91,7 @@ export default new Command({
 
         if (!(await requireVoiceChannel(interaction))) return
 
-        let queue = resolveGuildQueue(client, guildId).queue
+        let queue = client.player.nodes.get(guildId)
         if (!queue) {
             queue = await createQueue({ client, interaction })
         }

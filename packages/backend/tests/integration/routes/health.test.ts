@@ -18,8 +18,7 @@ describe('Health Routes Integration', () => {
         process.env.WEBAPP_FRONTEND_URL =
             'https://lucky.lucassantana.tech,https://lukbot.vercel.app'
         process.env.WEBAPP_REDIRECT_URI =
-            'https://lucky-api.lucassantana.tech/api/auth/callback'
-        process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.lucassantana.tech'
+            'https://lucky.lucassantana.tech/api/auth/callback'
         delete process.env.WEBAPP_EXPECTED_CLIENT_ID
     })
 
@@ -120,7 +119,7 @@ describe('Health Routes Integration', () => {
                 auth: {
                     clientId: 'test-client-id',
                     redirectUri:
-                        'https://lucky-api.lucassantana.tech/api/auth/callback',
+                        'https://lucky.lucassantana.tech/api/auth/callback',
                     frontendOrigins: [
                         'https://lucky.lucassantana.tech',
                         'https://lukbot.vercel.app',
@@ -129,7 +128,7 @@ describe('Health Routes Integration', () => {
                     sessionSecretConfigured: true,
                     redisHealthy: true,
                     authorizeUrlPreview:
-                        'https://discord.com/api/oauth2/authorize?client_id=test-client-id&redirect_uri=https%3A%2F%2Flucky-api.lucassantana.tech%2Fapi%2Fauth%2Fcallback&response_type=code&scope=identify%20guilds',
+                        'https://discord.com/api/oauth2/authorize?client_id=test-client-id&redirect_uri=https%3A%2F%2Flucky.lucassantana.tech%2Fapi%2Fauth%2Fcallback&response_type=code&scope=identify%20guilds',
                 },
                 warnings: [],
             })
@@ -179,7 +178,7 @@ describe('Health Routes Integration', () => {
 
             expect(response.body.status).toBe('degraded')
             expect(response.body.warnings).toContain(
-                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
+                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
             )
         })
 

@@ -16,25 +16,21 @@ export const test = base.extend<TestFixtures>({
         if (await loginButton.isVisible()) {
             await page.evaluate(() => {
                 localStorage.setItem(
-                    'lucky-auth',
+                    'auth',
                     JSON.stringify({
-                        state: {
-                            isAuthenticated: true,
-                            isDeveloper: false,
-                            user: {
-                                id: '123456789012345678',
-                                username: 'testuser',
-                                globalName: 'Test User',
-                                avatar: 'a_1234567890abcdef',
-                            },
+                        isAuthenticated: true,
+                        user: {
+                            id: '123456789012345678',
+                            username: 'testuser',
+                            discriminator: '0001',
+                            avatar: 'a_1234567890abcdef',
                         },
-                        version: 0,
                     }),
                 )
             })
 
             await page.reload()
-            await page.waitForURL(/\/$/, { timeout: 10000 })
+            await page.waitForURL(/\/servers/, { timeout: 10000 })
         }
 
         await use(page)

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/branding/lucky-logo-lockup-dark.svg" alt="Lucky" width="420" />
+  <img src="assets/lucky-mascot/outline-v4-neon.jpeg" alt="Lucky" width="320" />
 </p>
 
 <p align="center">
@@ -38,18 +38,14 @@ packages/
 | Infra | Docker (postgres + redis + nginx), Cloudflare Tunnel |
 
 ### Design System
-- Brand direction: neon-cat mascot on deep-plum surfaces with gold accents.
-- Core palette:
-  - Night 950: `#0B0018`
-  - Night 900: `#120127`
-  - Neon Pink: `#FF58E4`
-  - Neon Gold: `#FFC66E`
-  - Ink Light: `#FBF8FF`
+- Main colors:
+  - Lucky Purple (primary): `#8b5cf6`
+  - Lucky Gold (accent): `#d4a017`
+- Brand palette: purple-dominant surfaces with gold highlights.
 - Typography:
   - Display: `Sora`
   - Body/UI: `Manrope`
   - Mono/technical: `JetBrains Mono`
-- Canonical brand assets and token pack: `assets/branding/` (`.svg`, `.png`, `.webp`)
 - Semantic UI foundation:
   - Tokens: `--lucky-surface-*`, `--lucky-text-*`, `--lucky-motion-*`,
     `--lucky-shadow-*` in `packages/frontend/src/index.css`
@@ -62,10 +58,7 @@ packages/
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
 - Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
-- Queue-dependent controls (`/autoplay`, `/skip`, `/repeat`, `/queue`, and web
-  music actions) now use resilient queue resolution across
-  node/queue/cache fallbacks to avoid false queue-missing errors during active
-  playback
+- Autoplay command recovers active guild queue from player cache fallback to avoid false queue-missing errors during active playback
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
@@ -183,27 +176,11 @@ When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
-Discord Developer Portal (example: `https://lucky-api.lucassantana.tech/api/auth/callback`).
+Discord Developer Portal (example: `https://lucky.lucassantana.tech/api/auth/callback`).
 Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
 `/api/health/auth-config` return `degraded` on credential drift.
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
 through a dedicated host.
-
-Discord Developer Portal URL mapping for this deployment:
-
-- General Information:
-  - Interaction Endpoint URL: leave empty
-  - Linked Roles Verification URL: leave empty
-  - Terms of Service URL: `https://lucky.lucassantana.tech/terms-of-service`
-  - Privacy Policy URL: `https://lucky.lucassantana.tech/privacy-policy`
-- Installation:
-  - Installation Link (custom): `https://lucky.lucassantana.tech/install`
-  - Install redirect target: `/api/auth/discord`
-  - Install contexts: Guild Install enabled, User Install disabled
-- Activities -> URL Mappings:
-  - Root mapping prefix: `/`
-  - Root mapping target: `lucky.lucassantana.tech`
-  - Proxy path mappings: none (leave empty)
 
 ## Environment Variables
 
@@ -243,10 +220,6 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 - [Cloudflare Tunnel](docs/CLOUDFLARE_TUNNEL_SETUP.md) — HTTPS without open ports
 - [Twitch Setup](docs/TWITCH_SETUP.md) — Stream notification credentials
 - [Last.fm Setup](docs/LASTFM_SETUP.md) — Scrobbling configuration
-- [Branding Guide](packages/frontend/branding/BRANDING_GUIDE.md) — Logo usage,
-  palette, typography, and asset inventory
-- [Design System](packages/frontend/branding/DESIGN_SYSTEM.md) — Token-level
-  color and typography mapping for implementation
 
 ## Slash Commands
 
@@ -262,28 +235,6 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 ### Twitch
 `/twitch add` `/twitch remove` `/twitch list`
 
-### Server Setup
-`/serversetup template:forge-space mode:apply|dry-run`
-`/serversetup template:criativaria mode:apply|dry-run`
-
-### Release
-`/release preview version:<optional> pt_added:<text> pt_changed:<text> pt_fixed:<text>`
-`/release publish version:<optional> pt_added:<text> pt_changed:<text> pt_fixed:<text>`
-
-Release command behavior:
-- Publishes to fixed Criativaria updates channel: `1481201519545028618`
-- Posts two embeds in order: Portuguese first, English second
-- Uses Lucky branding assets from `assets/branding/lucky-banner-neon.png` and
-  `assets/branding/lucky-mark-neon.png`
-- Disables mentions (`@everyone`, `@here`, roles/users) by default
-
-Criativaria template behavior:
-- Validates fixed Criativaria channel/role mappings and continues with warnings if any are missing
-- Applies branding from `assets/lucky-logo.png` and `assets/lucky-banner.png`
-- Uploads `assets/Gemini_Generated_Image_udmhrpudmhrpudmh.png` to asset cache once and reuses Discord CDN URL in embed templates
-- Falls back to guild splash CDN image for templates when attachment upload is unavailable
-- Skips guild banner by default unless Discord `BANNER` feature is available
-- Idempotent upserts for moderation/automod/guild settings, auto-messages, embed templates, custom commands, role exclusivity, and Twitch notification seed
 ## Contributing
 
 1. Fork and create a feature branch

@@ -60,23 +60,8 @@ describe('authHealth utils', () => {
 
             expect(response.status).toBe('degraded')
             expect(response.warnings).toContain(
-                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
+                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
             )
-        })
-
-        test('returns ok when redirect origin matches WEBAPP_BACKEND_URL', () => {
-            const response = buildAuthConfigHealth({
-                clientId: '962198089161134131',
-                redirectUri:
-                    'https://lucky-api.lucassantana.tech/api/auth/callback',
-                frontendOrigins: ['https://lucky.lucassantana.tech'],
-                backendOrigin: 'https://lucky-api.lucassantana.tech',
-                sessionSecretConfigured: true,
-                redisHealthy: true,
-            })
-
-            expect(response.status).toBe('ok')
-            expect(response.warnings).toEqual([])
         })
 
         test('returns degraded when callback path is not the API callback path', () => {

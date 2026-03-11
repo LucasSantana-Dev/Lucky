@@ -29,19 +29,13 @@ const errorEmbedMock = jest.fn((title: string, message: string) => ({
     message,
 }))
 
-jest.mock('@lucky/shared/utils', () => ({
-    debugLog: jest.fn(),
-    warnLog: jest.fn(),
-}))
-
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
-    requireVoiceChannel: (...args: unknown[]) =>
-        requireVoiceChannelMock(...args),
+    requireVoiceChannel: (...args: unknown[]) => requireVoiceChannelMock(...args),
 }))
 
 jest.mock('../../../utils/music/sessionSnapshots', () => ({
@@ -63,10 +57,7 @@ jest.mock('../../../utils/general/embeds', () => ({
     errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
 }))
 
-function createInteraction(
-    subcommand: 'save' | 'restore',
-    guildId = 'guild-1',
-) {
+function createInteraction(subcommand: 'save' | 'restore', guildId = 'guild-1') {
     return {
         guildId,
         user: { id: 'user-1' },

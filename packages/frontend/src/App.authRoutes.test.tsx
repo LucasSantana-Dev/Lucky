@@ -204,32 +204,4 @@ describe('App authenticated routing', () => {
             ),
         ).toBeInTheDocument()
     })
-
-    test('maps /features access to automation module', async () => {
-        mockAuthStore({ isAuthenticated: true })
-        mockGuildStore({
-            selectedGuild: {
-                id: '123',
-                name: 'Guild',
-                effectiveAccess: {
-                    overview: 'view',
-                    settings: 'manage',
-                    moderation: 'none',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
-                },
-            },
-            memberContextLoading: false,
-        })
-
-        renderAt('/features')
-
-        expect(await screen.findByText('Access denied')).toBeInTheDocument()
-        expect(
-            screen.getByText(
-                'You do not have permission to view the automation module for this server.',
-            ),
-        ).toBeInTheDocument()
-    })
 })

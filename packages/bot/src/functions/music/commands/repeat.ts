@@ -1,11 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { QueueRepeatMode } from 'discord-player'
 import Command from '../../../models/Command'
-import { interactionReply } from '../../../utils/general/interactionReply'
-import { successEmbed } from '../../../utils/general/embeds'
-import type { CommandExecuteParams } from '../../../types/CommandData'
-import { requireQueue } from '../../../utils/command/commandValidations'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { interactionReply } from "../../../utils/general/interactionReply"
+import { successEmbed } from "../../../utils/general/embeds"
+import type { CommandExecuteParams } from "../../../types/CommandData"
+import { requireQueue } from "../../../utils/command/commandValidations"
 
 /**
  * Handle track repeat mode
@@ -126,7 +125,7 @@ export default new Command({
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        const queue = client.player.nodes.get(interaction.guildId ?? '')
         const mode = interaction.options.getString('mode', true)
         const times = interaction.options.getInteger('times', false)
 

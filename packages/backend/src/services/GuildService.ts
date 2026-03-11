@@ -349,29 +349,24 @@ class GuildService {
             }
 
             const channelsPayload = channelsResponse.ok
-                ? ((await channelsResponse.json()) as unknown)
-                : null
-            const channels = Array.isArray(channelsPayload)
-                ? (channelsPayload as DiscordGuildChannel[])
-                : null
-            const counts = channels ? this.countChannelTypes(channels) : null
+                ? ((await channelsResponse.json()) as DiscordGuildChannel[])
+                : []
 
             const rolesPayload = rolesResponse.ok
-                ? ((await rolesResponse.json()) as unknown)
-                : null
-            const roles = Array.isArray(rolesPayload)
-                ? (rolesPayload as DiscordGuildRole[])
-                : null
+                ? ((await rolesResponse.json()) as DiscordGuildRole[])
+                : []
+
+            const counts = this.countChannelTypes(channelsPayload)
 
             return {
                 memberCount:
                     guildPayload.approximate_member_count ??
                     guildPayload.member_count ??
                     null,
-                categoryCount: counts?.categoryCount ?? null,
-                textChannelCount: counts?.textChannelCount ?? null,
-                voiceChannelCount: counts?.voiceChannelCount ?? null,
-                roleCount: roles ? roles.length : null,
+                categoryCount: counts.categoryCount,
+                textChannelCount: counts.textChannelCount,
+                voiceChannelCount: counts.voiceChannelCount,
+                roleCount: rolesPayload.length || null,
             }
         } catch (error) {
             errorLog({

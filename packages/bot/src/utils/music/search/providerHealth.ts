@@ -1,6 +1,11 @@
 import { QueryType } from 'discord-player'
 
-export type MusicProvider = 'youtube' | 'spotify' | 'soundcloud' | 'unknown'
+export type MusicProvider =
+    | 'youtube'
+    | 'spotify'
+    | 'soundcloud'
+    | 'deezer'
+    | 'unknown'
 
 export type ProviderStatus = {
     provider: MusicProvider
@@ -23,6 +28,7 @@ const DEFAULT_PROVIDERS: MusicProvider[] = [
     'youtube',
     'spotify',
     'soundcloud',
+    'deezer',
     'unknown',
 ]
 
@@ -137,6 +143,7 @@ export function providerFromQueryType(queryType?: QueryType): MusicProvider {
     if (typeValue.includes('youtube')) return 'youtube'
     if (typeValue.includes('spotify')) return 'spotify'
     if (typeValue.includes('soundcloud')) return 'soundcloud'
+    if (typeValue.includes('deezer')) return 'deezer'
 
     return 'unknown'
 }
@@ -160,6 +167,9 @@ export function providerFromTrack(track?: {
     }
     if (source.includes('soundcloud') || url.includes('soundcloud')) {
         return 'soundcloud'
+    }
+    if (source.includes('deezer') || url.includes('deezer')) {
+        return 'deezer'
     }
     return 'unknown'
 }

@@ -12,7 +12,6 @@ const requireGuildMock = jest.fn()
 const getAllStatusesMock = jest.fn()
 const getGuildStateMock = jest.fn()
 const getSnapshotMock = jest.fn()
-const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -47,10 +46,6 @@ jest.mock('../../../utils/music/sessionSnapshots', () => ({
     },
 }))
 
-jest.mock('../../../utils/music/queueResolver', () => ({
-    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
-}))
-
 function createInteraction(subcommand = 'health', guildId = 'guild-1') {
     return {
         guildId,
@@ -62,8 +57,11 @@ function createInteraction(subcommand = 'health', guildId = 'guild-1') {
 
 function createClient(queue?: unknown) {
     return {
-        player: {},
-        __queue: queue,
+        player: {
+            nodes: {
+                get: jest.fn(() => queue),
+            },
+        },
     } as any
 }
 
@@ -85,15 +83,6 @@ describe('music command', () => {
             lastActivityAt: 0,
         })
         getSnapshotMock.mockResolvedValue(null)
-        resolveGuildQueueMock.mockReturnValue({
-            queue: null,
-            source: 'miss',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 0,
-                cacheSampleKeys: [],
-            },
-        })
     })
 
     it('returns immediately when guild validation fails', async () => {
@@ -145,28 +134,17 @@ describe('music command', () => {
             tracks: { size: 2 },
             repeatMode: 3,
         }
-        const client = createClient(queue)
         getSnapshotMock.mockResolvedValue({
             sessionSnapshotId: 'snap-1',
             savedAt: 10,
             upcomingTracks: [{}, {}],
         })
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'cache.id',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 2,
-                cacheSampleKeys: ['guild-2', 'guild-1'],
-            },
-        })
 
         await musicCommand.execute({
-            client,
+            client: createClient(queue),
             interaction: createInteraction(),
         } as any)
 
-        expect(resolveGuildQueueMock).toHaveBeenCalledWith(client, 'guild-1')
         expect(createEmbedMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 title: expect.stringContaining('Music Health'),

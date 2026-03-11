@@ -4,7 +4,6 @@ import type {
     QueueState,
 } from '@lucky/shared/services'
 import type { CustomClient } from '../../types'
-import { resolveGuildQueue } from '../../utils/music/queueResolver'
 
 interface RawTrack {
     id: string
@@ -18,7 +17,7 @@ interface RawTrack {
     source?: string
 }
 
-const KNOWN_SOURCES = ['youtube', 'spotify', 'soundcloud']
+const KNOWN_SOURCES = ['youtube', 'spotify', 'soundcloud', 'deezer']
 
 export function mapTrack(track: RawTrack): TrackInfo {
     return {
@@ -68,7 +67,7 @@ export async function buildQueueState(
     client: CustomClient,
     guildId: string,
 ): Promise<QueueState> {
-    const queue = resolveGuildQueue(client, guildId).queue
+    const queue = client.player.queues.get(guildId)
 
     if (!queue) {
         return emptyQueueState(guildId)

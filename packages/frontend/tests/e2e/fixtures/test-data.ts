@@ -1,7 +1,7 @@
 export const MOCK_DISCORD_USER = {
     id: '123456789012345678',
     username: 'testuser',
-    globalName: 'Test User',
+    discriminator: '0001',
     avatar: 'a_1234567890abcdef',
     email: 'test@example.com',
 }
@@ -39,20 +39,6 @@ export const MOCK_GUILDS = [
         features: ['COMMUNITY', 'NEWS'],
         hasBot: true,
         botInviteUrl: undefined,
-        memberCount: 1420,
-        categoryCount: 7,
-        textChannelCount: 18,
-        voiceChannelCount: 6,
-        roleCount: 24,
-        effectiveAccess: {
-            overview: 'manage',
-            settings: 'manage',
-            moderation: 'manage',
-            automation: 'manage',
-            music: 'manage',
-            integrations: 'manage',
-        },
-        canManageRbac: true,
     },
     {
         id: '222222222222222222',
@@ -64,20 +50,6 @@ export const MOCK_GUILDS = [
         hasBot: false,
         botInviteUrl:
             'https://discord.com/api/oauth2/authorize?client_id=962198089161134131&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
-        memberCount: null,
-        categoryCount: null,
-        textChannelCount: null,
-        voiceChannelCount: null,
-        roleCount: null,
-        effectiveAccess: {
-            overview: 'view',
-            settings: 'view',
-            moderation: 'view',
-            automation: 'manage',
-            music: 'view',
-            integrations: 'view',
-        },
-        canManageRbac: false,
     },
     {
         id: '333333333333333333',
@@ -88,20 +60,6 @@ export const MOCK_GUILDS = [
         features: ['VERIFIED'],
         hasBot: true,
         botInviteUrl: undefined,
-        memberCount: 320,
-        categoryCount: 3,
-        textChannelCount: 8,
-        voiceChannelCount: 2,
-        roleCount: 11,
-        effectiveAccess: {
-            overview: 'manage',
-            settings: 'manage',
-            moderation: 'manage',
-            automation: 'manage',
-            music: 'manage',
-            integrations: 'manage',
-        },
-        canManageRbac: true,
     },
 ]
 
@@ -171,22 +129,20 @@ export const MOCK_SERVER_TOGGLES = {
 }
 
 export const MOCK_SERVER_SETTINGS = {
-    nickname: 'Lucky',
-    commandPrefix: '!',
-    managerRoles: [],
-    updatesChannel: '',
+    prefix: '!',
+    language: 'en',
     timezone: 'UTC',
-    disableWarnings: false,
+    moderation: {
+        enabled: true,
+        autoMod: false,
+    },
 }
 
 export const MOCK_SERVER_LISTING = {
-    listed: false,
+    name: 'Test Server 1',
     description: 'A test server for Lucky',
-    inviteUrl: '',
-    defaultInviteChannel: '',
-    language: 'en',
-    categories: ['music', 'community'],
     tags: ['music', 'community'],
+    verified: false,
 }
 
 export const MOCK_API_RESPONSES = {

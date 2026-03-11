@@ -10,7 +10,6 @@ import {
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 async function handleEmptyQueue(
     interaction: ChatInputCommandInteraction,
@@ -81,7 +80,7 @@ export default new Command({
     }: CommandExecuteParams): Promise<void> => {
         if (!(await requireGuild(interaction))) return
 
-        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        const queue = client.player.nodes.get(interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
         try {

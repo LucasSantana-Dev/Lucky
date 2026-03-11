@@ -1,31 +1,20 @@
 import { Page, Locator, expect } from '@playwright/test'
 
-function escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 export function getServerCard(page: Page, serverName: string): Locator {
-    return page.locator('article').filter({ hasText: serverName }).first()
+    return page.getByRole('article', { name: serverName }).first()
 }
 
 export function getFeatureCard(page: Page, featureName: string): Locator {
     const formattedName = featureName.replace(/_/g, ' ')
     return page
-        .locator('article')
-        .filter({
-            has: page.getByRole('heading', {
-                name: new RegExp(escapeRegex(formattedName), 'i'),
-            }),
-        })
+        .locator(`text=/.*${formattedName}.*/i`)
+        .locator('..')
+        .locator('..')
         .first()
 }
 
 export function getServerSelector(page: Page): Locator {
-    return page
-        .locator(
-            'button[aria-haspopup="listbox"], button:has-text("Select a server"), button:has-text("Test Server")',
-        )
-        .first()
+    return page.locator('button:has-text("Test Server")').first()
 }
 
 export function getUserDropdown(page: Page): Locator {
@@ -58,19 +47,11 @@ export function getLogoutButton(page: Page): Locator {
 }
 
 export function getAddBotButton(page: Page, serverName: string): Locator {
-    return page
-        .getByRole('button', {
-            name: new RegExp(`Add bot to ${escapeRegex(serverName)}`, 'i'),
-        })
-        .first()
+    return page.locator(`button[aria-label="Add bot to ${serverName}"]`).first()
 }
 
 export function getManageButton(page: Page, serverName: string): Locator {
-    return page
-        .getByRole('button', {
-            name: new RegExp(`Manage ${escapeRegex(serverName)}`, 'i'),
-        })
-        .first()
+    return page.locator(`button[aria-label="Manage ${serverName}"]`).first()
 }
 
 export async function waitForElement(

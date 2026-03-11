@@ -2,7 +2,6 @@ interface AuthConfigHealthInput {
     clientId: string
     redirectUri: string
     frontendOrigins: string[]
-    backendOrigin?: string
     sessionSecretConfigured: boolean
     redisHealthy: boolean
     expectedClientId?: string
@@ -41,18 +40,6 @@ const getConfiguredFrontendOrigins = (
     return new Set(normalizedOrigins)
 }
 
-const getNormalizedOrigin = (origin?: string): string | undefined => {
-    if (!origin) {
-        return undefined
-    }
-
-    try {
-        return new URL(origin).origin
-    } catch {
-        return undefined
-    }
-}
-
 export function buildAuthorizeUrlPreview(
     clientId: string,
     redirectUri: string,
@@ -75,7 +62,6 @@ export function buildAuthConfigHealth({
     clientId,
     redirectUri,
     frontendOrigins,
-    backendOrigin,
     sessionSecretConfigured,
     redisHealthy,
     expectedClientId,
@@ -120,15 +106,10 @@ export function buildAuthConfigHealth({
         if (frontendOrigins.length > 0) {
             const configuredOrigins =
                 getConfiguredFrontendOrigins(frontendOrigins)
-            const normalizedBackendOrigin = getNormalizedOrigin(backendOrigin)
-
-            if (normalizedBackendOrigin) {
-                configuredOrigins.add(normalizedBackendOrigin)
-            }
 
             if (!configuredOrigins.has(parsedRedirectUri.origin)) {
                 warnings.push(
-                    'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
+                    'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
                 )
             }
         }

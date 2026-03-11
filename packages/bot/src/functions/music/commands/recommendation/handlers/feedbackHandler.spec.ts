@@ -20,11 +20,6 @@ const successEmbedMock = jest.fn((title: string, message: string) => ({
 const buildTrackKeyMock = jest.fn()
 const setFeedbackMock = jest.fn()
 
-jest.mock('@lucky/shared/utils', () => ({
-    debugLog: jest.fn(),
-    warnLog: jest.fn(),
-}))
-
 jest.mock('../../../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
@@ -35,15 +30,12 @@ jest.mock('../../../../../utils/general/embeds', () => ({
     successEmbed: (...args: unknown[]) => successEmbedMock(...args),
 }))
 
-jest.mock(
-    '../../../../../services/musicRecommendation/feedbackService',
-    () => ({
-        recommendationFeedbackService: {
-            buildTrackKey: (...args: unknown[]) => buildTrackKeyMock(...args),
-            setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
-        },
-    }),
-)
+jest.mock('../../../../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        buildTrackKey: (...args: unknown[]) => buildTrackKeyMock(...args),
+        setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
+    },
+}))
 
 function createInteraction(guildId: string | null, trackUrl?: string | null) {
     return {

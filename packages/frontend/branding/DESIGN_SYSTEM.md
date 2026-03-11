@@ -2,92 +2,90 @@
 
 ## Theme Direction
 
-- Visual language: neon-cat identity with dark, high-contrast surfaces
-- Personality: playful, premium, energetic
-- Product default: dark mode first
+- Brand personality: premium, playful, high-contrast.
+- Core palette: purple (brand) + gold (accent).
+- Primary mode: dark interface.
 
 ## Typography System
 
-- Display: `Sora`
-- Body: `Manrope`
-- Mono: `JetBrains Mono`
+- Display typeface: `Sora` (headlines, hero, major labels).
+- Body typeface: `Manrope` (UI text, controls, paragraphs).
+- Monospace typeface: `JetBrains Mono` (code, IDs, technical values).
+- Fallbacks:
+    - Display/body: `Avenir Next`, `Segoe UI`, `sans-serif`
+    - Mono: `SFMono-Regular`, `Menlo`, `Monaco`, `Consolas`, `monospace`
 
-### Type Tokens
+## Type Tokens
 
-- `--lucky-font-display`: `'Sora', 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif`
-- `--lucky-font-body`: `'Manrope', 'Avenir Next', 'Segoe UI', sans-serif`
-- `--lucky-font-mono`: `'JetBrains Mono', 'SFMono-Regular', 'Menlo', monospace`
-
-## Color Tokens
-
-### Foundation
-
-- `--lucky-bg-950`: `#0B0018`
-- `--lucky-bg-900`: `#120127`
-- `--lucky-bg-800`: `#21033B`
-- `--lucky-bg-700`: `#30085A`
-
-### Brand
-
-- `--lucky-neon-pink`: `#FF58E4`
-- `--lucky-neon-pink-soft`: `#F5A5FF`
-- `--lucky-neon-violet`: `#B251FF`
-- `--lucky-neon-gold`: `#FFC66E`
-- `--lucky-neon-gold-soft`: `#FFE4A8`
-
-### Ink
-
-- `--lucky-ink-light`: `#FBF8FF`
-- `--lucky-ink-muted`: `#CFC0E7`
-- `--lucky-ink-dark`: `#14052A`
-
-## Semantic Mapping
-
-- Primary action: `--lucky-neon-pink`
-- Primary hover: `--lucky-neon-pink-soft`
-- Accent and highlights: `--lucky-neon-gold`
-- Interactive glow: `--lucky-neon-violet`
-- Page background: `--lucky-bg-950`
-- Card/panel background: `--lucky-bg-900`
-- Elevated card background: `--lucky-bg-800`
-- Text on dark: `--lucky-ink-light`
-- Secondary text on dark: `--lucky-ink-muted`
-- Text on light: `--lucky-ink-dark`
+- `--font-lucky-display`: `Sora` stack.
+- `--font-lucky-body`: `Manrope` stack.
+- `--font-lucky-mono`: `JetBrains Mono` stack.
+- `--font-sans`: mapped to `--font-lucky-body`.
+- `--font-mono`: mapped to `--font-lucky-mono`.
 
 ## Type Scale
 
-- Display XL: `64/72`, weight `700`
-- Display L: `48/56`, weight `700`
-- H1: `40/48`, weight `700`
-- H2: `32/40`, weight `700`
-- H3: `24/32`, weight `600`
-- Body: `16/24`, weight `400-500`
-- Small: `14/20`, weight `400-500`
-- Caption: `12/16`, weight `500`
-- Code: `13/20`, weight `500`
+- `Display`: `48/56`, weight `700` or `800`, tracking `-0.02em`
+- `H1`: `36/44`, weight `700`, tracking `-0.015em`
+- `H2`: `30/38`, weight `700`, tracking `-0.015em`
+- `H3`: `24/32`, weight `600`, tracking `-0.01em`
+- `H4`: `20/28`, weight `600`, tracking `-0.01em`
+- `Body L`: `18/28`, weight `500`
+- `Body`: `16/24`, weight `400` or `500`
+- `Body S`: `14/20`, weight `400` or `500`
+- `Caption`: `12/16`, weight `500`, tracking `0.01em`
+- `Code`: `13/20`, weight `500`
 
-## Component Guidance
+## Core Tokens
+
+- `--lucky-brand`: `#8b5cf6`
+- `--lucky-brand-strong`: `#6d34bf`
+- `--lucky-accent`: `#d4a017`
+- `--lucky-accent-soft`: `#e4b83f`
+- `--lucky-surface-1`: `#190d2f`
+- `--lucky-surface-2`: `#231245`
+- `--lucky-surface-3`: `#331a63`
+- `--lucky-border`: `#3c2c5f`
+- `--lucky-text-primary`: `#ffffff`
+- `--lucky-text-secondary`: `#d0c7e6`
+- `--lucky-text-muted`: `#a898c9`
+- `--lucky-success`: `#22c55e`
+- `--lucky-error`: `#ef4444`
+
+## Semantic Roles
+
+- `primary`: brand purple for primary controls.
+- `secondary`: gold for emphasis and highlights.
+- `accent`: gold for focus rings and active indicators.
+- `background`: deep purple surfaces.
+- `muted`: secondary surface for cards and panels.
+
+## Component Rules
 
 - Buttons:
-    - Primary: neon pink background with dark text on light mode, light text on dark mode
-    - Secondary: transparent background + neon pink border
-    - Accent: neon gold used sparingly for high-value actions
-- Surfaces:
-    - Use `bg-950` for app shell
-    - Use `bg-900` for default cards
-    - Use `bg-800` for selected/active cards
-- Iconography:
-    - Mascot icon is the core brand mark
-    - Use flat or monochrome variants where glow is visually noisy
+    - Primary: purple background, white text.
+    - Accent: gold background, dark text.
+    - Destructive: red only for destructive actions.
+- Typography:
+    - Headings and `.font-display` use display typeface.
+    - Body text and controls use body typeface.
+    - Code, IDs, and command snippets use mono typeface.
+- Cards and panels:
+    - Use `surface-2` by default.
+    - Use `surface-3` for active/hover.
+    - Always include `lucky-border`.
+- Navigation:
+    - Active item uses gold indicator and purple highlight.
+    - Inactive items use `text-secondary`, hover to white.
 
 ## Accessibility
 
-- Target WCAG AA for all text and controls
-- Avoid neon text for long paragraphs
-- Keep major text content in ink tokens
-- Reserve glow for decorative and emphasis states
+- Target WCAG AA contrast for text and interactive states.
+- Keep gold text on dark purple or near-black only.
+- Keep white text on purple surfaces; avoid gold-on-purple for body text.
 
-## Asset and Token Sources
+## Implementation Mapping
 
-- Brand assets: `assets/branding`
-- Token file: `assets/branding/lucky-brand-tokens.css`
+- Frontend CSS variables are defined in `packages/frontend/src/index.css`.
+- Legacy `lucky-*` utility classes are mapped to Lucky colors for migration safety.
+- New UI work should use semantic tokens and avoid hardcoded hex colors.
