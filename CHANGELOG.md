@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed unused legacy layout components (`DashboardLayout`, `Header`,
   `Navbar`) from frontend layout module to reduce duplicate shell patterns
+- Frontend app shell (`Layout` + `Sidebar`) and login page now use the
+  neo-editorial dark framing with improved active navigation states, clearer
+  server selector affordances, stronger empty-state guidance, and mobile drawer
+  parity
 
 ## [2.6.9] - 2026-03-10
 
