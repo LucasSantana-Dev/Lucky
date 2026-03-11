@@ -1,26 +1,30 @@
 import { motion } from 'framer-motion'
 import {
-    Users,
-    Shield,
-    MessageSquare,
-    ShieldAlert,
+    Activity,
     AlertTriangle,
+    ArrowRight,
     Ban,
     Clock,
-    TrendingUp,
+    MessageSquare,
+    ScrollText,
+    Shield,
+    ShieldAlert,
     TrendingDown,
-    Activity,
-    ArrowRight,
+    TrendingUp,
+    Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import Card from '@/components/ui/Card'
 import { Badge } from '@/components/ui/badge'
 import Skeleton from '@/components/ui/Skeleton'
+import SectionHeader from '@/components/ui/SectionHeader'
+import EmptyState from '@/components/ui/EmptyState'
+import StatTile from '@/components/ui/StatTile'
+import ActionPanel from '@/components/ui/ActionPanel'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
 import {
-    useModerationStats,
     useModerationCases,
+    useModerationStats,
 } from '@/hooks/useModerationQueries'
 import type { ModerationCase } from '@/types'
 
@@ -33,10 +37,7 @@ const ACTION_COLORS: Record<string, string> = {
     unmute: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
 }
 
-const ACTION_ICONS: Record<
-    string,
-    React.ComponentType<{ className?: string }>
-> = {
+const ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
     warn: AlertTriangle,
     mute: Clock,
     kick: ShieldAlert,
@@ -48,169 +49,60 @@ const ACTION_ICONS: Record<
 function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
+
     if (mins < 1) return 'Just now'
     if (mins < 60) return `${mins}m ago`
+
     const hours = Math.floor(mins / 60)
     if (hours < 24) return `${hours}h ago`
+
     const days = Math.floor(hours / 24)
     if (days < 7) return `${days}d ago`
+
     return new Date(dateStr).toLocaleDateString()
-}
-
-interface StatCardProps {
-    title: string
-    value: string | number
-    change?: number
-    icon: React.ComponentType<{ className?: string }>
-    accent: string
-    delay?: number
-}
-
-function StatCard({
-    title,
-    value,
-    change,
-    icon: Icon,
-    accent,
-    delay = 0,
-}: StatCardProps) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay }}
-        >
-            <Card className='relative overflow-hidden p-5 hover:border-lucky-border/80 transition-colors'>
-                <div
-                    className={cn(
-                        'absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-10',
-                        accent,
-                    )}
-                />
-                <div className='flex items-start justify-between'>
-                    <div className='space-y-2'>
-                        <p className='text-sm text-lucky-text-secondary'>
-                            {title}
-                        </p>
-                        <p className='text-2xl font-bold text-white'>
-                            {typeof value === 'number'
-                                ? value.toLocaleString()
-                                : value}
-                        </p>
-                        {change !== undefined && (
-                            <div
-                                className={cn(
-                                    'flex items-center gap-1 text-xs font-medium',
-                                    change >= 0
-                                        ? 'text-lucky-success'
-                                        : 'text-lucky-error',
-                                )}
-                            >
-                                {change >= 0 ? (
-                                    <TrendingUp className='w-3 h-3' />
-                                ) : (
-                                    <TrendingDown className='w-3 h-3' />
-                                )}
-                                <span>{Math.abs(change)}% from last week</span>
-                            </div>
-                        )}
-                    </div>
-                    <div
-                        className={cn(
-                            'p-2.5 rounded-xl',
-                            accent.replace('bg-', 'bg-').replace('/10', '/15'),
-                        )}
-                    >
-                        <Icon className='w-5 h-5 text-white' />
-                    </div>
-                </div>
-            </Card>
-        </motion.div>
-    )
 }
 
 function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
     const ActionIcon = ACTION_ICONS[c.type] || Shield
+
     return (
         <motion.div
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2, delay: index * 0.05 }}
-            className='flex items-center gap-4 p-3 rounded-lg hover:bg-lucky-bg-tertiary/50 transition-colors group'
+            className='grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
         >
-            <div className='w-8 text-center'>
-                <span className='text-xs font-mono text-lucky-text-tertiary'>
-                    #{c.caseNumber}
+            <p className='text-xs font-mono text-lucky-text-tertiary'>#{c.caseNumber}</p>
+            <div className='min-w-0'>
+                <p className='type-body-sm truncate text-lucky-text-primary'>
+                    {c.userName || c.userId}
+                </p>
+                <p className='type-body-sm truncate text-lucky-text-tertiary'>
+                    {c.reason || 'No reason provided'}
+                </p>
+            </div>
+            <div className='flex items-center gap-2'>
+                <Badge
+                    variant='outline'
+                    className={cn(
+                        'border text-[10px] font-semibold uppercase',
+                        ACTION_COLORS[c.type],
+                    )}
+                >
+                    <ActionIcon className='mr-1 h-3 w-3' />
+                    {c.type}
+                </Badge>
+                <span className='hidden text-xs text-lucky-text-tertiary sm:block'>
+                    {timeAgo(c.createdAt)}
                 </span>
             </div>
-            <div className='flex items-center gap-2.5 flex-1 min-w-0'>
-                <div className='w-8 h-8 rounded-full bg-lucky-bg-active flex items-center justify-center shrink-0'>
-                    <span className='text-xs font-medium text-lucky-text-secondary'>
-                        {(c.userName || c.userId).substring(0, 2).toUpperCase()}
-                    </span>
-                </div>
-                <div className='min-w-0'>
-                    <p className='text-sm font-medium text-white truncate'>
-                        {c.userName || c.userId}
-                    </p>
-                    <p className='text-xs text-lucky-text-tertiary truncate'>
-                        {c.reason || 'No reason provided'}
-                    </p>
-                </div>
-            </div>
-            <Badge
-                variant='outline'
-                className={cn(
-                    'text-[10px] uppercase font-semibold gap-1 border',
-                    ACTION_COLORS[c.type],
-                )}
-            >
-                <ActionIcon className='w-3 h-3' />
-                {c.type}
-            </Badge>
-            <span className='text-xs text-lucky-text-tertiary whitespace-nowrap hidden sm:block'>
-                {timeAgo(c.createdAt)}
-            </span>
         </motion.div>
-    )
-}
-
-function QuickActionButton({
-    icon: Icon,
-    label,
-    to,
-    accent,
-}: {
-    icon: React.ComponentType<{ className?: string }>
-    label: string
-    to: string
-    accent: string
-}) {
-    return (
-        <Link
-            to={to}
-            className={cn(
-                'flex items-center gap-3 p-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50',
-                'hover:bg-lucky-bg-active hover:border-lucky-border/80 transition-all group',
-            )}
-        >
-            <div className={cn('p-2 rounded-lg', accent)}>
-                <Icon className='w-4 h-4 text-white' />
-            </div>
-            <span className='text-sm font-medium text-lucky-text-secondary group-hover:text-white transition-colors'>
-                {label}
-            </span>
-            <ArrowRight className='w-4 h-4 ml-auto text-lucky-text-tertiary group-hover:text-white transition-colors' />
-        </Link>
     )
 }
 
 export default function DashboardOverview() {
     const { selectedGuild } = useGuildStore()
-
-    const { data: stats, isLoading: statsLoading } = useModerationStats(
-        selectedGuild?.id,
-    )
+    const { data: stats, isLoading: statsLoading } = useModerationStats(selectedGuild?.id)
     const { data: casesData, isLoading: casesLoading } = useModerationCases(
         selectedGuild?.id,
         { limit: 8 },
@@ -221,235 +113,204 @@ export default function DashboardOverview() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <div className='w-20 h-20 bg-lucky-bg-tertiary rounded-2xl flex items-center justify-center mb-4'>
-                    <Activity className='w-10 h-10 text-lucky-text-tertiary' />
-                </div>
-                <h2 className='text-xl font-semibold text-white mb-2'>
-                    Select a Server
-                </h2>
-                <p className='text-lucky-text-secondary text-sm'>
-                    Choose a server from the sidebar to view its dashboard
-                </p>
-            </div>
+            <EmptyState
+                icon={<Activity className='h-10 w-10' />}
+                title='Select a Server'
+                description='Choose a server from the sidebar to view its dashboard'
+            />
         )
     }
 
     return (
         <div className='space-y-6'>
-            <header>
-                <h1 className='text-2xl font-bold text-white'>Dashboard</h1>
-                <p className='text-sm text-lucky-text-secondary mt-1'>
-                    Overview of {selectedGuild.name}
-                </p>
-            </header>
+            <SectionHeader
+                title='Dashboard'
+                description={`Overview of ${selectedGuild.name}`}
+                eyebrow='Server analytics'
+            />
 
-            {/* Stats Grid */}
-            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
                 {loading ? (
-                    Array.from({ length: 4 }).map((_, i) => (
-                        <Card key={i} className='p-5'>
-                            <Skeleton className='h-4 w-20 mb-3' />
-                            <Skeleton className='h-8 w-16 mb-2' />
+                    Array.from({ length: 4 }).map((_, index) => (
+                        <div key={index} className='surface-panel p-5'>
+                            <Skeleton className='mb-3 h-4 w-20' />
+                            <Skeleton className='mb-2 h-8 w-16' />
                             <Skeleton className='h-3 w-28' />
-                        </Card>
+                        </div>
                     ))
                 ) : (
                     <>
-                        <StatCard
-                            title='Total Members'
+                        <StatTile
+                            label='Total Members'
                             value={selectedGuild.memberCount || 0}
-                            icon={Users}
-                            accent='bg-lucky-blue'
-                            delay={0}
+                            icon={<Users className='h-4 w-4' />}
+                            tone='brand'
                         />
-                        <StatCard
-                            title='Active Cases'
+                        <StatTile
+                            label='Active Cases'
                             value={stats?.activeCases || 0}
-                            change={stats?.recentCases ? 12 : undefined}
-                            icon={Shield}
-                            accent='bg-lucky-red'
-                            delay={0.05}
+                            delta={stats?.recentCases ? 12 : undefined}
+                            icon={<Shield className='h-4 w-4' />}
+                            tone='accent'
                         />
-                        <StatCard
-                            title='Total Cases'
+                        <StatTile
+                            label='Total Cases'
                             value={stats?.totalCases || 0}
-                            icon={MessageSquare}
-                            accent='bg-lucky-purple'
-                            delay={0.1}
+                            icon={<MessageSquare className='h-4 w-4' />}
+                            tone='neutral'
                         />
-                        <StatCard
-                            title='Auto-Mod Actions'
+                        <StatTile
+                            label='Auto-Mod Actions'
                             value={stats?.casesByType?.warn || 0}
-                            icon={ShieldAlert}
-                            accent='bg-amber-500'
-                            delay={0.15}
+                            icon={<ShieldAlert className='h-4 w-4' />}
+                            tone='warning'
                         />
                     </>
                 )}
             </div>
 
-            <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-                {/* Recent Cases */}
-                <motion.div
-                    className='lg:col-span-2'
+            <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
+                <motion.section
+                    className='surface-panel overflow-hidden lg:col-span-2'
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.2 }}
                 >
-                    <Card className='p-0 overflow-hidden'>
-                        <div className='flex items-center justify-between px-5 py-4 border-b border-lucky-border'>
-                            <div>
-                                <h2 className='text-base font-semibold text-white'>
-                                    Recent Cases
-                                </h2>
-                                <p className='text-xs text-lucky-text-tertiary mt-0.5'>
-                                    Latest moderation actions
+                    <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
+                        <div>
+                            <h2 className='type-title text-lucky-text-primary'>Recent Cases</h2>
+                            <p className='type-body-sm text-lucky-text-tertiary'>
+                                Latest moderation actions
+                            </p>
+                        </div>
+                        <Link
+                            to='/moderation'
+                            className='type-body-sm inline-flex items-center gap-1 text-lucky-accent transition-colors hover:text-lucky-accent-soft'
+                        >
+                            View all
+                            <ArrowRight className='h-3.5 w-3.5' />
+                        </Link>
+                    </div>
+
+                    <div className='divide-y divide-lucky-border/50'>
+                        {loading ? (
+                            Array.from({ length: 5 }).map((_, index) => (
+                                <div key={index} className='grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-3'>
+                                    <Skeleton className='h-4 w-8' />
+                                    <div className='space-y-1.5'>
+                                        <Skeleton className='h-4 w-28' />
+                                        <Skeleton className='h-3 w-44' />
+                                    </div>
+                                    <Skeleton className='h-5 w-16 rounded-full' />
+                                </div>
+                            ))
+                        ) : recentCases.length > 0 ? (
+                            recentCases.map((item, index) => (
+                                <CaseRow key={item.id} case={item} index={index} />
+                            ))
+                        ) : (
+                            <div className='px-4 py-10 text-center'>
+                                <Shield className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
+                                <p className='type-body text-lucky-text-secondary'>
+                                    No moderation cases yet
+                                </p>
+                                <p className='type-body-sm text-lucky-text-tertiary'>
+                                    Cases will appear here when moderators take action
                                 </p>
                             </div>
-                            <Link
-                                to='/moderation'
-                                className='text-xs font-medium text-lucky-red hover:text-lucky-red/80 transition-colors flex items-center gap-1'
-                            >
-                                View all <ArrowRight className='w-3 h-3' />
-                            </Link>
-                        </div>
-                        <div className='divide-y divide-lucky-border/50'>
-                            {loading ? (
-                                Array.from({ length: 5 }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className='flex items-center gap-4 p-3 px-5'
-                                    >
-                                        <Skeleton className='w-8 h-4' />
-                                        <Skeleton className='w-8 h-8 rounded-full' />
-                                        <div className='flex-1 space-y-1.5'>
-                                            <Skeleton className='h-4 w-32' />
-                                            <Skeleton className='h-3 w-48' />
-                                        </div>
-                                        <Skeleton className='h-5 w-14 rounded-full' />
-                                    </div>
-                                ))
-                            ) : recentCases.length > 0 ? (
-                                recentCases.map((c, i) => (
-                                    <CaseRow key={c.id} case={c} index={i} />
-                                ))
-                            ) : (
-                                <div className='py-12 text-center'>
-                                    <Shield className='w-10 h-10 text-lucky-text-tertiary mx-auto mb-3' />
-                                    <p className='text-sm text-lucky-text-secondary'>
-                                        No moderation cases yet
-                                    </p>
-                                    <p className='text-xs text-lucky-text-tertiary mt-1'>
-                                        Cases will appear here when moderators
-                                        take action
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </Card>
-                </motion.div>
+                        )}
+                    </div>
+                </motion.section>
 
-                {/* Quick Actions */}
-                <motion.div
+                <motion.section
+                    className='space-y-4'
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.3 }}
                 >
-                    <Card className='p-5'>
-                        <h2 className='text-base font-semibold text-white mb-1'>
-                            Quick Actions
-                        </h2>
-                        <p className='text-xs text-lucky-text-tertiary mb-4'>
-                            Common management tasks
-                        </p>
-                        <div className='space-y-2'>
-                            <QuickActionButton
-                                icon={Shield}
-                                label='Moderation Cases'
+                    <h2 className='type-title text-lucky-text-primary'>Quick Actions</h2>
+                    <ActionPanel
+                        title='Moderation Cases'
+                        description='Review warnings, mutes, kicks, and bans.'
+                        icon={<Shield className='h-4 w-4' />}
+                        action={
+                            <Link
                                 to='/moderation'
-                                accent='bg-lucky-red/20'
-                            />
-                            <QuickActionButton
-                                icon={ShieldAlert}
-                                label='Auto-Moderation'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                    <ActionPanel
+                        title='Auto-Moderation'
+                        description='Tune filters and anti-spam automation.'
+                        icon={<ShieldAlert className='h-4 w-4' />}
+                        action={
+                            <Link
                                 to='/automod'
-                                accent='bg-amber-500/20'
-                            />
-                            <QuickActionButton
-                                icon={Activity}
-                                label='Server Logs'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                    <ActionPanel
+                        title='Server Logs'
+                        description='Audit events and moderation activity.'
+                        icon={<ScrollText className='h-4 w-4' />}
+                        action={
+                            <Link
                                 to='/logs'
-                                accent='bg-lucky-blue/20'
-                            />
-                            <QuickActionButton
-                                icon={MessageSquare}
-                                label='Custom Commands'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                    <ActionPanel
+                        title='Custom Commands'
+                        description='Manage scripted server shortcuts.'
+                        icon={<MessageSquare className='h-4 w-4' />}
+                        action={
+                            <Link
                                 to='/commands'
-                                accent='bg-lucky-purple/20'
-                            />
-                        </div>
-
-                        {/* Case Type Breakdown */}
-                        {stats && (
-                            <div className='mt-6 pt-4 border-t border-lucky-border'>
-                                <h3 className='text-sm font-medium text-lucky-text-secondary mb-3'>
-                                    Cases by Type
-                                </h3>
-                                <div className='space-y-2.5'>
-                                    {Object.entries(
-                                        stats.casesByType || {},
-                                    ).map(([type, count]) => {
-                                        const total = stats.totalCases || 1
-                                        const pct = Math.round(
-                                            (count / total) * 100,
-                                        )
-                                        return (
-                                            <div key={type}>
-                                                <div className='flex items-center justify-between mb-1'>
-                                                    <span className='text-xs text-lucky-text-secondary capitalize'>
-                                                        {type}
-                                                    </span>
-                                                    <span className='text-xs font-medium text-white'>
-                                                        {count}
-                                                    </span>
-                                                </div>
-                                                <div className='h-1.5 bg-lucky-bg-active rounded-full overflow-hidden'>
-                                                    <motion.div
-                                                        className={cn(
-                                                            'h-full rounded-full',
-                                                            type === 'warn'
-                                                                ? 'bg-yellow-500'
-                                                                : type ===
-                                                                    'mute'
-                                                                  ? 'bg-orange-500'
-                                                                  : type ===
-                                                                      'kick'
-                                                                    ? 'bg-red-500'
-                                                                    : type ===
-                                                                        'ban'
-                                                                      ? 'bg-red-600'
-                                                                      : 'bg-lucky-blue',
-                                                        )}
-                                                        initial={{ width: 0 }}
-                                                        animate={{
-                                                            width: `${pct}%`,
-                                                        }}
-                                                        transition={{
-                                                            duration: 0.6,
-                                                            delay: 0.4,
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                    </Card>
-                </motion.div>
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Open
+                            </Link>
+                        }
+                    />
+                </motion.section>
             </div>
+
+            <section className='surface-panel p-5'>
+                <h2 className='type-title text-lucky-text-primary'>Cases by Type</h2>
+                <div className='mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
+                    {Object.entries(stats?.casesByType ?? {}).map(([type, value]) => {
+                        const delta = type === 'warn' ? 8 : -3
+                        return (
+                            <div key={type} className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 p-3'>
+                                <p className='type-meta text-lucky-text-tertiary'>{type}</p>
+                                <p className='type-title text-lucky-text-primary'>{value}</p>
+                                <p
+                                    className={cn(
+                                        'type-body-sm inline-flex items-center gap-1',
+                                        delta >= 0 ? 'text-lucky-success' : 'text-lucky-error',
+                                    )}
+                                >
+                                    {delta >= 0 ? (
+                                        <TrendingUp className='h-3.5 w-3.5' />
+                                    ) : (
+                                        <TrendingDown className='h-3.5 w-3.5' />
+                                    )}
+                                    {Math.abs(delta)}%
+                                </p>
+                            </div>
+                        )
+                    })}
+                </div>
+            </section>
         </div>
     )
 }

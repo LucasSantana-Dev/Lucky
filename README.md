@@ -72,6 +72,7 @@ packages/
 - Discord OAuth authentication
 - Guild management with bot status
 - Neo-editorial shell with responsive sidebar and contextual page framing
+- Dashboard, Servers, and Last.fm pages aligned to shared status/empty-state primitives
 - Module/command toggle per server
 - Moderation case viewer and settings
 - Auto-mod configuration

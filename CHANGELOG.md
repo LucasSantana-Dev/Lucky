@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   neo-editorial dark framing with improved active navigation states, clearer
   server selector affordances, stronger empty-state guidance, and mobile drawer
   parity
+- Dashboard overview, servers page, and Last.fm page now use the shared
+  neo-editorial primitives for denser status cards, clearer loading/empty/error
+  states, and more consistent scan hierarchy
 
 ## [2.6.9] - 2026-03-10
 
