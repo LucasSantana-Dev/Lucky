@@ -5,6 +5,7 @@ export * from './music'
 export * from './moderation'
 export * from './automod'
 export * from './logs'
+export * from './rbac'
 
 export interface Module {
     id: string

@@ -133,6 +133,7 @@ export function setupAuthRoutes(app: Express): void {
                     id: sessionData.user.id,
                     username: sessionData.user.username,
                     discriminator: sessionData.user.discriminator,
+                    globalName: sessionData.user.global_name,
                     avatar: sessionData.user.avatar,
                 },
             })
@@ -157,6 +158,7 @@ export function setupAuthRoutes(app: Express): void {
                 id: req.user.id,
                 username: req.user.username,
                 discriminator: req.user.discriminator,
+                globalName: req.user.globalName,
                 avatar: req.user.avatar,
             })
         }),

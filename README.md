@@ -74,6 +74,11 @@ packages/
 - Neo-editorial shell with responsive sidebar and contextual page framing
 - Dashboard, Servers, and Last.fm pages aligned to shared status/empty-state primitives
 - Module/command toggle per server
+- Guild RBAC by Discord role (`view`/`manage`) with deny-by-default for
+  non-admin users
+- Sidebar identity resolution chain: `nick > globalName > username`
+- Dashboard guild metrics now use live bot/API counts, rendering unknown values
+  as `—` instead of `0`
 - Moderation case viewer and settings
 - Auto-mod configuration
 - Server logs with filtering

@@ -32,8 +32,15 @@ jest.mock('../../src/services/DiscordOAuthService', () => ({
 
 jest.mock('../../src/services/GuildService', () => ({
     guildService: {
-        getUserGuilds: jest.fn(),
-        enrichGuildsWithBotStatus: jest.fn(),
+        generateBotInviteUrl: jest.fn(),
+    },
+}))
+
+jest.mock('../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        listAuthorizedGuilds: jest.fn(),
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -183,10 +190,10 @@ describe('API Integration Flows', () => {
 
     describe('Guild and Feature Integration', () => {
         test('should fetch guilds after authentication', async () => {
-            const { guildService } =
-                await import('../../src/services/GuildService')
-            const mockGuildService = guildService as jest.Mocked<
-                typeof guildService
+            const { guildAccessService } =
+                await import('../../src/services/GuildAccessService')
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
             >
 
             const mockSessionService = sessionService as jest.Mocked<
@@ -197,12 +204,23 @@ describe('API Integration Flows', () => {
             const enrichedGuilds = MOCK_DISCORD_GUILDS.map((guild) => ({
                 ...guild,
                 hasBot: true,
+                memberCount: null,
+                categoryCount: null,
+                textChannelCount: null,
+                voiceChannelCount: null,
+                roleCount: null,
+                effectiveAccess: {
+                    overview: 'manage',
+                    settings: 'manage',
+                    moderation: 'manage',
+                    automation: 'manage',
+                    music: 'manage',
+                    integrations: 'manage',
+                },
+                canManageRbac: true,
             }))
 
-            mockGuildService.getUserGuilds.mockResolvedValue(
-                MOCK_DISCORD_GUILDS,
-            )
-            mockGuildService.enrichGuildsWithBotStatus.mockResolvedValue(
+            mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue(
                 enrichedGuilds,
             )
 

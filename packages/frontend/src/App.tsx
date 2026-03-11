@@ -1,9 +1,21 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import {
+    Suspense,
+    lazy,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { ShieldAlert } from 'lucide-react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
+import { useGuildStore } from './stores/guildStore'
 import Layout from './components/Layout/Layout'
 import PageLoader from './components/ui/PageLoader'
+import EmptyState from './components/ui/EmptyState'
+import { hasModuleAccess } from './lib/rbac'
+import type { ModuleKey } from './types'
 
 const LoginPage = lazy(() => import('./pages/Login'))
 const ServersPage = lazy(() => import('./pages/ServersPage'))
@@ -24,24 +36,114 @@ const TwitchNotificationsPage = lazy(
 )
 const LastFmPage = lazy(() => import('./pages/LastFm'))
 
+function ForbiddenModulePage({ module }: { module: ModuleKey }) {
+    return (
+        <EmptyState
+            icon={<ShieldAlert className='h-10 w-10' />}
+            title='Access denied'
+            description={`You do not have permission to view the ${module} module for this server.`}
+        />
+    )
+}
+
+function RouteModuleGuard({
+    module,
+    children,
+}: {
+    module: ModuleKey
+    children: ReactNode
+}) {
+    const { selectedGuild, memberContext, memberContextLoading } =
+        useGuildStore()
+
+    if (!selectedGuild) {
+        return <>{children}</>
+    }
+
+    if (memberContextLoading) {
+        return <PageLoader />
+    }
+
+    const effectiveAccess =
+        memberContext?.effectiveAccess ?? selectedGuild.effectiveAccess
+
+    if (!hasModuleAccess(effectiveAccess, module, 'view')) {
+        return <ForbiddenModulePage module={module} />
+    }
+
+    return <>{children}</>
+}
+
+function guardedRoute(module: ModuleKey, element: ReactNode) {
+    return <RouteModuleGuard module={module}>{element}</RouteModuleGuard>
+}
+
 function AuthenticatedRoutes() {
     return (
         <Routes>
-            <Route path='/' element={<DashboardPage />} />
-            <Route path='/servers' element={<ServersPage />} />
-            <Route path='/features' element={<FeaturesPage />} />
-            <Route path='/config' element={<ConfigPage />} />
-            <Route path='/settings' element={<ServerSettingsPage />} />
-            <Route path='/moderation' element={<ModerationPage />} />
-            <Route path='/automod' element={<AutoModPage />} />
-            <Route path='/logs' element={<ServerLogsPage />} />
-            <Route path='/commands' element={<CustomCommandsPage />} />
-            <Route path='/automessages' element={<AutoMessagesPage />} />
-            <Route path='/music' element={<MusicPage />} />
-            <Route path='/music/history' element={<TrackHistoryPage />} />
-            <Route path='/lyrics' element={<LyricsPage />} />
-            <Route path='/twitch' element={<TwitchNotificationsPage />} />
-            <Route path='/lastfm' element={<LastFmPage />} />
+            <Route
+                path='/'
+                element={guardedRoute('overview', <DashboardPage />)}
+            />
+            <Route
+                path='/servers'
+                element={guardedRoute('overview', <ServersPage />)}
+            />
+            <Route
+                path='/features'
+                element={guardedRoute('settings', <FeaturesPage />)}
+            />
+            <Route
+                path='/config'
+                element={guardedRoute('settings', <ConfigPage />)}
+            />
+            <Route
+                path='/settings'
+                element={guardedRoute('settings', <ServerSettingsPage />)}
+            />
+            <Route
+                path='/moderation'
+                element={guardedRoute('moderation', <ModerationPage />)}
+            />
+            <Route
+                path='/automod'
+                element={guardedRoute('moderation', <AutoModPage />)}
+            />
+            <Route
+                path='/logs'
+                element={guardedRoute('moderation', <ServerLogsPage />)}
+            />
+            <Route
+                path='/commands'
+                element={guardedRoute('automation', <CustomCommandsPage />)}
+            />
+            <Route
+                path='/automessages'
+                element={guardedRoute('automation', <AutoMessagesPage />)}
+            />
+            <Route
+                path='/music'
+                element={guardedRoute('music', <MusicPage />)}
+            />
+            <Route
+                path='/music/history'
+                element={guardedRoute('music', <TrackHistoryPage />)}
+            />
+            <Route
+                path='/lyrics'
+                element={guardedRoute('music', <LyricsPage />)}
+            />
+            <Route
+                path='/twitch'
+                element={guardedRoute(
+                    'integrations',
+                    <TwitchNotificationsPage />,
+                )}
+            />
+            <Route
+                path='/lastfm'
+                element={guardedRoute('integrations', <LastFmPage />)}
+            />
             <Route path='*' element={<Navigate to='/' replace />} />
         </Routes>
     )

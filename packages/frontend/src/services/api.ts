@@ -8,6 +8,10 @@ import type {
     ServerListing,
     Feature,
     FeatureToggleState,
+    GuildMemberContext,
+    GuildRoleOption,
+    RoleGrant,
+    ModuleKey,
 } from '@/types'
 import { ApiError } from './ApiError'
 import { createMusicApi } from './musicApi'
@@ -45,11 +49,13 @@ interface BackendGuild {
     features: string[]
     hasBot: boolean
     botInviteUrl?: string
-    memberCount?: number
-    categoryCount?: number
-    textChannelCount?: number
-    voiceChannelCount?: number
-    roleCount?: number
+    memberCount?: number | null
+    categoryCount?: number | null
+    textChannelCount?: number | null
+    voiceChannelCount?: number | null
+    roleCount?: number | null
+    effectiveAccess?: Guild['effectiveAccess']
+    canManageRbac?: boolean
 }
 
 const mapGuild = (backendGuild: BackendGuild): Guild => {
@@ -138,6 +144,22 @@ export const api = {
         },
         getInvite: (id: string) =>
             apiClient.get<{ inviteUrl: string }>(`/guilds/${id}/invite`),
+        getMe: (id: string) =>
+            apiClient.get<GuildMemberContext>(`/guilds/${id}/me`),
+        getRbac: (id: string) =>
+            apiClient.get<{
+                guildId: string
+                modules: ModuleKey[]
+                grants: RoleGrant[]
+                roles: GuildRoleOption[]
+                effectiveAccess: NonNullable<Guild['effectiveAccess']>
+                canManageRbac: boolean
+            }>(`/guilds/${id}/rbac`),
+        updateRbac: (id: string, grants: RoleGrant[]) =>
+            apiClient.put<{ success: boolean; grants: RoleGrant[] }>(
+                `/guilds/${id}/rbac`,
+                { grants },
+            ),
         getSettings: (id: string) =>
             apiClient.get<{ settings: ServerSettings }>(
                 `/guilds/${id}/settings`,

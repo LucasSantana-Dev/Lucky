@@ -117,6 +117,21 @@ model GuildSettings {
   @@map("guild_settings")
 }
 
+model GuildRoleGrant {
+  id      String @id @default(cuid())
+  guildId String
+  roleId  String
+  module  String
+  mode    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, roleId, module])
+  @@index([guildId])
+  @@map("guild_role_grants")
+}
+
 // Session Management
 model UserSession {
   id      String @id @default(cuid())

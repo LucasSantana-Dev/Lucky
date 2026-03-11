@@ -10,7 +10,7 @@ vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
-const mockGuild = { id: '123', name: 'Test Guild' }
+const mockGuild = { id: '123', name: 'Test Guild', canManageRbac: false }
 const mockSettings = {
     nickname: 'Lucky',
     commandPrefix: '!',
@@ -20,10 +20,21 @@ const mockSettings = {
     disableWarnings: false,
 }
 
-function mockGuildStoreFn(guild: typeof mockGuild | null) {
+const defaultAccess = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+} as const
+
+function mockGuildStoreFn(guild: typeof mockGuild | null, memberContext?: any) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
         selectedGuild: guild as any,
+        memberContext: memberContext ?? null,
+        memberContextLoading: false,
         selectGuild: vi.fn(),
         isLoading: false,
         error: null,
@@ -41,6 +52,22 @@ const renderPage = () =>
 describe('ServerSettingsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: mockGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [],
+                roles: [],
+                effectiveAccess: defaultAccess,
+                canManageRbac: false,
+            },
+        } as any)
+        vi.mocked(api.guilds.updateRbac).mockResolvedValue({
+            data: { success: true, grants: [] },
+        } as any)
     })
 
     test('shows no server selected when no guild', () => {
@@ -211,6 +238,147 @@ describe('ServerSettingsPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+    })
+
+    test('shows RBAC manager message when user cannot manage policy', async () => {
+        mockGuildStoreFn({ ...mockGuild, canManageRbac: false })
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Access Control')).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByText(
+                /Only server owner or users with Administrator\/Manage Server permission can manage RBAC policy/i,
+            ),
+        ).toBeInTheDocument()
+        expect(api.guilds.getRbac).not.toHaveBeenCalled()
+    })
+
+    test('loads RBAC policy and saves newly added rule', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+
+        const managerGuild = { ...mockGuild, canManageRbac: true }
+        const roles = [{ id: '222222222222222222', name: 'Mods' }]
+
+        mockGuildStoreFn(managerGuild, {
+            canManageRbac: true,
+            effectiveAccess: defaultAccess,
+        })
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: managerGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [],
+                roles,
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
+            },
+        } as any)
+        vi.mocked(api.guilds.updateRbac).mockResolvedValue({
+            data: {
+                success: true,
+                grants: [
+                    {
+                        roleId: roles[0].id,
+                        module: 'overview',
+                        mode: 'view',
+                    },
+                ],
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(api.guilds.getRbac).toHaveBeenCalledWith(managerGuild.id)
+        })
+
+        await user.click(screen.getByRole('button', { name: /Add Rule/i }))
+        await user.click(screen.getByRole('button', { name: /Save Policy/i }))
+
+        await waitFor(() => {
+            expect(api.guilds.updateRbac).toHaveBeenCalledWith(
+                managerGuild.id,
+                [
+                    {
+                        roleId: roles[0].id,
+                        module: 'overview',
+                        mode: 'view',
+                    },
+                ],
+            )
+        })
+        expect(toast.success).toHaveBeenCalledWith(
+            'Access control policy saved',
+        )
+    })
+
+    test('shows toast when RBAC policy load fails', async () => {
+        const { toast } = await import('sonner')
+
+        mockGuildStoreFn(
+            { ...mockGuild, canManageRbac: true },
+            {
+                canManageRbac: true,
+                effectiveAccess: defaultAccess,
+            },
+        )
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('network'))
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to load access control policy',
+            )
+        })
+    })
+
+    test('shows toast when RBAC policy save fails', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+        const managerGuild = { ...mockGuild, canManageRbac: true }
+
+        mockGuildStoreFn(managerGuild, {
+            canManageRbac: true,
+            effectiveAccess: defaultAccess,
+        })
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: managerGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [
+                    {
+                        roleId: '222222222222222222',
+                        module: 'moderation',
+                        mode: 'view',
+                    },
+                ],
+                roles: [{ id: '222222222222222222', name: 'Mods' }],
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
+            },
+        } as any)
+        vi.mocked(api.guilds.updateRbac).mockRejectedValue(new Error('fail'))
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByRole('button', { name: /Save Policy/i }),
+            ).toBeInTheDocument()
+        })
+        await user.click(screen.getByRole('button', { name: /Save Policy/i }))
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to save access control policy',
+            )
         })
     })
 })

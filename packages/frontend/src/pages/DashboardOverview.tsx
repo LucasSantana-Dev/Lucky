@@ -37,7 +37,10 @@ const ACTION_COLORS: Record<string, string> = {
     unmute: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
 }
 
-const ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+const ACTION_ICONS: Record<
+    string,
+    React.ComponentType<{ className?: string }>
+> = {
     warn: AlertTriangle,
     mute: Clock,
     kick: ShieldAlert,
@@ -72,7 +75,9 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
             transition={{ duration: 0.2, delay: index * 0.05 }}
             className='grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
         >
-            <p className='text-xs font-mono text-lucky-text-tertiary'>#{c.caseNumber}</p>
+            <p className='text-xs font-mono text-lucky-text-tertiary'>
+                #{c.caseNumber}
+            </p>
             <div className='min-w-0'>
                 <p className='type-body-sm truncate text-lucky-text-primary'>
                     {c.userName || c.userId}
@@ -102,7 +107,9 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
 
 export default function DashboardOverview() {
     const { selectedGuild } = useGuildStore()
-    const { data: stats, isLoading: statsLoading } = useModerationStats(selectedGuild?.id)
+    const { data: stats, isLoading: statsLoading } = useModerationStats(
+        selectedGuild?.id,
+    )
     const { data: casesData, isLoading: casesLoading } = useModerationCases(
         selectedGuild?.id,
         { limit: 8 },
@@ -142,7 +149,7 @@ export default function DashboardOverview() {
                     <>
                         <StatTile
                             label='Total Members'
-                            value={selectedGuild.memberCount || 0}
+                            value={selectedGuild.memberCount ?? '—'}
                             icon={<Users className='h-4 w-4' />}
                             tone='brand'
                         />
@@ -178,7 +185,9 @@ export default function DashboardOverview() {
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
-                            <h2 className='type-title text-lucky-text-primary'>Recent Cases</h2>
+                            <h2 className='type-title text-lucky-text-primary'>
+                                Recent Cases
+                            </h2>
                             <p className='type-body-sm text-lucky-text-tertiary'>
                                 Latest moderation actions
                             </p>
@@ -195,7 +204,10 @@ export default function DashboardOverview() {
                     <div className='divide-y divide-lucky-border/50'>
                         {loading ? (
                             Array.from({ length: 5 }).map((_, index) => (
-                                <div key={index} className='grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-3'>
+                                <div
+                                    key={index}
+                                    className='grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-3'
+                                >
                                     <Skeleton className='h-4 w-8' />
                                     <div className='space-y-1.5'>
                                         <Skeleton className='h-4 w-28' />
@@ -206,7 +218,11 @@ export default function DashboardOverview() {
                             ))
                         ) : recentCases.length > 0 ? (
                             recentCases.map((item, index) => (
-                                <CaseRow key={item.id} case={item} index={index} />
+                                <CaseRow
+                                    key={item.id}
+                                    case={item}
+                                    index={index}
+                                />
                             ))
                         ) : (
                             <div className='px-4 py-10 text-center'>
@@ -215,7 +231,8 @@ export default function DashboardOverview() {
                                     No moderation cases yet
                                 </p>
                                 <p className='type-body-sm text-lucky-text-tertiary'>
-                                    Cases will appear here when moderators take action
+                                    Cases will appear here when moderators take
+                                    action
                                 </p>
                             </div>
                         )}
@@ -228,7 +245,9 @@ export default function DashboardOverview() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.3 }}
                 >
-                    <h2 className='type-title text-lucky-text-primary'>Quick Actions</h2>
+                    <h2 className='type-title text-lucky-text-primary'>
+                        Quick Actions
+                    </h2>
                     <ActionPanel
                         title='Moderation Cases'
                         description='Review warnings, mutes, kicks, and bans.'
@@ -285,30 +304,43 @@ export default function DashboardOverview() {
             </div>
 
             <section className='surface-panel p-5'>
-                <h2 className='type-title text-lucky-text-primary'>Cases by Type</h2>
+                <h2 className='type-title text-lucky-text-primary'>
+                    Cases by Type
+                </h2>
                 <div className='mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
-                    {Object.entries(stats?.casesByType ?? {}).map(([type, value]) => {
-                        const delta = type === 'warn' ? 8 : -3
-                        return (
-                            <div key={type} className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 p-3'>
-                                <p className='type-meta text-lucky-text-tertiary'>{type}</p>
-                                <p className='type-title text-lucky-text-primary'>{value}</p>
-                                <p
-                                    className={cn(
-                                        'type-body-sm inline-flex items-center gap-1',
-                                        delta >= 0 ? 'text-lucky-success' : 'text-lucky-error',
-                                    )}
+                    {Object.entries(stats?.casesByType ?? {}).map(
+                        ([type, value]) => {
+                            const delta = type === 'warn' ? 8 : -3
+                            return (
+                                <div
+                                    key={type}
+                                    className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 p-3'
                                 >
-                                    {delta >= 0 ? (
-                                        <TrendingUp className='h-3.5 w-3.5' />
-                                    ) : (
-                                        <TrendingDown className='h-3.5 w-3.5' />
-                                    )}
-                                    {Math.abs(delta)}%
-                                </p>
-                            </div>
-                        )
-                    })}
+                                    <p className='type-meta text-lucky-text-tertiary'>
+                                        {type}
+                                    </p>
+                                    <p className='type-title text-lucky-text-primary'>
+                                        {value}
+                                    </p>
+                                    <p
+                                        className={cn(
+                                            'type-body-sm inline-flex items-center gap-1',
+                                            delta >= 0
+                                                ? 'text-lucky-success'
+                                                : 'text-lucky-error',
+                                        )}
+                                    >
+                                        {delta >= 0 ? (
+                                            <TrendingUp className='h-3.5 w-3.5' />
+                                        ) : (
+                                            <TrendingDown className='h-3.5 w-3.5' />
+                                        )}
+                                        {Math.abs(delta)}%
+                                    </p>
+                                </div>
+                            )
+                        },
+                    )}
                 </div>
             </section>
         </div>
