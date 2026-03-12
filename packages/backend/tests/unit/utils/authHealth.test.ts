@@ -112,6 +112,56 @@ describe('authHealth utils', () => {
             )
         })
 
+        test('returns degraded when redirect uri is invalid', () => {
+            const response = buildAuthConfigHealth({
+                clientId: '962198089161134131',
+                redirectUri: 'not-a-valid-uri',
+                frontendOrigins: ['https://lucky.lucassantana.tech'],
+                backendOrigins: ['https://lucky-api.lucassantana.tech'],
+                sessionSecretConfigured: true,
+                redisHealthy: true,
+            })
+
+            expect(response.status).toBe('degraded')
+            expect(response.warnings).toContain('OAuth redirect URI is invalid')
+        })
+
+        test('returns degraded when no frontend, backend, or request origins are configured', () => {
+            const response = buildAuthConfigHealth({
+                clientId: '962198089161134131',
+                redirectUri:
+                    'https://lucky.lucassantana.tech/api/auth/callback',
+                frontendOrigins: [],
+                backendOrigins: [],
+                requestOrigin: undefined,
+                sessionSecretConfigured: true,
+                redisHealthy: true,
+            })
+
+            expect(response.status).toBe('degraded')
+            expect(response.warnings).toContain(
+                'No WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL origins configured',
+            )
+        })
+
+        test('ignores malformed configured origins and malformed request origin', () => {
+            const response = buildAuthConfigHealth({
+                clientId: '962198089161134131',
+                redirectUri:
+                    'https://lucky.lucassantana.tech/api/auth/callback',
+                frontendOrigins: ['not-an-origin'],
+                backendOrigins: ['still-not-an-origin'],
+                requestOrigin: 'bad-origin',
+                sessionSecretConfigured: true,
+                redisHealthy: true,
+            })
+
+            expect(response.status).toBe('degraded')
+            expect(response.warnings).toContain(
+                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
+            )
+        })
+
         test('returns degraded when client id differs from expected production app id', () => {
             const response = buildAuthConfigHealth({
                 clientId: '111111111111111111',
