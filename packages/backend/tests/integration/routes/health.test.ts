@@ -1,7 +1,11 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
-import { setupHealthRoutes } from '../../../src/routes/health'
+import {
+    setupHealthRoutes,
+    getForwardedHeader,
+    resolveRequestOrigin,
+} from '../../../src/routes/health'
 import { redisClient } from '@lucky/shared/services'
 
 const mockRedis = redisClient as jest.Mocked<typeof redisClient>
@@ -218,6 +222,48 @@ describe('Health Routes Integration', () => {
             expect(response.body.auth.redirectUri).toBe(
                 'https://lucky.lucassantana.tech/api/auth/callback',
             )
+        })
+    })
+
+    describe('health route origin helpers', () => {
+        test('reads first value from array-based forwarded headers', () => {
+            const req = {
+                headers: {
+                    'x-forwarded-host': ['api.example.com', 'fallback.example.com'],
+                },
+            } as any
+
+            expect(getForwardedHeader(req, 'x-forwarded-host')).toBe(
+                'api.example.com',
+            )
+        })
+
+        test('returns undefined when request host is unavailable', () => {
+            const req = {
+                headers: {},
+                protocol: 'https',
+                get: jest.fn((_header: string) => undefined),
+            } as any
+
+            expect(resolveRequestOrigin(req)).toBeUndefined()
+        })
+
+        test('returns undefined for malformed forwarded host values', () => {
+            const req = {
+                headers: {
+                    'x-forwarded-host': 'bad host',
+                    'x-forwarded-proto': 'https',
+                },
+                protocol: 'https',
+                get: jest.fn((header: string) => {
+                    if (header === 'x-forwarded-host') return 'bad host'
+                    if (header === 'x-forwarded-proto') return 'https'
+                    if (header === 'host') return undefined
+                    return undefined
+                }),
+            } as any
+
+            expect(resolveRequestOrigin(req)).toBeUndefined()
         })
     })
 })

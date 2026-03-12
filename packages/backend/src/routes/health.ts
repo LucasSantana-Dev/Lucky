@@ -6,7 +6,7 @@ import { buildAuthConfigHealth } from '../utils/authHealth'
 
 const DEFAULT_PRODUCTION_CLIENT_ID = '962198089161134131'
 
-const getForwardedHeader = (
+export const getForwardedHeader = (
     req: Request,
     headerName: string,
 ): string | undefined => {
@@ -16,7 +16,7 @@ const getForwardedHeader = (
     return raw.split(',')[0].trim() || undefined
 }
 
-const resolveRequestOrigin = (req: Request): string | undefined => {
+export const resolveRequestOrigin = (req: Request): string | undefined => {
     const forwardedProtocol =
         req.get('x-forwarded-proto')?.split(',')[0].trim() ||
         getForwardedHeader(req, 'x-forwarded-proto')
