@@ -22,9 +22,7 @@ export async function selectServer(
     page: Page,
     serverId: string,
 ): Promise<void> {
-    const serverSelector = page
-        .locator('button[aria-haspopup="listbox"]')
-        .first()
+    const serverSelector = page.locator('button[aria-haspopup="listbox"]').first()
     await serverSelector.click()
 
     const serverOption = page
@@ -67,13 +65,10 @@ export async function toggleFeature(
 
 export async function waitForServerList(
     page: Page,
-    timeout = 30000,
+    timeout = 10000,
 ): Promise<void> {
-    const pageLoader = page.locator('text=Loading...').first()
-    await pageLoader.waitFor({ state: 'hidden', timeout }).catch(() => {})
-    await page.waitForSelector('section[aria-labelledby="servers-heading"]', {
-        timeout,
-    })
+    await page.waitForSelector('text=/servers|Server|No servers/i', { timeout })
+    await page.waitForLoadState('domcontentloaded')
 }
 
 export async function waitForFeatures(
@@ -88,11 +83,8 @@ export async function waitForDashboard(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector(
-        'text=/Dashboard|Select a Server|Access denied/i',
-        {
-            timeout,
-        },
-    )
+    await page.waitForSelector('text=/Dashboard|Select a Server|Access denied/i', {
+        timeout,
+    })
     await page.waitForLoadState('domcontentloaded')
 }

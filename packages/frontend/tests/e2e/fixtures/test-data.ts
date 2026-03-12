@@ -29,6 +29,15 @@ export const TEST_ENV = {
     WEBAPP_PORT: '3000',
 }
 
+const MANAGE_EFFECTIVE_ACCESS = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+} as const
+
 export const MOCK_GUILDS = [
     {
         id: '111111111111111111',
@@ -38,6 +47,8 @@ export const MOCK_GUILDS = [
         permissions: '2147483647',
         features: ['COMMUNITY', 'NEWS'],
         hasBot: true,
+        effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
+        canManageRbac: true,
         botInviteUrl: undefined,
         effectiveAccess: {
             overview: 'manage',
@@ -57,6 +68,8 @@ export const MOCK_GUILDS = [
         permissions: '268435456',
         features: [],
         hasBot: false,
+        effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
+        canManageRbac: true,
         botInviteUrl:
             'https://discord.com/api/oauth2/authorize?client_id=962198089161134131&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
         effectiveAccess: {
@@ -77,6 +90,8 @@ export const MOCK_GUILDS = [
         permissions: '2147483647',
         features: ['VERIFIED'],
         hasBot: true,
+        effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
+        canManageRbac: true,
         botInviteUrl: undefined,
         effectiveAccess: {
             overview: 'manage',

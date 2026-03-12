@@ -47,9 +47,13 @@ test.describe('Layout and Navigation', () => {
     test('user avatar and username display', async ({ page }) => {
         await navigateToDashboard(page)
 
-        await expect(
-            page.getByText(`@${MOCK_DISCORD_USER.username}`),
-        ).toBeVisible({ timeout: 3000 })
+        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
+        await expect(username.first()).toBeVisible({ timeout: 5000 })
+
+        const usernameHandle = page.locator(
+            `text=@${MOCK_DISCORD_USER.username}`,
+        )
+        await expect(usernameHandle).toBeVisible({ timeout: 3000 })
     })
 
     test('logout functionality', async ({ page }) => {
@@ -73,9 +77,7 @@ test.describe('Layout and Navigation', () => {
     test('server selector dropdown in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const serverSelector = page
-            .locator('button[aria-haspopup="listbox"]')
-            .first()
+        const serverSelector = page.locator('text=Select a server').first()
         const isVisible = await serverSelector
             .isVisible({ timeout: 3000 })
             .catch(() => false)
