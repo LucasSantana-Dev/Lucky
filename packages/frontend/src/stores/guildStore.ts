@@ -55,6 +55,7 @@ interface GuildState {
     selectedGuild: Guild | null
     selectedGuildId: string | null
     currentGuildRequestId: number
+    currentGuildSelectionRequestId: number
     isLoading: boolean
     guildLoadError: GuildLoadErrorState | null
     memberContext: GuildMemberContext | null
@@ -63,7 +64,7 @@ interface GuildState {
     serverListing: ServerListing | null
     fetchGuilds: () => Promise<void>
     selectGuild: (guild: Guild | null) => void
-    fetchMemberContext: (guildId: string) => Promise<void>
+    fetchMemberContext: (guildId: string, requestId?: number) => Promise<void>
     setSelectedGuild: (guildId: string | null) => void
     getSelectedGuild: () => Guild | null
     updateServerSettings: (settings: Partial<ServerSettings>) => void
@@ -75,6 +76,7 @@ export const useGuildStore = create<GuildState>((set, get) => ({
     selectedGuild: null,
     selectedGuildId: null,
     currentGuildRequestId: 0,
+    currentGuildSelectionRequestId: 0,
     isLoading: false,
     guildLoadError: null,
     memberContext: null,
@@ -144,6 +146,7 @@ export const useGuildStore = create<GuildState>((set, get) => ({
     },
 
     selectGuild: (guild) => {
+        const requestId = get().currentGuildSelectionRequestId + 1
         set({
             selectedGuild: guild,
             selectedGuildId: guild?.id || null,
@@ -151,39 +154,73 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             memberContextLoading: Boolean(guild),
             serverSettings: null,
             serverListing: null,
+            currentGuildSelectionRequestId: requestId,
         })
         if (guild) {
-            get()
-                .fetchMemberContext(guild.id)
-                .catch(() => {})
+            void get().fetchMemberContext(guild.id, requestId)
             api.guilds
                 .getSettings(guild.id)
                 .then((response) => {
+                    if (requestId !== get().currentGuildSelectionRequestId) {
+                        return
+                    }
                     set({ serverSettings: response.data.settings })
                 })
-                .catch(() => {
+                .catch((error) => {
+                    if (requestId !== get().currentGuildSelectionRequestId) {
+                        return
+                    }
+                    console.error('Failed to load server settings', {
+                        guildId: guild.id,
+                        requestId,
+                        error,
+                    })
                     set({ serverSettings: null })
                 })
             api.guilds
                 .getListing(guild.id)
                 .then((response) => {
+                    if (requestId !== get().currentGuildSelectionRequestId) {
+                        return
+                    }
                     set({ serverListing: response.data.listing })
                 })
-                .catch(() => {
+                .catch((error) => {
+                    if (requestId !== get().currentGuildSelectionRequestId) {
+                        return
+                    }
+                    console.error('Failed to load server listing', {
+                        guildId: guild.id,
+                        requestId,
+                        error,
+                    })
                     set({ serverListing: null })
                 })
         }
     },
 
-    fetchMemberContext: async (guildId) => {
+    fetchMemberContext: async (guildId, requestId) => {
+        const activeRequestId =
+            requestId ?? get().currentGuildSelectionRequestId
         set({ memberContextLoading: true })
         try {
             const response = await api.guilds.getMe(guildId)
+            if (activeRequestId !== get().currentGuildSelectionRequestId) {
+                return
+            }
             set({
                 memberContext: response.data,
                 memberContextLoading: false,
             })
-        } catch {
+        } catch (error) {
+            if (activeRequestId !== get().currentGuildSelectionRequestId) {
+                return
+            }
+            console.error('Failed to load guild member context', {
+                guildId,
+                requestId: activeRequestId,
+                error,
+            })
             set({
                 memberContext: null,
                 memberContextLoading: false,

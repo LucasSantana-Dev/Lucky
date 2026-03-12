@@ -67,7 +67,9 @@ export async function waitForServerList(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('text=/servers|Server|No servers/i', { timeout })
+    await page.waitForSelector('main section[aria-labelledby="servers-heading"]', {
+        timeout,
+    })
     await page.waitForLoadState('domcontentloaded')
 }
 
@@ -75,7 +77,14 @@ export async function waitForFeatures(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('text=/Features|Feature|Toggle/i', { timeout })
+    await page
+        .locator('main')
+        .getByRole('heading', { name: 'Features' })
+        .first()
+        .waitFor({
+            state: 'visible',
+            timeout,
+        })
     await page.waitForLoadState('domcontentloaded')
 }
 
@@ -83,8 +92,15 @@ export async function waitForDashboard(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('text=/Dashboard|Select a Server|Access denied/i', {
-        timeout,
-    })
+    await page
+        .locator('main')
+        .getByRole('heading', {
+            name: /Dashboard|Select a Server|No Server Selected/i,
+        })
+        .first()
+        .waitFor({
+            state: 'visible',
+            timeout,
+        })
     await page.waitForLoadState('domcontentloaded')
 }

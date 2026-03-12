@@ -99,16 +99,14 @@ class GuildAccessService {
                 guild.permissions_new,
             )
 
-        let hasBot = false
-        try {
-            hasBot = await guildService.hasBotInGuild(guild.id)
-        } catch (error) {
+        const hasBot = await guildService.hasBotInGuild(guild.id).catch((error) => {
             errorLog({
                 message: 'Failed to resolve bot presence for guild access',
                 error,
                 data: { guildId: guild.id },
             })
-        }
+            throw error
+        })
 
         const memberContext =
             hasBot && !isAdmin
@@ -120,7 +118,7 @@ class GuildAccessService {
                               error,
                               data: { guildId: guild.id, userId },
                           })
-                          return { nickname: null, roleIds: [] as string[] }
+                          throw error
                       })
                 : { nickname: null, roleIds: [] as string[] }
 

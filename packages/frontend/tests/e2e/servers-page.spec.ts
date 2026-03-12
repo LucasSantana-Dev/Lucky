@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test'
 import {
     setupMockApiResponses,
-    mockGuildsList,
-    mockAuthStatus,
     mockInviteUrl,
 } from './helpers/api-helpers'
 import { navigateToServers, waitForServerList } from './helpers/page-helpers'
@@ -151,14 +149,8 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const emptyState = page.locator('text=/no servers|0 servers/i')
-        const isEmptyVisible = await emptyState
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
-        if (isEmptyVisible) {
-            await expect(emptyState).toBeVisible()
-        }
+        const emptyState = page.getByText('No servers found matching the filter.')
+        await expect(emptyState).toBeVisible()
     })
 
     test('handles error when API fails', async ({ page }) => {

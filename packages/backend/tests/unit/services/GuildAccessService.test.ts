@@ -297,36 +297,37 @@ describe('GuildAccessService', () => {
         })
     })
 
-    test('resolveGuildContext falls back to empty member context when guild lookup fails', async () => {
+    test('resolveGuildContext throws when guild member context lookup fails', async () => {
         const guild = makeGuild('808')
-        const moderationViewAccess = {
-            ...EMPTY_ACCESS,
-            moderation: 'view',
-        }
 
         mockGetUserGuilds.mockResolvedValue([guild])
         mockHasBotInGuild.mockResolvedValue(true)
         mockGetGuildMemberContext.mockRejectedValue(
             new Error('member context unavailable'),
         )
-        mockResolveEffectiveAccess.mockImplementation(
-            async (_guildId: string, roleIds: string[]) => {
-                expect(roleIds).toEqual([])
-                return moderationViewAccess
-            },
+
+        await expect(
+            guildAccessService.resolveGuildContext(SESSION, guild.id),
+        ).rejects.toThrow('member context unavailable')
+
+        expect(mockResolveEffectiveAccess).not.toHaveBeenCalled()
+    })
+
+    test('listAuthorizedGuilds returns retryable error when all member-context lookups fail', async () => {
+        const guilds = [makeGuild('101'), makeGuild('202')]
+
+        mockGetUserGuilds.mockResolvedValue(guilds)
+        mockHasBotInGuild.mockResolvedValue(true)
+        mockGetGuildMemberContext.mockRejectedValue(
+            new Error('member context unavailable'),
         )
 
-        const context = await guildAccessService.resolveGuildContext(
-            SESSION,
-            guild.id,
-        )
-
-        expect(context).toMatchObject({
-            guildId: guild.id,
-            nickname: null,
-            roleIds: [],
-            effectiveAccess: moderationViewAccess,
+        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+            statusCode: 502,
+            message: 'Unable to resolve server access right now. Please retry.',
         })
+
+        expect(mockResolveEffectiveAccess).not.toHaveBeenCalled()
     })
 
     test('listAuthorizedGuilds throws when enriched guild has no context', async () => {

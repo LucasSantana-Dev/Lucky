@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { setupMockApiResponses, mockGuildsList } from './helpers/api-helpers'
+import { setupMockApiResponses } from './helpers/api-helpers'
 import {
     navigateToDashboard,
     waitForDashboard,

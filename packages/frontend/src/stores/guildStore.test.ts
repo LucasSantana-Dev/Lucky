@@ -1,6 +1,11 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { useGuildStore } from './guildStore'
-import type { Guild } from '@/types'
+import type {
+    Guild,
+    GuildMemberContext,
+    ServerListing,
+    ServerSettings,
+} from '@/types'
 import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api', () => ({
@@ -36,6 +41,10 @@ const MANAGE_ACCESS = {
     integrations: 'manage',
 } as const
 
+type MeResponse = { data: GuildMemberContext }
+type SettingsResponse = { data: { settings: ServerSettings | null } }
+type ListingResponse = { data: { listing: ServerListing | null } }
+
 function setupSelectedGuildApiMocks(guildId: string) {
     vi.mocked(api.guilds.getSettings).mockResolvedValue({
         data: { settings: null },
@@ -63,6 +72,7 @@ describe('guildStore', () => {
             selectedGuild: null,
             selectedGuildId: null,
             currentGuildRequestId: 0,
+            currentGuildSelectionRequestId: 0,
             isLoading: false,
             guildLoadError: null,
             memberContext: null,
@@ -359,6 +369,133 @@ describe('guildStore', () => {
                 expect(state.serverSettings).toBeNull()
                 expect(state.serverListing).toBeNull()
             })
+        })
+
+        test('should ignore stale async responses from previous selected guild', async () => {
+            const guildA = mockGuild({ id: 'guild-a', name: 'Guild A' })
+            const guildB = mockGuild({ id: 'guild-b', name: 'Guild B' })
+
+            const deferred = <T>() => {
+                let resolve: (value: T) => void = () => {}
+                const promise = new Promise<T>((res) => {
+                    resolve = res
+                })
+                return { promise, resolve }
+            }
+
+            const meA = deferred<MeResponse>()
+            const settingsA = deferred<SettingsResponse>()
+            const listingA = deferred<ListingResponse>()
+
+            vi.mocked(api.guilds.getMe).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return meA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        guildId,
+                        nickname: 'B Nick',
+                        username: 'user-b',
+                        globalName: null,
+                        roleIds: ['role-b'],
+                        effectiveAccess: MANAGE_ACCESS,
+                        canManageRbac: true,
+                    },
+                } as never)
+            })
+
+            vi.mocked(api.guilds.getSettings).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return settingsA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        settings: {
+                            nickname: 'Settings B',
+                            commandPrefix: '!',
+                            managerRoles: [],
+                            updatesChannel: 'updates',
+                            timezone: 'UTC',
+                            disableWarnings: false,
+                        },
+                    },
+                } as never)
+            })
+
+            vi.mocked(api.guilds.getListing).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return listingA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        listing: {
+                            listed: true,
+                            description: 'Listing B',
+                            inviteUrl: 'https://discord.gg/b',
+                            defaultInviteChannel: 'updates',
+                            language: 'en',
+                            categories: ['music'],
+                            tags: ['community'],
+                        },
+                    },
+                } as never)
+            })
+
+            useGuildStore.getState().selectGuild(guildA)
+            useGuildStore.getState().selectGuild(guildB)
+
+            await vi.waitFor(() => {
+                const state = useGuildStore.getState()
+                expect(state.selectedGuildId).toBe(guildB.id)
+                expect(state.memberContext?.guildId).toBe(guildB.id)
+                expect(state.serverSettings?.nickname).toBe('Settings B')
+                expect(state.serverListing?.description).toBe('Listing B')
+            })
+
+            meA.resolve({
+                data: {
+                    guildId: guildA.id,
+                    nickname: 'A Nick',
+                    username: 'user-a',
+                    globalName: null,
+                    roleIds: ['role-a'],
+                    effectiveAccess: MANAGE_ACCESS,
+                    canManageRbac: true,
+                },
+            })
+            settingsA.resolve({
+                data: {
+                    settings: {
+                        nickname: 'Settings A',
+                        commandPrefix: '?',
+                        managerRoles: ['mod'],
+                        updatesChannel: 'old-updates',
+                        timezone: 'GMT',
+                        disableWarnings: true,
+                    },
+                },
+            })
+            listingA.resolve({
+                data: {
+                    listing: {
+                        listed: false,
+                        description: 'Listing A',
+                        inviteUrl: 'https://discord.gg/a',
+                        defaultInviteChannel: 'general',
+                        language: 'pt-BR',
+                        categories: ['gaming'],
+                        tags: ['legacy'],
+                    },
+                },
+            })
+
+            await Promise.resolve()
+
+            const state = useGuildStore.getState()
+            expect(state.selectedGuildId).toBe(guildB.id)
+            expect(state.memberContext?.guildId).toBe(guildB.id)
+            expect(state.serverSettings?.nickname).toBe('Settings B')
+            expect(state.serverListing?.description).toBe('Listing B')
         })
     })
 
