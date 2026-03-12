@@ -67,6 +67,24 @@ const defaultGuildState: GuildState = {
     memberContextLoading: false,
 }
 
+const MANAGE_ACCESS: EffectiveAccessMap = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+}
+
+const NONE_ACCESS: EffectiveAccessMap = {
+    overview: 'none',
+    settings: 'none',
+    moderation: 'none',
+    automation: 'none',
+    music: 'none',
+    integrations: 'none',
+}
+
 function mockAuthStore(overrides: Partial<AuthState> = {}) {
     const state = { ...defaultAuthState, ...overrides }
     const storeImpl = ((selector?: (value: AuthState) => unknown) =>
@@ -139,14 +157,7 @@ describe('App authenticated routing', () => {
             selectedGuild: {
                 id: '123',
                 name: 'Guild',
-                effectiveAccess: {
-                    overview: 'manage',
-                    settings: 'manage',
-                    moderation: 'manage',
-                    automation: 'manage',
-                    music: 'manage',
-                    integrations: 'manage',
-                },
+                effectiveAccess: MANAGE_ACCESS,
             },
             memberContextLoading: true,
         })
@@ -167,12 +178,10 @@ describe('App authenticated routing', () => {
                 id: '123',
                 name: 'Guild',
                 effectiveAccess: {
+                    ...NONE_ACCESS,
                     overview: 'manage',
                     settings: 'manage',
                     moderation: 'view',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
                 },
             },
             memberContextLoading: false,
@@ -192,12 +201,8 @@ describe('App authenticated routing', () => {
                 id: '123',
                 name: 'Guild',
                 effectiveAccess: {
+                    ...NONE_ACCESS,
                     overview: 'view',
-                    settings: 'none',
-                    moderation: 'none',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
                 },
             },
             memberContextLoading: false,
@@ -220,12 +225,10 @@ describe('App authenticated routing', () => {
                 id: '123',
                 name: 'Guild',
                 effectiveAccess: {
+                    ...NONE_ACCESS,
                     overview: 'manage',
                     settings: 'manage',
                     moderation: 'manage',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
                 },
             },
             memberContextLoading: false,
@@ -248,14 +251,7 @@ describe('App authenticated routing', () => {
             selectedGuild: {
                 id: '123',
                 name: 'Guild',
-                effectiveAccess: {
-                    overview: 'none',
-                    settings: 'none',
-                    moderation: 'none',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
-                },
+                effectiveAccess: NONE_ACCESS,
             },
             memberContextLoading: false,
         })
