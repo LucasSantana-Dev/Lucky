@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET/PUT /api/guilds/:guildId/rbac` and `GET /api/guilds/:id/me`
 - Added frontend Access Control section in Server Settings to manage module
   grants by Discord role as full-policy replacement
+- Added public legal routes for Discord app metadata:
+  `/terms-of-service`, `/privacy-policy` with aliases `/terms`, `/privacy`
+- Added public install redirect endpoint (`/api/install`) and canonical install
+  link (`https://lucky.lucassantana.tech/install`) for Discord app installation
+- Added Discord Activities URL mapping policy for embedded app setup:
+  root prefix `/` targets `lucky.lucassantana.tech` with no proxy path mappings
 
 ### Fixed
 
@@ -43,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend shell now initializes guild selection on all authenticated routes,
   so the server selector is populated right after login instead of only after
   visiting pages that manually triggered guild loading (PR #162)
+- Vercel deep links now use a final SPA fallback rewrite after `/api` and
+  `/install`, and README now documents the complete Discord portal URL mapping
+  (General Information, Installation, and Activities URL Mappings)
+- `/install` now proxies to `/api/auth/discord` so the public install URL
+  reliably returns Discord OAuth redirect (`302`) on production
 
 ### Changed
 
