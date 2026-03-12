@@ -72,7 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `automod` categories
 - Command directory loading now ignores `*.spec.*` and `*.test.*` modules so
   test files are never registered as slash commands
-=======
 - Dashboard guild authorization now tolerates per-guild context failures
   instead of dropping the full `/api/guilds` response when one guild fails
 - Discord guild permission parsing now supports payload drift
@@ -111,6 +110,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   require `view` and mutating requests require `manage`
 - Bot Jest config now maps relative `.js` imports to source modules during test
   execution, matching the ESM build import style
+
+## [2.6.11] - 2026-03-12
+
+### Fixed
+
+- Docker publish reliability in CI images: npm cache mounts are now isolated per
+  stage with locked sharing, and `npm ci` failures are no longer masked by
+  cache-verify fallback logic.
+- Dashboard/server visibility stabilization from PR #169 is now on `main`,
+  including resilient guild authorization handling, safer Discord permissions
+  parsing, server selector error-state clarity, and authenticated `/servers`
+  access.
+- Backlog merge completion for PRs #163, #168, #164, and #169 in the same
+  cycle.
+
+### Changed
+
+- OAuth callback policy for production docs is now explicitly frontend-host
+  canonical (`https://lucky.lucassantana.tech/api/auth/callback`) for Discord
+  portal alignment in this release cycle.
+
+### Verification
+
+- `docker build -f Dockerfile --target production-backend .`
+- `docker build -f Dockerfile --target production-bot .`
+- `docker build -f Dockerfile.frontend .`
+- `npm run test --workspace=packages/backend -- tests/unit/services/DiscordOAuthService.test.ts tests/unit/services/GuildAccessService.test.ts`
+- `npm run test --workspace=packages/frontend -- src/stores/guildStore.test.ts src/hooks/useGuildSelection.test.tsx src/App.authRoutes.test.tsx src/components/Layout/Sidebar.test.tsx src/pages/ServersPage.test.tsx src/pages/DashboardOverview.test.tsx`
+- `CI=1 npm run test:e2e --workspace=packages/frontend -- tests/e2e/dashboard-page.spec.ts tests/e2e/servers-page.spec.ts tests/e2e/layout-navigation.spec.ts`
+- `npm run lint --workspace=packages/frontend`
+- `npm run type:check --workspace=packages/frontend`
 
 ## [2.6.10] - 2026-03-11
 
