@@ -237,7 +237,7 @@ if ! docker_compose pull bot backend frontend nginx; then
 fi
 
 log "Rolling out services..."
-docker_compose up -d --remove-orphans bot backend frontend nginx postgres redis
+docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postgres redis
 
 if ! verify_cloudflared_config "$CLOUDFLARED_CONFIG_DIR"; then
     print_targeted_logs
