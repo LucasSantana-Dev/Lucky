@@ -194,6 +194,22 @@ Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
 through a dedicated host.
 
+Discord Developer Portal URL mapping for this deployment:
+
+- General Information:
+  - Interaction Endpoint URL: leave empty
+  - Linked Roles Verification URL: leave empty
+  - Terms of Service URL: `https://lucky.lucassantana.tech/terms-of-service`
+  - Privacy Policy URL: `https://lucky.lucassantana.tech/privacy-policy`
+- Installation:
+  - Installation Link (custom): `https://lucky.lucassantana.tech/install`
+  - Install redirect target: `/api/auth/discord`
+  - Install contexts: Guild Install enabled, User Install disabled
+- Activities -> URL Mappings:
+  - Root mapping prefix: `/`
+  - Root mapping target: `lucky.lucassantana.tech`
+  - Proxy path mappings: none (leave empty)
+
 ## Environment Variables
 
 See `.env.example` for all available options. Key variables:

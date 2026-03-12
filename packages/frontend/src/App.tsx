@@ -6,7 +6,7 @@ import {
     useState,
     type ReactNode,
 } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ShieldAlert } from 'lucide-react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
@@ -35,6 +35,19 @@ const TwitchNotificationsPage = lazy(
     () => import('./pages/TwitchNotifications'),
 )
 const LastFmPage = lazy(() => import('./pages/LastFm'))
+const TermsOfServicePage = lazy(() => import('./pages/TermsOfService'))
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'))
+
+const LEGAL_PATHS = [
+    '/terms-of-service',
+    '/terms',
+    '/privacy-policy',
+    '/privacy',
+]
+
+function isLegalPath(pathname: string) {
+    return LEGAL_PATHS.includes(pathname)
+}
 
 function ForbiddenModulePage({ module }: { module: ModuleKey }) {
     return (
@@ -150,7 +163,23 @@ function AuthenticatedRoutes() {
     )
 }
 
+function LegalRoutes() {
+    return (
+        <Routes>
+            <Route path='/terms-of-service' element={<TermsOfServicePage />} />
+            <Route path='/terms' element={<TermsOfServicePage />} />
+            <Route path='/privacy-policy' element={<PrivacyPolicyPage />} />
+            <Route path='/privacy' element={<PrivacyPolicyPage />} />
+            <Route
+                path='*'
+                element={<Navigate to='/terms-of-service' replace />}
+            />
+        </Routes>
+    )
+}
+
 function App() {
+    const location = useLocation()
     const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
     const [isReady, setIsReady] = useState(false)
     const initialized = useRef(false)
@@ -163,6 +192,18 @@ function App() {
             .then(() => setIsReady(true))
             .catch(() => setIsReady(true))
     }, [checkAuth])
+
+    if (isLegalPath(location.pathname)) {
+        return (
+            <div className='dark'>
+                <ErrorBoundary>
+                    <Suspense fallback={<PageLoader />}>
+                        <LegalRoutes />
+                    </Suspense>
+                </ErrorBoundary>
+            </div>
+        )
+    }
 
     // Show loader while initializing
     if (!isReady || isLoading) {
