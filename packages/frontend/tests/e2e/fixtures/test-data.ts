@@ -173,13 +173,6 @@ export const MOCK_SERVER_SETTINGS = {
     },
 }
 
-export const MOCK_SERVER_LISTING = {
-    name: 'Test Server 1',
-    description: 'A test server for Lucky',
-    tags: ['music', 'community'],
-    verified: false,
-}
-
 export const MOCK_API_RESPONSES = {
     guildsList: {
         guilds: MOCK_GUILDS,
@@ -196,9 +189,6 @@ export const MOCK_API_RESPONSES = {
     },
     serverSettings: {
         settings: MOCK_SERVER_SETTINGS,
-    },
-    serverListing: {
-        listing: MOCK_SERVER_LISTING,
     },
     authStatus: {
         authenticated: true,

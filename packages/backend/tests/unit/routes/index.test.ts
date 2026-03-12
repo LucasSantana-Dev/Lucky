@@ -132,9 +132,19 @@ describe('setupRoutes', () => {
             'settings:manage',
         )
         expect(app.use).toHaveBeenCalledWith(
+            '/api/guilds/:guildId/automessages',
+            requireAuth,
+            'automation:view',
+        )
+        expect(app.use).toHaveBeenCalledWith(
             '/api/guilds/:id/features',
             requireAuth,
             'automation:view',
+        )
+        expect(app.use).not.toHaveBeenCalledWith(
+            '/api/guilds/:guildId/auto-messages',
+            expect.anything(),
+            expect.anything(),
         )
 
         expect(setupAuthRoutes).toHaveBeenCalledWith(app)

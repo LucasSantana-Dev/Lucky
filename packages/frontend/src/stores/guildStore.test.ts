@@ -1,11 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { useGuildStore } from './guildStore'
-import type {
-    Guild,
-    GuildMemberContext,
-    ServerListing,
-    ServerSettings,
-} from '@/types'
+import type { Guild, GuildMemberContext, ServerSettings } from '@/types'
 import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api', () => ({
@@ -14,7 +9,6 @@ vi.mock('@/services/api', () => ({
             list: vi.fn(),
             getMe: vi.fn(),
             getSettings: vi.fn(),
-            getListing: vi.fn(),
         },
     },
 }))
@@ -43,14 +37,10 @@ const MANAGE_ACCESS = {
 
 type MeResponse = { data: GuildMemberContext }
 type SettingsResponse = { data: { settings: ServerSettings | null } }
-type ListingResponse = { data: { listing: ServerListing | null } }
 
 function setupSelectedGuildApiMocks(guildId: string) {
     vi.mocked(api.guilds.getSettings).mockResolvedValue({
         data: { settings: null },
-    } as never)
-    vi.mocked(api.guilds.getListing).mockResolvedValue({
-        data: { listing: null },
     } as never)
     vi.mocked(api.guilds.getMe).mockResolvedValue({
         data: {
@@ -78,7 +68,6 @@ describe('guildStore', () => {
             memberContext: null,
             memberContextLoading: false,
             serverSettings: null,
-            serverListing: null,
         } as never)
         vi.clearAllMocks()
     })
@@ -261,15 +250,6 @@ describe('guildStore', () => {
                     timezone: 'UTC',
                     disableWarnings: false,
                 },
-                serverListing: {
-                    title: 'Stale listing',
-                    description: 'Stale description',
-                    tags: [],
-                    websiteUrl: '',
-                    supportUrl: '',
-                    inviteUrl: '',
-                    accentColor: '#000000',
-                },
             } as never)
 
             vi.mocked(api.guilds.list).mockResolvedValue({
@@ -288,7 +268,6 @@ describe('guildStore', () => {
             expect(state.memberContext).toBeNull()
             expect(state.memberContextLoading).toBe(false)
             expect(state.serverSettings).toBeNull()
-            expect(state.serverListing).toBeNull()
             expect(vi.mocked(api.guilds.getMe)).not.toHaveBeenCalled()
         })
 
@@ -350,14 +329,11 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().selectedGuildId).toBeNull()
         })
 
-        test('should clear member context and listing/settings when dependent calls fail', async () => {
+        test('should clear member context and settings when dependent calls fail', async () => {
             const guild = mockGuild({ id: 'error-guild' })
             vi.mocked(api.guilds.getMe).mockRejectedValue(new Error('me failed'))
             vi.mocked(api.guilds.getSettings).mockRejectedValue(
                 new Error('settings failed'),
-            )
-            vi.mocked(api.guilds.getListing).mockRejectedValue(
-                new Error('listing failed'),
             )
 
             useGuildStore.getState().selectGuild(guild)
@@ -367,7 +343,6 @@ describe('guildStore', () => {
                 expect(state.memberContextLoading).toBe(false)
                 expect(state.memberContext).toBeNull()
                 expect(state.serverSettings).toBeNull()
-                expect(state.serverListing).toBeNull()
             })
         })
 
@@ -385,7 +360,6 @@ describe('guildStore', () => {
 
             const meA = deferred<MeResponse>()
             const settingsA = deferred<SettingsResponse>()
-            const listingA = deferred<ListingResponse>()
 
             vi.mocked(api.guilds.getMe).mockImplementation((guildId: string) => {
                 if (guildId === guildA.id) {
@@ -422,25 +396,6 @@ describe('guildStore', () => {
                 } as never)
             })
 
-            vi.mocked(api.guilds.getListing).mockImplementation((guildId: string) => {
-                if (guildId === guildA.id) {
-                    return listingA.promise as never
-                }
-                return Promise.resolve({
-                    data: {
-                        listing: {
-                            listed: true,
-                            description: 'Listing B',
-                            inviteUrl: 'https://discord.gg/b',
-                            defaultInviteChannel: 'updates',
-                            language: 'en',
-                            categories: ['music'],
-                            tags: ['community'],
-                        },
-                    },
-                } as never)
-            })
-
             useGuildStore.getState().selectGuild(guildA)
             useGuildStore.getState().selectGuild(guildB)
 
@@ -449,7 +404,6 @@ describe('guildStore', () => {
                 expect(state.selectedGuildId).toBe(guildB.id)
                 expect(state.memberContext?.guildId).toBe(guildB.id)
                 expect(state.serverSettings?.nickname).toBe('Settings B')
-                expect(state.serverListing?.description).toBe('Listing B')
             })
 
             meA.resolve({
@@ -475,19 +429,6 @@ describe('guildStore', () => {
                     },
                 },
             })
-            listingA.resolve({
-                data: {
-                    listing: {
-                        listed: false,
-                        description: 'Listing A',
-                        inviteUrl: 'https://discord.gg/a',
-                        defaultInviteChannel: 'general',
-                        language: 'pt-BR',
-                        categories: ['gaming'],
-                        tags: ['legacy'],
-                    },
-                },
-            })
 
             await Promise.resolve()
 
@@ -495,7 +436,6 @@ describe('guildStore', () => {
             expect(state.selectedGuildId).toBe(guildB.id)
             expect(state.memberContext?.guildId).toBe(guildB.id)
             expect(state.serverSettings?.nickname).toBe('Settings B')
-            expect(state.serverListing?.description).toBe('Listing B')
         })
     })
 
@@ -560,37 +500,4 @@ describe('guildStore', () => {
         })
     })
 
-    describe('updateServerListing', () => {
-        test('should merge partial listing', () => {
-            useGuildStore.setState({
-                serverListing: {
-                    listed: false,
-                    description: 'old description',
-                    inviteUrl: 'https://discord.gg/test',
-                    defaultInviteChannel: 'updates',
-                    language: 'en',
-                    categories: ['music'],
-                    tags: ['music'],
-                },
-            })
-
-            useGuildStore.getState().updateServerListing({
-                listed: true,
-                tags: ['music', 'community'],
-            })
-
-            const listing = useGuildStore.getState().serverListing
-            expect(listing?.listed).toBe(true)
-            expect(listing?.tags).toEqual(['music', 'community'])
-            expect(listing?.description).toBe('old description')
-        })
-
-        test('should no-op when listing is null', () => {
-            useGuildStore.setState({ serverListing: null })
-
-            useGuildStore.getState().updateServerListing({ listed: true })
-
-            expect(useGuildStore.getState().serverListing).toBeNull()
-        })
-    })
 })

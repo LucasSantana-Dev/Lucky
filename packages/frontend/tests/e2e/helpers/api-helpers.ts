@@ -143,30 +143,6 @@ export async function mockGuildMemberContext(
     })
 }
 
-export async function mockServerListing(
-    page: Page,
-    guildId: string,
-): Promise<void> {
-    await page.route(`**/api/guilds/${guildId}/listing`, async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify({
-                listing: {
-                    ...MOCK_API_RESPONSES.serverListing.listing,
-                    name:
-                        MOCK_GUILDS.find((guild) => guild.id === guildId)
-                            ?.name ?? MOCK_API_RESPONSES.serverListing.listing.name,
-                },
-            }),
-        })
-    })
-}
-
 export async function mockModerationStats(
     page: Page,
     guildId: string,
@@ -285,7 +261,6 @@ export async function setupMockApiResponses(page: Page): Promise<void> {
     for (const guild of MOCK_GUILDS) {
         await mockGuildMemberContext(page, guild.id)
         await mockServerSettings(page, guild.id)
-        await mockServerListing(page, guild.id)
         await mockModerationStats(page, guild.id)
         await mockModerationCases(page, guild.id)
         await mockServerToggles(page, guild.id)
