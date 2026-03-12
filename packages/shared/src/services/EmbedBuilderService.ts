@@ -53,6 +53,61 @@ export class EmbedBuilderService {
         })
     }
 
+    async upsertTemplate(
+        guildId: string,
+        name: string,
+        embedData: Partial<EmbedData>,
+        createdBy = 'unknown',
+    ): Promise<'created' | 'updated'> {
+        const normalizedName = name.toLowerCase()
+        const lockKey = `embed-template:${guildId}:${normalizedName}`
+
+        return await prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+
+            const existing = await tx.embedTemplate.findUnique({
+                where: {
+                    guildId_name: {
+                        guildId,
+                        name: normalizedName,
+                    },
+                },
+                select: { id: true },
+            })
+
+            const payload = {
+                title: embedData.title ?? null,
+                description: embedData.description ?? null,
+                color: embedData.color ?? null,
+                footer: embedData.footer ?? null,
+                thumbnail: embedData.thumbnail ?? null,
+                image: embedData.image ?? null,
+                fields: embedData.fields
+                    ? (embedData.fields as unknown as Prisma.InputJsonValue)
+                    : Prisma.JsonNull,
+            }
+
+            if (!existing) {
+                await tx.embedTemplate.create({
+                    data: {
+                        guildId,
+                        name: normalizedName,
+                        ...payload,
+                        createdBy,
+                    },
+                })
+                return 'created'
+            }
+
+            await tx.embedTemplate.update({
+                where: { id: existing.id },
+                data: payload,
+            })
+
+            return 'updated'
+        })
+    }
+
     async getTemplate(
         guildId: string,
         name: string,

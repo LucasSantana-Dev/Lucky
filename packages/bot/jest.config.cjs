@@ -13,6 +13,7 @@ module.exports = {
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],
     moduleNameMapper: {
+        '^(\\.{1,2}/.*)\\.js$': '$1',
         '^chalk$': '<rootDir>/tests/__mocks__/chalk.ts',
         '^@lucky/shared$': '<rootDir>/../shared/src/index',
         '^@lucky/shared/services$':

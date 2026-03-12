@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   link (`https://lucky.lucassantana.tech/install`) for Discord app installation
 - Added Discord Activities URL mapping policy for embedded app setup:
   root prefix `/` targets `lucky.lucassantana.tech` with no proxy path mappings
+- `/serversetup` now supports `template:criativaria` with optional
+  `mode:apply|dry-run`, including idempotent setup orchestration and dry-run
+  summaries (PR #164)
+- Added bot tests for command registration coverage, command-file filtering, and
+  `/serversetup` template/mode behavior (`register.spec`,
+  `getCommandsFromDirectory.spec`, `serversetup.spec`, `serversetupCriativaria.spec`) (PR #164)
 
 ### Fixed
 
@@ -60,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (General Information, Installation, and Activities URL Mappings)
 - `/install` now proxies to `/api/auth/discord` so the public install URL
   reliably returns Discord OAuth redirect (`302`) on production
+- `/serversetup` now explicitly preserves managed server visual identity and
+  does not modify guild icon/splash/banner (PR #164)
+- Bot runtime command loading now includes `management`, `moderation`, and
+  `automod` categories
+- Command directory loading now ignores `*.spec.*` and `*.test.*` modules so
+  test files are never registered as slash commands
 
 ### Changed
 
@@ -77,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   indicator
 - Guild/module routes now use module-aware access middleware so read requests
   require `view` and mutating requests require `manage`
+- Bot Jest config now maps relative `.js` imports to source modules during test
+  execution, matching the ESM build import style
 
 ## [2.6.10] - 2026-03-11
 
