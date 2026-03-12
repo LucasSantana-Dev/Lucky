@@ -78,6 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of `${HOME}` mount expansion, with preflight validation for
   `config-lucky.yml` and referenced credentials JSON before tunnel restart
   (PR #184)
+- Deploy webhook rollout now starts target services with `--no-deps` and
+  removes webhook from nginx startup dependencies, preventing deploy-trigger
+  self-termination and upstream DNS resolution regressions during rollout
+  (follow-up to PR #183)
+- Deploy workflow webhook retries now normalize URL candidates and de-duplicate
+  path retries, preventing malformed attempts like
+  `/webhook/deploy/webhook/deploy` in failure loops
 - Guild list/dashboard metrics now return nullable live values from bot/API
   enrichment (no forced `0` fallback when metrics are unavailable)
 - Sidebar profile identity now resolves as `nick > global_name > username`

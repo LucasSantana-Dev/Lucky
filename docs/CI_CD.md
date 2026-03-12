@@ -51,8 +51,9 @@ The deploy workflow (`.github/workflows/deploy.yml`) runs on push to `main` and 
 manual dispatch. It:
 
 1. Validates `DEPLOY_WEBHOOK_SECRET` and `DEPLOY_WEBHOOK_URL`.
-2. Sends a signed POST request to the deploy webhook endpoint.
-3. If the first URL responds with `405`, retries with `/webhook/deploy`.
+2. Normalizes deploy webhook candidates from `DEPLOY_WEBHOOK_URL` (URL-parse +
+   canonical `/webhook/deploy`) and de-duplicates retries.
+3. Sends a signed POST request with retry/backoff across normalized candidates.
 4. Verifies OAuth auth-config contract health with retry and classifies failures
    as `upstream unavailable (5xx)` vs `contract invalid/unready (200 + bad body)`.
 5. Verifies OAuth redirect contract (`/api/auth/discord` 302 redirect shape).
@@ -66,7 +67,10 @@ Required GitHub secrets: `DEPLOY_WEBHOOK_SECRET`, `DEPLOY_WEBHOOK_URL`.
 https://<your-domain>/webhook/deploy
 ```
 
-If the configured URL returns HTTP 405, the workflow retries once with `/webhook/deploy`.
+If the configured URL is missing the deploy path, the workflow appends
+`/webhook/deploy` as a canonical retry candidate. Candidate generation is
+de-duplicated, so it will never retry with malformed paths such as
+`/webhook/deploy/webhook/deploy`.
 
 ### Deploy secrets (how to add)
 
@@ -120,6 +124,23 @@ If deploy fails with curl exit code `6` (Could not resolve host):
     - `curl -i -X POST https://lucky.lucassantana.tech/webhook/deploy`
 4. Re-run:
     - `npm run deploy:homelab`
+
+### Deploy webhook stability troubleshooting
+
+If deploy trigger fails with `502` and nginx logs show `host not found in
+upstream "webhook"`:
+
+1. Confirm webhook container is running:
+   - `docker compose ps webhook`
+2. Confirm service discovery from nginx:
+   - `docker exec lucky-nginx getent hosts webhook backend frontend`
+3. Restart only webhook if needed:
+   - `docker compose up -d webhook`
+4. Check recent logs:
+   - `docker compose logs --tail=200 --no-color webhook nginx`
+
+To reduce recurrence, deploy rollout now restarts target services with
+`--no-deps`, and nginx no longer depends on webhook service startup.
 
 ### Cloudflared config directory
 

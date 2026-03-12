@@ -155,7 +155,6 @@ services:
         depends_on:
             - backend
             - frontend
-            - webhook
         ports:
             - "${NGINX_PORT:-8080}:80"
         networks:
