@@ -53,6 +53,7 @@ describe('Sidebar', () => {
             selectedGuild: mockGuild,
             selectedGuildId: mockGuild.id,
             isLoading: false,
+            guildLoadError: null,
             memberContext: null,
             memberContextLoading: false,
             serverSettings: null,
@@ -227,6 +228,7 @@ describe('Sidebar', () => {
             guilds: [],
             selectedGuild: null,
             selectedGuildId: null,
+            guildLoadError: null,
         })
 
         const user = userEvent.setup()
@@ -244,6 +246,97 @@ describe('Sidebar', () => {
                 screen.queryByText(
                     'Invite Lucky to one of your servers from the Dashboard.',
                 ),
+            ).not.toBeInTheDocument()
+        })
+    })
+
+    test('shows retry and re-auth CTAs when guild fetch fails from auth state', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreState({
+            guilds: [],
+            selectedGuild: null,
+            selectedGuildId: null,
+            guildLoadError: {
+                kind: 'auth',
+                status: 401,
+                message: 'Session expired',
+            },
+        } as Partial<ReturnType<typeof useGuildStore>>)
+
+        renderSidebar()
+
+        await user.click(
+            screen.getByRole('button', { name: /select a server/i }),
+        )
+
+        await waitFor(() => {
+            expect(screen.getByText('Could not load servers')).toBeInTheDocument()
+            expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+            expect(
+                screen.getByRole('link', { name: 'Re-authenticate' }),
+            ).toBeInTheDocument()
+        })
+
+        await user.click(screen.getByRole('button', { name: 'Retry' }))
+        expect(mockFetchGuilds).toHaveBeenCalledTimes(1)
+    })
+
+    test('shows re-auth CTA when guild fetch fails from forbidden state', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreState({
+            guilds: [],
+            selectedGuild: null,
+            selectedGuildId: null,
+            guildLoadError: {
+                kind: 'forbidden',
+                status: 403,
+                message: 'Missing oauth scope',
+            },
+        } as Partial<ReturnType<typeof useGuildStore>>)
+
+        renderSidebar()
+
+        await user.click(
+            screen.getByRole('button', { name: /select a server/i }),
+        )
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Discord access is missing required scope.'),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByRole('link', { name: 'Re-authenticate' }),
+            ).toBeInTheDocument()
+        })
+    })
+
+    test('shows network guidance without re-auth CTA on network failures', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreState({
+            guilds: [],
+            selectedGuild: null,
+            selectedGuildId: null,
+            guildLoadError: {
+                kind: 'network',
+                status: 0,
+                message: 'Network down',
+            },
+        } as Partial<ReturnType<typeof useGuildStore>>)
+
+        renderSidebar()
+
+        await user.click(
+            screen.getByRole('button', { name: /select a server/i }),
+        )
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    'Network connection failed. Check connectivity and retry.',
+                ),
+            ).toBeInTheDocument()
+            expect(
+                screen.queryByRole('link', { name: 'Re-authenticate' }),
             ).not.toBeInTheDocument()
         })
     })

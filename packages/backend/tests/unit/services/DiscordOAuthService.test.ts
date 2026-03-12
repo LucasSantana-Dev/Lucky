@@ -246,6 +246,12 @@ describe('DiscordOAuthService', () => {
                 true,
             )
         })
+
+        test('should return false when permission payload is invalid', () => {
+            expect(
+                discordOAuthService.hasAdminPermission('not-a-number'),
+            ).toBe(false)
+        })
     })
 
     describe('filterAdminGuilds', () => {
@@ -281,6 +287,23 @@ describe('DiscordOAuthService', () => {
             const result = discordOAuthService.filterAdminGuilds(guilds)
 
             expect(result).toHaveLength(2)
+        })
+
+        test('should use permissions_new when permissions is stale', () => {
+            const guilds = [
+                {
+                    ...MOCK_DISCORD_GUILDS[0],
+                    permissions: '0',
+                    permissions_new: '32',
+                } as (typeof MOCK_DISCORD_GUILDS)[number] & {
+                    permissions_new: string
+                },
+            ]
+
+            const result = discordOAuthService.filterAdminGuilds(guilds)
+
+            expect(result).toHaveLength(1)
+            expect(result[0].id).toBe(MOCK_DISCORD_GUILDS[0].id)
         })
     })
 })

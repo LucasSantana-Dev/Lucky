@@ -22,9 +22,7 @@ export async function selectServer(
     page: Page,
     serverId: string,
 ): Promise<void> {
-    const serverSelector = page
-        .locator('button[aria-haspopup="listbox"]')
-        .first()
+    const serverSelector = page.locator('button[aria-haspopup="listbox"]').first()
     await serverSelector.click()
 
     const serverOption = page
@@ -67,20 +65,26 @@ export async function toggleFeature(
 
 export async function waitForServerList(
     page: Page,
-    timeout = 30000,
+    timeout = 10000,
 ): Promise<void> {
-    const pageLoader = page.locator('text=Loading...').first()
-    await pageLoader.waitFor({ state: 'hidden', timeout }).catch(() => {})
-    await page.waitForSelector('section[aria-labelledby="servers-heading"]', {
+    await page.waitForSelector('main section[aria-labelledby="servers-heading"]', {
         timeout,
     })
+    await page.waitForLoadState('domcontentloaded')
 }
 
 export async function waitForFeatures(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector('text=/Features|Feature|Toggle/i', { timeout })
+    await page
+        .locator('main')
+        .getByRole('heading', { name: 'Features' })
+        .first()
+        .waitFor({
+            state: 'visible',
+            timeout,
+        })
     await page.waitForLoadState('domcontentloaded')
 }
 
@@ -88,11 +92,15 @@ export async function waitForDashboard(
     page: Page,
     timeout = 10000,
 ): Promise<void> {
-    await page.waitForSelector(
-        'text=/Dashboard|Select a Server|Access denied/i',
-        {
+    await page
+        .locator('main')
+        .getByRole('heading', {
+            name: /Dashboard|Select a Server|No Server Selected/i,
+        })
+        .first()
+        .waitFor({
+            state: 'visible',
             timeout,
-        },
-    )
+        })
     await page.waitForLoadState('domcontentloaded')
 }

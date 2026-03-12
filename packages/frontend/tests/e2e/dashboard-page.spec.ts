@@ -6,7 +6,7 @@ import {
     selectServer,
 } from './helpers/page-helpers'
 import { getServerSelector } from './helpers/ui-helpers'
-import { MOCK_GUILDS } from './fixtures/test-data'
+import { MOCK_API_RESPONSES, MOCK_GUILDS } from './fixtures/test-data'
 
 test.describe('Dashboard Page', () => {
     test.beforeEach(async ({ page }) => {
@@ -32,7 +32,7 @@ test.describe('Dashboard Page', () => {
         }
     })
 
-    test('renders dashboard when selected server has no bot', async ({
+    test('displays No Server Selected state when no bot servers', async ({
         page,
     }) => {
         await page.route('**/api/guilds', async (route) => {
@@ -48,12 +48,10 @@ test.describe('Dashboard Page', () => {
         await navigateToDashboard(page)
         await waitForDashboard(page)
 
-        const dashboardTitle = page
-            .getByRole('heading', {
-                name: /Dashboard/i,
-            })
-            .first()
-        await expect(dashboardTitle).toBeVisible({ timeout: 5000 })
+        const noServerState = page.getByRole('heading', {
+            name: /No Server Selected|Select a Server/i,
+        })
+        await expect(noServerState).toBeVisible({ timeout: 5000 })
     })
 
     test('server selector dropdown in header', async ({ page }) => {
@@ -169,18 +167,21 @@ test.describe('Dashboard Page', () => {
     })
 
     test('shows loading states during server fetch', async ({ page }) => {
+        let delayed = false
         await page.route('**/api/guilds', async (route) => {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            if (!delayed) {
+                delayed = true
+                await new Promise((resolve) => setTimeout(resolve, 1000))
+            }
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ guilds: MOCK_GUILDS }),
+                body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
             })
         })
 
         await navigateToDashboard(page)
 
         await page.waitForTimeout(500)
-        await page.unroute('**/api/guilds')
     })
 })

@@ -72,6 +72,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `automod` categories
 - Command directory loading now ignores `*.spec.*` and `*.test.*` modules so
   test files are never registered as slash commands
+=======
+- Dashboard guild authorization now tolerates per-guild context failures
+  instead of dropping the full `/api/guilds` response when one guild fails
+- Discord guild permission parsing now supports payload drift
+  (`permissions`/`permissions_new`) and safely handles invalid permission values
+- `/api/guilds` now maps recoverable Discord OAuth/scope/session failures to
+  actionable auth responses (401/403) and maps upstream Discord outages to 502
+- `GET /api/guilds/:id/me` no longer requires `overview` module access so the
+  dashboard can always bootstrap member context for authorized users
+- Server selector now distinguishes true empty authorization from
+  fetch/auth/session failures, showing retry and re-auth actions for failure
+  states instead of a misleading empty result
+- Features route guard mapping is now consistent under the `automation` module
+  across frontend route guards, sidebar module checks, and backend route guards
+- `/servers` is now always accessible for authenticated users (not blocked by
+  module RBAC guards), while server/module pages remain module-gated
+- Guild auto-selection now picks the first server where Lucky is already added;
+  when no server has Lucky installed, dashboard keeps no selected server and
+  shows explicit selection guidance
+- Refs: PR `#169`
 
 ### Changed
 

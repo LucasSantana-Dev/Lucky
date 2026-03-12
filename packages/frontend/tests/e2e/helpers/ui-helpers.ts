@@ -1,7 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test'
 
 export function getServerCard(page: Page, serverName: string): Locator {
-    return page.getByRole('article', { name: serverName }).first()
+    return page.locator('article', { hasText: serverName }).first()
 }
 
 export function getFeatureCard(page: Page, featureName: string): Locator {

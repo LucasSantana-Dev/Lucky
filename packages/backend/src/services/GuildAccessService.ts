@@ -4,9 +4,15 @@ import {
     type EffectiveAccessMap,
     type ModuleKey,
 } from '@lucky/shared/services'
-import { discordOAuthService, type DiscordGuild } from './DiscordOAuthService'
+import { errorLog } from '@lucky/shared/utils'
+import {
+    DiscordApiError,
+    discordOAuthService,
+    type DiscordGuild,
+} from './DiscordOAuthService'
 import { guildService, type GuildWithBotStatus } from './GuildService'
 import type { SessionData } from './SessionService'
+import { AppError } from '../errors/AppError'
 
 export interface GuildAccessContext {
     guildId: string
@@ -25,10 +31,61 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 }
 
 class GuildAccessService {
+    private extractStatusCode(error: unknown): number | null {
+        if (error instanceof DiscordApiError) {
+            return error.statusCode
+        }
+
+        if (typeof error === 'object' && error !== null) {
+            const errorObject = error as {
+                statusCode?: unknown
+                status?: unknown
+            }
+
+            if (typeof errorObject.statusCode === 'number') {
+                return errorObject.statusCode
+            }
+
+            if (typeof errorObject.status === 'number') {
+                return errorObject.status
+            }
+        }
+
+        return null
+    }
+
     private async fetchUserGuilds(
         accessToken: string,
     ): Promise<DiscordGuild[]> {
-        return discordOAuthService.getUserGuilds(accessToken)
+        try {
+            return await discordOAuthService.getUserGuilds(accessToken)
+        } catch (error) {
+            const statusCode = this.extractStatusCode(error)
+
+            if (statusCode === 401) {
+                throw AppError.unauthorized(
+                    'Discord session expired. Please sign in again.',
+                )
+            }
+
+            if (statusCode === 403) {
+                throw AppError.forbidden(
+                    'Discord OAuth scope is missing. Re-authenticate and try again.',
+                )
+            }
+
+            if (
+                statusCode === 429 ||
+                (statusCode !== null && statusCode >= 500)
+            ) {
+                throw new AppError(
+                    502,
+                    'Discord API is temporarily unavailable. Please retry.',
+                )
+            }
+
+            throw error
+        }
     }
 
     private async buildContext(
@@ -37,11 +94,32 @@ class GuildAccessService {
     ): Promise<GuildAccessContext> {
         const isAdmin =
             guild.owner ||
-            discordOAuthService.hasAdminPermission(guild.permissions)
-        const hasBot = await guildService.hasBotInGuild(guild.id)
+            discordOAuthService.hasAdminPermission(
+                guild.permissions,
+                guild.permissions_new,
+            )
+
+        const hasBot = await guildService.hasBotInGuild(guild.id).catch((error) => {
+            errorLog({
+                message: 'Failed to resolve bot presence for guild access',
+                error,
+                data: { guildId: guild.id },
+            })
+            throw error
+        })
+
         const memberContext =
             hasBot && !isAdmin
-                ? await guildService.getGuildMemberContext(guild.id, userId)
+                ? await guildService
+                      .getGuildMemberContext(guild.id, userId)
+                      .catch((error) => {
+                          errorLog({
+                              message: 'Failed to resolve guild member context',
+                              error,
+                              data: { guildId: guild.id, userId },
+                          })
+                          throw error
+                      })
                 : { nickname: null, roleIds: [] as string[] }
 
         const effectiveAccess =
@@ -80,10 +158,31 @@ class GuildAccessService {
     ): Promise<AuthorizedGuild[]> {
         const guilds = await this.fetchUserGuilds(session.accessToken)
         const contexts = await Promise.all(
-            guilds.map((guild) => this.buildContext(guild, session.user.id)),
+            guilds.map(async (guild) => {
+                try {
+                    return await this.buildContext(guild, session.user.id)
+                } catch (error) {
+                    errorLog({
+                        message: 'Skipping guild due access context failure',
+                        error,
+                        data: { guildId: guild.id, userId: session.user.id },
+                    })
+                    return null
+                }
+            }),
         )
 
-        const authorizedContexts = contexts.filter((context) =>
+        const resolvedContexts = contexts.filter(
+            (context): context is GuildAccessContext => context !== null,
+        )
+        if (guilds.length > 0 && resolvedContexts.length === 0) {
+            throw new AppError(
+                502,
+                'Unable to resolve server access right now. Please retry.',
+            )
+        }
+
+        const authorizedContexts = resolvedContexts.filter((context) =>
             this.isAuthorized(context),
         )
         const authorizedContextByGuildId = new Map(

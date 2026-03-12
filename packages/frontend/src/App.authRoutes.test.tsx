@@ -20,12 +20,20 @@ vi.mock('./pages/Login', () => ({
     default: () => <h1>Login Page</h1>,
 }))
 
+vi.mock('./pages/ServersPage', () => ({
+    default: () => <h1>Servers Page</h1>,
+}))
+
 vi.mock('./pages/Moderation', () => ({
     default: () => <h1>Moderation Page</h1>,
 }))
 
 vi.mock('./pages/TwitchNotifications', () => ({
     default: () => <h1>Twitch Notifications Page</h1>,
+}))
+
+vi.mock('./pages/Features', () => ({
+    default: () => <h1>Features Page</h1>,
 }))
 
 type AuthState = {
@@ -57,6 +65,24 @@ const defaultGuildState: GuildState = {
     selectedGuild: null,
     memberContext: null,
     memberContextLoading: false,
+}
+
+const MANAGE_ACCESS: EffectiveAccessMap = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+}
+
+const NONE_ACCESS: EffectiveAccessMap = {
+    overview: 'none',
+    settings: 'none',
+    moderation: 'none',
+    automation: 'none',
+    music: 'none',
+    integrations: 'none',
 }
 
 function mockAuthStore(overrides: Partial<AuthState> = {}) {
@@ -131,14 +157,7 @@ describe('App authenticated routing', () => {
             selectedGuild: {
                 id: '123',
                 name: 'Guild',
-                effectiveAccess: {
-                    overview: 'manage',
-                    settings: 'manage',
-                    moderation: 'manage',
-                    automation: 'manage',
-                    music: 'manage',
-                    integrations: 'manage',
-                },
+                effectiveAccess: MANAGE_ACCESS,
             },
             memberContextLoading: true,
         })
@@ -159,12 +178,10 @@ describe('App authenticated routing', () => {
                 id: '123',
                 name: 'Guild',
                 effectiveAccess: {
+                    ...NONE_ACCESS,
                     overview: 'manage',
                     settings: 'manage',
                     moderation: 'view',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
                 },
             },
             memberContextLoading: false,
@@ -184,12 +201,8 @@ describe('App authenticated routing', () => {
                 id: '123',
                 name: 'Guild',
                 effectiveAccess: {
+                    ...NONE_ACCESS,
                     overview: 'view',
-                    settings: 'none',
-                    moderation: 'none',
-                    automation: 'none',
-                    music: 'none',
-                    integrations: 'none',
                 },
             },
             memberContextLoading: false,
@@ -202,6 +215,51 @@ describe('App authenticated routing', () => {
             screen.getByText(
                 'You do not have permission to view the moderation module for this server.',
             ),
+        ).toBeInTheDocument()
+    })
+
+    test('guards /features route with automation module access', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: {
+                    ...NONE_ACCESS,
+                    overview: 'manage',
+                    settings: 'manage',
+                    moderation: 'manage',
+                },
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/features')
+
+        expect(await screen.findByText('Access denied')).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'You do not have permission to view the automation module for this server.',
+            ),
+        ).toBeInTheDocument()
+        expect(screen.queryByText('Features Page')).not.toBeInTheDocument()
+    })
+
+    test('keeps /servers accessible even without overview module access', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: NONE_ACCESS,
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/servers')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Servers Page' }),
         ).toBeInTheDocument()
     })
 })

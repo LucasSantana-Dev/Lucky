@@ -5,13 +5,7 @@ import {
     MOCK_FEATURES,
     MOCK_GLOBAL_TOGGLES,
     MOCK_SERVER_TOGGLES,
-    MOCK_GUILD_MEMBER_CONTEXT,
 } from '../fixtures/test-data'
-
-function parseGuildId(url: string): string | null {
-    const match = /\/api\/guilds\/([^/]+)/.exec(url)
-    return match?.[1] ?? null
-}
 
 export async function mockGuildsList(page: Page): Promise<void> {
     await page.route('**/api/guilds', async (route) => {
@@ -23,33 +17,6 @@ export async function mockGuildsList(page: Page): Promise<void> {
                 'Access-Control-Allow-Credentials': 'true',
             },
             body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
-        })
-    })
-}
-
-export async function mockGuildDetails(page: Page): Promise<void> {
-    await page.route(/\/api\/guilds\/[^/?#]+(?:\?.*)?$/, async (route) => {
-        const requestUrl = route.request().url()
-        const guildId = parseGuildId(requestUrl)
-        const guild = MOCK_GUILDS.find((item) => item.id === guildId)
-
-        if (!guild) {
-            await route.fulfill({
-                status: 404,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'Guild not found' }),
-            })
-            return
-        }
-
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify(guild),
         })
     })
 }
@@ -141,40 +108,12 @@ export async function mockServerSettings(
     })
 }
 
-export async function mockAllGuildSettings(page: Page): Promise<void> {
-    await page.route('**/api/guilds/*/settings', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify(MOCK_API_RESPONSES.serverSettings),
-        })
-    })
-}
-
-export async function mockAllGuildListings(page: Page): Promise<void> {
-    await page.route('**/api/guilds/*/listing', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true',
-            },
-            body: JSON.stringify(MOCK_API_RESPONSES.serverListing),
-        })
-    })
-}
-
-export async function mockGuildMemberContext(page: Page): Promise<void> {
-    await page.route('**/api/guilds/*/me**', async (route) => {
-        const guildId =
-            parseGuildId(route.request().url()) ??
-            MOCK_GUILD_MEMBER_CONTEXT.guildId
-
+export async function mockGuildMemberContext(
+    page: Page,
+    guildId: string,
+): Promise<void> {
+    await page.route(`**/api/guilds/${guildId}/me`, async (route) => {
+        const guild = MOCK_GUILDS.find((item) => item.id === guildId)
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -183,15 +122,56 @@ export async function mockGuildMemberContext(page: Page): Promise<void> {
                 'Access-Control-Allow-Credentials': 'true',
             },
             body: JSON.stringify({
-                ...MOCK_GUILD_MEMBER_CONTEXT,
                 guildId,
+                nickname: null,
+                username: MOCK_API_RESPONSES.authUser.username,
+                globalName: null,
+                roleIds: [],
+                effectiveAccess:
+                    guild?.effectiveAccess ??
+                    {
+                        overview: 'none',
+                        settings: 'none',
+                        moderation: 'none',
+                        automation: 'none',
+                        music: 'none',
+                        integrations: 'none',
+                    },
+                canManageRbac: Boolean(guild?.canManageRbac),
             }),
         })
     })
 }
 
-export async function mockModerationOverview(page: Page): Promise<void> {
-    await page.route('**/api/guilds/*/moderation/stats', async (route) => {
+export async function mockServerListing(
+    page: Page,
+    guildId: string,
+): Promise<void> {
+    await page.route(`**/api/guilds/${guildId}/listing`, async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Credentials': 'true',
+            },
+            body: JSON.stringify({
+                listing: {
+                    ...MOCK_API_RESPONSES.serverListing.listing,
+                    name:
+                        MOCK_GUILDS.find((guild) => guild.id === guildId)
+                            ?.name ?? MOCK_API_RESPONSES.serverListing.listing.name,
+                },
+            }),
+        })
+    })
+}
+
+export async function mockModerationStats(
+    page: Page,
+    guildId: string,
+): Promise<void> {
+    await page.route(`**/api/guilds/${guildId}/moderation/stats`, async (route) => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -209,15 +189,18 @@ export async function mockModerationOverview(page: Page): Promise<void> {
                         mute: 0,
                         kick: 0,
                         ban: 0,
-                        unban: 0,
-                        unmute: 0,
                     },
                 },
             }),
         })
     })
+}
 
-    await page.route('**/api/guilds/*/moderation/cases**', async (route) => {
+export async function mockModerationCases(
+    page: Page,
+    guildId: string,
+): Promise<void> {
+    await page.route(`**/api/guilds/${guildId}/moderation/cases*`, async (route) => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
@@ -297,14 +280,16 @@ export async function interceptApiCalls(
 export async function setupMockApiResponses(page: Page): Promise<void> {
     await mockAuthStatus(page, true)
     await mockGuildsList(page)
-    await mockGuildDetails(page)
-    await mockGuildMemberContext(page)
-    await mockAllGuildSettings(page)
-    await mockAllGuildListings(page)
-    await mockModerationOverview(page)
     await mockFeaturesList(page)
     await mockGlobalToggles(page)
-    await mockServerToggles(page, '111111111111111111')
-    await mockToggleUpdate(page, false, '111111111111111111')
+    for (const guild of MOCK_GUILDS) {
+        await mockGuildMemberContext(page, guild.id)
+        await mockServerSettings(page, guild.id)
+        await mockServerListing(page, guild.id)
+        await mockModerationStats(page, guild.id)
+        await mockModerationCases(page, guild.id)
+        await mockServerToggles(page, guild.id)
+        await mockToggleUpdate(page, false, guild.id)
+    }
     await mockToggleUpdate(page, true)
 }

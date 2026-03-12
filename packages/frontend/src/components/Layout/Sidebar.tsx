@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+    AlertTriangle,
     ChevronDown,
     History,
     LayoutDashboard,
@@ -27,7 +28,9 @@ import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
 import { hasModuleAccess } from '@/lib/rbac'
-import type { ModuleKey } from '@/types'
+import type { Guild, ModuleKey } from '@/types'
+import type { GuildLoadErrorState } from '@/stores/guildStore'
+import { api } from '@/services/api'
 
 interface NavItem {
     path: string
@@ -143,11 +146,207 @@ const navSections: NavSection[] = [
     },
 ]
 
+function getGuildLoadMessage(guildLoadError: GuildLoadErrorState): string {
+    switch (guildLoadError.kind) {
+        case 'auth':
+            return 'Your session expired. Please sign in again.'
+        case 'forbidden':
+            return 'Discord access is missing required scope.'
+        case 'network':
+            return 'Network connection failed. Check connectivity and retry.'
+        default:
+            return guildLoadError.message
+    }
+}
+
+interface ServerSelectorProps {
+    guilds: Guild[]
+    selectedGuild: Guild | null
+    guildLoadError: GuildLoadErrorState | null
+    isLoading: boolean
+    serverDropdownOpen: boolean
+    setServerDropdownOpen: Dispatch<SetStateAction<boolean>>
+    fetchGuilds: () => Promise<void>
+    selectGuild: (guild: Guild | null) => void
+}
+
+function ServerSelector({
+    guilds,
+    selectedGuild,
+    guildLoadError,
+    isLoading,
+    serverDropdownOpen,
+    setServerDropdownOpen,
+    fetchGuilds,
+    selectGuild,
+}: ServerSelectorProps) {
+    const emptyStateText = isLoading
+        ? 'Loading servers...'
+        : 'No accessible servers found'
+    const discordLoginUrl = api.auth.getDiscordLoginUrl()
+    const guildLoadMessage = guildLoadError
+        ? getGuildLoadMessage(guildLoadError)
+        : null
+
+    return (
+        <div className='border-b border-lucky-border px-3 py-3'>
+            <p className='type-meta mb-2 text-lucky-text-tertiary'>Server context</p>
+            <div className='relative'>
+                <button
+                    type='button'
+                    onClick={() => setServerDropdownOpen((value) => !value)}
+                    aria-expanded={serverDropdownOpen}
+                    aria-haspopup='listbox'
+                    className='lucky-focus-visible flex w-full items-center gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-3 py-2.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active/60'
+                >
+                    {selectedGuild ? (
+                        <>
+                            <Avatar className='h-7 w-7 shrink-0'>
+                                <AvatarImage
+                                    src={
+                                        selectedGuild.icon
+                                            ? `https://cdn.discordapp.com/icons/${selectedGuild.id}/${selectedGuild.icon}.png?size=64`
+                                            : undefined
+                                    }
+                                />
+                                <AvatarFallback className='bg-lucky-bg-active text-[10px] text-white'>
+                                    {selectedGuild.name.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className='type-body-sm flex-1 truncate text-lucky-text-primary'>
+                                {selectedGuild.name}
+                            </span>
+                        </>
+                    ) : (
+                        <span className='type-body-sm flex-1 text-lucky-text-secondary'>
+                            Select a server
+                        </span>
+                    )}
+                    <ChevronDown
+                        className={cn(
+                            'h-4 w-4 shrink-0 text-lucky-text-tertiary transition-transform',
+                            serverDropdownOpen && 'rotate-180',
+                        )}
+                    />
+                </button>
+
+                <AnimatePresence>
+                    {serverDropdownOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            transition={{ duration: 0.14 }}
+                            className='absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-lucky-border bg-lucky-bg-secondary shadow-2xl'
+                        >
+                            <ScrollArea className='max-h-56'>
+                                {guilds.length === 0 ? (
+                                    <div className='space-y-2 px-3 py-4 text-center'>
+                                        {guildLoadError ? (
+                                            <>
+                                                <div className='mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full border border-lucky-border'>
+                                                    <AlertTriangle className='h-4 w-4 text-lucky-text-secondary' />
+                                                </div>
+                                                <p className='type-body-sm text-lucky-text-primary'>
+                                                    Could not load servers
+                                                </p>
+                                                <p className='type-body-sm text-lucky-text-tertiary'>
+                                                    {guildLoadMessage}
+                                                </p>
+                                                <div className='mt-3 flex items-center justify-center gap-2'>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => {
+                                                            void Promise.resolve(
+                                                                fetchGuilds(),
+                                                            ).catch(() => {})
+                                                        }}
+                                                        className='lucky-focus-visible rounded-lg border border-lucky-border px-2.5 py-1.5 text-xs text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
+                                                    >
+                                                        Retry
+                                                    </button>
+                                                    {(guildLoadError.kind === 'auth' ||
+                                                        guildLoadError.kind ===
+                                                            'forbidden') && (
+                                                        <a
+                                                            href={discordLoginUrl}
+                                                            className='lucky-focus-visible rounded-lg border border-lucky-border px-2.5 py-1.5 text-xs text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
+                                                        >
+                                                            Re-authenticate
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <p className='type-body-sm text-lucky-text-tertiary'>
+                                                {emptyStateText}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    guilds.map((guild) => (
+                                        <button
+                                            key={guild.id}
+                                            type='button'
+                                            onClick={() => {
+                                                selectGuild(guild)
+                                                setServerDropdownOpen(false)
+                                            }}
+                                            className={cn(
+                                                'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
+                                                selectedGuild?.id === guild.id &&
+                                                    'bg-lucky-bg-active/70',
+                                            )}
+                                        >
+                                            <Avatar className='h-6 w-6 shrink-0'>
+                                                <AvatarImage
+                                                    src={
+                                                        guild.icon
+                                                            ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
+                                                            : undefined
+                                                    }
+                                                />
+                                                <AvatarFallback className='bg-lucky-bg-active text-[9px] text-white'>
+                                                    {guild.name.substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className='type-body-sm truncate text-lucky-text-primary'>
+                                                {guild.name}
+                                            </span>
+                                            <span className='ml-auto flex items-center gap-2'>
+                                                {!guild.botAdded && (
+                                                    <span className='rounded-md border border-lucky-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-lucky-text-tertiary'>
+                                                        Invite bot
+                                                    </span>
+                                                )}
+                                                {selectedGuild?.id === guild.id && (
+                                                    <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
+                                                )}
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </ScrollArea>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
+    )
+}
+
 function Sidebar() {
     const location = useLocation()
     const { user, logout } = useAuthStore()
-    const { guilds, selectedGuild, selectGuild, memberContext } =
-        useGuildStore()
+    const {
+        guilds,
+        selectedGuild,
+        selectGuild,
+        memberContext,
+        guildLoadError,
+        fetchGuilds,
+        isLoading,
+    } = useGuildStore()
     const [mobileOpen, setMobileOpen] = useState(false)
     const [serverDropdownOpen, setServerDropdownOpen] = useState(false)
 
@@ -204,120 +403,16 @@ function Sidebar() {
                 </div>
             </div>
 
-            <div className='border-b border-lucky-border px-3 py-3'>
-                <p className='type-meta mb-2 text-lucky-text-tertiary'>
-                    Server context
-                </p>
-                <div className='relative'>
-                    <button
-                        type='button'
-                        onClick={() => setServerDropdownOpen((value) => !value)}
-                        aria-expanded={serverDropdownOpen}
-                        aria-haspopup='listbox'
-                        className='lucky-focus-visible flex w-full items-center gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-3 py-2.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active/60'
-                    >
-                        {selectedGuild ? (
-                            <>
-                                <Avatar className='h-7 w-7 shrink-0'>
-                                    <AvatarImage
-                                        src={
-                                            selectedGuild.icon
-                                                ? `https://cdn.discordapp.com/icons/${selectedGuild.id}/${selectedGuild.icon}.png?size=64`
-                                                : undefined
-                                        }
-                                    />
-                                    <AvatarFallback className='bg-lucky-bg-active text-[10px] text-white'>
-                                        {selectedGuild.name
-                                            .substring(0, 2)
-                                            .toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <span className='type-body-sm flex-1 truncate text-lucky-text-primary'>
-                                    {selectedGuild.name}
-                                </span>
-                            </>
-                        ) : (
-                            <span className='type-body-sm flex-1 text-lucky-text-secondary'>
-                                Select a server
-                            </span>
-                        )}
-                        <ChevronDown
-                            className={cn(
-                                'h-4 w-4 shrink-0 text-lucky-text-tertiary transition-transform',
-                                serverDropdownOpen && 'rotate-180',
-                            )}
-                        />
-                    </button>
-
-                    <AnimatePresence>
-                        {serverDropdownOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -6 }}
-                                transition={{ duration: 0.14 }}
-                                className='absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-lucky-border bg-lucky-bg-secondary shadow-2xl'
-                            >
-                                <ScrollArea className='max-h-56'>
-                                    {guilds.length === 0 ? (
-                                        <div className='space-y-2 px-3 py-4 text-center'>
-                                            <p className='type-body-sm text-lucky-text-tertiary'>
-                                                No accessible servers found
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        guilds.map((guild) => (
-                                            <button
-                                                key={guild.id}
-                                                type='button'
-                                                onClick={() => {
-                                                    selectGuild(guild)
-                                                    setServerDropdownOpen(false)
-                                                }}
-                                                className={cn(
-                                                    'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
-                                                    selectedGuild?.id ===
-                                                        guild.id &&
-                                                        'bg-lucky-bg-active/70',
-                                                )}
-                                            >
-                                                <Avatar className='h-6 w-6 shrink-0'>
-                                                    <AvatarImage
-                                                        src={
-                                                            guild.icon
-                                                                ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
-                                                                : undefined
-                                                        }
-                                                    />
-                                                    <AvatarFallback className='bg-lucky-bg-active text-[9px] text-white'>
-                                                        {guild.name
-                                                            .substring(0, 2)
-                                                            .toUpperCase()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <span className='type-body-sm truncate text-lucky-text-primary'>
-                                                    {guild.name}
-                                                </span>
-                                                <span className='ml-auto flex items-center gap-2'>
-                                                    {!guild.botAdded && (
-                                                        <span className='rounded-md border border-lucky-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-lucky-text-tertiary'>
-                                                            Invite bot
-                                                        </span>
-                                                    )}
-                                                    {selectedGuild?.id ===
-                                                        guild.id && (
-                                                        <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
-                                                    )}
-                                                </span>
-                                            </button>
-                                        ))
-                                    )}
-                                </ScrollArea>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
+            <ServerSelector
+                guilds={guilds}
+                selectedGuild={selectedGuild}
+                guildLoadError={guildLoadError}
+                isLoading={isLoading}
+                serverDropdownOpen={serverDropdownOpen}
+                setServerDropdownOpen={setServerDropdownOpen}
+                fetchGuilds={fetchGuilds}
+                selectGuild={selectGuild}
+            />
 
             <ScrollArea className='flex-1 py-3'>
                 <nav className='space-y-4 px-3'>

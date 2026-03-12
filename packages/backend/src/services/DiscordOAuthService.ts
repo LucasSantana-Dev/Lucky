@@ -16,7 +16,19 @@ export interface DiscordGuild {
     icon: string | null
     owner: boolean
     permissions: string
+    permissions_new?: string
     features: string[]
+}
+
+export class DiscordApiError extends Error {
+    constructor(
+        message: string,
+        public readonly statusCode: number,
+        public readonly endpoint: string,
+    ) {
+        super(message)
+        this.name = 'DiscordApiError'
+    }
 }
 
 interface TokenResponse {
@@ -29,6 +41,80 @@ interface TokenResponse {
 
 class DiscordOAuthService {
     private readonly apiBaseUrl = 'https://discord.com/api/v10'
+
+    private normalizePermissionValue(value: unknown): string | null {
+        if (typeof value === 'string') {
+            const normalized = value.trim()
+            return normalized.length > 0 ? normalized : null
+        }
+
+        if (
+            typeof value === 'number' &&
+            Number.isFinite(value) &&
+            value >= 0 &&
+            Number.isInteger(value)
+        ) {
+            return String(value)
+        }
+
+        return null
+    }
+
+    private parsePermissionBits(
+        permissions: string | null | undefined,
+    ): bigint | null {
+        const normalized = this.normalizePermissionValue(permissions)
+        if (!normalized) {
+            return null
+        }
+
+        try {
+            return BigInt(normalized)
+        } catch {
+            return null
+        }
+    }
+
+    private normalizeGuildPayload(payload: unknown): DiscordGuild[] {
+        if (!Array.isArray(payload)) {
+            return []
+        }
+
+        const guilds: DiscordGuild[] = []
+
+        for (const rawGuild of payload) {
+            if (typeof rawGuild !== 'object' || rawGuild === null) {
+                continue
+            }
+
+            const guild = rawGuild as Record<string, unknown>
+            if (typeof guild.id !== 'string' || typeof guild.name !== 'string') {
+                continue
+            }
+
+            const permissions = this.normalizePermissionValue(guild.permissions)
+            const permissionsNew = this.normalizePermissionValue(
+                guild.permissions_new,
+            )
+
+            guilds.push({
+                id: guild.id,
+                name: guild.name,
+                icon: typeof guild.icon === 'string' ? guild.icon : null,
+                owner: guild.owner === true,
+                permissions: permissions ?? permissionsNew ?? '0',
+                permissions_new: permissionsNew ?? undefined,
+                features: Array.isArray(guild.features)
+                    ? guild.features.filter(
+                          (feature): feature is string =>
+                              typeof feature === 'string',
+                      )
+                    : [],
+            })
+        }
+
+        return guilds
+    }
 
     private getClientId(): string {
         const clientId = process.env.CLIENT_ID
@@ -74,8 +160,10 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(
+                throw new DiscordApiError(
                     `Token exchange failed: ${response.status} ${errorText}`,
+                    response.status,
+                    '/oauth2/token',
                 )
             }
 
@@ -98,8 +186,10 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(
+                throw new DiscordApiError(
                     `Failed to fetch user info: ${response.status} ${errorText}`,
+                    response.status,
+                    '/users/@me',
                 )
             }
 
@@ -128,12 +218,14 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(
+                throw new DiscordApiError(
                     `Failed to fetch user guilds: ${response.status} ${errorText}`,
+                    response.status,
+                    '/users/@me/guilds',
                 )
             }
 
-            const guilds = (await response.json()) as DiscordGuild[]
+            const guilds = this.normalizeGuildPayload(await response.json())
             debugLog({
                 message: 'Successfully fetched user guilds',
                 data: { count: guilds.length },
@@ -145,8 +237,18 @@ class DiscordOAuthService {
         }
     }
 
-    hasAdminPermission(permissions: string): boolean {
-        const permissionsBigInt = BigInt(permissions)
+    hasAdminPermission(
+        permissions: string | null | undefined,
+        permissionsNew?: string | null,
+    ): boolean {
+        const permissionsBigInt =
+            this.parsePermissionBits(permissionsNew) ??
+            this.parsePermissionBits(permissions)
+
+        if (permissionsBigInt === null) {
+            return false
+        }
+
         const administratorPermission = BigInt(0x8)
         const manageGuildPermission = BigInt(0x20)
 
@@ -160,7 +262,7 @@ class DiscordOAuthService {
 
     filterAdminGuilds(guilds: DiscordGuild[]): DiscordGuild[] {
         return guilds.filter((guild) =>
-            this.hasAdminPermission(guild.permissions),
+            this.hasAdminPermission(guild.permissions, guild.permissions_new),
         )
     }
 
@@ -181,8 +283,10 @@ class DiscordOAuthService {
 
             if (!response.ok) {
                 const errorText = await response.text()
-                throw new Error(
+                throw new DiscordApiError(
                     `Token refresh failed: ${response.status} ${errorText}`,
+                    response.status,
+                    '/oauth2/token',
                 )
             }
 

@@ -1,12 +1,17 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { useGuildStore } from './guildStore'
-import type { Guild } from '@/types'
+import type {
+    Guild,
+    GuildMemberContext,
+    ServerListing,
+    ServerSettings,
+} from '@/types'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api', () => ({
     api: {
         guilds: {
             list: vi.fn(),
-            get: vi.fn(),
             getMe: vi.fn(),
             getSettings: vi.fn(),
             getListing: vi.fn(),
@@ -36,10 +41,11 @@ const MANAGE_ACCESS = {
     integrations: 'manage',
 } as const
 
-function setupSelectedGuildApiMocks(guildId: string, guild?: Guild) {
-    vi.mocked(api.guilds.get).mockResolvedValue({
-        data: { guild: guild ?? mockGuild({ id: guildId }) },
-    } as never)
+type MeResponse = { data: GuildMemberContext }
+type SettingsResponse = { data: { settings: ServerSettings | null } }
+type ListingResponse = { data: { listing: ServerListing | null } }
+
+function setupSelectedGuildApiMocks(guildId: string) {
     vi.mocked(api.guilds.getSettings).mockResolvedValue({
         data: { settings: null },
     } as never)
@@ -65,13 +71,15 @@ describe('guildStore', () => {
             guilds: [],
             selectedGuild: null,
             selectedGuildId: null,
+            currentGuildRequestId: 0,
+            currentGuildSelectionRequestId: 0,
             isLoading: false,
-            hasFetchedGuilds: false,
+            guildLoadError: null,
             memberContext: null,
             memberContextLoading: false,
             serverSettings: null,
             serverListing: null,
-        })
+        } as never)
         vi.clearAllMocks()
     })
 
@@ -87,7 +95,6 @@ describe('guildStore', () => {
 
             expect(useGuildStore.getState().guilds).toHaveLength(2)
             expect(useGuildStore.getState().isLoading).toBe(false)
-            expect(useGuildStore.getState().hasFetchedGuilds).toBe(true)
         })
 
         test('should auto-select first authorized guild', async () => {
@@ -98,11 +105,26 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.list).mockResolvedValue({
                 data: { guilds },
             } as never)
-            setupSelectedGuildApiMocks(guilds[0].id)
+            setupSelectedGuildApiMocks(guilds[1].id)
 
             await useGuildStore.getState().fetchGuilds()
 
-            expect(useGuildStore.getState().selectedGuildId).toBe('1')
+            expect(useGuildStore.getState().selectedGuildId).toBe('2')
+        })
+
+        test('should keep no guild selected when no server has bot added', async () => {
+            const guilds = [
+                mockGuild({ id: '1', botAdded: false }),
+                mockGuild({ id: '2', botAdded: false }),
+            ]
+            vi.mocked(api.guilds.list).mockResolvedValue({
+                data: { guilds },
+            } as never)
+
+            await useGuildStore.getState().fetchGuilds()
+
+            expect(useGuildStore.getState().selectedGuildId).toBeNull()
+            expect(vi.mocked(api.guilds.getMe)).not.toHaveBeenCalled()
         })
 
         test('should reset on fetch error', async () => {
@@ -114,27 +136,199 @@ describe('guildStore', () => {
 
             expect(useGuildStore.getState().guilds).toEqual([])
             expect(useGuildStore.getState().isLoading).toBe(false)
-            expect(useGuildStore.getState().hasFetchedGuilds).toBe(true)
         })
 
-        test('should re-sync selected guild by selectedGuildId after refresh', async () => {
-            const staleGuild = mockGuild({ id: '1', name: 'Stale Name' })
-            const refreshedGuild = mockGuild({ id: '1', name: 'Fresh Name' })
-            useGuildStore.setState({
-                selectedGuild: staleGuild,
-                selectedGuildId: staleGuild.id,
-            })
-
-            vi.mocked(api.guilds.list).mockResolvedValue({
-                data: { guilds: [refreshedGuild] },
-            } as never)
-            setupSelectedGuildApiMocks(refreshedGuild.id, refreshedGuild)
+        test('should classify auth failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(401, 'Session expired'),
+            )
 
             await useGuildStore.getState().fetchGuilds()
 
-            expect(useGuildStore.getState().selectedGuild?.name).toBe(
-                'Fresh Name',
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'auth',
+                message: 'Session expired',
+                status: 401,
+            })
+        })
+
+        test('should classify network failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(0, 'Unable to connect to the server'),
             )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'network',
+                message: 'Unable to connect to the server',
+                status: 0,
+            })
+        })
+
+        test('should classify forbidden failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(403, 'Missing required scope'),
+            )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'forbidden',
+                message: 'Missing required scope',
+                status: 403,
+            })
+        })
+
+        test('should classify upstream failures', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(502, 'Discord API unavailable'),
+            )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'upstream',
+                message: 'Discord API unavailable',
+                status: 502,
+            })
+        })
+
+        test('should classify unknown failures as upstream with fallback message', async () => {
+            vi.mocked(api.guilds.list).mockRejectedValue('unexpected')
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState() as unknown as {
+                guildLoadError?: { kind: string; status?: number; message: string }
+            }
+            expect(state.guildLoadError).toEqual({
+                kind: 'upstream',
+                message: 'Unable to load servers',
+            })
+        })
+
+        test('should preserve selected guild when still present after refresh', async () => {
+            const selectedGuild = mockGuild({ id: '2', name: 'Selected guild' })
+            useGuildStore.setState({
+                selectedGuild,
+                selectedGuildId: selectedGuild.id,
+            } as never)
+            vi.mocked(api.guilds.list).mockResolvedValue({
+                data: {
+                    guilds: [mockGuild({ id: '1' }), selectedGuild, mockGuild({ id: '3' })],
+                },
+            } as never)
+
+            await useGuildStore.getState().fetchGuilds()
+
+            expect(useGuildStore.getState().selectedGuildId).toBe(selectedGuild.id)
+            expect(useGuildStore.getState().selectedGuild?.name).toBe('Selected guild')
+        })
+
+        test('clears guild-scoped state when selected guild is removed and no bot-added guild remains', async () => {
+            const selectedGuild = mockGuild({ id: 'selected', name: 'Selected guild' })
+            useGuildStore.setState({
+                selectedGuild,
+                selectedGuildId: selectedGuild.id,
+                memberContext: {
+                    guildId: selectedGuild.id,
+                    nickname: 'Stale nick',
+                    username: 'stale-user',
+                    globalName: null,
+                    roleIds: ['role-a'],
+                    effectiveAccess: MANAGE_ACCESS,
+                    canManageRbac: true,
+                },
+                memberContextLoading: true,
+                serverSettings: {
+                    nickname: 'Stale settings',
+                    commandPrefix: '!',
+                    managerRoles: [],
+                    updatesChannel: '',
+                    timezone: 'UTC',
+                    disableWarnings: false,
+                },
+                serverListing: {
+                    title: 'Stale listing',
+                    description: 'Stale description',
+                    tags: [],
+                    websiteUrl: '',
+                    supportUrl: '',
+                    inviteUrl: '',
+                    accentColor: '#000000',
+                },
+            } as never)
+
+            vi.mocked(api.guilds.list).mockResolvedValue({
+                data: {
+                    guilds: [
+                        mockGuild({ id: '1', botAdded: false }),
+                        mockGuild({ id: '2', botAdded: false }),
+                    ],
+                },
+            } as never)
+
+            await useGuildStore.getState().fetchGuilds()
+
+            const state = useGuildStore.getState()
+            expect(state.selectedGuildId).toBeNull()
+            expect(state.memberContext).toBeNull()
+            expect(state.memberContextLoading).toBe(false)
+            expect(state.serverSettings).toBeNull()
+            expect(state.serverListing).toBeNull()
+            expect(vi.mocked(api.guilds.getMe)).not.toHaveBeenCalled()
+        })
+
+        test('should ignore stale fetch failures when a newer request succeeds', async () => {
+            let rejectFirstRequest: ((error: unknown) => void) | null = null
+            let resolveSecondRequest:
+                | ((value: { data: { guilds: Guild[] } }) => void)
+                | null = null
+
+            vi.mocked(api.guilds.list)
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((_resolve, reject) => {
+                            rejectFirstRequest = reject
+                        }) as never,
+                )
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            resolveSecondRequest = resolve
+                        }) as never,
+                )
+
+            const firstFetch = useGuildStore.getState().fetchGuilds()
+            const secondFetch = useGuildStore.getState().fetchGuilds()
+
+            expect(resolveSecondRequest).not.toBeNull()
+            expect(rejectFirstRequest).not.toBeNull()
+
+            resolveSecondRequest!({
+                data: { guilds: [mockGuild({ id: 'latest' })] },
+            })
+            await secondFetch
+
+            rejectFirstRequest!(new ApiError(502, 'Discord API unavailable'))
+            await firstFetch
+
+            const state = useGuildStore.getState()
+            expect(state.guilds.map((guild) => guild.id)).toEqual(['latest'])
+            expect(state.guildLoadError).toBeNull()
         })
     })
 
@@ -154,6 +348,154 @@ describe('guildStore', () => {
 
             expect(useGuildStore.getState().selectedGuild).toBeNull()
             expect(useGuildStore.getState().selectedGuildId).toBeNull()
+        })
+
+        test('should clear member context and listing/settings when dependent calls fail', async () => {
+            const guild = mockGuild({ id: 'error-guild' })
+            vi.mocked(api.guilds.getMe).mockRejectedValue(new Error('me failed'))
+            vi.mocked(api.guilds.getSettings).mockRejectedValue(
+                new Error('settings failed'),
+            )
+            vi.mocked(api.guilds.getListing).mockRejectedValue(
+                new Error('listing failed'),
+            )
+
+            useGuildStore.getState().selectGuild(guild)
+
+            await vi.waitFor(() => {
+                const state = useGuildStore.getState()
+                expect(state.memberContextLoading).toBe(false)
+                expect(state.memberContext).toBeNull()
+                expect(state.serverSettings).toBeNull()
+                expect(state.serverListing).toBeNull()
+            })
+        })
+
+        test('should ignore stale async responses from previous selected guild', async () => {
+            const guildA = mockGuild({ id: 'guild-a', name: 'Guild A' })
+            const guildB = mockGuild({ id: 'guild-b', name: 'Guild B' })
+
+            const deferred = <T>() => {
+                let resolve: (value: T) => void = () => {}
+                const promise = new Promise<T>((res) => {
+                    resolve = res
+                })
+                return { promise, resolve }
+            }
+
+            const meA = deferred<MeResponse>()
+            const settingsA = deferred<SettingsResponse>()
+            const listingA = deferred<ListingResponse>()
+
+            vi.mocked(api.guilds.getMe).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return meA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        guildId,
+                        nickname: 'B Nick',
+                        username: 'user-b',
+                        globalName: null,
+                        roleIds: ['role-b'],
+                        effectiveAccess: MANAGE_ACCESS,
+                        canManageRbac: true,
+                    },
+                } as never)
+            })
+
+            vi.mocked(api.guilds.getSettings).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return settingsA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        settings: {
+                            nickname: 'Settings B',
+                            commandPrefix: '!',
+                            managerRoles: [],
+                            updatesChannel: 'updates',
+                            timezone: 'UTC',
+                            disableWarnings: false,
+                        },
+                    },
+                } as never)
+            })
+
+            vi.mocked(api.guilds.getListing).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return listingA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        listing: {
+                            listed: true,
+                            description: 'Listing B',
+                            inviteUrl: 'https://discord.gg/b',
+                            defaultInviteChannel: 'updates',
+                            language: 'en',
+                            categories: ['music'],
+                            tags: ['community'],
+                        },
+                    },
+                } as never)
+            })
+
+            useGuildStore.getState().selectGuild(guildA)
+            useGuildStore.getState().selectGuild(guildB)
+
+            await vi.waitFor(() => {
+                const state = useGuildStore.getState()
+                expect(state.selectedGuildId).toBe(guildB.id)
+                expect(state.memberContext?.guildId).toBe(guildB.id)
+                expect(state.serverSettings?.nickname).toBe('Settings B')
+                expect(state.serverListing?.description).toBe('Listing B')
+            })
+
+            meA.resolve({
+                data: {
+                    guildId: guildA.id,
+                    nickname: 'A Nick',
+                    username: 'user-a',
+                    globalName: null,
+                    roleIds: ['role-a'],
+                    effectiveAccess: MANAGE_ACCESS,
+                    canManageRbac: true,
+                },
+            })
+            settingsA.resolve({
+                data: {
+                    settings: {
+                        nickname: 'Settings A',
+                        commandPrefix: '?',
+                        managerRoles: ['mod'],
+                        updatesChannel: 'old-updates',
+                        timezone: 'GMT',
+                        disableWarnings: true,
+                    },
+                },
+            })
+            listingA.resolve({
+                data: {
+                    listing: {
+                        listed: false,
+                        description: 'Listing A',
+                        inviteUrl: 'https://discord.gg/a',
+                        defaultInviteChannel: 'general',
+                        language: 'pt-BR',
+                        categories: ['gaming'],
+                        tags: ['legacy'],
+                    },
+                },
+            })
+
+            await Promise.resolve()
+
+            const state = useGuildStore.getState()
+            expect(state.selectedGuildId).toBe(guildB.id)
+            expect(state.memberContext?.guildId).toBe(guildB.id)
+            expect(state.serverSettings?.nickname).toBe('Settings B')
+            expect(state.serverListing?.description).toBe('Listing B')
         })
     })
 
@@ -204,6 +546,51 @@ describe('guildStore', () => {
             useGuildStore.getState().setSelectedGuild('unknown')
 
             expect(useGuildStore.getState().selectedGuild).toBeNull()
+        })
+    })
+
+    describe('getSelectedGuild', () => {
+        test('should return currently selected guild', () => {
+            const guild = mockGuild({ id: 'selected' })
+            useGuildStore.setState({ selectedGuild: guild, selectedGuildId: guild.id })
+
+            const selectedGuild = useGuildStore.getState().getSelectedGuild()
+
+            expect(selectedGuild).toEqual(guild)
+        })
+    })
+
+    describe('updateServerListing', () => {
+        test('should merge partial listing', () => {
+            useGuildStore.setState({
+                serverListing: {
+                    listed: false,
+                    description: 'old description',
+                    inviteUrl: 'https://discord.gg/test',
+                    defaultInviteChannel: 'updates',
+                    language: 'en',
+                    categories: ['music'],
+                    tags: ['music'],
+                },
+            })
+
+            useGuildStore.getState().updateServerListing({
+                listed: true,
+                tags: ['music', 'community'],
+            })
+
+            const listing = useGuildStore.getState().serverListing
+            expect(listing?.listed).toBe(true)
+            expect(listing?.tags).toEqual(['music', 'community'])
+            expect(listing?.description).toBe('old description')
+        })
+
+        test('should no-op when listing is null', () => {
+            useGuildStore.setState({ serverListing: null })
+
+            useGuildStore.getState().updateServerListing({ listed: true })
+
+            expect(useGuildStore.getState().serverListing).toBeNull()
         })
     })
 })
