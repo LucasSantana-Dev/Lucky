@@ -68,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/api/health/auth-config` now accepts forwarded request-origin fallback when
   `WEBAPP_BACKEND_URL` is unset, preventing false degraded deploy-gate failures
   while keeping OAuth callback path and origin validation active
+- Deploy webhook rollout now fails fast when required runtime services
+  (`backend`, `nginx`, `postgres`, `redis`) are missing/not running, and checks
+  internal post-rollout readiness for `/api/health` and `/api/health/auth-config`
+- Deploy GitHub workflow now classifies auth-config smoke failures as
+  `upstream unavailable (5xx)` vs `contract invalid/unready (200 + bad body)`
+  and prints counters in failure summaries for faster incident triage
 - Guild list/dashboard metrics now return nullable live values from bot/API
   enrichment (no forced `0` fallback when metrics are unavailable)
 - Sidebar profile identity now resolves as `nick > global_name > username`

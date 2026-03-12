@@ -53,7 +53,10 @@ manual dispatch. It:
 1. Validates `DEPLOY_WEBHOOK_SECRET` and `DEPLOY_WEBHOOK_URL`.
 2. Sends a signed POST request to the deploy webhook endpoint.
 3. If the first URL responds with `405`, retries with `/webhook/deploy`.
-4. Fails the job on any non-2xx response.
+4. Verifies OAuth auth-config contract health with retry and classifies failures
+   as `upstream unavailable (5xx)` vs `contract invalid/unready (200 + bad body)`.
+5. Verifies OAuth redirect contract (`/api/auth/discord` 302 redirect shape).
+6. Fails the job with a triage-ready summary when readiness never converges.
 
 Required GitHub secrets: `DEPLOY_WEBHOOK_SECRET`, `DEPLOY_WEBHOOK_URL`.
 
@@ -117,6 +120,21 @@ If deploy fails with curl exit code `6` (Could not resolve host):
     - `curl -i -X POST https://lucky.lucassantana.tech/webhook/deploy`
 4. Re-run:
     - `npm run deploy:homelab`
+
+### Deploy smoke `502` troubleshooting
+
+If `Auth config smoke check` times out with repeated `HTTP 502`:
+
+1. Treat this as upstream backend/nginx availability, not OAuth contract shape.
+2. Trigger deploy again with:
+   - `npm run deploy:homelab`
+3. Inspect run logs for:
+   - `upstream unavailable` counters in `Auth config smoke summary`
+   - deploy-side service/log diagnostics from `scripts/deploy.sh`
+4. Confirm public probes recover:
+   - `https://lucky-api.lucassantana.tech/api/health` -> `200`
+   - `https://lucky-api.lucassantana.tech/api/health/auth-config` -> `200`
+   - `https://lucky-api.lucassantana.tech/api/auth/discord` -> `302`
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 

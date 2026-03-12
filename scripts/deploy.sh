@@ -61,6 +61,69 @@ notify() {
         }" || true
 }
 
+print_targeted_logs() {
+    log "Collecting backend/nginx/postgres/redis logs..."
+    docker_compose logs --tail=80 --no-color backend nginx postgres redis || true
+}
+
+require_running_containers() {
+    local required
+    required=(lucky-backend lucky-nginx lucky-postgres lucky-redis)
+    local missing=()
+    local not_running=()
+    local container running
+
+    for container in "${required[@]}"; do
+        if ! docker inspect "$container" >/dev/null 2>&1; then
+            missing+=("$container")
+            continue
+        fi
+
+        running=$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null || echo "false")
+        if [ "$running" != "true" ]; then
+            not_running+=("$container")
+        fi
+    done
+
+    if [ "${#missing[@]}" -gt 0 ] || [ "${#not_running[@]}" -gt 0 ]; then
+        [ "${#missing[@]}" -gt 0 ] && log "ERROR: missing containers: ${missing[*]}"
+        [ "${#not_running[@]}" -gt 0 ] && \
+            log "ERROR: containers not running: ${not_running[*]}"
+        return 1
+    fi
+
+    return 0
+}
+
+wait_for_http_ready() {
+    local label="$1"
+    local url="$2"
+    local body_pattern="$3"
+    local attempt response http_code body
+
+    for attempt in $(seq 1 18); do
+        response=$(curl -sS --max-time 10 -w "\n%{http_code}" "$url" || true)
+        http_code=$(echo "$response" | tail -1)
+        body=$(echo "$response" | sed '$d')
+
+        if [ "$http_code" = "200" ] && echo "$body" | grep -Eq "$body_pattern"; then
+            log "$label ready (HTTP 200)"
+            return 0
+        fi
+
+        if [[ "$http_code" =~ ^5[0-9][0-9]$ ]]; then
+            log "$label upstream unavailable (HTTP $http_code) - attempt $attempt/18"
+        else
+            log "$label not ready (HTTP $http_code) - attempt $attempt/18"
+        fi
+
+        sleep 5
+    done
+
+    log "ERROR: timed out waiting for $label readiness at $url"
+    return 1
+}
+
 acquire_lock() {
     if mkdir "$LOCK_DIR" 2>/dev/null; then
         echo "$$" >"$LOCK_PID_FILE"
@@ -137,11 +200,35 @@ sleep 10
 log "Service status:"
 docker_compose ps --format "table {{.Name}}\t{{.Status}}"
 
+if ! require_running_containers; then
+    print_targeted_logs
+    notify 16711680 "Deploy Failed" "Required services are missing or not running"
+    exit 1
+fi
+
 unhealthy=$(docker_compose ps --format json | grep -c '"unhealthy"' || true)
 if [ "$unhealthy" -gt 0 ]; then
     log "ERROR: $unhealthy unhealthy container(s)"
-    docker_compose logs --tail=20 --no-color
+    print_targeted_logs
     notify 16711680 "Deploy Failed" "$unhealthy unhealthy container(s)"
+    exit 1
+fi
+
+if ! wait_for_http_ready \
+    "API health" \
+    "http://nginx/api/health" \
+    '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+    print_targeted_logs
+    notify 16711680 "Deploy Failed" "API health endpoint did not become ready"
+    exit 1
+fi
+
+if ! wait_for_http_ready \
+    "Auth config health" \
+    "http://nginx/api/health/auth-config" \
+    '"auth"[[:space:]]*:'; then
+    print_targeted_logs
+    notify 16711680 "Deploy Failed" "Auth config health endpoint did not become ready"
     exit 1
 fi
 

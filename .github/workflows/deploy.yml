@@ -118,6 +118,9 @@ jobs:
 
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
                   health_url="${base_url}/api/health/auth-config"
+                  upstream_unavailable_count=0
+                  contract_invalid_count=0
+                  other_http_count=0
 
                   echo "==> Running deploy smoke check: $health_url"
 
@@ -178,13 +181,21 @@ jobs:
                               echo "==> OAuth auth-config smoke check passed"
                               exit 0
                           fi
+                          contract_invalid_count=$((contract_invalid_count + 1))
+                          echo "Auth-config contract invalid/unready (HTTP 200). Waiting 10s..."
+                      elif [[ "$http_code" =~ ^5[0-9][0-9]$ ]]; then
+                          upstream_unavailable_count=$((upstream_unavailable_count + 1))
+                          echo "Upstream unavailable at $health_url (HTTP $http_code). Waiting 10s..."
+                      else
+                          other_http_count=$((other_http_count + 1))
+                          echo "Service not ready yet at $health_url (HTTP $http_code). Waiting 10s..."
                       fi
 
-                      echo "Service not ready yet at $health_url (HTTP $http_code). Waiting 10s..."
                       sleep 10
                   done
 
                   echo "::error::Timed out waiting for OAuth auth-config contract"
+                  echo "::error::Auth-config smoke summary: upstream_unavailable=${upstream_unavailable_count}, contract_invalid=${contract_invalid_count}, other_http=${other_http_count}"
                   exit 1
 
             - name: OAuth redirect contract smoke check
