@@ -19,10 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added backend automation API routes under
   `/api/guilds/:guildId/automation/*` for manifest CRUD, run execution, status,
   and cutover operations
-- Added `scripts/verify-shared-exports.mjs` to validate deep `@lucky/shared`
-  service import paths used by backend startup
-- Added `scripts/homelab-diagnostics.sh` for sanitized deploy incident triage on
-  `server-do-luk` (container state, backend logs, auth checks)
 
 - Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
   command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
@@ -126,9 +122,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Criativaria `/serversetup` now uses explicit upsert client typings for
   auto-message, embed template, and custom command operations, preventing
   stale shared declaration drift from breaking bot typecheck resolution.
-- Production backend crash-loop caused by `ERR_PACKAGE_PATH_NOT_EXPORTED` is
-  fixed by exposing wildcard `@lucky/shared/services/*` subpath exports used by
-  backend deep imports.
 
 ### Changed
 
@@ -156,8 +149,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convergent plans
 - Shared guild automation lock flow now uses Redis token-based distributed locks
   (`SET NX PX` + safe token release) instead of in-memory instance-local locks
+
+## [2.6.13] - 2026-03-12
+
+### Added
+
+- Added `scripts/verify-shared-exports.mjs` to validate deep `@lucky/shared`
+  service import paths used by backend startup.
+- Added `scripts/homelab-diagnostics.sh` for sanitized deploy incident triage on
+  `server-do-luk` (container state, backend logs, auth checks).
+
+### Fixed
+
+- Production backend crash-loop caused by `ERR_PACKAGE_PATH_NOT_EXPORTED` is
+  fixed by exposing wildcard `@lucky/shared/services/*` subpath exports used by
+  backend deep imports.
+
+### Changed
+
 - CI Quality Gates now verify shared deep exports after `build:shared` using
   `npm run verify:shared-exports` to prevent regressions before deploy.
+
+### Verification
+
+- `npm run build:shared`
+- `node --input-type=module -e "import('@lucky/shared/services/guildAutomation/manifestSchema')"`
+- `npm run type:check --workspace=packages/backend`
+- `npm run test --workspace=packages/backend -- tests/integration/routes/guildAutomation.test.ts`
 
 ## [2.6.12] - 2026-03-12
 

@@ -52,14 +52,15 @@ packages/
   - Primitives: `Shell`, `SectionHeader`, `EmptyState`, `StatTile`,
     `ActionPanel` in `packages/frontend/src/components/ui`
 
-### Latest Release (`v2.6.12`)
-- Stabilized dashboard/runtime behavior across shell routes (guild re-sync,
-  RBAC-aware visibility, identity fallback chain).
-- Refreshed E2E contracts and visual baselines for redesigned pages.
-- Removed Deezer integration (`discord-player-deezer`) and switched Opus runtime
-  to `opusscript`.
-- Security override floor updates: `tar>=7.5.11`, `hono>=4.12.7`,
-  `file-type>=21.3.1`.
+### Latest Release (`v2.6.13`)
+- Fixed production backend crash-loop caused by
+  `ERR_PACKAGE_PATH_NOT_EXPORTED` on shared deep imports.
+- Added wildcard shared exports for `@lucky/shared/services/*` to keep backend
+  runtime imports stable.
+- Added CI regression guard (`npm run verify:shared-exports`) after
+  `build:shared`.
+- Added homelab diagnostics helper (`scripts/homelab-diagnostics.sh`) for fast
+  deploy smoke incident triage.
 
 ## Features
 
