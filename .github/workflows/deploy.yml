@@ -82,33 +82,72 @@ jobs:
                     echo "$http_code"$'\n'"$body"
                   }
 
-                  retry_url="${WEBHOOK_URL%/}/webhook/deploy"
+                  normalize_webhook_candidates() {
+                    node - <<'NODE'
+const raw = (process.env.WEBHOOK_URL ?? "").trim();
+if (!raw) {
+  process.exit(1);
+}
+
+let parsed;
+try {
+  parsed = new URL(raw);
+} catch (error) {
+  console.error(`Invalid DEPLOY_WEBHOOK_URL: ${error.message}`);
+  process.exit(1);
+}
+
+const origin = `${parsed.protocol}//${parsed.host}`;
+const trimmedPath = parsed.pathname.replace(/\/+$/, "");
+const originalPath = trimmedPath.length > 0 ? trimmedPath : "/";
+const originalUrl = `${origin}${originalPath}${parsed.search}`;
+
+let canonicalPath = trimmedPath;
+if (!canonicalPath || canonicalPath === "/") {
+  canonicalPath = "/webhook/deploy";
+} else if (!canonicalPath.endsWith("/webhook/deploy")) {
+  canonicalPath = `${canonicalPath}/webhook/deploy`;
+}
+const canonicalUrl = `${origin}${canonicalPath}`;
+
+const candidates = [originalUrl, canonicalUrl].filter((value, index, all) => {
+  return all.indexOf(value) === index;
+});
+
+for (const candidate of candidates) {
+  console.log(candidate);
+}
+NODE
+                  }
+
+                  mapfile -t webhook_candidates < <(normalize_webhook_candidates)
+                  if [ "${#webhook_candidates[@]}" -eq 0 ]; then
+                    echo "::error::Unable to derive webhook retry candidates from DEPLOY_WEBHOOK_URL"
+                    exit 1
+                  fi
+
                   selected_code=""
                   selected_body=""
 
-                  result=$(try_webhook_url "$WEBHOOK_URL")
-                  selected_code=$(echo "$result" | head -1)
-                  selected_body=$(echo "$result" | sed '1d')
+                  for index in "${!webhook_candidates[@]}"; do
+                    candidate="${webhook_candidates[$index]}"
+                    if [ "$index" -gt 0 ]; then
+                      echo "==> Retrying against canonical webhook path: $candidate" >&2
+                    fi
 
-                  if [ "$selected_code" -ge 200 ] && [ "$selected_code" -lt 300 ]; then
-                    echo "==> Deploy triggered successfully!"
-                    exit 0
-                  fi
-
-                  if [ "$WEBHOOK_URL" != "$retry_url" ]; then
-                    echo "==> Retrying against canonical webhook path: $retry_url" >&2
-                    result=$(try_webhook_url "$retry_url")
+                    result=$(try_webhook_url "$candidate")
                     selected_code=$(echo "$result" | head -1)
                     selected_body=$(echo "$result" | sed '1d')
-                  fi
 
-                  if [ "$selected_code" -ge 200 ] && [ "$selected_code" -lt 300 ]; then
-                    echo "==> Deploy triggered successfully!"
-                  else
-                    echo "::error::Deploy webhook failed with HTTP $selected_code"
-                    echo "::error::Response body: $selected_body"
-                    exit 1
-                  fi
+                    if [ "$selected_code" -ge 200 ] && [ "$selected_code" -lt 300 ]; then
+                      echo "==> Deploy triggered successfully!"
+                      exit 0
+                    fi
+                  done
+
+                  echo "::error::Deploy webhook failed with HTTP $selected_code"
+                  echo "::error::Response body: $selected_body"
+                  exit 1
 
             - name: Auth config smoke check
               env:
