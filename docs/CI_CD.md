@@ -121,6 +121,35 @@ If deploy fails with curl exit code `6` (Could not resolve host):
 4. Re-run:
     - `npm run deploy:homelab`
 
+### Cloudflared config directory
+
+Set `CLOUDFLARED_CONFIG_DIR` explicitly on the deploy host so tunnel restarts do
+not depend on shell `$HOME` resolution.
+
+Recommended production value:
+
+```bash
+CLOUDFLARED_CONFIG_DIR=/home/luk-server/.cloudflared
+```
+
+Required files in that directory:
+
+- `config-lucky.yml`
+- tunnel credentials JSON referenced by `credentials-file` inside
+  `config-lucky.yml`
+
+Quick validation commands on host:
+
+```bash
+ls -la "$CLOUDFLARED_CONFIG_DIR"
+test -f "$CLOUDFLARED_CONFIG_DIR/config-lucky.yml"
+awk -F': ' '/^credentials-file:/ {print $2}' "$CLOUDFLARED_CONFIG_DIR/config-lucky.yml"
+```
+
+If deploy context differs from login shell context, this explicit variable
+prevents mount drift between paths like `/home/<user>/.cloudflared` and
+`/root/.cloudflared`.
+
 ### Deploy smoke `502` troubleshooting
 
 If `Auth config smoke check` times out with repeated `HTTP 502`:
