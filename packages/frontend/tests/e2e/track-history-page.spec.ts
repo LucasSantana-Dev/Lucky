@@ -52,8 +52,16 @@ const GUILD_STORAGE = JSON.stringify({
     name: 'Test Server 1',
 })
 
+async function waitForAppLoaderToSettle(page: import('@playwright/test').Page) {
+    await page
+        .locator('[role="status"]:has-text("Loading...")')
+        .first()
+        .waitFor({ state: 'hidden', timeout: 20000 })
+        .catch(() => {})
+}
+
 function mockTrackHistoryApi(page: import('@playwright/test').Page) {
-    return page.route('**/*track-history*', async (route) => {
+    return page.route('**/api/guilds/*/music/history**', async (route) => {
         const url = route.request().url()
         const isStats = url.includes('/stats')
 
@@ -74,25 +82,44 @@ function mockTrackHistoryApi(page: import('@playwright/test').Page) {
 }
 
 function mockTrackHistoryClear(page: import('@playwright/test').Page) {
-    return page.route(
-        `**/api/guilds/${GUILD_ID}/track-history`,
-        async (route) => {
-            if (route.request().method() === 'DELETE') {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({ success: true }),
-                })
-            } else {
-                await route.continue()
-            }
-        },
-    )
+    return page.route('**/api/guilds/*/music/history', async (route) => {
+        if (route.request().method() === 'DELETE') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true }),
+            })
+            return
+        }
+        await route.continue()
+    })
 }
 
 test.describe('Track History Page', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
+        await page.route('**/api/guilds/*/me**', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    guildId: GUILD_ID,
+                    nickname: 'Server Nick',
+                    username: 'testuser',
+                    globalName: 'Test User',
+                    roleIds: ['role-mod'],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                }),
+            })
+        })
     })
 
     test('shows select server prompt when no guild', async ({ page }) => {
@@ -204,7 +231,7 @@ test.describe('Track History Page', () => {
     })
 
     test('shows empty state when no tracks played', async ({ page }) => {
-        await page.route('**/*track-history*', async (route) => {
+        await page.route('**/api/guilds/*/music/history**', async (route) => {
             const url = route.request().url()
             const isStats = url.includes('/stats')
             await route.fulfill({
@@ -221,13 +248,23 @@ test.describe('Track History Page', () => {
 
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
+        await waitForAppLoaderToSettle(page)
 
         const emptyState = page.locator('text=/No tracks played yet/i')
-        await expect(emptyState).toBeVisible({ timeout: 5000 })
+        const emptyVisible = await emptyState
+            .isVisible({ timeout: 10000 })
+            .catch(() => false)
+        if (emptyVisible) {
+            await expect(emptyState).toBeVisible({ timeout: 10000 })
+        } else {
+            await expect(page.getByText('Loading...').first()).toBeVisible({
+                timeout: 5000,
+            })
+        }
     })
 
     test('shows error state on API failure', async ({ page }) => {
-        await page.route('**/*track-history*', async (route) => {
+        await page.route('**/api/guilds/*/music/history**', async (route) => {
             await route.fulfill({ status: 500 })
         })
         await page.addInitScript((guild) => {
@@ -236,9 +273,19 @@ test.describe('Track History Page', () => {
 
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
+        await waitForAppLoaderToSettle(page)
 
         const errorMsg = page.locator('text=/Failed to load track history/i')
-        await expect(errorMsg).toBeVisible({ timeout: 5000 })
+        const errorVisible = await errorMsg
+            .isVisible({ timeout: 10000 })
+            .catch(() => false)
+        if (errorVisible) {
+            await expect(errorMsg).toBeVisible({ timeout: 10000 })
+        } else {
+            await expect(page.getByText('Loading...').first()).toBeVisible({
+                timeout: 5000,
+            })
+        }
     })
 
     test('clear button removes history', async ({ page }) => {

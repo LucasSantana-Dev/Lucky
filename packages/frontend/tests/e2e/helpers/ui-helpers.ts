@@ -14,7 +14,7 @@ export function getFeatureCard(page: Page, featureName: string): Locator {
 }
 
 export function getServerSelector(page: Page): Locator {
-    return page.locator('button:has-text("Test Server")').first()
+    return page.locator('button[aria-haspopup="listbox"]').first()
 }
 
 export function getUserDropdown(page: Page): Locator {
@@ -47,11 +47,19 @@ export function getLogoutButton(page: Page): Locator {
 }
 
 export function getAddBotButton(page: Page, serverName: string): Locator {
-    return page.locator(`button[aria-label="Add bot to ${serverName}"]`).first()
+    return page
+        .getByRole('button', {
+            name: new RegExp(`^Add bot to ${serverName}$`, 'i'),
+        })
+        .first()
 }
 
 export function getManageButton(page: Page, serverName: string): Locator {
-    return page.locator(`button[aria-label="Manage ${serverName}"]`).first()
+    return page
+        .getByRole('button', {
+            name: new RegExp(`^Manage ${serverName}$`, 'i'),
+        })
+        .first()
 }
 
 export async function waitForElement(

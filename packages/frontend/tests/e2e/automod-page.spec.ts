@@ -106,7 +106,12 @@ test.describe('Auto-Moderation Page', () => {
             await expect(
                 page.locator('text=/Caps Lock Detection/i'),
             ).toBeVisible()
-            await expect(page.locator('text=/Link Filtering/i')).toBeVisible()
+            await expect(
+                page.getByRole('heading', {
+                    name: 'Link Filtering',
+                    exact: true,
+                }),
+            ).toBeVisible()
             await expect(page.locator('text=/Banned Words/i')).toBeVisible()
         }
     })

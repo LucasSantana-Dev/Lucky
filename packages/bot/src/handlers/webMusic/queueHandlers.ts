@@ -118,6 +118,5 @@ export async function handleImportPlaylist(
 function detectSource(url: string): string {
     if (url.includes('spotify')) return 'spotify'
     if (url.includes('youtube') || url.includes('youtu.be')) return 'youtube'
-    if (url.includes('deezer')) return 'deezer'
     return 'unknown'
 }

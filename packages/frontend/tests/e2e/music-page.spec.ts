@@ -76,14 +76,23 @@ test.describe('Music Page', () => {
         await page.goto('/music')
         await page.waitForLoadState('domcontentloaded')
 
-        const status = page.locator('[role="status"]')
-        const isVisible = await status
+        const reconnectingStatus = page.getByRole('status', {
+            name: /Reconnecting to live updates/i,
+        })
+        const noTrackStatus = page.getByRole('status', {
+            name: /No track playing/i,
+        })
+
+        const isVisible = await reconnectingStatus
             .isVisible({ timeout: 5000 })
             .catch(() => false)
 
         if (isVisible) {
-            await expect(status).toBeVisible()
+            await expect(reconnectingStatus).toBeVisible()
+            return
         }
+
+        await expect(noTrackStatus).toBeVisible()
     })
 
     test('shows not connected message when no voice channel', async ({

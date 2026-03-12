@@ -10,7 +10,7 @@ Phased plan for updating Lucky dependencies. Run each phase on a branch; verify 
 | -------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | Root     | @prisma/client ^7.2, ESLint 9, Jest 30, Prettier 3.7, TypeScript 5.9                      | Prisma CLI not in package.json (scripts use `prisma`; add as devDep) |
 | Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                           |                                                                      |
-| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                       | Transitive: undici, tar (audit issues)                               |
+| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                       | Opus via opusscript; transitive undici tracked                       |
 | Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                            | Zod 4 deferred (hookform/resolvers); Node 20.19+ / 22.12+ for Vite 7 |
 | Shared   | @prisma/client 7.2, Sentry 10, ioredis, unleash-client, Zod 3.25, optional @infisical/sdk |                                                                      |
 
@@ -87,9 +87,10 @@ Do these only after Phase 1 is merged and stable.
 **Known audit issues (last updated: after Phase 2d; 32 vulnerabilities: 12 low, 14 moderate, 6 high):**
 
 - **@smithy/config-resolver** (via @infisical/sdk): Override `@smithy/config-resolver@>=4.4.0` was tried; incompatible with AWS SDK v3 chain (SDK v3 uses @smithy v3). Wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
-- **hono** (via prisma): Prisma 7.3+ may pull fixed hono; keep Prisma updated.
+- **hono** (via prisma): pinned via root override to `>=4.12.7`.
 - **lodash** (via chevrotain → @mrleebo/prisma-ast): Prisma/ecosystem updates may resolve; no override unless patched.
-- **tar** (via @discordjs/opus, cacache): `audit fix --force` would downgrade @discordjs/opus; **do not** use. Track upstream.
+- **tar** (via tooling): pinned via root override to `>=7.5.11`.
+- **file-type** (via transitive media tooling): pinned via root override to `>=21.3.1`.
 - **undici** (via discord.js, youtubei.js): Same; keep discord.js and youtubei.js at latest 14.x / 16.x and track releases.
 
 **Actions:**

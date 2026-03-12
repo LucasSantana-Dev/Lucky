@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { motion } from 'framer-motion'
 import {
     Activity,
@@ -21,12 +22,13 @@ import EmptyState from '@/components/ui/EmptyState'
 import StatTile from '@/components/ui/StatTile'
 import ActionPanel from '@/components/ui/ActionPanel'
 import { useGuildStore } from '@/stores/guildStore'
+import { hasModuleAccess } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
 import {
     useModerationCases,
     useModerationStats,
 } from '@/hooks/useModerationQueries'
-import type { ModerationCase } from '@/types'
+import type { ModerationCase, ModuleKey } from '@/types'
 
 const ACTION_COLORS: Record<string, string> = {
     warn: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
@@ -106,7 +108,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
 }
 
 export default function DashboardOverview() {
-    const { selectedGuild } = useGuildStore()
+    const { selectedGuild, memberContext } = useGuildStore()
     const { data: stats, isLoading: statsLoading } = useModerationStats(
         selectedGuild?.id,
     )
@@ -117,6 +119,50 @@ export default function DashboardOverview() {
 
     const recentCases = casesData?.cases ?? []
     const loading = statsLoading || casesLoading
+    const effectiveAccess =
+        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
+    const quickActions: Array<{
+        title: string
+        description: string
+        icon: ReactElement
+        href: string
+        module: ModuleKey
+    }> = [
+        {
+            title: 'Moderation Cases',
+            description: 'Review warnings, mutes, kicks, and bans.',
+            icon: <Shield className='h-4 w-4' />,
+            href: '/moderation',
+            module: 'moderation',
+        },
+        {
+            title: 'Auto-Moderation',
+            description: 'Tune filters and anti-spam automation.',
+            icon: <ShieldAlert className='h-4 w-4' />,
+            href: '/automod',
+            module: 'moderation',
+        },
+        {
+            title: 'Server Logs',
+            description: 'Audit events and moderation activity.',
+            icon: <ScrollText className='h-4 w-4' />,
+            href: '/logs',
+            module: 'moderation',
+        },
+        {
+            title: 'Custom Commands',
+            description: 'Manage scripted server shortcuts.',
+            icon: <MessageSquare className='h-4 w-4' />,
+            href: '/commands',
+            module: 'automation',
+        },
+    ]
+    const visibleQuickActions = quickActions.filter((action) => {
+        if (!selectedGuild || !effectiveAccess) {
+            return true
+        }
+        return hasModuleAccess(effectiveAccess, action.module, 'view')
+    })
 
     if (!selectedGuild) {
         return (
@@ -248,58 +294,22 @@ export default function DashboardOverview() {
                     <h2 className='type-title text-lucky-text-primary'>
                         Quick Actions
                     </h2>
-                    <ActionPanel
-                        title='Moderation Cases'
-                        description='Review warnings, mutes, kicks, and bans.'
-                        icon={<Shield className='h-4 w-4' />}
-                        action={
-                            <Link
-                                to='/moderation'
-                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
-                            >
-                                Open
-                            </Link>
-                        }
-                    />
-                    <ActionPanel
-                        title='Auto-Moderation'
-                        description='Tune filters and anti-spam automation.'
-                        icon={<ShieldAlert className='h-4 w-4' />}
-                        action={
-                            <Link
-                                to='/automod'
-                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
-                            >
-                                Open
-                            </Link>
-                        }
-                    />
-                    <ActionPanel
-                        title='Server Logs'
-                        description='Audit events and moderation activity.'
-                        icon={<ScrollText className='h-4 w-4' />}
-                        action={
-                            <Link
-                                to='/logs'
-                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
-                            >
-                                Open
-                            </Link>
-                        }
-                    />
-                    <ActionPanel
-                        title='Custom Commands'
-                        description='Manage scripted server shortcuts.'
-                        icon={<MessageSquare className='h-4 w-4' />}
-                        action={
-                            <Link
-                                to='/commands'
-                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
-                            >
-                                Open
-                            </Link>
-                        }
-                    />
+                    {visibleQuickActions.map((action) => (
+                        <ActionPanel
+                            key={action.href}
+                            title={action.title}
+                            description={action.description}
+                            icon={action.icon}
+                            action={
+                                <Link
+                                    to={action.href}
+                                    className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                                >
+                                    Open
+                                </Link>
+                            }
+                        />
+                    ))}
                 </motion.section>
             </div>
 

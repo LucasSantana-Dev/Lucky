@@ -204,6 +204,8 @@ describe('Auth Routes Integration', () => {
             process.env.NODE_ENV = 'production'
             process.env.WEBAPP_REDIRECT_URI =
                 'https://lucky.lucassantana.tech/api/auth/callback'
+            process.env.WEBAPP_BACKEND_URL =
+                'https://lucky-api.lucassantana.tech'
 
             const productionApp = express()
             productionApp.set('trust proxy', 1)
@@ -218,7 +220,7 @@ describe('Auth Routes Integration', () => {
 
             expect(response.headers.location).toContain(
                 encodeURIComponent(
-                    'https://lucky.lucassantana.tech/api/auth/callback',
+                    'https://lucky-api.lucassantana.tech/api/auth/callback',
                 ),
             )
 

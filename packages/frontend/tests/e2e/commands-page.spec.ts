@@ -89,7 +89,7 @@ test.describe('Custom Commands Page', () => {
         await page.goto('/commands')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Custom Commands/i')
+        const heading = page.getByRole('heading', { name: 'Custom Commands' })
         const isVisible = await heading
             .isVisible({ timeout: 5000 })
             .catch(() => false)

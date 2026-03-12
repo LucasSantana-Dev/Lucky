@@ -60,12 +60,13 @@ function RouteModuleGuard({
         return <>{children}</>
     }
 
-    if (memberContextLoading) {
+    const fallbackAccess = selectedGuild.effectiveAccess
+
+    if (memberContextLoading && !fallbackAccess) {
         return <PageLoader />
     }
 
-    const effectiveAccess =
-        memberContext?.effectiveAccess ?? selectedGuild.effectiveAccess
+    const effectiveAccess = memberContext?.effectiveAccess ?? fallbackAccess
 
     if (!hasModuleAccess(effectiveAccess, module, 'view')) {
         return <ForbiddenModulePage module={module} />
@@ -91,7 +92,7 @@ function AuthenticatedRoutes() {
             />
             <Route
                 path='/features'
-                element={guardedRoute('settings', <FeaturesPage />)}
+                element={guardedRoute('automation', <FeaturesPage />)}
             />
             <Route
                 path='/config'

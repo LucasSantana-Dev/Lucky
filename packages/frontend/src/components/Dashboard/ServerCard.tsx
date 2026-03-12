@@ -53,7 +53,7 @@ function ServerCard({ guild }: ServerCardProps) {
     const navigate = useNavigate()
 
     const handleManage = useCallback(() => {
-        navigate('/dashboard')
+        navigate('/')
     }, [navigate])
 
     return (
@@ -66,6 +66,7 @@ function ServerCard({ guild }: ServerCardProps) {
                 'focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background',
             )}
             role='article'
+            aria-label={guild.name}
             aria-labelledby={`server-${guild.id}-name`}
         >
             <div className='flex items-center gap-4'>

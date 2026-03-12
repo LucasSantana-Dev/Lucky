@@ -37,7 +37,7 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     { path: '/api/guilds/:guildId/settings', module: 'settings' },
     { path: '/api/guilds/:guildId/modules', module: 'settings' },
     { path: '/api/guilds/:guildId/rbac', module: 'settings', mode: 'manage' },
-    { path: '/api/guilds/:id/features', module: 'settings' },
+    { path: '/api/guilds/:id/features', module: 'automation' },
 ]
 
 const routeSetups = [

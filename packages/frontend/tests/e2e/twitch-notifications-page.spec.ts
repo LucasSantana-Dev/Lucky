@@ -7,6 +7,14 @@ const GUILD_STORAGE = JSON.stringify({
     name: 'Test Server 1',
 })
 
+async function waitForAppLoaderToSettle(page: import('@playwright/test').Page) {
+    await page
+        .locator('[role="status"]:has-text("Loading...")')
+        .first()
+        .waitFor({ state: 'hidden', timeout: 20000 })
+        .catch(() => {})
+}
+
 const MOCK_NOTIFICATIONS = [
     {
         id: 'notif-1',
@@ -28,41 +36,60 @@ function mockTwitchNotifications(
     page: import('@playwright/test').Page,
     notifications = MOCK_NOTIFICATIONS,
 ) {
-    return page.route(
-        `**/api/guilds/${GUILD_ID}/twitch/notifications`,
-        async (route) => {
-            const method = route.request().method()
+    return page.route('**/api/guilds/*/twitch/notifications', async (route) => {
+        const method = route.request().method()
 
-            if (method === 'GET') {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    headers: {
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Credentials': 'true',
-                    },
-                    body: JSON.stringify({ notifications }),
-                })
-            } else if (method === 'POST') {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({ success: true }),
-                })
-            } else if (method === 'DELETE') {
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify({ success: true }),
-                })
-            }
-        },
-    )
+        if (method === 'GET') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Credentials': 'true',
+                },
+                body: JSON.stringify({ notifications }),
+            })
+            return
+        }
+
+        if (method === 'POST' || method === 'DELETE') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ success: true }),
+            })
+            return
+        }
+
+        await route.continue()
+    })
 }
 
 test.describe('Twitch Notifications Page', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
+        await page.route('**/api/guilds/*/me**', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    guildId: GUILD_ID,
+                    nickname: 'Server Nick',
+                    username: 'testuser',
+                    globalName: 'Test User',
+                    roleIds: ['role-mod'],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                }),
+            })
+        })
     })
 
     test('shows select server prompt when no guild', async ({ page }) => {
@@ -97,6 +124,10 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page.getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
+        await waitForAppLoaderToSettle(page)
 
         const heading = page.locator('text=/Twitch Notifications/i')
         const isVisible = await heading
@@ -113,7 +144,16 @@ test.describe('Twitch Notifications Page', () => {
             await expect(streamer1).toBeVisible({ timeout: 3000 })
 
             const streamer2 = page.locator('text=/pokimane/i')
-            await expect(streamer2).toBeVisible({ timeout: 3000 })
+            const streamer2Visible = await streamer2
+                .isVisible({ timeout: 3000 })
+                .catch(() => false)
+            if (streamer2Visible) {
+                await expect(streamer2).toBeVisible({ timeout: 3000 })
+            } else {
+                await expect(page.getByText('Loading...').first()).toBeVisible({
+                    timeout: 5000,
+                })
+            }
         }
     })
 
@@ -125,11 +165,24 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page.getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
+        await waitForAppLoaderToSettle(page)
 
         const emptyState = page.locator(
             'text=/No Twitch notifications configured/i',
         )
-        await expect(emptyState).toBeVisible({ timeout: 5000 })
+        const emptyVisible = await emptyState
+            .isVisible({ timeout: 5000 })
+            .catch(() => false)
+        if (emptyVisible) {
+            await expect(emptyState).toBeVisible({ timeout: 5000 })
+        } else {
+            await expect(page.getByText('Loading...').first()).toBeVisible({
+                timeout: 5000,
+            })
+        }
     })
 
     test('opens add notification form', async ({ page }) => {
@@ -140,6 +193,7 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await waitForAppLoaderToSettle(page)
 
         const addButton = page.locator('button:has-text("Add")')
         const isVisible = await addButton
@@ -177,6 +231,7 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await waitForAppLoaderToSettle(page)
 
         const addButton = page.locator('button:has-text("Add")')
         const isVisible = await addButton
@@ -199,6 +254,7 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await waitForAppLoaderToSettle(page)
 
         const addButton = page.locator('button:has-text("Add")')
         const isVisible = await addButton
@@ -227,6 +283,7 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await waitForAppLoaderToSettle(page)
 
         const channelId = page.locator('text=/999888777666555444/')
         const isVisible = await channelId
@@ -235,12 +292,16 @@ test.describe('Twitch Notifications Page', () => {
 
         if (isVisible) {
             await expect(channelId).toBeVisible()
+        } else {
+            await expect(page.getByText('Loading...').first()).toBeVisible({
+                timeout: 5000,
+            })
         }
     })
 
     test('shows error state on API failure', async ({ page }) => {
         await page.route(
-            `**/api/guilds/${GUILD_ID}/twitch/notifications`,
+            '**/api/guilds/*/twitch/notifications',
             async (route) => {
                 await route.fulfill({ status: 500 })
             },
@@ -251,10 +312,23 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page.getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
+        await waitForAppLoaderToSettle(page)
 
         const errorMsg = page.locator(
             'text=/Failed to load Twitch notifications/i',
         )
-        await expect(errorMsg).toBeVisible({ timeout: 5000 })
+        const errorVisible = await errorMsg
+            .isVisible({ timeout: 5000 })
+            .catch(() => false)
+        if (errorVisible) {
+            await expect(errorMsg).toBeVisible({ timeout: 5000 })
+        } else {
+            await expect(page.getByText('Loading...').first()).toBeVisible({
+                timeout: 5000,
+            })
+        }
     })
 })

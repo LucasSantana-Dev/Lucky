@@ -2,6 +2,7 @@ interface AuthConfigHealthInput {
     clientId: string
     redirectUri: string
     frontendOrigins: string[]
+    backendOrigins?: string[]
     sessionSecretConfigured: boolean
     redisHealthy: boolean
     expectedClientId?: string
@@ -62,6 +63,7 @@ export function buildAuthConfigHealth({
     clientId,
     redirectUri,
     frontendOrigins,
+    backendOrigins = [],
     sessionSecretConfigured,
     redisHealthy,
     expectedClientId,
@@ -92,8 +94,10 @@ export function buildAuthConfigHealth({
         warnings.push('Redis is not healthy for shared services')
     }
 
-    if (frontendOrigins.length === 0) {
-        warnings.push('No WEBAPP_FRONTEND_URL origins configured')
+    if (frontendOrigins.length === 0 && backendOrigins.length === 0) {
+        warnings.push(
+            'No WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL origins configured',
+        )
     }
 
     try {
@@ -103,13 +107,15 @@ export function buildAuthConfigHealth({
             warnings.push('OAuth callback path should be /api/auth/callback')
         }
 
-        if (frontendOrigins.length > 0) {
-            const configuredOrigins =
-                getConfiguredFrontendOrigins(frontendOrigins)
+        if (frontendOrigins.length > 0 || backendOrigins.length > 0) {
+            const configuredOrigins = new Set([
+                ...getConfiguredFrontendOrigins(frontendOrigins),
+                ...getConfiguredFrontendOrigins(backendOrigins),
+            ])
 
             if (!configuredOrigins.has(parsedRedirectUri.origin)) {
                 warnings.push(
-                    'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
+                    'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
                 )
             }
         }

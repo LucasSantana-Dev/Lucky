@@ -61,6 +61,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guild/module routes now use module-aware access middleware so read requests
   require `view` and mutating requests require `manage`
 
+## [2.6.10] - 2026-03-11
+
+### Fixed
+
+- OAuth/dashboard stabilization for split frontend/API origins with canonical
+  callback handling and stronger auth config health diagnostics.
+- Dashboard and shell data reliability across routes: selected guild re-sync,
+  RBAC-aware quick actions/nav behavior, and member context availability for
+  authorized module users.
+- Sidebar identity rendering now consistently resolves as
+  `nick > globalName > username` with `@username` secondary label.
+- Cross-page E2E contract mismatches in redesigned shell pages
+  (automod, features, servers, music, twitch, track-history, visual baselines).
+
+### Changed
+
+- Route/module policy alignment keeps `/features` under the `automation` access
+  module and preserves deny-by-default RBAC behavior.
+- Updated Playwright visual baselines for servers, dashboard, features, sidebar,
+  loading, and error states.
+
+### Security
+
+- Removed Deezer support from music source unions and web import surfaces
+  (`discord-player-deezer` removed).
+- Replaced optional native Opus path with `opusscript` runtime dependency.
+- Tightened dependency overrides to patched ranges:
+  `tar>=7.5.11`, `hono>=4.12.7`, `file-type>=21.3.1`.
+
+### Verification
+
+- `npm run lint`
+- `npm run type:check`
+- `npm run build`
+- `npm run test --workspace=packages/backend`
+- `npm run test --workspace=packages/bot -- --runInBand`
+- `npm run test --workspace=packages/frontend`
+- `npm run test:e2e --workspace=packages/frontend` (190 passed)
+- `npm audit --audit-level=high` (0 vulnerabilities)
+
 ## [2.6.9] - 2026-03-10
 
 ### Fixed

@@ -18,7 +18,7 @@ interface RawTrack {
     source?: string
 }
 
-const KNOWN_SOURCES = ['youtube', 'spotify', 'soundcloud', 'deezer']
+const KNOWN_SOURCES = ['youtube', 'spotify', 'soundcloud']
 
 export function mapTrack(track: RawTrack): TrackInfo {
     return {

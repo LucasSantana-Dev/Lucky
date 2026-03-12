@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { setupMockApiResponses, mockGuildsList } from './helpers/api-helpers'
+import { setupMockApiResponses } from './helpers/api-helpers'
 import {
     navigateToDashboard,
     waitForDashboard,
@@ -32,7 +32,7 @@ test.describe('Dashboard Page', () => {
         }
     })
 
-    test('displays No Server Selected state when no bot servers', async ({
+    test('renders dashboard when selected server has no bot', async ({
         page,
     }) => {
         await page.route('**/api/guilds', async (route) => {
@@ -48,10 +48,12 @@ test.describe('Dashboard Page', () => {
         await navigateToDashboard(page)
         await waitForDashboard(page)
 
-        const noServerState = page.getByRole('heading', {
-            name: /No Server Selected|Select a Server/i,
-        })
-        await expect(noServerState).toBeVisible({ timeout: 5000 })
+        const dashboardTitle = page
+            .getByRole('heading', {
+                name: /Dashboard/i,
+            })
+            .first()
+        await expect(dashboardTitle).toBeVisible({ timeout: 5000 })
     })
 
     test('server selector dropdown in header', async ({ page }) => {
@@ -168,12 +170,17 @@ test.describe('Dashboard Page', () => {
 
     test('shows loading states during server fetch', async ({ page }) => {
         await page.route('**/api/guilds', async (route) => {
-            await page.waitForTimeout(1000)
-            await route.continue()
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: MOCK_GUILDS }),
+            })
         })
 
         await navigateToDashboard(page)
 
         await page.waitForTimeout(500)
+        await page.unroute('**/api/guilds')
     })
 })

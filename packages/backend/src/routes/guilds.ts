@@ -73,7 +73,6 @@ export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds/:id/me',
         requireAuth,
-        requireGuildModuleAccess('overview'),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const id = getGuildId(req)
             const sessionData = await getSessionData(req)

@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Crown, LayoutGrid, Settings, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Skeleton from '@/components/ui/Skeleton'
@@ -12,17 +11,12 @@ import { usePageMetadata } from '@/hooks/usePageMetadata'
 export default function ServersPage() {
     const guilds = useGuildStore((state) => state.guilds)
     const isLoading = useGuildStore((state) => state.isLoading)
-    const fetchGuilds = useGuildStore((state) => state.fetchGuilds)
     const user = useAuthStore((state) => state.user)
 
     usePageMetadata({
         title: 'Servers - Lucky',
         description: 'View and manage your Discord servers',
     })
-
-    useEffect(() => {
-        fetchGuilds()
-    }, [fetchGuilds])
 
     if (isLoading) {
         return (
@@ -63,14 +57,24 @@ export default function ServersPage() {
                 </Avatar>
 
                 <div className='space-y-1'>
-                    <p className='type-meta text-lucky-text-tertiary'>Discord profile</p>
-                    <p className='type-title text-lucky-text-primary'>{user?.username}</p>
-                    <p className='type-body-sm text-lucky-text-secondary'>@{user?.username}</p>
+                    <p className='type-meta text-lucky-text-tertiary'>
+                        Discord profile
+                    </p>
+                    <p className='type-title text-lucky-text-primary'>
+                        {user?.username}
+                    </p>
+                    <p className='type-body-sm text-lucky-text-secondary'>
+                        @{user?.username}
+                    </p>
                 </div>
 
                 <div className='ml-auto rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-4 py-2'>
-                    <p className='type-meta text-lucky-text-tertiary'>Managed servers</p>
-                    <p className='type-title text-lucky-text-primary'>{guilds.length}</p>
+                    <p className='type-meta text-lucky-text-tertiary'>
+                        Managed servers
+                    </p>
+                    <p className='type-title text-lucky-text-primary'>
+                        {guilds.length}
+                    </p>
                 </div>
             </div>
 
@@ -80,7 +84,10 @@ export default function ServersPage() {
                 description={`Servers you're in (${guilds.length} servers)`}
             />
 
-            <nav className='flex flex-wrap gap-2' aria-label='Server navigation'>
+            <nav
+                className='flex flex-wrap gap-2'
+                aria-label='Server navigation'
+            >
                 <button className='type-body-sm inline-flex items-center gap-2 rounded-xl border border-lucky-border-strong bg-lucky-bg-active px-4 py-2 text-lucky-text-primary'>
                     <LayoutGrid className='h-4 w-4' aria-hidden='true' />
                     Servers
@@ -115,7 +122,10 @@ export default function ServersPage() {
             </div>
 
             <section aria-labelledby='servers-heading' className='space-y-4'>
-                <h2 id='servers-heading' className='type-title text-lucky-text-primary'>
+                <h2
+                    id='servers-heading'
+                    className='type-title text-lucky-text-primary'
+                >
                     Servers
                 </h2>
                 <ServerGrid />

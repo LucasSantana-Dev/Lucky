@@ -1,16 +1,10 @@
 import { test, expect } from '@playwright/test'
-import {
-    setupMockApiResponses,
-    mockGuildsList,
-    mockAuthStatus,
-    mockInviteUrl,
-} from './helpers/api-helpers'
+import { setupMockApiResponses, mockInviteUrl } from './helpers/api-helpers'
 import { navigateToServers, waitForServerList } from './helpers/page-helpers'
 import {
     getServerCard,
     getAddBotButton,
     getManageButton,
-    verifyBadge,
 } from './helpers/ui-helpers'
 import { MOCK_GUILDS, MOCK_DISCORD_USER } from './fixtures/test-data'
 
@@ -21,14 +15,15 @@ test.describe('Servers Page', () => {
 
     test('displays user avatar and username', async ({ page }) => {
         await navigateToServers(page)
+        await waitForServerList(page)
 
-        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
-        await expect(username).toBeVisible()
+        await expect(
+            page.getByText(new RegExp(`^${MOCK_DISCORD_USER.username}$`)),
+        ).toBeVisible()
 
-        const heading = page.getByRole('heading', {
-            name: MOCK_DISCORD_USER.username,
-        })
-        await expect(heading).toBeVisible()
+        await expect(
+            page.getByText(`@${MOCK_DISCORD_USER.username}`).first(),
+        ).toBeVisible()
     })
 
     test('lists all user Discord servers', async ({ page }) => {
@@ -49,7 +44,7 @@ test.describe('Servers Page', () => {
         const serverCard = getServerCard(page, firstServer.name)
 
         await expect(
-            serverCard.locator(`text=${firstServer.name}`),
+            serverCard.getByRole('heading', { name: firstServer.name }),
         ).toBeVisible()
     })
 
@@ -59,7 +54,8 @@ test.describe('Servers Page', () => {
 
         const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
         if (serverWithBot) {
-            await verifyBadge(page, 'Bot Added')
+            const serverCard = getServerCard(page, serverWithBot.name)
+            await expect(serverCard.getByText('Bot Added')).toBeVisible()
         }
     })
 
@@ -71,7 +67,8 @@ test.describe('Servers Page', () => {
 
         const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)
         if (serverWithoutBot) {
-            await verifyBadge(page, 'Not Added')
+            const serverCard = getServerCard(page, serverWithoutBot.name)
+            await expect(serverCard.getByText('Not Added')).toBeVisible()
         }
     })
 
@@ -87,7 +84,7 @@ test.describe('Servers Page', () => {
             await expect(manageButton).toBeVisible()
             await manageButton.click()
 
-            await page.waitForTimeout(1000)
+            await page.waitForURL(/\/$/, { timeout: 5000 })
             expect(page.url()).not.toContain('/servers')
         }
     })
@@ -103,6 +100,10 @@ test.describe('Servers Page', () => {
         if (serverWithoutBot) {
             const addBotButton = getAddBotButton(page, serverWithoutBot.name)
             await expect(addBotButton).toBeVisible()
+
+            await page.evaluate(() => {
+                window.open = (() => null) as typeof window.open
+            })
             await addBotButton.click()
 
             await page.waitForTimeout(1000)
@@ -141,16 +142,11 @@ test.describe('Servers Page', () => {
         })
 
         await navigateToServers(page)
-        await waitForServerList(page)
-
-        const emptyState = page.locator('text=/no servers|0 servers/i')
-        const isEmptyVisible = await emptyState
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
-        if (isEmptyVisible) {
-            await expect(emptyState).toBeVisible()
-        }
+        await expect(
+            page
+                .getByRole('status')
+                .filter({ hasText: /No servers found matching the filter\./i }),
+        ).toBeVisible({ timeout: 10000 })
     })
 
     test('handles error when API fails', async ({ page }) => {
@@ -163,9 +159,11 @@ test.describe('Servers Page', () => {
         })
 
         await navigateToServers(page)
-        await waitForServerList(page)
-
-        await page.waitForTimeout(2000)
+        await expect(
+            page
+                .getByRole('status')
+                .filter({ hasText: /No servers found matching the filter\./i }),
+        ).toBeVisible({ timeout: 10000 })
     })
 
     test('displays server count correctly', async ({ page }) => {

@@ -1,7 +1,7 @@
 export const MOCK_DISCORD_USER = {
     id: '123456789012345678',
     username: 'testuser',
-    discriminator: '0001',
+    globalName: 'Test User',
     avatar: 'a_1234567890abcdef',
     email: 'test@example.com',
 }
@@ -39,6 +39,15 @@ export const MOCK_GUILDS = [
         features: ['COMMUNITY', 'NEWS'],
         hasBot: true,
         botInviteUrl: undefined,
+        effectiveAccess: {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        },
+        canManageRbac: true,
     },
     {
         id: '222222222222222222',
@@ -50,6 +59,15 @@ export const MOCK_GUILDS = [
         hasBot: false,
         botInviteUrl:
             'https://discord.com/api/oauth2/authorize?client_id=962198089161134131&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
+        effectiveAccess: {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        },
+        canManageRbac: true,
     },
     {
         id: '333333333333333333',
@@ -60,8 +78,34 @@ export const MOCK_GUILDS = [
         features: ['VERIFIED'],
         hasBot: true,
         botInviteUrl: undefined,
+        effectiveAccess: {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        },
+        canManageRbac: true,
     },
 ]
+
+export const MOCK_GUILD_MEMBER_CONTEXT = {
+    guildId: '111111111111111111',
+    nickname: 'Server Nick',
+    username: MOCK_DISCORD_USER.username,
+    globalName: MOCK_DISCORD_USER.globalName,
+    roleIds: ['role-mod'],
+    effectiveAccess: {
+        overview: 'manage',
+        settings: 'manage',
+        moderation: 'manage',
+        automation: 'manage',
+        music: 'manage',
+        integrations: 'manage',
+    },
+    canManageRbac: true,
+}
 
 export const MOCK_FEATURES = [
     {

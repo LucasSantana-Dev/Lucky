@@ -33,7 +33,10 @@ test.describe('Auto Messages Page', () => {
         await page.goto('/automessages')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Auto Messages/i')
+        const heading = page.getByRole('heading', {
+            name: 'Auto Messages',
+            exact: true,
+        })
         const isVisible = await heading
             .isVisible({ timeout: 5000 })
             .catch(() => false)

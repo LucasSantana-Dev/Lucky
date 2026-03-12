@@ -255,4 +255,72 @@ describe('Guilds Routes Integration', () => {
             })
         })
     })
+
+    describe('GET /api/guilds/:id/me', () => {
+        test('should return member context for authorized non-overview user', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const nonOverviewAccess = {
+                ...defaultAccess,
+                isAdmin: false,
+                roleIds: ['role-mod'],
+                nickname: 'Mod Nick',
+                effectiveAccess: {
+                    overview: 'none',
+                    settings: 'none',
+                    moderation: 'view',
+                    automation: 'view',
+                    music: 'none',
+                    integrations: 'none',
+                },
+                canManageRbac: false,
+            }
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+                nonOverviewAccess,
+            )
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/me')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({
+                guildId: '111111111111111111',
+                nickname: 'Mod Nick',
+                username: MOCK_SESSION_DATA.user.username,
+                globalName: null,
+                roleIds: ['role-mod'],
+                effectiveAccess: nonOverviewAccess.effectiveAccess,
+                canManageRbac: false,
+            })
+        })
+
+        test('should return 403 when user has no guild access', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessService = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessService.resolveGuildContext.mockResolvedValue(null)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/me')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(403)
+
+            expect(response.body).toEqual({
+                error: 'No access to this server',
+            })
+        })
+    })
 })

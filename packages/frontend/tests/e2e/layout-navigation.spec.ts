@@ -34,9 +34,7 @@ test.describe('Layout and Navigation', () => {
 
         const dashboardLink = page.locator('a:has-text("Dashboard")').first()
         await expect(dashboardLink).toBeVisible({ timeout: 5000 })
-        const dashboardClass = await dashboardLink.getAttribute('class')
-
-        expect(dashboardClass).toMatch(/bg-lucky-red|text-white/)
+        await expect(dashboardLink).toHaveAttribute('data-active', 'true')
     })
 
     test('user info in sidebar', async ({ page }) => {
@@ -49,13 +47,9 @@ test.describe('Layout and Navigation', () => {
     test('user avatar and username display', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const username = page.locator(`text=${MOCK_DISCORD_USER.username}`)
-        await expect(username.first()).toBeVisible({ timeout: 5000 })
-
-        const discriminator = page.locator(
-            `text=#${MOCK_DISCORD_USER.discriminator}`,
-        )
-        await expect(discriminator).toBeVisible({ timeout: 3000 })
+        await expect(
+            page.getByText(`@${MOCK_DISCORD_USER.username}`),
+        ).toBeVisible({ timeout: 3000 })
     })
 
     test('logout functionality', async ({ page }) => {
@@ -79,7 +73,9 @@ test.describe('Layout and Navigation', () => {
     test('server selector dropdown in sidebar', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const serverSelector = page.locator('text=Select a server').first()
+        const serverSelector = page
+            .locator('button[aria-haspopup="listbox"]')
+            .first()
         const isVisible = await serverSelector
             .isVisible({ timeout: 3000 })
             .catch(() => false)

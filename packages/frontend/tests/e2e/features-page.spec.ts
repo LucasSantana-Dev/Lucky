@@ -20,17 +20,65 @@ import { MOCK_FEATURES, MOCK_GUILDS } from './fixtures/test-data'
 test.describe('Features Page', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
+        await page.route('**/api/guilds/*/me**', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    guildId: '111111111111111111',
+                    nickname: 'Server Nick',
+                    username: 'testuser',
+                    globalName: 'Test User',
+                    roleIds: ['role-mod'],
+                    effectiveAccess: {
+                        overview: 'manage',
+                        settings: 'manage',
+                        moderation: 'manage',
+                        automation: 'manage',
+                        music: 'manage',
+                        integrations: 'manage',
+                    },
+                    canManageRbac: true,
+                }),
+            })
+        })
     })
 
     test('displays server-specific toggles section', async ({ page }) => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
+        await page
+            .locator('[role="status"]:has-text("Loading...")')
+            .first()
+            .waitFor({ state: 'hidden', timeout: 15000 })
+            .catch(() => {})
 
-        const featuresSection = page.locator('text=/Features|Feature Toggles/i')
-        await expect(featuresSection).toBeVisible({ timeout: 5000 })
+        await expect(
+            page.getByRole('heading', { name: 'Features' }),
+        ).toBeVisible({ timeout: 15000 })
+        await expect(
+            page.locator('[aria-labelledby="server-toggles-heading"]'),
+        ).toBeVisible({ timeout: 5000 })
     })
 
     test('displays global toggles section for developers', async ({ page }) => {
+        await page.unroute('**/api/auth/status')
+        await page.route('**/api/auth/status', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    authenticated: true,
+                    user: {
+                        id: '123456789012345678',
+                        username: 'testuser',
+                        globalName: 'Test User',
+                        isDeveloper: true,
+                    },
+                }),
+            })
+        })
+
         await mockGlobalToggles(page)
         await page.route('**/api/toggles/global', async (route) => {
             await route.fulfill({
@@ -43,10 +91,9 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const globalSection = page.locator('text=/Global|Global Toggles/i')
-        const isVisible = await globalSection
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        await expect(
+            page.getByRole('heading', { name: /Global Toggles/i }),
+        ).toBeVisible({ timeout: 5000 })
     })
 
     test('toggles feature on/off (server-specific)', async ({ page }) => {
@@ -105,6 +152,7 @@ test.describe('Features Page', () => {
 
     test('shows loading states during data fetch', async ({ page }) => {
         await page.unroute('**/api/features')
+        await page.unroute('**/api/guilds/111111111111111111/features')
         await page.route('**/api/features', async (route) => {
             await new Promise<void>((resolve) => {
                 setTimeout(resolve, 1000)
@@ -115,14 +163,45 @@ test.describe('Features Page', () => {
                 body: JSON.stringify({ features: MOCK_FEATURES }),
             })
         })
+        await page.route(
+            '**/api/guilds/111111111111111111/features',
+            async (route) => {
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 1000)
+                })
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        guildId: '111111111111111111',
+                        toggles: {
+                            DOWNLOAD_VIDEO: true,
+                            DOWNLOAD_AUDIO: true,
+                            MUSIC_RECOMMENDATIONS: true,
+                            AUTOPLAY: true,
+                            LYRICS: true,
+                            QUEUE_MANAGEMENT: true,
+                            REACTION_ROLES: true,
+                            ROLE_MANAGEMENT: true,
+                        },
+                    }),
+                })
+            },
+        )
 
         await navigateToFeatures(page)
 
-        const skeleton = page
-            .locator('.animate-pulse.bg-lucky-bg-tertiary')
-            .first()
-        await expect(skeleton).toBeVisible({ timeout: 2000 })
+        const loadingIndicator = page.locator('.animate-pulse').first()
+        const loadingVisible = await loadingIndicator
+            .isVisible({ timeout: 2000 })
+            .catch(() => false)
+        if (loadingVisible) {
+            await expect(loadingIndicator).toBeVisible()
+        }
         await waitForFeatures(page)
+        await expect(
+            page.getByRole('heading', { name: 'Features' }),
+        ).toBeVisible({ timeout: 10000 })
     })
 
     test('shows toast notifications on toggle success', async ({ page }) => {

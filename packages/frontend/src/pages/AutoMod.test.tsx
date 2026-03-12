@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import AutoModPage from './AutoMod'
@@ -367,7 +367,13 @@ describe('AutoModPage', () => {
             expect(screen.getByText('Link Filtering')).toBeInTheDocument()
         })
 
-        const linkSwitch = screen.getAllByRole('switch')[2]
+        const linkCard = screen
+            .getByRole('heading', { name: 'Link Filtering' })
+            .closest('[class*="overflow-hidden"]')
+
+        expect(linkCard).toBeTruthy()
+
+        const linkSwitch = within(linkCard as HTMLElement).getByRole('switch')
         await user.click(linkSwitch)
 
         await waitFor(() => {

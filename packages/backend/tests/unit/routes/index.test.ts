@@ -116,7 +116,10 @@ describe('setupRoutes', () => {
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('music')
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('integrations')
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('settings')
-        expect(requireGuildModuleAccess).toHaveBeenCalledWith('settings', 'manage')
+        expect(requireGuildModuleAccess).toHaveBeenCalledWith(
+            'settings',
+            'manage',
+        )
 
         expect(app.use).toHaveBeenCalledWith(
             '/api/guilds/:guildId/rbac',
@@ -126,7 +129,7 @@ describe('setupRoutes', () => {
         expect(app.use).toHaveBeenCalledWith(
             '/api/guilds/:id/features',
             requireAuth,
-            'settings:view',
+            'automation:view',
         )
 
         expect(setupAuthRoutes).toHaveBeenCalledWith(app)
@@ -158,7 +161,8 @@ describe('setupRoutes', () => {
         const featuresGuardIndex = useCalls.findIndex(
             (call) => call[0] === '/api/guilds/:id/features',
         )
-        const rbacGuardCallOrder = app.use.mock.invocationCallOrder[rbacGuardIndex]
+        const rbacGuardCallOrder =
+            app.use.mock.invocationCallOrder[rbacGuardIndex]
         const featuresGuardCallOrder =
             app.use.mock.invocationCallOrder[featuresGuardIndex]
         const firstRouteSetupOrder = setupAuthRoutes.mock.invocationCallOrder[0]

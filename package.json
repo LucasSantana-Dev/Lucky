@@ -1,6 +1,6 @@
 {
     "name": "lucky-bot",
-    "version": "2.6.9",
+    "version": "2.6.10",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [
@@ -58,9 +58,6 @@
     "engines": {
         "node": "22.x"
     },
-    "optionalDependencies": {
-        "@discordjs/opus": "^0.10.0"
-    },
     "keywords": [
         "discord-bot",
         "typescript",
@@ -93,7 +90,6 @@
         "@prisma/client": "^7.4.2",
         "@snazzah/davey": "^0.1.10",
         "chalk": "^5.6.2",
-        "discord-player-deezer": "^2.5.0",
         "discord-player-youtubei": "^2.0.0-dev.2",
         "jintr": "^3.3.1",
         "minipass-flush": "^1.0.5",
@@ -101,12 +97,13 @@
     },
     "overrides": {
         "fast-xml-parser": ">=4.5.4",
-        "tar": ">=7.5.10",
+        "tar": ">=7.5.11",
         "undici": ">=6.23.0",
         "@smithy/config-resolver": ">=4.4.10",
         "@aws-sdk/client-sso": ">=3.726.0",
         "@hono/node-server": ">=1.19.10",
-        "hono": ">=4.7.15",
-        "lodash": ">=4.17.22"
+        "hono": ">=4.12.7",
+        "lodash": ">=4.17.22",
+        "file-type": ">=21.3.1"
     }
 }

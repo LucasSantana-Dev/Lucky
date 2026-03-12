@@ -137,7 +137,7 @@ const navSections: NavSection[] = [
                 path: '/features',
                 label: 'Features',
                 icon: ToggleLeft,
-                module: 'settings',
+                module: 'automation',
             },
         ],
     },

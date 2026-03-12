@@ -156,23 +156,21 @@ const embed = new EmbedBuilder()
 
 ---
 
-### @discordjs/opus (v0.10.0)
+### opusscript (v0.1.1)
 
-Native Opus codec bindings for high-quality voice.
+Pure JavaScript Opus codec used for voice encoding without native build steps.
 
-- **GitHub:** https://github.com/discordjs/opus
-- **NPM:** https://www.npmjs.com/package/@discordjs/opus
-
-**Note:** This is an optional dependency. If not installed, discord.js will fall back to other opus libraries or FFmpeg.
+- **GitHub:** https://github.com/abalabahaha/opusscript
+- **NPM:** https://www.npmjs.com/package/opusscript
 
 **Installation:**
 
 ```bash
-npm install @discordjs/opus
+npm install opusscript
 ```
 
 **Usage:**
-Automatically used by discord.js for voice encoding when available. No manual configuration needed.
+Used automatically by the audio stack when native Opus bindings are unavailable.
 
 ---
 

@@ -71,7 +71,10 @@ test.describe('Server Logs Page', () => {
         await page.goto('/logs')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Server Logs/i')
+        const heading = page.getByRole('heading', {
+            name: 'Server Logs',
+            exact: true,
+        })
         const isVisible = await heading
             .isVisible({ timeout: 5000 })
             .catch(() => false)

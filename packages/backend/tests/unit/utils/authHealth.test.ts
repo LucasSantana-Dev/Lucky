@@ -37,6 +37,7 @@ describe('authHealth utils', () => {
                     'https://lucky.lucassantana.tech',
                     'https://lukbot.vercel.app',
                 ],
+                backendOrigins: ['https://lucky-api.lucassantana.tech'],
                 sessionSecretConfigured: true,
                 redisHealthy: true,
             })
@@ -54,14 +55,30 @@ describe('authHealth utils', () => {
                 clientId: '962198089161134131',
                 redirectUri: 'https://app.otherdomain.com/api/auth/callback',
                 frontendOrigins: ['https://lucky.lucassantana.tech'],
+                backendOrigins: ['https://lucky-api.lucassantana.tech'],
                 sessionSecretConfigured: true,
                 redisHealthy: true,
             })
 
             expect(response.status).toBe('degraded')
             expect(response.warnings).toContain(
-                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
+                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
             )
+        })
+
+        test('returns ok when redirect uri origin matches WEBAPP_BACKEND_URL', () => {
+            const response = buildAuthConfigHealth({
+                clientId: '962198089161134131',
+                redirectUri:
+                    'https://lucky-api.lucassantana.tech/api/auth/callback',
+                frontendOrigins: ['https://lucky.lucassantana.tech'],
+                backendOrigins: ['https://lucky-api.lucassantana.tech'],
+                sessionSecretConfigured: true,
+                redisHealthy: true,
+            })
+
+            expect(response.status).toBe('ok')
+            expect(response.warnings).toEqual([])
         })
 
         test('returns degraded when callback path is not the API callback path', () => {
@@ -86,6 +103,7 @@ describe('authHealth utils', () => {
                 redirectUri:
                     'https://lucky.lucassantana.tech/api/auth/callback',
                 frontendOrigins: ['https://lucky.lucassantana.tech'],
+                backendOrigins: ['https://lucky-api.lucassantana.tech'],
                 sessionSecretConfigured: true,
                 redisHealthy: true,
             })

@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
-import { navigateToServers, navigateToFeatures } from './helpers/page-helpers'
+import {
+    navigateToServers,
+    navigateToFeatures,
+    waitForServerList,
+} from './helpers/page-helpers'
 import {
     getServerCard,
     getFeatureCard,
@@ -16,6 +20,7 @@ test.describe('Component Interactions', () => {
 
     test('ServerCard click interactions', async ({ page }) => {
         await navigateToServers(page)
+        await waitForServerList(page)
 
         const firstServer = MOCK_GUILDS[0]
         const serverCard = getServerCard(page, firstServer.name)
@@ -61,8 +66,10 @@ test.describe('Component Interactions', () => {
             )
 
             await navigateToServers(page)
+            await waitForServerList(page)
 
             const addBotButton = getAddBotButton(page, serverWithoutBot.name)
+            await expect(addBotButton).toBeVisible()
             await addBotButton.click()
 
             await page.waitForTimeout(1000)
@@ -72,7 +79,9 @@ test.describe('Component Interactions', () => {
     test('dropdown menu interactions', async ({ page }) => {
         await navigateToServers(page)
 
-        const serverSelector = page.locator('text=Select a server').first()
+        const serverSelector = page
+            .locator('button[aria-haspopup="listbox"]')
+            .first()
         const isVisible = await serverSelector
             .isVisible({ timeout: 3000 })
             .catch(() => false)
@@ -85,8 +94,12 @@ test.describe('Component Interactions', () => {
 
     test('button states (loading, disabled)', async ({ page }) => {
         await page.route('**/api/guilds', async (route) => {
-            await page.waitForTimeout(2000)
-            await route.continue()
+            await new Promise((resolve) => setTimeout(resolve, 1200))
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: MOCK_GUILDS }),
+            })
         })
 
         await navigateToServers(page)
@@ -97,6 +110,8 @@ test.describe('Component Interactions', () => {
         const isVisible = await loadingButton
             .isVisible({ timeout: 2000 })
             .catch(() => false)
+
+        await page.unroute('**/api/guilds')
     })
 
     test('toast notifications display', async ({ page }) => {
