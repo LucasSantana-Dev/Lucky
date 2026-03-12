@@ -119,6 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guild cutover role cleanup now only mutates bots explicitly flagged
   `retireOnCutover: true`, preventing role removal from unrelated integrations
   (PR #171)
+- Criativaria `/serversetup` now uses explicit upsert client typings for
+  auto-message, embed template, and custom command operations, preventing
+  stale shared declaration drift from breaking bot typecheck resolution.
 
 ### Changed
 
