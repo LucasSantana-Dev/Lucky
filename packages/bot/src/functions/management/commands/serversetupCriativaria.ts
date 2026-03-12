@@ -66,6 +66,49 @@ type CustomCommandSeed = {
     response: string
 }
 
+type AutoMessageUpsertClient = {
+    upsertGuildTypeMessage: (
+        guildId: string,
+        type: 'welcome' | 'leave',
+        data: { message: string },
+        options?: { channelId?: string },
+    ) => Promise<'created' | 'updated'>
+}
+
+type EmbedTemplateUpsertClient = {
+    upsertTemplate: (
+        guildId: string,
+        name: string,
+        payload: {
+            title?: string
+            description?: string
+            color?: string
+            footer?: string
+            image?: string
+        },
+        createdBy?: string,
+    ) => Promise<'created' | 'updated'>
+}
+
+type CustomCommandUpsertClient = {
+    upsertCommand: (
+        guildId: string,
+        name: string,
+        response: string,
+        options?: {
+            description?: string
+            createdBy?: string
+        },
+    ) => Promise<'created' | 'updated'>
+}
+
+const autoMessageUpsertClient =
+    autoMessageService as unknown as AutoMessageUpsertClient
+const embedTemplateUpsertClient =
+    embedBuilderService as unknown as EmbedTemplateUpsertClient
+const customCommandUpsertClient =
+    customCommandService as unknown as CustomCommandUpsertClient
+
 export const CRIATIVARIA_CHANNEL_IDS = {
     welcome: '1480261570557640786',
     leaveLog: '985304109722783744',
@@ -471,7 +514,7 @@ async function upsertAutoMessage(
     channelId: string,
     message: string,
 ): Promise<'created' | 'updated'> {
-    return await autoMessageService.upsertGuildTypeMessage(
+    return await autoMessageUpsertClient.upsertGuildTypeMessage(
         guildId,
         type,
         { message },
@@ -526,7 +569,7 @@ export async function upsertEmbedTemplate(
         image: imageUrl ?? undefined,
     }
 
-    return await embedBuilderService.upsertTemplate(
+    return await embedTemplateUpsertClient.upsertTemplate(
         guildId,
         seed.name,
         payload,
@@ -555,7 +598,7 @@ export async function upsertCustomCommand(
     guildId: string,
     seed: CustomCommandSeed,
 ): Promise<'created' | 'updated'> {
-    return await customCommandService.upsertCommand(
+    return await customCommandUpsertClient.upsertCommand(
         guildId,
         seed.name,
         seed.response,

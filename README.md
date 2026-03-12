@@ -157,6 +157,10 @@ npm run test:coverage   # With coverage report
 npm run format          # Prettier
 ```
 
+For isolated git worktrees, run `npm install` inside each worktree before
+`npm run type:check` to keep local package resolution pinned to that worktree
+and avoid stale shared type declarations leaking from another checkout.
+
 Backend lint now runs in strict mode across all backend routes and middleware.
 Use `npm run lint:full --workspace=packages/backend` for explicit backend-only
 verification in CI or local checks.
