@@ -147,6 +147,48 @@ export class RedisClient implements IRedisClient {
         return this.operations?.ltrim(key, start, stop) ?? false
     }
 
+    async setNxPx(key: string, value: string, ttlMs: number): Promise<boolean> {
+        if (!this.client) {
+            return false
+        }
+
+        try {
+            const result = await this.client.set(key, value, 'PX', ttlMs, 'NX')
+            return result === 'OK'
+        } catch (error) {
+            errorLog({
+                message: 'Failed to set Redis NX PX lock key',
+                error,
+                data: { key },
+            })
+            return false
+        }
+    }
+
+    async delIfValueMatches(
+        key: string,
+        expectedValue: string,
+    ): Promise<boolean> {
+        if (!this.client) {
+            return false
+        }
+
+        const script =
+            'if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) else return 0 end'
+
+        try {
+            const result = await this.client.eval(script, 1, key, expectedValue)
+            return result === 1
+        } catch (error) {
+            errorLog({
+                message: 'Failed to release Redis lock key',
+                error,
+                data: { key },
+            })
+            return false
+        }
+    }
+
     async ttl(key: string): Promise<number> {
         return this.operations?.ttl(key) ?? -2
     }

@@ -7,6 +7,12 @@ import { errorHandler } from '../../../src/middleware/errorHandler'
 import { AppError } from '../../../src/errors/AppError'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { guildAutomationManifestSchema } from '@lucky/shared/services/guildAutomation/manifestSchema'
+import {
+    GuildAutomationLockUnavailableError,
+    GuildAutomationCaptureRequiredError,
+    GuildAutomationManifestNotFoundError,
+} from '@lucky/shared/types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -29,10 +35,26 @@ jest.mock('@lucky/shared/services', () => ({
     validateGuildAutomationManifest: jest.fn((input: unknown) => input),
 }))
 
+jest.mock('../../../src/services/GuildAutomationExecutionService', () => ({
+    guildAutomationExecutionService: {
+        captureGuildAutomationState: jest.fn(),
+        executeApplyPlan: jest.fn(),
+    },
+    GuildAutomationExecutionError: class GuildAutomationExecutionError extends Error {
+        public readonly statusCode: number
+
+        constructor(message: string, statusCode = 500) {
+            super(message)
+            this.statusCode = statusCode
+        }
+    },
+}))
+
 import {
     guildAutomationService,
     validateGuildAutomationManifest,
 } from '@lucky/shared/services'
+import { guildAutomationExecutionService } from '../../../src/services/GuildAutomationExecutionService'
 
 describe('Guild Automation Routes', () => {
     let app: express.Express
@@ -49,6 +71,20 @@ describe('Guild Automation Routes', () => {
             typeof sessionService
         >
         mockedSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockedExecutionService =
+            guildAutomationExecutionService as jest.Mocked<
+                typeof guildAutomationExecutionService
+            >
+        mockedExecutionService.captureGuildAutomationState.mockResolvedValue({
+            version: 1,
+            guild: { id: '111111111111111111' },
+        } as any)
+        mockedExecutionService.executeApplyPlan.mockResolvedValue({
+            diagnostics: {
+                appliedModules: ['roles'],
+            },
+        })
     })
 
     test('GET manifest returns 404 when not found', async () => {
@@ -125,7 +161,7 @@ describe('Guild Automation Routes', () => {
             typeof guildAutomationService
         >
         mockedService.createPlan.mockRejectedValue(
-            new Error('No automation manifest found for this guild'),
+            new GuildAutomationManifestNotFoundError('111111111111111111'),
         )
 
         const response = await request(app)
@@ -144,9 +180,7 @@ describe('Guild Automation Routes', () => {
             typeof guildAutomationService
         >
         mockedService.createApplyRun.mockRejectedValue(
-            new Error(
-                'No captured guild state available. Run capture before plan/apply.',
-            ),
+            new GuildAutomationCaptureRequiredError('111111111111111111'),
         )
 
         const response = await request(app)
@@ -180,6 +214,29 @@ describe('Guild Automation Routes', () => {
         )
     })
 
+    test('PUT manifest keeps one route contract test on the real parser', async () => {
+        const validator = validateGuildAutomationManifest as jest.Mock
+        validator.mockImplementation((input: unknown) =>
+            guildAutomationManifestSchema.parse(input),
+        )
+
+        const response = await request(app)
+            .put('/api/guilds/111111111111111111/automation/manifest')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({
+                version: 1,
+                guild: { id: '111111111111111111' },
+                roles: { roles: 'invalid', channels: [] },
+            })
+            .expect(400)
+
+        expect(response.body).toEqual(
+            expect.objectContaining({
+                error: 'Validation failed',
+            }),
+        )
+    })
+
     test('POST apply delegates with allowProtected option', async () => {
         const mockedService = guildAutomationService as jest.Mocked<
             typeof guildAutomationService
@@ -202,14 +259,22 @@ describe('Guild Automation Routes', () => {
             .send({ allowProtected: true })
             .expect(200)
 
+        const mockedExecutionService =
+            guildAutomationExecutionService as jest.Mocked<
+                typeof guildAutomationExecutionService
+            >
+
+        expect(mockedExecutionService.captureGuildAutomationState).toHaveBeenCalledWith(
+            '111111111111111111',
+        )
         expect(mockedService.createApplyRun).toHaveBeenCalledWith(
             '111111111111111111',
-            {
-                actualState: undefined,
+            expect.objectContaining({
                 initiatedBy: MOCK_SESSION_DATA.userId,
                 allowProtected: true,
                 runType: 'apply',
-            },
+                executor: expect.any(Function),
+            }),
         )
     })
 
@@ -243,12 +308,50 @@ describe('Guild Automation Routes', () => {
         })
     })
 
-    test('POST reconcile delegates to apply-run with reconcile type', async () => {
+    test('POST apply does not capture when actualState is provided', async () => {
         const mockedService = guildAutomationService as jest.Mocked<
             typeof guildAutomationService
         >
+        const mockedExecutionService =
+            guildAutomationExecutionService as jest.Mocked<
+                typeof guildAutomationExecutionService
+            >
         mockedService.createApplyRun.mockResolvedValue({
-            runId: 'run-reconcile-1',
+            runId: 'run-3',
+            status: 'completed',
+            blockedByProtected: false,
+            plan: {
+                operations: [],
+                protectedOperations: [],
+                summary: { total: 0, safe: 0, protected: 0 },
+            },
+        } as any)
+
+        await request(app)
+            .post('/api/guilds/111111111111111111/automation/apply')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({
+                allowProtected: false,
+                actualState: {
+                    version: 1,
+                    guild: { id: '111111111111111111' },
+                },
+            })
+            .expect(200)
+
+        expect(mockedExecutionService.captureGuildAutomationState).not.toHaveBeenCalled()
+    })
+
+    test('POST reconcile delegates with execution pipeline and reconcile run type', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+        const mockedExecutionService =
+            guildAutomationExecutionService as jest.Mocked<
+                typeof guildAutomationExecutionService
+            >
+        mockedService.createApplyRun.mockResolvedValue({
+            runId: 'run-4',
             status: 'completed',
             blockedByProtected: false,
             plan: {
@@ -261,17 +364,20 @@ describe('Guild Automation Routes', () => {
         await request(app)
             .post('/api/guilds/111111111111111111/automation/reconcile')
             .set('Cookie', ['sessionId=valid_session_id'])
-            .send({ allowProtected: false })
+            .send({ allowProtected: true })
             .expect(200)
 
+        expect(mockedExecutionService.captureGuildAutomationState).toHaveBeenCalledWith(
+            '111111111111111111',
+        )
         expect(mockedService.createApplyRun).toHaveBeenCalledWith(
             '111111111111111111',
-            {
-                actualState: undefined,
+            expect.objectContaining({
                 initiatedBy: MOCK_SESSION_DATA.userId,
-                allowProtected: false,
+                allowProtected: true,
                 runType: 'reconcile',
-            },
+                executor: expect.any(Function),
+            }),
         )
     })
 
@@ -300,22 +406,22 @@ describe('Guild Automation Routes', () => {
         )
     })
 
-    test('POST apply maps lock precondition to 400', async () => {
+    test('POST apply maps lock backend unavailable to 503', async () => {
         const mockedService = guildAutomationService as jest.Mocked<
             typeof guildAutomationService
         >
         mockedService.createApplyRun.mockRejectedValue(
-            new Error('Another automation apply operation is already running'),
+            new GuildAutomationLockUnavailableError('111111111111111111'),
         )
 
         const response = await request(app)
             .post('/api/guilds/111111111111111111/automation/apply')
             .set('Cookie', ['sessionId=valid_session_id'])
             .send({})
-            .expect(400)
+            .expect(503)
 
         expect(response.body).toEqual({
-            error: 'Another automation apply operation is already running',
+            error: 'Guild automation lock backend is unavailable',
         })
     })
 

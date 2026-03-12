@@ -1,5 +1,10 @@
 import { describe, it, expect } from '@jest/globals'
-import { MusicError, ConfigurationError } from './index'
+import {
+    MusicError,
+    ConfigurationError,
+    GuildAutomationManifestNotFoundError,
+    GUILD_AUTOMATION_ERROR_CODES,
+} from './index'
 
 describe('Error Types', () => {
     describe('MusicError', () => {
@@ -45,6 +50,20 @@ describe('Error Types', () => {
             const error = new MusicError('Test')
             expect(error instanceof MusicError).toBe(true)
             expect(error instanceof Error).toBe(true)
+        })
+    })
+
+    describe('GuildAutomationError', () => {
+        it('should expose code and context', () => {
+            const error = new GuildAutomationManifestNotFoundError('guild-123')
+
+            expect(error.message).toBe(
+                'No automation manifest found for this guild',
+            )
+            expect(error.code).toBe(
+                GUILD_AUTOMATION_ERROR_CODES.GUILD_AUTOMATION_MANIFEST_NOT_FOUND,
+            )
+            expect(error.context.guildId).toBe('guild-123')
         })
     })
 })

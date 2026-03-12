@@ -76,6 +76,12 @@ packages/
 - Reaction roles, role management
 - Centralized guild automation (`/guildconfig`) with manifest capture, drift plans,
   reconcile/apply flows, and cutover checklist tracking
+- Guild automation API apply/reconcile now execute real mutation runs
+  (`capture -> plan -> apply`) with persisted run outcomes (`completed`,
+  `blocked`, `failed`)
+- Guild automation reconciliation uses ID-first mapping with deterministic
+  fallback (role/channel keys) and persists remapped manifest IDs to prevent
+  repeated create/delete drift loops
 - Twitch stream notifications (EventSub WebSocket)
 - Last.fm scrobbling integration
 
@@ -106,6 +112,8 @@ packages/
 - Request logging middleware
 - Auth readiness health contract at `GET /api/health/auth-config`
   (includes `clientId` and generated `authorizeUrlPreview`, without secrets)
+- Guild automation execution locking is Redis-backed and fail-closed when lock
+  infrastructure is unavailable
 - 421 tests (361 backend + 60 frontend), 96% statement coverage
 
 ## Quick Start

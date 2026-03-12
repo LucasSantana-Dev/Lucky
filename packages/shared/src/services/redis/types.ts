@@ -37,5 +37,7 @@ export interface IRedisClient {
     llen(key: string): Promise<number>
     lindex(key: string, index: number): Promise<string | null>
     ltrim(key: string, start: number, stop: number): Promise<boolean>
+    setNxPx(key: string, value: string, ttlMs: number): Promise<boolean>
+    delIfValueMatches(key: string, expectedValue: string): Promise<boolean>
     shutdown(): Promise<void>
 }

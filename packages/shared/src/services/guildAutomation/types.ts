@@ -195,13 +195,13 @@ export interface GuildAutomationStatus {
     } | null
     latestRun: {
         id: string
-        type: string
-        status: string
+        type: AutomationRunType
+        status: AutomationRunStatus
         createdAt: Date
     } | null
     drifts: Array<{
-        module: string
-        severity: string
+        module: AutomationModule
+        severity: DriftSeverity
         updatedAt: Date
     }>
 }

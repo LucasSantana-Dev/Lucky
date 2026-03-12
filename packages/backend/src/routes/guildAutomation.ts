@@ -8,12 +8,19 @@ import { managementSchemas as s } from '../schemas/management'
 import {
     guildAutomationService,
     validateGuildAutomationManifest,
+    type GuildAutomationManifestDocument,
+    type GuildAutomationPlan,
 } from '@lucky/shared/services'
-
-const MANIFEST_NOT_FOUND_MESSAGE = 'No automation manifest found for this guild'
-const CAPTURE_REQUIRED_MESSAGE =
-    'No captured guild state available. Run capture before plan/apply.'
-const APPLY_LOCKED_MESSAGE = 'Another automation apply operation is already running'
+import {
+    GuildAutomationApplyLockedError,
+    GuildAutomationCaptureRequiredError,
+    GuildAutomationLockUnavailableError,
+    GuildAutomationManifestNotFoundError,
+} from '@lucky/shared/types'
+import {
+    GuildAutomationExecutionError,
+    guildAutomationExecutionService,
+} from '../services/GuildAutomationExecutionService'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -32,23 +39,31 @@ function mapAutomationServiceError(error: unknown): never {
         throw error
     }
 
+    if (error instanceof GuildAutomationManifestNotFoundError) {
+        throw AppError.notFound('Automation manifest not found')
+    }
+
+    if (error instanceof GuildAutomationCaptureRequiredError) {
+        throw AppError.badRequest(
+            'No captured guild state available. Run capture before plan/apply.',
+        )
+    }
+
+    if (error instanceof GuildAutomationApplyLockedError) {
+        throw AppError.badRequest(
+            'Another automation apply operation is already running',
+        )
+    }
+
+    if (error instanceof GuildAutomationLockUnavailableError) {
+        throw new AppError(503, 'Guild automation lock backend is unavailable')
+    }
+
+    if (error instanceof GuildAutomationExecutionError) {
+        throw new AppError(error.statusCode, error.message)
+    }
+
     if (error instanceof Error) {
-        if (error.message === MANIFEST_NOT_FOUND_MESSAGE) {
-            throw AppError.notFound('Automation manifest not found')
-        }
-
-        if (error.message === CAPTURE_REQUIRED_MESSAGE) {
-            throw AppError.badRequest(
-                'No captured guild state available. Run capture before plan/apply.',
-            )
-        }
-
-        if (error.message === APPLY_LOCKED_MESSAGE) {
-            throw AppError.badRequest(
-                'Another automation apply operation is already running',
-            )
-        }
-
         throw error
     }
 
@@ -161,9 +176,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
                 actualState?: unknown
                 allowProtected?: boolean
             }
-            const actualState = body.actualState
-                ? validateGuildAutomationManifest(body.actualState)
-                : undefined
+            let actualState: GuildAutomationManifestDocument | undefined
+            try {
+                actualState = body.actualState
+                    ? validateGuildAutomationManifest(body.actualState)
+                    : await guildAutomationExecutionService.captureGuildAutomationState(
+                          guildId,
+                      )
+            } catch (error) {
+                mapAutomationServiceError(error)
+            }
 
             let result
             try {
@@ -172,6 +194,22 @@ export function setupGuildAutomationRoutes(app: Express): void {
                     initiatedBy: userId,
                     allowProtected: body.allowProtected,
                     runType: 'apply',
+                    executor: async (params: {
+                        guildId: string
+                        runId: string
+                        plan: GuildAutomationPlan
+                        desired: GuildAutomationManifestDocument
+                        actual: GuildAutomationManifestDocument
+                        allowProtected: boolean
+                    }) => {
+                        return guildAutomationExecutionService.executeApplyPlan({
+                            guildId: params.guildId,
+                            plan: params.plan,
+                            desired: params.desired,
+                            actual: params.actual,
+                            allowProtected: params.allowProtected,
+                        })
+                    },
                 })
             } catch (error) {
                 mapAutomationServiceError(error)
@@ -194,9 +232,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
                 actualState?: unknown
                 allowProtected?: boolean
             }
-            const actualState = body.actualState
-                ? validateGuildAutomationManifest(body.actualState)
-                : undefined
+            let actualState: GuildAutomationManifestDocument | undefined
+            try {
+                actualState = body.actualState
+                    ? validateGuildAutomationManifest(body.actualState)
+                    : await guildAutomationExecutionService.captureGuildAutomationState(
+                          guildId,
+                      )
+            } catch (error) {
+                mapAutomationServiceError(error)
+            }
 
             let result
             try {
@@ -205,6 +250,22 @@ export function setupGuildAutomationRoutes(app: Express): void {
                     initiatedBy: userId,
                     allowProtected: body.allowProtected,
                     runType: 'reconcile',
+                    executor: async (params: {
+                        guildId: string
+                        runId: string
+                        plan: GuildAutomationPlan
+                        desired: GuildAutomationManifestDocument
+                        actual: GuildAutomationManifestDocument
+                        allowProtected: boolean
+                    }) => {
+                        return guildAutomationExecutionService.executeApplyPlan({
+                            guildId: params.guildId,
+                            plan: params.plan,
+                            desired: params.desired,
+                            actual: params.actual,
+                            allowProtected: params.allowProtected,
+                        })
+                    },
                 })
             } catch (error) {
                 mapAutomationServiceError(error)

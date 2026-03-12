@@ -108,6 +108,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guild automation API routes now map known precondition failures to actionable
   4xx responses instead of opaque 500s (`manifest missing`, `capture required`,
   `apply lock active`) (PR #171)
+- Guild automation backend apply/reconcile endpoints now execute real Discord
+  and DB mutations through a shared execution pipeline (capture -> plan ->
+  protected-op gate -> execute -> persisted final status)
+- `/api/guilds/:guildId/automation/apply` and `/reconcile` now return explicit
+  infrastructure failures when the distributed lock backend is unavailable
+  (fail-closed contract)
 - Guild automation diff now marks permission-tightening updates as protected
   operations so `allowProtected` gating applies to destructive updates (PR #171)
 - Guild cutover role cleanup now only mutates bots explicitly flagged
@@ -135,6 +141,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   require `view` and mutating requests require `manage`
 - Bot Jest config now maps relative `.js` imports to source modules during test
   execution, matching the ESM build import style
+- Guild automation reconcile now uses ID-first matching with deterministic
+  fallback for roles/channels and persists remapped manifest IDs for future
+  convergent plans
+- Shared guild automation lock flow now uses Redis token-based distributed locks
+  (`SET NX PX` + safe token release) instead of in-memory instance-local locks
 
 ## [2.6.11] - 2026-03-12
 
