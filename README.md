@@ -168,6 +168,24 @@ npm run test:coverage   # With coverage report
 npm run format          # Prettier
 ```
 
+### Local Database Bootstrap
+
+`db:*` scripts now pin Prisma config explicitly via
+`--config prisma/prisma.config.ts`, so local runs no longer depend on implicit
+config discovery.
+`npm run db:generate` now injects a safe fallback `DATABASE_URL` only for
+client generation, so CI build jobs can run `build` without a database secret.
+
+`npm run db:migrate` runs a guarded wrapper:
+- default path: `prisma migrate dev --config prisma/prisma.config.ts`
+- fallback path (local-only): only when Prisma returns the known legacy
+  bootstrap failure (`P3006` with missing `guilds`), it runs
+  `prisma db push --accept-data-loss`, marks historical migrations as applied in
+  lexicographic order, then re-runs `migrate dev` to verify state (and when the
+  same legacy shadow-db signature persists, it finalizes with
+  `prisma migrate status`)
+- all other migration errors fail normally without fallback
+
 For isolated git worktrees, run `npm install` inside each worktree before
 `npm run type:check` to keep local package resolution pinned to that worktree
 and avoid stale shared type declarations leaking from another checkout.

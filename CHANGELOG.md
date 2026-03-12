@@ -52,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Local Prisma bootstrap now pins explicit config path
+  (`--config prisma/prisma.config.ts`) across `db:*` scripts, and
+  `db:migrate` now includes a guarded fallback for the known fresh-db legacy
+  migration failure (`P3006` + missing `guilds`) without rewriting historical
+  migration files (task `lucky-baseline-prisma-migrate-bootstrap-fix`)
+- `db:generate` now applies a CI-safe fallback `DATABASE_URL` for Prisma client
+  generation so build-only pipelines do not fail on missing database secrets
+  (PR #188 follow-up)
 - Fixed Discord Discovery carousel URL stability by documenting canonical media
   URLs on `main` (instead of ephemeral feature branch refs that can return 404)
 - Bot `/autoplay` command now resolves guild queue from player node cache when
