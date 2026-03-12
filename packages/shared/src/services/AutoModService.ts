@@ -6,7 +6,7 @@ const prisma = getPrismaClient()
 const CACHE_TTL = 300
 const CACHE_PREFIX = 'automod:'
 
-interface AutoModSettings {
+export interface AutoModSettings {
     id: string
     guildId: string
     enabled: boolean

@@ -132,6 +132,59 @@ model GuildRoleGrant {
   @@map("guild_role_grants")
 }
 
+model GuildAutomationManifest {
+  id               String   @id @default(cuid())
+  guildId          String   @unique
+  version          Int      @default(1)
+  manifest         Json
+  moduleOwnership  Json?
+  lastCapturedState Json?
+  lastCapturedAt   DateTime?
+  createdBy        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  runs             GuildAutomationRun[]
+
+  @@map("guild_automation_manifests")
+}
+
+model GuildAutomationRun {
+  id                  String    @id @default(cuid())
+  guildId             String
+  manifestId          String?
+  manifest            GuildAutomationManifest? @relation(fields: [manifestId], references: [id], onDelete: SetNull)
+  type                String
+  status              String
+  operations          Json?
+  summary             Json?
+  protectedOperations Json?
+  diagnostics         Json?
+  error               String?
+  initiatedBy         String?
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([manifestId])
+  @@index([guildId, createdAt])
+  @@map("guild_automation_runs")
+}
+
+model GuildAutomationDrift {
+  id        String   @id @default(cuid())
+  guildId   String
+  module    String
+  drift     Json
+  severity  String   @default("none")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, module])
+  @@index([guildId])
+  @@map("guild_automation_drifts")
+}
+
 // Session Management
 model UserSession {
   id      String @id @default(cuid())

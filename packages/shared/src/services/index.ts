@@ -12,6 +12,7 @@ export {
 } from './music/index.js'
 export * from './LyricsService.js'
 export * from './ModerationService.js'
+export * from './moderationSettings.js'
 export * from './AutoMessageService.js'
 export * from './CustomCommandService.js'
 export * from './ServerLogService.js'
@@ -38,6 +39,7 @@ export {
 } from './GuildSettingsService'
 export { roleManagementService } from './RoleManagementService'
 export { reactionRolesService } from './ReactionRolesService'
+export * from './guildAutomation/index'
 export {
     guildRoleAccessService,
     RBAC_MODULES,

@@ -67,16 +67,15 @@ packages/
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
 - Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
-- Queue-dependent controls (`/autoplay`, `/skip`, `/repeat`, `/queue`, and web
-  music actions) now use resilient queue resolution across
-  node/queue/cache fallbacks to avoid false queue-missing errors during active
-  playback
+- Autoplay command recovers active guild queue from player cache fallback to avoid false queue-missing errors during active playback
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
 - Auto-mod: word filter, link filter, spam detection
 - Custom commands, embed builder, auto-messages (welcome/leave)
 - Reaction roles, role management
+- Centralized guild automation (`/guildconfig`) with manifest capture, drift plans,
+  reconcile/apply flows, and cutover checklist tracking
 - Twitch stream notifications (EventSub WebSocket)
 - Last.fm scrobbling integration
 
@@ -299,6 +298,24 @@ Setup behavior:
 - Applies idempotent upserts for moderation, automod, guild settings,
   auto-messages, embed templates, custom commands, role exclusivity, and Twitch
   seed configuration
+
+### Management
+`/guildconfig capture` `/guildconfig plan` `/guildconfig apply`
+`/guildconfig reconcile` `/guildconfig status` `/guildconfig cutover`
+
+## Centralized Guild Automation
+
+Lucky now supports declarative server automation for guild operations:
+
+- Manifest-backed desired state persisted in database
+- Shadow capture and drift planning against live guild state
+- Safe auto-apply for non-destructive changes
+- Protected operations (deletes/permission tightening) require explicit opt-in
+- Native Discord onboarding mapping (`fetchOnboarding`/`editOnboarding`) is first-class
+- Cutover role cleanup targets only external bots explicitly flagged with
+  `retireOnCutover: true` in parity manifest data
+- Automation API precondition failures (`no manifest`, `capture required`,
+  `apply already running`) return actionable 4xx responses
 
 ## Contributing
 

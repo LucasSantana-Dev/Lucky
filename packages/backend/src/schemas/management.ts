@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { guildAutomationManifestSchema } from '@lucky/shared/services/guildAutomation/manifestSchema'
 
 const guildIdParam = z.object({
     guildId: z.string().regex(/^\d{17,20}$/, 'Invalid guild ID'),
@@ -23,6 +24,16 @@ const autoModSettingsBody = z
         bannedWords: z.array(z.string().max(100)).optional(),
         exemptChannels: z.array(z.string()).optional(),
         exemptRoles: z.array(z.string()).optional(),
+    })
+    .strict()
+
+const guildAutomationManifestBody = guildAutomationManifestSchema
+
+const guildAutomationRunBody = z
+    .object({
+        actualState: guildAutomationManifestSchema.optional(),
+        allowProtected: z.boolean().optional(),
+        completeChecklist: z.boolean().optional(),
     })
     .strict()
 
@@ -66,6 +77,8 @@ export const managementSchemas = {
     guildIdParam,
     commandNameParam,
     autoModSettingsBody,
+    guildAutomationManifestBody,
+    guildAutomationRunBody,
     createCommandBody,
     updateCommandBody,
     logsQuery,

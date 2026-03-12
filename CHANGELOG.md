@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added centralized guild automation control plane for Criativaria with
+  manifest persistence (`guild_automation_manifests`), run history
+  (`guild_automation_runs`), and per-module drift snapshots
+  (`guild_automation_drifts`)
+- Added `/guildconfig` management command with `capture`, `plan`, `apply`,
+  `reconcile`, `status`, and `cutover` subcommands for native-first server
+  orchestration
+- Added backend automation API routes under
+  `/api/guilds/:guildId/automation/*` for manifest CRUD, run execution, status,
+  and cutover operations
+
 - Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
   command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
   matrix, and a one-command-per-PR rollout plan for the next 6 weeks
@@ -38,9 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Queue-dependent music controls now use a shared resilient guild-queue
-  resolver across node/queue/cache fallbacks, preventing intermittent false
-  `No music queue found` errors while playback is active
+- Bot `/autoplay` command now resolves guild queue from player node cache when
+  direct node lookup misses, preventing false `No music queue found` errors
+  while a track is actively playing
 - Dashboard guild listing now resolves bot membership through a backend Discord
   API fallback when the bot client cache is unavailable, restoring server
   visibility for split-process deployments
@@ -94,9 +105,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when no server has Lucky installed, dashboard keeps no selected server and
   shows explicit selection guidance
 - Refs: PR `#169`
+- Guild automation API routes now map known precondition failures to actionable
+  4xx responses instead of opaque 500s (`manifest missing`, `capture required`,
+  `apply lock active`) (PR #171)
+- Guild automation diff now marks permission-tightening updates as protected
+  operations so `allowProtected` gating applies to destructive updates (PR #171)
+- Guild cutover role cleanup now only mutates bots explicitly flagged
+  `retireOnCutover: true`, preventing role removal from unrelated integrations
+  (PR #171)
 
 ### Changed
 
+- Bot command registration now loads moderation/automod/management command
+  groups through the active register pipeline, so centralized management
+  commands are consistently available after startup
 - Removed unused legacy layout components (`DashboardLayout`, `Header`,
   `Navbar`) from frontend layout module to reduce duplicate shell patterns
 - Frontend app shell (`Layout` + `Sidebar`) and login page now use the
@@ -144,6 +166,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CI=1 npm run test:e2e --workspace=packages/frontend -- tests/e2e/dashboard-page.spec.ts tests/e2e/servers-page.spec.ts tests/e2e/layout-navigation.spec.ts`
 - `npm run lint --workspace=packages/frontend`
 - `npm run type:check --workspace=packages/frontend`
+
+## [2.6.10] - 2026-03-11
+
+### Fixed
+
+- OAuth/dashboard stabilization for split frontend/API origins with canonical
+  callback handling and stronger auth config health diagnostics.
+- Dashboard and shell data reliability across routes: selected guild re-sync,
+  RBAC-aware quick actions/nav behavior, and member context availability for
+  authorized module users.
+- Sidebar identity rendering now consistently resolves as
+  `nick > globalName > username` with `@username` secondary label.
+- Cross-page E2E contract mismatches in redesigned shell pages
+  (automod, features, servers, music, twitch, track-history, visual baselines).
+
+### Changed
+
+- Route/module policy alignment keeps `/features` under the `automation` access
+  module and preserves deny-by-default RBAC behavior.
+- Updated Playwright visual baselines for servers, dashboard, features, sidebar,
+  loading, and error states.
+
+### Security
+
+- Removed Deezer support from music source unions and web import surfaces
+  (`discord-player-deezer` removed).
+- Replaced optional native Opus path with `opusscript` runtime dependency.
+- Tightened dependency overrides to patched ranges:
+  `tar>=7.5.11`, `hono>=4.12.7`, `file-type>=21.3.1`.
+
+### Verification
+
+- `npm run lint`
+- `npm run type:check`
+- `npm run build`
+- `npm run test --workspace=packages/backend`
+- `npm run test --workspace=packages/bot -- --runInBand`
+- `npm run test --workspace=packages/frontend`
+- `npm run test:e2e --workspace=packages/frontend` (190 passed)
+- `npm audit --audit-level=high` (0 vulnerabilities)
 
 ## [2.6.10] - 2026-03-11
 

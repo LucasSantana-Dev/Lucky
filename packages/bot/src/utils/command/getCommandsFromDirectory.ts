@@ -7,7 +7,10 @@ import { config } from '@lucky/shared/config'
 type GetCommandsParams = {
     url: string
     category?: string
+    excludePatterns?: RegExp[]
 }
+
+const DEFAULT_EXCLUDE_PATTERNS = [/\.spec\./, /\.test\./]
 
 function isCategoryDisabled(category: string | undefined): boolean {
     if (!category) return false
@@ -24,17 +27,17 @@ function validateDirectoryPath(url: string): string | null {
     return absolutePath
 }
 
-export function getCommandFiles(absolutePath: string): string[] {
+export function getCommandFiles(
+    absolutePath: string,
+    excludePatterns: RegExp[] = DEFAULT_EXCLUDE_PATTERNS,
+): string[] {
     const files = fs
         .readdirSync(absolutePath)
         .filter(
             (file) =>
                 (file.endsWith('.js') || file.endsWith('.ts')) &&
                 !file.endsWith('.d.ts') &&
-                !file.endsWith('.test.js') &&
-                !file.endsWith('.test.ts') &&
-                !file.endsWith('.spec.js') &&
-                !file.endsWith('.spec.ts') &&
+                !excludePatterns.some((pattern) => pattern.test(file)) &&
                 !file.startsWith('index.'),
         )
 
@@ -100,6 +103,7 @@ function filterDisabledCommands(commands: Command[]): Command[] {
 export const getCommandsFromDirectory = async ({
     url,
     category,
+    excludePatterns,
 }: GetCommandsParams): Promise<Command[]> => {
     try {
         debugLog({ message: `Reading directory: ${url}` })
@@ -116,7 +120,7 @@ export const getCommandsFromDirectory = async ({
 
         debugLog({ message: `Absolute path: ${absolutePath}` })
 
-        const commandFiles = getCommandFiles(absolutePath)
+        const commandFiles = getCommandFiles(absolutePath, excludePatterns)
         debugLog({
             message: `Found ${commandFiles.length} command files in ${absolutePath}`,
         })
