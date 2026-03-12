@@ -197,5 +197,27 @@ describe('Health Routes Integration', () => {
                 'CLIENT_ID does not match expected production app id (expected-client-id)',
             )
         })
+
+        test('should return ok when backend origin comes from forwarded request headers', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            process.env.NODE_ENV = 'production'
+            delete process.env.WEBAPP_BACKEND_URL
+            process.env.WEBAPP_EXPECTED_CLIENT_ID = 'test-client-id'
+            process.env.WEBAPP_REDIRECT_URI =
+                'https://lucky-api.lucassantana.tech/api/auth/callback'
+
+            const response = await request(app)
+                .get('/api/health/auth-config')
+                .set('x-forwarded-proto', 'https')
+                .set('x-forwarded-host', 'lucky-api.lucassantana.tech')
+                .set('Host', 'lucky-api.lucassantana.tech')
+                .expect(200)
+
+            expect(response.body.warnings).toEqual([])
+            expect(response.body.status).toBe('ok')
+            expect(response.body.auth.redirectUri).toBe(
+                'https://lucky-api.lucassantana.tech/api/auth/callback',
+            )
+        })
     })
 })

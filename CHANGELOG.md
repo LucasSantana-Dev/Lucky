@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bot `/lastfm link` now prioritizes absolute `WEBAPP_BACKEND_URL` for connect
   URL host generation (fallback: `WEBAPP_REDIRECT_URI` origin), preventing
   stale legacy domains from appearing in user-facing link embeds (PR #163)
+- `/api/health/auth-config` now accepts forwarded request-origin fallback when
+  `WEBAPP_BACKEND_URL` is unset, preventing false degraded deploy-gate failures
+  while keeping OAuth callback path and origin validation active
 - Guild list/dashboard metrics now return nullable live values from bot/API
   enrichment (no forced `0` fallback when metrics are unavailable)
 - Sidebar profile identity now resolves as `nick > global_name > username`

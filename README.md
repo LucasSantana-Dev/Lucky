@@ -208,6 +208,9 @@ Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
 through a dedicated host. Use an absolute URL (for example,
 `https://lucky-api.lucassantana.tech`).
+When `WEBAPP_BACKEND_URL` is temporarily missing, `/api/health/auth-config`
+now validates OAuth origin against the current request origin fallback so deploy
+smoke checks can confirm live routing contract correctly.
 Bot `/lastfm link` URLs prioritize `WEBAPP_BACKEND_URL` and fall back to the
 origin of `WEBAPP_REDIRECT_URI` when backend URL is not set.
 

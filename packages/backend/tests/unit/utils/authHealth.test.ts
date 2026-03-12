@@ -81,6 +81,22 @@ describe('authHealth utils', () => {
             expect(response.warnings).toEqual([])
         })
 
+        test('returns ok when redirect uri origin matches request origin fallback', () => {
+            const response = buildAuthConfigHealth({
+                clientId: '962198089161134131',
+                redirectUri:
+                    'https://lucky-api.lucassantana.tech/api/auth/callback',
+                frontendOrigins: ['https://lucky.lucassantana.tech'],
+                backendOrigins: [],
+                requestOrigin: 'https://lucky-api.lucassantana.tech',
+                sessionSecretConfigured: true,
+                redisHealthy: true,
+            })
+
+            expect(response.status).toBe('ok')
+            expect(response.warnings).toEqual([])
+        })
+
         test('returns degraded when callback path is not the API callback path', () => {
             const response = buildAuthConfigHealth({
                 clientId: '962198089161134131',
