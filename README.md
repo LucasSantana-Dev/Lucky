@@ -172,7 +172,7 @@ Deploy workflow smoke checks now require `GET /api/health/auth-config` to return
 `status=ok` with no warnings (including healthy Redis/auth-session flags).
 Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `302` to Discord authorize URL with expected `client_id` and same-origin
-`redirect_uri=https://lucky-api.lucassantana.tech/api/auth/callback`.
+`redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
 
@@ -201,7 +201,8 @@ When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 (example: `https://lucky.lucassantana.tech,https://lukbot.vercel.app`); backend CORS
 accepts all configured entries while OAuth/Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
-Discord Developer Portal (example: `https://lucky-api.lucassantana.tech/api/auth/callback`).
+Discord Developer Portal (example: `https://lucky.lucassantana.tech/api/auth/callback`).
+For this release cycle, keep the frontend-host callback as canonical in Discord.
 Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
 `/api/health/auth-config` return `degraded` on credential drift.
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
