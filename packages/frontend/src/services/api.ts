@@ -5,7 +5,6 @@ import type {
     Module,
     Command,
     ServerSettings,
-    ServerListing,
     Feature,
     FeatureToggleState,
     GuildMemberContext,
@@ -168,13 +167,6 @@ export const api = {
             apiClient.post<{ success: boolean }>(
                 `/guilds/${id}/settings`,
                 settings,
-            ),
-        getListing: (id: string) =>
-            apiClient.get<{ listing: ServerListing }>(`/guilds/${id}/listing`),
-        updateListing: (id: string, listing: Partial<ServerListing>) =>
-            apiClient.post<{ success: boolean }>(
-                `/guilds/${id}/listing`,
-                listing,
             ),
     },
 
