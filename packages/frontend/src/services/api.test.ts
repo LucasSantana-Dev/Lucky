@@ -296,11 +296,6 @@ describe('api service bootstrap', () => {
         await module.api.guilds.updateSettings('guild-1', {
             commandPrefix: '!',
         })
-        await module.api.guilds.getListing('guild-1')
-        await module.api.guilds.updateListing('guild-1', {
-            listed: true,
-            description: 'Guild listing',
-        })
         await module.api.modules.list('guild-1')
         await module.api.modules.get('guild-1', 'music')
         await module.api.modules.toggle('guild-1', 'music', true)
@@ -340,11 +335,6 @@ describe('api service bootstrap', () => {
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/settings')
         expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/settings', {
             commandPrefix: '!',
-        })
-        expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/listing')
-        expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/listing', {
-            listed: true,
-            description: 'Guild listing',
         })
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/modules')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/modules/music')

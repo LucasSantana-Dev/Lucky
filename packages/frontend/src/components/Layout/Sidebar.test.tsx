@@ -43,7 +43,6 @@ describe('Sidebar', () => {
     const mockFetchGuilds = vi.fn()
     const mockSetSelectedGuild = vi.fn()
     const mockUpdateServerSettings = vi.fn()
-    const mockUpdateServerListing = vi.fn()
 
     function mockGuildStoreState(
         overrides: Partial<ReturnType<typeof useGuildStore>>,
@@ -57,14 +56,12 @@ describe('Sidebar', () => {
             memberContext: null,
             memberContextLoading: false,
             serverSettings: null,
-            serverListing: null,
             fetchGuilds: mockFetchGuilds,
             selectGuild: mockSelectGuild,
             fetchMemberContext: vi.fn(),
             setSelectedGuild: mockSetSelectedGuild,
             getSelectedGuild: vi.fn(),
             updateServerSettings: mockUpdateServerSettings,
-            updateServerListing: mockUpdateServerListing,
             ...overrides,
         })
     }

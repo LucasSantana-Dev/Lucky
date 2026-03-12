@@ -26,20 +26,6 @@ export interface ServerSettings {
     disableWarnings: boolean
 }
 
-export interface ServerListing {
-    listed: boolean
-    description: string
-    inviteUrl: string
-    defaultInviteChannel: string
-    language: string
-    categories: string[]
-    tags: string[]
-    youtubeUrl?: string
-    twitterUrl?: string
-    twitchUrl?: string
-    redditUrl?: string
-}
-
 export interface ActivityLog {
     id: string
     timestamp: Date
