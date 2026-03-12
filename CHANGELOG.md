@@ -74,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy GitHub workflow now classifies auth-config smoke failures as
   `upstream unavailable (5xx)` vs `contract invalid/unready (200 + bad body)`
   and prints counters in failure summaries for faster incident triage
+- Deploy cloudflared restarts now use canonical `CLOUDFLARED_CONFIG_DIR`
+  instead of `${HOME}` mount expansion, with preflight validation for
+  `config-lucky.yml` and referenced credentials JSON before tunnel restart
+  (PR #184)
 - Guild list/dashboard metrics now return nullable live values from bot/API
   enrichment (no forced `0` fallback when metrics are unavailable)
 - Sidebar profile identity now resolves as `nick > global_name > username`

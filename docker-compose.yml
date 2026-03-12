@@ -184,6 +184,7 @@ services:
             - ./deploy/hooks.json:/etc/webhook/hooks.json:ro
             - ./scripts/deploy.sh:/scripts/deploy.sh:ro
             - .:/home/luk-server/Lucky
+            - ${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:ro
             - /var/run/docker.sock:/var/run/docker.sock
         working_dir: /home/luk-server/Lucky
         networks:
@@ -202,7 +203,7 @@ services:
         command: tunnel --config /etc/cloudflared/config-lucky.yml run
         user: root
         volumes:
-            - ${HOME}/.cloudflared:/etc/cloudflared:ro
+            - ${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:/etc/cloudflared:ro
         depends_on:
             - nginx
         networks:

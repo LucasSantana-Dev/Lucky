@@ -187,6 +187,9 @@ Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
+CLOUDFLARED tunnel restarts now mount config from `CLOUDFLARED_CONFIG_DIR`
+instead of shell `$HOME`; use a canonical host path like
+`/home/luk-server/.cloudflared` to avoid deploy-context mount drift.
 For deploy incidents where webhook trigger succeeds but API remains `502`, run
 the operator diagnostics:
 
