@@ -11,6 +11,13 @@ export interface AutoMessageData {
     embedData?: EmbedData
 }
 
+type AutoMessageOptions = {
+    trigger?: string
+    exactMatch?: boolean
+    channelId?: string
+    cronSchedule?: string
+}
+
 export class AutoMessageService {
     /**
      * Create a new auto message
@@ -19,12 +26,7 @@ export class AutoMessageService {
         guildId: string,
         type: MessageType,
         data: AutoMessageData,
-        options?: {
-            trigger?: string
-            exactMatch?: boolean
-            channelId?: string
-            cronSchedule?: string
-        },
+        options?: AutoMessageOptions,
     ) {
         return await prisma.autoMessage.create({
             data: {
@@ -39,6 +41,59 @@ export class AutoMessageService {
                 channelId: options?.channelId,
                 cronSchedule: options?.cronSchedule,
             },
+        })
+    }
+
+    async upsertGuildTypeMessage(
+        guildId: string,
+        type: MessageType,
+        data: AutoMessageData,
+        options?: AutoMessageOptions,
+    ): Promise<'created' | 'updated'> {
+        const lockKey = `auto-message:${guildId}:${type}`
+        return await prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+
+            const existing = await tx.autoMessage.findFirst({
+                where: { guildId, type },
+                orderBy: { createdAt: 'asc' },
+                select: { id: true },
+            })
+
+            if (!existing) {
+                await tx.autoMessage.create({
+                    data: {
+                        guildId,
+                        type,
+                        message: data.message,
+                        embedData: data.embedData
+                            ? JSON.stringify(data.embedData)
+                            : Prisma.JsonNull,
+                        trigger: options?.trigger,
+                        exactMatch: options?.exactMatch || false,
+                        channelId: options?.channelId,
+                        cronSchedule: options?.cronSchedule,
+                    },
+                })
+                return 'created'
+            }
+
+            await tx.autoMessage.update({
+                where: { id: existing.id },
+                data: {
+                    message: data.message,
+                    embedData: data.embedData
+                        ? JSON.stringify(data.embedData)
+                        : Prisma.JsonNull,
+                    trigger: options?.trigger ?? null,
+                    exactMatch: options?.exactMatch || false,
+                    channelId: options?.channelId ?? null,
+                    cronSchedule: options?.cronSchedule ?? null,
+                    enabled: true,
+                },
+            })
+
+            return 'updated'
         })
     }
 

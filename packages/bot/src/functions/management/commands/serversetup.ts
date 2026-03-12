@@ -12,6 +12,11 @@ import {
 import Command from '../../../models/Command.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import {
+    formatCriativariaSummary,
+    resolveSetupMode,
+    runCriativariaSetup,
+} from './serversetupCriativaria.js'
 
 interface ChannelDef {
     name: string
@@ -255,6 +260,22 @@ export default new Command({
                 .addChoices({
                     name: 'forge-space',
                     value: 'forge-space',
+                }, {
+                    name: 'criativaria',
+                    value: 'criativaria',
+                }),
+        )
+        .addStringOption((option) =>
+            option
+                .setName('mode')
+                .setDescription('Execution mode')
+                .setRequired(false)
+                .addChoices({
+                    name: 'apply',
+                    value: 'apply',
+                }, {
+                    name: 'dry-run',
+                    value: 'dry-run',
                 }),
         ),
     category: 'management',
@@ -270,12 +291,45 @@ export default new Command({
         }
 
         const template = interaction.options.getString('template', true)
+        const mode = resolveSetupMode(interaction.options.getString('mode'))
+
+        if (template === 'criativaria') {
+            await interaction.deferReply({ ephemeral: true })
+            try {
+                const result = await runCriativariaSetup(interaction.guild, mode)
+                await interaction.editReply(formatCriativariaSummary(result, mode))
+                infoLog({
+                    message: `serversetup: Criativaria template executed in ${mode} mode for ${interaction.guild.name}`,
+                })
+            } catch (error) {
+                errorLog({
+                    message: 'serversetup: Failed to execute Criativaria template',
+                    error,
+                })
+                await interaction.editReply(
+                    '❌ Failed to run Criativaria setup. Check logs and try again.',
+                )
+            }
+            return
+        }
 
         if (template !== 'forge-space') {
             await interactionReply({
                 interaction,
                 content: {
                     content: `❌ Unknown template: ${template}`,
+                },
+            })
+            return
+        }
+
+        if (mode === 'dry-run') {
+            await interactionReply({
+                interaction,
+                content: {
+                    content:
+                        '🧪 **Forge Space dry-run**\n- Planejado: criar cargos base\n- Planejado: criar categorias/canais padrão\n- Planejado: enviar embed de boas-vindas',
+                    ephemeral: true,
                 },
             })
             return
@@ -323,7 +377,9 @@ export default new Command({
             progress.push('🎉 **Forge Space server setup complete!**')
             progress.push('')
             progress.push('**Next steps:**')
-            progress.push('• Set the server icon and banner')
+            progress.push(
+                '• Keep your current server icon/splash/banner (Lucky preserves guild identity)',
+            )
             progress.push('• Configure community features in Server Settings')
             progress.push('• Set up verification level')
             progress.push('• Post first announcement in #announcements')

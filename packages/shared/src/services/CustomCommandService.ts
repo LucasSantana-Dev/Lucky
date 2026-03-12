@@ -49,6 +49,72 @@ export class CustomCommandService {
         return result
     }
 
+    async upsertCommand(
+        guildId: string,
+        name: string,
+        response: string,
+        options?: {
+            description?: string
+            embedData?: EmbedData
+            allowedRoles?: string[]
+            allowedChannels?: string[]
+            createdBy?: string
+        },
+    ): Promise<'created' | 'updated'> {
+        const normalizedName = name.toLowerCase()
+        const lockKey = `custom-command:${guildId}:${normalizedName}`
+
+        const state = await prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+
+            const existing = await tx.customCommand.findUnique({
+                where: {
+                    guildId_name: {
+                        guildId,
+                        name: normalizedName,
+                    },
+                },
+                select: { id: true },
+            })
+
+            if (!existing) {
+                await tx.customCommand.create({
+                    data: {
+                        guildId,
+                        name: normalizedName,
+                        description: options?.description,
+                        response,
+                        embedData: options?.embedData
+                            ? JSON.stringify(options.embedData)
+                            : Prisma.JsonNull,
+                        allowedRoles: options?.allowedRoles || [],
+                        allowedChannels: options?.allowedChannels || [],
+                        createdBy: options?.createdBy || 'unknown',
+                    },
+                })
+                return 'created'
+            }
+
+            await tx.customCommand.update({
+                where: { id: existing.id },
+                data: {
+                    description: options?.description ?? null,
+                    response,
+                    embedData: options?.embedData
+                        ? JSON.stringify(options.embedData)
+                        : Prisma.JsonNull,
+                    allowedRoles: options?.allowedRoles || [],
+                    allowedChannels: options?.allowedChannels || [],
+                    enabled: true,
+                },
+            })
+            return 'updated'
+        })
+
+        this.invalidateCommand(guildId, normalizedName)
+        return state
+    }
+
     async getCommand(guildId: string, name: string) {
         const key = this.cacheKey(guildId, name)
 

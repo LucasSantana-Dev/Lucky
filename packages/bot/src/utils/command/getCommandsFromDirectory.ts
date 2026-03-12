@@ -24,13 +24,17 @@ function validateDirectoryPath(url: string): string | null {
     return absolutePath
 }
 
-function getCommandFiles(absolutePath: string): string[] {
+export function getCommandFiles(absolutePath: string): string[] {
     const files = fs
         .readdirSync(absolutePath)
         .filter(
             (file) =>
                 (file.endsWith('.js') || file.endsWith('.ts')) &&
                 !file.endsWith('.d.ts') &&
+                !file.endsWith('.test.js') &&
+                !file.endsWith('.test.ts') &&
+                !file.endsWith('.spec.js') &&
+                !file.endsWith('.spec.ts') &&
                 !file.startsWith('index.'),
         )
 
