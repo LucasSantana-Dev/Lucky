@@ -267,10 +267,11 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 `/twitch add` `/twitch remove` `/twitch list`
 
 ### Server Setup
-`/serversetup template:forge-space mode:apply|dry-run`
-`/serversetup template:criativaria mode:apply|dry-run`
+`/serversetup template:forge-space [mode:apply|dry-run]`
+`/serversetup template:criativaria [mode:apply|dry-run]`
 
 Setup behavior:
+- `mode` is optional and defaults to `apply`
 - `forge-space` creates the base channel/role layout and welcome embed
 - `dry-run` mode previews planned setup changes without mutating guild state
 - `criativaria` validates fixed channel/role mappings and continues with warnings

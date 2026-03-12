@@ -29,13 +29,14 @@ jest.mock('./functions/moderation/commands/index', () => jest.fn())
 jest.mock('./functions/management/commands/index', () => jest.fn())
 jest.mock('./functions/automod/commands/index', () => jest.fn())
 
-function makeCommand(name: string, category: any): Command {
-    return new Command({
+type TCommandCategory = ConstructorParameters<typeof Command>[0]['category']
+
+const makeCommand = (name: string, category: TCommandCategory): Command =>
+    new Command({
         data: new SlashCommandBuilder().setName(name).setDescription(`${name} cmd`),
         category,
         execute: async () => {},
     })
-}
 
 describe('getCommands', () => {
     beforeEach(() => {
@@ -72,11 +73,14 @@ describe('getCommands', () => {
         expect(managementCommands).toHaveBeenCalledTimes(1)
         expect(automodCommands).toHaveBeenCalledTimes(1)
 
-        expect(names).toContain('download')
-        expect(names).toContain('help')
-        expect(names).toContain('play')
-        expect(names).toContain('warn')
-        expect(names).toContain('serversetup')
-        expect(names).toContain('automod')
+        const sortedNames = [...names].sort()
+        expect(sortedNames).toEqual([
+            'automod',
+            'download',
+            'help',
+            'play',
+            'serversetup',
+            'warn',
+        ])
     })
 })
