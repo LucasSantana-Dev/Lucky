@@ -261,6 +261,24 @@ describe('Last.fm Routes Integration', () => {
             )
         })
 
+        test('should ignore non-absolute WEBAPP_BACKEND_URL and fallback to oauth origin', async () => {
+            process.env.WEBAPP_BACKEND_URL = '/'
+            process.env.WEBAPP_REDIRECT_URI =
+                'https://lucky.example.com/api/auth/callback'
+            const state = buildState(DISCORD_ID, LINK_SECRET)
+
+            const res = await request(app)
+                .get('/api/lastfm/connect')
+                .query({ state })
+                .expect(302)
+
+            expect(res.headers.location).toContain(
+                encodeURIComponent(
+                    `https://lucky.example.com/api/lastfm/callback?state=${state}`,
+                ),
+            )
+        })
+
         test('should redirect with error when not configured', async () => {
             mockIsConfigured.mockReturnValue(false)
 

@@ -15,11 +15,20 @@ function encodeState(discordId: string, secret: string): string {
     return `${payload}.${sig}`
 }
 
+function getAbsoluteOrigin(rawUrl?: string): string | null {
+    const value = rawUrl?.trim()
+    if (!value) return null
+    try {
+        return new URL(value).origin
+    } catch {
+        return null
+    }
+}
+
 function getConnectUrl(discordId: string): string | null {
-    const base = (process.env.WEBAPP_REDIRECT_URI ?? '').replace(
-        /\/api\/auth\/callback\/?$/,
-        '',
-    )
+    const base =
+        getAbsoluteOrigin(process.env.WEBAPP_BACKEND_URL) ||
+        getAbsoluteOrigin(process.env.WEBAPP_REDIRECT_URI)
     if (!base) return null
     const secret =
         process.env.LASTFM_LINK_SECRET || process.env.WEBAPP_SESSION_SECRET
@@ -74,7 +83,7 @@ export default new Command({
                         embeds: [
                             errorEmbed(
                                 'Cannot generate link',
-                                'WEBAPP_REDIRECT_URI (or LASTFM_LINK_SECRET / WEBAPP_SESSION_SECRET) is not set. Ask the server owner to configure the web app.',
+                                'WEBAPP_BACKEND_URL (fallback: WEBAPP_REDIRECT_URI) or LASTFM_LINK_SECRET / WEBAPP_SESSION_SECRET is not set. Ask the server owner to configure the web app.',
                             ),
                         ],
                         ephemeral: true,

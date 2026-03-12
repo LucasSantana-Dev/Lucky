@@ -18,7 +18,8 @@ Scrobbling and updateNowPlaying require authentication; see [Last.fm Authenticat
 | `LASTFM_API_SECRET`   | Yes (when Last.fm enabled) | API secret from Last.fm API account                                                                   |
 | `LASTFM_SESSION_KEY`  | No                         | Optional global session key (fallback when a user has not linked)                                     |
 | `LASTFM_LINK_SECRET`  | No                         | Secret to sign connect links (defaults to `WEBAPP_SESSION_SECRET`)                                    |
-| `WEBAPP_REDIRECT_URI` | For /lastfm link           | Base URL for backend (e.g. `http://localhost:3000/api/auth/callback`); connect URL is derived from it |
+| `WEBAPP_BACKEND_URL`  | Recommended for /lastfm link | Canonical backend/API origin for Last.fm connect links (e.g. `https://lucky-api.lucassantana.tech`) |
+| `WEBAPP_REDIRECT_URI` | Fallback for /lastfm link  | Discord OAuth callback URL; its origin is used only when `WEBAPP_BACKEND_URL` is unset               |
 
 If `LASTFM_API_KEY` or `LASTFM_API_SECRET` are missing, Last.fm integration is disabled (no crash).
 
@@ -31,7 +32,7 @@ If `LASTFM_API_KEY` or `LASTFM_API_SECRET` are missing, Last.fm integration is d
 
 ## Per-user linking (recommended)
 
-1. Ensure the backend is running and reachable at the same host/path as `WEBAPP_REDIRECT_URI` (e.g. `http://localhost:3000` for local dev).
+1. Ensure the backend is running and reachable at `WEBAPP_BACKEND_URL` (or at the origin of `WEBAPP_REDIRECT_URI` when backend URL is not set).
 2. In Last.fm API application settings, set **Callback URL** to `{your-backend-base}/api/lastfm/callback` (e.g. `http://localhost:3000/api/lastfm/callback`).
 3. Users run `/lastfm link` in Discord and open the link they receive. They sign in on Last.fm and authorize; they are redirected back and their account is linked.
 4. Tracks **requested by** a linked user are scrobbled to that user’s Last.fm. If the requester has not linked, the bot uses `LASTFM_SESSION_KEY` from env if set; otherwise no scrobble for that play.

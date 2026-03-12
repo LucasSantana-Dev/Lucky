@@ -17,7 +17,10 @@ import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
 const LASTFM_STATE_COOKIE = 'lastfm_state'
 const STATE_MAX_AGE_SEC = 600
-const lastFmCallbackQuery = z.object({ token: z.string().min(1), state: z.string().min(1).optional() })
+const lastFmCallbackQuery = z.object({
+    token: z.string().min(1),
+    state: z.string().min(1).optional(),
+})
 
 function getLinkSecret(): string {
     const secret =
@@ -67,9 +70,21 @@ function getFrontendUrl(): string {
     return getPrimaryFrontendUrl()
 }
 
+function parseAbsoluteOrigin(url: string): string | null {
+    try {
+        return new URL(url).origin
+    } catch {
+        return null
+    }
+}
+
 function resolveBackendBaseUrl(req: Request): string {
-    const base = process.env.WEBAPP_BACKEND_URL?.trim() ?? new URL(getOAuthRedirectUri(req)).origin
-    return base.endsWith('/') ? base.slice(0, -1) : base
+    const fromEnv = process.env.WEBAPP_BACKEND_URL?.trim()
+    const envOrigin = fromEnv ? parseAbsoluteOrigin(fromEnv) : null
+    if (envOrigin) {
+        return envOrigin
+    }
+    return new URL(getOAuthRedirectUri(req)).origin
 }
 
 export function setupLastFmRoutes(app: Express): void {
@@ -195,7 +210,9 @@ export function setupLastFmRoutes(app: Express): void {
             const state =
                 typeof parsedQuery.data.state === 'string'
                     ? parsedQuery.data.state
-                    : (typeof stateFromCookie === 'string' ? stateFromCookie : null)
+                    : typeof stateFromCookie === 'string'
+                      ? stateFromCookie
+                      : null
 
             if (!state) {
                 return res.redirect(
