@@ -52,6 +52,16 @@ packages/
   - Primitives: `Shell`, `SectionHeader`, `EmptyState`, `StatTile`,
     `ActionPanel` in `packages/frontend/src/components/ui`
 
+### Discord Discovery Media
+- Discovery carousel media is stored at
+  `assets/discord-discovery-media/2026-03/final` and should be referenced from
+  `main` branch raw URLs for long-term stability:
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/01-auth-control.png`
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/02-server-management.png`
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/03-feature-suite.png`
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/04-navigation-loop.gif`
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/05-live-control-loop.gif`
+
 ### Latest Release (`v2.6.13`)
 - Fixed production backend crash-loop caused by
   `ERR_PACKAGE_PATH_NOT_EXPORTED` on shared deep imports.
