@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added Discord Discovery media pack assets to
+  `assets/discord-discovery-media/2026-03/final` on `main` for stable
+  `raw.githubusercontent.com` hosting
 - Added centralized guild automation control plane for Criativaria with
   manifest persistence (`guild_automation_manifests`), run history
   (`guild_automation_runs`), and per-module drift snapshots
@@ -49,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed Discord Discovery carousel URL stability by documenting canonical media
+  URLs on `main` (instead of ephemeral feature branch refs that can return 404)
 - Bot `/autoplay` command now resolves guild queue from player node cache when
   direct node lookup misses, preventing false `No music queue found` errors
   while a track is actively playing
