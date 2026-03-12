@@ -12,6 +12,7 @@
         "build:bot": "npm run build --workspace=packages/bot",
         "build:backend": "npm run build --workspace=packages/backend",
         "build:frontend": "npm run build --workspace=packages/frontend",
+        "verify:shared-exports": "node scripts/verify-shared-exports.mjs",
         "dev:bot": "npm run dev --workspace=packages/bot",
         "dev:backend": "npm run dev --workspace=packages/backend",
         "dev:frontend": "npm run dev --workspace=packages/frontend",

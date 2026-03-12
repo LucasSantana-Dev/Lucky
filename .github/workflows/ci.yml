@@ -35,6 +35,9 @@ jobs:
             - name: Build shared package
               run: npm run build:shared
 
+            - name: Verify shared package exports
+              run: npm run verify:shared-exports
+
             - name: Type check
               run: npm run type:check
 

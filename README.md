@@ -52,7 +52,7 @@ packages/
   - Primitives: `Shell`, `SectionHeader`, `EmptyState`, `StatTile`,
     `ActionPanel` in `packages/frontend/src/components/ui`
 
-### Latest Release (`v2.6.10`)
+### Latest Release (`v2.6.12`)
 - Stabilized dashboard/runtime behavior across shell routes (guild re-sync,
   RBAC-aware visibility, identity fallback chain).
 - Refreshed E2E contracts and visual baselines for redesigned pages.
@@ -186,6 +186,15 @@ Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
+For deploy incidents where webhook trigger succeeds but API remains `502`, run
+the operator diagnostics:
+
+```bash
+./scripts/homelab-diagnostics.sh server-do-luk
+```
+
+The diagnostics output is sanitized and includes Lucky container state, backend
+log tail, and auth health/OAuth checks.
 
 Vercel note: `vercel.json` runs `npm run db:generate` before `build:shared` and `build:frontend` to ensure Prisma generated client files are present during cloud builds.
 For hosted frontend deployments, set `VITE_API_BASE_URL` to your backend API origin

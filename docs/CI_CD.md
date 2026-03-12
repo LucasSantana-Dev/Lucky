@@ -120,6 +120,37 @@ If deploy fails with curl exit code `6` (Could not resolve host):
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 
+### Deploy smoke 502 troubleshooting (backend crash-loop)
+
+If deploy webhook succeeds but smoke checks keep returning `502` on
+`/api/health/auth-config`, run:
+
+```bash
+./scripts/homelab-diagnostics.sh server-do-luk
+```
+
+The diagnostics output is sanitized and includes:
+
+1. Lucky container status
+2. `lucky-backend` log tail
+3. Local/public auth health checks
+4. Public OAuth redirect check
+
+If backend logs show:
+
+```text
+ERR_PACKAGE_PATH_NOT_EXPORTED
+```
+
+you likely have a package export-map mismatch between `@lucky/shared` and a
+deep backend import path. Ship a hotfix that updates `packages/shared` exports
+and verify with:
+
+```bash
+npm run build:shared
+npm run verify:shared-exports
+```
+
 ## Local parity
 
 To mimic CI locally:
