@@ -103,8 +103,9 @@ export const useGuildStore = create<GuildState>((set, get) => ({
                 return
             }
 
-            if (guilds.length > 0) {
-                get().selectGuild(guilds[0])
+            const firstWithBot = guilds.find((guild) => guild.botAdded)
+            if (firstWithBot) {
+                get().selectGuild(firstWithBot)
             }
         } catch (error) {
             set({

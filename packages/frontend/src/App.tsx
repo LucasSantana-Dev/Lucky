@@ -101,7 +101,7 @@ function AuthenticatedRoutes() {
             />
             <Route
                 path='/servers'
-                element={guardedRoute('overview', <ServersPage />)}
+                element={<ServersPage />}
             />
             <Route
                 path='/features'

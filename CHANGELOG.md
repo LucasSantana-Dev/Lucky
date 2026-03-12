@@ -85,6 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   states instead of a misleading empty result
 - Features route guard mapping is now consistent under the `automation` module
   across frontend route guards, sidebar module checks, and backend route guards
+- `/servers` is now always accessible for authenticated users (not blocked by
+  module RBAC guards), while server/module pages remain module-gated
+- Guild auto-selection now picks the first server where Lucky is already added;
+  when no server has Lucky installed, dashboard keeps no selected server and
+  shows explicit selection guidance
 
 ### Changed
 

@@ -99,11 +99,26 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.list).mockResolvedValue({
                 data: { guilds },
             } as never)
-            setupSelectedGuildApiMocks(guilds[0].id)
+            setupSelectedGuildApiMocks(guilds[1].id)
 
             await useGuildStore.getState().fetchGuilds()
 
-            expect(useGuildStore.getState().selectedGuildId).toBe('1')
+            expect(useGuildStore.getState().selectedGuildId).toBe('2')
+        })
+
+        test('should keep no guild selected when no server has bot added', async () => {
+            const guilds = [
+                mockGuild({ id: '1', botAdded: false }),
+                mockGuild({ id: '2', botAdded: false }),
+            ]
+            vi.mocked(api.guilds.list).mockResolvedValue({
+                data: { guilds },
+            } as never)
+
+            await useGuildStore.getState().fetchGuilds()
+
+            expect(useGuildStore.getState().selectedGuildId).toBeNull()
+            expect(vi.mocked(api.guilds.getMe)).not.toHaveBeenCalled()
         })
 
         test('should reset on fetch error', async () => {

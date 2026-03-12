@@ -20,6 +20,10 @@ vi.mock('./pages/Login', () => ({
     default: () => <h1>Login Page</h1>,
 }))
 
+vi.mock('./pages/ServersPage', () => ({
+    default: () => <h1>Servers Page</h1>,
+}))
+
 vi.mock('./pages/Moderation', () => ({
     default: () => <h1>Moderation Page</h1>,
 }))
@@ -236,5 +240,30 @@ describe('App authenticated routing', () => {
             ),
         ).toBeInTheDocument()
         expect(screen.queryByText('Features Page')).not.toBeInTheDocument()
+    })
+
+    test('keeps /servers accessible even without overview module access', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: {
+                    overview: 'none',
+                    settings: 'none',
+                    moderation: 'none',
+                    automation: 'none',
+                    music: 'none',
+                    integrations: 'none',
+                },
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/servers')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Servers Page' }),
+        ).toBeInTheDocument()
     })
 })
