@@ -73,7 +73,7 @@ describe('getCommands', () => {
         expect(managementCommands).toHaveBeenCalledTimes(1)
         expect(automodCommands).toHaveBeenCalledTimes(1)
 
-        const sortedNames = [...names].sort()
+        const sortedNames = [...names].sort((a, b) => a.localeCompare(b))
         expect(sortedNames).toEqual([
             'automod',
             'download',

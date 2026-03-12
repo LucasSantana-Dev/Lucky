@@ -131,20 +131,21 @@ export const downloadAudio = async ({
         createContentDirectory()
 
         const audioStream = await downloadAudioStream(url)
-        outputPath = path.resolve(__dirname, `../../content/${outputFileName}`)
+        const finalOutputPath =
+            outputPath || path.resolve(__dirname, `../../content/${outputFileName}`)
 
         const tempAudioPath = await saveStreamToTempFile(
             audioStream,
             outputFileName,
         )
-        await convertToMp3(tempAudioPath, outputPath)
+        await convertToMp3(tempAudioPath, finalOutputPath)
         await cleanupFiles(tempAudioPath, audioPath)
 
         await interactionReply({
             interaction,
             content: {
                 content: 'Downloading the audio...',
-                files: [outputPath],
+                files: [finalOutputPath],
             },
         })
 

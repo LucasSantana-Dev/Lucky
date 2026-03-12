@@ -140,9 +140,11 @@ function TagList({
                 <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) =>
-                        e.key === 'Enter' && (e.preventDefault(), handleAdd())
-                    }
+                    onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return
+                        e.preventDefault()
+                        handleAdd()
+                    }}
                     placeholder={placeholder}
                     className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm flex-1'
                 />

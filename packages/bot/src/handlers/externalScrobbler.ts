@@ -13,8 +13,8 @@ import {
 } from '../lastfm'
 
 const KNOWN_MUSIC_BOT_NAMES = ['rythm', 'groovy', 'fredboat', 'hydra', 'jockie']
-
-const NOW_PLAYING_PATTERN = /^Now playing:\s+(.+?)\s+[–—-]\s+(.+)$/m
+const NOW_PLAYING_PREFIX = 'Now playing:'
+const NOW_PLAYING_SEPARATORS = [' – ', ' — ', ' - ']
 
 const lastExternalTrack = new Map<
     string,
@@ -35,9 +35,28 @@ function parseNowPlaying(
     content: string,
 ): { title: string; artist: string } | null {
     const clean = stripMarkdown(content)
-    const match = clean.match(NOW_PLAYING_PATTERN)
-    if (!match) return null
-    return { title: match[1].trim(), artist: match[2].trim() }
+    const lines = clean.split('\n')
+
+    for (const line of lines) {
+        const trimmedLine = line.trim()
+        if (!trimmedLine.startsWith(NOW_PLAYING_PREFIX)) continue
+
+        const nowPlaying = trimmedLine.slice(NOW_PLAYING_PREFIX.length).trim()
+        for (const separator of NOW_PLAYING_SEPARATORS) {
+            const separatorIndex = nowPlaying.indexOf(separator)
+            if (separatorIndex <= 0) continue
+
+            const artist = nowPlaying.slice(0, separatorIndex).trim()
+            const title = nowPlaying
+                .slice(separatorIndex + separator.length)
+                .trim()
+
+            if (!title || !artist) continue
+            return { title, artist }
+        }
+    }
+
+    return null
 }
 
 function getMusicBotVoiceChannel(message: Message): VoiceChannel | null {

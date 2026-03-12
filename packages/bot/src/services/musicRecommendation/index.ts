@@ -140,7 +140,7 @@ export class MusicRecommendationService {
                 context
 
             if (currentTrack) {
-                return generateRecommendations(
+                return await generateRecommendations(
                     currentTrack,
                     availableTracks,
                     config,
@@ -148,7 +148,7 @@ export class MusicRecommendationService {
             }
 
             if (recentHistory.length > 0) {
-                return generateHistoryBasedRecommendations(
+                return await generateHistoryBasedRecommendations(
                     recentHistory,
                     availableTracks,
                     config,

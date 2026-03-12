@@ -10,7 +10,9 @@ function getApiConfig(): { apiKey: string; secret: string } | null {
 }
 
 function buildSignature(params: Record<string, string>, secret: string): string {
-  const keys = Object.keys(params).filter((k) => k !== 'format' && k !== 'callback').sort()
+  const keys = Object.keys(params)
+    .filter((k) => k !== 'format' && k !== 'callback')
+    .sort((a, b) => a.localeCompare(b))
   const str = keys.map((k) => `${k}${params[k]}`).join('') + secret
   return crypto.createHash('md5').update(str, 'utf8').digest('hex')
 }

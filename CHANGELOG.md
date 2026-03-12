@@ -139,6 +139,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Criativaria `/serversetup` now uses explicit upsert client typings for
   auto-message, embed template, and custom command operations, preventing
   stale shared declaration drift from breaking bot typecheck resolution.
+- Sonar main-gate reliability/hotspot remediation hardens deterministic sorting,
+  async error capture, keyboard-accessible progress controls, safer timer
+  cleanup callbacks, bounded external-scrobbler now-playing parsing, and
+  Node-native shared-export scanning (PR #186)
 
 ### Changed
 

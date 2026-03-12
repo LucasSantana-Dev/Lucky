@@ -165,6 +165,9 @@ and avoid stale shared type declarations leaking from another checkout.
 Backend lint now runs in strict mode across all backend routes and middleware.
 Use `npm run lint:full --workspace=packages/backend` for explicit backend-only
 verification in CI or local checks.
+Sonar main-gate reliability checks are strict on new code: use deterministic
+string sorting (`localeCompare`), keyboard-accessible UI interactions for
+clickable controls, and bounded parsing logic for user-facing text handling.
 
 ### Remote Deploy (No SSH)
 

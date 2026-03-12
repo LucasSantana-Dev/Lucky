@@ -39,7 +39,7 @@ function buildSignature(
 ): string {
     const keys = Object.keys(params)
         .filter((k) => k !== 'format' && k !== 'callback')
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
     const str = keys.map((k) => `${k}${params[k]}`).join('') + secret
     return crypto.createHash('md5').update(str, 'utf8').digest('hex')
 }

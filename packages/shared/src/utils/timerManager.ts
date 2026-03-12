@@ -14,8 +14,14 @@ export function safeSetTimeout(fn: () => void, ms: number): ReturnType<typeof se
 }
 
 export function clearAllTimers() {
-    intervals.forEach(clearInterval)
-    timeouts.forEach(clearTimeout)
+    for (const interval of intervals) {
+        clearInterval(interval)
+    }
+
+    for (const timeout of timeouts) {
+        clearTimeout(timeout)
+    }
+
     intervals.length = 0
     timeouts.length = 0
 }

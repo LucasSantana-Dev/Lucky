@@ -237,11 +237,43 @@ function ProgressBar({
         [duration, onSeek],
     )
 
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLDivElement>) => {
+            if (duration <= 0) return
+            const step = Math.max(1000, Math.floor(duration * 0.05))
+
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                e.preventDefault()
+                onSeek(Math.max(0, position - step))
+                return
+            }
+
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                e.preventDefault()
+                onSeek(Math.min(duration, position + step))
+                return
+            }
+
+            if (e.key === 'Home') {
+                e.preventDefault()
+                onSeek(0)
+                return
+            }
+
+            if (e.key === 'End') {
+                e.preventDefault()
+                onSeek(duration)
+            }
+        },
+        [duration, onSeek, position],
+    )
+
     return (
         <div className='mt-3 sm:mt-4'>
             <div
                 className='w-full bg-lucky-bg-tertiary rounded-full h-2 sm:h-1.5 cursor-pointer group touch-none'
                 onClick={handleClick}
+                onKeyDown={handleKeyDown}
                 role='slider'
                 aria-label='Seek position'
                 aria-valuemin={0}

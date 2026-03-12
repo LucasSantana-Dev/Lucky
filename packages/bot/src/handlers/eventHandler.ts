@@ -63,25 +63,14 @@ async function handleInteractionError(
 ): Promise<void> {
     errorLog({ message: 'Error handling interaction:', error })
     try {
-        if (!interaction.replied && !interaction.deferred) {
-            const userFriendlyError = createUserFriendlyError(error)
-            await interactionReply({
-                interaction,
-                content: {
-                    content: userFriendlyError,
-                    ephemeral: true,
-                },
-            })
-        } else {
-            const userFriendlyError = createUserFriendlyError(error)
-            await interactionReply({
-                interaction,
-                content: {
-                    content: userFriendlyError,
-                    ephemeral: true,
-                },
-            })
-        }
+        const userFriendlyError = createUserFriendlyError(error)
+        await interactionReply({
+            interaction,
+            content: {
+                content: userFriendlyError,
+                ephemeral: true,
+            },
+        })
     } catch (followUpError) {
         errorLog({
             message: 'Error sending error message:',
