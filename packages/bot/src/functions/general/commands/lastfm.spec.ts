@@ -88,6 +88,33 @@ describe('lastfm command link generation', () => {
         expect(url).not.toContain('//api/lastfm/connect')
     })
 
+    it('ignores legacy nexus WEBAPP_BACKEND_URL and falls back to WEBAPP_REDIRECT_URI origin', async () => {
+        process.env.WEBAPP_BACKEND_URL = 'https://nexus.lucassantana.tech'
+        process.env.WEBAPP_REDIRECT_URI =
+            'https://lucky.lucassantana.tech/api/auth/callback'
+
+        await lastfmCommand.execute({
+            interaction: createInteraction('link'),
+        } as any)
+
+        const url = getConnectUrlFromEmbed()
+        expect(url).toContain('https://lucky.lucassantana.tech/api/lastfm/connect')
+        expect(url).not.toContain('nexus.lucassantana.tech')
+    })
+
+    it('ignores non-http WEBAPP_BACKEND_URL and falls back to WEBAPP_REDIRECT_URI origin', async () => {
+        process.env.WEBAPP_BACKEND_URL = 'ftp://lucky-api.lucassantana.tech'
+        process.env.WEBAPP_REDIRECT_URI =
+            'https://lucky.lucassantana.tech/api/auth/callback'
+
+        await lastfmCommand.execute({
+            interaction: createInteraction('link'),
+        } as any)
+
+        const url = getConnectUrlFromEmbed()
+        expect(url).toContain('https://lucky.lucassantana.tech/api/lastfm/connect')
+    })
+
     it('falls back to WEBAPP_REDIRECT_URI and normalizes /api/auth/callback', async () => {
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
@@ -120,6 +147,24 @@ describe('lastfm command link generation', () => {
         expect(errorEmbedMock).toHaveBeenCalledWith(
             'Cannot generate link',
             expect.stringContaining('WEBAPP_BACKEND_URL'),
+        )
+    })
+
+    it('returns configuration error when WEBAPP_REDIRECT_URI still points to legacy nexus host', async () => {
+        process.env.WEBAPP_REDIRECT_URI =
+            'https://nexus.lucassantana.tech/api/auth/callback'
+
+        await lastfmCommand.execute({
+            interaction: createInteraction('link'),
+        } as any)
+
+        expect(errorEmbedMock).toHaveBeenCalledWith(
+            'Cannot generate link',
+            expect.stringContaining('WEBAPP_BACKEND_URL'),
+        )
+        expect(successEmbedMock).not.toHaveBeenCalledWith(
+            'Connect your Last.fm account',
+            expect.any(String),
         )
     })
 

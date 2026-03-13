@@ -283,7 +283,9 @@ When `WEBAPP_BACKEND_URL` is temporarily missing, `/api/health/auth-config`
 now validates OAuth origin against the current request origin fallback so deploy
 smoke checks can confirm live routing contract correctly.
 Bot `/lastfm link` URLs prioritize `WEBAPP_BACKEND_URL` and fall back to the
-origin of `WEBAPP_REDIRECT_URI` when backend URL is not set.
+origin of `WEBAPP_REDIRECT_URI` when backend URL is not set. Legacy
+`nexus.lucassantana.tech` origins and non-HTTP(S) origins are rejected for
+link generation to prevent stale or invalid production URLs.
 
 Discord Developer Portal URL mapping for this deployment:
 
@@ -313,9 +315,9 @@ See `.env.example` for all available options. Key variables:
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
-| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings); fallback origin source for Last.fm connect links when backend URL is unset |
+| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings); fallback origin source for Last.fm connect links when backend URL is unset (production canonical: `https://lucky.lucassantana.tech/api/auth/callback`) |
 | `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection |
-| `WEBAPP_BACKEND_URL` | No | Public backend/API origin used as canonical host for backend links and bot Last.fm connect links (must be an absolute URL) |
+| `WEBAPP_BACKEND_URL` | No | Public backend/API origin used as canonical host for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; production canonical: `https://lucky-api.lucassantana.tech`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 

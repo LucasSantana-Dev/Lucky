@@ -19,7 +19,11 @@ function getAbsoluteOrigin(rawUrl?: string): string | null {
     const value = rawUrl?.trim()
     if (!value) return null
     try {
-        return new URL(value).origin
+        const parsed = new URL(value)
+        const isHttp = parsed.protocol === 'http:' || parsed.protocol === 'https:'
+        if (!isHttp) return null
+        if (parsed.hostname.toLowerCase() === 'nexus.lucassantana.tech') return null
+        return parsed.origin
     } catch {
         return null
     }

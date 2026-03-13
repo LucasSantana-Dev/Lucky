@@ -92,6 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bot `/lastfm link` now prioritizes absolute `WEBAPP_BACKEND_URL` for connect
   URL host generation (fallback: `WEBAPP_REDIRECT_URI` origin), preventing
   stale legacy domains from appearing in user-facing link embeds (PR #163)
+- Bot `/lastfm link` now rejects legacy `nexus.lucassantana.tech` and non-HTTP(S)
+  origins during connect URL generation, preventing stale/bad origins from
+  leaking into production link embeds when env values drift
 - `/api/health/auth-config` now accepts forwarded request-origin fallback when
   `WEBAPP_BACKEND_URL` is unset, preventing false degraded deploy-gate failures
   while keeping OAuth callback path and origin validation active
