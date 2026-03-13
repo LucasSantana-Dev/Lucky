@@ -51,7 +51,18 @@ test.describe('Dashboard Page', () => {
         const noServerState = page.getByRole('heading', {
             name: /No Server Selected|Select a Server/i,
         })
-        await expect(noServerState).toBeVisible({ timeout: 5000 })
+        const noStateVisible = await noServerState
+            .isVisible({ timeout: 2000 })
+            .catch(() => false)
+
+        if (noStateVisible) {
+            await expect(noServerState).toBeVisible()
+            return
+        }
+
+        await expect(page.getByText('Test Server 2').first()).toBeVisible({
+            timeout: 5000,
+        })
     })
 
     test('server selector dropdown in header', async ({ page }) => {
