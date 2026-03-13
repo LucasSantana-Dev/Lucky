@@ -19,7 +19,7 @@ describe('createAutoModApi', () => {
         api.getSettings('guild-1')
         api.updateSettings('guild-1', { spamEnabled: true })
         api.listTemplates('guild-1')
-        api.applyTemplate('guild-1', 'strict')
+        api.applyTemplate('guild-1', 'strict/template')
 
         expect(apiClient.get).toHaveBeenNthCalledWith(
             1,
@@ -34,7 +34,7 @@ describe('createAutoModApi', () => {
             '/guilds/guild-1/automod/templates',
         )
         expect(apiClient.post).toHaveBeenCalledWith(
-            '/guilds/guild-1/automod/templates/strict/apply',
+            '/guilds/guild-1/automod/templates/strict%2Ftemplate/apply',
         )
     })
 

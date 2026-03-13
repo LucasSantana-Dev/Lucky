@@ -34,7 +34,10 @@ jest.mock('../../../../shared/src/utils/general/log.js', () => ({
     errorLog: (...args: [unknown]) => mockErrorLog(...args),
 }))
 
-import { guildRoleAccessService } from '../../../../shared/src/services/GuildRoleAccessService'
+import {
+    GuildRoleGrantStorageError,
+    guildRoleAccessService,
+} from '../../../../shared/src/services/GuildRoleAccessService'
 
 const guildId = '111111111111111111'
 const now = new Date('2026-03-11T00:00:00.000Z')
@@ -186,6 +189,28 @@ describe('GuildRoleAccessService', () => {
         expect(mockRedisDel).toHaveBeenCalledWith(`guild_rbac:${guildId}`)
         expect(updated).toHaveLength(1)
         expect(updated[0].module).toBe('moderation')
+    })
+
+    test('listRoleGrants throws typed storage error when RBAC table is missing', async () => {
+        mockFindMany.mockRejectedValue({
+            code: 'P2021',
+            meta: { table: 'guild_role_grants' },
+        })
+
+        await expect(guildRoleAccessService.listRoleGrants(guildId)).rejects.toBeInstanceOf(
+            GuildRoleGrantStorageError,
+        )
+    })
+
+    test('replaceRoleGrants throws typed storage error when RBAC table is missing', async () => {
+        mockTransaction.mockRejectedValue({
+            code: 'P2021',
+            meta: { table: 'guild_role_grants' },
+        })
+
+        await expect(
+            guildRoleAccessService.replaceRoleGrants(guildId, []),
+        ).rejects.toBeInstanceOf(GuildRoleGrantStorageError)
     })
 
     test('resolveEffectiveAccess applies manage and view precedence', async () => {

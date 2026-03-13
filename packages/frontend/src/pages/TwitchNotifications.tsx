@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Tv, Plus, Trash2, Hash } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
@@ -30,34 +30,75 @@ export default function TwitchNotificationsPage() {
     const [showAdd, setShowAdd] = useState(false)
     const [newTwitchInput, setNewTwitchInput] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
+    const notificationsRequestIdRef = useRef(0)
+    const channelsRequestIdRef = useRef(0)
+
+    const channelNameById = useMemo(
+        () => new Map(channels.map((channel) => [channel.id, channel.name])),
+        [channels],
+    )
 
     const loadNotifications = useCallback(async () => {
-        if (!guildId) return
+        if (!guildId) {
+            setNotifications([])
+            setIsLoading(false)
+            return
+        }
+
+        const requestId = notificationsRequestIdRef.current + 1
+        notificationsRequestIdRef.current = requestId
         setIsLoading(true)
         setError(null)
         try {
             const res = await api.twitch.list(guildId)
+            if (requestId !== notificationsRequestIdRef.current) {
+                return
+            }
             setNotifications(res.data.notifications)
         } catch {
+            if (requestId !== notificationsRequestIdRef.current) {
+                return
+            }
             setError('Failed to load Twitch notifications')
         } finally {
-            setIsLoading(false)
+            if (requestId === notificationsRequestIdRef.current) {
+                setIsLoading(false)
+            }
         }
     }, [guildId])
 
     const loadChannels = useCallback(async () => {
-        if (!guildId) return
+        if (!guildId) {
+            setChannels([])
+            setChannelsError(null)
+            return
+        }
+
+        const requestId = channelsRequestIdRef.current + 1
+        channelsRequestIdRef.current = requestId
         setChannelsError(null)
         try {
             const res = await api.guilds.getChannels(guildId)
+            if (requestId !== channelsRequestIdRef.current) {
+                return
+            }
             setChannels(res.data.channels)
         } catch {
+            if (requestId !== channelsRequestIdRef.current) {
+                return
+            }
             setChannels([])
             setChannelsError('Failed to load Discord channels')
         }
     }, [guildId])
 
     useEffect(() => {
+        if (!guildId) {
+            notificationsRequestIdRef.current += 1
+            channelsRequestIdRef.current += 1
+            return
+        }
+
         loadNotifications().catch(() => {})
         loadChannels().catch(() => {})
     }, [loadNotifications, loadChannels])
@@ -79,7 +120,7 @@ export default function TwitchNotificationsPage() {
                 const firstSegment = url.pathname
                     .split('/')
                     .map((segment) => segment.trim())
-                    .find(Boolean)
+                    .find((segment) => segment.length > 0)
                 login = firstSegment ?? ''
             } catch {
                 return null
@@ -125,7 +166,7 @@ export default function TwitchNotificationsPage() {
             setShowAdd(false)
             setNewTwitchInput('')
             setNewChannelId('')
-            loadNotifications().catch(() => {})
+            await loadNotifications()
         } catch {
             setError('Failed to add notification')
         }
@@ -141,63 +182,6 @@ export default function TwitchNotificationsPage() {
         } catch {
             setError('Failed to remove notification')
         }
-    }
-
-    const renderNotifications = () => {
-        if (isLoading) {
-            return (
-                <div className='space-y-2'>
-                    {[...Array(3)].map((_, i) => (
-                        <div
-                            key={i}
-                            className='h-14 rounded-lg bg-lucky-bg-tertiary animate-pulse'
-                        />
-                    ))}
-                </div>
-            )
-        }
-
-        if (notifications.length === 0) {
-            return (
-                <div className='text-center py-12 text-lucky-text-tertiary'>
-                    No Twitch notifications configured
-                </div>
-            )
-        }
-
-        return (
-            <div className='space-y-1'>
-                {notifications.map((notif) => (
-                    <div
-                        key={notif.id}
-                        className='group flex items-center gap-3 rounded-lg bg-lucky-bg-tertiary px-4 py-3 transition-colors hover:bg-lucky-bg-active'
-                    >
-                        <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded bg-purple-600/20'>
-                            <Tv className='h-4 w-4 text-purple-400' />
-                        </div>
-                        <div className='min-w-0 flex-1'>
-                            <p className='text-sm font-medium text-white'>
-                                {notif.twitchLogin}
-                            </p>
-                            <p className='flex items-center gap-1 text-xs text-lucky-text-tertiary'>
-                                <Hash className='h-3 w-3' />
-                                {channels.find(
-                                    (channel) =>
-                                        channel.id === notif.discordChannelId,
-                                )?.name ?? notif.discordChannelId}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => handleRemove(notif.twitchUserId)}
-                            className='cursor-pointer rounded-md p-1.5 text-lucky-text-tertiary opacity-0 transition-colors group-hover:opacity-100 hover:bg-lucky-error/10 hover:text-lucky-error'
-                            aria-label={`Remove ${notif.twitchLogin}`}
-                        >
-                            <Trash2 className='h-4 w-4' />
-                        </button>
-                    </div>
-                ))}
-            </div>
-        )
     }
 
     if (!selectedGuild) {
@@ -244,8 +228,16 @@ export default function TwitchNotificationsPage() {
                         Add Twitch Notification
                     </h3>
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                        <label
+                            htmlFor='twitch-login-input'
+                            className='sr-only'
+                        >
+                            Twitch URL or login
+                        </label>
                         <input
+                            id='twitch-login-input'
                             type='text'
+                            aria-label='Twitch URL or login'
                             placeholder='Twitch URL or login (e.g. https://twitch.tv/luk)'
                             value={newTwitchInput}
                             onChange={(e) => setNewTwitchInput(e.target.value)}
@@ -297,7 +289,50 @@ export default function TwitchNotificationsPage() {
                 </div>
             )}
 
-            {renderNotifications()}
+            {isLoading ? (
+                <div className='space-y-2'>
+                    {[...Array(3)].map((_, i) => (
+                        <div
+                            key={i}
+                            className='h-14 rounded-lg bg-lucky-bg-tertiary animate-pulse'
+                        />
+                    ))}
+                </div>
+            ) : notifications.length === 0 ? (
+                <div className='text-center py-12 text-lucky-text-tertiary'>
+                    No Twitch notifications configured
+                </div>
+            ) : (
+                <div className='space-y-1'>
+                    {notifications.map((notif) => (
+                        <div
+                            key={notif.id}
+                            className='flex items-center gap-3 px-4 py-3 rounded-lg bg-lucky-bg-tertiary hover:bg-lucky-bg-active transition-colors group'
+                        >
+                            <div className='w-8 h-8 rounded bg-purple-600/20 flex items-center justify-center shrink-0'>
+                                <Tv className='w-4 h-4 text-purple-400' />
+                            </div>
+                            <div className='flex-1 min-w-0'>
+                                <p className='text-sm font-medium text-white'>
+                                    {notif.twitchLogin}
+                                </p>
+                                <p className='text-xs text-lucky-text-tertiary flex items-center gap-1'>
+                                    <Hash className='w-3 h-3' />
+                                    {channelNameById.get(notif.discordChannelId) ??
+                                        notif.discordChannelId}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => handleRemove(notif.twitchUserId)}
+                                className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer'
+                                aria-label={`Remove ${notif.twitchLogin}`}
+                            >
+                                <Trash2 className='w-4 h-4' />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

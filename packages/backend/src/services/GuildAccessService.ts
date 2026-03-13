@@ -1,4 +1,5 @@
 import {
+    GuildRoleGrantStorageError,
     guildRoleAccessService,
     type AccessMode,
     type EffectiveAccessMap,
@@ -31,6 +32,60 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 }
 
 class GuildAccessService {
+    private readonly userGuildCache = new Map<
+        string,
+        {
+            guilds: DiscordGuild[]
+            expiresAt: number
+        }
+    >()
+    private readonly userGuildCacheTtlMs = 30_000
+    private readonly userGuildCacheMaxEntries = 200
+
+    private getCacheKey(session: SessionData): string {
+        return `${session.user.id}:${session.accessToken.slice(0, 24)}`
+    }
+
+    private getCachedGuilds(session: SessionData): DiscordGuild[] | null {
+        const entry = this.userGuildCache.get(this.getCacheKey(session))
+        if (!entry) {
+            return null
+        }
+
+        if (entry.expiresAt <= Date.now()) {
+            this.userGuildCache.delete(this.getCacheKey(session))
+            return null
+        }
+
+        return entry.guilds
+    }
+
+    private pruneExpiredCacheEntries(now: number): void {
+        for (const [key, entry] of this.userGuildCache.entries()) {
+            if (entry.expiresAt <= now) {
+                this.userGuildCache.delete(key)
+            }
+        }
+    }
+
+    private setCachedGuilds(session: SessionData, guilds: DiscordGuild[]): void {
+        const now = Date.now()
+        this.pruneExpiredCacheEntries(now)
+
+        while (this.userGuildCache.size >= this.userGuildCacheMaxEntries) {
+            const oldestKey = this.userGuildCache.keys().next().value
+            if (oldestKey === undefined) {
+                break
+            }
+            this.userGuildCache.delete(oldestKey)
+        }
+
+        this.userGuildCache.set(this.getCacheKey(session), {
+            guilds,
+            expiresAt: now + this.userGuildCacheTtlMs,
+        })
+    }
+
     private extractStatusCode(error: unknown): number | null {
         if (error instanceof DiscordApiError) {
             return error.statusCode
@@ -56,11 +111,36 @@ class GuildAccessService {
 
     private async fetchUserGuilds(
         session: SessionData,
+        options?: { allowCachedFallback?: boolean },
     ): Promise<DiscordGuild[]> {
+        const allowCachedFallback = options?.allowCachedFallback ?? true
         try {
-            return await discordOAuthService.getUserGuilds(session.accessToken)
+            const guilds = await discordOAuthService.getUserGuilds(
+                session.accessToken,
+            )
+            this.setCachedGuilds(session, guilds)
+            return guilds
         } catch (error) {
             const statusCode = this.extractStatusCode(error)
+            const cachedGuilds = this.getCachedGuilds(session)
+
+            if (
+                allowCachedFallback &&
+                cachedGuilds &&
+                (statusCode === 429 ||
+                    (statusCode !== null && statusCode >= 500))
+            ) {
+                errorLog({
+                    message:
+                        'Using cached guild list after Discord guild fetch failure',
+                    data: {
+                        userId: session.user.id,
+                        statusCode,
+                        guildCount: cachedGuilds.length,
+                    },
+                })
+                return cachedGuilds
+            }
 
             if (statusCode === 401) {
                 throw AppError.unauthorized(
@@ -98,14 +178,30 @@ class GuildAccessService {
                 guild.permissions,
                 guild.permissions_new,
             )
+        if (isAdmin) {
+            const effectiveAccess =
+                await guildRoleAccessService.resolveEffectiveAccess(
+                    guild.id,
+                    [],
+                    true,
+                )
 
-        const hasBot = isAdmin
-            ? true
-            : await guildService.hasBotInGuild(guild.id)
-        const memberContext =
-            hasBot && !isAdmin
-                ? await guildService.getGuildMemberContext(guild.id, userId)
-                : { nickname: null, roleIds: [] as string[] }
+            return {
+                guildId: guild.id,
+                owner: guild.owner,
+                isAdmin,
+                hasBot: false,
+                roleIds: [],
+                nickname: null,
+                effectiveAccess,
+                canManageRbac: true,
+            }
+        }
+
+        const hasBot = await guildService.hasBotInGuild(guild.id)
+        const memberContext = hasBot
+            ? await guildService.getGuildMemberContext(guild.id, userId)
+            : { nickname: null, roleIds: [] as string[] }
 
         const effectiveAccess =
             await guildRoleAccessService.resolveEffectiveAccess(
@@ -147,6 +243,12 @@ class GuildAccessService {
                 try {
                     return await this.buildContext(guild, session.user.id)
                 } catch (error) {
+                    if (error instanceof GuildRoleGrantStorageError) {
+                        throw new AppError(
+                            503,
+                            'RBAC storage is unavailable. Run database migrations and retry.',
+                        )
+                    }
                     errorLog({
                         message: 'Skipping guild due access context failure',
                         error,
@@ -200,14 +302,27 @@ class GuildAccessService {
         session: SessionData,
         guildId: string,
     ): Promise<GuildAccessContext | null> {
-        const guilds = await this.fetchUserGuilds(session)
+        const guilds = await this.fetchUserGuilds(session, {
+            allowCachedFallback: false,
+        })
         const guild = guilds.find((item) => item.id === guildId)
 
         if (!guild) {
             return null
         }
 
-        const context = await this.buildContext(guild, session.user.id)
+        let context: GuildAccessContext
+        try {
+            context = await this.buildContext(guild, session.user.id)
+        } catch (error) {
+            if (error instanceof GuildRoleGrantStorageError) {
+                throw new AppError(
+                    503,
+                    'RBAC storage is unavailable. Run database migrations and retry.',
+                )
+            }
+            throw error
+        }
         if (!this.isAuthorized(context)) {
             return null
         }

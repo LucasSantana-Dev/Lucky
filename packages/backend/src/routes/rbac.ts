@@ -1,9 +1,11 @@
 import type { Express, Response } from 'express'
 import { z } from 'zod'
 import {
+    GuildRoleGrantStorageError,
     RBAC_MODULES,
     guildRoleAccessService,
     type AccessMode,
+    type RoleGrant,
     type ModuleKey,
 } from '@lucky/shared/services'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
@@ -32,6 +34,17 @@ const rbacUpdateSchema = z
     })
     .strict()
 
+function mapRbacStorageError(error: unknown): never {
+    if (error instanceof GuildRoleGrantStorageError) {
+        throw new AppError(
+            503,
+            'RBAC storage is unavailable. Run database migrations and retry.',
+        )
+    }
+
+    throw error
+}
+
 export function setupRbacRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/rbac',
@@ -46,10 +59,16 @@ export function setupRbacRoutes(app: Express): void {
                 )
             }
 
-            const [grants, roles] = await Promise.all([
-                guildRoleAccessService.listRoleGrants(guildId),
-                guildService.getGuildRoleOptions(guildId),
-            ])
+            let grants: RoleGrant[]
+            let roles: Awaited<ReturnType<typeof guildService.getGuildRoleOptions>>
+            try {
+                ;[grants, roles] = await Promise.all([
+                    guildRoleAccessService.listRoleGrants(guildId),
+                    guildService.getGuildRoleOptions(guildId),
+                ])
+            } catch (error) {
+                mapRbacStorageError(error)
+            }
 
             res.json({
                 guildId,
@@ -88,10 +107,15 @@ export function setupRbacRoutes(app: Express): void {
                 mode: grant.mode as AccessMode,
             }))
 
-            const updated = await guildRoleAccessService.replaceRoleGrants(
-                guildId,
-                grants,
-            )
+            let updated: RoleGrant[]
+            try {
+                updated = await guildRoleAccessService.replaceRoleGrants(
+                    guildId,
+                    grants,
+                )
+            } catch (error) {
+                mapRbacStorageError(error)
+            }
 
             res.json({
                 success: true,

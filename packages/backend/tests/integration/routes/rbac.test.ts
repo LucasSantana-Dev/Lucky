@@ -11,6 +11,7 @@ const mockListRoleGrants = jest.fn<any>()
 const mockReplaceRoleGrants = jest.fn<any>()
 
 jest.mock('@lucky/shared/services', () => ({
+    GuildRoleGrantStorageError: class GuildRoleGrantStorageError extends Error {},
     RBAC_MODULES: [
         'overview',
         'settings',
@@ -24,6 +25,7 @@ jest.mock('@lucky/shared/services', () => ({
         replaceRoleGrants: (...args: any[]) => mockReplaceRoleGrants(...args),
     },
 }))
+import { GuildRoleGrantStorageError } from '@lucky/shared/services'
 
 const mockGetGuildRoleOptions = jest.fn<any>()
 
@@ -139,6 +141,21 @@ describe('RBAC Routes Integration', () => {
         expect(mockListRoleGrants).not.toHaveBeenCalled()
     })
 
+    test('GET /api/guilds/:guildId/rbac returns 503 when RBAC storage is unavailable', async () => {
+        mockListRoleGrants.mockRejectedValue(
+            new GuildRoleGrantStorageError('storage unavailable'),
+        )
+
+        const response = await request(app)
+            .get(`/api/guilds/${guildId}/rbac`)
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .expect(503)
+
+        expect(response.body).toEqual({
+            error: 'RBAC storage is unavailable. Run database migrations and retry.',
+        })
+    })
+
     test('PUT /api/guilds/:guildId/rbac validates and persists grants', async () => {
         mockReplaceRoleGrants.mockResolvedValue([
             {
@@ -214,5 +231,25 @@ describe('RBAC Routes Integration', () => {
             .expect(403)
 
         expect(mockReplaceRoleGrants).not.toHaveBeenCalled()
+    })
+
+    test('PUT /api/guilds/:guildId/rbac returns 503 when RBAC storage is unavailable', async () => {
+        mockReplaceRoleGrants.mockRejectedValue(
+            new GuildRoleGrantStorageError('storage unavailable'),
+        )
+
+        await request(app)
+            .put(`/api/guilds/${guildId}/rbac`)
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({
+                grants: [
+                    {
+                        roleId: '444444444444444444',
+                        module: 'automation',
+                        mode: 'manage',
+                    },
+                ],
+            })
+            .expect(503)
     })
 })

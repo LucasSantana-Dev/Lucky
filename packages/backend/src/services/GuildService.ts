@@ -46,29 +46,6 @@ export interface GuildChannelOption {
     name: string
 }
 
-const CHANNEL_OPTION_TYPES = new Set([0, 5, 15, 16])
-
-function isChannelOptionType(type: number): boolean {
-    return CHANNEL_OPTION_TYPES.has(type)
-}
-
-function toGuildChannelOption(id: string, name: string): GuildChannelOption {
-    return {
-        id,
-        name: `#${name}`,
-    }
-}
-
-function isApiChannelOptionCandidate(
-    channel: DiscordGuildChannel,
-): channel is DiscordGuildChannel & { id: string; name: string } {
-    return (
-        typeof channel.id === 'string' &&
-        typeof channel.name === 'string' &&
-        isChannelOptionType(channel.type)
-    )
-}
-
 export function setBotClient(client: Client | null): void {
     botClient = client
     guildService.clearBotGuildCache()
@@ -577,12 +554,16 @@ class GuildService {
                     .filter(
                         (channel): channel is NonNullable<typeof channel> =>
                             channel !== null &&
-                            isChannelOptionType(channel.type),
+                            (channel.type === 0 ||
+                                channel.type === 5 ||
+                                channel.type === 15 ||
+                                channel.type === 16),
                     )
                     .sort((a, b) => a.rawPosition - b.rawPosition)
-                    .map((channel) =>
-                        toGuildChannelOption(channel.id, channel.name),
-                    )
+                    .map((channel) => ({
+                        id: channel.id,
+                        name: `#${channel.name}`,
+                    }))
             } catch (error) {
                 debugLog({
                     message: 'Failed to fetch guild channels from bot client',
@@ -613,11 +594,20 @@ class GuildService {
             const payload = (await response.json()) as DiscordGuildChannel[]
 
             return payload
-                .filter(isApiChannelOptionCandidate)
-                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-                .map((channel) =>
-                    toGuildChannelOption(channel.id, channel.name),
+                .filter(
+                    (channel) =>
+                        typeof channel.id === 'string' &&
+                        typeof channel.name === 'string' &&
+                        (channel.type === 0 ||
+                            channel.type === 5 ||
+                            channel.type === 15 ||
+                            channel.type === 16),
                 )
+                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+                .map((channel) => ({
+                    id: channel.id as string,
+                    name: `#${channel.name as string}`,
+                }))
         } catch (error) {
             errorLog({
                 message: 'Failed to fetch guild channels',

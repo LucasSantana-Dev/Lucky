@@ -29,6 +29,8 @@ const mockHasAccess = jest.fn<
     [Record<string, string>, string, string]
 >()
 
+class MockGuildRoleGrantStorageError extends Error {}
+
 jest.mock('../../../src/services/DiscordOAuthService', () => ({
     DiscordApiError: MockDiscordApiError,
     discordOAuthService: {
@@ -51,6 +53,7 @@ jest.mock('../../../src/services/GuildService', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
+    GuildRoleGrantStorageError: MockGuildRoleGrantStorageError,
     guildRoleAccessService: {
         resolveEffectiveAccess: (...args: [string, string[], boolean]) =>
             mockResolveEffectiveAccess(...args),
@@ -341,7 +344,7 @@ describe('GuildAccessService', () => {
         expect(context).toMatchObject({
             guildId: adminGuild.id,
             isAdmin: true,
-            hasBot: true,
+            hasBot: false,
             canManageRbac: true,
         })
         expect(mockHasBotInGuild).not.toHaveBeenCalled()
@@ -445,6 +448,64 @@ describe('GuildAccessService', () => {
             nickname: 'Moderator',
             canManageRbac: false,
             effectiveAccess: moderationViewAccess,
+        })
+    })
+
+    test('resolveGuildContext short-circuits admin access without bot/member lookups', async () => {
+        const guild = makeGuild('909', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockHasBotInGuild.mockRejectedValue(new Error('discord unreachable'))
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        const context = await guildAccessService.resolveGuildContext(
+            SESSION,
+            guild.id,
+        )
+
+        expect(context).toMatchObject({
+            guildId: guild.id,
+            isAdmin: true,
+            hasBot: false,
+            roleIds: [],
+            nickname: null,
+            effectiveAccess: adminAccess,
+            canManageRbac: true,
+        })
+        expect(mockHasBotInGuild).not.toHaveBeenCalled()
+        expect(mockGetGuildMemberContext).not.toHaveBeenCalled()
+    })
+
+    test('resolveGuildContext does not authorize using cached guilds on upstream 429', async () => {
+        const guild = makeGuild('919', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockGetUserGuilds.mockResolvedValueOnce([guild])
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+        await guildAccessService.listAuthorizedGuilds(SESSION)
+
+        mockGetUserGuilds.mockRejectedValueOnce({ status: 429 })
+
+        await expect(
+            guildAccessService.resolveGuildContext(SESSION, guild.id),
+        ).rejects.toMatchObject({
+            statusCode: 502,
+            message: 'Discord API is temporarily unavailable. Please retry.',
         })
     })
 

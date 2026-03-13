@@ -99,10 +99,7 @@ function AuthenticatedRoutes() {
                 path='/'
                 element={guardedRoute('overview', <DashboardPage />)}
             />
-            <Route
-                path='/servers'
-                element={<ServersPage />}
-            />
+            <Route path='/servers' element={<ServersPage />} />
             <Route
                 path='/features'
                 element={guardedRoute('automation', <FeaturesPage />)}

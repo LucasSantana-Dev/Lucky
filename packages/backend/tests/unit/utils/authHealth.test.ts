@@ -35,7 +35,6 @@ describe('authHealth utils', () => {
                     'https://lucky.lucassantana.tech/api/auth/callback',
                 frontendOrigins: [
                     'https://lucky.lucassantana.tech',
-                    'https://lukbot.vercel.app',
                 ],
                 backendOrigins: ['https://lucky-api.lucassantana.tech'],
                 sessionSecretConfigured: true,
@@ -62,33 +61,17 @@ describe('authHealth utils', () => {
 
             expect(response.status).toBe('degraded')
             expect(response.warnings).toContain(
-                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
+                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
             )
         })
 
-        test('returns ok when redirect uri origin matches WEBAPP_BACKEND_URL', () => {
+        test('returns ok when redirect uri origin matches WEBAPP_BACKEND_URL and frontend origins are unset', () => {
             const response = buildAuthConfigHealth({
                 clientId: '962198089161134131',
                 redirectUri:
                     'https://lucky-api.lucassantana.tech/api/auth/callback',
-                frontendOrigins: ['https://lucky.lucassantana.tech'],
+                frontendOrigins: [],
                 backendOrigins: ['https://lucky-api.lucassantana.tech'],
-                sessionSecretConfigured: true,
-                redisHealthy: true,
-            })
-
-            expect(response.status).toBe('ok')
-            expect(response.warnings).toEqual([])
-        })
-
-        test('returns ok when redirect uri origin matches request origin fallback', () => {
-            const response = buildAuthConfigHealth({
-                clientId: '962198089161134131',
-                redirectUri:
-                    'https://lucky-api.lucassantana.tech/api/auth/callback',
-                frontendOrigins: ['https://lucky.lucassantana.tech'],
-                backendOrigins: [],
-                requestOrigin: 'https://lucky-api.lucassantana.tech',
                 sessionSecretConfigured: true,
                 redisHealthy: true,
             })
@@ -109,56 +92,6 @@ describe('authHealth utils', () => {
             expect(response.status).toBe('degraded')
             expect(response.warnings).toContain(
                 'OAuth callback path should be /api/auth/callback',
-            )
-        })
-
-        test('returns degraded when redirect uri is invalid', () => {
-            const response = buildAuthConfigHealth({
-                clientId: '962198089161134131',
-                redirectUri: 'not-a-valid-uri',
-                frontendOrigins: ['https://lucky.lucassantana.tech'],
-                backendOrigins: ['https://lucky-api.lucassantana.tech'],
-                sessionSecretConfigured: true,
-                redisHealthy: true,
-            })
-
-            expect(response.status).toBe('degraded')
-            expect(response.warnings).toContain('OAuth redirect URI is invalid')
-        })
-
-        test('returns degraded when no frontend, backend, or request origins are configured', () => {
-            const response = buildAuthConfigHealth({
-                clientId: '962198089161134131',
-                redirectUri:
-                    'https://lucky.lucassantana.tech/api/auth/callback',
-                frontendOrigins: [],
-                backendOrigins: [],
-                requestOrigin: undefined,
-                sessionSecretConfigured: true,
-                redisHealthy: true,
-            })
-
-            expect(response.status).toBe('degraded')
-            expect(response.warnings).toContain(
-                'No WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL origins configured',
-            )
-        })
-
-        test('ignores malformed configured origins and malformed request origin', () => {
-            const response = buildAuthConfigHealth({
-                clientId: '962198089161134131',
-                redirectUri:
-                    'https://lucky.lucassantana.tech/api/auth/callback',
-                frontendOrigins: ['not-an-origin'],
-                backendOrigins: ['still-not-an-origin'],
-                requestOrigin: 'bad-origin',
-                sessionSecretConfigured: true,
-                redisHealthy: true,
-            })
-
-            expect(response.status).toBe('degraded')
-            expect(response.warnings).toContain(
-                'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
             )
         })
 

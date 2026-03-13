@@ -3,7 +3,6 @@ interface AuthConfigHealthInput {
     redirectUri: string
     frontendOrigins: string[]
     backendOrigins?: string[]
-    requestOrigin?: string
     sessionSecretConfigured: boolean
     redisHealthy: boolean
     expectedClientId?: string
@@ -42,16 +41,6 @@ const getConfiguredFrontendOrigins = (
     return new Set(normalizedOrigins)
 }
 
-const normalizeOrigin = (value?: string): string => {
-    if (!value) return ''
-
-    try {
-        return new URL(value).origin
-    } catch {
-        return ''
-    }
-}
-
 export function buildAuthorizeUrlPreview(
     clientId: string,
     redirectUri: string,
@@ -75,7 +64,6 @@ export function buildAuthConfigHealth({
     redirectUri,
     frontendOrigins,
     backendOrigins = [],
-    requestOrigin,
     sessionSecretConfigured,
     redisHealthy,
     expectedClientId,
@@ -106,13 +94,7 @@ export function buildAuthConfigHealth({
         warnings.push('Redis is not healthy for shared services')
     }
 
-    const normalizedRequestOrigin = normalizeOrigin(requestOrigin)
-
-    if (
-        frontendOrigins.length === 0 &&
-        backendOrigins.length === 0 &&
-        normalizedRequestOrigin.length === 0
-    ) {
+    if (frontendOrigins.length === 0 && backendOrigins.length === 0) {
         warnings.push(
             'No WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL origins configured',
         )
@@ -125,24 +107,26 @@ export function buildAuthConfigHealth({
             warnings.push('OAuth callback path should be /api/auth/callback')
         }
 
-        if (
-            frontendOrigins.length > 0 ||
-            backendOrigins.length > 0 ||
-            normalizedRequestOrigin.length > 0
-        ) {
-            const configuredOrigins = new Set([
-                ...getConfiguredFrontendOrigins(frontendOrigins),
-                ...getConfiguredFrontendOrigins(backendOrigins),
-            ])
-            if (normalizedRequestOrigin.length > 0) {
-                configuredOrigins.add(normalizedRequestOrigin)
-            }
+        const configuredFrontendOrigins = getConfiguredFrontendOrigins(
+            frontendOrigins,
+        )
+        const configuredBackendOrigins = getConfiguredFrontendOrigins(
+            backendOrigins,
+        )
 
-            if (!configuredOrigins.has(parsedRedirectUri.origin)) {
+        if (configuredFrontendOrigins.size > 0) {
+            if (!configuredFrontendOrigins.has(parsedRedirectUri.origin)) {
                 warnings.push(
-                    'OAuth redirect origin is not in WEBAPP_FRONTEND_URL or WEBAPP_BACKEND_URL',
+                    'OAuth redirect origin is not in WEBAPP_FRONTEND_URL',
                 )
             }
+        } else if (
+            configuredBackendOrigins.size > 0 &&
+            !configuredBackendOrigins.has(parsedRedirectUri.origin)
+        ) {
+            warnings.push(
+                'OAuth redirect origin is not in WEBAPP_BACKEND_URL',
+            )
         }
     } catch {
         warnings.push('OAuth redirect URI is invalid')

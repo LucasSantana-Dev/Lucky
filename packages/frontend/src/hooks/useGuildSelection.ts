@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/authStore'
 export function useGuildSelection() {
     const guilds = useGuildStore((state) => state.guilds)
     const selectedGuild = useGuildStore((state) => state.selectedGuild)
+    const isLoading = useGuildStore((state) => state.isLoading)
+    const hasFetchedGuilds = useGuildStore((state) => state.hasFetchedGuilds)
     const guildLoadError = useGuildStore((state) => state.guildLoadError)
     const selectGuild = useGuildStore((state) => state.selectGuild)
     const fetchGuilds = useGuildStore((state) => state.fetchGuilds)
@@ -17,15 +19,23 @@ export function useGuildSelection() {
             return
         }
 
-        fetchGuilds()
-    }, [fetchGuilds, isAuthenticated, authLoading])
-
-    useEffect(() => {
-        if (!isAuthenticated || authLoading) {
+        if (guilds.length > 0 || selectedGuild || isLoading || hasFetchedGuilds) {
             return
         }
 
-        if (hasRetriedAuthReadyFetch.current) {
+        fetchGuilds()
+    }, [
+        authLoading,
+        fetchGuilds,
+        guilds.length,
+        hasFetchedGuilds,
+        isAuthenticated,
+        isLoading,
+        selectedGuild,
+    ])
+
+    useEffect(() => {
+        if (!isAuthenticated || authLoading || hasRetriedAuthReadyFetch.current) {
             return
         }
 
@@ -37,7 +47,7 @@ export function useGuildSelection() {
         }
 
         hasRetriedAuthReadyFetch.current = true
-        fetchGuilds()
+        fetchGuilds(true)
     }, [authLoading, fetchGuilds, guildLoadError, isAuthenticated])
 
     useEffect(() => {

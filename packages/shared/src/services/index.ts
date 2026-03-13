@@ -49,5 +49,6 @@ export {
     type RoleGrant,
     type RoleGrantInput,
     type EffectiveAccessMap,
+    GuildRoleGrantStorageError,
 } from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'

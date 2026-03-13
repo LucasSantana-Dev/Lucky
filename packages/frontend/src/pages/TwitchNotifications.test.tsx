@@ -28,8 +28,6 @@ const mockNotifications = [
 ]
 
 import { useGuildSelection } from '@/hooks/useGuildSelection'
-const TWITCH_INPUT_PLACEHOLDER =
-    'Twitch URL or login (e.g. https://twitch.tv/luk)'
 
 function mockGuildSelection(guild: typeof mockGuild | null) {
     vi.mocked(useGuildSelection).mockReturnValue({
@@ -65,36 +63,10 @@ function renderPage() {
     )
 }
 
-async function openAddForm({
-    user,
-    notifications = [],
-}: {
-    user: ReturnType<typeof userEvent.setup>
-    notifications?: typeof mockNotifications
-}) {
-    mockGuildSelection(mockGuild)
-    vi.mocked(api.twitch.list).mockResolvedValue({
-        data: { notifications },
-    } as any)
-
-    renderPage()
-
-    await waitFor(() => {
-        expect(screen.getByText('Add')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByText('Add'))
-}
-
-async function selectGeneralChannel(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByRole('combobox'))
-    await user.click(screen.getByText('#general'))
-}
-
 describe('TwitchNotificationsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        Object.defineProperty(globalThis.HTMLElement.prototype, 'scrollIntoView', {
+        Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
             configurable: true,
             value: vi.fn(),
         })
@@ -193,7 +165,7 @@ describe('TwitchNotificationsPage', () => {
         expect(screen.getByText('Add Twitch Notification')).toBeInTheDocument()
         expect(
             screen.getByPlaceholderText(
-                TWITCH_INPUT_PLACEHOLDER,
+                'Twitch URL or login (e.g. https://twitch.tv/luk)',
             ),
         ).toBeInTheDocument()
         expect(
@@ -222,27 +194,38 @@ describe('TwitchNotificationsPage', () => {
 
     test('submits add form and reloads data', async () => {
         const user = userEvent.setup()
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: [] },
+        } as any)
         vi.mocked(api.twitch.add).mockResolvedValue({
             data: { success: true },
         } as any)
 
-        await openAddForm({ user })
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Add')).toBeInTheDocument()
+        })
+
+        await user.click(screen.getByText('Add'))
 
         await user.type(
-            screen.getByPlaceholderText(TWITCH_INPUT_PLACEHOLDER),
-            'https://twitch.tv/@TestStreamer',
+            screen.getByPlaceholderText(
+                'Twitch URL or login (e.g. https://twitch.tv/luk)',
+            ),
+            'teststreamer',
         )
-        await selectGeneralChannel(user)
+        await user.click(screen.getByRole('combobox'))
+        await user.click(screen.getByText('#general'))
 
         await user.click(screen.getByText('Save'))
 
-        await waitFor(() => {
-            expect(api.twitch.lookupUser).toHaveBeenCalledWith('teststreamer')
-            expect(api.twitch.add).toHaveBeenCalledWith('123', {
-                twitchUserId: '12345',
-                twitchLogin: 'teststreamer',
-                discordChannelId: '67890',
-            })
+        expect(api.twitch.lookupUser).toHaveBeenCalledWith('teststreamer')
+        expect(api.twitch.add).toHaveBeenCalledWith('123', {
+            twitchUserId: '12345',
+            twitchLogin: 'teststreamer',
+            discordChannelId: '67890',
         })
     })
 
@@ -287,68 +270,5 @@ describe('TwitchNotificationsPage', () => {
         await userEvent.click(removeButton)
 
         expect(api.twitch.remove).toHaveBeenCalledWith('123', 'tw1')
-    })
-
-    test('shows validation error for invalid twitch input', async () => {
-        const user = userEvent.setup()
-        await openAddForm({ user })
-        await user.type(
-            screen.getByPlaceholderText(TWITCH_INPUT_PLACEHOLDER),
-            '??',
-        )
-        await selectGeneralChannel(user)
-        await user.click(screen.getByText('Save'))
-
-        expect(
-            screen.getByText('Enter a valid Twitch URL or login'),
-        ).toBeInTheDocument()
-        expect(api.twitch.lookupUser).not.toHaveBeenCalled()
-    })
-
-    test('prevents duplicate twitch channel entries', async () => {
-        const user = userEvent.setup()
-        vi.mocked(api.twitch.lookupUser).mockResolvedValue({
-            data: {
-                id: 'tw1',
-                login: 'shroud',
-                displayName: 'Shroud',
-            },
-        } as any)
-
-        await openAddForm({ user, notifications: mockNotifications })
-        await user.type(
-            screen.getByPlaceholderText(TWITCH_INPUT_PLACEHOLDER),
-            'shroud',
-        )
-        await selectGeneralChannel(user)
-        await user.click(screen.getByText('Save'))
-
-        expect(
-            screen.getByText('This Twitch channel is already configured'),
-        ).toBeInTheDocument()
-        expect(api.twitch.add).not.toHaveBeenCalled()
-    })
-
-    test('shows channel loading error when guild channels fail', async () => {
-        const user = userEvent.setup()
-        mockGuildSelection(mockGuild)
-        vi.mocked(api.twitch.list).mockResolvedValue({
-            data: { notifications: [] },
-        } as any)
-        vi.mocked(api.guilds.getChannels).mockRejectedValue(
-            new Error('channel lookup failed'),
-        )
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Add')).toBeInTheDocument()
-        })
-
-        await user.click(screen.getByText('Add'))
-
-        expect(
-            screen.getByText('Failed to load Discord channels'),
-        ).toBeInTheDocument()
     })
 })

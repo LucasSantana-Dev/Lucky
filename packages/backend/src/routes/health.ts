@@ -6,37 +6,6 @@ import { buildAuthConfigHealth } from '../utils/authHealth'
 
 const DEFAULT_PRODUCTION_CLIENT_ID = '962198089161134131'
 
-export const getForwardedHeader = (
-    req: Request,
-    headerName: string,
-): string | undefined => {
-    const value = req.headers[headerName]
-    if (!value) return undefined
-    const raw = Array.isArray(value) ? value[0] : value
-    return raw.split(',')[0].trim() || undefined
-}
-
-export const resolveRequestOrigin = (req: Request): string | undefined => {
-    const forwardedProtocol =
-        req.get('x-forwarded-proto')?.split(',')[0].trim() ||
-        getForwardedHeader(req, 'x-forwarded-proto')
-    const forwardedHost =
-        req.get('x-forwarded-host')?.split(',')[0].trim() ||
-        getForwardedHeader(req, 'x-forwarded-host')
-    const protocol = forwardedProtocol ?? req.protocol ?? 'http'
-    const host = forwardedHost ?? req.get('host') ?? ''
-
-    if (!host) {
-        return undefined
-    }
-
-    try {
-        return new URL(`${protocol}://${host}`).origin
-    } catch {
-        return undefined
-    }
-}
-
 export function setupHealthRoutes(app: Express): void {
     app.get('/api/health', (_req: Request, res: Response) => {
         res.json({
@@ -59,7 +28,6 @@ export function setupHealthRoutes(app: Express): void {
 
     app.get('/api/health/auth-config', (req: Request, res: Response) => {
         const redirectUri = getOAuthRedirectUri(req)
-        const requestOrigin = resolveRequestOrigin(req)
         const frontendOrigins = getFrontendOrigins()
         const backendOrigins = (process.env.WEBAPP_BACKEND_URL ?? '')
             .split(',')
@@ -81,7 +49,6 @@ export function setupHealthRoutes(app: Express): void {
             redirectUri,
             frontendOrigins,
             backendOrigins,
-            requestOrigin,
             sessionSecretConfigured,
             redisHealthy,
             expectedClientId,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
     Settings,
@@ -31,6 +31,7 @@ import {
 import Skeleton from '@/components/ui/Skeleton'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import { RBAC_MODULES, type RoleGrant, type ServerSettings } from '@/types'
 
@@ -70,20 +71,19 @@ export default function ServerSettingsPage() {
         Array<{ id: string; name: string }>
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
-    const rbacRequestVersion = useRef(0)
+    const rbacRequestIdRef = useRef(0)
 
     const canManageRbac =
         memberContext?.canManageRbac ?? selectedGuild?.canManageRbac ?? false
 
-    const loadRbac = async (guildId: string) => {
-        const requestVersion = ++rbacRequestVersion.current
-        const isStaleRequest = () =>
-            requestVersion !== rbacRequestVersion.current
+    const loadRbac = useCallback(async (guildId: string) => {
+        const requestId = rbacRequestIdRef.current + 1
+        rbacRequestIdRef.current = requestId
         setRbacLoading(true)
         setRbacRolesError(null)
         try {
             const res = await api.guilds.getRbac(guildId)
-            if (isStaleRequest()) {
+            if (requestId !== rbacRequestIdRef.current) {
                 return
             }
             setRbacRoles(res.data.roles)
@@ -94,7 +94,7 @@ export default function ServerSettingsPage() {
                 )
             }
         } catch {
-            if (isStaleRequest()) {
+            if (requestId !== rbacRequestIdRef.current) {
                 return
             }
             setRbacRoles([])
@@ -102,11 +102,11 @@ export default function ServerSettingsPage() {
             setRbacRolesError('Failed to load role options for access rules.')
             toast.error('Failed to load access control policy')
         } finally {
-            if (!isStaleRequest()) {
+            if (requestId === rbacRequestIdRef.current) {
                 setRbacLoading(false)
             }
         }
-    }
+    }, [])
 
     useEffect(() => {
         if (!selectedGuild?.id) return
@@ -122,16 +122,15 @@ export default function ServerSettingsPage() {
 
     useEffect(() => {
         if (!selectedGuild?.id || !canManageRbac) {
-            rbacRequestVersion.current += 1
+            rbacRequestIdRef.current += 1
             setRbacRoles([])
             setRbacGrants([])
             setRbacRolesError(null)
-            setRbacLoading(false)
             return
         }
 
-        void loadRbac(selectedGuild.id)
-    }, [selectedGuild?.id, canManageRbac])
+        loadRbac(selectedGuild.id)
+    }, [selectedGuild?.id, canManageRbac, loadRbac])
 
     const update = <K extends keyof ServerSettings>(
         key: K,
@@ -229,8 +228,12 @@ export default function ServerSettingsPage() {
             toast.success(
                 `Criativaria baseline applied (${response.data.run.status})`,
             )
-        } catch {
-            toast.error('Failed to apply Criativaria baseline')
+        } catch (error) {
+            if (error instanceof ApiError) {
+                toast.error(error.message)
+            } else {
+                toast.error('Failed to apply Criativaria baseline')
+            }
         } finally {
             setApplyingCriativariaPreset(false)
         }
@@ -554,11 +557,9 @@ export default function ServerSettingsPage() {
                                                 size='sm'
                                                 variant='ghost'
                                                 className='gap-2'
-                                                onClick={() =>
-                                                    void loadRbac(
-                                                        selectedGuild.id,
-                                                    )
-                                                }
+                                                onClick={() => {
+                                                    loadRbac(selectedGuild.id)
+                                                }}
                                             >
                                                 <RotateCcw className='w-4 h-4' />
                                                 Retry Roles
