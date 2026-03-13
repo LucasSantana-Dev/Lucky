@@ -150,6 +150,26 @@ require_running_containers() {
     return 0
 }
 
+resolve_postgres_password() {
+    if [[ -n "${POSTGRES_PASSWORD:-}" ]]; then
+        echo "$POSTGRES_PASSWORD"
+        return
+    fi
+
+    local env_file="$COMPOSE_WORKDIR/.env"
+    if [[ -f "$env_file" ]]; then
+        local value
+        value=$(awk -F= '/^POSTGRES_PASSWORD=/{print substr($0, index($0, "=") + 1); exit}' \
+            "$env_file")
+        if [[ -n "$value" ]]; then
+            echo "$value"
+            return
+        fi
+    fi
+
+    echo ""
+}
+
 wait_for_http_ready() {
     local label="$1"
     local url="$2"
@@ -219,6 +239,15 @@ trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 CLOUDFLARED_CONFIG_DIR="$(resolve_cloudflared_config_dir)"
+POSTGRES_PASSWORD_EFFECTIVE="$(resolve_postgres_password)"
+
+if [[ -z "$POSTGRES_PASSWORD_EFFECTIVE" ]]; then
+    log "ERROR: POSTGRES_PASSWORD is required"
+    notify 16711680 "Deploy Failed" "POSTGRES_PASSWORD is required"
+    exit 1
+fi
+
+export POSTGRES_PASSWORD="$POSTGRES_PASSWORD_EFFECTIVE"
 export CLOUDFLARED_CONFIG_DIR
 
 log "Using CLOUDFLARED_CONFIG_DIR=$CLOUDFLARED_CONFIG_DIR"

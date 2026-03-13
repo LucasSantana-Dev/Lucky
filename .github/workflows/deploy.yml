@@ -19,10 +19,12 @@ jobs:
               env:
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+                  EXPECTED_CLIENT_ID: ${{ secrets.WEBAPP_EXPECTED_CLIENT_ID }}
               run: |
                   missing=""
                   [ -z "$WEBHOOK_SECRET" ] && missing="DEPLOY_WEBHOOK_SECRET "
                   [ -z "$WEBHOOK_URL" ] && missing="${missing}DEPLOY_WEBHOOK_URL"
+                  [ -z "${EXPECTED_CLIENT_ID:-}" ] && missing="${missing} WEBAPP_EXPECTED_CLIENT_ID"
                   if [ -n "$missing" ]; then
                     echo "::error::Missing secrets: $missing"
                     exit 1
@@ -210,11 +212,7 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  required_client_id="${EXPECTED_CLIENT_ID:-}"
-                  if [ -z "$required_client_id" ]; then
-                    echo "::error::Missing required secret WEBAPP_EXPECTED_CLIENT_ID"
-                    exit 1
-                  fi
+                  required_client_id="$EXPECTED_CLIENT_ID"
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
                   auth_url="${base_url}/api/auth/discord"
                   auth_config_url="${base_url}/api/health/auth-config"
