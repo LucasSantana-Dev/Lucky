@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitGuardian incident hardening: removed hardcoded compose PostgreSQL password
   fallbacks, enforced secret-managed expected client-id checks in deploy OAuth
   smoke validation, and replaced secret-like literals in test/example fixtures
+- Deploy workflow OAuth smoke now fails fast when
+  `WEBAPP_EXPECTED_CLIENT_ID` is missing and reports explicit auth-config
+  client-id mismatches.
 - Bundle-size CI workflow now exports `YOUTUBE_DL_SKIP_DOWNLOAD=true` (with
   workflow token) so `youtube-dl-exec` postinstall no longer fails on anonymous
   GitHub API rate limits during `npm ci`

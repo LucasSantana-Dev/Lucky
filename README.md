@@ -349,9 +349,9 @@ See `.env.example` for all available options. Key variables:
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
-| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings and deploy smoke contract); fallback callback source when `WEBAPP_BACKEND_URL` is unset |
-| `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection when explicitly set |
-| `WEBAPP_BACKEND_URL` | No | Public backend/API origin used as canonical host for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; recommended production canonical: `https://lucky-api.lucassantana.tech`) |
+| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings and deploy smoke contract) |
+| `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection when explicitly set (recommended via deployment secret) |
+| `WEBAPP_BACKEND_URL` | No | Public backend/API origin used for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; recommended: `https://lucky-api.lucassantana.tech`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 
