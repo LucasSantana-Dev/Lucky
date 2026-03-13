@@ -126,6 +126,9 @@ packages/
   re-auth guidance when auth/upstream failures occur
 - Features page now surfaces auth/forbidden/network/upstream load failures with
   explicit retry/re-auth actions instead of silent fallback
+- Features bootstrap now waits for authenticated auth-state readiness before
+  fetching catalog/global/server toggles, preventing stale-session `403` probe
+  noise during dashboard hydration
 - Dashboard API contract uses canonical
   `/api/guilds/:guildId/automessages`; legacy
   `/api/guilds/:guildId/auto-messages` is intentionally unsupported, and stale

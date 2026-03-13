@@ -84,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Features dashboard loading now classifies fetch failures as
   `auth|forbidden|network|upstream` and exposes retry/re-auth actions instead
   of silent fallback when catalog/global/server toggle fetches fail
+- Features bootstrap now defers catalog/global/server toggle requests until auth
+  readiness confirms an authenticated session, preventing stale-hydration
+  developer-toggle `403` probe noise
 - OAuth callback resolution now keeps `WEBAPP_REDIRECT_URI` as canonical in
   production (no `WEBAPP_BACKEND_URL` override), restoring deploy OAuth smoke
   contract and frontend-host callback consistency.

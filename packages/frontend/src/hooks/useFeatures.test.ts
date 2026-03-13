@@ -11,6 +11,8 @@ vi.mock('@/stores/featuresStore')
 
 type AuthState = {
     isDeveloper: boolean
+    isAuthenticated: boolean
+    isLoading: boolean
 }
 
 type GuildState = {
@@ -62,6 +64,8 @@ describe('useFeatures', () => {
 
         authState = {
             isDeveloper: false,
+            isAuthenticated: true,
+            isLoading: false,
         }
         guildState = {
             selectedGuild: null,
@@ -99,6 +103,32 @@ describe('useFeatures', () => {
 
         await waitFor(() => {
             expect(fetchFeatures).toHaveBeenCalledTimes(1)
+        })
+
+        expect(fetchGlobalToggles).not.toHaveBeenCalled()
+    })
+
+    test('does not fetch global toggles while auth is loading', async () => {
+        authState.isDeveloper = true
+        authState.isLoading = true
+
+        renderHook(() => useFeatures())
+
+        await waitFor(() => {
+            expect(fetchFeatures).not.toHaveBeenCalled()
+        })
+
+        expect(fetchGlobalToggles).not.toHaveBeenCalled()
+    })
+
+    test('does not fetch global toggles when session is not authenticated', async () => {
+        authState.isDeveloper = true
+        authState.isAuthenticated = false
+
+        renderHook(() => useFeatures())
+
+        await waitFor(() => {
+            expect(fetchFeatures).not.toHaveBeenCalled()
         })
 
         expect(fetchGlobalToggles).not.toHaveBeenCalled()
