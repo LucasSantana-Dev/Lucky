@@ -224,19 +224,6 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             .catch(() => {})
 
         api.guilds
-            .getSettings(guildId)
-            .then((response) => {
-                set(
-                    withCurrentGuild({
-                        serverSettings: response.data.settings,
-                    }),
-                )
-            })
-            .catch(() => {
-                set(withCurrentGuild({ serverSettings: null }))
-            })
-
-        api.guilds
             .getListing(guildId)
             .then((response) => {
                 set(

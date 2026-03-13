@@ -8,6 +8,7 @@ import { authLimiter } from '../middleware/rateLimit'
 import { handleOAuthCallback } from './authCallback'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
+import { isDeveloperUser } from '../utils/developerAccess'
 
 const getFrontendUrl = (): string => {
     return getPrimaryFrontendUrl()
@@ -135,6 +136,7 @@ export function setupAuthRoutes(app: Express): void {
                     discriminator: sessionData.user.discriminator,
                     globalName: sessionData.user.global_name,
                     avatar: sessionData.user.avatar,
+                    isDeveloper: isDeveloperUser(sessionData.user.id),
                 },
             })
         } catch (error) {

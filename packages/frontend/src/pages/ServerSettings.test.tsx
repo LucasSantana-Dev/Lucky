@@ -229,17 +229,70 @@ describe('ServerSettingsPage', () => {
         expect(warningSwitch).toBeChecked()
     })
 
-    test('uses default settings on API error', async () => {
+    test('shows actionable load error and retry when settings fetch fails', async () => {
+        const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockRejectedValue(
-            new Error('Not found'),
+            new ApiError(502, 'Discord API unavailable'),
         )
 
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+            expect(
+                screen.getByText('Unable to load server settings'),
+            ).toBeInTheDocument()
         })
+
+        expect(screen.getByText('Discord API unavailable')).toBeInTheDocument()
+
+        vi.mocked(api.guilds.getSettings).mockResolvedValueOnce({
+            data: { settings: mockSettings },
+        } as any)
+
+        await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+        await waitFor(() => {
+            expect(screen.getByText('General')).toBeInTheDocument()
+        })
+    })
+
+    test('shows re-authenticate action when settings fetch returns auth error', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockRejectedValue(
+            new ApiError(401, 'Session expired'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Unable to load server settings'),
+            ).toBeInTheDocument()
+        })
+
+        expect(screen.getByText('Re-authenticate')).toBeInTheDocument()
+    })
+
+    test('shows network guidance without re-authenticate action on network failure', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockRejectedValue(
+            new ApiError(0, ''),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    'Unable to reach API. Check your connection and retry.',
+                ),
+            ).toBeInTheDocument()
+        })
+
+        expect(
+            screen.queryByRole('link', { name: 'Re-authenticate' }),
+        ).not.toBeInTheDocument()
     })
 
     test('shows RBAC manager message when user cannot manage policy', async () => {

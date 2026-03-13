@@ -12,7 +12,6 @@ interface AuthState {
     login: () => void
     logout: () => Promise<void>
     checkAuth: () => Promise<boolean>
-    checkDeveloperStatus: () => Promise<void>
 }
 
 let authCheckPromise: Promise<boolean> | null = null
@@ -68,11 +67,8 @@ export const useAuthStore = create<AuthState>()(
                                 user,
                                 isAuthenticated: true,
                                 isLoading: false,
+                                isDeveloper: Boolean(user.isDeveloper),
                             })
-
-                            get()
-                                .checkDeveloperStatus()
-                                .catch(() => {})
 
                             return true
                         } else {
@@ -100,15 +96,6 @@ export const useAuthStore = create<AuthState>()(
                 })()
 
                 return authCheckPromise
-            },
-
-            checkDeveloperStatus: async () => {
-                try {
-                    await api.features.getGlobalToggles()
-                    set({ isDeveloper: true })
-                } catch {
-                    set({ isDeveloper: false })
-                }
             },
         }),
         {
