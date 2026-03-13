@@ -339,6 +339,45 @@ describe('ServerSettingsPage', () => {
         })
     })
 
+    test('shows blocked feedback when adding rule without role options', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+
+        mockGuildStoreFn(
+            { ...mockGuild, canManageRbac: true },
+            {
+                canManageRbac: true,
+                effectiveAccess: defaultAccess,
+            },
+        )
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: mockGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [],
+                roles: [],
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    'No assignable roles found for this server yet.',
+                ),
+            ).toBeInTheDocument()
+        })
+
+        await user.click(screen.getByRole('button', { name: /Add Rule/i }))
+
+        expect(toast.error).toHaveBeenCalledWith(
+            'No assignable roles found for this server yet.',
+        )
+    })
+
     test('shows toast when RBAC policy save fails', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')

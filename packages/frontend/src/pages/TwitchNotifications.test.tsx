@@ -66,6 +66,22 @@ function renderPage() {
 describe('TwitchNotificationsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
+            configurable: true,
+            value: vi.fn(),
+        })
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: {
+                channels: [{ id: '67890', name: '#general' }],
+            },
+        } as any)
+        vi.mocked(api.twitch.lookupUser).mockResolvedValue({
+            data: {
+                id: '12345',
+                login: 'teststreamer',
+                displayName: 'Test Streamer',
+            },
+        } as any)
     })
 
     test('shows select server message when no guild selected', () => {
@@ -148,13 +164,12 @@ describe('TwitchNotificationsPage', () => {
 
         expect(screen.getByText('Add Twitch Notification')).toBeInTheDocument()
         expect(
-            screen.getByPlaceholderText('Twitch username'),
+            screen.getByPlaceholderText(
+                'Twitch URL or login (e.g. https://twitch.tv/luk)',
+            ),
         ).toBeInTheDocument()
         expect(
-            screen.getByPlaceholderText('Twitch user ID'),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByPlaceholderText('Discord channel ID'),
+            screen.getByText('Select Discord channel'),
         ).toBeInTheDocument()
     })
 
@@ -196,17 +211,17 @@ describe('TwitchNotificationsPage', () => {
         await user.click(screen.getByText('Add'))
 
         await user.type(
-            screen.getByPlaceholderText('Twitch username'),
+            screen.getByPlaceholderText(
+                'Twitch URL or login (e.g. https://twitch.tv/luk)',
+            ),
             'teststreamer',
         )
-        await user.type(screen.getByPlaceholderText('Twitch user ID'), '12345')
-        await user.type(
-            screen.getByPlaceholderText('Discord channel ID'),
-            '67890',
-        )
+        await user.click(screen.getByRole('combobox'))
+        await user.click(screen.getByText('#general'))
 
         await user.click(screen.getByText('Save'))
 
+        expect(api.twitch.lookupUser).toHaveBeenCalledWith('teststreamer')
         expect(api.twitch.add).toHaveBeenCalledWith('123', {
             twitchUserId: '12345',
             twitchLogin: 'teststreamer',

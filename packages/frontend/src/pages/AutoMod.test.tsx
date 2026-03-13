@@ -66,6 +66,9 @@ const renderPage = () => {
 describe('AutoModPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.automod.listTemplates).mockResolvedValue({
+            data: { templates: [] },
+        } as any)
     })
 
     test('shows no server selected when no guild', () => {
