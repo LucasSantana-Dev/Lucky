@@ -3,6 +3,7 @@ import {
     MOCK_DISCORD_USER,
     MOCK_OAUTH_STATE,
     MOCK_AUTH_CODE,
+    TEST_ENV,
 } from '../fixtures/test-data'
 
 export async function waitForAuth(page: Page, timeout = 10000): Promise<void> {
@@ -124,7 +125,7 @@ export async function verifyOAuthRedirect(page: Page): Promise<{
             return {
                 hasState: url.searchParams.has('state'),
                 hasClientId:
-                    url.searchParams.get('client_id') === '962198089161134131',
+                    url.searchParams.get('client_id') === TEST_ENV.CLIENT_ID,
                 hasRedirectUri:
                     url.searchParams
                         .get('redirect_uri')

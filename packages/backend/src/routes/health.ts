@@ -4,8 +4,6 @@ import { getFrontendOrigins } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 import { buildAuthConfigHealth } from '../utils/authHealth'
 
-const DEFAULT_PRODUCTION_CLIENT_ID = '962198089161134131'
-
 export const getForwardedHeader = (
     req: Request,
     headerName: string,
@@ -67,10 +65,7 @@ export function setupHealthRoutes(app: Express): void {
             .filter((origin) => origin.length > 0)
         const clientId = process.env.CLIENT_ID?.trim() ?? ''
         const expectedClientId =
-            process.env.WEBAPP_EXPECTED_CLIENT_ID?.trim() ??
-            (process.env.NODE_ENV === 'production'
-                ? DEFAULT_PRODUCTION_CLIENT_ID
-                : '')
+            process.env.WEBAPP_EXPECTED_CLIENT_ID?.trim() ?? ''
         const sessionSecretConfigured = Boolean(
             process.env.WEBAPP_SESSION_SECRET?.trim(),
         )

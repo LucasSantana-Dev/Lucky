@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GitGuardian incident hardening: removed hardcoded compose PostgreSQL password
+  fallbacks, switched OAuth expected client-id checks to env/secret-managed
+  values only, and replaced secret-like test/example literals that triggered
+  detectors
 - Bundle-size CI workflow now exports `YOUTUBE_DL_SKIP_DOWNLOAD=true` (with
   workflow token) so `youtube-dl-exec` postinstall no longer fails on anonymous
   GitHub API rate limits during `npm ci`

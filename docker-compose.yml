@@ -6,7 +6,7 @@ services:
         environment:
             POSTGRES_DB: discordbot
             POSTGRES_USER: discordbot
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-discordbot123}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}
         volumes:
             - postgres_data:/var/lib/postgresql/data
         networks:
@@ -62,7 +62,7 @@ services:
             - NODE_ENV=production
             - DISCORD_TOKEN=${DISCORD_TOKEN}
             - CLIENT_ID=${CLIENT_ID}
-            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD:-discordbot123}@postgres:5432/discordbot
+            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
             - REDIS_HOST=redis
             - REDIS_PORT=6379
             - REDIS_DB=${REDIS_DB:-0}
@@ -109,7 +109,7 @@ services:
             - DISCORD_TOKEN=${DISCORD_TOKEN}
             - CLIENT_ID=${CLIENT_ID}
             - CLIENT_SECRET=${CLIENT_SECRET}
-            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD:-discordbot123}@postgres:5432/discordbot
+            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
             - REDIS_HOST=redis
             - REDIS_PORT=6379
             - REDIS_DB=${REDIS_DB:-0}

@@ -88,3 +88,4 @@ cloudflared/*.json
 cloudflared/config.yml
 .DS_Store
 .vercel
+.cache_ggshield
