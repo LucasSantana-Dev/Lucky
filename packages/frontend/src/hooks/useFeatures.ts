@@ -10,6 +10,7 @@ export function useFeatures() {
     const globalToggles = useFeaturesStore((state) => state.globalToggles)
     const isLoading = useFeaturesStore((state) => state.isLoading)
     const features = useFeaturesStore((state) => state.features)
+    const loadError = useFeaturesStore((state) => state.loadError)
     const fetchFeatures = useFeaturesStore((state) => state.fetchFeatures)
     const fetchGlobalToggles = useFeaturesStore(
         (state) => state.fetchGlobalToggles,
@@ -24,6 +25,7 @@ export function useFeatures() {
         (state) => state.updateServerToggle,
     )
     const getServerToggles = useFeaturesStore((state) => state.getServerToggles)
+    const clearLoadError = useFeaturesStore((state) => state.clearLoadError)
 
     useEffect(() => {
         fetchFeatures()
@@ -48,6 +50,17 @@ export function useFeatures() {
         }
     }
 
+    const retryLoad = () => {
+        clearLoadError()
+        fetchFeatures()
+        if (isDeveloper) {
+            fetchGlobalToggles()
+        }
+        if (selectedGuild) {
+            fetchServerToggles(selectedGuild.id)
+        }
+    }
+
     const serverToggles = selectedGuild
         ? getServerToggles(selectedGuild.id)
         : globalToggles
@@ -57,7 +70,9 @@ export function useFeatures() {
         serverToggles,
         isLoading,
         features,
+        loadError,
         isDeveloper,
+        retryLoad,
         handleGlobalToggle,
         handleServerToggle,
     }
