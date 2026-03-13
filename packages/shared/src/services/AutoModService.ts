@@ -52,7 +52,7 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
         id: 'balanced',
         name: 'Balanced',
         description:
-            'Recommended baseline for active communities with common scam and abuse filters.',
+            'Balanced baseline for PT-BR + EN communities with common scam and abuse protection.',
         settings: {
             enabled: true,
             spamEnabled: true,

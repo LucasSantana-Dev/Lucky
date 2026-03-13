@@ -281,6 +281,10 @@ describe('Management Routes Integration', () => {
                     enabled: true,
                 },
             } as any)
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.logAutoModSettingsChange.mockResolvedValue()
 
             const response = await request(app)
                 .post(
@@ -292,6 +296,23 @@ describe('Management Routes Integration', () => {
             expect(mockAutoModService.applyTemplate).toHaveBeenCalledWith(
                 '111111111111111111',
                 'balanced',
+            )
+            expect(
+                mockServerLogService.logAutoModSettingsChange,
+            ).toHaveBeenCalledWith(
+                '111111111111111111',
+                {
+                    module: 'general',
+                    enabled: true,
+                    changes: {
+                        templateId: 'balanced',
+                        settings: {
+                            guildId: '111111111111111111',
+                            enabled: true,
+                        },
+                    },
+                },
+                MOCK_SESSION_DATA.userId,
             )
             expect(response.body).toEqual({
                 templateId: 'balanced',

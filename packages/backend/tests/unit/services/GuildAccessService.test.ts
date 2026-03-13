@@ -508,10 +508,14 @@ describe('GuildAccessService', () => {
             music: 'manage',
             integrations: 'manage',
         }
+        const cachedGuilds = JSON.stringify([guild])
 
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockRedisGet.mockResolvedValue(cachedGuilds)
         mockGetUserGuilds.mockResolvedValueOnce([guild])
         mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
         await guildAccessService.listAuthorizedGuilds(SESSION)
+        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
 
         mockGetUserGuilds.mockRejectedValueOnce({ status: 429 })
 
@@ -521,6 +525,31 @@ describe('GuildAccessService', () => {
             statusCode: 502,
             message: 'Discord API is temporarily unavailable. Please retry.',
         })
+        expect(mockRedisGet).toHaveBeenCalled()
+    })
+
+    test('listAuthorizedGuilds does not store raw access token bytes in redis key', async () => {
+        const guild = makeGuild('920', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        await guildAccessService.listAuthorizedGuilds(SESSION)
+
+        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
+        const redisKey = mockRedisSetex.mock.calls[0][0]
+        expect(redisKey).toContain(`guild-access:user-guilds:${SESSION.user.id}:`)
+        expect(redisKey).not.toContain(SESSION.accessToken)
+        expect(redisKey).not.toContain(SESSION.accessToken.slice(0, 24))
     })
 
     test('hasAccess delegates to guild role access service', () => {

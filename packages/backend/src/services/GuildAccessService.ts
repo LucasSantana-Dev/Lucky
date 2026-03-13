@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
     GuildRoleGrantStorageError,
     guildRoleAccessService,
@@ -58,7 +59,12 @@ class GuildAccessService {
     }
 
     private getCacheKey(session: SessionData): string {
-        return `guild-access:user-guilds:${session.user.id}:${session.accessToken.slice(0, 24)}`
+        const accessTokenFingerprint = createHash('sha256')
+            .update(session.accessToken)
+            .digest('hex')
+            .slice(0, 16)
+
+        return `guild-access:user-guilds:${session.user.id}:${accessTokenFingerprint}`
     }
 
     private async getCachedGuilds(

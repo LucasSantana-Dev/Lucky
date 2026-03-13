@@ -58,6 +58,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundle-size CI workflow now exports `YOUTUBE_DL_SKIP_DOWNLOAD=true` (with
   workflow token) so `youtube-dl-exec` postinstall no longer fails on anonymous
   GitHub API rate limits during `npm ci`
+- Auto-mod template apply now writes Server Logs audit entries; guild fallback
+  cache keys now use a non-reversible access-token fingerprint; Twitch and
+  guild-selection frontend flows now include additional race guards and
+  keyboard/screen-reader accessibility hardening
 - Guild-access fallback caching now uses shared Redis keys instead of
   process-local memory, preserving fallback behavior across multi-instance
   backend deployments

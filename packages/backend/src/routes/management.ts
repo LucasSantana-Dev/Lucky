@@ -87,11 +87,24 @@ export function setupManagementRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const templateId = p(req.params.templateId)
+            const userId = requireUserId(req)
 
             try {
                 const result = await autoModService.applyTemplate(
                     guildId,
                     templateId,
+                )
+                await serverLogService.logAutoModSettingsChange(
+                    guildId,
+                    {
+                        module: 'general',
+                        enabled: Boolean(result.settings.enabled),
+                        changes: {
+                            templateId: result.template.id,
+                            settings: result.settings,
+                        },
+                    },
+                    userId,
                 )
                 res.json({
                     templateId: result.template.id,

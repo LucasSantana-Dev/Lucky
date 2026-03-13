@@ -156,6 +156,7 @@ cd Lucky
 cp .env.example .env    # Configure DISCORD_TOKEN, CLIENT_ID, DATABASE_URL
 npm install
 npm run build
+npm run db:migrate   # Required before start; startup preflight checks guild_role_grants
 npm start
 ```
 
