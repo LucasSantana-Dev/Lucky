@@ -197,6 +197,7 @@ npm run lint --workspace=packages/backend
 npm run type:check      # TypeScript validation
 npm run test            # Backend tests (Jest)
 npm run test:coverage   # With coverage report
+npm run audit:high      # Dependency audit (high/critical gate)
 npm run format          # Prettier
 npm audit --audit-level=high
 ```
@@ -207,6 +208,10 @@ For dependency security maintenance, run:
 npm update undici flatted --workspaces --include-workspace-root
 npm audit --audit-level=high
 ```
+
+Security remediation policy: each hardening cycle clears high/critical
+findings first with minimal dependency blast radius; moderate findings are
+tracked in `docs/DEPENDENCY_UPDATES.md` for follow-up cycles.
 
 ### Local Database Bootstrap
 

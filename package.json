@@ -99,7 +99,8 @@
     "overrides": {
         "fast-xml-parser": ">=4.5.4",
         "tar": ">=7.5.11",
-        "undici": ">=6.23.0",
+        "undici": ">=7.24.0",
+        "flatted": ">=3.4.0",
         "@smithy/config-resolver": ">=4.4.10",
         "@aws-sdk/client-sso": ">=3.726.0",
         "@hono/node-server": ">=1.19.10",

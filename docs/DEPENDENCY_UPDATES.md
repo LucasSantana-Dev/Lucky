@@ -2,7 +2,9 @@
 
 Phased plan for updating Lucky dependencies. Run each phase on a branch; verify build, type-check, tests, and `npm run audit:critical` before merging.
 
-**Plan status:** Phase 1, Phase 2 (2a–2d), and Phase 3 are complete. Ongoing: re-run `npm audit` / `audit:critical` when upstreams release fixes; retry Zod 4 when `@hookform/resolvers` supports it.
+**Plan status:** Phase 1, Phase 2 (2a–2d), and Phase 3 are complete. Current
+security cycle (`chore/security-high-remediation`) is scoped to high/critical
+findings only; moderate findings remain tracked for follow-up.
 
 ## Current stack summary
 
@@ -84,18 +86,24 @@ Do these only after Phase 1 is merged and stable.
 
 ## Phase 3: Transitive / security (track only; no force-downgrade)
 
-**Known audit issues (last updated: after Phase 2d; 32 vulnerabilities: 12 low, 14 moderate, 6 high):**
+**Known audit issues (baseline before high/critical hotfix: 10 moderate, 2 high, 0 critical):**
 
 - **@smithy/config-resolver** (via @infisical/sdk): Override `@smithy/config-resolver@>=4.4.0` was tried; incompatible with AWS SDK v3 chain (SDK v3 uses @smithy v3). Wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
 - **hono** (via prisma): pinned via root override to `>=4.12.7`.
 - **lodash** (via chevrotain → @mrleebo/prisma-ast): Prisma/ecosystem updates may resolve; no override unless patched.
 - **tar** (via tooling): pinned via root override to `>=7.5.11`.
 - **file-type** (via transitive media tooling): pinned via root override to `>=21.3.1`.
-- **undici** (via discord.js, youtubei.js): Same; keep discord.js and youtubei.js at latest 14.x / 16.x and track releases.
+- **undici** (via discord.js, youtubei.js): high advisories are mitigated in
+  this cycle via root override `undici >=7.24.0`; keep discord.js and
+  youtubei.js updated to reduce long-term override reliance.
+- **flatted** (via eslint flat-cache): high advisory is mitigated in this
+  cycle via root override `flatted >=3.4.0`; remove override once upstream
+  minimums include patched ranges.
 
 **Actions:**
 
-- Re-run `npm audit` and `npm run audit:critical` after Phase 1 and after any major upgrade.
+- Re-run `npm audit` and `npm run audit:high` after this high/critical cycle
+  and after any major upgrade.
 - Add `overrides` in root `package.json` only when a specific patch is required and safe. Do **not** override `@smithy/config-resolver` to v4+ while @infisical/sdk uses AWS SDK v3 (incompatible). Test thoroughly.
 - Document remaining known high/critical in this file or in a short “Known vulnerabilities” section and update when upstream fixes land.
 
