@@ -236,12 +236,18 @@ describe('GuildAccessService', () => {
     })
 
     test('listAuthorizedGuilds maps Discord upstream failures to 502 AppError', async () => {
+        const uncachedSession = {
+            ...SESSION,
+            accessToken: 'fresh-token-for-upstream-error',
+        }
         mockGetUserGuilds.mockRejectedValue({
             status: 429,
             message: 'rate limited',
         })
 
-        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+        await expect(
+            guildAccessService.listAuthorizedGuilds(uncachedSession),
+        ).rejects.toMatchObject({
             statusCode: 502,
             message: 'Discord API is temporarily unavailable. Please retry.',
         })
