@@ -5,10 +5,11 @@
     "type": "module",
     "main": "./dist/index.js",
     "scripts": {
-        "build": "tsc && node add-js-extensions.js",
+        "preflight": "npm --prefix ../.. run db:generate && npm --prefix ../.. run build:shared",
+        "build": "npm run preflight && tsc && node add-js-extensions.js",
         "dev": "tsx watch src/index.ts",
         "start": "node dist/index.js",
-        "type:check": "tsc --noEmit",
+        "type:check": "npm run preflight && tsc --noEmit",
         "test": "jest",
         "test:coverage": "jest --coverage"
     },
