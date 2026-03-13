@@ -30,6 +30,29 @@ const defaultAccess = {
     integrations: 'manage',
 } as const
 
+const managerGuild = { ...mockGuild, canManageRbac: true }
+const managerRoles = [{ id: '222222222222222222', name: 'Mods' }]
+
+const makeManagerRbacPayload = (overrides: Record<string, unknown> = {}) => ({
+    guildId: managerGuild.id,
+    modules: Object.keys(defaultAccess),
+    grants: [],
+    roles: managerRoles,
+    effectiveAccess: defaultAccess,
+    canManageRbac: true,
+    ...overrides,
+})
+
+const setupManagerRbac = (overrides: Record<string, unknown> = {}) => {
+    mockGuildStoreFn(managerGuild, {
+        canManageRbac: true,
+        effectiveAccess: defaultAccess,
+    })
+    vi.mocked(api.guilds.getRbac).mockResolvedValue({
+        data: makeManagerRbacPayload(overrides),
+    } as any)
+}
+
 function mockGuildStoreFn(guild: typeof mockGuild | null, memberContext?: any) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
@@ -478,22 +501,7 @@ describe('ServerSettingsPage', () => {
     test('applies Criativaria baseline and shows success toast', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')
-        const managerGuild = { ...mockGuild, canManageRbac: true }
-
-        mockGuildStoreFn(managerGuild, {
-            canManageRbac: true,
-            effectiveAccess: defaultAccess,
-        })
-        vi.mocked(api.guilds.getRbac).mockResolvedValue({
-            data: {
-                guildId: managerGuild.id,
-                modules: Object.keys(defaultAccess),
-                grants: [],
-                roles: [{ id: '222222222222222222', name: 'Mods' }],
-                effectiveAccess: defaultAccess,
-                canManageRbac: true,
-            },
-        } as any)
+        setupManagerRbac()
         vi.mocked(api.guilds.applyCriativariaPreset).mockResolvedValue({
             data: { run: { status: 'completed' } },
         } as any)
@@ -515,28 +523,22 @@ describe('ServerSettingsPage', () => {
         })
     })
 
-    test('shows ApiError message when Criativaria baseline apply fails', async () => {
+    test.each([
+        {
+            name: 'shows ApiError message when Criativaria baseline apply fails',
+            error: new ApiError(500, 'Preset failed'),
+            expectedToast: 'Preset failed',
+        },
+        {
+            name: 'shows generic message when Criativaria baseline apply fails unexpectedly',
+            error: new Error('Unexpected failure'),
+            expectedToast: 'Failed to apply Criativaria baseline',
+        },
+    ])('$name', async ({ error, expectedToast }) => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')
-        const managerGuild = { ...mockGuild, canManageRbac: true }
-
-        mockGuildStoreFn(managerGuild, {
-            canManageRbac: true,
-            effectiveAccess: defaultAccess,
-        })
-        vi.mocked(api.guilds.getRbac).mockResolvedValue({
-            data: {
-                guildId: managerGuild.id,
-                modules: Object.keys(defaultAccess),
-                grants: [],
-                roles: [{ id: '222222222222222222', name: 'Mods' }],
-                effectiveAccess: defaultAccess,
-                canManageRbac: true,
-            },
-        } as any)
-        vi.mocked(api.guilds.applyCriativariaPreset).mockRejectedValue(
-            new ApiError(500, 'Preset failed'),
-        )
+        setupManagerRbac()
+        vi.mocked(api.guilds.applyCriativariaPreset).mockRejectedValue(error)
 
         renderPage()
 
@@ -546,30 +548,21 @@ describe('ServerSettingsPage', () => {
         await user.click(applyButton)
 
         await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith('Preset failed')
+            expect(toast.error).toHaveBeenCalledWith(expectedToast)
         })
     })
 
     test('retries RBAC role loading from warning card', async () => {
         const user = userEvent.setup()
-        const managerGuild = { ...mockGuild, canManageRbac: true }
-
+        vi.mocked(api.guilds.getRbac)
+            .mockRejectedValueOnce(new Error('initial network'))
+            .mockResolvedValueOnce({
+                data: makeManagerRbacPayload(),
+            } as any)
         mockGuildStoreFn(managerGuild, {
             canManageRbac: true,
             effectiveAccess: defaultAccess,
         })
-        vi.mocked(api.guilds.getRbac)
-            .mockRejectedValueOnce(new Error('initial network'))
-            .mockResolvedValueOnce({
-                data: {
-                    guildId: managerGuild.id,
-                    modules: Object.keys(defaultAccess),
-                    grants: [],
-                    roles: [{ id: '222222222222222222', name: 'Mods' }],
-                    effectiveAccess: defaultAccess,
-                    canManageRbac: true,
-                },
-            } as any)
 
         renderPage()
 

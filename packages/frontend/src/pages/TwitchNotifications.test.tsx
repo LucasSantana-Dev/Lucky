@@ -27,6 +27,9 @@ const mockNotifications = [
     },
 ]
 
+const TWITCH_INPUT_PLACEHOLDER =
+    'Twitch URL or login (e.g. https://twitch.tv/luk)'
+
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 
 function mockGuildSelection(guild: typeof mockGuild | null) {
@@ -61,6 +64,19 @@ function renderPage() {
             <TwitchNotificationsPage />
         </MemoryRouter>,
     )
+}
+
+async function openAddForm(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByText('Add'))
+}
+
+async function fillNotificationForm(
+    user: ReturnType<typeof userEvent.setup>,
+    twitchInput: string,
+) {
+    await user.type(screen.getByPlaceholderText(TWITCH_INPUT_PLACEHOLDER), twitchInput)
+    await user.click(screen.getByRole('combobox'))
+    await user.click(screen.getByText('#general'))
 }
 
 describe('TwitchNotificationsPage', () => {
@@ -208,17 +224,8 @@ describe('TwitchNotificationsPage', () => {
             expect(screen.getByText('Add')).toBeInTheDocument()
         })
 
-        await user.click(screen.getByText('Add'))
-
-        await user.type(
-            screen.getByPlaceholderText(
-                'Twitch URL or login (e.g. https://twitch.tv/luk)',
-            ),
-            'teststreamer',
-        )
-        await user.click(screen.getByRole('combobox'))
-        await user.click(screen.getByText('#general'))
-
+        await openAddForm(user)
+        await fillNotificationForm(user, 'teststreamer')
         await user.click(screen.getByText('Save'))
 
         await waitFor(() => {
@@ -284,15 +291,8 @@ describe('TwitchNotificationsPage', () => {
 
         renderPage()
 
-        await user.click(await screen.findByText('Add'))
-        await user.type(
-            screen.getByPlaceholderText(
-                'Twitch URL or login (e.g. https://twitch.tv/luk)',
-            ),
-            '!!',
-        )
-        await user.click(screen.getByRole('combobox'))
-        await user.click(screen.getByText('#general'))
+        await openAddForm(user)
+        await fillNotificationForm(user, '!!')
         await user.click(screen.getByText('Save'))
 
         expect(
@@ -316,15 +316,8 @@ describe('TwitchNotificationsPage', () => {
 
         renderPage()
 
-        await user.click(await screen.findByText('Add'))
-        await user.type(
-            screen.getByPlaceholderText(
-                'Twitch URL or login (e.g. https://twitch.tv/luk)',
-            ),
-            'shroud',
-        )
-        await user.click(screen.getByRole('combobox'))
-        await user.click(screen.getByText('#general'))
+        await openAddForm(user)
+        await fillNotificationForm(user, 'shroud')
         await user.click(screen.getByText('Save'))
 
         expect(
@@ -343,7 +336,7 @@ describe('TwitchNotificationsPage', () => {
         )
 
         renderPage()
-        await user.click(await screen.findByText('Add'))
+        await openAddForm(user)
 
         expect(
             await screen.findByText('Failed to load Discord channels'),
