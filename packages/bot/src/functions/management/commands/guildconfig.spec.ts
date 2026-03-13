@@ -286,6 +286,48 @@ describe('guildconfig command', () => {
         )
     })
 
+    it('skips missing members and members without removable roles during cutover cleanup', async () => {
+        const interaction = createInteraction('cutover')
+        const removeRolesMock = jest.fn().mockResolvedValue(undefined)
+
+        interaction.guild.members = {
+            cache: new Map([
+                [
+                    'legacy-bot-no-removable',
+                    {
+                        roles: {
+                            cache: new Map([
+                                ['123456789012345678', { id: '123456789012345678' }],
+                            ]),
+                            remove: removeRolesMock,
+                        },
+                    },
+                ],
+            ]),
+        }
+
+        runCutoverMock.mockResolvedValue({
+            runId: 'run-cutover-complete',
+            status: 'completed',
+            checklistComplete: true,
+        })
+        getManifestMock.mockResolvedValue({
+            manifest: {
+                parity: {
+                    externalBots: [
+                        { id: 'legacy-bot-missing' },
+                        { id: 'legacy-bot-no-removable' },
+                    ],
+                },
+            },
+        })
+
+        await guildconfigCommand.execute({ interaction } as any)
+
+        expect(getManifestMock).toHaveBeenCalledWith('123456789012345678')
+        expect(removeRolesMock).not.toHaveBeenCalled()
+    })
+
     it('skips legacy bot cleanup when cutover is blocked', async () => {
         const interaction = createInteraction('cutover')
 

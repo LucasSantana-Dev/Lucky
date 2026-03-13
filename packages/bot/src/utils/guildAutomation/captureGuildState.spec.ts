@@ -99,6 +99,19 @@ function createGuild(overrides: Record<string, unknown> = {}) {
                     },
                 ],
                 [
+                    'text-no-overwrite',
+                    {
+                        id: 'text-no-overwrite',
+                        name: 'readonly-false',
+                        type: ChannelType.GuildText,
+                        parentId: null,
+                        topic: null,
+                        permissionOverwrites: {
+                            cache: new Map(),
+                        },
+                    },
+                ],
+                [
                     'unsupported',
                     {
                         id: 'unsupported',
@@ -174,6 +187,12 @@ describe('captureGuildAutomationState', () => {
                 readonly: false,
                 topic: null,
             }),
+            expect.objectContaining({
+                id: 'text-no-overwrite',
+                type: 'GuildText',
+                readonly: false,
+                topic: null,
+            }),
         ])
         expect(result.reactionroles.messages).toEqual([
             expect.objectContaining({
@@ -208,10 +227,10 @@ describe('captureGuildAutomationState', () => {
 
     it('rethrows unexpected onboarding fetch errors', async () => {
         const guild = createGuild()
-        ;(guild.fetchOnboarding as jest.Mock).mockRejectedValue(new Error('onboarding-fail'))
+        ;(guild.fetchOnboarding as jest.Mock).mockRejectedValue('onboarding-fail')
 
         await expect(
             captureGuildAutomationState(guild as any, 'bot-self'),
-        ).rejects.toThrow('onboarding-fail')
+        ).rejects.toBe('onboarding-fail')
     })
 })
