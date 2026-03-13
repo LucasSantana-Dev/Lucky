@@ -121,7 +121,7 @@ export const useGuildStore = create<GuildState>((set, get) => ({
     serverListing: null,
 
     fetchGuilds: async (force = false) => {
-        if (get().isLoading && guildFetchPromise) {
+        if (!force && get().isLoading && guildFetchPromise) {
             await guildFetchPromise
             return
         }
@@ -234,6 +234,19 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             })
             .catch(() => {
                 set(withCurrentGuild({ serverSettings: null }))
+            })
+
+        api.guilds
+            .getListing(guildId)
+            .then((response) => {
+                set(
+                    withCurrentGuild({
+                        serverListing: response.data.listing,
+                    }),
+                )
+            })
+            .catch(() => {
+                set(withCurrentGuild({ serverListing: null }))
             })
     },
 

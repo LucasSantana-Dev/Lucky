@@ -309,6 +309,11 @@ export default function AutoModPage() {
                                 applyTemplate(template.id)
                             }}
                             disabled={applyingTemplateId !== null}
+                            aria-label={
+                                applyingTemplateId === template.id
+                                    ? `Applying ${template.name} template`
+                                    : `Apply ${template.name} template`
+                            }
                         >
                             {applyingTemplateId === template.id ? (
                                 <Loader2 className='h-4 w-4 animate-spin' />

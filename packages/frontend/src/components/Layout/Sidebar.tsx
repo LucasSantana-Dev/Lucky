@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
+import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
 import { hasModuleAccess } from '@/lib/rbac'
 import type { ModuleKey } from '@/types'
@@ -184,6 +185,7 @@ function Sidebar() {
     const profileSubtitle = user?.username ? `@${user.username}` : 'Online'
     const showReauth =
         guildLoadError?.kind === 'auth' || guildLoadError?.kind === 'forbidden'
+    const discordAuthUrl = api.auth.getDiscordLoginUrl()
 
     let guildLoadErrorMessage = guildLoadError?.message ?? ''
     if (guildLoadError?.kind === 'forbidden') {
@@ -297,7 +299,7 @@ function Sidebar() {
                                             </button>
                                             {showReauth && (
                                                 <a
-                                                    href='/api/auth/discord'
+                                                    href={discordAuthUrl}
                                                     className='lucky-focus-visible rounded-md border border-lucky-border px-2.5 py-1 text-[11px] font-semibold text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
                                                 >
                                                     Re-authenticate

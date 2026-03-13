@@ -34,14 +34,20 @@ export default function TwitchNotificationsPage() {
     const [newChannelId, setNewChannelId] = useState('')
     const notificationsRequestIdRef = useRef(0)
     const channelsRequestIdRef = useRef(0)
+    const selectedGuildIdRef = useRef<string | undefined>(guildId)
+
+    useEffect(() => {
+        selectedGuildIdRef.current = guildId
+    }, [guildId])
 
     const channelNameById = useMemo(
         () => new Map(channels.map((channel) => [channel.id, channel.name])),
         [channels],
     )
 
-    const loadNotifications = useCallback(async () => {
-        if (!guildId) {
+    const loadNotifications = useCallback(async (targetGuildId?: string) => {
+        const requestGuildId = targetGuildId ?? guildId
+        if (!requestGuildId) {
             setNotifications([])
             setIsLoading(false)
             return
@@ -52,18 +58,27 @@ export default function TwitchNotificationsPage() {
         setIsLoading(true)
         setError(null)
         try {
-            const res = await api.twitch.list(guildId)
-            if (requestId !== notificationsRequestIdRef.current) {
+            const res = await api.twitch.list(requestGuildId)
+            if (
+                requestId !== notificationsRequestIdRef.current ||
+                selectedGuildIdRef.current !== requestGuildId
+            ) {
                 return
             }
             setNotifications(res.data.notifications)
         } catch {
-            if (requestId !== notificationsRequestIdRef.current) {
+            if (
+                requestId !== notificationsRequestIdRef.current ||
+                selectedGuildIdRef.current !== requestGuildId
+            ) {
                 return
             }
             setError('Failed to load Twitch notifications')
         } finally {
-            if (requestId === notificationsRequestIdRef.current) {
+            if (
+                requestId === notificationsRequestIdRef.current &&
+                selectedGuildIdRef.current === requestGuildId
+            ) {
                 setIsLoading(false)
             }
         }
@@ -101,7 +116,7 @@ export default function TwitchNotificationsPage() {
             return
         }
 
-        loadNotifications().catch(() => {})
+        loadNotifications(guildId).catch(() => {})
         loadChannels().catch(() => {})
     }, [loadNotifications, loadChannels])
 
@@ -143,6 +158,7 @@ export default function TwitchNotificationsPage() {
 
     const handleAdd = async () => {
         if (!guildId || !newTwitchInput || !newChannelId) return
+        const requestGuildId = guildId
         const login = parseTwitchLogin(newTwitchInput)
         if (!login) {
             setError('Enter a valid Twitch URL or login')
@@ -160,7 +176,7 @@ export default function TwitchNotificationsPage() {
                 return
             }
 
-            await api.twitch.add(guildId, {
+            await api.twitch.add(requestGuildId, {
                 twitchUserId: lookup.data.id,
                 twitchLogin: lookup.data.login,
                 discordChannelId: newChannelId,
@@ -168,7 +184,9 @@ export default function TwitchNotificationsPage() {
             setShowAdd(false)
             setNewTwitchInput('')
             setNewChannelId('')
-            await loadNotifications()
+            if (selectedGuildIdRef.current === requestGuildId) {
+                await loadNotifications(requestGuildId)
+            }
         } catch {
             setError('Failed to add notification')
         }
@@ -230,7 +248,7 @@ export default function TwitchNotificationsPage() {
                         </div>
                         <button
                             onClick={() => handleRemove(notif.twitchUserId)}
-                            className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer'
+                            className='lucky-focus-visible p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 cursor-pointer'
                             aria-label={`Remove ${notif.twitchLogin}`}
                         >
                             <Trash2 className='w-4 h-4' />

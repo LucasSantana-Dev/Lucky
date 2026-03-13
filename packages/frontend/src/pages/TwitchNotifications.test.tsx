@@ -221,11 +221,14 @@ describe('TwitchNotificationsPage', () => {
 
         await user.click(screen.getByText('Save'))
 
-        expect(api.twitch.lookupUser).toHaveBeenCalledWith('teststreamer')
-        expect(api.twitch.add).toHaveBeenCalledWith('123', {
-            twitchUserId: '12345',
-            twitchLogin: 'teststreamer',
-            discordChannelId: '67890',
+        await waitFor(() => {
+            expect(api.twitch.lookupUser).toHaveBeenCalledWith('teststreamer')
+            expect(api.twitch.add).toHaveBeenCalledWith('123', {
+                twitchUserId: '12345',
+                twitchLogin: 'teststreamer',
+                discordChannelId: '67890',
+            })
+            expect(api.twitch.list).toHaveBeenCalledTimes(2)
         })
     })
 
