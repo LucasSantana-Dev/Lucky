@@ -281,6 +281,8 @@ visit to `/servers` first.
 Guild auto-selection prioritizes the first server where Lucky is already added;
 if none are bot-added, the dashboard keeps no selected server and shows a clear
 selection/empty guidance state.
+Guild selection now loads only member-context bootstrap data and no longer
+triggers eager guild detail/listing fetches during route navigation.
 Server selector empty/error states are split:
 - `No accessible servers found` means authentication worked but no authorized
   guilds matched your access policy.

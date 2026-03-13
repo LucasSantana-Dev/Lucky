@@ -38,15 +38,9 @@ const MANAGE_ACCESS = {
 
 type MeResponse = { data: GuildMemberContext }
 
-function setupSelectedGuildApiMocks(guildId: string, guild?: Guild) {
-    vi.mocked(api.guilds.get).mockResolvedValue({
-        data: { guild: guild ?? mockGuild({ id: guildId }) },
-    } as never)
+function setupSelectedGuildApiMocks(guildId: string) {
     vi.mocked(api.guilds.getSettings).mockResolvedValue({
         data: { settings: null },
-    } as never)
-    vi.mocked(api.guilds.getListing).mockResolvedValue({
-        data: { listing: null },
     } as never)
     vi.mocked(api.guilds.getMe).mockResolvedValue({
         data: {
@@ -73,7 +67,6 @@ describe('guildStore', () => {
             memberContext: null,
             memberContextLoading: false,
             serverSettings: null,
-            serverListing: null,
         })
         vi.clearAllMocks()
     })
@@ -108,6 +101,22 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().selectedGuildId).toBe('2')
         })
 
+        test('should keep selected guild empty when user has no bot-added guild', async () => {
+            const guilds = [
+                mockGuild({ id: '1', botAdded: false }),
+                mockGuild({ id: '2', botAdded: false }),
+            ]
+
+            vi.mocked(api.guilds.list).mockResolvedValue({
+                data: { guilds },
+            } as never)
+
+            await useGuildStore.getState().fetchGuilds()
+
+            expect(useGuildStore.getState().selectedGuildId).toBeNull()
+            expect(vi.mocked(api.guilds.getMe)).not.toHaveBeenCalled()
+        })
+
         test('should reset on fetch error', async () => {
             vi.mocked(api.guilds.list).mockRejectedValue(
                 new Error('Network error'),
@@ -131,7 +140,7 @@ describe('guildStore', () => {
             vi.mocked(api.guilds.list).mockResolvedValue({
                 data: { guilds: [refreshedGuild] },
             } as never)
-            setupSelectedGuildApiMocks(refreshedGuild.id, refreshedGuild)
+            setupSelectedGuildApiMocks(refreshedGuild.id)
 
             await useGuildStore.getState().fetchGuilds()
 
@@ -158,9 +167,12 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().selectedGuild).toBeNull()
             expect(useGuildStore.getState().selectedGuildId).toBeNull()
         })
-    test('should clear member context and settings when dependent calls fail', async () => {
-        const guild = mockGuild({ id: 'error-guild' })
-        vi.mocked(api.guilds.getMe).mockRejectedValue(new Error('me failed'))
+
+        test('should clear member context and settings when dependent calls fail', async () => {
+            const guild = mockGuild({ id: 'error-guild' })
+            vi.mocked(api.guilds.getMe).mockRejectedValue(
+                new Error('me failed'),
+            )
 
             useGuildStore.getState().selectGuild(guild)
 
@@ -195,6 +207,8 @@ describe('guildStore', () => {
             })
 
             expect(vi.mocked(api.guilds.getSettings)).not.toHaveBeenCalled()
+            expect(vi.mocked(api.guilds.get)).not.toHaveBeenCalled()
+            expect(vi.mocked(api.guilds.getListing)).not.toHaveBeenCalled()
         })
 
         test('should ignore stale async responses from previous selected guild', async () => {
@@ -251,12 +265,12 @@ describe('guildStore', () => {
             })
             await Promise.resolve()
 
-        const state = useGuildStore.getState()
-        expect(state.selectedGuildId).toBe(guildB.id)
-        expect(state.memberContext?.guildId).toBe(guildB.id)
-        expect(state.serverSettings).toBeNull()
+            const state = useGuildStore.getState()
+            expect(state.selectedGuildId).toBe(guildB.id)
+            expect(state.memberContext?.guildId).toBe(guildB.id)
+            expect(state.serverSettings).toBeNull()
+        })
     })
-})
 
     describe('updateServerSettings', () => {
         test('should merge partial settings', () => {
