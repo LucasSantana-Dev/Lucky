@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added backend automation API routes under
   `/api/guilds/:guildId/automation/*` for manifest CRUD, run execution, status,
   and cutover operations
+- Added automation-adjacent management endpoints:
+  `GET /api/guilds/:guildId/channels`,
+  `GET /api/guilds/:guildId/automod/templates`,
+  `POST /api/guilds/:guildId/automod/templates/:templateId/apply`, and
+  `POST /api/guilds/:guildId/automation/presets/criativaria/apply`
 
 - Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
   command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
