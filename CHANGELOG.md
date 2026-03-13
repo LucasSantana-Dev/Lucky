@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `db:generate` now applies a CI-safe fallback `DATABASE_URL` for Prisma client
   generation so build-only pipelines do not fail on missing database secrets
   (PR #188 follow-up)
+- Bot workspace `type:check` and `build` commands now run deterministic
+  preflight bootstrap (`db:generate` + `build:shared`) before bot compile
+  steps, preventing clean-worktree failures from missing shared declaration
+  outputs or stale Prisma generated types
 - Removed stale frontend guild `/listing` client/store contract and aligned
   dashboard route expectations to canonical
   `/api/guilds/:guildId/automessages` (legacy

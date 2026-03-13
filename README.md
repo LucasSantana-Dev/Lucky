@@ -181,6 +181,11 @@ npm run format          # Prettier
 config discovery.
 `npm run db:generate` now injects a safe fallback `DATABASE_URL` only for
 client generation, so CI build jobs can run `build` without a database secret.
+Bot-only verification commands now run deterministic preflight bootstrap:
+`npm run type:check --workspace=packages/bot` and `npm run build:bot` both
+regenerate Prisma client files and rebuild `@lucky/shared` before bot compile
+steps, so clean worktrees do not fail with stale/missing shared declaration
+artifacts.
 
 `npm run db:migrate` runs a guarded wrapper:
 - default path: `prisma migrate dev --config prisma/prisma.config.ts`
@@ -193,8 +198,8 @@ client generation, so CI build jobs can run `build` without a database secret.
 - all other migration errors fail normally without fallback
 
 For isolated git worktrees, run `npm install` inside each worktree before
-`npm run type:check` to keep local package resolution pinned to that worktree
-and avoid stale shared type declarations leaking from another checkout.
+full-project verification (`npm run type:check`, `npm run build`) to keep local
+package resolution pinned to that worktree.
 
 Backend lint now runs in strict mode across all backend routes and middleware.
 Use `npm run lint:full --workspace=packages/backend` for explicit backend-only
