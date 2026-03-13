@@ -6,7 +6,6 @@ import {
 import Command from '../../../models/Command'
 import {
     guildAutomationService,
-    type GuildAutomationManifestDocument,
 } from '@lucky/shared/services'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { captureGuildAutomationState } from '../../../utils/guildAutomation/captureGuildState'
@@ -203,8 +202,7 @@ export default new Command({
                 if (!blockedByProtected) {
                     const applyResult = await applyAutomationModules({
                         guild,
-                        desired:
-                            planResult.desired as GuildAutomationManifestDocument,
+                        desired: planResult.desired,
                         plan: planResult.plan,
                         allowProtected,
                     })
