@@ -70,6 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accessibility semantics
 - Auto-Mod template apply flow now uses a typed
   `AutoModTemplateNotFoundError` mapped to stable `404` route responses
+- Dashboard auth/bootstrap now derives developer status directly from
+  `/api/auth/status` (`user.isDeveloper`) and no longer calls developer-only
+  `/api/toggles/global` for non-developer sessions; guild access lookups now
+  dedupe concurrent Discord guild fetches and map guild-context dependency
+  failures to explicit retryable `502` errors instead of opaque panel failures
+- Server settings loading moved to explicit `/settings` page fetch flow with
+  actionable retry/re-auth state on auth/network/upstream failures (instead of
+  hidden background fetches during generic guild selection)
 - OAuth callback resolution now prioritizes `WEBAPP_BACKEND_URL` in production
   (fallback: `WEBAPP_REDIRECT_URI`) so `/api/auth/discord` and
   `/api/health/auth-config` stay aligned with split-origin API deployments.

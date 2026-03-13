@@ -115,6 +115,7 @@ function makeGuild(
 describe('GuildAccessService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        guildAccessService.resetCachesForTests()
         mockHasAdminPermission.mockImplementation(() => false)
         mockHasAnyAccess.mockImplementation((access) =>
             Object.values(access).some((value) => value !== 'none'),
@@ -379,7 +380,7 @@ describe('GuildAccessService', () => {
         })
     })
 
-    test('resolveGuildContext throws when guild member context lookup fails', async () => {
+    test('resolveGuildContext maps member context lookup failures to 502 AppError', async () => {
         const guild = makeGuild('808')
 
         mockGetUserGuilds.mockResolvedValue([guild])
@@ -390,9 +391,45 @@ describe('GuildAccessService', () => {
 
         await expect(
             guildAccessService.resolveGuildContext(SESSION, guild.id),
-        ).rejects.toThrow('member context unavailable')
+        ).rejects.toMatchObject({
+            statusCode: 502,
+            message: 'Unable to resolve server access right now. Please retry.',
+        })
 
         expect(mockResolveEffectiveAccess).not.toHaveBeenCalled()
+    })
+
+    test('dedupes concurrent guild fetches for the same session', async () => {
+        const guilds = [makeGuild('202')]
+        const deferred = new Promise<DiscordGuild[]>((resolve) => {
+            setTimeout(() => resolve(guilds), 0)
+        })
+
+        mockGetUserGuilds.mockReturnValue(deferred)
+        mockHasBotInGuild.mockResolvedValue(true)
+        mockGetGuildMemberContext.mockResolvedValue({
+            nickname: null,
+            roleIds: [],
+        })
+        mockResolveEffectiveAccess.mockResolvedValue({
+            ...EMPTY_ACCESS,
+            overview: 'view',
+        })
+        mockEnrichGuildsWithBotStatus.mockResolvedValue([
+            {
+                ...guilds[0],
+                hasBot: true,
+            },
+        ])
+
+        const [authorizedGuilds, context] = await Promise.all([
+            guildAccessService.listAuthorizedGuilds(SESSION),
+            guildAccessService.resolveGuildContext(SESSION, '202'),
+        ])
+
+        expect(authorizedGuilds).toHaveLength(1)
+        expect(context?.guildId).toBe('202')
+        expect(mockGetUserGuilds).toHaveBeenCalledTimes(1)
     })
 
     test('resolveGuildContext does not require bot lookup for admin guilds', async () => {

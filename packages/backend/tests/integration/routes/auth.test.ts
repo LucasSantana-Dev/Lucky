@@ -405,6 +405,31 @@ describe('Auth Routes Integration', () => {
                     username: MOCK_SESSION_DATA.user.username,
                     discriminator: MOCK_SESSION_DATA.user.discriminator,
                     avatar: MOCK_SESSION_DATA.user.avatar,
+                    isDeveloper: false,
+                },
+            })
+        })
+
+        test('should flag authenticated developer users', async () => {
+            const mockSessionService = getSessionServiceMock()
+            mockSessionService.getSession.mockResolvedValue({
+                ...MOCK_SESSION_DATA,
+                user: {
+                    ...MOCK_SESSION_DATA.user,
+                    id: '123456789',
+                },
+            })
+
+            const response = await request(app)
+                .get('/api/auth/status')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toMatchObject({
+                authenticated: true,
+                user: {
+                    id: '123456789',
+                    isDeveloper: true,
                 },
             })
         })

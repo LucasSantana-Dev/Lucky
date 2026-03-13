@@ -5,17 +5,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { getFeatureToggleConfig } from '@lucky/shared/config'
 import type { FeatureToggleName } from '@lucky/shared/types'
-
-const DEVELOPER_USER_IDS = (process.env.DEVELOPER_USER_IDS ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean)
-
-function requireDeveloper(userId?: string): void {
-    if (!userId || !DEVELOPER_USER_IDS.includes(userId)) {
-        throw AppError.forbidden('Developer access required')
-    }
-}
+import { requireDeveloperUser } from '../utils/developerAccess'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {
@@ -31,7 +21,7 @@ export function setupToggleRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const userId = requireUserId(req)
-            requireDeveloper(userId)
+            requireDeveloperUser(userId)
 
             const toggles = featureToggleService.getAllToggles()
             const result: Record<string, boolean> = {}
@@ -52,7 +42,7 @@ export function setupToggleRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const userId = requireUserId(req)
-            requireDeveloper(userId)
+            requireDeveloperUser(userId)
 
             const toggleName =
                 typeof req.params.name === 'string'
@@ -81,7 +71,7 @@ export function setupToggleRoutes(app: Express): void {
         '/api/toggles/global/:name',
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            requireDeveloper(req.userId)
+            requireDeveloperUser(req.userId)
 
             const toggleName =
                 typeof req.params.name === 'string'

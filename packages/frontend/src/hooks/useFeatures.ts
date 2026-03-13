@@ -5,7 +5,7 @@ import { useGuildStore } from '@/stores/guildStore'
 import type { FeatureToggleName } from '@/types'
 
 export function useFeatures() {
-    const user = useAuthStore((state) => state.user)
+    const isDeveloper = useAuthStore((state) => state.isDeveloper)
     const selectedGuild = useGuildStore((state) => state.selectedGuild)
     const globalToggles = useFeaturesStore((state) => state.globalToggles)
     const isLoading = useFeaturesStore((state) => state.isLoading)
@@ -27,10 +27,10 @@ export function useFeatures() {
 
     useEffect(() => {
         fetchFeatures()
-        if (user?.isDeveloper) {
+        if (isDeveloper) {
             fetchGlobalToggles()
         }
-    }, [fetchFeatures, fetchGlobalToggles, user?.isDeveloper])
+    }, [fetchFeatures, fetchGlobalToggles, isDeveloper])
 
     useEffect(() => {
         if (selectedGuild) {
@@ -57,7 +57,7 @@ export function useFeatures() {
         serverToggles,
         isLoading,
         features,
-        isDeveloper: user?.isDeveloper ?? false,
+        isDeveloper,
         handleGlobalToggle,
         handleServerToggle,
     }

@@ -56,17 +56,67 @@ const TIMEZONES = [
     'Australia/Sydney',
 ]
 
+type SettingsLoadErrorKind = 'auth' | 'forbidden' | 'network' | 'upstream'
+
+type SettingsLoadError = {
+    kind: SettingsLoadErrorKind
+    message: string
+}
+
+const DEFAULT_SETTINGS: ServerSettings = {
+    nickname: '',
+    commandPrefix: '!',
+    managerRoles: [],
+    updatesChannel: '',
+    timezone: 'UTC',
+    disableWarnings: false,
+}
+
+function classifySettingsLoadError(error: unknown): SettingsLoadError {
+    if (error instanceof ApiError) {
+        if (error.status === 401) {
+            return {
+                kind: 'auth',
+                message: 'Session expired. Please sign in again.',
+            }
+        }
+
+        if (error.status === 403) {
+            return {
+                kind: 'forbidden',
+                message: 'You no longer have access to this server settings.',
+            }
+        }
+
+        if (error.status === 0) {
+            return {
+                kind: 'network',
+                message: 'Unable to reach API. Check your connection and retry.',
+            }
+        }
+
+        return {
+            kind: 'upstream',
+            message: error.message || 'Failed to load server settings.',
+        }
+    }
+
+    if (error instanceof Error) {
+        return { kind: 'upstream', message: error.message }
+    }
+
+    return {
+        kind: 'upstream',
+        message: 'Failed to load server settings.',
+    }
+}
+
 export default function ServerSettingsPage() {
     const { selectedGuild, memberContext } = useGuildStore()
-    const [settings, setSettings] = useState<ServerSettings>({
-        nickname: '',
-        commandPrefix: '!',
-        managerRoles: [],
-        updatesChannel: '',
-        timezone: 'UTC',
-        disableWarnings: false,
-    })
+    const [settings, setSettings] = useState<ServerSettings>(DEFAULT_SETTINGS)
     const [loading, setLoading] = useState(true)
+    const [settingsLoadError, setSettingsLoadError] =
+        useState<SettingsLoadError | null>(null)
     const [saving, setSaving] = useState(false)
     const [rbacLoading, setRbacLoading] = useState(false)
     const [rbacSaving, setRbacSaving] = useState(false)
@@ -78,6 +128,7 @@ export default function ServerSettingsPage() {
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
     const rbacRequestIdRef = useRef(0)
+    const settingsRequestVersion = useRef(0)
 
     const canManageRbac =
         memberContext?.canManageRbac ?? selectedGuild?.canManageRbac ?? false
@@ -118,17 +169,40 @@ export default function ServerSettingsPage() {
         }
     }, [])
 
-    useEffect(() => {
-        if (!selectedGuild?.id) return
+    const loadSettings = useCallback(async (guildId: string) => {
+        const requestVersion = ++settingsRequestVersion.current
+        const isStaleRequest = () =>
+            requestVersion !== settingsRequestVersion.current
+
         setLoading(true)
-        api.guilds
-            .getSettings(selectedGuild.id)
-            .then((res) => {
-                if (res.data.settings) setSettings(res.data.settings)
-            })
-            .catch(() => {})
-            .finally(() => setLoading(false))
-    }, [selectedGuild?.id])
+        setSettingsLoadError(null)
+
+        try {
+            const response = await api.guilds.getSettings(guildId)
+            if (isStaleRequest()) {
+                return
+            }
+            setSettings(response.data.settings ?? DEFAULT_SETTINGS)
+        } catch (error) {
+            if (isStaleRequest()) {
+                return
+            }
+            setSettings(DEFAULT_SETTINGS)
+            setSettingsLoadError(classifySettingsLoadError(error))
+        } finally {
+            if (!isStaleRequest()) {
+                setLoading(false)
+            }
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!selectedGuild?.id) {
+            return
+        }
+
+        void loadSettings(selectedGuild.id)
+    }, [selectedGuild?.id, loadSettings])
 
     useEffect(() => {
         if (!selectedGuild?.id || !canManageRbac) {
@@ -277,6 +351,54 @@ export default function ServerSettingsPage() {
                         <Skeleton className='h-10 w-full' />
                     </Card>
                 ))}
+            </div>
+        )
+    }
+
+    if (settingsLoadError) {
+        return (
+            <div className='space-y-6'>
+                <header>
+                    <h1 className='text-2xl font-bold text-white'>
+                        Server Settings
+                    </h1>
+                    <p className='text-sm text-lucky-text-secondary mt-1'>
+                        General configuration for {selectedGuild.name}
+                    </p>
+                </header>
+                <Card className='p-5 space-y-4'>
+                    <div className='flex items-center gap-2 text-lucky-yellow'>
+                        <AlertTriangle className='w-5 h-5' />
+                        <h2 className='text-base font-semibold text-white'>
+                            Unable to load server settings
+                        </h2>
+                    </div>
+                    <p className='text-sm text-lucky-text-secondary'>
+                        {settingsLoadError.message}
+                    </p>
+                    <div className='flex items-center gap-3'>
+                        <Button
+                            type='button'
+                            onClick={() => {
+                                if (!selectedGuild?.id) {
+                                    return
+                                }
+                                void loadSettings(selectedGuild.id)
+                            }}
+                        >
+                            Retry
+                        </Button>
+                        {(settingsLoadError.kind === 'auth' ||
+                            settingsLoadError.kind === 'forbidden') && (
+                            <a
+                                href={api.auth.getDiscordLoginUrl()}
+                                className='text-sm text-lucky-text-secondary hover:text-lucky-text-primary'
+                            >
+                                Re-authenticate
+                            </a>
+                        )}
+                    </div>
+                </Card>
             </div>
         )
     }

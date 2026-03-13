@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { useGuildStore } from './guildStore'
-import type { Guild } from '@/types'
+import type { Guild, GuildMemberContext } from '@/types'
 
 vi.mock('@/services/api', () => ({
     api: {
@@ -35,6 +35,8 @@ const MANAGE_ACCESS = {
     music: 'manage',
     integrations: 'manage',
 } as const
+
+type MeResponse = { data: GuildMemberContext }
 
 function setupSelectedGuildApiMocks(guildId: string, guild?: Guild) {
     vi.mocked(api.guilds.get).mockResolvedValue({
@@ -156,7 +158,105 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().selectedGuild).toBeNull()
             expect(useGuildStore.getState().selectedGuildId).toBeNull()
         })
+    test('should clear member context and settings when dependent calls fail', async () => {
+        const guild = mockGuild({ id: 'error-guild' })
+        vi.mocked(api.guilds.getMe).mockRejectedValue(new Error('me failed'))
+
+            useGuildStore.getState().selectGuild(guild)
+
+            await vi.waitFor(() => {
+                const state = useGuildStore.getState()
+                expect(state.memberContextLoading).toBe(false)
+                expect(state.memberContext).toBeNull()
+                expect(state.serverSettings).toBeNull()
+            })
+        })
+
+        test('should not fetch guild settings during generic selection', async () => {
+            const guild = mockGuild({ id: 'guild-no-settings' })
+            vi.mocked(api.guilds.getMe).mockResolvedValue({
+                data: {
+                    guildId: guild.id,
+                    nickname: null,
+                    username: 'user',
+                    globalName: null,
+                    roleIds: [],
+                    effectiveAccess: MANAGE_ACCESS,
+                    canManageRbac: true,
+                },
+            } as never)
+
+            useGuildStore.getState().selectGuild(guild)
+
+            await vi.waitFor(() => {
+                expect(useGuildStore.getState().memberContext?.guildId).toBe(
+                    guild.id,
+                )
+            })
+
+            expect(vi.mocked(api.guilds.getSettings)).not.toHaveBeenCalled()
+        })
+
+        test('should ignore stale async responses from previous selected guild', async () => {
+            const guildA = mockGuild({ id: 'guild-a', name: 'Guild A' })
+            const guildB = mockGuild({ id: 'guild-b', name: 'Guild B' })
+
+            const deferred = <T>() => {
+                let resolve: (value: T) => void = () => {}
+                const promise = new Promise<T>((res) => {
+                    resolve = res
+                })
+                return { promise, resolve }
+            }
+
+            const meA = deferred<MeResponse>()
+
+            vi.mocked(api.guilds.getMe).mockImplementation((guildId: string) => {
+                if (guildId === guildA.id) {
+                    return meA.promise as never
+                }
+                return Promise.resolve({
+                    data: {
+                        guildId,
+                        nickname: 'B Nick',
+                        username: 'user-b',
+                        globalName: null,
+                        roleIds: ['role-b'],
+                        effectiveAccess: MANAGE_ACCESS,
+                        canManageRbac: true,
+                    },
+                } as never)
+            })
+
+            useGuildStore.getState().selectGuild(guildA)
+            useGuildStore.getState().selectGuild(guildB)
+
+            await vi.waitFor(() => {
+                const state = useGuildStore.getState()
+                expect(state.selectedGuildId).toBe(guildB.id)
+                expect(state.memberContext?.guildId).toBe(guildB.id)
+                expect(state.serverSettings).toBeNull()
+            })
+
+            meA.resolve({
+                data: {
+                    guildId: guildA.id,
+                    nickname: 'A Nick',
+                    username: 'user-a',
+                    globalName: null,
+                    roleIds: ['role-a'],
+                    effectiveAccess: MANAGE_ACCESS,
+                    canManageRbac: true,
+                },
+            })
+            await Promise.resolve()
+
+        const state = useGuildStore.getState()
+        expect(state.selectedGuildId).toBe(guildB.id)
+        expect(state.memberContext?.guildId).toBe(guildB.id)
+        expect(state.serverSettings).toBeNull()
     })
+})
 
     describe('updateServerSettings', () => {
         test('should merge partial settings', () => {

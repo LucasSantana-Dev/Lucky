@@ -36,6 +36,10 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 
 class GuildAccessService {
     private readonly userGuildCacheTtlSeconds = 30
+    private readonly userGuildsInFlight = new Map<
+        string,
+        Promise<DiscordGuild[]>
+    >()
 
     private isDiscordGuildArray(value: unknown): value is DiscordGuild[] {
         return (
@@ -147,58 +151,75 @@ class GuildAccessService {
         options?: { allowCachedFallback?: boolean },
     ): Promise<DiscordGuild[]> {
         const allowCachedFallback = options?.allowCachedFallback ?? true
-        try {
-            const guilds = await discordOAuthService.getUserGuilds(
-                session.accessToken,
-            )
-            await this.setCachedGuilds(session, guilds)
-            return guilds
-        } catch (error) {
-            const statusCode = this.extractStatusCode(error)
-            const cachedGuilds = await this.getCachedGuilds(session)
-
-            if (
-                allowCachedFallback &&
-                cachedGuilds &&
-                (statusCode === 429 ||
-                    (statusCode !== null && statusCode >= 500))
-            ) {
-                errorLog({
-                    message:
-                        'Using cached guild list after Discord guild fetch failure',
-                    data: {
-                        userId: session.user.id,
-                        statusCode,
-                        guildCount: cachedGuilds.length,
-                    },
-                })
-                return cachedGuilds
-            }
-
-            if (statusCode === 401) {
-                throw AppError.unauthorized(
-                    'Discord session expired. Please sign in again.',
-                )
-            }
-
-            if (statusCode === 403) {
-                throw AppError.forbidden(
-                    'Discord OAuth scope is missing. Re-authenticate and try again.',
-                )
-            }
-
-            if (
-                statusCode === 429 ||
-                (statusCode !== null && statusCode >= 500)
-            ) {
-                throw new AppError(
-                    502,
-                    'Discord API is temporarily unavailable. Please retry.',
-                )
-            }
-
-            throw error
+        const cacheKey = this.getCacheKey(session)
+        const inFlight = this.userGuildsInFlight.get(cacheKey)
+        if (inFlight) {
+            return inFlight
         }
+
+        const request = (async () => {
+            try {
+                const guilds = await discordOAuthService.getUserGuilds(
+                    session.accessToken,
+                )
+                await this.setCachedGuilds(session, guilds)
+                return guilds
+            } catch (error) {
+                const statusCode = this.extractStatusCode(error)
+                const cachedGuilds = await this.getCachedGuilds(session)
+
+                if (
+                    allowCachedFallback &&
+                    cachedGuilds &&
+                    (statusCode === 429 ||
+                        (statusCode !== null && statusCode >= 500))
+                ) {
+                    errorLog({
+                        message:
+                            'Using cached guild list after Discord guild fetch failure',
+                        data: {
+                            userId: session.user.id,
+                            statusCode,
+                            guildCount: cachedGuilds.length,
+                        },
+                    })
+                    return cachedGuilds
+                }
+
+                if (statusCode === 401) {
+                    throw AppError.unauthorized(
+                        'Discord session expired. Please sign in again.',
+                    )
+                }
+
+                if (statusCode === 403) {
+                    throw AppError.forbidden(
+                        'Discord OAuth scope is missing. Re-authenticate and try again.',
+                    )
+                }
+
+                if (
+                    statusCode === 429 ||
+                    (statusCode !== null && statusCode >= 500)
+                ) {
+                    throw new AppError(
+                        502,
+                        'Discord API is temporarily unavailable. Please retry.',
+                    )
+                }
+
+                throw error
+            }
+        })().finally(() => {
+            this.userGuildsInFlight.delete(cacheKey)
+        })
+
+        this.userGuildsInFlight.set(cacheKey, request)
+        return request
+    }
+
+    resetCachesForTests(): void {
+        this.userGuildsInFlight.clear()
     }
 
     private async buildContext(
@@ -356,7 +377,15 @@ class GuildAccessService {
                     'RBAC storage is unavailable. Run database migrations and retry.',
                 )
             }
-            throw error
+            errorLog({
+                message: 'Failed to resolve guild context',
+                error,
+                data: { guildId, userId: session.user.id },
+            })
+            throw new AppError(
+                502,
+                'Unable to resolve server access right now. Please retry.',
+            )
         }
         if (!this.isAuthorized(context)) {
             return null
