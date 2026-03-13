@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- OAuth callback resolution now prioritizes `WEBAPP_BACKEND_URL` in production
+  (fallback: `WEBAPP_REDIRECT_URI`) so `/api/auth/discord` and
+  `/api/health/auth-config` stay aligned with split-origin API deployments.
 - Local Prisma bootstrap now pins explicit config path
   (`--config prisma/prisma.config.ts`) across `db:*` scripts, and
   `db:migrate` now includes a guarded fallback for the known fresh-db legacy

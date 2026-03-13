@@ -25,6 +25,29 @@ const normalizeCallbackPath = (redirectUri?: string): string | undefined => {
     }
 }
 
+const resolveBackendCallbackUri = (): string | undefined => {
+    const backendUrl = process.env.WEBAPP_BACKEND_URL?.trim()
+    if (!backendUrl) return undefined
+
+    try {
+        const parsed = new URL(backendUrl)
+        parsed.pathname = '/api/auth/callback'
+        parsed.search = ''
+        parsed.hash = ''
+        return parsed.toString()
+    } catch {
+        return undefined
+    }
+}
+
+const isPublicOrigin = (origin: string): boolean => {
+    return (
+        !origin.includes('localhost') &&
+        !origin.includes('127.0.0.1') &&
+        !origin.includes('0.0.0.0')
+    )
+}
+
 const buildRequestRedirectUri = (req: Request): string => {
     const forwardedProto = getForwardedHeader(req, 'x-forwarded-proto')
     const forwardedHost = getForwardedHeader(req, 'x-forwarded-host')
@@ -40,35 +63,17 @@ const buildRequestRedirectUri = (req: Request): string => {
     return `${protocol}://${host}/api/auth/callback`
 }
 
-const resolvePrimaryFrontendCallbackUri = (): string | undefined => {
-    const frontendOrigin = getFrontendOrigins().find((origin) => {
-        try {
-            new URL(origin)
-            return true
-        } catch {
-            return false
-        }
-    })
-
-    if (!frontendOrigin) return undefined
-
-    try {
-        const parsed = new URL(frontendOrigin)
-        parsed.pathname = '/api/auth/callback'
-        parsed.search = ''
-        parsed.hash = ''
-        return parsed.toString()
-    } catch {
-        return undefined
-    }
-}
-
-const resolveEnvRedirectUri = (): string | undefined => {
+const resolveEnvRedirectUri = (req: Request): string | undefined => {
     const normalized = normalizeCallbackPath(process.env.WEBAPP_REDIRECT_URI)
     if (!normalized) return undefined
 
     if (process.env.NODE_ENV !== 'production') {
         return normalized
+    }
+
+    const backendCallback = resolveBackendCallbackUri()
+    if (backendCallback) {
+        return backendCallback
     }
 
     try {
@@ -83,13 +88,14 @@ const resolveEnvRedirectUri = (): string | undefined => {
             }),
         )
 
-        if (frontendOrigins.has(parsedRedirect.origin)) {
-            return normalized
-        }
+        const requestCallback = buildRequestRedirectUri(req)
+        const requestOrigin = new URL(requestCallback).origin
 
-        const primaryFrontendCallback = resolvePrimaryFrontendCallbackUri()
-        if (primaryFrontendCallback) {
-            return primaryFrontendCallback
+        if (
+            frontendOrigins.has(parsedRedirect.origin) &&
+            isPublicOrigin(requestOrigin)
+        ) {
+            return requestCallback
         }
     } catch {
         return undefined
@@ -109,8 +115,15 @@ export function getOAuthRedirectUri(
         return normalizedSessionRedirectUri
     }
 
+    if (process.env.NODE_ENV === 'production') {
+        const backendCallback = resolveBackendCallbackUri()
+        if (backendCallback) {
+            return backendCallback
+        }
+    }
+
     return (
-        resolveEnvRedirectUri() ??
+        resolveEnvRedirectUri(req) ??
         normalizeCallbackPath(process.env.WEBAPP_REDIRECT_URI) ??
         buildRequestRedirectUri(req)
     )
