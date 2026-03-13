@@ -248,7 +248,7 @@ Deploy workflow smoke checks now require `GET /api/health/auth-config` to return
 `status=ok` with no warnings (including healthy Redis/auth-session flags).
 Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `302` to Discord authorize URL with expected `client_id` and same-origin
-`redirect_uri=https://lucky-api.lucassantana.tech/api/auth/callback`.
+`redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
 Deploy webhook rollout now starts `postgres`/`redis`, runs
@@ -295,15 +295,14 @@ When `WEBAPP_FRONTEND_URL` includes multiple origins, use comma-separated values
 accepts all configured entries while Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
 Discord Developer Portal (example:
-`https://lucky-api.lucassantana.tech/api/auth/callback`).
+`https://lucky.lucassantana.tech/api/auth/callback`).
 Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
 `/api/health/auth-config` return `degraded` on credential drift.
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
 through a dedicated host. Use an absolute URL (for example,
 `https://lucky-api.lucassantana.tech`).
-In production, OAuth callback generation now prioritizes `WEBAPP_BACKEND_URL`
-(`.../api/auth/callback`) and falls back to `WEBAPP_REDIRECT_URI` when backend
-URL is not set.
+OAuth callback generation now uses `WEBAPP_REDIRECT_URI` as canonical callback
+source and only falls back to request-derived callback URLs when it is unset.
 Bot `/lastfm link` URLs prioritize `WEBAPP_BACKEND_URL` and fall back to the
 origin of `WEBAPP_REDIRECT_URI` when backend URL is not set. Legacy
 `nexus.lucassantana.tech` origins and non-HTTP(S) origins are rejected for
@@ -337,9 +336,9 @@ See `.env.example` for all available options. Key variables:
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
-| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings); fallback callback source when `WEBAPP_BACKEND_URL` is unset |
+| `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings and deploy smoke contract) |
 | `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection |
-| `WEBAPP_BACKEND_URL` | No | Public backend/API origin used as canonical host for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; production canonical: `https://lucky-api.lucassantana.tech`) |
+| `WEBAPP_BACKEND_URL` | No | Public backend/API origin used for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; recommended: `https://lucky-api.lucassantana.tech`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
 
