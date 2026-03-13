@@ -30,12 +30,25 @@ const defaultAccess = {
     integrations: 'manage',
 } as const
 
-const managerGuild = { ...mockGuild, canManageRbac: true }
-const managerRoles = [{ id: '222222222222222222', name: 'Mods' }]
+type GuildRbacResponse = Awaited<ReturnType<typeof api.guilds.getRbac>>
+type GuildRbacPayload = GuildRbacResponse['data']
 
-const makeManagerRbacPayload = (overrides: Record<string, unknown> = {}) => ({
+const managerGuild = { ...mockGuild, canManageRbac: true }
+const managerRoles: GuildRbacPayload['roles'] = [
+    {
+        id: '222222222222222222',
+        name: 'Mods',
+        color: 0,
+        position: 1,
+    },
+]
+const managerModules = Object.keys(defaultAccess) as GuildRbacPayload['modules']
+
+const makeManagerRbacPayload = (
+    overrides: Partial<GuildRbacPayload> = {},
+): GuildRbacPayload => ({
     guildId: managerGuild.id,
-    modules: Object.keys(defaultAccess),
+    modules: managerModules,
     grants: [],
     roles: managerRoles,
     effectiveAccess: defaultAccess,
@@ -43,14 +56,14 @@ const makeManagerRbacPayload = (overrides: Record<string, unknown> = {}) => ({
     ...overrides,
 })
 
-const setupManagerRbac = (overrides: Record<string, unknown> = {}) => {
+const setupManagerRbac = (overrides: Partial<GuildRbacPayload> = {}) => {
     mockGuildStoreFn(managerGuild, {
         canManageRbac: true,
         effectiveAccess: defaultAccess,
     })
     vi.mocked(api.guilds.getRbac).mockResolvedValue({
         data: makeManagerRbacPayload(overrides),
-    } as any)
+    } as GuildRbacResponse)
 }
 
 function mockGuildStoreFn(guild: typeof mockGuild | null, memberContext?: any) {
@@ -558,7 +571,7 @@ describe('ServerSettingsPage', () => {
             .mockRejectedValueOnce(new Error('initial network'))
             .mockResolvedValueOnce({
                 data: makeManagerRbacPayload(),
-            } as any)
+            } as GuildRbacResponse)
         mockGuildStoreFn(managerGuild, {
             canManageRbac: true,
             effectiveAccess: defaultAccess,
