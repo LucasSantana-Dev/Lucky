@@ -21,6 +21,7 @@ jest.mock('../../../src/services/SessionService', () => ({
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
         generateBotInviteUrl: jest.fn(),
+        getGuildTextChannelOptions: jest.fn(),
     },
 }))
 
@@ -248,6 +249,53 @@ describe('Guilds Routes Integration', () => {
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/invite')
+                .expect(401)
+
+            expect(response.body).toEqual({
+                error: 'Not authenticated',
+            })
+        })
+    })
+
+    describe('GET /api/guilds/:guildId/channels', () => {
+        test('should return guild channel options when authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildService = guildService as jest.Mocked<
+                typeof guildService
+            >
+            mockGuildService.getGuildTextChannelOptions.mockResolvedValue([
+                { id: '222222222222222222', name: '#general' },
+                { id: '333333333333333333', name: '#clips' },
+            ])
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/channels')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({
+                channels: [
+                    { id: '222222222222222222', name: '#general' },
+                    { id: '333333333333333333', name: '#clips' },
+                ],
+            })
+            expect(
+                mockGuildService.getGuildTextChannelOptions,
+            ).toHaveBeenCalledWith('111111111111111111')
+        })
+
+        test('should return 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/channels')
                 .expect(401)
 
             expect(response.body).toEqual({

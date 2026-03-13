@@ -16,7 +16,10 @@ interface GuildMetrics {
 }
 
 interface DiscordGuildChannel {
+    id?: string
+    name?: string
     type: number
+    position?: number
 }
 
 interface DiscordGuildRole {
@@ -36,6 +39,11 @@ export interface GuildRoleOption {
     name: string
     color: number
     position: number
+}
+
+export interface GuildChannelOption {
+    id: string
+    name: string
 }
 
 export function setBotClient(client: Client | null): void {
@@ -525,6 +533,84 @@ class GuildService {
         } catch (error) {
             errorLog({
                 message: 'Failed to fetch guild roles',
+                error,
+            })
+            return []
+        }
+    }
+
+    async getGuildTextChannelOptions(
+        guildId: string,
+    ): Promise<GuildChannelOption[]> {
+        const client = this.getBotClient()
+
+        if (client) {
+            try {
+                const guild =
+                    client.guilds.cache.get(guildId) ??
+                    (await client.guilds.fetch(guildId))
+                const channels = await guild.channels.fetch()
+                return [...channels.values()]
+                    .filter(
+                        (channel): channel is NonNullable<typeof channel> =>
+                            channel !== null &&
+                            (channel.type === 0 ||
+                                channel.type === 5 ||
+                                channel.type === 15 ||
+                                channel.type === 16),
+                    )
+                    .sort((a, b) => a.rawPosition - b.rawPosition)
+                    .map((channel) => ({
+                        id: channel.id,
+                        name: `#${channel.name}`,
+                    }))
+            } catch (error) {
+                debugLog({
+                    message: 'Failed to fetch guild channels from bot client',
+                    error,
+                })
+            }
+        }
+
+        const token = this.getBotToken()
+        if (!token) {
+            return []
+        }
+
+        try {
+            const response = await fetch(
+                `${DISCORD_API_BASE_URL}/guilds/${guildId}/channels`,
+                {
+                    headers: {
+                        Authorization: `Bot ${token}`,
+                    },
+                },
+            )
+
+            if (!response.ok) {
+                return []
+            }
+
+            const payload = (await response.json()) as DiscordGuildChannel[]
+
+            return payload
+                .filter(
+                    (channel) =>
+                        typeof channel.id === 'string' &&
+                        typeof channel.name === 'string' &&
+                        (channel.type === 0 ||
+                            channel.type === 5 ||
+                            channel.type === 15 ||
+                            channel.type === 16),
+                )
+                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+                .map((channel) => ({
+                    id: channel.id as string,
+                    name: `#${channel.name as string}`,
+                }))
+        } catch (error) {
+            errorLog({
+                message: 'Failed to fetch guild channels',
                 error,
             })
             return []

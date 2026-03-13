@@ -8,7 +8,23 @@ import { guildService } from '../services/GuildService'
 import { guildAccessService } from '../services/GuildAccessService'
 
 function getGuildId(req: AuthenticatedRequest): string {
-    return typeof req.params.id === 'string' ? req.params.id : req.params.id[0]
+    const id = req.params.id
+    if (typeof id === 'string') {
+        return id
+    }
+    if (Array.isArray(id) && id.length > 0) {
+        return id[0]
+    }
+
+    const guildId = req.params.guildId
+    if (typeof guildId === 'string') {
+        return guildId
+    }
+    if (Array.isArray(guildId) && guildId.length > 0) {
+        return guildId[0]
+    }
+
+    throw AppError.badRequest('Guild id is required')
 }
 
 async function getSessionData(req: AuthenticatedRequest) {
@@ -25,70 +41,14 @@ async function getSessionData(req: AuthenticatedRequest) {
     return sessionData
 }
 
-function getStatusCode(error: unknown): number | null {
-    if (typeof error !== 'object' || error === null) {
-        return null
-    }
-
-    const errorObject = error as { statusCode?: unknown; status?: unknown }
-    if (typeof errorObject.statusCode === 'number') {
-        return errorObject.statusCode
-    }
-
-    if (typeof errorObject.status === 'number') {
-        return errorObject.status
-    }
-
-    return null
-}
-
-function mapGuildAccessError(error: unknown): Error {
-    if (error instanceof AppError) {
-        return error
-    }
-
-    const statusCode = getStatusCode(error)
-
-    if (statusCode === 401) {
-        return AppError.unauthorized(
-            'Discord session expired. Please sign in again.',
-        )
-    }
-
-    if (statusCode === 403) {
-        return AppError.forbidden(
-            'Discord OAuth scope is missing. Re-authenticate and try again.',
-        )
-    }
-
-    if (statusCode === 429 || (statusCode !== null && statusCode >= 500)) {
-        return new AppError(502, 'Discord API is temporarily unavailable.')
-    }
-
-    return error instanceof Error
-        ? error
-        : new Error('Internal server error')
-}
-
-async function runGuildAccessOperation<T>(
-    operation: () => Promise<T>,
-): Promise<T> {
-    try {
-        return await operation()
-    } catch (error) {
-        throw mapGuildAccessError(error)
-    }
-}
-
 export function setupGuildRoutes(app: Express): void {
     app.get(
         '/api/guilds',
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const sessionData = await getSessionData(req)
-            const guilds = await runGuildAccessOperation(() =>
-                guildAccessService.listAuthorizedGuilds(sessionData),
-            )
+            const guilds =
+                await guildAccessService.listAuthorizedGuilds(sessionData)
 
             res.json({ guilds })
         }),
@@ -102,9 +62,8 @@ export function setupGuildRoutes(app: Express): void {
             const id = getGuildId(req)
             const sessionData = await getSessionData(req)
 
-            const guilds = await runGuildAccessOperation(() =>
-                guildAccessService.listAuthorizedGuilds(sessionData),
-            )
+            const guilds =
+                await guildAccessService.listAuthorizedGuilds(sessionData)
             const guildDetails = guilds.find((guild) => guild.id === id)
 
             if (!guildDetails) {
@@ -136,9 +95,7 @@ export function setupGuildRoutes(app: Express): void {
 
             const guildContext =
                 req.guildContext ??
-                (await runGuildAccessOperation(() =>
-                    guildAccessService.resolveGuildContext(sessionData, id),
-                ))
+                (await guildAccessService.resolveGuildContext(sessionData, id))
             if (!guildContext) {
                 throw AppError.forbidden('No access to this server')
             }
@@ -152,6 +109,18 @@ export function setupGuildRoutes(app: Express): void {
                 effectiveAccess: guildContext.effectiveAccess,
                 canManageRbac: guildContext.canManageRbac,
             })
+        }),
+    )
+
+    app.get(
+        '/api/guilds/:guildId/channels',
+        requireAuth,
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = getGuildId(req)
+            const channels = await guildService.getGuildTextChannelOptions(
+                guildId,
+            )
+            res.json({ channels })
         }),
     )
 }
