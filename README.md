@@ -229,6 +229,9 @@ Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
+Deploy webhook rollout now starts `postgres`/`redis`, runs
+`prisma migrate deploy`, and executes a `guild_role_grants` relation preflight
+before service rollout to fail fast on schema drift.
 CLOUDFLARED tunnel restarts now mount config from `CLOUDFLARED_CONFIG_DIR`
 instead of shell `$HOME`; use a canonical host path like
 `/home/luk-server/.cloudflared` to avoid deploy-context mount drift.

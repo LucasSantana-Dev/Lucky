@@ -195,6 +195,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convergent plans
 - Shared guild automation lock flow now uses Redis token-based distributed locks
   (`SET NX PX` + safe token release) instead of in-memory instance-local locks
+- Deploy webhook rollout now starts database dependencies first, runs
+  `prisma migrate deploy`, and verifies `guild_role_grants` relation health
+  before updating runtime services
 
 ## [2.6.13] - 2026-03-12
 

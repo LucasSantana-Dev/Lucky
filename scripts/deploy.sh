@@ -236,6 +236,21 @@ if ! docker_compose pull bot backend frontend nginx; then
     fi
 fi
 
+log "Starting database services..."
+docker_compose up -d postgres redis
+
+log "Running database migrations..."
+if ! docker_compose run --rm --no-deps backend sh -lc "npx prisma migrate deploy"; then
+    notify 16711680 "Deploy Failed" "Database migration failed"
+    exit 1
+fi
+
+log "Verifying required database relations..."
+if ! docker_compose run --rm --no-deps backend node --input-type=module -e "import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); try { await prisma.guildRoleGrant.count({ take: 1 }); console.log('DB schema guard passed'); } finally { await prisma.\$disconnect(); }"; then
+    notify 16711680 "Deploy Failed" "Database schema guard failed"
+    exit 1
+fi
+
 log "Rolling out services..."
 docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postgres redis
 
