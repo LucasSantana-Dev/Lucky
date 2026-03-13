@@ -53,7 +53,7 @@ const relationChecks: RelationCheck[] = [
 
 export async function verifyRequiredDatabaseRelations(
     prisma: RequiredDatabaseStatePrisma =
-        getPrismaClient() as RequiredDatabaseStatePrisma,
+        getPrismaClient() as unknown as RequiredDatabaseStatePrisma,
 ): Promise<void> {
     for (const relationCheck of relationChecks) {
         try {
