@@ -36,6 +36,22 @@ export interface RoleGrantInput {
 
 export type EffectiveAccessMap = Record<ModuleKey, EffectiveAccess>
 
+export class GuildRoleGrantStorageError extends Error {
+    readonly code = 'ERR_GUILD_ROLE_GRANT_STORAGE_UNAVAILABLE'
+    readonly guildId: string
+
+    constructor(guildId: string, cause?: unknown) {
+        super(
+            'Guild role access storage is unavailable. Run migrations and retry.',
+        )
+        this.name = 'GuildRoleGrantStorageError'
+        this.guildId = guildId
+        if (cause !== undefined) {
+            ;(this as Error & { cause?: unknown }).cause = cause
+        }
+    }
+}
+
 function createEmptyAccessMap(): EffectiveAccessMap {
     return {
         overview: 'none',
@@ -102,6 +118,15 @@ function toRoleGrant(row: {
 }
 
 class GuildRoleAccessService {
+    private isMissingTableError(error: unknown): boolean {
+        if (typeof error !== 'object' || error === null) {
+            return false
+        }
+
+        const maybePrismaError = error as { code?: unknown }
+        return maybePrismaError.code === 'P2021'
+    }
+
     private async readCached(guildId: string): Promise<RoleGrant[] | null> {
         if (!redisClient.isHealthy()) {
             return null
@@ -167,10 +192,32 @@ class GuildRoleAccessService {
             return cached
         }
 
-        const rows = await prisma.guildRoleGrant.findMany({
-            where: { guildId },
-            orderBy: [{ module: 'asc' }, { roleId: 'asc' }],
-        })
+        let rows: Array<{
+            guildId: string
+            roleId: string
+            module: string
+            mode: string
+            createdAt: Date
+            updatedAt: Date
+        }> = []
+
+        try {
+            rows = await prisma.guildRoleGrant.findMany({
+                where: { guildId },
+                orderBy: [{ module: 'asc' }, { roleId: 'asc' }],
+            })
+        } catch (error) {
+            if (this.isMissingTableError(error)) {
+                errorLog({
+                    message:
+                        'RBAC table missing while reading grants; rejecting request',
+                    error,
+                    data: { guildId },
+                })
+                throw new GuildRoleGrantStorageError(guildId, error)
+            }
+            throw error
+        }
 
         const grants = rows
             .map(toRoleGrant)
@@ -197,22 +244,35 @@ class GuildRoleAccessService {
 
         const values = [...deduped.values()]
 
-        await prisma.$transaction(async (tx) => {
-            await tx.guildRoleGrant.deleteMany({
-                where: { guildId },
-            })
-
-            if (values.length > 0) {
-                await tx.guildRoleGrant.createMany({
-                    data: values.map((item) => ({
-                        guildId,
-                        roleId: item.roleId,
-                        module: item.module,
-                        mode: item.mode,
-                    })),
+        try {
+            await prisma.$transaction(async (tx) => {
+                await tx.guildRoleGrant.deleteMany({
+                    where: { guildId },
                 })
+
+                if (values.length > 0) {
+                    await tx.guildRoleGrant.createMany({
+                        data: values.map((item) => ({
+                            guildId,
+                            roleId: item.roleId,
+                            module: item.module,
+                            mode: item.mode,
+                        })),
+                    })
+                }
+            })
+        } catch (error) {
+            if (this.isMissingTableError(error)) {
+                errorLog({
+                    message:
+                        'RBAC table missing while replacing grants; rejecting request',
+                    error,
+                    data: { guildId },
+                })
+                throw new GuildRoleGrantStorageError(guildId, error)
             }
-        })
+            throw error
+        }
 
         await this.clearCache(guildId)
         return this.listRoleGrants(guildId)

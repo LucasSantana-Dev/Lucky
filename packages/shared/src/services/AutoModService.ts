@@ -26,6 +26,106 @@ export interface AutoModSettings {
     updatedAt: Date
 }
 
+type AutoModMutableSettings = Omit<
+    AutoModSettings,
+    'id' | 'guildId' | 'createdAt' | 'updatedAt'
+>
+
+export interface AutoModTemplate {
+    id: string
+    name: string
+    description: string
+    settings: Partial<AutoModMutableSettings>
+}
+
+export class AutoModTemplateNotFoundError extends Error {
+    readonly code = 'ERR_AUTOMOD_TEMPLATE_NOT_FOUND'
+
+    constructor(templateId: string) {
+        super(`Auto-mod template not found: ${templateId}`)
+        this.name = 'AutoModTemplateNotFoundError'
+    }
+}
+
+const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
+    {
+        id: 'balanced',
+        name: 'Balanced',
+        description:
+            'Balanced baseline for PT-BR + EN communities with common scam and abuse protection.',
+        settings: {
+            enabled: true,
+            spamEnabled: true,
+            spamThreshold: 6,
+            spamTimeWindow: 8,
+            capsEnabled: true,
+            capsThreshold: 75,
+            linksEnabled: true,
+            allowedDomains: ['youtube.com', 'youtu.be', 'twitch.tv', 'discord.com'],
+            invitesEnabled: true,
+            wordsEnabled: true,
+            bannedWords: [
+                'nazi',
+                'kkk',
+                'discord nitro free',
+                'steam free gift',
+                'clonado',
+                'vazado',
+                'golpe',
+                'malware',
+                'phishing',
+                'grabify',
+            ],
+        },
+    },
+    {
+        id: 'strict',
+        name: 'Strict Shield',
+        description:
+            'Aggressive anti-spam and anti-scam defaults for high-risk public servers.',
+        settings: {
+            enabled: true,
+            spamEnabled: true,
+            spamThreshold: 4,
+            spamTimeWindow: 6,
+            capsEnabled: true,
+            capsThreshold: 65,
+            linksEnabled: true,
+            allowedDomains: ['youtube.com', 'youtu.be', 'discord.com'],
+            invitesEnabled: true,
+            wordsEnabled: true,
+            bannedWords: [
+                'discord free nitro',
+                'gift card generator',
+                'crypto giveaway',
+                'onlyfans leak',
+                'keylogger',
+                'token logger',
+                'rat trojan',
+                'lifetime premium crack',
+            ],
+        },
+    },
+    {
+        id: 'light',
+        name: 'Light',
+        description:
+            'Lower-friction defaults with basic link and spam protection enabled.',
+        settings: {
+            enabled: true,
+            spamEnabled: true,
+            spamThreshold: 8,
+            spamTimeWindow: 10,
+            capsEnabled: false,
+            linksEnabled: true,
+            allowedDomains: ['youtube.com', 'youtu.be', 'twitch.tv', 'discord.com'],
+            invitesEnabled: true,
+            wordsEnabled: false,
+            bannedWords: [],
+        },
+    },
+]
+
 export class AutoModService {
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
         if (redisClient.isHealthy()) {
@@ -72,9 +172,7 @@ export class AutoModService {
 
     async updateSettings(
         guildId: string,
-        settings: Partial<
-            Omit<AutoModSettings, 'id' | 'guildId' | 'createdAt' | 'updatedAt'>
-        >,
+        settings: Partial<AutoModMutableSettings>,
     ): Promise<AutoModSettings> {
         const result = await prisma.autoModSettings.upsert({
             where: { guildId },
@@ -83,6 +181,41 @@ export class AutoModService {
         })
         this.invalidateCache(guildId)
         return result
+    }
+
+    async listTemplates(): Promise<AutoModTemplate[]> {
+        return AUTO_MOD_TEMPLATES
+    }
+
+    async applyTemplate(
+        guildId: string,
+        templateId: string,
+    ): Promise<{ settings: AutoModSettings; template: AutoModTemplate }> {
+        const template = AUTO_MOD_TEMPLATES.find((item) => item.id === templateId)
+        if (!template) {
+            throw new AutoModTemplateNotFoundError(templateId)
+        }
+
+        const current = (await this.getSettings(guildId)) ?? (await this.createSettings(guildId))
+        const mergedAllowedDomains = [
+            ...new Set([
+                ...current.allowedDomains,
+                ...(template.settings.allowedDomains ?? []),
+            ]),
+        ]
+        const mergedBannedWords = [
+            ...new Set([...current.bannedWords, ...(template.settings.bannedWords ?? [])]),
+        ]
+
+        const settings = await this.updateSettings(guildId, {
+            ...template.settings,
+            allowedDomains: mergedAllowedDomains,
+            bannedWords: mergedBannedWords,
+            exemptChannels: current.exemptChannels,
+            exemptRoles: current.exemptRoles,
+        })
+
+        return { settings, template }
     }
 
     async checkSpam(

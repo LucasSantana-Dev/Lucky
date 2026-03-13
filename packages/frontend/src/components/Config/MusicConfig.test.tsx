@@ -191,6 +191,8 @@ describe('MusicConfig', () => {
         })
         await user.click(submitButton)
 
-        expect(submitButton).toBeDisabled()
+        await waitFor(() => {
+            expect(submitButton).toBeDisabled()
+        })
     })
 })

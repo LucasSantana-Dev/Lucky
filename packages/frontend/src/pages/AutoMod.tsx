@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 import Skeleton from '@/components/ui/Skeleton'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
 import type { AutoModSettings, AutoModTemplate } from '@/types'
@@ -255,7 +256,7 @@ export default function AutoModPage() {
     }
 
     const applyTemplate = async (templateId: string) => {
-        if (!selectedGuild?.id || applyingTemplateId !== null) return
+        if (!selectedGuild?.id) return
         setApplyingTemplateId(templateId)
         try {
             const response = await api.automod.applyTemplate(
@@ -264,14 +265,18 @@ export default function AutoModPage() {
             )
             setSettings(response.data.settings)
             toast.success('Auto-moderation template applied')
-        } catch {
-            toast.error('Failed to apply template')
+        } catch (error) {
+            if (error instanceof ApiError) {
+                toast.error(error.message)
+            } else {
+                toast.error('Failed to apply template')
+            }
         } finally {
             setApplyingTemplateId(null)
         }
     }
 
-    const renderTemplateCards = () => {
+    const renderTemplates = () => {
         if (templatesLoading) {
             return <Skeleton className='h-12 w-full' />
         }
@@ -300,8 +305,15 @@ export default function AutoModPage() {
                         <Button
                             className='mt-3 cursor-pointer'
                             size='sm'
-                            onClick={() => void applyTemplate(template.id)}
+                            onClick={() => {
+                                applyTemplate(template.id)
+                            }}
                             disabled={applyingTemplateId !== null}
+                            aria-label={
+                                applyingTemplateId === template.id
+                                    ? `Applying ${template.name} template`
+                                    : `Apply ${template.name} template`
+                            }
                         >
                             {applyingTemplateId === template.id ? (
                                 <Loader2 className='h-4 w-4 animate-spin' />
@@ -389,7 +401,7 @@ export default function AutoModPage() {
                             Start from curated defaults for common malicious
                             links and harmful words.
                         </p>
-                        {renderTemplateCards()}
+                        {renderTemplates()}
                     </Card>
                 </motion.div>
 

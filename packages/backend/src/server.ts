@@ -26,7 +26,7 @@ export function startWebApp(): void {
         const frontendDistPath = path.join(__dirname, 'frontend', 'dist')
         app.use(express.static(frontendDistPath))
         app.get('/{*path}', (req, res, next) => {
-            if (/^\/api(?:\/|$)/.test(req.path)) {
+            if (req.path === '/api' || req.path.startsWith('/api/')) {
                 next()
                 return
             }

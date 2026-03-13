@@ -14,9 +14,19 @@ jest.mock('../../../src/services/SessionService', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
+    AutoModTemplateNotFoundError: class AutoModTemplateNotFoundError extends Error {
+        readonly code = 'ERR_AUTOMOD_TEMPLATE_NOT_FOUND'
+
+        constructor(templateId: string) {
+            super(`Auto-mod template not found: ${templateId}`)
+            this.name = 'AutoModTemplateNotFoundError'
+        }
+    },
     autoModService: {
         getSettings: jest.fn(),
         updateSettings: jest.fn(),
+        listTemplates: jest.fn(),
+        applyTemplate: jest.fn(),
     },
     customCommandService: {
         listCommands: jest.fn(),
@@ -44,6 +54,7 @@ jest.mock('../../../src/routes/managementAutoMessages', () => ({
 }))
 
 import {
+    AutoModTemplateNotFoundError,
     autoModService,
     customCommandService,
     serverLogService,
@@ -216,30 +227,8 @@ describe('Management Routes Integration', () => {
         })
     })
 
-    describe('GET /api/guilds/:guildId/automod/templates', () => {
-        test('should return automod templates when authenticated', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const response = await request(app)
-                .get('/api/guilds/111111111111111111/automod/templates')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(200)
-
-            expect(response.body.templates).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({
-                        id: 'balanced',
-                    }),
-                ]),
-            )
-        })
-    })
-
-    describe('POST /api/guilds/:guildId/automod/templates/:templateId/apply', () => {
-        test('should apply automod template and persist settings', async () => {
+    describe('Auto-mod templates routes', () => {
+        test('GET /api/guilds/:guildId/automod/templates returns templates', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
@@ -248,16 +237,54 @@ describe('Management Routes Integration', () => {
             const mockAutoModService = autoModService as jest.Mocked<
                 typeof autoModService
             >
-            mockAutoModService.getSettings.mockResolvedValue({
-                exemptChannels: ['123'],
-                exemptRoles: ['456'],
-                allowedDomains: ['custom.example'],
-                bannedWords: ['custom-word'],
+            mockAutoModService.listTemplates.mockResolvedValue([
+                {
+                    id: 'balanced',
+                    name: 'Balanced',
+                    description: 'Balanced defaults',
+                    settings: { enabled: true },
+                },
+            ])
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/automod/templates')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body).toEqual({
+                templates: [
+                    {
+                        id: 'balanced',
+                        name: 'Balanced',
+                        description: 'Balanced defaults',
+                        settings: { enabled: true },
+                    },
+                ],
+            })
+        })
+
+        test('POST /api/guilds/:guildId/automod/templates/:templateId/apply applies template', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockAutoModService = autoModService as jest.Mocked<
+                typeof autoModService
+            >
+            mockAutoModService.applyTemplate.mockResolvedValue({
+                template: {
+                    id: 'balanced',
+                },
+                settings: {
+                    guildId: '111111111111111111',
+                    enabled: true,
+                },
             } as any)
-            mockAutoModService.updateSettings.mockResolvedValue({
-                guildId: '111111111111111111',
-                enabled: true,
-            } as any)
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.logAutoModSettingsChange.mockResolvedValue()
 
             const response = await request(app)
                 .post(
@@ -266,27 +293,57 @@ describe('Management Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body.templateId).toBe('balanced')
-            expect(mockAutoModService.updateSettings).toHaveBeenCalledWith(
+            expect(mockAutoModService.applyTemplate).toHaveBeenCalledWith(
                 '111111111111111111',
-                expect.objectContaining({
-                    enabled: true,
-                    exemptChannels: ['123'],
-                    exemptRoles: ['456'],
-                }),
+                'balanced',
             )
+            expect(
+                mockServerLogService.logAutoModSettingsChange,
+            ).toHaveBeenCalledWith(
+                '111111111111111111',
+                {
+                    module: 'general',
+                    enabled: true,
+                    changes: {
+                        templateId: 'balanced',
+                        settings: {
+                            guildId: '111111111111111111',
+                            enabled: true,
+                        },
+                    },
+                },
+                MOCK_SESSION_DATA.userId,
+            )
+            expect(response.body).toEqual({
+                templateId: 'balanced',
+                settings: {
+                    guildId: '111111111111111111',
+                    enabled: true,
+                },
+            })
         })
 
-        test('should return 404 for unknown template', async () => {
+        test('POST /api/guilds/:guildId/automod/templates/:templateId/apply returns 404 for unknown template', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            await request(app)
+            const mockAutoModService = autoModService as jest.Mocked<
+                typeof autoModService
+            >
+            mockAutoModService.applyTemplate.mockRejectedValue(
+                new AutoModTemplateNotFoundError('unknown'),
+            )
+
+            const response = await request(app)
                 .post('/api/guilds/111111111111111111/automod/templates/unknown/apply')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(404)
+
+            expect(response.body).toEqual({
+                error: 'Auto-mod template not found',
+            })
         })
     })
 

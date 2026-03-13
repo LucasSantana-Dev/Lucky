@@ -1,5 +1,8 @@
+import { createHash } from 'node:crypto'
 import {
+    GuildRoleGrantStorageError,
     guildRoleAccessService,
+    redisClient,
     type AccessMode,
     type EffectiveAccessMap,
     type ModuleKey,
@@ -19,6 +22,7 @@ export interface GuildAccessContext {
     owner: boolean
     isAdmin: boolean
     hasBot: boolean
+    botPresenceChecked: boolean
     roleIds: string[]
     nickname: string | null
     effectiveAccess: EffectiveAccessMap
@@ -31,6 +35,90 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
 }
 
 class GuildAccessService {
+    private readonly userGuildCacheTtlSeconds = 30
+
+    private isDiscordGuildArray(value: unknown): value is DiscordGuild[] {
+        return (
+            Array.isArray(value) &&
+            value.every((item) => {
+                if (typeof item !== 'object' || item === null) {
+                    return false
+                }
+
+                const guild = item as {
+                    id?: unknown
+                    name?: unknown
+                }
+
+                return (
+                    typeof guild.id === 'string' &&
+                    typeof guild.name === 'string'
+                )
+            })
+        )
+    }
+
+    private getCacheKey(session: SessionData): string {
+        const accessTokenFingerprint = createHash('sha256')
+            .update(session.accessToken)
+            .digest('hex')
+            .slice(0, 16)
+
+        return `guild-access:user-guilds:${session.user.id}:${accessTokenFingerprint}`
+    }
+
+    private async getCachedGuilds(
+        session: SessionData,
+    ): Promise<DiscordGuild[] | null> {
+        if (!redisClient.isHealthy()) {
+            return null
+        }
+
+        try {
+            const raw = await redisClient.get(this.getCacheKey(session))
+            if (!raw) {
+                return null
+            }
+
+            const parsed: unknown = JSON.parse(raw)
+            if (!this.isDiscordGuildArray(parsed)) {
+                return null
+            }
+
+            return parsed
+        } catch (error) {
+            errorLog({
+                message: 'Failed to read cached Discord guild list',
+                error,
+                data: { userId: session.user.id },
+            })
+            return null
+        }
+    }
+
+    private async setCachedGuilds(
+        session: SessionData,
+        guilds: DiscordGuild[],
+    ): Promise<void> {
+        if (!redisClient.isHealthy()) {
+            return
+        }
+
+        try {
+            await redisClient.setex(
+                this.getCacheKey(session),
+                this.userGuildCacheTtlSeconds,
+                JSON.stringify(guilds),
+            )
+        } catch (error) {
+            errorLog({
+                message: 'Failed to cache Discord guild list',
+                error,
+                data: { userId: session.user.id, guildCount: guilds.length },
+            })
+        }
+    }
+
     private extractStatusCode(error: unknown): number | null {
         if (error instanceof DiscordApiError) {
             return error.statusCode
@@ -56,11 +144,36 @@ class GuildAccessService {
 
     private async fetchUserGuilds(
         session: SessionData,
+        options?: { allowCachedFallback?: boolean },
     ): Promise<DiscordGuild[]> {
+        const allowCachedFallback = options?.allowCachedFallback ?? true
         try {
-            return await discordOAuthService.getUserGuilds(session.accessToken)
+            const guilds = await discordOAuthService.getUserGuilds(
+                session.accessToken,
+            )
+            await this.setCachedGuilds(session, guilds)
+            return guilds
         } catch (error) {
             const statusCode = this.extractStatusCode(error)
+            const cachedGuilds = await this.getCachedGuilds(session)
+
+            if (
+                allowCachedFallback &&
+                cachedGuilds &&
+                (statusCode === 429 ||
+                    (statusCode !== null && statusCode >= 500))
+            ) {
+                errorLog({
+                    message:
+                        'Using cached guild list after Discord guild fetch failure',
+                    data: {
+                        userId: session.user.id,
+                        statusCode,
+                        guildCount: cachedGuilds.length,
+                    },
+                })
+                return cachedGuilds
+            }
 
             if (statusCode === 401) {
                 throw AppError.unauthorized(
@@ -98,14 +211,31 @@ class GuildAccessService {
                 guild.permissions,
                 guild.permissions_new,
             )
+        if (isAdmin) {
+            const effectiveAccess =
+                await guildRoleAccessService.resolveEffectiveAccess(
+                    guild.id,
+                    [],
+                    true,
+                )
 
-        const hasBot = isAdmin
-            ? true
-            : await guildService.hasBotInGuild(guild.id)
-        const memberContext =
-            hasBot && !isAdmin
-                ? await guildService.getGuildMemberContext(guild.id, userId)
-                : { nickname: null, roleIds: [] as string[] }
+            return {
+                guildId: guild.id,
+                owner: guild.owner,
+                isAdmin,
+                hasBot: false,
+                botPresenceChecked: false,
+                roleIds: [],
+                nickname: null,
+                effectiveAccess,
+                canManageRbac: true,
+            }
+        }
+
+        const hasBot = await guildService.hasBotInGuild(guild.id)
+        const memberContext = hasBot
+            ? await guildService.getGuildMemberContext(guild.id, userId)
+            : { nickname: null, roleIds: [] as string[] }
 
         const effectiveAccess =
             await guildRoleAccessService.resolveEffectiveAccess(
@@ -119,6 +249,7 @@ class GuildAccessService {
             owner: guild.owner,
             isAdmin,
             hasBot,
+            botPresenceChecked: true,
             roleIds: memberContext.roleIds,
             nickname: memberContext.nickname,
             effectiveAccess,
@@ -131,7 +262,7 @@ class GuildAccessService {
             return true
         }
 
-        if (!context.hasBot) {
+        if (!context.botPresenceChecked || !context.hasBot) {
             return false
         }
 
@@ -147,6 +278,12 @@ class GuildAccessService {
                 try {
                     return await this.buildContext(guild, session.user.id)
                 } catch (error) {
+                    if (error instanceof GuildRoleGrantStorageError) {
+                        throw new AppError(
+                            503,
+                            'RBAC storage is unavailable. Run database migrations and retry.',
+                        )
+                    }
                     errorLog({
                         message: 'Skipping guild due access context failure',
                         error,
@@ -200,14 +337,27 @@ class GuildAccessService {
         session: SessionData,
         guildId: string,
     ): Promise<GuildAccessContext | null> {
-        const guilds = await this.fetchUserGuilds(session)
+        const guilds = await this.fetchUserGuilds(session, {
+            allowCachedFallback: false,
+        })
         const guild = guilds.find((item) => item.id === guildId)
 
         if (!guild) {
             return null
         }
 
-        const context = await this.buildContext(guild, session.user.id)
+        let context: GuildAccessContext
+        try {
+            context = await this.buildContext(guild, session.user.id)
+        } catch (error) {
+            if (error instanceof GuildRoleGrantStorageError) {
+                throw new AppError(
+                    503,
+                    'RBAC storage is unavailable. Run database migrations and retry.',
+                )
+            }
+            throw error
+        }
         if (!this.isAuthorized(context)) {
             return null
         }

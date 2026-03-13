@@ -14,6 +14,9 @@ permissions:
 jobs:
     compressed-size:
         runs-on: ubuntu-latest
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            YOUTUBE_DL_SKIP_DOWNLOAD: 'true'
         steps:
             - name: Checkout PR
               uses: actions/checkout@v4

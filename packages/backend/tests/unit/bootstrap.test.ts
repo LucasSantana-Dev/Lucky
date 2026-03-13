@@ -70,6 +70,23 @@ describe('Backend Bootstrap', () => {
         expect(mockVerifyRequiredDatabaseState).toHaveBeenCalledTimes(1)
         expect(mockRedis.connect).toHaveBeenCalledTimes(1)
         expect(mockStartWebApp).toHaveBeenCalledTimes(1)
+
+        const verifyOrder =
+            mockVerifyRequiredDatabaseState.mock.invocationCallOrder[0]
+        const redisOrder = mockRedis.connect.mock.invocationCallOrder[0]
+        const startOrder = mockStartWebApp.mock.invocationCallOrder[0]
+        expect(verifyOrder).toBeLessThan(redisOrder)
+        expect(redisOrder).toBeLessThan(startOrder)
+    })
+
+    test('fails fast when required DB state verification fails', async () => {
+        mockVerifyRequiredDatabaseState.mockRejectedValueOnce(
+            new Error('schema missing'),
+        )
+
+        await expect(bootstrapBackend()).rejects.toThrow('schema missing')
+        expect(mockRedis.connect).not.toHaveBeenCalled()
+        expect(mockStartWebApp).not.toHaveBeenCalled()
     })
 
     test('continues startup when redis connect returns false', async () => {

@@ -22,11 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added backend automation API routes under
   `/api/guilds/:guildId/automation/*` for manifest CRUD, run execution, status,
   and cutover operations
-- Added automation-adjacent management endpoints:
-  `GET /api/guilds/:guildId/channels`,
-  `GET /api/guilds/:guildId/automod/templates`,
-  `POST /api/guilds/:guildId/automod/templates/:templateId/apply`, and
-  `POST /api/guilds/:guildId/automation/presets/criativaria/apply`
 
 - Added `docs/BOT_COMMAND_ROADMAP_BENCHMARKS.md` with a benchmark-driven Lucky
   command roadmap (Dyno, Rythm, Loritta, MEE6, Carl-bot references), prioritized
@@ -42,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET/PUT /api/guilds/:guildId/rbac` and `GET /api/guilds/:id/me`
 - Added frontend Access Control section in Server Settings to manage module
   grants by Discord role as full-policy replacement
+- Added Auto-Mod template API routes:
+  `GET /api/guilds/:guildId/automod/templates` and
+  `POST /api/guilds/:guildId/automod/templates/:templateId/apply`
 - Added public legal routes for Discord app metadata:
   `/terms-of-service`, `/privacy-policy` with aliases `/terms`, `/privacy`
 - Added public install redirect endpoint (`/api/install`) and canonical install
@@ -57,6 +55,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bundle-size CI workflow now exports `YOUTUBE_DL_SKIP_DOWNLOAD=true` (with
+  workflow token) so `youtube-dl-exec` postinstall no longer fails on anonymous
+  GitHub API rate limits during `npm ci`
+- Auto-mod template apply now writes Server Logs audit entries; guild fallback
+  cache keys now use a non-reversible access-token fingerprint; Twitch and
+  guild-selection frontend flows now include additional race guards and
+  keyboard/screen-reader accessibility hardening
+- Guild-access fallback caching now uses shared Redis keys instead of
+  process-local memory, preserving fallback behavior across multi-instance
+  backend deployments
+- Sidebar server selector now exposes retry/re-auth recovery actions whenever
+  guild loading fails (including stale-guild scenarios) and uses corrected menu
+  accessibility semantics
+- Auto-Mod template apply flow now uses a typed
+  `AutoModTemplateNotFoundError` mapped to stable `404` route responses
 - OAuth callback resolution now prioritizes `WEBAPP_BACKEND_URL` in production
   (fallback: `WEBAPP_REDIRECT_URI`) so `/api/auth/discord` and
   `/api/health/auth-config` stay aligned with split-origin API deployments.
@@ -147,6 +160,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actionable auth responses (401/403) and maps upstream Discord outages to 502
 - `GET /api/guilds/:id/me` no longer requires `overview` module access so the
   dashboard can always bootstrap member context for authorized users
+- Admin guild authorization no longer depends on transient bot/member lookup
+  network calls (`hasBotInGuild`/member context) during context resolution
+- `GET /api/guilds/:id/me` no longer authorizes from cached guild membership
+  during Discord upstream failures (`429`/`5xx`)
+- RBAC storage failures caused by missing `guild_role_grants` now return
+  explicit `503` responses (instead of silent empty grants or generic `500`)
+- Production SPA fallback now excludes both `/api/*` and `/api` so API misses
+  are handled by backend JSON error flow
+- Twitch Notifications page now guards async fetch races, supports accessible
+  Twitch URL/login input labeling, and resolves channel names in list rows
+- Auto-Mod template apply endpoint now supports encoded template IDs in
+  frontend client routes
 - Server selector now distinguishes true empty authorization from
   fetch/auth/session failures, showing retry and re-auth actions for failure
   states instead of a misleading empty result

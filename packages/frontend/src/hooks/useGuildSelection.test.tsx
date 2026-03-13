@@ -10,7 +10,9 @@ vi.mock('@/stores/authStore')
 type GuildState = {
     guilds: Array<{ id: string; botAdded: boolean }>
     selectedGuild: { id: string; botAdded: boolean } | null
-    fetchGuilds: () => Promise<void>
+    isLoading: boolean
+    hasFetchedGuilds: boolean
+    fetchGuilds: (force?: boolean) => Promise<void>
     selectGuild: (guild: { id: string; botAdded: boolean }) => void
     guildLoadError: { kind: string; message: string; status?: number } | null
 }
@@ -21,7 +23,7 @@ type AuthState = {
 }
 
 describe('useGuildSelection', () => {
-    const fetchGuilds = vi.fn<() => Promise<void>>()
+    const fetchGuilds = vi.fn<(force?: boolean) => Promise<void>>()
     const selectGuild = vi.fn<(guild: { id: string; botAdded: boolean }) => void>()
 
     let guildState: GuildState
@@ -35,6 +37,8 @@ describe('useGuildSelection', () => {
         guildState = {
             guilds: [],
             selectedGuild: null,
+            isLoading: false,
+            hasFetchedGuilds: false,
             fetchGuilds,
             selectGuild,
             guildLoadError: null,
@@ -74,10 +78,12 @@ describe('useGuildSelection', () => {
             message: 'Session expired',
             status: 401,
         }
+        guildState.hasFetchedGuilds = true
         hook.rerender()
 
         await waitFor(() => {
             expect(fetchGuilds).toHaveBeenCalledTimes(2)
+            expect(fetchGuilds).toHaveBeenLastCalledWith(true)
         })
     })
 
@@ -106,9 +112,7 @@ describe('useGuildSelection', () => {
 
         renderHook(() => useGuildSelection())
 
-        await waitFor(() => {
-            expect(fetchGuilds).toHaveBeenCalledTimes(1)
-        })
+        expect(fetchGuilds).not.toHaveBeenCalled()
         expect(selectGuild).not.toHaveBeenCalled()
     })
 })

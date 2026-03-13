@@ -110,10 +110,13 @@ packages/
 - `/servers` remains available to authenticated users even when module-level
   access is restricted, so server discovery/invite flows stay reachable
 - Sidebar identity resolution chain: `nick > globalName > username`
+- Sidebar server selector preserves stale guild context during transient API
+  failures and keeps Retry/Re-auth controls available in the dropdown
 - Dashboard guild metrics now use live bot/API counts, rendering unknown values
   as `—` instead of `0`
 - Moderation case viewer and settings
 - Auto-mod configuration
+- Auto-mod templates API with curated presets (`balanced`, `strict`, `light`)
 - Server logs with filtering
 - Music player with real-time SSE updates
 - Feature toggle management (Unleash + env var fallback)
@@ -121,12 +124,18 @@ packages/
   `/api/guilds/:guildId/automessages`; legacy
   `/api/guilds/:guildId/auto-messages` is intentionally unsupported, and stale
   guild `/listing` calls were removed from the frontend client/store surface
+- Twitch notifications now accept Twitch URL or login input and resolve Discord
+  channel names in notification rows
 
 ### Backend Quality
 - Zod input validation on all routes
 - Rate limiting (API 100/min, auth 20/15min, write 30/min)
 - Centralized error handling (AppError + asyncHandler + errorHandler)
 - Request logging middleware
+- RBAC storage outages now return explicit `503` API responses when
+  `guild_role_grants` is unavailable
+- Guild access fallback cache is backed by Redis keys (short TTL) so Discord
+  `429/5xx` fallback works across multi-instance backend replicas
 - Auth readiness health contract at `GET /api/health/auth-config`
   (includes `clientId` and generated `authorizeUrlPreview`, without secrets)
 - Guild automation execution locking is Redis-backed and fail-closed when lock
@@ -147,8 +156,13 @@ cd Lucky
 cp .env.example .env    # Configure DISCORD_TOKEN, CLIENT_ID, DATABASE_URL
 npm install
 npm run build
+npm run db:migrate   # Required before start; startup preflight checks guild_role_grants
 npm start
 ```
+
+If `npm run db:migrate` is skipped, backend startup preflight fails on missing
+`guild_role_grants`, and RBAC endpoints return explicit `503` errors until the
+schema is migrated.
 
 ### Docker (Recommended)
 
@@ -207,6 +221,8 @@ verification in CI or local checks.
 Sonar main-gate reliability checks are strict on new code: use deterministic
 string sorting (`localeCompare`), keyboard-accessible UI interactions for
 clickable controls, and bounded parsing logic for user-facing text handling.
+Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
+`youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
 ### Remote Deploy (No SSH)
 
@@ -386,8 +402,6 @@ Lucky now supports declarative server automation for guild operations:
 - Safe auto-apply for non-destructive changes
 - Protected operations (deletes/permission tightening) require explicit opt-in
 - Native Discord onboarding mapping (`fetchOnboarding`/`editOnboarding`) is first-class
-- Companion management APIs cover channel options, automod templates, and the
-  Criativaria preset bootstrap under `/api/guilds/:guildId/*`
 - Cutover role cleanup targets only external bots explicitly flagged with
   `retireOnCutover: true` in parity manifest data
 - Automation API precondition failures (`no manifest`, `capture required`,

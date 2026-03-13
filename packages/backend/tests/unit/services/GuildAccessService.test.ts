@@ -28,6 +28,11 @@ const mockHasAccess = jest.fn<
     boolean,
     [Record<string, string>, string, string]
 >()
+const mockRedisIsHealthy = jest.fn<boolean, []>()
+const mockRedisGet = jest.fn<Promise<string | null>, [string]>()
+const mockRedisSetex = jest.fn<Promise<boolean>, [string, number, string]>()
+
+class MockGuildRoleGrantStorageError extends Error {}
 
 jest.mock('../../../src/services/DiscordOAuthService', () => ({
     DiscordApiError: MockDiscordApiError,
@@ -51,6 +56,7 @@ jest.mock('../../../src/services/GuildService', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
+    GuildRoleGrantStorageError: MockGuildRoleGrantStorageError,
     guildRoleAccessService: {
         resolveEffectiveAccess: (...args: [string, string[], boolean]) =>
             mockResolveEffectiveAccess(...args),
@@ -58,6 +64,11 @@ jest.mock('@lucky/shared/services', () => ({
             mockHasAnyAccess(...args),
         hasAccess: (...args: [Record<string, string>, string, string]) =>
             mockHasAccess(...args),
+    },
+    redisClient: {
+        isHealthy: (...args: []) => mockRedisIsHealthy(...args),
+        get: (...args: [string]) => mockRedisGet(...args),
+        setex: (...args: [string, number, string]) => mockRedisSetex(...args),
     },
 }))
 
@@ -115,6 +126,9 @@ describe('GuildAccessService', () => {
             }
             return value === 'manage'
         })
+        mockRedisIsHealthy.mockReturnValue(false)
+        mockRedisGet.mockResolvedValue(null)
+        mockRedisSetex.mockResolvedValue(true)
         mockEnrichGuildsWithBotStatus.mockImplementation(
             async (guilds: DiscordGuild[]) =>
                 guilds.map((guild) => ({
@@ -253,6 +267,48 @@ describe('GuildAccessService', () => {
         })
     })
 
+    test('listAuthorizedGuilds ignores malformed cached guild payload on upstream 429', async () => {
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockRedisGet.mockResolvedValue('{"guilds":"invalid"}')
+        mockGetUserGuilds.mockRejectedValue({
+            status: 429,
+            message: 'rate limited',
+        })
+
+        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+            statusCode: 502,
+            message: 'Discord API is temporarily unavailable. Please retry.',
+        })
+    })
+
+    test('listAuthorizedGuilds uses cached guilds on upstream 5xx failures', async () => {
+        const cachedGuild = makeGuild('515', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockRedisGet.mockResolvedValue(JSON.stringify([cachedGuild]))
+        mockGetUserGuilds.mockRejectedValue({
+            status: 503,
+            message: 'upstream unavailable',
+        })
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        const result = await guildAccessService.listAuthorizedGuilds(SESSION)
+
+        expect(result).toHaveLength(1)
+        expect(result[0]).toMatchObject({
+            id: cachedGuild.id,
+            canManageRbac: true,
+        })
+    })
+
     test('listAuthorizedGuilds rethrows unexpected guild-fetch errors', async () => {
         const unknownError = new Error('boom')
         mockGetUserGuilds.mockRejectedValue(unknownError)
@@ -286,6 +342,26 @@ describe('GuildAccessService', () => {
 
         expect(result).toHaveLength(1)
         expect(result[0].id).toBe('101')
+    })
+
+    test('listAuthorizedGuilds returns 503 when RBAC storage is unavailable', async () => {
+        const guild = makeGuild('919')
+
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockHasBotInGuild.mockResolvedValue(true)
+        mockGetGuildMemberContext.mockResolvedValue({
+            nickname: 'Helper',
+            roleIds: ['role-helper'],
+        })
+        mockResolveEffectiveAccess.mockRejectedValue(
+            new MockGuildRoleGrantStorageError('missing table'),
+        )
+
+        await expect(guildAccessService.listAuthorizedGuilds(SESSION)).rejects.toMatchObject({
+            statusCode: 503,
+            message:
+                'RBAC storage is unavailable. Run database migrations and retry.',
+        })
     })
 
     test('listAuthorizedGuilds returns retryable error when all context lookups fail', async () => {
@@ -341,7 +417,8 @@ describe('GuildAccessService', () => {
         expect(context).toMatchObject({
             guildId: adminGuild.id,
             isAdmin: true,
-            hasBot: true,
+            hasBot: false,
+            botPresenceChecked: false,
             canManageRbac: true,
         })
         expect(mockHasBotInGuild).not.toHaveBeenCalled()
@@ -441,11 +518,145 @@ describe('GuildAccessService', () => {
             owner: false,
             isAdmin: false,
             hasBot: true,
+            botPresenceChecked: true,
             roleIds: ['role-mod'],
             nickname: 'Moderator',
             canManageRbac: false,
             effectiveAccess: moderationViewAccess,
         })
+    })
+
+    test('resolveGuildContext returns 503 when RBAC storage is unavailable', async () => {
+        const guild = makeGuild('929')
+
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockHasBotInGuild.mockResolvedValue(true)
+        mockGetGuildMemberContext.mockResolvedValue({
+            nickname: 'Moderator',
+            roleIds: ['role-mod'],
+        })
+        mockResolveEffectiveAccess.mockRejectedValue(
+            new MockGuildRoleGrantStorageError('missing table'),
+        )
+
+        await expect(
+            guildAccessService.resolveGuildContext(SESSION, guild.id),
+        ).rejects.toMatchObject({
+            statusCode: 503,
+            message:
+                'RBAC storage is unavailable. Run database migrations and retry.',
+        })
+    })
+
+    test('resolveGuildContext short-circuits admin access without bot/member lookups', async () => {
+        const guild = makeGuild('909', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockHasBotInGuild.mockRejectedValue(new Error('discord unreachable'))
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        const context = await guildAccessService.resolveGuildContext(
+            SESSION,
+            guild.id,
+        )
+
+        expect(context).toMatchObject({
+            guildId: guild.id,
+            isAdmin: true,
+            hasBot: false,
+            botPresenceChecked: false,
+            roleIds: [],
+            nickname: null,
+            effectiveAccess: adminAccess,
+            canManageRbac: true,
+        })
+        expect(mockHasBotInGuild).not.toHaveBeenCalled()
+        expect(mockGetGuildMemberContext).not.toHaveBeenCalled()
+    })
+
+    test('resolveGuildContext does not authorize using cached guilds on upstream 429', async () => {
+        const guild = makeGuild('919', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+        const cachedGuilds = JSON.stringify([guild])
+
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockRedisGet.mockResolvedValue(cachedGuilds)
+        mockGetUserGuilds.mockResolvedValueOnce([guild])
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+        await guildAccessService.listAuthorizedGuilds(SESSION)
+        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
+
+        mockGetUserGuilds.mockRejectedValueOnce({ status: 429 })
+
+        await expect(
+            guildAccessService.resolveGuildContext(SESSION, guild.id),
+        ).rejects.toMatchObject({
+            statusCode: 502,
+            message: 'Discord API is temporarily unavailable. Please retry.',
+        })
+        expect(mockRedisGet).toHaveBeenCalled()
+    })
+
+    test('listAuthorizedGuilds does not store raw access token bytes in redis key', async () => {
+        const guild = makeGuild('920', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        await guildAccessService.listAuthorizedGuilds(SESSION)
+
+        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
+        const redisKey = mockRedisSetex.mock.calls[0][0]
+        expect(redisKey).toContain(`guild-access:user-guilds:${SESSION.user.id}:`)
+        expect(redisKey).not.toContain(SESSION.accessToken)
+        expect(redisKey).not.toContain(SESSION.accessToken.slice(0, 24))
+    })
+
+    test('listAuthorizedGuilds keeps serving data when redis cache write fails', async () => {
+        const guild = makeGuild('930', { owner: true })
+        const adminAccess = {
+            overview: 'manage',
+            settings: 'manage',
+            moderation: 'manage',
+            automation: 'manage',
+            music: 'manage',
+            integrations: 'manage',
+        }
+
+        mockRedisIsHealthy.mockReturnValue(true)
+        mockRedisSetex.mockRejectedValue(new Error('redis write failed'))
+        mockGetUserGuilds.mockResolvedValue([guild])
+        mockResolveEffectiveAccess.mockResolvedValue(adminAccess)
+
+        const result = await guildAccessService.listAuthorizedGuilds(SESSION)
+
+        expect(result).toHaveLength(1)
+        expect(result[0].id).toBe(guild.id)
+        expect(mockRedisSetex).toHaveBeenCalledTimes(1)
     })
 
     test('hasAccess delegates to guild role access service', () => {
@@ -460,6 +671,7 @@ describe('GuildAccessService', () => {
                 owner: false,
                 isAdmin: false,
                 hasBot: true,
+                botPresenceChecked: true,
                 roleIds: [],
                 nickname: null,
                 effectiveAccess: access,

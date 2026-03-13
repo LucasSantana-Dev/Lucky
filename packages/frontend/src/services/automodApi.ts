@@ -6,6 +6,10 @@ export type AutoModApiClient = Pick<
     'get' | 'patch' | 'post' | 'delete'
 >
 
+function encodeGuildSegment(guildId: string): string {
+    return encodeURIComponent(guildId)
+}
+
 export function createAutoModApi(apiClient: AutoModApiClient) {
     return {
         getSettings: (guildId: string) =>
@@ -19,14 +23,14 @@ export function createAutoModApi(apiClient: AutoModApiClient) {
             ),
         listTemplates: (guildId: string) =>
             apiClient.get<{ templates: AutoModTemplate[] }>(
-                `/guilds/${encodeURIComponent(guildId)}/automod/templates`,
+                `/guilds/${encodeGuildSegment(guildId)}/automod/templates`,
             ),
         applyTemplate: (guildId: string, templateId: string) =>
             apiClient.post<{
                 settings: AutoModSettings
                 templateId: string
             }>(
-                `/guilds/${encodeURIComponent(guildId)}/automod/templates/${encodeURIComponent(templateId)}/apply`,
+                `/guilds/${encodeGuildSegment(guildId)}/automod/templates/${encodeURIComponent(templateId)}/apply`,
             ),
         addExemptChannel: (guildId: string, channelId: string) =>
             apiClient.post<{ success: boolean }>(

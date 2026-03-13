@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerSettingsPage from './ServerSettings'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 
 vi.mock('@/services/api')
@@ -334,7 +335,7 @@ describe('ServerSettingsPage', () => {
 
         await waitFor(() => {
             expect(toast.error).toHaveBeenCalledWith(
-                'Failed to load access control policy',
+                'Failed to load role options for access rules.',
             )
         })
     })
@@ -421,7 +422,7 @@ describe('ServerSettingsPage', () => {
         })
     })
 
-    test('applies Criativaria baseline when manager triggers action', async () => {
+    test('applies Criativaria baseline and shows success toast', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')
         const managerGuild = { ...mockGuild, canManageRbac: true }
@@ -430,29 +431,26 @@ describe('ServerSettingsPage', () => {
             canManageRbac: true,
             effectiveAccess: defaultAccess,
         })
-        vi.mocked(api.guilds.applyCriativariaPreset).mockResolvedValue({
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
             data: {
-                run: {
-                    status: 'completed',
-                },
+                guildId: managerGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [],
+                roles: [{ id: '222222222222222222', name: 'Mods' }],
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
             },
+        } as any)
+        vi.mocked(api.guilds.applyCriativariaPreset).mockResolvedValue({
+            data: { run: { status: 'completed' } },
         } as any)
 
         renderPage()
 
-        await waitFor(() => {
-            expect(
-                screen.getByRole('button', {
-                    name: /Apply Criativaria Baseline/i,
-                }),
-            ).toBeInTheDocument()
+        const applyButton = await screen.findByRole('button', {
+            name: /Apply Criativaria Baseline/i,
         })
-
-        await user.click(
-            screen.getByRole('button', {
-                name: /Apply Criativaria Baseline/i,
-            }),
-        )
+        await user.click(applyButton)
 
         await waitFor(() => {
             expect(api.guilds.applyCriativariaPreset).toHaveBeenCalledWith(
@@ -464,7 +462,7 @@ describe('ServerSettingsPage', () => {
         })
     })
 
-    test('shows error toast when Criativaria baseline apply fails', async () => {
+    test('shows ApiError message when Criativaria baseline apply fails', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')
         const managerGuild = { ...mockGuild, canManageRbac: true }
@@ -473,34 +471,33 @@ describe('ServerSettingsPage', () => {
             canManageRbac: true,
             effectiveAccess: defaultAccess,
         })
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: managerGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [],
+                roles: [{ id: '222222222222222222', name: 'Mods' }],
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
+            },
+        } as any)
         vi.mocked(api.guilds.applyCriativariaPreset).mockRejectedValue(
-            new Error('preset failed'),
+            new ApiError(500, 'Preset failed'),
         )
 
         renderPage()
 
-        await waitFor(() => {
-            expect(
-                screen.getByRole('button', {
-                    name: /Apply Criativaria Baseline/i,
-                }),
-            ).toBeInTheDocument()
+        const applyButton = await screen.findByRole('button', {
+            name: /Apply Criativaria Baseline/i,
         })
-
-        await user.click(
-            screen.getByRole('button', {
-                name: /Apply Criativaria Baseline/i,
-            }),
-        )
+        await user.click(applyButton)
 
         await waitFor(() => {
-            expect(toast.error).toHaveBeenCalledWith(
-                'Failed to apply Criativaria baseline',
-            )
+            expect(toast.error).toHaveBeenCalledWith('Preset failed')
         })
     })
 
-    test('retries RBAC role loading from warning card action', async () => {
+    test('retries RBAC role loading from warning card', async () => {
         const user = userEvent.setup()
         const managerGuild = { ...mockGuild, canManageRbac: true }
 
@@ -508,10 +505,9 @@ describe('ServerSettingsPage', () => {
             canManageRbac: true,
             effectiveAccess: defaultAccess,
         })
-
         vi.mocked(api.guilds.getRbac)
-            .mockRejectedValueOnce(new Error('network'))
-            .mockResolvedValue({
+            .mockRejectedValueOnce(new Error('initial network'))
+            .mockResolvedValueOnce({
                 data: {
                     guildId: managerGuild.id,
                     modules: Object.keys(defaultAccess),
@@ -524,11 +520,10 @@ describe('ServerSettingsPage', () => {
 
         renderPage()
 
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: /Retry Roles/i })).toBeInTheDocument()
+        const retryButton = await screen.findByRole('button', {
+            name: /Retry Roles/i,
         })
-
-        await user.click(screen.getByRole('button', { name: /Retry Roles/i }))
+        await user.click(retryButton)
 
         await waitFor(() => {
             expect(api.guilds.getRbac).toHaveBeenCalledTimes(2)
