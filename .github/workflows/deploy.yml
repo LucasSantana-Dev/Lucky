@@ -206,8 +206,15 @@ jobs:
             - name: OAuth redirect contract smoke check
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+                  EXPECTED_CLIENT_ID: ${{ secrets.WEBAPP_EXPECTED_CLIENT_ID }}
               run: |
                   set -euo pipefail
+
+                  secret_expected_client_id="${EXPECTED_CLIENT_ID:-}"
+                  if [ -z "$secret_expected_client_id" ]; then
+                    echo "::error::Missing required secret WEBAPP_EXPECTED_CLIENT_ID"
+                    exit 1
+                  fi
 
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
                   auth_url="${base_url}/api/auth/discord"
@@ -249,6 +256,11 @@ jobs:
 
                   if [ -z "$expected_client_id" ] || [ -z "$expected_redirect_uri" ]; then
                     echo "::error::Unable to derive OAuth expectations from auth-config payload"
+                    exit 1
+                  fi
+
+                  if [ "$expected_client_id" != "$secret_expected_client_id" ]; then
+                    echo "::error::Auth-config client_id ($expected_client_id) does not match WEBAPP_EXPECTED_CLIENT_ID secret"
                     exit 1
                   fi
 

@@ -7,7 +7,7 @@ export const MOCK_DISCORD_USER = {
 }
 
 export const MOCK_OAUTH_STATE =
-    'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2'
+    'mock-oauth-state'
 
 export const MOCK_AUTH_CODE = 'mock_authorization_code_12345'
 
@@ -23,7 +23,7 @@ export const MOCK_TOKEN_RESPONSE = {
 }
 
 export const TEST_ENV = {
-    CLIENT_ID: '962198089161134131',
+    CLIENT_ID: 'test-client-id',
     WEBAPP_REDIRECT_URI: 'http://localhost:3000/api/auth/callback',
     WEBAPP_FRONTEND_URL: 'http://localhost:5173',
     WEBAPP_PORT: '3000',
@@ -64,7 +64,7 @@ export const MOCK_GUILDS = [
         effectiveAccess: MANAGE_EFFECTIVE_ACCESS,
         canManageRbac: true,
         botInviteUrl:
-            'https://discord.com/api/oauth2/authorize?client_id=962198089161134131&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
+            'https://discord.com/api/oauth2/authorize?client_id=test-client-id&permissions=8&scope=bot%20applications.commands&guild_id=222222222222222222',
     },
     {
         id: '333333333333333333',
@@ -197,6 +197,6 @@ export const MOCK_API_RESPONSES = {
     authUser: MOCK_DISCORD_USER,
     inviteUrl: {
         inviteUrl:
-            'https://discord.com/api/oauth2/authorize?client_id=962198089161134131&permissions=8&scope=bot%20applications.commands',
+            'https://discord.com/api/oauth2/authorize?client_id=test-client-id&permissions=8&scope=bot%20applications.commands',
     },
 }

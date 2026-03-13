@@ -301,8 +301,12 @@ accepts all configured entries while Last.fm redirects use the first origin.
 Set `WEBAPP_REDIRECT_URI` to the exact Discord OAuth callback URL registered in the
 Discord Developer Portal (example:
 `https://lucky.lucassantana.tech/api/auth/callback`).
-Set `WEBAPP_EXPECTED_CLIENT_ID` to the production Discord app id to make
-`/api/health/auth-config` return `degraded` on credential drift.
+Set `WEBAPP_EXPECTED_CLIENT_ID` from deployment secrets (for example GitHub
+Actions secret `WEBAPP_EXPECTED_CLIENT_ID`) to make
+`/api/health/auth-config` return `degraded` on credential drift. When unset,
+the client-id mismatch warning is skipped.
+For `docker-compose.yml` and `docker-compose.dev.yml`,
+`POSTGRES_PASSWORD` is required (no hardcoded fallback).
 Set `WEBAPP_BACKEND_URL` to your public backend/API origin when you expose API routes
 through a dedicated host. Use an absolute URL (for example,
 `https://lucky-api.lucassantana.tech`).
@@ -338,11 +342,12 @@ See `.env.example` for all available options. Key variables:
 | `DISCORD_TOKEN` | Yes | Discord bot token (bot runtime + backend guild membership checks) |
 | `CLIENT_ID` | Yes | Discord application client ID |
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `POSTGRES_PASSWORD` | Yes (Compose) | Required by `docker-compose*.yml` (`postgres` + `DATABASE_URL` interpolation) |
 | `REDIS_HOST` | No | Redis host (default: localhost) |
 | `WEBAPP_ENABLED` | No | Enable web dashboard (default: false) |
 | `WEBAPP_SESSION_SECRET` | No | Session encryption key |
 | `WEBAPP_REDIRECT_URI` | No | Explicit Discord OAuth callback URL (must match Discord app settings and deploy smoke contract) |
-| `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection |
+| `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection when explicitly set |
 | `WEBAPP_BACKEND_URL` | No | Public backend/API origin used for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; recommended: `https://lucky-api.lucassantana.tech`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
 | `SENTRY_DSN` | No | Error tracking |
