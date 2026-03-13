@@ -84,6 +84,8 @@ packages/
 - Moderation: warn, mute, kick, ban with case tracking
 - Auto-mod: word filter, link filter, spam detection
 - Custom commands, embed builder, auto-messages (welcome/leave)
+- Runtime command discovery now relies on shared default filtering so
+  `*.spec.*` and `*.test.*` files are never imported as command modules
 - Reaction roles, role management
 - Centralized guild automation (`/guildconfig`) with manifest capture, drift plans,
   reconcile/apply flows, and cutover checklist tracking

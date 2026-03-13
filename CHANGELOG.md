@@ -121,6 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `automod` categories
 - Command directory loading now ignores `*.spec.*` and `*.test.*` modules so
   test files are never registered as slash commands
+- Management command category loader no longer overrides shared
+  `excludePatterns`, preventing escaped-regex drift from importing `*.spec.*`
+  files at runtime (task `lucky-baseline-bot-command-loader-runtime-warnings`)
 - Dashboard guild authorization now tolerates per-guild context failures
   instead of dropping the full `/api/guilds` response when one guild fails
 - Discord guild permission parsing now supports payload drift

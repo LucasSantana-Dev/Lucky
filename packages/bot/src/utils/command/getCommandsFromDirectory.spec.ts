@@ -81,6 +81,19 @@ describe('getCommandsFromDirectory', () => {
         30_000,
     )
 
+    it('only excludes spec files with correctly escaped patterns', async () => {
+        tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
+
+        await fs.writeFile(path.join(tempDir, 'valid.js'), 'export default {}\n', 'utf8')
+        await fs.writeFile(path.join(tempDir, 'example.spec.js'), 'export default {}\n', 'utf8')
+
+        const wronglyEscaped = getCommandFiles(tempDir, [/\\.spec\\./])
+        expect(wronglyEscaped).toEqual(['example.spec.js', 'valid.js'])
+
+        const correctlyEscaped = getCommandFiles(tempDir, [/\.spec\./])
+        expect(correctlyEscaped).toEqual(['valid.js'])
+    })
+
     it('prefers JavaScript files when both JS and TS command files exist', async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
         await fs.writeFile(path.join(tempDir, 'alpha.ts'), 'export default {}\n', 'utf8')

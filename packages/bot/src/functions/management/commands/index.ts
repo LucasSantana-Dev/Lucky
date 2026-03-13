@@ -11,7 +11,6 @@ async function getManagementCommands() {
         return await getCommandsFromDirectory({
             url: commandsPath,
             category: 'management',
-            excludePatterns: [/\\.spec\\./, /\\.test\\./],
         })
     } catch (error) {
         errorLog({ message: 'Error loading management commands:', error })
