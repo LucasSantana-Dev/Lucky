@@ -25,7 +25,11 @@ export function startWebApp(): void {
     if (isProduction) {
         const frontendDistPath = path.join(__dirname, 'frontend', 'dist')
         app.use(express.static(frontendDistPath))
-        app.get('/{*path}', (_req, res) => {
+        app.get('/{*path}', (req, res, next) => {
+            if (req.path.startsWith('/api/')) {
+                next()
+                return
+            }
             res.sendFile(path.join(frontendDistPath, 'index.html'))
         })
     }

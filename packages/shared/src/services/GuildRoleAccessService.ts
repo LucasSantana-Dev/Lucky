@@ -102,6 +102,15 @@ function toRoleGrant(row: {
 }
 
 class GuildRoleAccessService {
+    private isMissingTableError(error: unknown): boolean {
+        if (typeof error !== 'object' || error === null) {
+            return false
+        }
+
+        const maybePrismaError = error as { code?: unknown }
+        return maybePrismaError.code === 'P2021'
+    }
+
     private async readCached(guildId: string): Promise<RoleGrant[] | null> {
         if (!redisClient.isHealthy()) {
             return null
@@ -167,10 +176,32 @@ class GuildRoleAccessService {
             return cached
         }
 
-        const rows = await prisma.guildRoleGrant.findMany({
-            where: { guildId },
-            orderBy: [{ module: 'asc' }, { roleId: 'asc' }],
-        })
+        let rows: Array<{
+            guildId: string
+            roleId: string
+            module: string
+            mode: string
+            createdAt: Date
+            updatedAt: Date
+        }> = []
+
+        try {
+            rows = await prisma.guildRoleGrant.findMany({
+                where: { guildId },
+                orderBy: [{ module: 'asc' }, { roleId: 'asc' }],
+            })
+        } catch (error) {
+            if (this.isMissingTableError(error)) {
+                errorLog({
+                    message:
+                        'RBAC table missing while reading grants; returning empty grants',
+                    error,
+                    data: { guildId },
+                })
+                return []
+            }
+            throw error
+        }
 
         const grants = rows
             .map(toRoleGrant)
