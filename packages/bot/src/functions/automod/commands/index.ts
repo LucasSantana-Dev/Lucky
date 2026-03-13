@@ -8,6 +8,7 @@ async function getAutoModCommands() {
         debugLog({ message: 'Loading automod commands...' })
         const dirName = path.dirname(fileURLToPath(import.meta.url))
         const commandsPath = dirName
+
         return await getCommandsFromDirectory({
             url: commandsPath,
             category: 'automod',
@@ -19,4 +20,3 @@ async function getAutoModCommands() {
 }
 
 export default getAutoModCommands
-export { default as automod } from './automod.js'

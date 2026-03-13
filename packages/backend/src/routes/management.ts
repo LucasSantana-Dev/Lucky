@@ -17,6 +17,11 @@ import {
 } from '@lucky/shared/services'
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
+import {
+    AUTO_MOD_TEMPLATES,
+    getAutoModTemplate,
+} from '../constants/automodTemplates'
+import { z } from 'zod'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -28,6 +33,14 @@ function requireUserId(req: AuthenticatedRequest): string {
     }
 
     return req.userId
+}
+
+const automodTemplateParam = s.guildIdParam.extend({
+    templateId: z.string().min(1).max(60),
+})
+
+function unique(values: string[]): string[] {
+    return [...new Set(values)]
 }
 
 export function setupManagementRoutes(app: Express): void {
@@ -65,6 +78,71 @@ export function setupManagementRoutes(app: Express): void {
                 userId,
             )
             res.json(settings)
+        }),
+    )
+
+    app.get(
+        '/api/guilds/:guildId/automod/templates',
+        requireAuth,
+        validateParams(s.guildIdParam),
+        asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
+            res.json({ templates: AUTO_MOD_TEMPLATES })
+        }),
+    )
+
+    app.post(
+        '/api/guilds/:guildId/automod/templates/:templateId/apply',
+        requireAuth,
+        writeLimiter,
+        validateParams(automodTemplateParam),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const templateId = p(req.params.templateId)
+            const userId = requireUserId(req)
+            const template = getAutoModTemplate(templateId)
+
+            if (!template) {
+                throw AppError.notFound('Auto-mod template not found')
+            }
+
+            const currentSettings = await autoModService.getSettings(guildId)
+
+            const nextSettings = {
+                ...template.settings,
+                allowedDomains: unique([
+                    ...template.settings.allowedDomains,
+                    ...(currentSettings?.allowedDomains ?? []),
+                ]),
+                bannedWords: unique([
+                    ...template.settings.bannedWords,
+                    ...(currentSettings?.bannedWords ?? []),
+                ]),
+                exemptChannels: currentSettings?.exemptChannels ?? [],
+                exemptRoles: currentSettings?.exemptRoles ?? [],
+            }
+
+            const settings = await autoModService.updateSettings(
+                guildId,
+                nextSettings,
+            )
+
+            await serverLogService.logAutoModSettingsChange(
+                guildId,
+                {
+                    module: 'template',
+                    enabled: true,
+                    changes: {
+                        templateId: template.id,
+                        templateName: template.name,
+                    },
+                },
+                userId,
+            )
+
+            res.json({
+                templateId: template.id,
+                settings,
+            })
         }),
     )
 

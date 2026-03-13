@@ -143,8 +143,8 @@ model GuildAutomationManifest {
   createdBy        String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  runs             GuildAutomationRun[]
 
+  @@index([guildId])
   @@map("guild_automation_manifests")
 }
 
@@ -152,7 +152,6 @@ model GuildAutomationRun {
   id                  String    @id @default(cuid())
   guildId             String
   manifestId          String?
-  manifest            GuildAutomationManifest? @relation(fields: [manifestId], references: [id], onDelete: SetNull)
   type                String
   status              String
   operations          Json?
@@ -166,7 +165,6 @@ model GuildAutomationRun {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  @@index([manifestId])
   @@index([guildId, createdAt])
   @@map("guild_automation_runs")
 }

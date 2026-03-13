@@ -35,6 +35,7 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     { path: '/api/guilds/:guildId/roles', module: 'automation' },
     { path: '/api/guilds/:guildId/music', module: 'music' },
     { path: '/api/guilds/:guildId/twitch', module: 'integrations' },
+    { path: '/api/guilds/:guildId/channels', module: 'integrations' },
     { path: '/api/guilds/:guildId/settings', module: 'settings' },
     { path: '/api/guilds/:guildId/modules', module: 'settings' },
     { path: '/api/guilds/:guildId/rbac', module: 'settings', mode: 'manage' },

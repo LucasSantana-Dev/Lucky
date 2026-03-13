@@ -1,6 +1,6 @@
 import { getCommandsFromDirectory } from '../../../utils/command/getCommandsFromDirectory'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
 async function getManagementCommands() {
@@ -8,6 +8,7 @@ async function getManagementCommands() {
         debugLog({ message: 'Loading management commands...' })
         const dirName = path.dirname(fileURLToPath(import.meta.url))
         const commandsPath = dirName
+
         return await getCommandsFromDirectory({
             url: commandsPath,
             category: 'management',
@@ -19,7 +20,3 @@ async function getManagementCommands() {
 }
 
 export default getManagementCommands
-export { default as customcommand } from './customcommand.js'
-export { default as embed } from './embed.js'
-export { default as automessage } from './automessage.js'
-export { default as serversetup } from './serversetup.js'

@@ -52,38 +52,6 @@ const automessageSchema = z.object({
     message: z.string().max(2000).optional(),
 })
 
-const automodSchema = z
-    .object({
-        enabled: z.boolean().optional(),
-        spamEnabled: z.boolean().optional(),
-        spamThreshold: z.number().int().min(1).max(100).optional(),
-        spamTimeWindow: z.number().int().min(1).max(60).optional(),
-        capsEnabled: z.boolean().optional(),
-        capsThreshold: z.number().int().min(1).max(100).optional(),
-        linksEnabled: z.boolean().optional(),
-        allowedDomains: z.array(z.string().max(200)).optional(),
-        invitesEnabled: z.boolean().optional(),
-        wordsEnabled: z.boolean().optional(),
-        bannedWords: z.array(z.string().max(100)).optional(),
-        exemptRoles: z.array(snowflake).optional(),
-        exemptChannels: z.array(snowflake).optional(),
-    })
-    .strict()
-
-const moderationSettingsSchema = z
-    .object({
-        modLogChannelId: snowflake.nullable().optional(),
-        muteRoleId: snowflake.nullable().optional(),
-        modRoleIds: z.array(snowflake).optional(),
-        adminRoleIds: z.array(snowflake).optional(),
-        autoModEnabled: z.boolean().optional(),
-        maxWarnings: z.number().int().min(1).max(100).optional(),
-        warningExpiry: z.number().int().min(0).max(365).optional(),
-        dmOnAction: z.boolean().optional(),
-        requireReason: z.boolean().optional(),
-    })
-    .strict()
-
 const reactionRoleSchema = z.object({
     roleId: snowflake,
     label: z.string().min(1).max(80),
@@ -120,7 +88,6 @@ const paritySchema = z.object({
             z.object({
                 id: snowflake,
                 name: z.string().min(1).max(100),
-                retireOnCutover: z.boolean().optional(),
             }),
         )
         .optional(),
@@ -152,8 +119,8 @@ export const guildAutomationManifestSchema = z
             .optional(),
         moderation: z
             .object({
-                automod: automodSchema.optional(),
-                moderationSettings: moderationSettingsSchema.optional(),
+                automod: z.record(z.unknown()).optional(),
+                moderationSettings: z.record(z.unknown()).optional(),
             })
             .optional(),
         automessages: z

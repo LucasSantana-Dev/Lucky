@@ -29,9 +29,6 @@ type ManagedAutoMessage = {
     message?: string
 }
 
-type AutoModUpdatePayload = Parameters<typeof autoModService.updateSettings>[1]
-type ModerationUpdatePayload = Parameters<typeof updateModerationSettings>[1]
-
 function toPermissions(value: string | undefined) {
     if (!value) {
         return undefined
@@ -55,30 +52,6 @@ function mapChannelType(type: string): ReconciliableChannelType {
         default:
             return ChannelType.GuildText
     }
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function toAutoModUpdatePayload(value: unknown): AutoModUpdatePayload | null {
-    return isObject(value) ? (value as AutoModUpdatePayload) : null
-}
-
-function toModerationUpdatePayload(
-    value: unknown,
-): ModerationUpdatePayload | null {
-    return isObject(value) ? (value as ModerationUpdatePayload) : null
-}
-
-function isExpectedDeleteError(error: unknown): boolean {
-    if (!error || typeof error !== 'object') {
-        return false
-    }
-
-    const status = Reflect.get(error, 'status')
-    const code = Reflect.get(error, 'code')
-    return status === 404 || status === 403 || code === 10003 || code === 50013
 }
 
 function shouldApplyModule(
@@ -132,6 +105,25 @@ function findChannel(guild: Guild, id: string): GuildBasedChannel | null {
     return guild.channels.cache.get(id) ?? null
 }
 
+function shouldIgnoreProtectedDeleteError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+        return false
+    }
+
+    const maybeError = error as {
+        status?: unknown
+        code?: unknown
+    }
+
+    return (
+        maybeError.status === 403 ||
+        maybeError.status === 404 ||
+        maybeError.code === 50013 ||
+        maybeError.code === 10003 ||
+        maybeError.code === 10008
+    )
+}
+
 async function applyRolesAndChannels(
     guild: Guild,
     desired: GuildAutomationManifestDocument,
@@ -140,22 +132,6 @@ async function applyRolesAndChannels(
     const desiredRoles = desired.roles?.roles ?? []
     const desiredChannels = desired.roles?.channels ?? []
 
-    await syncRoles(guild, desiredRoles)
-    await syncChannels(guild, desiredChannels)
-
-    if (!allowProtected) {
-        return
-    }
-
-    const desiredRoleIds = new Set(desiredRoles.map((role) => role.id))
-    const desiredChannelIds = new Set(desiredChannels.map((channel) => channel.id))
-    await deleteUnmanagedEntities(guild, desiredRoleIds, desiredChannelIds)
-}
-
-async function syncRoles(
-    guild: Guild,
-    desiredRoles: NonNullable<GuildAutomationManifestDocument['roles']>['roles'],
-): Promise<void> {
     for (const role of desiredRoles) {
         const existing = guild.roles.cache.get(role.id)
         if (!existing) {
@@ -179,12 +155,7 @@ async function syncRoles(
             reason: 'Lucky guild automation reconcile',
         })
     }
-}
 
-async function syncChannels(
-    guild: Guild,
-    desiredChannels: NonNullable<GuildAutomationManifestDocument['roles']>['channels'],
-): Promise<void> {
     for (const channel of desiredChannels) {
         const existing = findChannel(guild, channel.id)
 
@@ -206,13 +177,14 @@ async function syncChannels(
             reason: 'Lucky guild automation reconcile',
         })
     }
-}
 
-async function deleteUnmanagedEntities(
-    guild: Guild,
-    desiredRoleIds: Set<string>,
-    desiredChannelIds: Set<string>,
-): Promise<void> {
+    if (!allowProtected) {
+        return
+    }
+
+    const desiredRoleIds = new Set(desiredRoles.map((role) => role.id))
+    const desiredChannelIds = new Set(desiredChannels.map((channel) => channel.id))
+
     for (const role of guild.roles.cache.values()) {
         if (role.id === guild.id || desiredRoleIds.has(role.id)) {
             continue
@@ -231,19 +203,20 @@ async function deleteUnmanagedEntities(
         try {
             await channel.delete('Lucky guild automation protected-delete apply')
         } catch (error) {
-            if (!isExpectedDeleteError(error)) {
-                throw error
+            if (shouldIgnoreProtectedDeleteError(error)) {
+                errorLog({
+                    message:
+                        'Failed to delete channel during guild automation apply',
+                    error,
+                    data: {
+                        guildId: guild.id,
+                        channelId: channel.id,
+                    },
+                })
+                continue
             }
 
-            errorLog({
-                message: 'Failed to delete channel during guild automation apply',
-                error,
-                data: {
-                    guildId: guild.id,
-                    channelId: channel.id,
-                    channelName: channel.name,
-                },
-            })
+            throw error
         }
     }
 }
@@ -286,138 +259,71 @@ export async function applyAutomationModules(params: {
     plan: GuildAutomationPlan
     allowProtected: boolean
 }): Promise<ApplyResult> {
-    const { plan, allowProtected } = params
+    const { guild, desired, plan, allowProtected } = params
     const appliedModules: string[] = []
     const skippedModules: string[] = []
 
     if (shouldApplyModule(plan, 'onboarding', allowProtected)) {
-        await handleOnboardingModule(params, appliedModules)
+        const payload = manifestOnboardingToDiscordEdit(desired.onboarding)
+        if (payload) {
+            await guild.editOnboarding(payload)
+            appliedModules.push('onboarding')
+        }
     }
 
-    if (shouldApplyModule(plan, 'roles', allowProtected)) {
-        await handleRolesModule(params, appliedModules)
+    if (shouldApplyModule(plan, 'roles', allowProtected) && desired.roles) {
+        await applyRolesAndChannels(guild, desired, allowProtected)
+        appliedModules.push('roles')
     }
 
     if (shouldApplyModule(plan, 'moderation', allowProtected)) {
-        await handleModerationModule(params, appliedModules)
+        if (desired.moderation?.automod) {
+            await autoModService.updateSettings(
+                guild.id,
+                desired.moderation.automod as never,
+            )
+        }
+
+        if (desired.moderation?.moderationSettings) {
+            await updateModerationSettings(
+                guild.id,
+                desired.moderation.moderationSettings as never,
+            )
+        }
+
+        appliedModules.push('moderation')
     }
 
     if (shouldApplyModule(plan, 'automessages', allowProtected)) {
-        await handleAutomessagesModule(params, appliedModules)
+        await upsertAutoMessage(guild.id, 'welcome', desired.automessages?.welcome)
+        await upsertAutoMessage(guild.id, 'leave', desired.automessages?.leave)
+        appliedModules.push('automessages')
     }
 
     if (shouldApplyModule(plan, 'reactionroles', allowProtected)) {
-        await handleReactionRolesModule(params, appliedModules, skippedModules)
+        await applyReactionRoleRules(guild.id, desired)
+        if ((desired.reactionroles?.messages?.length ?? 0) > 0) {
+            skippedModules.push(
+                'reactionroles.messages requires manual message-template publish',
+            )
+        }
+        appliedModules.push('reactionroles')
     }
 
     if (shouldApplyModule(plan, 'commandaccess', allowProtected)) {
-        await handleCommandAccessModule(params, appliedModules)
+        await guildRoleAccessService.replaceRoleGrants(
+            guild.id,
+            desired.commandaccess?.grants ?? [],
+        )
+        appliedModules.push('commandaccess')
     }
 
     if (shouldApplyModule(plan, 'parity', allowProtected)) {
-        handleParityModule(skippedModules)
+        skippedModules.push('parity requires checklist/cutover workflow')
     }
 
     return {
         appliedModules,
         skippedModules,
     }
-}
-
-type ApplyContext = {
-    guild: Guild
-    desired: GuildAutomationManifestDocument
-    allowProtected: boolean
-}
-
-async function handleOnboardingModule(
-    params: ApplyContext,
-    appliedModules: string[],
-): Promise<void> {
-    const payload = manifestOnboardingToDiscordEdit(params.desired.onboarding)
-    if (!payload) {
-        return
-    }
-
-    await params.guild.editOnboarding(payload)
-    appliedModules.push('onboarding')
-}
-
-async function handleRolesModule(
-    params: ApplyContext,
-    appliedModules: string[],
-): Promise<void> {
-    if (!params.desired.roles) {
-        return
-    }
-
-    await applyRolesAndChannels(params.guild, params.desired, params.allowProtected)
-    appliedModules.push('roles')
-}
-
-async function handleModerationModule(
-    params: ApplyContext,
-    appliedModules: string[],
-): Promise<void> {
-    const automodPayload = toAutoModUpdatePayload(
-        params.desired.moderation?.automod,
-    )
-    if (automodPayload) {
-        await autoModService.updateSettings(params.guild.id, automodPayload)
-    }
-
-    const moderationPayload = toModerationUpdatePayload(
-        params.desired.moderation?.moderationSettings,
-    )
-    if (moderationPayload) {
-        await updateModerationSettings(params.guild.id, moderationPayload)
-    }
-
-    appliedModules.push('moderation')
-}
-
-async function handleAutomessagesModule(
-    params: ApplyContext,
-    appliedModules: string[],
-): Promise<void> {
-    await upsertAutoMessage(
-        params.guild.id,
-        'welcome',
-        params.desired.automessages?.welcome,
-    )
-    await upsertAutoMessage(
-        params.guild.id,
-        'leave',
-        params.desired.automessages?.leave,
-    )
-    appliedModules.push('automessages')
-}
-
-async function handleReactionRolesModule(
-    params: ApplyContext,
-    appliedModules: string[],
-    skippedModules: string[],
-): Promise<void> {
-    await applyReactionRoleRules(params.guild.id, params.desired)
-    if ((params.desired.reactionroles?.messages?.length ?? 0) > 0) {
-        skippedModules.push(
-            'reactionroles.messages requires manual message-template publish',
-        )
-    }
-    appliedModules.push('reactionroles')
-}
-
-async function handleCommandAccessModule(
-    params: ApplyContext,
-    appliedModules: string[],
-): Promise<void> {
-    await guildRoleAccessService.replaceRoleGrants(
-        params.guild.id,
-        params.desired.commandaccess?.grants ?? [],
-    )
-    appliedModules.push('commandaccess')
-}
-
-function handleParityModule(skippedModules: string[]): void {
-    skippedModules.push('parity requires checklist/cutover workflow')
 }

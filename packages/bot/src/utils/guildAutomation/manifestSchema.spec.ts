@@ -26,35 +26,4 @@ describe('guildAutomationManifestSchema', () => {
             }),
         ).toThrow()
     })
-
-    it('accepts typed moderation payload and cutover bot flags', () => {
-        const result = validateGuildAutomationManifest({
-            version: 1,
-            guild: {
-                id: '123456789012345678',
-            },
-            moderation: {
-                automod: {
-                    enabled: true,
-                    spamThreshold: 5,
-                },
-                moderationSettings: {
-                    modRoleIds: ['223456789012345678'],
-                    requireReason: true,
-                },
-            },
-            parity: {
-                externalBots: [
-                    {
-                        id: '323456789012345678',
-                        name: 'Legacy Bot',
-                        retireOnCutover: true,
-                    },
-                ],
-            },
-        })
-
-        expect(result.parity?.externalBots?.[0]?.retireOnCutover).toBe(true)
-        expect(result.moderation?.automod?.enabled).toBe(true)
-    })
 })

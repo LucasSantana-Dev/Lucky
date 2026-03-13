@@ -15,65 +15,17 @@ import {
     type GuildAutomationManifestDocument,
 } from '@lucky/shared/services'
 
-function isOnboardingNotConfiguredError(error: unknown): boolean {
-    if (!error || typeof error !== 'object') {
+function isMissingOnboardingError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
         return false
     }
 
-    const status = Reflect.get(error, 'status')
-    if (status === 404) {
-        return true
+    const maybeError = error as {
+        status?: unknown
+        code?: unknown
     }
 
-    const message = Reflect.get(error, 'message')
-    return (
-        typeof message === 'string' &&
-        message.toLowerCase().includes('unknown guild onboarding')
-    )
-}
-
-function normalizeAutoModSettings(
-    value: Record<string, unknown> | null,
-): Record<string, unknown> | undefined {
-    if (!value) {
-        return undefined
-    }
-
-    return {
-        enabled: value.enabled,
-        spamEnabled: value.spamEnabled,
-        spamThreshold: value.spamThreshold,
-        spamTimeWindow: value.spamTimeWindow,
-        capsEnabled: value.capsEnabled,
-        capsThreshold: value.capsThreshold,
-        linksEnabled: value.linksEnabled,
-        allowedDomains: value.allowedDomains,
-        invitesEnabled: value.invitesEnabled,
-        wordsEnabled: value.wordsEnabled,
-        bannedWords: value.bannedWords,
-        exemptRoles: value.exemptRoles,
-        exemptChannels: value.exemptChannels,
-    }
-}
-
-function normalizeModerationSettings(
-    value: Record<string, unknown> | null,
-): Record<string, unknown> | undefined {
-    if (!value) {
-        return undefined
-    }
-
-    return {
-        modLogChannelId: value.modLogChannelId,
-        muteRoleId: value.muteRoleId,
-        modRoleIds: value.modRoleIds,
-        adminRoleIds: value.adminRoleIds,
-        autoModEnabled: value.autoModEnabled,
-        maxWarnings: value.maxWarnings,
-        warningExpiry: value.warningExpiry,
-        dmOnAction: value.dmOnAction,
-        requireReason: value.requireReason,
-    }
+    return maybeError.status === 404 || maybeError.code === 10005
 }
 
 function mapChannelType(type: ChannelType): string {
@@ -146,14 +98,13 @@ export async function captureGuildAutomationState(
     guild: Guild,
     botUserId?: string,
 ): Promise<GuildAutomationManifestDocument> {
-    let onboarding = null
-    try {
-        onboarding = await guild.fetchOnboarding()
-    } catch (error) {
-        if (!isOnboardingNotConfiguredError(error)) {
-            throw error
+    const onboarding = await guild.fetchOnboarding().catch((error: unknown) => {
+        if (isMissingOnboardingError(error)) {
+            return null
         }
-    }
+
+        throw error
+    })
 
     const roles = [...guild.roles.cache.values()]
         .filter((role) => role.id !== guild.id)
@@ -209,12 +160,8 @@ export async function captureGuildAutomationState(
             channels,
         },
         moderation: {
-            automod: normalizeAutoModSettings(
-                (automodSettings as Record<string, unknown> | null) ?? null,
-            ),
-            moderationSettings: normalizeModerationSettings(
-                (moderationSettings as Record<string, unknown> | null) ?? null,
-            ),
+            automod: (automodSettings ?? {}) as Record<string, unknown>,
+            moderationSettings,
         },
         automessages: {
             welcome: welcomeMessage

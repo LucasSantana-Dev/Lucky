@@ -1,33 +1,23 @@
 import { Prisma } from '../../generated/prisma/client.js'
 import { getPrismaClient } from '../../utils/database/prismaClient.js'
 import { errorLog, debugLog } from '../../utils/general/log.js'
-import { redisClient } from '../redis/index.js'
 import {
     guildAutomationManifestSchema,
     type GuildAutomationManifestInput,
 } from './manifestSchema.js'
 import { createAutomationPlan } from './diff.js'
-import {
-    GuildAutomationApplyLockedError,
-    GuildAutomationCaptureRequiredError,
-    GuildAutomationInvalidManifestPayloadError,
-    GuildAutomationLockUnavailableError,
-    GuildAutomationManifestNotFoundError,
-} from '../../types/errors/guildAutomation.js'
 import type {
     AutomationModule,
     AutomationRunStatus,
     AutomationRunType,
-    DriftSeverity,
     GuildAutomationManifestDocument,
-    GuildAutomationPlan,
     GuildAutomationStatus,
 } from './types.js'
-import { randomUUID } from 'node:crypto'
 
 const prisma = getPrismaClient()
 const LOCK_TTL_MS = 60_000
-const LOCK_KEY_PREFIX = 'guild-automation:lock'
+
+const locks = new Map<string, { expiresAt: number }>()
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
     return value as Prisma.InputJsonValue
@@ -39,56 +29,37 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function toManifestDocument(value: unknown): GuildAutomationManifestDocument {
     if (!isObject(value)) {
-        throw new GuildAutomationInvalidManifestPayloadError()
+        throw new Error('Manifest payload is invalid')
     }
 
     return guildAutomationManifestSchema.parse(value)
 }
 
-function computeSeverity(count: number): DriftSeverity {
-    if (count === 0) {
-        return 'none'
+function cleanupLocks(): void {
+    const now = Date.now()
+    for (const [guildId, lock] of locks.entries()) {
+        if (lock.expiresAt <= now) {
+            locks.delete(guildId)
+        }
     }
-
-    if (count < 3) {
-        return 'low'
-    }
-
-    if (count < 8) {
-        return 'medium'
-    }
-
-    return 'high'
 }
 
 class GuildAutomationService {
-    private getLockKey(guildId: string): string {
-        return `${LOCK_KEY_PREFIX}:${guildId}`
+    private acquireLock(guildId: string): boolean {
+        cleanupLocks()
+        if (locks.has(guildId)) {
+            return false
+        }
+
+        locks.set(guildId, {
+            expiresAt: Date.now() + LOCK_TTL_MS,
+        })
+
+        return true
     }
 
-    private async acquireLock(guildId: string): Promise<string> {
-        if (!redisClient.isHealthy()) {
-            throw new GuildAutomationLockUnavailableError(guildId)
-        }
-
-        const key = this.getLockKey(guildId)
-        const token = randomUUID()
-        const acquired = await redisClient.setNxPx(key, token, LOCK_TTL_MS)
-
-        if (!acquired) {
-            throw new GuildAutomationApplyLockedError(guildId)
-        }
-
-        return token
-    }
-
-    private async releaseLock(guildId: string, token: string): Promise<void> {
-        if (!redisClient.isHealthy()) {
-            return
-        }
-
-        const key = this.getLockKey(guildId)
-        await redisClient.delIfValueMatches(key, token)
+    private releaseLock(guildId: string): void {
+        locks.delete(guildId)
     }
 
     async saveManifest(
@@ -194,24 +165,6 @@ class GuildAutomationService {
         }
     }
 
-    private resolveActualState(
-        guildId: string,
-        manifestRow: {
-            lastCapturedState: Prisma.JsonValue | null
-        },
-        options?: { actualState?: GuildAutomationManifestInput },
-    ): GuildAutomationManifestDocument {
-        if (options?.actualState) {
-            return guildAutomationManifestSchema.parse(options.actualState)
-        }
-
-        if (manifestRow.lastCapturedState) {
-            return toManifestDocument(manifestRow.lastCapturedState)
-        }
-
-        throw new GuildAutomationCaptureRequiredError(guildId)
-    }
-
     async createPlan(
         guildId: string,
         options?: {
@@ -225,11 +178,22 @@ class GuildAutomationService {
         })
 
         if (!manifestRow) {
-            throw new GuildAutomationManifestNotFoundError(guildId)
+            throw new Error('No automation manifest found for this guild')
         }
 
         const desired = toManifestDocument(manifestRow.manifest)
-        const actual = this.resolveActualState(guildId, manifestRow, options)
+
+        const actual = options?.actualState
+            ? guildAutomationManifestSchema.parse(options.actualState)
+            : manifestRow.lastCapturedState
+              ? toManifestDocument(manifestRow.lastCapturedState)
+              : null
+
+        if (!actual) {
+            throw new Error(
+                'No captured guild state available. Run capture before plan/apply.',
+            )
+        }
 
         const plan = createAutomationPlan({
             desired,
@@ -241,7 +205,14 @@ class GuildAutomationService {
             runType === 'plan' ? 'completed' : 'running'
 
         for (const [moduleName, count] of Object.entries(plan.summary.byModule)) {
-            const severity = computeSeverity(count)
+            const severity: 'none' | 'low' | 'medium' | 'high' =
+                count === 0
+                    ? 'none'
+                    : count < 3
+                      ? 'low'
+                      : count < 8
+                        ? 'medium'
+                        : 'high'
 
             await prisma.guildAutomationDrift.upsert({
                 where: {
@@ -303,20 +274,11 @@ class GuildAutomationService {
             initiatedBy?: string
             allowProtected?: boolean
             runType?: Extract<AutomationRunType, 'apply' | 'reconcile'>
-            executor?: (params: {
-                guildId: string
-                runId: string
-                plan: GuildAutomationPlan
-                desired: GuildAutomationManifestDocument
-                actual: GuildAutomationManifestDocument
-                allowProtected: boolean
-            }) => Promise<{
-                diagnostics?: Record<string, unknown>
-                remappedManifest?: GuildAutomationManifestDocument
-            }>
         },
     ) {
-        const lockToken = await this.acquireLock(guildId)
+        if (!this.acquireLock(guildId)) {
+            throw new Error('Another automation apply operation is already running')
+        }
 
         try {
             const planResult = await this.createPlan(guildId, {
@@ -329,90 +291,35 @@ class GuildAutomationService {
                 (options?.allowProtected ?? false) === false &&
                 planResult.plan.protectedOperations.length > 0
 
-            const allowProtected = options?.allowProtected ?? false
-            const baseDiagnostics: Record<string, unknown> = {
-                allowProtected,
-                blockedByProtected,
-            }
+            const status: AutomationRunStatus = blockedByProtected
+                ? 'blocked'
+                : 'completed'
 
-            if (blockedByProtected) {
-                const run = await this.updateRunStatus({
-                    runId: planResult.runId,
-                    status: 'blocked',
-                    diagnostics: baseDiagnostics,
-                })
-
-                return {
-                    runId: run.id,
-                    status: 'blocked' as const,
-                    plan: planResult.plan,
-                    blockedByProtected,
-                }
-            }
-
-            if (options?.executor) {
-                try {
-                    const execution = await options.executor({
-                        guildId,
-                        runId: planResult.runId,
-                        plan: planResult.plan,
-                        desired: planResult.desired,
-                        actual: planResult.actual,
-                        allowProtected,
-                    })
-
-                    if (execution.remappedManifest) {
-                        await this.saveManifest(guildId, execution.remappedManifest, {
-                            createdBy: options.initiatedBy,
-                            version: execution.remappedManifest.version,
-                        })
-                    }
-
-                    const run = await this.updateRunStatus({
-                        runId: planResult.runId,
-                        status: 'completed',
-                        diagnostics: {
-                            ...baseDiagnostics,
-                            ...(execution.diagnostics ?? {}),
-                        },
-                    })
-
-                    return {
-                        runId: run.id,
-                        status: 'completed' as const,
-                        plan: planResult.plan,
-                        blockedByProtected: false,
-                    }
-                } catch (error) {
-                    await this.updateRunStatus({
-                        runId: planResult.runId,
-                        status: 'failed',
-                        error: error instanceof Error ? error.message : String(error),
-                        diagnostics: baseDiagnostics,
-                    })
-                    throw error
-                }
-            }
-
-            const run = await this.updateRunStatus({
-                runId: planResult.runId,
-                status: 'completed',
-                diagnostics: {
-                    ...baseDiagnostics,
-                    autoAppliedOperations: planResult.plan.operations.filter(
-                        (operation) => !operation.protected,
-                    ),
+            const run = await prisma.guildAutomationRun.update({
+                where: { id: planResult.runId },
+                data: {
+                    status,
+                    diagnostics: toJsonValue({
+                        allowProtected: options?.allowProtected ?? false,
+                        blockedByProtected,
+                        autoAppliedOperations: blockedByProtected
+                            ? []
+                            : planResult.plan.operations.filter(
+                                  (operation) => !operation.protected,
+                              ),
+                    }),
+                    completedAt: new Date(),
                 },
             })
 
             return {
                 runId: run.id,
-                status: run.status,
+                status,
                 plan: planResult.plan,
                 blockedByProtected,
             }
         } finally {
-            await this.releaseLock(guildId, lockToken)
+            this.releaseLock(guildId)
         }
     }
 
@@ -483,14 +390,14 @@ class GuildAutomationService {
             latestRun: latestRun
                 ? {
                       id: latestRun.id,
-                      type: latestRun.type as AutomationRunType,
-                      status: latestRun.status as AutomationRunStatus,
+                      type: latestRun.type,
+                      status: latestRun.status,
                       createdAt: latestRun.createdAt,
                   }
                 : null,
             drifts: drifts.map((drift) => ({
-                module: drift.module as AutomationModule,
-                severity: drift.severity as DriftSeverity,
+                module: drift.module,
+                severity: drift.severity,
                 updatedAt: drift.updatedAt,
             })),
         }
@@ -508,7 +415,7 @@ class GuildAutomationService {
         })
 
         if (!row) {
-            throw new GuildAutomationManifestNotFoundError(guildId)
+            throw new Error('No automation manifest found for this guild')
         }
 
         const manifest = toManifestDocument(row.manifest)

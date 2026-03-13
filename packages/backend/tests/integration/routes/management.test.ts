@@ -216,6 +216,80 @@ describe('Management Routes Integration', () => {
         })
     })
 
+    describe('GET /api/guilds/:guildId/automod/templates', () => {
+        test('should return automod templates when authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/automod/templates')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body.templates).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 'balanced',
+                    }),
+                ]),
+            )
+        })
+    })
+
+    describe('POST /api/guilds/:guildId/automod/templates/:templateId/apply', () => {
+        test('should apply automod template and persist settings', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockAutoModService = autoModService as jest.Mocked<
+                typeof autoModService
+            >
+            mockAutoModService.getSettings.mockResolvedValue({
+                exemptChannels: ['123'],
+                exemptRoles: ['456'],
+                allowedDomains: ['custom.example'],
+                bannedWords: ['custom-word'],
+            } as any)
+            mockAutoModService.updateSettings.mockResolvedValue({
+                guildId: '111111111111111111',
+                enabled: true,
+            } as any)
+
+            const response = await request(app)
+                .post(
+                    '/api/guilds/111111111111111111/automod/templates/balanced/apply',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(response.body.templateId).toBe('balanced')
+            expect(mockAutoModService.updateSettings).toHaveBeenCalledWith(
+                '111111111111111111',
+                expect.objectContaining({
+                    enabled: true,
+                    exemptChannels: ['123'],
+                    exemptRoles: ['456'],
+                }),
+            )
+        })
+
+        test('should return 404 for unknown template', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            await request(app)
+                .post('/api/guilds/111111111111111111/automod/templates/unknown/apply')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(404)
+        })
+    })
+
     describe('GET /api/guilds/:guildId/commands', () => {
         test('should return custom commands when authenticated', async () => {
             const mockSessionService = sessionService as jest.Mocked<

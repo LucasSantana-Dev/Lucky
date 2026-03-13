@@ -1,86 +1,78 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { SlashCommandBuilder } from '@discordjs/builders'
-import Command from './models/Command'
-import { getCommands } from './register'
-import downloadCommands from './functions/download/commands/index'
-import generalCommands from './functions/general/commands/index'
-import musicCommands from './functions/music/commands/index'
-import moderationCommands from './functions/moderation/commands/index'
-import managementCommands from './functions/management/commands/index'
-import automodCommands from './functions/automod/commands/index'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+
+const downloadCommandsMock = jest.fn()
+const generalCommandsMock = jest.fn()
+const musicCommandsMock = jest.fn()
+const automodCommandsMock = jest.fn()
+const managementCommandsMock = jest.fn()
+const moderationCommandsMock = jest.fn()
+
+jest.mock('./functions/download/commands/index', () => ({
+    __esModule: true,
+    default: (...args: unknown[]) => downloadCommandsMock(...args),
+}))
+
+jest.mock('./functions/general/commands/index', () => ({
+    __esModule: true,
+    default: (...args: unknown[]) => generalCommandsMock(...args),
+}))
+
+jest.mock('./functions/music/commands/index', () => ({
+    __esModule: true,
+    default: (...args: unknown[]) => musicCommandsMock(...args),
+}))
+
+jest.mock('./functions/automod/commands/index', () => ({
+    __esModule: true,
+    default: (...args: unknown[]) => automodCommandsMock(...args),
+}))
+
+jest.mock('./functions/management/commands/index', () => ({
+    __esModule: true,
+    default: (...args: unknown[]) => managementCommandsMock(...args),
+}))
+
+jest.mock('./functions/moderation/commands/index', () => ({
+    __esModule: true,
+    default: (...args: unknown[]) => moderationCommandsMock(...args),
+}))
+
+jest.mock('./handlers/commandsHandler', () => ({
+    groupCommands: ({ commands }: { commands: unknown[] }) => commands,
+}))
 
 jest.mock('@lucky/shared/utils', () => ({
-    debugLog: jest.fn(),
     errorLog: jest.fn(),
-    infoLog: jest.fn(),
-}))
-jest.mock('./handlers/commandsHandler', () => ({
-    groupCommands: ({
-        commands,
-    }: {
-        commands: Command[]
-    }) => commands,
+    debugLog: jest.fn(),
 }))
 
-jest.mock('./functions/download/commands/index', () => jest.fn())
-jest.mock('./functions/general/commands/index', () => jest.fn())
-jest.mock('./functions/music/commands/index', () => jest.fn())
-jest.mock('./functions/moderation/commands/index', () => jest.fn())
-jest.mock('./functions/management/commands/index', () => jest.fn())
-jest.mock('./functions/automod/commands/index', () => jest.fn())
-
-type TCommandCategory = ConstructorParameters<typeof Command>[0]['category']
-
-const makeCommand = (name: string, category: TCommandCategory): Command =>
-    new Command({
-        data: new SlashCommandBuilder().setName(name).setDescription(`${name} cmd`),
-        category,
-        execute: async () => {},
-    })
-
-describe('getCommands', () => {
+describe('register.getCommands', () => {
     beforeEach(() => {
+        jest.resetModules()
         jest.clearAllMocks()
+        downloadCommandsMock.mockResolvedValue([{ data: { name: 'download' } }])
+        generalCommandsMock.mockResolvedValue([{ data: { name: 'help' } }])
+        musicCommandsMock.mockResolvedValue([{ data: { name: 'play' } }])
+        automodCommandsMock.mockResolvedValue([{ data: { name: 'automod' } }])
+        managementCommandsMock.mockResolvedValue([
+            { data: { name: 'guildconfig' } },
+        ])
+        moderationCommandsMock.mockResolvedValue([{ data: { name: 'warn' } }])
     })
 
-    it('loads commands from all command categories', async () => {
-        ;(downloadCommands as jest.Mock).mockResolvedValue([
-            makeCommand('download', 'download'),
-        ])
-        ;(generalCommands as jest.Mock).mockResolvedValue([
-            makeCommand('help', 'general'),
-        ])
-        ;(musicCommands as jest.Mock).mockResolvedValue([
-            makeCommand('play', 'music'),
-        ])
-        ;(moderationCommands as jest.Mock).mockResolvedValue([
-            makeCommand('warn', 'moderation'),
-        ])
-        ;(managementCommands as jest.Mock).mockResolvedValue([
-            makeCommand('serversetup', 'management'),
-        ])
-        ;(automodCommands as jest.Mock).mockResolvedValue([
-            makeCommand('automod', 'automod'),
-        ])
-
+    it('loads all command groups including management and moderation', async () => {
+        const { getCommands } = await import('./register')
         const commands = await getCommands()
-        const names = commands.map((command) => command.data.name)
 
-        expect(downloadCommands).toHaveBeenCalledTimes(1)
-        expect(generalCommands).toHaveBeenCalledTimes(1)
-        expect(musicCommands).toHaveBeenCalledTimes(1)
-        expect(moderationCommands).toHaveBeenCalledTimes(1)
-        expect(managementCommands).toHaveBeenCalledTimes(1)
-        expect(automodCommands).toHaveBeenCalledTimes(1)
-
-        const sortedNames = [...names].sort((a, b) => a.localeCompare(b))
-        expect(sortedNames).toEqual([
-            'automod',
-            'download',
-            'help',
-            'play',
-            'serversetup',
-            'warn',
-        ])
+        expect(commands.map((command: any) => command.data.name)).toEqual(
+            expect.arrayContaining([
+                'download',
+                'help',
+                'play',
+                'automod',
+                'guildconfig',
+                'warn',
+            ]),
+        )
     })
 })

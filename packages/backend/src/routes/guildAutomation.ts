@@ -8,19 +8,8 @@ import { managementSchemas as s } from '../schemas/management'
 import {
     guildAutomationService,
     validateGuildAutomationManifest,
-    type GuildAutomationManifestDocument,
-    type GuildAutomationPlan,
 } from '@lucky/shared/services'
-import {
-    GuildAutomationApplyLockedError,
-    GuildAutomationCaptureRequiredError,
-    GuildAutomationLockUnavailableError,
-    GuildAutomationManifestNotFoundError,
-} from '@lucky/shared/types'
-import {
-    GuildAutomationExecutionError,
-    guildAutomationExecutionService,
-} from '../services/GuildAutomationExecutionService'
+import { buildCriativariaPreset } from '../constants/guildAutomationPresets'
 
 function p(val: string | string[]): string {
     return typeof val === 'string' ? val : val[0]
@@ -32,42 +21,6 @@ function requireUserId(req: AuthenticatedRequest): string {
     }
 
     return req.userId
-}
-
-function mapAutomationServiceError(error: unknown): never {
-    if (error instanceof AppError) {
-        throw error
-    }
-
-    if (error instanceof GuildAutomationManifestNotFoundError) {
-        throw AppError.notFound('Automation manifest not found')
-    }
-
-    if (error instanceof GuildAutomationCaptureRequiredError) {
-        throw AppError.badRequest(
-            'No captured guild state available. Run capture before plan/apply.',
-        )
-    }
-
-    if (error instanceof GuildAutomationApplyLockedError) {
-        throw AppError.badRequest(
-            'Another automation apply operation is already running',
-        )
-    }
-
-    if (error instanceof GuildAutomationLockUnavailableError) {
-        throw new AppError(503, 'Guild automation lock backend is unavailable')
-    }
-
-    if (error instanceof GuildAutomationExecutionError) {
-        throw new AppError(error.statusCode, error.message)
-    }
-
-    if (error instanceof Error) {
-        throw error
-    }
-
-    throw new Error('Guild automation request failed')
 }
 
 export function setupGuildAutomationRoutes(app: Express): void {
@@ -141,23 +94,15 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
-            const body = req.body as {
-                actualState?: unknown
-            }
+            const body = s.guildAutomationRunBody.parse(req.body)
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
                 : undefined
-
-            let plan
-            try {
-                plan = await guildAutomationService.createPlan(guildId, {
-                    actualState,
-                    initiatedBy: userId,
-                    runType: 'plan',
-                })
-            } catch (error) {
-                mapAutomationServiceError(error)
-            }
+            const plan = await guildAutomationService.createPlan(guildId, {
+                actualState,
+                initiatedBy: userId,
+                runType: 'plan',
+            })
 
             res.json(plan)
         }),
@@ -172,48 +117,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
-            const body = req.body as {
-                actualState?: unknown
-                allowProtected?: boolean
-            }
-            let actualState: GuildAutomationManifestDocument | undefined
-            try {
-                actualState = body.actualState
-                    ? validateGuildAutomationManifest(body.actualState)
-                    : await guildAutomationExecutionService.captureGuildAutomationState(
-                          guildId,
-                      )
-            } catch (error) {
-                mapAutomationServiceError(error)
-            }
-
-            let result
-            try {
-                result = await guildAutomationService.createApplyRun(guildId, {
-                    actualState,
-                    initiatedBy: userId,
-                    allowProtected: body.allowProtected,
-                    runType: 'apply',
-                    executor: async (params: {
-                        guildId: string
-                        runId: string
-                        plan: GuildAutomationPlan
-                        desired: GuildAutomationManifestDocument
-                        actual: GuildAutomationManifestDocument
-                        allowProtected: boolean
-                    }) => {
-                        return guildAutomationExecutionService.executeApplyPlan({
-                            guildId: params.guildId,
-                            plan: params.plan,
-                            desired: params.desired,
-                            actual: params.actual,
-                            allowProtected: params.allowProtected,
-                        })
-                    },
-                })
-            } catch (error) {
-                mapAutomationServiceError(error)
-            }
+            const body = s.guildAutomationRunBody.parse(req.body)
+            const actualState = body.actualState
+                ? validateGuildAutomationManifest(body.actualState)
+                : undefined
+            const result = await guildAutomationService.createApplyRun(guildId, {
+                actualState,
+                initiatedBy: userId,
+                allowProtected: body.allowProtected,
+                runType: 'apply',
+            })
 
             res.json(result)
         }),
@@ -228,48 +141,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
-            const body = req.body as {
-                actualState?: unknown
-                allowProtected?: boolean
-            }
-            let actualState: GuildAutomationManifestDocument | undefined
-            try {
-                actualState = body.actualState
-                    ? validateGuildAutomationManifest(body.actualState)
-                    : await guildAutomationExecutionService.captureGuildAutomationState(
-                          guildId,
-                      )
-            } catch (error) {
-                mapAutomationServiceError(error)
-            }
-
-            let result
-            try {
-                result = await guildAutomationService.createApplyRun(guildId, {
-                    actualState,
-                    initiatedBy: userId,
-                    allowProtected: body.allowProtected,
-                    runType: 'reconcile',
-                    executor: async (params: {
-                        guildId: string
-                        runId: string
-                        plan: GuildAutomationPlan
-                        desired: GuildAutomationManifestDocument
-                        actual: GuildAutomationManifestDocument
-                        allowProtected: boolean
-                    }) => {
-                        return guildAutomationExecutionService.executeApplyPlan({
-                            guildId: params.guildId,
-                            plan: params.plan,
-                            desired: params.desired,
-                            actual: params.actual,
-                            allowProtected: params.allowProtected,
-                        })
-                    },
-                })
-            } catch (error) {
-                mapAutomationServiceError(error)
-            }
+            const body = s.guildAutomationRunBody.parse(req.body)
+            const actualState = body.actualState
+                ? validateGuildAutomationManifest(body.actualState)
+                : undefined
+            const result = await guildAutomationService.createApplyRun(guildId, {
+                actualState,
+                initiatedBy: userId,
+                allowProtected: body.allowProtected,
+                runType: 'reconcile',
+            })
 
             res.json(result)
         }),
@@ -299,21 +180,45 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
-            const body = req.body as {
-                completeChecklist?: boolean
-            }
-
-            let result
-            try {
-                result = await guildAutomationService.runCutover(guildId, {
-                    initiatedBy: userId,
-                    completeChecklist: body.completeChecklist,
-                })
-            } catch (error) {
-                mapAutomationServiceError(error)
-            }
+            const body = s.guildAutomationRunBody.parse(req.body)
+            const result = await guildAutomationService.runCutover(guildId, {
+                initiatedBy: userId,
+                completeChecklist: body.completeChecklist,
+            })
 
             res.json(result)
+        }),
+    )
+
+    app.post(
+        '/api/guilds/:guildId/automation/presets/criativaria/apply',
+        requireAuth,
+        writeLimiter,
+        validateParams(s.guildIdParam),
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const guildId = p(req.params.guildId)
+            const userId = requireUserId(req)
+
+            const preset = buildCriativariaPreset(guildId)
+            const saved = await guildAutomationService.saveManifest(
+                guildId,
+                preset,
+                { createdBy: userId },
+            )
+
+            const run = await guildAutomationService.createApplyRun(guildId, {
+                actualState: preset,
+                initiatedBy: userId,
+                allowProtected: false,
+                runType: 'reconcile',
+            })
+
+            res.json({
+                success: true,
+                preset: 'criativaria',
+                manifestVersion: saved.version,
+                run,
+            })
         }),
     )
 }
