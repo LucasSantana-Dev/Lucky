@@ -196,18 +196,16 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test('should enforce same-origin callback and secure cookie in production', async () => {
+        test('should enforce backend callback and secure cookie in production', async () => {
             const originalNodeEnv = process.env.NODE_ENV
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             const originalBackendUrl = process.env.WEBAPP_BACKEND_URL
-            const originalFrontendUrl = process.env.WEBAPP_FRONTEND_URL
 
             process.env.NODE_ENV = 'production'
             process.env.WEBAPP_REDIRECT_URI =
-                'https://lucky-api.lucassantana.tech/api/auth/callback'
+                'https://lucky.lucassantana.tech/api/auth/callback'
             process.env.WEBAPP_BACKEND_URL =
                 'https://lucky-api.lucassantana.tech'
-            process.env.WEBAPP_FRONTEND_URL = 'https://lucky.lucassantana.tech'
 
             const productionApp = express()
             productionApp.set('trust proxy', 1)
@@ -222,7 +220,7 @@ describe('Auth Routes Integration', () => {
 
             expect(response.headers.location).toContain(
                 encodeURIComponent(
-                    'https://lucky.lucassantana.tech/api/auth/callback',
+                    'https://lucky-api.lucassantana.tech/api/auth/callback',
                 ),
             )
 
@@ -241,11 +239,6 @@ describe('Auth Routes Integration', () => {
                 process.env.WEBAPP_BACKEND_URL = originalBackendUrl
             } else {
                 delete process.env.WEBAPP_BACKEND_URL
-            }
-            if (originalFrontendUrl) {
-                process.env.WEBAPP_FRONTEND_URL = originalFrontendUrl
-            } else {
-                delete process.env.WEBAPP_FRONTEND_URL
             }
         })
     })

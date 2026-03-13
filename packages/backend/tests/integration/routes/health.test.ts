@@ -22,7 +22,7 @@ describe('Health Routes Integration', () => {
         process.env.WEBAPP_FRONTEND_URL =
             'https://lucky.lucassantana.tech,https://lukbot.vercel.app'
         process.env.WEBAPP_REDIRECT_URI =
-            'https://lucky.lucassantana.tech/api/auth/callback'
+            'https://lucky-api.lucassantana.tech/api/auth/callback'
         process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.lucassantana.tech'
         delete process.env.WEBAPP_EXPECTED_CLIENT_ID
     })
@@ -124,7 +124,7 @@ describe('Health Routes Integration', () => {
                 auth: {
                     clientId: 'test-client-id',
                     redirectUri:
-                        'https://lucky.lucassantana.tech/api/auth/callback',
+                        'https://lucky-api.lucassantana.tech/api/auth/callback',
                     frontendOrigins: [
                         'https://lucky.lucassantana.tech',
                         'https://lukbot.vercel.app',
@@ -133,7 +133,7 @@ describe('Health Routes Integration', () => {
                     sessionSecretConfigured: true,
                     redisHealthy: true,
                     authorizeUrlPreview:
-                        'https://discord.com/api/oauth2/authorize?client_id=test-client-id&redirect_uri=https%3A%2F%2Flucky.lucassantana.tech%2Fapi%2Fauth%2Fcallback&response_type=code&scope=identify%20guilds',
+                        'https://discord.com/api/oauth2/authorize?client_id=test-client-id&redirect_uri=https%3A%2F%2Flucky-api.lucassantana.tech%2Fapi%2Fauth%2Fcallback&response_type=code&scope=identify%20guilds',
                 },
                 warnings: [],
             })
@@ -202,7 +202,7 @@ describe('Health Routes Integration', () => {
             )
         })
 
-        test('should keep frontend callback canonical when request hits backend origin', async () => {
+        test('should keep api-host callback when backend origin is configured in redirect uri', async () => {
             mockRedis.isHealthy.mockReturnValue(true)
             process.env.NODE_ENV = 'production'
             delete process.env.WEBAPP_BACKEND_URL
@@ -220,7 +220,7 @@ describe('Health Routes Integration', () => {
             expect(response.body.warnings).toEqual([])
             expect(response.body.status).toBe('ok')
             expect(response.body.auth.redirectUri).toBe(
-                'https://lucky.lucassantana.tech/api/auth/callback',
+                'https://lucky-api.lucassantana.tech/api/auth/callback',
             )
         })
     })

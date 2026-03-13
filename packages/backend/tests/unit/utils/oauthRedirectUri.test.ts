@@ -91,28 +91,26 @@ describe('getOAuthRedirectUri', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/auth/callback'
-        process.env.WEBAPP_FRONTEND_URL = 'https://lucky.lucassantana.tech'
 
         const uri = getOAuthRedirectUri(createRequest())
 
         expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
     })
 
-    test('should keep frontend callback in production when WEBAPP_BACKEND_URL is set', () => {
+    test('should enforce API-domain callback in production when WEBAPP_BACKEND_URL is set', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
-        process.env.WEBAPP_FRONTEND_URL = 'https://lucky.lucassantana.tech'
         process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.lucassantana.tech'
 
         const uri = getOAuthRedirectUri(createRequest())
 
         expect(uri).toBe(
-            'https://lucky.lucassantana.tech/api/auth/callback',
+            'https://lucky-api.lucassantana.tech/api/auth/callback',
         )
     })
 
-    test('should not switch callback host from configured frontend origin', () => {
+    test('should prefer request host callback in production when env callback is legacy frontend origin', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
@@ -126,20 +124,19 @@ describe('getOAuthRedirectUri', () => {
         )
 
         expect(uri).toBe(
-            'https://lucky.lucassantana.tech/api/auth/callback',
+            'https://lucky-api.lucassantana.tech/api/auth/callback',
         )
     })
 
-    test('should normalize legacy api-host callback to primary frontend origin in production', () => {
+    test('should keep configured callback when frontend origins do not match redirect origin', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky-api.lucassantana.tech/api/auth/callback'
-        process.env.WEBAPP_FRONTEND_URL =
-            'https://lucky.lucassantana.tech,https://lukbot.vercel.app'
+        process.env.WEBAPP_FRONTEND_URL = 'https://lucky.lucassantana.tech'
 
         const uri = getOAuthRedirectUri(createRequest())
 
-        expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
+        expect(uri).toBe('https://lucky-api.lucassantana.tech/api/auth/callback')
     })
 
     test('should use forwarded host in non-production when env is unset', () => {
