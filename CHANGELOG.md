@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Security dependency remediation: upgraded transitive `undici` and `flatted`
+  via workspace-aware lockfile refresh to clear `npm audit --audit-level=high`
+  findings on `main`
 - GitGuardian incident hardening: removed hardcoded compose PostgreSQL password
   fallbacks, enforced secret-managed expected client-id checks in deploy OAuth
   smoke validation, and replaced secret-like literals in test/example fixtures

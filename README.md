@@ -198,6 +198,14 @@ npm run type:check      # TypeScript validation
 npm run test            # Backend tests (Jest)
 npm run test:coverage   # With coverage report
 npm run format          # Prettier
+npm audit --audit-level=high
+```
+
+For dependency security maintenance, run:
+
+```bash
+npm update undici flatted --workspaces --include-workspace-root
+npm audit --audit-level=high
 ```
 
 ### Local Database Bootstrap
