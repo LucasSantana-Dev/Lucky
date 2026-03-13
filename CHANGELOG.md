@@ -162,6 +162,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backend startup now verifies `guild_role_grants` relation availability before
   booting the web app and fails fast with a migration-required error when schema
   state is invalid
+- Deploy/runtime DB guardrails now share the same required-relation verifier
+  (`guild_role_grants`, `guild_automation_manifests`,
+  `guild_automation_runs`, `guild_automation_drifts`) and deploy now enforces
+  `prisma migrate status` pre-rollout, failing fast on migration/schema drift
+  before restarting runtime services
 - AutoMod web client now includes template listing/apply flows wired to
   `/api/guilds/:guildId/automod/templates` and
   `/api/guilds/:guildId/automod/templates/:templateId/apply`

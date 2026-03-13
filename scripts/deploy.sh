@@ -73,7 +73,11 @@ notify() {
                 \"description\": \"$desc\",
                 \"color\": $color,
                 \"fields\": [
-                    {\"name\": \"Commit\", \"value\": \"\`$commit_sha\` $commit_msg\", \"inline\": false}
+                    {
+                        \"name\": \"Commit\",
+                        \"value\": \"\`$commit_sha\` $commit_msg\",
+                        \"inline\": false
+                    }
                 ],
                 \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }]
@@ -241,13 +245,38 @@ docker_compose up -d postgres redis
 
 log "Running database migrations..."
 if ! docker_compose run --rm --no-deps backend sh -lc "npx prisma migrate deploy"; then
+    log "ERROR: prisma migrate deploy failed (migration execution error)"
     notify 16711680 "Deploy Failed" "Database migration failed"
     exit 1
 fi
 
+log "Checking migration status..."
+if ! docker_compose run --rm --no-deps backend sh -lc "npx prisma migrate status"; then
+    log "ERROR: prisma migrate status failed (migration drift/history mismatch)"
+    notify 16711680 "Deploy Failed" "Database migration status guard failed"
+    exit 1
+fi
+
+relation_guard_script=$(
+    cat <<'NODE'
+import { verifyRequiredDatabaseRelations } from '@lucky/shared/utils'
+
+try {
+    await verifyRequiredDatabaseRelations()
+    console.log('DB schema guard passed')
+} catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
+    process.exit(1)
+}
+NODE
+)
+
 log "Verifying required database relations..."
-if ! docker_compose run --rm --no-deps backend node --input-type=module -e "import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); try { await prisma.guildRoleGrant.count({ take: 1 }); console.log('DB schema guard passed'); } finally { await prisma.\$disconnect(); }"; then
-    notify 16711680 "Deploy Failed" "Database schema guard failed"
+if ! docker_compose run --rm --no-deps backend \
+    node --input-type=module -e "$relation_guard_script"; then
+    log "ERROR: required database relation verification failed (schema drift)"
+    notify 16711680 "Deploy Failed" "Database relation guard failed"
     exit 1
 fi
 

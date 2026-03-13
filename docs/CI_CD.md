@@ -72,6 +72,18 @@ If the configured URL is missing the deploy path, the workflow appends
 de-duplicated, so it will never retry with malformed paths such as
 `/webhook/deploy/webhook/deploy`.
 
+Deploy webhook runtime (`scripts/deploy.sh`) now blocks rollout before restarting
+services unless all database preconditions pass:
+
+1. `npx prisma migrate deploy`
+2. `npx prisma migrate status`
+3. required relation guard
+   (`guild_role_grants`, `guild_automation_manifests`,
+   `guild_automation_runs`, `guild_automation_drifts`)
+
+If any pre-rollout DB guard fails, deploy exits immediately with a classified
+migration/schema error and runtime services are not restarted.
+
 ### Deploy secrets (how to add)
 
 Add these repository secrets in **Settings → Secrets and variables → Actions**:

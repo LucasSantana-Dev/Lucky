@@ -1,64 +1,47 @@
 import { beforeEach, describe, expect, test, jest } from '@jest/globals'
 
-const countMock = jest.fn()
+const verifyRequiredDatabaseRelationsMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
-    getPrismaClient: () => ({
-        guildRoleGrant: {
-            count: (...args: unknown[]) => countMock(...args),
-        },
-    }),
+    verifyRequiredDatabaseRelations: (...args: unknown[]) =>
+        verifyRequiredDatabaseRelationsMock(...args),
 }))
 
 import { verifyRequiredDatabaseState } from '../../../src/startup/verifyRequiredDatabaseState'
 
 describe('verifyRequiredDatabaseState', () => {
+    const missingRelationMessage =
+        'Required database relation "guild_automation_runs" is missing. ' +
+        'Run `npx prisma migrate deploy` before starting backend.'
+
     beforeEach(() => {
         jest.clearAllMocks()
     })
 
-    test('passes when guild_role_grants relation is available', async () => {
-        countMock.mockResolvedValue(1)
+    test('delegates schema verification to shared relation guard', async () => {
+        verifyRequiredDatabaseRelationsMock.mockResolvedValue(undefined)
 
         await expect(verifyRequiredDatabaseState()).resolves.toBeUndefined()
-        expect(countMock).toHaveBeenCalledWith({ take: 1 })
+        expect(verifyRequiredDatabaseRelationsMock).toHaveBeenCalledTimes(1)
     })
 
-    test('maps missing relation error to actionable migration message', async () => {
-        const prismaError = {
-            code: 'P2021',
-            meta: { table: 'guild_role_grants' },
-        }
-        countMock.mockRejectedValue(prismaError)
+    test('propagates actionable missing-relation startup error unchanged', async () => {
+        const missingRelationError = new Error(
+            missingRelationMessage,
+        ) as Error & { code?: string }
+        missingRelationError.code = 'ERR_DB_SCHEMA_MISSING'
+        verifyRequiredDatabaseRelationsMock.mockRejectedValueOnce(
+            missingRelationError,
+        )
 
-        try {
-            await verifyRequiredDatabaseState()
-            throw new Error('Expected verification to throw')
-        } catch (error) {
-            expect(error).toBeInstanceOf(Error)
-            expect(error).toMatchObject({
-                code: 'ERR_DB_SCHEMA_MISSING',
-                message:
-                    'Required database relation "guild_role_grants" is missing. Run migrations before starting backend.',
-            })
-            expect(error).toHaveProperty('cause', prismaError)
-        }
-    })
-
-    test('uses default table name when prisma error omits meta.table', async () => {
-        countMock.mockRejectedValue({
-            code: 'P2021',
-            meta: {},
-        })
-
-        await expect(verifyRequiredDatabaseState()).rejects.toThrow(
-            'Required database relation "guild_role_grants" is missing. Run migrations before starting backend.',
+        await expect(verifyRequiredDatabaseState()).rejects.toBe(
+            missingRelationError,
         )
     })
 
-    test('rethrows unknown prisma errors unchanged', async () => {
+    test('propagates unknown errors unchanged', async () => {
         const error = new Error('database offline')
-        countMock.mockRejectedValue(error)
+        verifyRequiredDatabaseRelationsMock.mockRejectedValueOnce(error)
 
         await expect(verifyRequiredDatabaseState()).rejects.toBe(error)
     })
