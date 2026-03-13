@@ -6,8 +6,7 @@ export const MOCK_DISCORD_USER = {
     email: 'test@example.com',
 }
 
-export const MOCK_OAUTH_STATE =
-    'mock-oauth-state'
+export const MOCK_OAUTH_STATE = 'mock-oauth-state'
 
 export const MOCK_AUTH_CODE = 'mock_authorization_code_12345'
 
