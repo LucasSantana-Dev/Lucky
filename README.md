@@ -144,6 +144,9 @@ packages/
   `429/5xx` fallback works across multi-instance backend replicas
 - Auth readiness health contract at `GET /api/health/auth-config`
   (includes `clientId` and generated `authorizeUrlPreview`, without secrets)
+- Deploy OAuth redirect smoke checks derive expected `client_id` and
+  `redirect_uri` from `GET /api/health/auth-config` to avoid hardcoded-domain
+  drift failures
 - Guild automation execution locking is Redis-backed and fail-closed when lock
   infrastructure is unavailable
 - 421 tests (361 backend + 60 frontend), 96% statement coverage

@@ -209,11 +209,48 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  expected_client_id="962198089161134131"
-                  expected_redirect_uri="https://lucky.lucassantana.tech/api/auth/callback"
-
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
                   auth_url="${base_url}/api/auth/discord"
+                  auth_config_url="${base_url}/api/health/auth-config"
+
+                  config_response="$(curl -sS --max-time 20 -w "\n%{http_code}" "$auth_config_url" || true)"
+                  config_http_code="$(echo "$config_response" | tail -1)"
+                  config_body="$(echo "$config_response" | sed '$d')"
+
+                  if [ "$config_http_code" != "200" ]; then
+                    echo "::error::Unable to derive OAuth expectations from auth-config (HTTP $config_http_code)"
+                    exit 1
+                  fi
+
+                  expected_values="$(
+                    AUTH_CONFIG_BODY="$config_body" node -e '
+                      const body = process.env.AUTH_CONFIG_BODY ?? "";
+                      let parsed;
+                      try {
+                        parsed = JSON.parse(body);
+                      } catch {
+                        console.log("invalid-auth-config-json");
+                        process.exit(1);
+                      }
+                      const auth = parsed?.auth ?? {};
+                      const clientId = typeof auth.clientId === "string" ? auth.clientId : "";
+                      const redirectUri =
+                        typeof auth.redirectUri === "string" ? auth.redirectUri : "";
+                      if (!clientId || !redirectUri) {
+                        console.log("missing-auth-config-fields");
+                        process.exit(1);
+                      }
+                      process.stdout.write(`${clientId}\n${redirectUri}`);
+                    '
+                  )"
+
+                  expected_client_id="$(echo "$expected_values" | sed -n '1p')"
+                  expected_redirect_uri="$(echo "$expected_values" | sed -n '2p')"
+
+                  if [ -z "$expected_client_id" ] || [ -z "$expected_redirect_uri" ]; then
+                    echo "::error::Unable to derive OAuth expectations from auth-config payload"
+                    exit 1
+                  fi
 
                   echo "==> Running OAuth redirect contract smoke check: $auth_url"
 
