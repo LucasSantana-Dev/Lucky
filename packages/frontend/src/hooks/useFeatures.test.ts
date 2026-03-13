@@ -20,7 +20,14 @@ type GuildState = {
 type FeaturesState = {
     globalToggles: Record<string, boolean>
     isLoading: boolean
+    loadError: {
+        kind: 'auth' | 'forbidden' | 'network' | 'upstream'
+        message: string
+        scope: 'catalog' | 'global' | 'server'
+        status?: number
+    } | null
     features: Array<{ name: string; description: string; isGlobal: boolean }>
+    clearLoadError: () => void
     fetchFeatures: () => Promise<void>
     fetchGlobalToggles: () => Promise<void>
     fetchServerToggles: (guildId: string) => Promise<void>
@@ -40,6 +47,7 @@ describe('useFeatures', () => {
     const updateGlobalToggle = vi.fn()
     const updateServerToggle = vi.fn()
     const getServerToggles = vi.fn()
+    const clearLoadError = vi.fn()
 
     let authState: AuthState
     let guildState: GuildState
@@ -61,7 +69,9 @@ describe('useFeatures', () => {
         featuresState = {
             globalToggles: { DOWNLOAD_VIDEO: true },
             isLoading: false,
+            loadError: null,
             features: [],
+            clearLoadError,
             fetchFeatures,
             fetchGlobalToggles,
             fetchServerToggles,
@@ -113,5 +123,83 @@ describe('useFeatures', () => {
         await waitFor(() => {
             expect(fetchServerToggles).toHaveBeenCalledWith('guild-1')
         })
+    })
+
+    test('does not fetch server toggles when no guild is selected', async () => {
+        renderHook(() => useFeatures())
+
+        await waitFor(() => {
+            expect(fetchFeatures).toHaveBeenCalledTimes(1)
+        })
+
+        expect(fetchServerToggles).not.toHaveBeenCalled()
+    })
+
+    test('returns global toggles when guild is not selected', () => {
+        const { result } = renderHook(() => useFeatures())
+
+        expect(result.current.serverToggles).toEqual(featuresState.globalToggles)
+        expect(getServerToggles).not.toHaveBeenCalled()
+    })
+
+    test('returns per-guild toggles when guild is selected', async () => {
+        guildState.selectedGuild = { id: 'guild-2' }
+        getServerToggles.mockReturnValueOnce({ AUTOPLAY: false })
+
+        const { result } = renderHook(() => useFeatures())
+
+        await waitFor(() => {
+            expect(fetchServerToggles).toHaveBeenCalledWith('guild-2')
+        })
+        expect(getServerToggles).toHaveBeenCalledWith('guild-2')
+        expect(result.current.serverToggles).toEqual({ AUTOPLAY: false })
+    })
+
+    test('delegates global toggle updates', () => {
+        const { result } = renderHook(() => useFeatures())
+
+        result.current.handleGlobalToggle('AUTOPLAY', false)
+
+        expect(updateGlobalToggle).toHaveBeenCalledWith('AUTOPLAY', false)
+    })
+
+    test('delegates server toggle updates only when guild is selected', async () => {
+        guildState.selectedGuild = { id: 'guild-3' }
+        const { result, rerender } = renderHook(() => useFeatures())
+
+        await waitFor(() => {
+            expect(fetchServerToggles).toHaveBeenCalledWith('guild-3')
+        })
+
+        result.current.handleServerToggle('AUTOPLAY', false)
+        expect(updateServerToggle).toHaveBeenCalledWith(
+            'guild-3',
+            'AUTOPLAY',
+            false,
+        )
+
+        guildState.selectedGuild = null
+        rerender()
+        result.current.handleServerToggle('AUTOPLAY', true)
+        expect(updateServerToggle).toHaveBeenCalledTimes(1)
+    })
+
+    test('retries load with current auth and guild context', async () => {
+        authState.isDeveloper = true
+        guildState.selectedGuild = { id: 'guild-4' }
+        const { result } = renderHook(() => useFeatures())
+
+        await waitFor(() => {
+            expect(fetchFeatures).toHaveBeenCalledTimes(1)
+            expect(fetchGlobalToggles).toHaveBeenCalledTimes(1)
+            expect(fetchServerToggles).toHaveBeenCalledWith('guild-4')
+        })
+
+        result.current.retryLoad()
+
+        expect(clearLoadError).toHaveBeenCalledTimes(1)
+        expect(fetchFeatures).toHaveBeenCalledTimes(2)
+        expect(fetchGlobalToggles).toHaveBeenCalledTimes(2)
+        expect(fetchServerToggles).toHaveBeenCalledWith('guild-4')
     })
 })

@@ -43,7 +43,9 @@ function mockFeatures(overrides: any = {}) {
         globalToggles: [],
         serverToggles: [],
         isLoading: false,
+        loadError: null,
         isDeveloper: false,
+        retryLoad: vi.fn(),
         handleGlobalToggle: vi.fn(),
         handleServerToggle: vi.fn(),
         ...overrides,
@@ -114,5 +116,30 @@ describe('FeaturesPage', () => {
             </MemoryRouter>,
         )
         expect(screen.queryByTestId('global-toggles')).not.toBeInTheDocument()
+    })
+
+    test('shows actionable error state when feature load fails', () => {
+        const retryLoad = vi.fn()
+        mockGuildStore()
+        mockFeatures({
+            loadError: {
+                kind: 'upstream',
+                message: 'Discord API unavailable',
+                scope: 'server',
+                status: 502,
+            },
+            retryLoad,
+        })
+        render(
+            <MemoryRouter>
+                <FeaturesPage />
+            </MemoryRouter>,
+        )
+
+        expect(
+            screen.getByText('Unable to load feature data'),
+        ).toBeInTheDocument()
+        expect(screen.getByText('Discord API unavailable')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
     })
 })

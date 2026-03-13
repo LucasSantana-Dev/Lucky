@@ -124,6 +124,8 @@ packages/
   longer probes developer-only global toggle endpoints for standard users
 - Server settings are loaded on-demand in `/settings` with explicit retry and
   re-auth guidance when auth/upstream failures occur
+- Features page now surfaces auth/forbidden/network/upstream load failures with
+  explicit retry/re-auth actions instead of silent fallback
 - Dashboard API contract uses canonical
   `/api/guilds/:guildId/automessages`; legacy
   `/api/guilds/:guildId/auto-messages` is intentionally unsupported, and stale
