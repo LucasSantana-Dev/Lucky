@@ -6,6 +6,7 @@ import ServerSettingsPage from './ServerSettings'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
@@ -229,16 +230,31 @@ describe('ServerSettingsPage', () => {
         expect(warningSwitch).toBeChecked()
     })
 
-    test('uses default settings on API error', async () => {
+    test('shows actionable load error and retry when settings fetch fails', async () => {
+        const user = userEvent.setup()
         mockGuildStoreFn(mockGuild)
         vi.mocked(api.guilds.getSettings).mockRejectedValue(
-            new Error('Not found'),
+            new ApiError(502, 'Discord API unavailable'),
         )
 
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+            expect(
+                screen.getByText('Unable to load server settings'),
+            ).toBeInTheDocument()
+        })
+
+        expect(screen.getByText('Discord API unavailable')).toBeInTheDocument()
+
+        vi.mocked(api.guilds.getSettings).mockResolvedValueOnce({
+            data: { settings: mockSettings },
+        } as any)
+
+        await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+        await waitFor(() => {
+            expect(screen.getByText('General')).toBeInTheDocument()
         })
     })
 

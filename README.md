@@ -120,6 +120,10 @@ packages/
 - Server logs with filtering
 - Music player with real-time SSE updates
 - Feature toggle management (Unleash + env var fallback)
+- Auth status payload now includes `user.isDeveloper`, so frontend bootstrap no
+  longer probes developer-only global toggle endpoints for standard users
+- Server settings are loaded on-demand in `/settings` with explicit retry and
+  re-auth guidance when auth/upstream failures occur
 - Dashboard API contract uses canonical
   `/api/guilds/:guildId/automessages`; legacy
   `/api/guilds/:guildId/auto-messages` is intentionally unsupported, and stale
