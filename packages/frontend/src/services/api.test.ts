@@ -292,9 +292,16 @@ describe('api service bootstrap', () => {
         await module.api.auth.checkStatus()
         await module.api.auth.logout()
         await module.api.guilds.getInvite('guild-1')
+        await module.api.guilds.getChannels('guild-1')
         await module.api.guilds.getSettings('guild-1')
         await module.api.guilds.updateSettings('guild-1', {
             commandPrefix: '!',
+        })
+        await module.api.guilds.applyCriativariaPreset('guild-1')
+        await module.api.guilds.getListing('guild-1')
+        await module.api.guilds.updateListing('guild-1', {
+            listed: true,
+            description: 'Guild listing',
         })
         await module.api.modules.list('guild-1')
         await module.api.modules.get('guild-1', 'music')
@@ -317,6 +324,7 @@ describe('api service bootstrap', () => {
         await module.api.trackHistory.getTopTracks('guild-1')
         await module.api.trackHistory.getTopArtists('guild-1')
         await module.api.trackHistory.clearHistory('guild-1')
+        await module.api.twitch.lookupUser('lucky')
         await module.api.twitch.list('guild-1')
         await module.api.twitch.add('guild-1', {
             twitchUserId: 'tw-1',
@@ -332,9 +340,18 @@ describe('api service bootstrap', () => {
         expect(apiClient.get).toHaveBeenCalledWith('/auth/status')
         expect(apiClient.get).toHaveBeenCalledWith('/auth/logout')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/invite')
+        expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/channels')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/settings')
         expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/settings', {
             commandPrefix: '!',
+        })
+        expect(apiClient.post).toHaveBeenCalledWith(
+            '/guilds/guild-1/automation/presets/criativaria/apply',
+        )
+        expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/listing')
+        expect(apiClient.post).toHaveBeenCalledWith('/guilds/guild-1/listing', {
+            listed: true,
+            description: 'Guild listing',
         })
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/modules')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/modules/music')
@@ -382,6 +399,7 @@ describe('api service bootstrap', () => {
             '/guilds/guild-1/music/history/top-artists?limit=10',
         )
         expect(apiClient.delete).toHaveBeenCalledWith('/guilds/guild-1/music/history')
+        expect(apiClient.get).toHaveBeenCalledWith('/twitch/users?login=lucky')
         expect(apiClient.get).toHaveBeenCalledWith(
             '/guilds/guild-1/twitch/notifications',
         )

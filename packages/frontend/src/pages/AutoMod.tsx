@@ -12,6 +12,7 @@ import {
     X,
     Loader2,
     CheckCircle2,
+    Sparkles,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -24,7 +25,7 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
-import type { AutoModSettings } from '@/types'
+import type { AutoModSettings, AutoModTemplate } from '@/types'
 
 interface FilterCardProps {
     title: string
@@ -141,9 +142,10 @@ function TagList({
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return
-                        e.preventDefault()
-                        handleAdd()
+                        if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleAdd()
+                        }
                     }}
                     placeholder={placeholder}
                     className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm flex-1'
@@ -202,8 +204,13 @@ const DEFAULT_SETTINGS: AutoModSettings = {
 export default function AutoModPage() {
     const { selectedGuild } = useGuildStore()
     const [settings, setSettings] = useState<AutoModSettings>(DEFAULT_SETTINGS)
+    const [templates, setTemplates] = useState<AutoModTemplate[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [templatesLoading, setTemplatesLoading] = useState(false)
+    const [applyingTemplateId, setApplyingTemplateId] = useState<
+        string | null
+    >(null)
 
     useEffect(() => {
         if (!selectedGuild?.id) return
@@ -215,6 +222,16 @@ export default function AutoModPage() {
                 setSettings({ ...DEFAULT_SETTINGS, guildId: selectedGuild.id }),
             )
             .finally(() => setLoading(false))
+    }, [selectedGuild?.id])
+
+    useEffect(() => {
+        if (!selectedGuild?.id) return
+        setTemplatesLoading(true)
+        api.automod
+            .listTemplates(selectedGuild.id)
+            .then((res) => setTemplates(res.data.templates))
+            .catch(() => setTemplates([]))
+            .finally(() => setTemplatesLoading(false))
     }, [selectedGuild?.id])
 
     const update = <K extends keyof AutoModSettings>(
@@ -235,6 +252,67 @@ export default function AutoModPage() {
         } finally {
             setSaving(false)
         }
+    }
+
+    const applyTemplate = async (templateId: string) => {
+        if (!selectedGuild?.id || applyingTemplateId !== null) return
+        setApplyingTemplateId(templateId)
+        try {
+            const response = await api.automod.applyTemplate(
+                selectedGuild.id,
+                templateId,
+            )
+            setSettings(response.data.settings)
+            toast.success('Auto-moderation template applied')
+        } catch {
+            toast.error('Failed to apply template')
+        } finally {
+            setApplyingTemplateId(null)
+        }
+    }
+
+    const renderTemplateCards = () => {
+        if (templatesLoading) {
+            return <Skeleton className='h-12 w-full' />
+        }
+
+        if (templates.length === 0) {
+            return (
+                <p className='text-sm text-lucky-text-secondary'>
+                    No templates available right now.
+                </p>
+            )
+        }
+
+        return (
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+                {templates.map((template) => (
+                    <div
+                        key={template.id}
+                        className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'
+                    >
+                        <h3 className='text-sm font-semibold text-white'>
+                            {template.name}
+                        </h3>
+                        <p className='mt-1 text-xs text-lucky-text-secondary'>
+                            {template.description}
+                        </p>
+                        <Button
+                            className='mt-3 cursor-pointer'
+                            size='sm'
+                            onClick={() => void applyTemplate(template.id)}
+                            disabled={applyingTemplateId !== null}
+                        >
+                            {applyingTemplateId === template.id ? (
+                                <Loader2 className='h-4 w-4 animate-spin' />
+                            ) : (
+                                'Apply template'
+                            )}
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        )
     }
 
     if (!selectedGuild) {
@@ -294,11 +372,32 @@ export default function AutoModPage() {
             </div>
 
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                <motion.div
+                    className='lg:col-span-2'
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0 }}
+                >
+                    <Card className='p-5 space-y-4'>
+                        <div className='flex items-center gap-2'>
+                            <Sparkles className='w-5 h-5 text-lucky-warning' />
+                            <h2 className='text-base font-semibold text-white'>
+                                Templates
+                            </h2>
+                        </div>
+                        <p className='text-xs text-lucky-text-tertiary'>
+                            Start from curated defaults for common malicious
+                            links and harmful words.
+                        </p>
+                        {renderTemplateCards()}
+                    </Card>
+                </motion.div>
+
                 {/* Spam Detection */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0 }}
+                    transition={{ delay: 0.05 }}
                 >
                     <FilterCard
                         title='Spam Detection'

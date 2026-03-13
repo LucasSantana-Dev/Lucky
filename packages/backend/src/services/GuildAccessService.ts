@@ -37,17 +37,17 @@ class GuildAccessService {
         }
 
         if (typeof error === 'object' && error !== null) {
-            const errorObject = error as {
+            const objectError = error as {
                 statusCode?: unknown
                 status?: unknown
             }
 
-            if (typeof errorObject.statusCode === 'number') {
-                return errorObject.statusCode
+            if (typeof objectError.statusCode === 'number') {
+                return objectError.statusCode
             }
 
-            if (typeof errorObject.status === 'number') {
-                return errorObject.status
+            if (typeof objectError.status === 'number') {
+                return objectError.status
             }
         }
 
@@ -55,10 +55,10 @@ class GuildAccessService {
     }
 
     private async fetchUserGuilds(
-        accessToken: string,
+        session: SessionData,
     ): Promise<DiscordGuild[]> {
         try {
-            return await discordOAuthService.getUserGuilds(accessToken)
+            return await discordOAuthService.getUserGuilds(session.accessToken)
         } catch (error) {
             const statusCode = this.extractStatusCode(error)
 
@@ -99,27 +99,12 @@ class GuildAccessService {
                 guild.permissions_new,
             )
 
-        const hasBot = await guildService.hasBotInGuild(guild.id).catch((error) => {
-            errorLog({
-                message: 'Failed to resolve bot presence for guild access',
-                error,
-                data: { guildId: guild.id },
-            })
-            throw error
-        })
-
+        const hasBot = isAdmin
+            ? true
+            : await guildService.hasBotInGuild(guild.id)
         const memberContext =
             hasBot && !isAdmin
-                ? await guildService
-                      .getGuildMemberContext(guild.id, userId)
-                      .catch((error) => {
-                          errorLog({
-                              message: 'Failed to resolve guild member context',
-                              error,
-                              data: { guildId: guild.id, userId },
-                          })
-                          throw error
-                      })
+                ? await guildService.getGuildMemberContext(guild.id, userId)
                 : { nickname: null, roleIds: [] as string[] }
 
         const effectiveAccess =
@@ -156,7 +141,7 @@ class GuildAccessService {
     async listAuthorizedGuilds(
         session: SessionData,
     ): Promise<AuthorizedGuild[]> {
-        const guilds = await this.fetchUserGuilds(session.accessToken)
+        const guilds = await this.fetchUserGuilds(session)
         const contexts = await Promise.all(
             guilds.map(async (guild) => {
                 try {
@@ -215,7 +200,7 @@ class GuildAccessService {
         session: SessionData,
         guildId: string,
     ): Promise<GuildAccessContext | null> {
-        const guilds = await this.fetchUserGuilds(session.accessToken)
+        const guilds = await this.fetchUserGuilds(session)
         const guild = guilds.find((item) => item.id === guildId)
 
         if (!guild) {

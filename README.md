@@ -263,6 +263,8 @@ Server selector empty/error states are split:
   use `Retry` or `Re-authenticate` from the selector.
 - `Select a Server` in dashboard after login means no bot-added server was
   auto-selected yet; open `/servers` to invite Lucky to additional servers.
+- Guild fetch failures keep the current selected server context instead of
+  clearing page state, so module pages avoid abrupt resets on transient errors.
 Without `VITE_API_BASE_URL`, frontend uses same-origin `/api` for
 `*.lucassantana.tech` hosts and `api.luk-homeserver.com.br` for
 `*.luk-homeserver.com.br`.

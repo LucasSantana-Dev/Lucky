@@ -6,11 +6,13 @@ import {
     warnLog,
 } from '@lucky/shared/utils'
 import { startWebApp } from './server'
+import { verifyRequiredDatabaseState } from './startup/verifyRequiredDatabaseState'
 
 export async function bootstrapBackend(): Promise<void> {
     await ensureEnvironment()
     setupErrorHandlers()
     initializeSentry()
+    await verifyRequiredDatabaseState()
 
     try {
         const connected = await redisClient.connect()

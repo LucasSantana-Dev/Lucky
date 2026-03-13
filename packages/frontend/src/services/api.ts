@@ -5,12 +5,14 @@ import type {
     Module,
     Command,
     ServerSettings,
+    ServerListing,
     Feature,
     FeatureToggleState,
     GuildMemberContext,
     GuildRoleOption,
     RoleGrant,
     ModuleKey,
+    GuildChannelOption,
 } from '@/types'
 import { ApiError } from './ApiError'
 import { createMusicApi } from './musicApi'
@@ -145,6 +147,10 @@ export const api = {
             apiClient.get<{ inviteUrl: string }>(`/guilds/${id}/invite`),
         getMe: (id: string) =>
             apiClient.get<GuildMemberContext>(`/guilds/${id}/me`),
+        getChannels: (id: string) =>
+            apiClient.get<{ channels: GuildChannelOption[] }>(
+                `/guilds/${id}/channels`,
+            ),
         getRbac: (id: string) =>
             apiClient.get<{
                 guildId: string
@@ -167,6 +173,24 @@ export const api = {
             apiClient.post<{ success: boolean }>(
                 `/guilds/${id}/settings`,
                 settings,
+            ),
+        applyCriativariaPreset: (id: string) =>
+            apiClient.post<{
+                success: boolean
+                preset: string
+                manifestVersion: number
+                run: {
+                    runId: string
+                    status: string
+                    blockedByProtected: boolean
+                }
+            }>(`/guilds/${id}/automation/presets/criativaria/apply`),
+        getListing: (id: string) =>
+            apiClient.get<{ listing: ServerListing }>(`/guilds/${id}/listing`),
+        updateListing: (id: string, listing: Partial<ServerListing>) =>
+            apiClient.post<{ success: boolean }>(
+                `/guilds/${id}/listing`,
+                listing,
             ),
     },
 
@@ -313,6 +337,12 @@ export const api = {
     },
 
     twitch: {
+        lookupUser: (login: string) =>
+            apiClient.get<{
+                id: string
+                login: string
+                displayName: string
+            }>(`/twitch/users?login=${encodeURIComponent(login)}`),
         list: (guildId: string) =>
             apiClient.get<{
                 notifications: Array<{

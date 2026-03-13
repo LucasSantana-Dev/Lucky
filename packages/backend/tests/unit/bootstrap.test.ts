@@ -8,6 +8,7 @@ import {
 } from '@lucky/shared/utils'
 import { bootstrapBackend } from '../../src/bootstrap'
 import { startWebApp } from '../../src/server'
+import { verifyRequiredDatabaseState } from '../../src/startup/verifyRequiredDatabaseState'
 
 jest.mock('@lucky/shared/config', () => ({
     ensureEnvironment: jest.fn(),
@@ -29,6 +30,10 @@ jest.mock('../../src/server', () => ({
     startWebApp: jest.fn(),
 }))
 
+jest.mock('../../src/startup/verifyRequiredDatabaseState', () => ({
+    verifyRequiredDatabaseState: jest.fn(),
+}))
+
 describe('Backend Bootstrap', () => {
     const mockRedis = redisClient as jest.Mocked<typeof redisClient>
     const mockEnsureEnvironment = ensureEnvironment as jest.MockedFunction<
@@ -44,11 +49,16 @@ describe('Backend Bootstrap', () => {
     const mockStartWebApp = startWebApp as jest.MockedFunction<
         typeof startWebApp
     >
+    const mockVerifyRequiredDatabaseState =
+        verifyRequiredDatabaseState as jest.MockedFunction<
+            typeof verifyRequiredDatabaseState
+        >
 
     beforeEach(() => {
         jest.clearAllMocks()
         mockEnsureEnvironment.mockResolvedValue(process.env)
         mockRedis.connect.mockResolvedValue(true)
+        mockVerifyRequiredDatabaseState.mockResolvedValue(undefined)
     })
 
     test('connects redis before starting backend server', async () => {
@@ -57,6 +67,7 @@ describe('Backend Bootstrap', () => {
         expect(mockEnsureEnvironment).toHaveBeenCalledTimes(1)
         expect(mockSetupErrorHandlers).toHaveBeenCalledTimes(1)
         expect(mockInitializeSentry).toHaveBeenCalledTimes(1)
+        expect(mockVerifyRequiredDatabaseState).toHaveBeenCalledTimes(1)
         expect(mockRedis.connect).toHaveBeenCalledTimes(1)
         expect(mockStartWebApp).toHaveBeenCalledTimes(1)
     })

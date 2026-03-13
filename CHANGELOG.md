@@ -146,6 +146,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guild auto-selection now picks the first server where Lucky is already added;
   when no server has Lucky installed, dashboard keeps no selected server and
   shows explicit selection guidance
+- Frontend guild-fetch failures now preserve the current selected guild context
+  to avoid abrupt resets across module pages during transient upstream errors
+- Backend startup now verifies `guild_role_grants` relation availability before
+  booting the web app and fails fast with a migration-required error when schema
+  state is invalid
+- AutoMod web client now includes template listing/apply flows wired to
+  `/api/guilds/:guildId/automod/templates` and
+  `/api/guilds/:guildId/automod/templates/:templateId/apply`
+- Refs: PR `#193`
 - Refs: PR `#169`
 - Guild automation API routes now map known precondition failures to actionable
   4xx responses instead of opaque 500s (`manifest missing`, `capture required`,

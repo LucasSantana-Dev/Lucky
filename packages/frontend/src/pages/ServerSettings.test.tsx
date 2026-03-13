@@ -339,6 +339,45 @@ describe('ServerSettingsPage', () => {
         })
     })
 
+    test('shows blocked feedback when adding rule without role options', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+
+        mockGuildStoreFn(
+            { ...mockGuild, canManageRbac: true },
+            {
+                canManageRbac: true,
+                effectiveAccess: defaultAccess,
+            },
+        )
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: mockGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [],
+                roles: [],
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    'No assignable roles found for this server yet.',
+                ),
+            ).toBeInTheDocument()
+        })
+
+        await user.click(screen.getByRole('button', { name: /Add Rule/i }))
+
+        expect(toast.error).toHaveBeenCalledWith(
+            'No assignable roles found for this server yet.',
+        )
+    })
+
     test('shows toast when RBAC policy save fails', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')
@@ -379,6 +418,120 @@ describe('ServerSettingsPage', () => {
             expect(toast.error).toHaveBeenCalledWith(
                 'Failed to save access control policy',
             )
+        })
+    })
+
+    test('applies Criativaria baseline when manager triggers action', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+        const managerGuild = { ...mockGuild, canManageRbac: true }
+
+        mockGuildStoreFn(managerGuild, {
+            canManageRbac: true,
+            effectiveAccess: defaultAccess,
+        })
+        vi.mocked(api.guilds.applyCriativariaPreset).mockResolvedValue({
+            data: {
+                run: {
+                    status: 'completed',
+                },
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByRole('button', {
+                    name: /Apply Criativaria Baseline/i,
+                }),
+            ).toBeInTheDocument()
+        })
+
+        await user.click(
+            screen.getByRole('button', {
+                name: /Apply Criativaria Baseline/i,
+            }),
+        )
+
+        await waitFor(() => {
+            expect(api.guilds.applyCriativariaPreset).toHaveBeenCalledWith(
+                managerGuild.id,
+            )
+            expect(toast.success).toHaveBeenCalledWith(
+                'Criativaria baseline applied (completed)',
+            )
+        })
+    })
+
+    test('shows error toast when Criativaria baseline apply fails', async () => {
+        const user = userEvent.setup()
+        const { toast } = await import('sonner')
+        const managerGuild = { ...mockGuild, canManageRbac: true }
+
+        mockGuildStoreFn(managerGuild, {
+            canManageRbac: true,
+            effectiveAccess: defaultAccess,
+        })
+        vi.mocked(api.guilds.applyCriativariaPreset).mockRejectedValue(
+            new Error('preset failed'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByRole('button', {
+                    name: /Apply Criativaria Baseline/i,
+                }),
+            ).toBeInTheDocument()
+        })
+
+        await user.click(
+            screen.getByRole('button', {
+                name: /Apply Criativaria Baseline/i,
+            }),
+        )
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                'Failed to apply Criativaria baseline',
+            )
+        })
+    })
+
+    test('retries RBAC role loading from warning card action', async () => {
+        const user = userEvent.setup()
+        const managerGuild = { ...mockGuild, canManageRbac: true }
+
+        mockGuildStoreFn(managerGuild, {
+            canManageRbac: true,
+            effectiveAccess: defaultAccess,
+        })
+
+        vi.mocked(api.guilds.getRbac)
+            .mockRejectedValueOnce(new Error('network'))
+            .mockResolvedValue({
+                data: {
+                    guildId: managerGuild.id,
+                    modules: Object.keys(defaultAccess),
+                    grants: [],
+                    roles: [{ id: '222222222222222222', name: 'Mods' }],
+                    effectiveAccess: defaultAccess,
+                    canManageRbac: true,
+                },
+            } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /Retry Roles/i })).toBeInTheDocument()
+        })
+
+        await user.click(screen.getByRole('button', { name: /Retry Roles/i }))
+
+        await waitFor(() => {
+            expect(api.guilds.getRbac).toHaveBeenCalledTimes(2)
         })
     })
 })

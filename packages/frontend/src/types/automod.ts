@@ -17,3 +17,12 @@ export interface AutoModSettings {
     createdAt: Date
     updatedAt: Date
 }
+
+export interface AutoModTemplate {
+    id: string
+    name: string
+    description: string
+    settings: Partial<
+        Omit<AutoModSettings, 'id' | 'guildId' | 'createdAt' | 'updatedAt'>
+    >
+}

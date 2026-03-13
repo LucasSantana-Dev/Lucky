@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
     Settings,
@@ -13,6 +13,8 @@ import {
     Plus,
     Trash2,
     Shield,
+    RotateCcw,
+    WandSparkles,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -61,13 +63,50 @@ export default function ServerSettingsPage() {
     const [saving, setSaving] = useState(false)
     const [rbacLoading, setRbacLoading] = useState(false)
     const [rbacSaving, setRbacSaving] = useState(false)
+    const [applyingCriativariaPreset, setApplyingCriativariaPreset] =
+        useState(false)
+    const [rbacRolesError, setRbacRolesError] = useState<string | null>(null)
     const [rbacRoles, setRbacRoles] = useState<
         Array<{ id: string; name: string }>
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
+    const rbacRequestVersion = useRef(0)
 
     const canManageRbac =
         memberContext?.canManageRbac ?? selectedGuild?.canManageRbac ?? false
+
+    const loadRbac = async (guildId: string) => {
+        const requestVersion = ++rbacRequestVersion.current
+        const isStaleRequest = () =>
+            requestVersion !== rbacRequestVersion.current
+        setRbacLoading(true)
+        setRbacRolesError(null)
+        try {
+            const res = await api.guilds.getRbac(guildId)
+            if (isStaleRequest()) {
+                return
+            }
+            setRbacRoles(res.data.roles)
+            setRbacGrants(res.data.grants)
+            if (res.data.roles.length === 0) {
+                setRbacRolesError(
+                    'No assignable roles found for this server yet.',
+                )
+            }
+        } catch {
+            if (isStaleRequest()) {
+                return
+            }
+            setRbacRoles([])
+            setRbacGrants([])
+            setRbacRolesError('Failed to load role options for access rules.')
+            toast.error('Failed to load access control policy')
+        } finally {
+            if (!isStaleRequest()) {
+                setRbacLoading(false)
+            }
+        }
+    }
 
     useEffect(() => {
         if (!selectedGuild?.id) return
@@ -83,22 +122,15 @@ export default function ServerSettingsPage() {
 
     useEffect(() => {
         if (!selectedGuild?.id || !canManageRbac) {
+            rbacRequestVersion.current += 1
             setRbacRoles([])
             setRbacGrants([])
+            setRbacRolesError(null)
+            setRbacLoading(false)
             return
         }
 
-        setRbacLoading(true)
-        api.guilds
-            .getRbac(selectedGuild.id)
-            .then((res) => {
-                setRbacRoles(res.data.roles)
-                setRbacGrants(res.data.grants)
-            })
-            .catch(() => {
-                toast.error('Failed to load access control policy')
-            })
-            .finally(() => setRbacLoading(false))
+        void loadRbac(selectedGuild.id)
     }, [selectedGuild?.id, canManageRbac])
 
     const update = <K extends keyof ServerSettings>(
@@ -122,7 +154,16 @@ export default function ServerSettingsPage() {
     }
 
     const addRbacGrant = () => {
+        if (rbacLoading) {
+            toast.error('Still loading role options. Try again in a moment.')
+            return
+        }
+
         if (rbacRoles.length === 0) {
+            toast.error(
+                rbacRolesError ??
+                    'Role options are not available yet. Retry loading roles.',
+            )
             return
         }
 
@@ -172,6 +213,26 @@ export default function ServerSettingsPage() {
             toast.error('Failed to save access control policy')
         } finally {
             setRbacSaving(false)
+        }
+    }
+
+    const handleApplyCriativariaPreset = async () => {
+        if (!selectedGuild?.id || !canManageRbac) {
+            return
+        }
+
+        setApplyingCriativariaPreset(true)
+        try {
+            const response = await api.guilds.applyCriativariaPreset(
+                selectedGuild.id,
+            )
+            toast.success(
+                `Criativaria baseline applied (${response.data.run.status})`,
+            )
+        } catch {
+            toast.error('Failed to apply Criativaria baseline')
+        } finally {
+            setApplyingCriativariaPreset(false)
         }
     }
 
@@ -383,6 +444,42 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
             >
+                <Card className='p-5 space-y-4'>
+                    <div className='flex items-center justify-between gap-4'>
+                        <div className='flex items-center gap-2'>
+                            <WandSparkles className='w-5 h-5 text-lucky-warning' />
+                            <div>
+                                <h2 className='text-base font-semibold text-white'>
+                                    Criativaria Baseline
+                                </h2>
+                                <p className='text-xs text-lucky-text-tertiary'>
+                                    Apply the migration baseline from legacy bots
+                                    with safe reconcile defaults.
+                                </p>
+                            </div>
+                        </div>
+                        <Button
+                            type='button'
+                            onClick={handleApplyCriativariaPreset}
+                            disabled={!canManageRbac || applyingCriativariaPreset}
+                            className='gap-2'
+                        >
+                            {applyingCriativariaPreset ? (
+                                <Loader2 className='w-4 h-4 animate-spin' />
+                            ) : (
+                                <WandSparkles className='w-4 h-4' />
+                            )}
+                            Apply Criativaria Baseline
+                        </Button>
+                    </div>
+                </Card>
+            </motion.div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+            >
                 <Card className='p-5 space-y-5'>
                     <div className='flex items-center justify-between gap-4'>
                         <div className='flex items-center gap-2'>
@@ -403,6 +500,13 @@ export default function ServerSettingsPage() {
                                     onClick={addRbacGrant}
                                     variant='secondary'
                                     className='gap-2'
+                                    disabled={rbacLoading}
+                                    title={
+                                        !rbacLoading && rbacRoles.length === 0
+                                            ? rbacRolesError ??
+                                              'No assignable roles available right now.'
+                                            : undefined
+                                    }
                                 >
                                     <Plus className='w-4 h-4' />
                                     Add Rule
@@ -440,6 +544,29 @@ export default function ServerSettingsPage() {
                         </div>
                     ) : (
                         <div className='space-y-3'>
+                            {rbacRolesError && (
+                                <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 text-sm text-lucky-text-secondary'>
+                                    <div className='flex items-center justify-between gap-3'>
+                                        <span>{rbacRolesError}</span>
+                                        {selectedGuild?.id && (
+                                            <Button
+                                                type='button'
+                                                size='sm'
+                                                variant='ghost'
+                                                className='gap-2'
+                                                onClick={() =>
+                                                    void loadRbac(
+                                                        selectedGuild.id,
+                                                    )
+                                                }
+                                            >
+                                                <RotateCcw className='w-4 h-4' />
+                                                Retry Roles
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             {rbacGrants.length === 0 ? (
                                 <p className='text-sm text-lucky-text-tertiary'>
                                     No RBAC rules configured. Add a rule to

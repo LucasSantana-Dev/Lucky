@@ -450,6 +450,108 @@ describe('GuildService', () => {
         })
     })
 
+    describe('getGuildTextChannelOptions', () => {
+        test('returns sorted text channel options from bot client', async () => {
+            const guildId = '111111111111111111'
+            const mockGuild = {
+                id: guildId,
+                channels: {
+                    fetch: jest.fn().mockResolvedValue(
+                        new Map([
+                            [
+                                '1',
+                                {
+                                    id: '1',
+                                    name: 'updates',
+                                    type: 0,
+                                    rawPosition: 20,
+                                },
+                            ],
+                            [
+                                '2',
+                                {
+                                    id: '2',
+                                    name: 'voice-room',
+                                    type: 2,
+                                    rawPosition: 1,
+                                },
+                            ],
+                            [
+                                '3',
+                                {
+                                    id: '3',
+                                    name: 'general',
+                                    type: 5,
+                                    rawPosition: 2,
+                                },
+                            ],
+                        ]),
+                    ),
+                },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: {
+                    cache: new Map([[guildId, mockGuild]]),
+                    fetch: jest.fn(),
+                },
+            } as unknown as Client)
+
+            const channels = await guildService.getGuildTextChannelOptions(
+                guildId,
+            )
+
+            expect(channels).toEqual([
+                { id: '3', name: '#general' },
+                { id: '1', name: '#updates' },
+            ])
+        })
+
+        test('falls back to Discord API channel list when client path fails', async () => {
+            process.env.DISCORD_TOKEN = 'test-bot-token'
+            const guildId = '111111111111111111'
+
+            setBotClient({
+                guilds: {
+                    cache: new Map(),
+                    fetch: jest
+                        .fn()
+                        .mockRejectedValue(new Error('client fail')),
+                },
+            } as unknown as Client)
+
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                json: async () => [
+                    { id: '2', name: 'rules', type: 5, position: 10 },
+                    { id: '1', name: 'general', type: 0, position: 1 },
+                    { id: '3', name: 'voice', type: 2, position: 2 },
+                    { id: '4', type: 0, position: 3 },
+                ],
+            } as never) as unknown as typeof fetch
+
+            const channels = await guildService.getGuildTextChannelOptions(
+                guildId,
+            )
+
+            expect(channels).toEqual([
+                { id: '1', name: '#general' },
+                { id: '2', name: '#rules' },
+            ])
+        })
+
+        test('returns empty list when bot token is unavailable', async () => {
+            delete process.env.DISCORD_TOKEN
+            setBotClient(null)
+
+            const channels = await guildService.getGuildTextChannelOptions(
+                '111111111111111111',
+            )
+
+            expect(channels).toEqual([])
+        })
+    })
+
     describe('getGuildDetails', () => {
         test('should return guild details when bot is in guild', async () => {
             const mockGuild = {
