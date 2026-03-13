@@ -97,7 +97,7 @@ describe('getOAuthRedirectUri', () => {
         expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
     })
 
-    test('should enforce API-domain callback in production when WEBAPP_BACKEND_URL is set', () => {
+    test('should keep configured callback when WEBAPP_BACKEND_URL is set', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
@@ -105,12 +105,10 @@ describe('getOAuthRedirectUri', () => {
 
         const uri = getOAuthRedirectUri(createRequest())
 
-        expect(uri).toBe(
-            'https://lucky-api.lucassantana.tech/api/auth/callback',
-        )
+        expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
     })
 
-    test('should prefer request host callback in production when env callback is legacy frontend origin', () => {
+    test('should not override configured callback with forwarded host in production', () => {
         process.env.NODE_ENV = 'production'
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
@@ -123,9 +121,7 @@ describe('getOAuthRedirectUri', () => {
             }),
         )
 
-        expect(uri).toBe(
-            'https://lucky-api.lucassantana.tech/api/auth/callback',
-        )
+        expect(uri).toBe('https://lucky.lucassantana.tech/api/auth/callback')
     })
 
     test('should keep configured callback when frontend origins do not match redirect origin', () => {

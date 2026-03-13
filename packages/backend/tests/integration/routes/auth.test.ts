@@ -196,7 +196,7 @@ describe('Auth Routes Integration', () => {
             }
         })
 
-        test('should enforce backend callback and secure cookie in production', async () => {
+        test('should keep configured callback and secure cookie in production', async () => {
             const originalNodeEnv = process.env.NODE_ENV
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             const originalBackendUrl = process.env.WEBAPP_BACKEND_URL
@@ -220,7 +220,7 @@ describe('Auth Routes Integration', () => {
 
             expect(response.headers.location).toContain(
                 encodeURIComponent(
-                    'https://lucky-api.lucassantana.tech/api/auth/callback',
+                    'https://lucky.lucassantana.tech/api/auth/callback',
                 ),
             )
 
