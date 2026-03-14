@@ -263,6 +263,8 @@ SonarCloud workflow policy is token-aware: non-Dependabot runs fail fast when
 `SONAR_TOKEN` is missing, while Dependabot PRs skip the Sonar scan step as a
 non-blocking success path when secrets are unavailable.
 The Sonar workflow uses `SonarSource/sonarqube-scan-action@v7`.
+For CI triage on Lucky, use the project skill:
+`.cursor/skills/lucky-ci-gate-recovery/SKILL.md`.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
@@ -287,6 +289,9 @@ Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
+If OAuth redirect smoke receives only Discord rate-limit responses (`429`)
+across all retries, deploy now emits a warning and proceeds after auth-config
+contract success, instead of failing the rollout as a false negative.
 Deploy webhook rollout now starts `postgres`/`redis`, runs
 `prisma migrate deploy`, and executes a `guild_role_grants` relation preflight
 before service rollout to fail fast on schema drift.

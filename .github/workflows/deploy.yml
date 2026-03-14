@@ -268,11 +268,23 @@ jobs:
                   expected_client_id="$configured_expected_client_id"
 
                   echo "==> Running OAuth redirect contract smoke check: $auth_url"
+                  rate_limited_count=0
+                  non_rate_limited_attempts=0
 
                   for attempt in $(seq 1 18); do
                     echo "Attempt ${attempt}/18..."
                     headers_file="$(mktemp)"
                     http_code="$(curl -sS -o /dev/null -D "$headers_file" --max-time 20 "$auth_url" -w "%{http_code}" || true)"
+
+                    if [ "$http_code" = "429" ]; then
+                      rate_limited_count=$((rate_limited_count + 1))
+                      rm -f "$headers_file"
+                      echo "OAuth redirect contract check is rate-limited (429). Waiting 10s..."
+                      sleep 10
+                      continue
+                    fi
+
+                    non_rate_limited_attempts=$((non_rate_limited_attempts + 1))
 
                     if [ "$http_code" = "302" ]; then
                       location_header="$(awk 'BEGIN{IGNORECASE=1} /^location: /{print $2}' "$headers_file" | tr -d '\r')"
@@ -322,7 +334,13 @@ jobs:
                     sleep 10
                   done
 
+                  if [ "$non_rate_limited_attempts" -eq 0 ] && [ "$rate_limited_count" -gt 0 ]; then
+                    echo "::warning::OAuth redirect contract check hit sustained Discord rate limiting (429) across all retries; treating as non-blocking after auth-config contract pass."
+                    exit 0
+                  fi
+
                   echo "::error::Timed out waiting for OAuth redirect contract"
+                  echo "::error::OAuth redirect smoke summary: non_rate_limited_attempts=$non_rate_limited_attempts, rate_limited_count=$rate_limited_count"
                   exit 1
 
             - name: Notify failure
