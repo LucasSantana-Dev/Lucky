@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy OAuth redirect smoke now treats sustained `429` rate-limit responses
   as warning-only (after auth-config contract passes), preventing false-negative
   homelab deploy failures caused by Discord OAuth endpoint throttling.
+- Cleared the remaining moderate dependency audit chain by bumping
+  `@swc/cli` to `^0.8.0`, raising `file-type` override to `>=21.3.2`,
+  and forcing patched `yauzl` resolution (`3.2.1`), resulting in
+  `npm audit` baseline `low=0`, `moderate=0`, `high=0`, `critical=0`.
 
 ## [2.6.14] - 2026-03-14
 

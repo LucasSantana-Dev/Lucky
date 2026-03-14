@@ -218,13 +218,14 @@ instead of running on every local verify cycle.
 For dependency security maintenance, run:
 
 ```bash
-npm update undici flatted --workspaces --include-workspace-root
+npm update undici flatted @swc/cli file-type yauzl --workspaces --include-workspace-root
 npm audit --audit-level=high
 ```
 
 Security remediation policy: each hardening cycle clears high/critical
-findings first with minimal dependency blast radius; moderate findings are
-tracked in `docs/DEPENDENCY_UPDATES.md` for follow-up cycles.
+findings first with minimal dependency blast radius, then closes active
+moderate chains in focused follow-up PRs. Current audit baseline on `main`
+after the latest cycle is `low=0`, `moderate=0`, `high=0`, `critical=0`.
 
 ### Local Database Bootstrap
 
