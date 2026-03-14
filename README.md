@@ -266,6 +266,8 @@ non-blocking success path when secrets are unavailable.
 The Sonar workflow uses `SonarSource/sonarqube-scan-action@v7`.
 For CI triage on Lucky, use the project skill:
 `.cursor/skills/lucky-ci-gate-recovery/SKILL.md`.
+For GitHub MCP transport/auth failures (`Transport closed`), use:
+`.cursor/skills/mcp-github-recovery/SKILL.md` before switching to `gh` fallback.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
