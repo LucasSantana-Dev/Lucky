@@ -32,6 +32,10 @@ description: Recover Lucky when workflow checks pass but production stays stale,
     - `include-command-output-in-response-on-error: true`
 - remove webhook `-verbose` runtime flag from `docker-compose.yml`
 - rotate `DEPLOY_WEBHOOK_SECRET` when compromise/drift is suspected and sync with GitHub secret
+- align deploy workflow trigger behavior with synchronous webhook execution:
+    - webhook trigger curl `--max-time` must cover full deploy runtime
+    - retries should be transport-only (`HTTP 000`) to avoid duplicate deploy launches
+    - set deploy workflow `concurrency` to serialize overlapping `workflow_run` + `workflow_dispatch` deploys
 
 4. Redeploy and validate
 
@@ -50,3 +54,4 @@ description: Recover Lucky when workflow checks pass but production stays stale,
 - Treat concurrent deploy agents as a blocker; wait for a quiet window before mutation steps.
 - Preserve evidence (`curl` bodies/status codes, deploy output snippets, container revision checks) in handoff notes.
 - If lock file PID is stale/reused, validate process command line before honoring lock ownership.
+- If lock PID file is momentarily missing, do not immediately clear lock; treat fresh lock directories as active to avoid race-induced dual deploys.
