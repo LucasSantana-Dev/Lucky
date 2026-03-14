@@ -44,3 +44,6 @@ description: Run and test Lucky with Docker. Use when changing docker-compose, D
     - wrong secret request -> non-2xx with explicit error
     - correct secret request -> waits for deploy command completion and returns command output
 4. If proxy timeout interferes, test direct webhook endpoint via container IP (`http://<webhook-ip>:9000/hooks/deploy`) to isolate signaling from edge timeouts.
+5. Keep deploy workflow trigger timeouts aligned with synchronous webhook behavior:
+    - trigger curl `--max-time` must exceed full deploy duration
+    - retries should be transport-only (`HTTP 000`) to avoid duplicate deploy storms

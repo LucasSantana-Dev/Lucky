@@ -76,6 +76,9 @@ When CI/CD push checks are green but `Deploy to Homelab` fails in webhook trigge
 - `edge-timeout-noise`:
     - public webhook path returns timeout/504 while deploy may continue
     - fix: validate same request directly against webhook container endpoint (`http://<webhook-ip>:9000/hooks/deploy`) and confirm command output there
+- `sync-timeout-retry-storm`:
+    - deploy trigger shows repeated `HTTP 000` and long `Trigger deploy webhook` runtime
+    - fix: raise webhook curl max-time to cover full synchronous deploy window and limit retries to transport-only failures to avoid duplicate deploy launches
 
 Use these signatures before changing workflow retry logic.
 
