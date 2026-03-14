@@ -42,6 +42,7 @@ gh pr checks <PR#> --required
 - `quality-gate`: coverage/duplication/new-code thresholds
 - `workflow-runtime`: action/runtime failure
 - `ruleset-mismatch`: required context name differs from workflow-reported check
+- `deploy-checkout-drift`: deploy webhook blocked by dirty checkout/unmerged files
 
 5. Apply minimal fix in this order:
 
@@ -49,6 +50,7 @@ gh pr checks <PR#> --required
 - CI contract mismatch second
 - then branch drift/rebase
 - then quality/test deltas
+- for deploy checkout drift: clean target host checkout before rerun
 
 6. Merge safety:
 
@@ -68,6 +70,12 @@ gh pr merge <PR#> --squash --match-head-commit "$SHA"
 - Only statuses listed in required checks gate merge decisions.
 - Pending informational checks (for example CodeRabbit/preview providers) are not blockers unless explicitly listed in the active ruleset.
 - If a required status is missing entirely, treat as `ruleset-mismatch` until context names are reconciled.
+
+## Deploy rerun policy
+
+- `LOCK_CONTENTION`: one immediate rerun is allowed.
+- `CHECKOUT_RECOVERY_FAILED`: require host checkout cleanup evidence before rerun.
+- Repeated `CHECKOUT_RECOVERY_FAILED` without host cleanup is treated as operator error, not CI flake.
 
 ## Post-merge smoke contract
 

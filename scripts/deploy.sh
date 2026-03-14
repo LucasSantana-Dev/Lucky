@@ -182,6 +182,77 @@ resolve_postgres_password() {
     echo ""
 }
 
+archive_local_checkout_state() {
+    local changes archive_root timestamp archive_prefix stash_label stash_output
+    changes="$(git status --porcelain 2>/dev/null || true)"
+    if [[ -z "$changes" ]]; then
+        log "Checkout is clean before origin sync"
+        return 0
+    fi
+
+    archive_root="${DEPLOY_ARCHIVE_DIR:-${HOME}/.lucky/deploy-archive}"
+    timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    archive_prefix="${archive_root}/${timestamp}"
+
+    if ! mkdir -p "$archive_root"; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (cannot create archive dir: $archive_root)"
+        return 1
+    fi
+
+    git status --short >"${archive_prefix}-status.txt"
+    git diff >"${archive_prefix}-tracked.diff"
+    git diff --cached >"${archive_prefix}-staged.diff"
+    git ls-files --others --exclude-standard >"${archive_prefix}-untracked.txt"
+
+    stash_label="deploy-archive-${timestamp}"
+    stash_output="$(git stash push -u -m "$stash_label" 2>&1 || true)"
+
+    if [[ "$stash_output" == *"No local changes to save"* ]]; then
+        log "Checkout drift archive skipped (changes disappeared during snapshot)"
+        return 0
+    fi
+
+    if [[ "$stash_output" != Saved* ]]; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (stash failed: $stash_output)"
+        return 1
+    fi
+
+    log "Archived checkout drift at ${archive_prefix}-* with stash ${stash_label}"
+    return 0
+}
+
+sync_checkout_to_origin_main() {
+    local drift_after_reset
+
+    if ! archive_local_checkout_state; then
+        return 1
+    fi
+
+    if ! git fetch origin main; then
+        log "ERROR: CHECKOUT_FETCH_FAILED (git fetch origin main)"
+        return 1
+    fi
+
+    if ! git reset --hard origin/main; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (git reset --hard origin/main)"
+        return 1
+    fi
+
+    if ! git clean -fd; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (git clean -fd)"
+        return 1
+    fi
+
+    drift_after_reset="$(git status --porcelain 2>/dev/null || true)"
+    if [[ -n "$drift_after_reset" ]]; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (tree not clean after reset)"
+        return 1
+    fi
+
+    log "Checkout synced to origin/main and verified clean"
+    return 0
+}
+
 wait_for_http_ready() {
     local label="$1"
     local url="$2"
@@ -244,7 +315,7 @@ if [[ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]]; then
 fi
 
 if ! acquire_lock; then
-    log "ERROR: another deploy is already running"
+    log "ERROR: LOCK_CONTENTION (another deploy is already running)"
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
@@ -270,8 +341,12 @@ git config --global --add safe.directory "$DEPLOY_DIR"
 
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
 
-log "Pulling latest changes..."
-git pull origin main
+log "Synchronizing checkout with origin/main..."
+if ! sync_checkout_to_origin_main; then
+    log "ERROR: CHECKOUT_RECOVERY_FAILED (unable to prepare clean checkout)"
+    notify 16711680 "Deploy Failed" "Checkout recovery failed"
+    exit 1
+fi
 
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
@@ -288,7 +363,7 @@ docker_compose up -d postgres redis
 log "Running database migrations..."
 if ! docker_compose run --rm --no-deps backend \
     sh -lc "npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
-    log "ERROR: prisma migrate deploy failed (migration execution error)"
+    log "ERROR: MIGRATION_FAILED (prisma migrate deploy)"
     notify 16711680 "Deploy Failed" "Database migration failed"
     exit 1
 fi
@@ -296,7 +371,7 @@ fi
 log "Checking migration status..."
 if ! docker_compose run --rm --no-deps backend \
     sh -lc "npx prisma migrate status --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
-    log "ERROR: prisma migrate status failed (migration drift/history mismatch)"
+    log "ERROR: MIGRATION_FAILED (prisma migrate status)"
     notify 16711680 "Deploy Failed" "Database migration status guard failed"
     exit 1
 fi
@@ -319,7 +394,7 @@ NODE
 log "Verifying required database relations..."
 if ! docker_compose run --rm --no-deps backend \
     node --input-type=module -e "$relation_guard_script"; then
-    log "ERROR: required database relation verification failed (schema drift)"
+    log "ERROR: RUNTIME_PRECHECK_FAILED (required relation verification)"
     notify 16711680 "Deploy Failed" "Database relation guard failed"
     exit 1
 fi
@@ -329,7 +404,7 @@ docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postg
 
 if ! verify_cloudflared_config "$CLOUDFLARED_CONFIG_DIR"; then
     print_targeted_logs
-    notify 16711680 "Deploy Failed" "Cloudflare tunnel config is invalid"
+    notify 16711680 "Deploy Failed" "Runtime precheck failed (cloudflared config)"
     exit 1
 fi
 
@@ -351,13 +426,13 @@ docker_compose ps --format "table {{.Name}}\t{{.Status}}"
 
 if ! require_running_containers; then
     print_targeted_logs
-    notify 16711680 "Deploy Failed" "Required services are missing or not running"
+    notify 16711680 "Deploy Failed" "Runtime precheck failed (required services)"
     exit 1
 fi
 
 unhealthy=$(docker_compose ps --format json | grep -c '"unhealthy"' || true)
 if [[ "$unhealthy" -gt 0 ]]; then
-    log "ERROR: $unhealthy unhealthy container(s)"
+    log "ERROR: RUNTIME_PRECHECK_FAILED ($unhealthy unhealthy container(s))"
     print_targeted_logs
     notify 16711680 "Deploy Failed" "$unhealthy unhealthy container(s)"
     exit 1

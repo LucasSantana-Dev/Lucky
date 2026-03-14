@@ -35,6 +35,7 @@ At the start of every session:
 | Embed builder, custom commands, auto-messages     | `management-features`    |
 | Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`          |
 | CI gate triage and required-check recovery        | `lucky-ci-gate-recovery` |
+| Homelab deploy lock/checkout/runtime recovery     | `lucky-deploy-recovery`  |
 | Recover GitHub MCP transport/auth failures        | `mcp-github-recovery`    |
 | OpenCode config, plugins, attach, verification    | `opencode-lucky-workflows` |
 

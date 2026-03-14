@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pinned webhook-driven `prisma migrate deploy` and `prisma migrate status`
   calls to `prisma/prisma.config.ts` so homelab deploys keep `DATABASE_URL`
   resolution when run from the webhook container.
+- Deploy webhook checkout sync now uses archive+reset hygiene (`stash + drift
+  artifact snapshot`, `fetch`, `reset --hard origin/main`, `clean -fd`) before
+  rollout, preventing repeated deploy failures from host-local git drift.
+- Deploy workflow webhook failure reporting now classifies lock contention,
+  checkout recovery failures, and runtime precheck failures in CI annotations
+  for faster incident triage.
+- Added `.cursor/skills/lucky-deploy-recovery/SKILL.md` and expanded
+  `.cursor/skills/lucky-ci-gate-recovery/SKILL.md` with deploy drift rerun
+  policy and deterministic failure-bucket guidance.
 
 ## [2.6.15] - 2026-03-14
 

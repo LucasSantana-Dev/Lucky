@@ -113,8 +113,19 @@ jobs:
                     fi
                   done
 
+                  failure_body_compact="$(echo "$selected_body" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/^ //; s/ $//')"
+                  if echo "$failure_body_compact" | grep -qi "another deploy is already running"; then
+                    echo "::error title=LOCK_CONTENTION::Deploy webhook lock contention: $failure_body_compact"
+                  elif echo "$failure_body_compact" \
+                    | grep -Eqi "would be overwritten by merge|unmerged files|fatal: Exiting because of an unresolved conflict|Aborting"; then
+                    echo "::error title=CHECKOUT_RECOVERY_FAILED::Deploy checkout recovery failed: $failure_body_compact"
+                  elif echo "$failure_body_compact" \
+                    | grep -Eqi "compose preflight|migration|health|required services|cloudflared|relation"; then
+                    echo "::error title=RUNTIME_PRECHECK_FAILED::Deploy runtime precheck failed: $failure_body_compact"
+                  fi
+
                   echo "::error::Deploy webhook failed with HTTP $selected_code"
-                  echo "::error::Response body: $selected_body"
+                  echo "::error::Response body: $failure_body_compact"
                   exit 1
 
             - name: Auth config smoke check
