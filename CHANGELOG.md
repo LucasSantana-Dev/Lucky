@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Pinned webhook-driven `prisma migrate deploy` and `prisma migrate status`
+  calls to `prisma/prisma.config.ts` so homelab deploys keep `DATABASE_URL`
+  resolution when run from the webhook container.
+
 ## [2.6.15] - 2026-03-14
 
 ### Added
