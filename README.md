@@ -371,6 +371,9 @@ contract success, instead of failing the rollout as a false negative.
 Deploy webhook rollout now starts `postgres`/`redis`, runs
 `prisma migrate deploy`, and executes a `guild_role_grants` relation preflight
 before service rollout to fail fast on schema drift.
+When those Prisma migration commands run from the webhook container, they must
+pin `prisma/prisma.config.ts` (and `prisma/schema.prisma`) explicitly so the
+deploy path keeps `DATABASE_URL` resolution deterministic.
 CLOUDFLARED tunnel restarts now mount config from `CLOUDFLARED_CONFIG_DIR`
 instead of shell `$HOME`; use a canonical host path like
 `/home/luk-server/.cloudflared` to avoid deploy-context mount drift.
