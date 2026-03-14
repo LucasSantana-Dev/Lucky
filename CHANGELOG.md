@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SonarCloud CI is now Dependabot-safe: scans run only when `SONAR_TOKEN` is
   present, Dependabot PRs skip scan as success when token is unavailable, and
   non-Dependabot runs fail fast if the token is missing.
+- Upgraded SonarCloud GitHub Action to `SonarSource/sonarqube-scan-action@v7`
+  to keep workflow compatibility current.
 
 ## [2.6.14] - 2026-03-14
 

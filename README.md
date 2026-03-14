@@ -262,6 +262,7 @@ clickable controls, and bounded parsing logic for user-facing text handling.
 SonarCloud workflow policy is token-aware: non-Dependabot runs fail fast when
 `SONAR_TOKEN` is missing, while Dependabot PRs skip the Sonar scan step as a
 non-blocking success path when secrets are unavailable.
+The Sonar workflow uses `SonarSource/sonarqube-scan-action@v7`.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
