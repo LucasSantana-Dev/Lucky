@@ -40,8 +40,8 @@
         "@gar/promise-retry": "^1.0.2",
         "@npmcli/agent": "^4.0.0",
         "@npmcli/fs": "^5.0.0",
-        "@prisma/client": "^7.4.2",
-        "@sentry/node": "^10.37.0",
+        "@prisma/client": "^7.5.0",
+        "@sentry/node": "^10.43.0",
         "axios": "^1.13.2",
         "chalk": "^5.6.2",
         "dotenv": "^17.2.3",
@@ -58,10 +58,10 @@
         "unique-filename": "^5.0.0",
         "unleash-client": "^6.10.1",
         "uuid": "^13.0.0",
-        "zod": "^3.25.76"
+        "zod": "^4.3.6"
     },
     "optionalDependencies": {
-        "@infisical/sdk": "^4.0.0"
+        "@infisical/sdk": "^5.0.0"
     },
     "devDependencies": {
         "@swc/cli": "^0.7.10",
