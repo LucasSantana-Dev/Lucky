@@ -322,7 +322,7 @@ acquire_lock() {
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
         local existing_cmd
         existing_cmd=$(ps -p "$existing_pid" -o args= 2>/dev/null || true)
-        if echo "$existing_cmd" | grep -Eq '(^|[[:space:]])(deploy\.sh|/scripts/deploy\.sh)([[:space:]]|$)'; then
+        if echo "$existing_cmd" | grep -Eq '(^|[[:space:]])([^[:space:]]*/)?deploy\.sh([[:space:]]|$)'; then
             return 1
         fi
     fi
