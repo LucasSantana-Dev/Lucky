@@ -315,8 +315,20 @@ acquire_lock() {
     fi
 
     local existing_pid=""
+    local now lock_mtime lock_age
     if [[ -f "$LOCK_PID_FILE" ]]; then
         existing_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || true)
+    fi
+
+    # Guard against races where lock dir exists briefly before pid is written.
+    if [[ -z "$existing_pid" ]]; then
+        now=$(date +%s)
+        lock_mtime=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || echo "$now")
+        lock_age=$((now - lock_mtime))
+
+        if [[ "$lock_age" -lt 120 ]]; then
+            return 1
+        fi
     fi
 
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
