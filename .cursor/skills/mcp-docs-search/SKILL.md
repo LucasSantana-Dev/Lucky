@@ -33,3 +33,10 @@ description: Use MCP tools for docs lookup and web search in Lucky. Use when nee
 - Prefer Context7 for official library docs before assuming API behavior.
 - Use Tavily for errors, version-specific notes, or when Context7 doesn’t cover the topic.
 - Don’t force MCPs; use the one that fits the task.
+
+## OpenCode-specific guidance
+
+- For OpenCode plugin, command, skill, or MCP configuration work, prefer official OpenCode docs first.
+- Prefer local SDK and type inspection before broad web search when authoring OpenCode plugins or config.
+- Use the official OpenCode ecosystem and community plugin index when evaluating third-party plugins.
+- Treat community plugin marketing pages as discovery only; confirm install syntax from official docs or the plugin repository before wiring it into Lucky.

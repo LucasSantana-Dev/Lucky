@@ -227,6 +227,72 @@ findings first with minimal dependency blast radius, then closes active
 moderate chains in focused follow-up PRs. Current audit baseline on `main`
 after the latest cycle is `low=0`, `moderate=0`, `high=0`, `critical=0`.
 
+### OpenCode + Codex
+
+Lucky now ships repo-local OpenCode behavior in `opencode.jsonc`.
+
+- Repo-local:
+  - `opencode.jsonc`
+  - `.opencode/plugins`
+  - `.opencode/skills`
+  - `scripts/opencode-*`
+- Host-local:
+  - `~/.config/opencode/opencode.jsonc`
+  - provider auth and MCP credentials
+  - OpenCode community plugin cache and host-only scripts
+
+The default Lucky stack is:
+
+- local Lucky plugins:
+  - `lucky-policy`
+  - `lucky-context`
+  - `lucky-doc-reminders`
+- community add-ons:
+  - `opencode-shell-strategy`
+  - `@tarquinen/opencode-dcp@latest`
+
+High-risk actions are blocked in-session:
+
+- direct push to `main`
+- `git reset --hard`
+- `git checkout --`
+- `git clean -fd` / `git clean -fdx`
+- sensitive file access (`.env`, `.cursor/.env.mcp`, `~/.ssh/**`, `~/.aws/**`, OpenCode auth stores)
+- mutating work from the primary Lucky checkout unless `LUCKY_ALLOW_ROOT_MUTATION=1`
+
+OpenCode project commands mirror `.cursor/COMMANDS.md`:
+
+- `/verify`
+- `/e2e`
+- `/db`
+
+Project setup and verification:
+
+```bash
+./scripts/opencode-sync-project-skills.sh
+./scripts/opencode-install-community-plugins.sh
+./scripts/opencode-verify.sh
+```
+
+Remote `server-do-luk` flow:
+
+```bash
+./scripts/opencode-sync-server-do-luk-skills.sh
+./scripts/opencode-install-community-plugins.sh --remote server-do-luk
+./scripts/opencode-verify.sh --remote server-do-luk
+./scripts/opencode-attach-server-do-luk.sh
+```
+
+Optional add-ons are documented but intentionally disabled in v1:
+
+- `opencode-vibeguard`
+- `opencode-helicone-session`
+- `opencode-sentry-monitor`
+- `opencode-type-inject`
+
+Heavy orchestration plugins stay out of the default stack because Lucky already
+uses worktrees, skills, and PR discipline explicitly.
+
 ### Local Database Bootstrap
 
 `db:*` scripts now pin Prisma config explicitly via

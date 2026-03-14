@@ -99,3 +99,168 @@ Project-level Cursor Hooks are in **`.cursor/hooks.json`** (and scripts in `.cur
 For guidance on when to use which MCP tools and how AI agents should work on this repo, see [AGENTS.md](../AGENTS.md) at the project root. It maps MCPs (filesystem, GitHub, Context7, Tavily, Playwright, etc.) to tasks and references Cursor rules, **subagents** (`.cursor/rules/subagent-*.mdc`), **skills** (`.cursor/skills/`), and **commands** (`.cursor/COMMANDS.md` for verify, E2E, DB, deploy, specialist workflows).
 
 **Superpowers (Codex):** Superpowers are installed at `~/.codex/superpowers`. To use a skill in Cursor chat or in a prompt, run `~/.codex/superpowers/.codex/superpowers-codex use-skill <skill-name>` with a real skill name (e.g. `superpowers:brainstorming`, `superpowers:test-driven-development`). See the “Superpowers (Codex)” section in AGENTS.md for the full skill list and agent behavior.
+
+## OpenCode
+
+Lucky now uses repo-local OpenCode config in `opencode.jsonc`.
+
+### Config split
+
+- Repo-local:
+  - `opencode.jsonc`
+  - `.opencode/plugins`
+  - `.opencode/skills`
+  - `scripts/opencode-*`
+- Host-local:
+  - `~/.config/opencode/opencode.jsonc`
+  - provider auth
+  - MCP credentials
+  - host-only package cache and helper scripts
+
+Never commit host-local auth, tokens, or MCP headers.
+
+### Plugin posture
+
+Default Lucky OpenCode stack:
+
+- local Lucky plugins:
+  - `./.opencode/plugins/lucky-policy.mjs`
+  - `./.opencode/plugins/lucky-context.mjs`
+  - `./.opencode/plugins/lucky-doc-reminders.mjs`
+- approved community add-ons:
+  - `opencode-shell-strategy`
+  - `@tarquinen/opencode-dcp@latest`
+
+`opencode-shell-strategy` is runtime-resolved through OpenCode’s plugin
+resolver. `@tarquinen/opencode-dcp@latest` is the installable DCP package
+behind dynamic context pruning.
+
+These remain documented-only in v1 and are not enabled by default:
+
+- `opencode-vibeguard`
+- `opencode-helicone-session`
+- `opencode-sentry-monitor`
+- `opencode-type-inject`
+
+Heavy orchestration plugins are intentionally excluded in v1:
+
+- `Oh My OpenCode`
+- `opencode-workspace`
+- `opencode-background-agents`
+- `opencode-worktree`
+
+### Guardrails
+
+Lucky OpenCode sessions hard-block:
+
+- direct push to `main`
+- `git reset --hard`
+- `git checkout --`
+- `git clean -fd` and `git clean -fdx`
+- access to `.env`, `.env.*`, `.cursor/.env.mcp`, `~/.ssh/**`, `~/.aws/**`,
+  `~/.config/fish/config.fish`, and OpenCode auth stores
+- mutating work from the primary Lucky checkout unless
+  `LUCKY_ALLOW_ROOT_MUTATION=1`
+
+The plugins also inject:
+
+- `OPENCODE_GIT_REPOSITORY`
+- `OPENCODE_SERENA_PROJECT`
+- `LUCKY_WORKTREE_ROOT`
+
+### Commands
+
+Repo-local OpenCode commands mirror `.cursor/COMMANDS.md`:
+
+- `/verify`
+- `/e2e`
+- `/db`
+
+### Project and global skills
+
+Rebuild the project skill bridge:
+
+```bash
+./scripts/opencode-sync-project-skills.sh
+```
+
+Rebuild the global host-local skill bridge:
+
+```bash
+./scripts/opencode-sync-global-skills.sh
+```
+
+Sync global skills to `server-do-luk`:
+
+```bash
+./scripts/opencode-sync-server-do-luk-skills.sh
+```
+
+### Community plugin install
+
+Prime the approved community add-ons locally:
+
+```bash
+./scripts/opencode-install-community-plugins.sh
+```
+
+Prime them on `server-do-luk`:
+
+```bash
+./scripts/opencode-install-community-plugins.sh --remote server-do-luk
+```
+
+### Verification
+
+Local verification:
+
+```bash
+./scripts/opencode-verify.sh
+```
+
+Remote verification:
+
+```bash
+./scripts/opencode-verify.sh --remote server-do-luk
+```
+
+Useful direct checks:
+
+```bash
+opencode debug config
+opencode debug skill
+opencode mcp list
+opencode run --format json "Say only OK"
+```
+
+### `server-do-luk` attach
+
+Attach a local OpenCode client to the remote Lucky workspace:
+
+```bash
+./scripts/opencode-attach-server-do-luk.sh
+```
+
+To target a remote worktree instead of `/home/luk-server/Lucky`:
+
+```bash
+OPENCODE_REMOTE_DIR=/home/luk-server/Lucky/.worktrees/<branch> \
+  ./scripts/opencode-attach-server-do-luk.sh
+```
+
+The remote helper remains:
+
+```bash
+~/.local/bin/opencode-lucky-serve
+```
+
+It starts OpenCode on `127.0.0.1:4096` and respects `OPENCODE_REMOTE_DIR` when
+present.
+
+### Remote auth recovery
+
+If `server-do-luk` loses OpenAI auth:
+
+```bash
+ssh server-do-luk 'cd /home/luk-server/Lucky && ~/.opencode/bin/opencode providers login -p openai'
+```
