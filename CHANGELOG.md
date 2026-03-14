@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded CI triage skill with deterministic required-vs-informational status
   classification and explicit ruleset-mismatch handling.
 - Hardened GitHub MCP recovery runbook with protocol-compatibility detection
-  (framed vs line-delimited stdio) plus local MCP config integrity checks for
-  related server entries (`filesystem`, `fetch`, `playwright`).
+  (framed vs line-delimited stdio), wrapper-based runtime auth alignment for
+  Codex, and local MCP config integrity checks for related server entries
+  (`filesystem`, `fetch`, `playwright`).
 
 ### Added
 

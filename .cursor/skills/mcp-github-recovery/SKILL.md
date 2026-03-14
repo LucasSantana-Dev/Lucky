@@ -35,6 +35,11 @@ print('env_keys=', list((s.get('env') or {}).keys()))
 PY
 ```
 
+Expected steady state:
+
+- `command=/Users/<user>/.codex/scripts/run-mcp-github.sh`
+- no static `env_keys` for GitHub tokens
+
 3. Verify config integrity for related MCP entries (`filesystem`, `fetch`, `playwright`):
 
 ```bash
@@ -89,34 +94,60 @@ NODE
 
 If framed initialize returns no payload but newline JSON initialize does, treat it as protocol incompatibility and use `gh` fallback evidence while you switch to a compatible GitHub MCP server/runtime.
 
-5. Refresh GitHub token wiring from active `gh` auth:
+5. Align Codex GitHub MCP with wrapper-based runtime auth (same model used by OpenCode):
 
 ```bash
-export GH_TOKEN_VALUE="$(gh auth token)"
+mkdir -p "$HOME/.codex/scripts"
+cat > "$HOME/.codex/scripts/run-mcp-github.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+token="$(gh auth token)"
+if [[ -z "$token" ]]; then
+  echo "GitHub CLI is not authenticated" >&2
+  exit 1
+fi
+
+exec env \
+  GITHUB_TOKEN="$token" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="$token" \
+  npx -y @modelcontextprotocol/server-github
+EOF
+chmod +x "$HOME/.codex/scripts/run-mcp-github.sh"
+
 python3 - <<'PY'
-import os, pathlib, re
-p = pathlib.Path.home()/'.codex'/'config.toml'
+from pathlib import Path
+import re
+p = Path.home()/'.codex'/'config.toml'
 text = p.read_text()
-token = os.environ['GH_TOKEN_VALUE']
 text, n = re.subn(
-    r'(?m)^(GITHUB_PERSONAL_ACCESS_TOKEN\\s*=\\s*\")[^\"]*(\"\\s*)$',
-    r'\\1' + token + r'\\2',
+    r'(?ms)^\[mcp_servers\.github\]\ncommand = "[^"]+"\nargs = \[[^\]]*\]\n(?:\n\[mcp_servers\.github\.env\]\n(?:[^\n]*\n)+?)?(?=\n\[|\Z)',
+    '[mcp_servers.github]\ncommand = "/Users/lucassantana/.codex/scripts/run-mcp-github.sh"\n',
     text,
+    count=1,
 )
 if n != 1:
-    raise SystemExit(f'Expected 1 token entry, found {n}')
+    raise SystemExit(f'Expected 1 github block, replaced {n}')
 p.write_text(text)
-print('updated')
+print('updated', p)
 PY
 ```
 
-6. Re-run MCP GitHub calls:
+6. Verify Codex sees the repaired server and can execute a GitHub MCP call:
+
+```bash
+codex mcp get github
+codex exec --json --skip-git-repo-check -C /path/to/Lucky \
+  "Using only the configured github MCP server, list one open issue in repository LucasSantana-Dev/Lucky and return only its number."
+```
+
+7. Re-run MCP GitHub calls:
 
 - list PRs
 - list issues
 - read issue details
 
-7. If still failing, document as environment/server instability and use `gh` as operational fallback until fixed.
+8. If still failing, document as environment/server instability and use `gh` as operational fallback until fixed.
 
 ## Close criteria (`#224`)
 
