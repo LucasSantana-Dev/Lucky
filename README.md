@@ -215,6 +215,38 @@ type-check, full build, backend + bot + frontend tests, and `audit:high`.
 Playwright stays separate under `npm run test:e2e` as a smoke/regression lane
 instead of running on every local verify cycle.
 
+### OpenCode + Codex
+
+Lucky now includes repo-local OpenCode support for Codex sessions:
+
+```bash
+./scripts/opencode-sync-global-skills.sh
+./scripts/opencode-sync-project-skills.sh
+opencode /Users/lucassantana/Desenvolvimento/Lucky
+```
+
+- Project instructions load from `AGENTS.md`.
+- Project-only skills are exposed through `opencode.jsonc` and
+  `.opencode/skills`.
+- Global/OpenAI/Codex defaults live in host-local OpenCode config under
+  `~/.config/opencode/opencode.jsonc`.
+- Global OpenCode skill bridges are rebuilt under `~/.opencode/skills/agents`
+  and `~/.opencode/skills/codex`.
+
+For remote Lucky work on `server-do-luk`:
+
+```bash
+./scripts/opencode-sync-server-do-luk-skills.sh
+./scripts/opencode-attach-server-do-luk.sh
+```
+
+- The remote OpenCode server binds to `127.0.0.1` only.
+- If `server-do-luk` does not already have OpenAI provider auth, refresh it on
+  that host with `opencode providers login -p openai`.
+- Host-local secrets and MCP credentials stay outside the repo.
+- `server-do-luk` uses a portable MCP core (`serena`, `context7`) plus the
+  synced global Codex/Lucky skills.
+
 For dependency security maintenance, run:
 
 ```bash

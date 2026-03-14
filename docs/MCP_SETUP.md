@@ -99,3 +99,121 @@ Project-level Cursor Hooks are in **`.cursor/hooks.json`** (and scripts in `.cur
 For guidance on when to use which MCP tools and how AI agents should work on this repo, see [AGENTS.md](../AGENTS.md) at the project root. It maps MCPs (filesystem, GitHub, Context7, Tavily, Playwright, etc.) to tasks and references Cursor rules, **subagents** (`.cursor/rules/subagent-*.mdc`), **skills** (`.cursor/skills/`), and **commands** (`.cursor/COMMANDS.md` for verify, E2E, DB, deploy, specialist workflows).
 
 **Superpowers (Codex):** Superpowers are installed at `~/.codex/superpowers`. To use a skill in Cursor chat or in a prompt, run `~/.codex/superpowers/.codex/superpowers-codex use-skill <skill-name>` with a real skill name (e.g. `superpowers:brainstorming`, `superpowers:test-driven-development`). See the “Superpowers (Codex)” section in AGENTS.md for the full skill list and agent behavior.
+
+## OpenCode
+
+Lucky now ships repo-local OpenCode configuration in `opencode.jsonc`.
+
+### Config split
+
+- Repo-local: `opencode.jsonc`
+  - project instructions
+  - Lucky project skill bridge under `.opencode/skills`
+  - portable MCP entries that are safe to share in git
+- Host-local: `~/.config/opencode/opencode.jsonc`
+  - default Codex model/agent
+  - host-bound MCP commands
+  - any authenticated MCP headers or OAuth state
+
+Do not put secrets in repo-local OpenCode files.
+
+### Project skill bridge
+
+Rebuild the Lucky project skill bridge with:
+
+```bash
+./scripts/opencode-sync-project-skills.sh
+```
+
+This mirrors:
+
+- `.cursor/skills`
+- `.agent-skills`
+
+into `.opencode/skills` using symlinks, with `.cursor/skills` taking precedence
+when names collide.
+
+### Global skill bridge
+
+Rebuild the explicit host-local OpenCode skill bridge with:
+
+```bash
+./scripts/opencode-sync-global-skills.sh
+```
+
+This creates:
+
+- `~/.opencode/skills/agents` from `~/.agents/skills`
+- `~/.opencode/skills/codex` from Codex-only skills under `~/.codex/skills`
+
+The host-local OpenCode config then points to those bridge directories instead
+of relying on implicit discovery.
+
+### Local OpenCode launch
+
+From the Lucky repo:
+
+```bash
+opencode .
+```
+
+Expected behavior:
+
+- OpenCode uses `openai/gpt-5.3-codex` from host-local config.
+- Lucky project instructions come from `AGENTS.md`.
+- Lucky project skills load from `.opencode/skills`.
+
+### `server-do-luk` remote attach
+
+Sync global skills to the remote host:
+
+```bash
+./scripts/opencode-sync-server-do-luk-skills.sh
+```
+
+Attach to the remote Lucky workspace through SSH:
+
+```bash
+./scripts/opencode-attach-server-do-luk.sh
+```
+
+The attach helper:
+
+- ensures the remote OpenCode server is running in `/home/luk-server/Lucky`
+- keeps the remote server on `127.0.0.1` only
+- opens an SSH local port forward
+- runs `opencode attach` against the forwarded endpoint
+
+The remote helper script is:
+
+```bash
+~/.local/bin/opencode-lucky-serve
+```
+
+It changes into `/home/luk-server/Lucky` and starts:
+
+```bash
+~/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 4096
+```
+
+### Remote cloudflared-style host config expectations
+
+`server-do-luk` host-local OpenCode config should include:
+
+- default model `openai/gpt-5.3-codex`
+- primary coding agent `codex-primary`
+- remote skill paths:
+  - `/home/luk-server/.opencode/skills/agents`
+  - `/home/luk-server/.opencode/skills/codex`
+  - `/home/luk-server/Lucky/.cursor/skills`
+  - `/home/luk-server/Lucky/.opencode/skills`
+- portable MCP core:
+  - `serena`
+  - `context7`
+
+Credentialed MCP servers should stay disabled until their auth is configured on
+that host. If `openai/gpt-5.3-codex` is unavailable on `server-do-luk`, run:
+
+```bash
+opencode providers login -p openai
+```

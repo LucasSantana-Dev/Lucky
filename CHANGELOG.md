@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added repo-local OpenCode project configuration (`opencode.jsonc`) plus
+  helper scripts to sync global/project OpenCode skills and attach a local
+  OpenCode client to the `server-do-luk` Lucky workspace over SSH
+
+### Changed
+
+- Documented the OpenCode config split between repo-local files and host-local
+  `~/.config/opencode/opencode.jsonc`, keeping authenticated MCP credentials out
+  of git while standardizing Codex-first Lucky sessions on OpenCode
+- Standardized the `server-do-luk` OpenCode serve path to bind on
+  `127.0.0.1:4096` from `/home/luk-server/Lucky`, so SSH attach no longer
+  depends on an invalid positional path argument to `opencode serve`
+
 ### Fixed
 
 - Bot music stability hotfix: `/autoplay` now acknowledges interactions before
