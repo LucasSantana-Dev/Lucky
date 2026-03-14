@@ -334,6 +334,8 @@ For CI triage on Lucky, use the project skill:
 `.cursor/skills/lucky-ci-gate-recovery/SKILL.md`.
 For GitHub MCP transport/auth failures (`Transport closed`), use:
 `.cursor/skills/mcp-github-recovery/SKILL.md` before switching to `gh` fallback.
+That runbook includes protocol-compat checks (framed vs line-delimited stdio)
+and MCP config integrity checks for related local server entries.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
