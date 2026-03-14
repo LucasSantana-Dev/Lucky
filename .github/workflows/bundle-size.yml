@@ -28,7 +28,7 @@ jobs:
                   cache: 'npm'
 
             - name: Compressed Size Diff
-              uses: preactjs/compressed-size-action@v2
+              uses: preactjs/compressed-size-action@v3
               with:
                   build-script: 'build'
                   pattern: 'packages/frontend/dist/**/*.{js,css}'
