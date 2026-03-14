@@ -22,25 +22,35 @@ gh api repos/"$REPO_SLUG"/rulesets \
   --jq '.[] | select(.enforcement=="active") | .rules[]? | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'
 ```
 
-2. Inspect PR status using required checks only:
+2. Build a required-vs-informational status matrix:
+
+```bash
+PR=<PR#>
+gh pr view "$PR" --json statusCheckRollup \
+  --jq '.statusCheckRollup[] | {name: .name, conclusion: (.conclusion // "PENDING"), status: (.status // "UNKNOWN")}'
+```
+
+3. Inspect required checks only:
 
 ```bash
 gh pr checks <PR#> --required
 ```
 
-3. Classify failure bucket:
+4. Classify failure bucket:
 
 - `token-permission`: secret/project access mismatch
 - `quality-gate`: coverage/duplication/new-code thresholds
 - `workflow-runtime`: action/runtime failure
+- `ruleset-mismatch`: required context name differs from workflow-reported check
 
-4. Apply minimal fix in this order:
+5. Apply minimal fix in this order:
 
-- CI contract mismatch first
+- Ruleset/context mismatch first
+- CI contract mismatch second
 - then branch drift/rebase
 - then quality/test deltas
 
-5. Merge safety:
+6. Merge safety:
 
 ```bash
 SHA=$(gh pr view <PR#> --json headRefOid --jq .headRefOid)
@@ -52,6 +62,12 @@ gh pr merge <PR#> --squash --match-head-commit "$SHA"
 - Non-Dependabot runs: Sonar token required and enforced
 - Dependabot runs without token: scanner path must skip as success
 - Required status names must remain stable with ruleset contexts
+
+## Deterministic status policy
+
+- Only statuses listed in required checks gate merge decisions.
+- Pending informational checks (for example CodeRabbit/preview providers) are not blockers unless explicitly listed in the active ruleset.
+- If a required status is missing entirely, treat as `ruleset-mismatch` until context names are reconciled.
 
 ## Post-merge smoke contract
 

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added project CI triage skill
   `.cursor/skills/lucky-ci-gate-recovery/SKILL.md` and linked it in
   `AGENTS.md` for required-check/ruleset recovery workflows.
+- Added project MCP GitHub recovery skill
+  `.cursor/skills/mcp-github-recovery/SKILL.md` and linked it in `AGENTS.md`
+  for `Transport closed` auth/transport remediation workflows.
+- Expanded CI triage skill with deterministic required-vs-informational status
+  classification and explicit ruleset-mismatch handling.
 
 ### Fixed
 
