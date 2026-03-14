@@ -20,20 +20,21 @@ At the start of every session:
 
 ### Project skills (`.cursor/skills/`)
 
-| Task                                              | Skill                 |
-| ------------------------------------------------- | --------------------- |
-| Add/change slash command                          | `discord-commands`    |
-| Play/queue/skip/volume, player lifecycle          | `music-queue-player`  |
-| Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`  |
-| Docker, compose, local run                        | `lucky-docker-dev`    |
-| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite` |
-| Backend (Express API, routes, services)           | `backend-express`     |
-| E2E tests, Playwright, browser verification       | `e2e-playwright`      |
-| Docs lookup, web search, MCP usage                | `mcp-docs-search`     |
-| Moderation commands + AutoModService              | `moderation-automod`  |
-| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`      |
-| Embed builder, custom commands, auto-messages     | `management-features` |
-| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`       |
+| Task                                              | Skill                    |
+| ------------------------------------------------- | ------------------------ |
+| Add/change slash command                          | `discord-commands`       |
+| Play/queue/skip/volume, player lifecycle          | `music-queue-player`     |
+| Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`     |
+| Docker, compose, local run                        | `lucky-docker-dev`       |
+| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite`    |
+| Backend (Express API, routes, services)           | `backend-express`        |
+| E2E tests, Playwright, browser verification       | `e2e-playwright`         |
+| Docs lookup, web search, MCP usage                | `mcp-docs-search`        |
+| Moderation commands + AutoModService              | `moderation-automod`     |
+| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`         |
+| Embed builder, custom commands, auto-messages     | `management-features`    |
+| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`          |
+| CI gate triage and required-check recovery        | `lucky-ci-gate-recovery` |
 
 ### Ecosystem skills (`.agent-skills/` — from skills.sh)
 

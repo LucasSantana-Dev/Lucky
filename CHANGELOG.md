@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added project CI triage skill
+  `.cursor/skills/lucky-ci-gate-recovery/SKILL.md` and linked it in
+  `AGENTS.md` for required-check/ruleset recovery workflows.
+
 ### Fixed
 
 - Bot music stability hotfix: `/autoplay` now acknowledges interactions before
@@ -22,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-Dependabot runs fail fast if the token is missing.
 - Upgraded SonarCloud GitHub Action to `SonarSource/sonarqube-scan-action@v7`
   to keep workflow compatibility current.
+- Cleared the open Dependabot workflow queue by landing split updates:
+  `actions/checkout@v6`, `preactjs/compressed-size-action@v3`,
+  `actions/labeler@v6`, and Sonar scan action `v7` via replacement PR.
 - Deploy OAuth redirect smoke now treats sustained `429` rate-limit responses
   as warning-only (after auth-config contract passes), preventing false-negative
   homelab deploy failures caused by Discord OAuth endpoint throttling.
