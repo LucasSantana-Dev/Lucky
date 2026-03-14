@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved queue-miss guidance after runtime restarts: music commands now
   return explicit recovery text directing users to start a fresh queue with
   `/play`.
+- SonarCloud CI is now Dependabot-safe: scans run only when `SONAR_TOKEN` is
+  present, Dependabot PRs skip scan as success when token is unavailable, and
+  non-Dependabot runs fail fast if the token is missing.
 
 ## [2.6.14] - 2026-03-14
 
