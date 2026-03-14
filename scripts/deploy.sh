@@ -15,6 +15,20 @@ export COMPOSE_PROJECT_NAME
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
+env_file_value() {
+    local key="$1"
+    local env_file="$2"
+
+    [[ -f "$env_file" ]] || return 1
+
+    awk -F= -v target="$key" '
+        $1 == target {
+            print substr($0, index($0, "=") + 1)
+            exit
+        }
+    ' "$env_file"
+}
+
 resolve_cloudflared_config_dir() {
     if [[ -n "${CLOUDFLARED_CONFIG_DIR:-}" ]]; then
         echo "$CLOUDFLARED_CONFIG_DIR"
@@ -169,17 +183,99 @@ resolve_postgres_password() {
     fi
 
     local env_file="$COMPOSE_WORKDIR/.env"
-    if [[ -f "$env_file" ]]; then
-        local value
-        value=$(awk -F= '/^POSTGRES_PASSWORD=/{print substr($0, index($0, "=") + 1); exit}' \
-            "$env_file")
-        if [[ -n "$value" ]]; then
-            echo "$value"
-            return
-        fi
+    local value
+    value="$(env_file_value "POSTGRES_PASSWORD" "$env_file" || true)"
+    if [[ -n "$value" ]]; then
+        echo "$value"
+        return
     fi
 
     echo ""
+}
+
+collect_required_compose_vars() {
+    local compose_file="$COMPOSE_WORKDIR/docker-compose.yml"
+    [[ -f "$compose_file" ]] || return 0
+
+    grep -oE '\$\{[A-Z0-9_]+\?[^}]*\}' "$compose_file" \
+        | sed -E 's/^\$\{([A-Z0-9_]+)\?.*/\1/' \
+        | sort -u
+}
+
+require_compose_env_vars() {
+    local env_file="$COMPOSE_WORKDIR/.env"
+    local missing=()
+    local key value
+    local required=()
+
+    mapfile -t required < <(collect_required_compose_vars)
+
+    for key in "${required[@]}"; do
+        value="${!key:-}"
+        if [[ -z "$value" ]]; then
+            value="$(env_file_value "$key" "$env_file" || true)"
+        fi
+
+        if [[ -z "$value" ]]; then
+            missing+=("$key")
+            continue
+        fi
+
+        export "$key=$value"
+    done
+
+    if [[ "${#missing[@]}" -gt 0 ]]; then
+        log "ERROR: required compose env vars missing: ${missing[*]}"
+        notify 16711680 "Deploy Failed" "Missing required compose env vars: ${missing[*]}"
+        return 1
+    fi
+
+    return 0
+}
+
+run_compose_preflight() {
+    log "Running compose preflight..."
+    if ! docker_compose config >/dev/null; then
+        log "ERROR: docker compose preflight failed (invalid config or unresolved vars)"
+        notify 16711680 "Deploy Failed" "Compose preflight failed"
+        return 1
+    fi
+    log "Compose preflight passed"
+    return 0
+}
+
+resolve_healthcheck_base_url() {
+    if [[ -n "${HEALTHCHECK_BASE_URL:-}" ]]; then
+        echo "${HEALTHCHECK_BASE_URL%/}"
+        return
+    fi
+
+    if getent hosts nginx >/dev/null 2>&1; then
+        echo "http://nginx"
+        return
+    fi
+
+    local mapped_port
+    mapped_port="$(docker port lucky-nginx 80/tcp 2>/dev/null | head -n1 | awk -F: '{print $NF}')"
+    if [[ -n "$mapped_port" ]]; then
+        echo "http://127.0.0.1:$mapped_port"
+        return
+    fi
+
+    if [[ -n "${WEBAPP_BACKEND_URL:-}" ]]; then
+        echo "${WEBAPP_BACKEND_URL%/}"
+        return
+    fi
+
+    local env_file="$COMPOSE_WORKDIR/.env"
+    local configured_port
+    configured_port="$(env_file_value "NGINX_PORT" "$env_file" || true)"
+    if [[ -n "$configured_port" ]]; then
+        echo "http://127.0.0.1:$configured_port"
+        return
+    fi
+
+    echo "http://127.0.0.1:8080"
 }
 
 wait_for_http_ready() {
@@ -224,13 +320,35 @@ acquire_lock() {
     fi
 
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
-        return 1
+        local existing_cmd
+        existing_cmd=$(ps -p "$existing_pid" -o args= 2>/dev/null || true)
+        if echo "$existing_cmd" | grep -Eq '(^|[[:space:]])(deploy\.sh|/scripts/deploy\.sh)([[:space:]]|$)'; then
+            return 1
+        fi
     fi
 
     rm -rf "$LOCK_DIR" 2>/dev/null || true
     mkdir "$LOCK_DIR" 2>/dev/null || return 1
     echo "$$" >"$LOCK_PID_FILE"
     return 0
+}
+
+fail_if_git_dirty() {
+    local dirty
+    dirty=$(git -C "$DEPLOY_DIR" status --porcelain --untracked-files=no || true)
+
+    if [[ -z "$dirty" ]]; then
+        return 0
+    fi
+
+    log "ERROR: working tree has tracked local changes; refusing deploy pull"
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        log "DIRTY: $entry"
+    done <<<"$dirty"
+    log "ERROR: remediate by committing/stashing/discarding local changes, then rerun deploy"
+    notify 16711680 "Deploy Failed" "Dirty working tree blocks deploy pull"
+    return 1
 }
 
 if [[ -z "$EXPECTED_SECRET" ]]; then
@@ -252,7 +370,19 @@ trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 CLOUDFLARED_CONFIG_DIR="$(resolve_cloudflared_config_dir)"
-POSTGRES_PASSWORD_EFFECTIVE="$(resolve_postgres_password)"
+
+if ! require_compose_env_vars; then
+    exit 1
+fi
+
+if ! run_compose_preflight; then
+    exit 1
+fi
+
+POSTGRES_PASSWORD_EFFECTIVE="${POSTGRES_PASSWORD:-}"
+if [[ -z "$POSTGRES_PASSWORD_EFFECTIVE" ]]; then
+    POSTGRES_PASSWORD_EFFECTIVE="$(resolve_postgres_password)"
+fi
 
 if [[ -z "$POSTGRES_PASSWORD_EFFECTIVE" ]]; then
     log "ERROR: POSTGRES_PASSWORD is required"
@@ -271,7 +401,10 @@ git config --global --add safe.directory "$DEPLOY_DIR"
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
 
 log "Pulling latest changes..."
-git pull origin main
+if ! fail_if_git_dirty; then
+    exit 1
+fi
+git pull --ff-only origin main
 
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
@@ -349,6 +482,9 @@ sleep 10
 log "Service status:"
 docker_compose ps --format "table {{.Name}}\t{{.Status}}"
 
+HEALTHCHECK_BASE_URL="$(resolve_healthcheck_base_url)"
+log "Using healthcheck base URL: $HEALTHCHECK_BASE_URL"
+
 if ! require_running_containers; then
     print_targeted_logs
     notify 16711680 "Deploy Failed" "Required services are missing or not running"
@@ -365,7 +501,7 @@ fi
 
 if ! wait_for_http_ready \
     "API health" \
-    "http://nginx/api/health" \
+    "$HEALTHCHECK_BASE_URL/api/health" \
     '"status"[[:space:]]*:[[:space:]]*"ok"'; then
     print_targeted_logs
     notify 16711680 "Deploy Failed" "API health endpoint did not become ready"
@@ -374,7 +510,7 @@ fi
 
 if ! wait_for_http_ready \
     "Auth config health" \
-    "http://nginx/api/health/auth-config" \
+    "$HEALTHCHECK_BASE_URL/api/health/auth-config" \
     '"auth"[[:space:]]*:'; then
     print_targeted_logs
     notify 16711680 "Deploy Failed" "Auth config health endpoint did not become ready"

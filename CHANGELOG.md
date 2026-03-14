@@ -7,11 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added deploy-recovery skill `.cursor/skills/lucky-deploy-recovery/SKILL.md`
+  and linked it in `AGENTS.md` for "workflow green, production stale" incidents.
+- Expanded project skills:
+  - `.cursor/skills/lucky-docker-dev/SKILL.md` with deploy preflight, revision
+    verification, and webhook signaling validation.
+  - `.cursor/skills/lucky-ci-gate-recovery/SKILL.md` with webhook failure
+    signatures (`dirty-tree-overwrite`, lock-collision, timeout-noise).
+- Added `docs/AUTH_SMOKE_RUNBOOK.md` with manual Discord login smoke workflow
+  and timestamped evidence capture template.
+
 ### Fixed
 
 - Pinned webhook-driven `prisma migrate deploy` and `prisma migrate status`
   calls to `prisma/prisma.config.ts` so homelab deploys keep `DATABASE_URL`
   resolution when run from the webhook container.
+- Deploy webhook contract now includes command output in both success and error
+  responses (`include-command-output-in-response*`) to prevent false-positive
+  trigger results.
+- Removed webhook runtime `-verbose` logging from compose service command to
+  reduce request-secret exposure risk in logs.
+- Hardened `scripts/deploy.sh` with:
+  - required compose-env preflight before deploy actions
+  - host-safe health endpoint resolution for non-container execution context
+  - dirty tracked-worktree fail-fast before `git pull`
+  - robust lock handling that validates stale/reused lock PIDs by command line
 
 ## [2.6.15] - 2026-03-14
 

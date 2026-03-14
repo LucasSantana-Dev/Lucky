@@ -63,6 +63,22 @@ gh pr merge <PR#> --squash --match-head-commit "$SHA"
 - Dependabot runs without token: scanner path must skip as success
 - Required status names must remain stable with ruleset contexts
 
+## Deploy webhook failure signatures
+
+When CI/CD push checks are green but `Deploy to Homelab` fails in webhook trigger, classify quickly:
+
+- `dirty-tree-overwrite`:
+    - body includes `error: Your local changes to the following files would be overwritten by merge`
+    - fix: clean tracked workspace changes on host, then retry deploy
+- `deploy-lock-collision`:
+    - body includes `ERROR: another deploy is already running`
+    - fix: wait for active deploy to finish; if stale lock suspected, verify lock PID command line before clearing
+- `edge-timeout-noise`:
+    - public webhook path returns timeout/504 while deploy may continue
+    - fix: validate same request directly against webhook container endpoint (`http://<webhook-ip>:9000/hooks/deploy`) and confirm command output there
+
+Use these signatures before changing workflow retry logic.
+
 ## Deterministic status policy
 
 - Only statuses listed in required checks gate merge decisions.

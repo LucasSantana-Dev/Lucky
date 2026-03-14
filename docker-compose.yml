@@ -173,7 +173,6 @@ services:
         restart: unless-stopped
         command: >
             -hooks /etc/webhook/hooks.json
-            -verbose
             -hotreload
         environment:
             - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}

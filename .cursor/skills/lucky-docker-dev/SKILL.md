@@ -3,29 +3,44 @@ name: lucky-docker-dev
 description: Run and test Lucky with Docker. Use when changing docker-compose, Dockerfiles, or local dev/CI runs.
 ---
 
-# Lucky Docker & Local Dev
+# Lucky Docker + Deploy Validation
 
 ## When to use
 
-- Changing `docker-compose.yml`, `docker-compose.dev.yml`, or Dockerfiles
-- Running bot, backend, or full stack locally
-- Debugging container or env issues
+- Changing `docker-compose.yml`, `docker-compose.dev.yml`, Dockerfiles, or `scripts/deploy.sh`
+- Deploy verification when webhook/CI looks healthy but runtime is stale
+- Troubleshooting env/secret resolution issues in containerized runs
 
-## Layout
+## Production preflight (required)
 
-- **Compose**: `docker-compose.yml` (prod-like), `docker-compose.dev.yml` (local dev)
-- **Images**: `Dockerfile` (bot/backend), `Dockerfile.frontend`, `Dockerfile.nginx`
-- **Nginx**: `nginx/nginx.conf` — `/api/*` → backend; `/*` → frontend
+1. Resolve required compose vars before deploy:
+    - ensure `.env` has non-empty required values (especially `POSTGRES_PASSWORD`, `DEPLOY_WEBHOOK_SECRET`)
+2. Validate compose rendering before pull/build:
+    - `docker compose --project-directory /home/luk-server/Lucky --env-file /home/luk-server/Lucky/.env config`
+3. If preflight fails, stop and fix env first. Do not continue to pull/deploy.
 
-## Services (typical)
+## Deploy + revision checks
 
-- postgres, redis, bot, backend, frontend, nginx. Env via `.env`; no hardcoded ports or secrets in compose.
+1. Sync repo and deploy:
+    - `git pull --ff-only origin main`
+    - `DEPLOY_WEBHOOK_SECRET=... DEPLOY_DIR=/home/luk-server/Lucky COMPOSE_WORKDIR=/home/luk-server/Lucky ./scripts/deploy.sh "$DEPLOY_WEBHOOK_SECRET"`
+2. Verify runtime revision after rollout:
+    - `git rev-parse --short HEAD`
+    - `docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.revision" }}' $(docker inspect -f '{{.Image}}' lucky-backend)`
+    - repeat for `lucky-bot`, `lucky-frontend`, `lucky-nginx`
+3. Verify smoke contracts:
+    - `/api/health` -> `200` and `"status":"ok"`
+    - `/api/health/auth-config` -> `200` and auth payload
+    - `/api/auth/discord` -> `302` redirect to Discord OAuth URL
+    - frontend routes `/install`, `/legal`, `/discovery` -> `200`
 
-## Scripts
+## Webhook failure-signaling checks
 
-- Prefer root `scripts/` (e.g. `setup-database.sh`, `discord-bot.sh`) for one-off or documented flows.
-- Use npm scripts for build/test/lint: `npm run build`, `npm run dev:bot`, `npm run test`, etc.
-
-## Conventions
-
-- Use Docker for local when the project provides it; ensure `.env.example` documents required vars for Docker and local runs.
+1. `deploy/hooks.json` must keep:
+    - `include-command-output-in-response: true`
+    - `include-command-output-in-response-on-error: true`
+2. Webhook service command should avoid verbose request logging (`-verbose` removed).
+3. Validation:
+    - wrong secret request -> non-2xx with explicit error
+    - correct secret request -> waits for deploy command completion and returns command output
+4. If proxy timeout interferes, test direct webhook endpoint via container IP (`http://<webhook-ip>:9000/hooks/deploy`) to isolate signaling from edge timeouts.
