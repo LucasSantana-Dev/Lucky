@@ -18,6 +18,12 @@ jest.mock('../../../src/utils/general/interactionReply', () => ({
     interactionReply: jest.fn().mockResolvedValue(undefined),
 }))
 
+jest.mock('../../../src/utils/general/embeds', () => ({
+    errorEmbed: jest.fn((_title: string, description: string) => ({
+        description,
+    })),
+}))
+
 import {
     requireGuild,
     requireVoiceChannel,
@@ -25,6 +31,11 @@ import {
     requireCurrentTrack,
     requireIsPlaying,
 } from '../../../src/utils/command/commandValidations'
+import { interactionReply } from '../../../src/utils/general/interactionReply'
+import { handleError } from '@lucky/shared/utils'
+
+const interactionReplyMock = jest.mocked(interactionReply)
+const handleErrorMock = jest.mocked(handleError)
 
 describe('commandValidations', () => {
     describe('requireGuild', () => {
@@ -74,6 +85,14 @@ describe('commandValidations', () => {
             const interaction = createMockInteraction()
             const result = await requireQueue(null, interaction)
             expect(result).toBe(false)
+            expect(handleErrorMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'No active music queue found. The player may have restarted. Use /play to start a new queue.',
+                }),
+                expect.any(Object),
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
 

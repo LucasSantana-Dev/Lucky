@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Bot music stability hotfix: `/autoplay` now acknowledges interactions before
+  queue replenishment work, preventing Discord command timeout responses.
+- Added fail-safe Discord Player error/debug handling (`player.events.on` and
+  top-level `player.on`) so queue/player handler exceptions no longer crash the
+  process during music runtime errors.
+- Improved queue-miss guidance after runtime restarts: music commands now
+  return explicit recovery text directing users to start a fresh queue with
+  `/play`.
+- SonarCloud CI is now Dependabot-safe: scans run only when `SONAR_TOKEN` is
+  present, Dependabot PRs skip scan as success when token is unavailable, and
+  non-Dependabot runs fail fast if the token is missing.
+
+## [2.6.14] - 2026-03-14
+
 ### Added
 
 - Added Discord Discovery media pack assets to
@@ -124,6 +140,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bot `/autoplay` command now resolves guild queue from player node cache when
   direct node lookup misses, preventing false `No music queue found` errors
   while a track is actively playing
+- Bot `/autoplay` now acknowledges enable/disable responses before related-track
+  replenishment and logs queue-resolution misses with diagnostics, preventing
+  interaction timeout risk during provider/search latency
+- Player error handling now hardens queue/player debug and error hooks with
+  guarded logging and structured diagnostics so recovery attempts do not crash
+  on unexpected payload shapes
 - Dashboard guild listing now resolves bot membership through a backend Discord
   API fallback when the bot client cache is unavailable, restoring server
   visibility for split-process deployments

@@ -10,6 +10,8 @@ jobs:
     sonarcloud:
         name: SonarCloud Scan
         runs-on: ubuntu-latest
+        env:
+            SONAR_TOKEN_PRESENT: ${{ secrets.SONAR_TOKEN != '' }}
 
         steps:
             - name: Checkout code
@@ -47,7 +49,20 @@ jobs:
               run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
               continue-on-error: true
 
+            - name: Validate Sonar token policy
+              if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor != 'dependabot[bot]'
+              run: |
+                  echo "::error::SONAR_TOKEN is required for non-Dependabot runs."
+                  exit 1
+
+            - name: Skip Sonar scan for Dependabot without token
+              if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor == 'dependabot[bot]'
+              run: |
+                  echo "SONAR_TOKEN is unavailable for Dependabot context."
+                  echo "Skipping SonarCloud scan as a non-blocking success path."
+
             - name: SonarCloud Scan
+              if: env.SONAR_TOKEN_PRESENT == 'true'
               uses: SonarSource/sonarqube-scan-action@v6
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

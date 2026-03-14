@@ -62,7 +62,7 @@ packages/
   - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/04-navigation-loop.gif`
   - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/05-live-control-loop.gif`
 
-### Latest Release (`v2.6.13`)
+### Latest Release (`v2.6.14`)
 - Fixed production backend crash-loop caused by
   `ERR_PACKAGE_PATH_NOT_EXPORTED` on shared deep imports.
 - Added wildcard shared exports for `@lucky/shared/services/*` to keep backend
@@ -79,6 +79,10 @@ packages/
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
 - Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Autoplay command recovers active guild queue from player cache fallback to avoid false queue-missing errors during active playback
+- Autoplay toggles now respond immediately while queue replenishment runs in the background, reducing interaction timeout risk
+- Player error/debug handlers are guarded and emit structured diagnostics for safer runtime recovery
+- Queue-miss replies now include restart-aware recovery guidance so users can
+  resume playback with `/play` after a bot restart
 - Now-playing card updates in place to avoid channel spam on track changes
 - Video/audio downloads with format selection and progress tracking
 - Moderation: warn, mute, kick, ban with case tracking
@@ -255,6 +259,9 @@ verification in CI or local checks.
 Sonar main-gate reliability checks are strict on new code: use deterministic
 string sorting (`localeCompare`), keyboard-accessible UI interactions for
 clickable controls, and bounded parsing logic for user-facing text handling.
+SonarCloud workflow policy is token-aware: non-Dependabot runs fail fast when
+`SONAR_TOKEN` is missing, while Dependabot PRs skip the Sonar scan step as a
+non-blocking success path when secrets are unavailable.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
