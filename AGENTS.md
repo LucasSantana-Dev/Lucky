@@ -20,22 +20,23 @@ At the start of every session:
 
 ### Project skills (`.cursor/skills/`)
 
-| Task                                              | Skill                    |
-| ------------------------------------------------- | ------------------------ |
-| Add/change slash command                          | `discord-commands`       |
-| Play/queue/skip/volume, player lifecycle          | `music-queue-player`     |
-| Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`     |
-| Docker, compose, local run                        | `lucky-docker-dev`       |
-| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite`    |
-| Backend (Express API, routes, services)           | `backend-express`        |
-| E2E tests, Playwright, browser verification       | `e2e-playwright`         |
-| Docs lookup, web search, MCP usage                | `mcp-docs-search`        |
-| Moderation commands + AutoModService              | `moderation-automod`     |
-| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`         |
-| Embed builder, custom commands, auto-messages     | `management-features`    |
-| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`          |
-| CI gate triage and required-check recovery        | `lucky-ci-gate-recovery` |
-| Recover GitHub MCP transport/auth failures        | `mcp-github-recovery`    |
+| Task                                              | Skill                      |
+| ------------------------------------------------- | -------------------------- |
+| Add/change slash command                          | `discord-commands`         |
+| Play/queue/skip/volume, player lifecycle          | `music-queue-player`       |
+| Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`       |
+| Docker, compose, local run                        | `lucky-docker-dev`         |
+| Workflow green but production stale deploy drift  | `lucky-deploy-recovery`    |
+| Frontend (React, Vite, Tailwind)                  | `frontend-react-vite`      |
+| Backend (Express API, routes, services)           | `backend-express`          |
+| E2E tests, Playwright, browser verification       | `e2e-playwright`           |
+| Docs lookup, web search, MCP usage                | `mcp-docs-search`          |
+| Moderation commands + AutoModService              | `moderation-automod`       |
+| Bot event wiring (messageCreate, memberAdd, etc.) | `event-handlers`           |
+| Embed builder, custom commands, auto-messages     | `management-features`      |
+| Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`            |
+| CI gate triage and required-check recovery        | `lucky-ci-gate-recovery`   |
+| Recover GitHub MCP transport/auth failures        | `mcp-github-recovery`      |
 | OpenCode config, plugins, attach, verification    | `opencode-lucky-workflows` |
 
 ### Ecosystem skills (`.agent-skills/` — from skills.sh)
@@ -143,7 +144,6 @@ Use the **specific specialist and skills** for the task; use **MCP tools** to fi
 - Quality: `npm run lint`, `npm run type:check`, `npm run test`
 
 Use Docker for local when available (`docker-compose.dev.yml`). Prefer scripts in `scripts/` for documented operations.
-
 
 - Repo-local OpenCode behavior lives in `opencode.jsonc`, `.opencode/plugins`, and `.opencode/skills`.
 - Host-local OpenCode auth, provider state, and MCP credentials stay in `~/.config/opencode`.
