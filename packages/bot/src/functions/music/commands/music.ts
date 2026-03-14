@@ -13,16 +13,107 @@ import { providerHealthService } from '../../../utils/music/search/providerHealt
 import { musicWatchdogService } from '../../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import type { ProviderStatus } from '../../../utils/music/search/providerHealth'
+import type { GuildQueue } from 'discord-player'
+import type { QueueResolutionResult } from '../../../utils/music/queueResolver'
+import type { WatchdogGuildState } from '../../../utils/music/watchdog'
 
-function formatProviderHealth(): string {
-    const statuses = providerHealthService.getAllStatuses()
-    const ordered = Object.values(statuses).sort((a, b) => b.score - a.score)
+function formatProviderHealth(statuses: ProviderStatus[]): string {
+    if (statuses.length === 0) {
+        return 'No provider status data collected yet.'
+    }
+
+    const ordered = [...statuses].sort((a, b) => b.score - a.score)
     return ordered
         .map((status) => {
             const health = status.cooldownUntil ? 'cooldown' : 'ready'
-            return `• ${status.provider}: ${(status.score * 100).toFixed(0)}% (${health}, failures: ${status.consecutiveFailures})`
+            const score = (status.score * 100).toFixed(0)
+            const failures = status.consecutiveFailures
+            return `• ${status.provider}: ${score}% (${health}, failures: ${failures})`
         })
         .join('\n')
+}
+
+function formatRepeatMode(mode: number): string {
+    if (mode === 1) return 'track'
+    if (mode === 2) return 'queue'
+    if (mode === 3) return 'autoplay'
+    return 'off'
+}
+
+function formatTime(value: number | null): string {
+    return value ? new Date(value).toISOString() : 'never'
+}
+
+function formatQueueState(queue: GuildQueue | null): string {
+    if (!queue) return 'No active queue'
+
+    return [
+        `Playing: ${queue.node.isPlaying() ? 'yes' : 'no'}`,
+        `Tracks in queue: ${queue.tracks.size}`,
+        `Repeat mode: ${formatRepeatMode(queue.repeatMode)}`,
+    ].join('\n')
+}
+
+function formatResolverDiagnostics(resolution: QueueResolutionResult): string {
+    const { source, diagnostics } = resolution
+    const keys =
+        diagnostics.cacheSampleKeys.length > 0
+            ? diagnostics.cacheSampleKeys.join(', ')
+            : 'none'
+
+    return `Source: ${source}\nCache size: ${diagnostics.cacheSize}\nCache keys: ${keys}`
+}
+
+function buildActionableSteps({
+    queue,
+    providers,
+    watchdog,
+    hasSnapshot,
+}: {
+    queue: GuildQueue | null
+    providers: ProviderStatus[]
+    watchdog: WatchdogGuildState
+    hasSnapshot: boolean
+}): string {
+    const steps: string[] = []
+
+    if (!queue) {
+        steps.push('• No queue active: run /play to prime playback.')
+    }
+
+    const cooldownCount = providers.filter(
+        (provider) => provider.cooldownUntil !== null,
+    ).length
+    if (providers.length > 0 && cooldownCount === providers.length) {
+        steps.push(
+            '• Providers on cooldown: wait for recovery or switch query source.',
+        )
+    } else if (cooldownCount > 0) {
+        steps.push(
+            '• Some providers degraded: retry with healthy sources first.',
+        )
+    }
+
+    if (watchdog.lastRecoveryAction === 'failed') {
+        steps.push(
+            '• Last watchdog recovery failed: run /skip or /play to recover manually.',
+        )
+    }
+
+    if (!hasSnapshot) {
+        steps.push(
+            '• No snapshot saved: run /session save before bot restarts.',
+        )
+    }
+
+    if (steps.length === 0) {
+        steps.push(
+            '• Music subsystem looks healthy. No operator action required.',
+        )
+    }
+
+    return steps.join('\n')
 }
 
 export default new Command({
@@ -67,12 +158,18 @@ export default new Command({
             return
         }
 
-        const { queue } = resolveGuildQueue(client, guildId)
-        const queueState = queue
-            ? `Playing: ${queue.node.isPlaying() ? 'yes' : 'no'}\nTracks in queue: ${queue.tracks.size}\nRepeat mode: ${queue.repeatMode}`
-            : 'No active queue'
+        const resolution = resolveGuildQueue(client, guildId)
+        const { queue } = resolution
+        const queueState = formatQueueState(queue)
         const watchdog = musicWatchdogService.getGuildState(guildId)
         const snapshot = await musicSessionSnapshotService.getSnapshot(guildId)
+        const providers = Object.values(providerHealthService.getAllStatuses())
+        const actions = buildActionableSteps({
+            queue,
+            providers,
+            watchdog,
+            hasSnapshot: Boolean(snapshot),
+        })
 
         const embed = createEmbed({
             title: `${EMOJIS.INFO} Music Health`,
@@ -85,19 +182,38 @@ export default new Command({
                 },
                 {
                     name: 'Provider health',
-                    value: formatProviderHealth(),
+                    value: formatProviderHealth(providers),
                     inline: false,
                 },
                 {
                     name: 'Watchdog',
-                    value: `Timeout: ${watchdog.timeoutMs}ms\nLast recovery: ${watchdog.lastRecoveryAction}\nLast activity: ${watchdog.lastActivityAt ? new Date(watchdog.lastActivityAt).toISOString() : 'never'}`,
+                    value: [
+                        `Timeout: ${watchdog.timeoutMs}ms`,
+                        `Last recovery: ${watchdog.lastRecoveryAction}`,
+                        `Last recovery at: ${formatTime(watchdog.lastRecoveryAt)}`,
+                        `Last activity: ${formatTime(watchdog.lastActivityAt)}`,
+                    ].join('\n'),
+                    inline: false,
+                },
+                {
+                    name: 'Resolver diagnostics',
+                    value: formatResolverDiagnostics(resolution),
                     inline: false,
                 },
                 {
                     name: 'Session snapshot',
                     value: snapshot
-                        ? `Snapshot: ${snapshot.sessionSnapshotId}\nSaved at: ${new Date(snapshot.savedAt).toISOString()}\nUpcoming tracks: ${snapshot.upcomingTracks.length}`
+                        ? [
+                              `Snapshot: ${snapshot.sessionSnapshotId}`,
+                              `Saved at: ${new Date(snapshot.savedAt).toISOString()}`,
+                              `Upcoming tracks: ${snapshot.upcomingTracks.length}`,
+                          ].join('\n')
                         : 'No snapshot saved',
+                    inline: false,
+                },
+                {
+                    name: 'Actionable next steps',
+                    value: actions,
                     inline: false,
                 },
             ],
