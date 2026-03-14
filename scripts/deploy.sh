@@ -60,6 +60,17 @@ docker_compose() {
         "$@"
 }
 
+resolve_http_probe_script() {
+    local script_path="$SCRIPT_DIR/http-probe.sh"
+
+    if [[ -x "$script_path" ]]; then
+        echo "$script_path"
+        return
+    fi
+
+    echo "$DEPLOY_DIR/scripts/http-probe.sh"
+}
+
 notify() {
     local color="$1" title="$2" desc="$3"
     [[ -z "$DISCORD_WEBHOOK" ]] && return
@@ -175,10 +186,11 @@ wait_for_http_ready() {
     local label="$1"
     local url="$2"
     local body_pattern="$3"
-    local attempt response http_code body
+    local attempt response http_code body probe_script
+    probe_script="$(resolve_http_probe_script)"
 
     for attempt in $(seq 1 18); do
-        response=$("$SCRIPT_DIR/http-probe.sh" "$url" || true)
+        response=$("$probe_script" "$url" || true)
         http_code=$(printf '%s\n' "$response" | sed -n '1p')
         body=$(printf '%s\n' "$response" | sed '1d')
 
