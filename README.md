@@ -191,16 +191,25 @@ npm run dev:bot         # Bot with hot reload
 npm run dev:backend     # Backend with hot reload
 npm run dev:frontend    # Vite dev server
 
+npm run verify          # Monorepo verify contract (lint, type-check, build, tests, audit:high)
 npm run lint            # ESLint
 npm run lint --workspace=packages/frontend
 npm run lint --workspace=packages/backend
 npm run type:check      # TypeScript validation
 npm run test            # Backend tests (Jest)
+npm run test:all        # Backend + bot + frontend unit/integration tests
+npm run test:e2e        # Playwright smoke/regression lane
 npm run test:coverage   # With coverage report
 npm run audit:high      # Dependency audit (high/critical gate)
 npm run format          # Prettier
 npm audit --audit-level=high
 ```
+
+`npm run verify` is the canonical local pre-PR gate and mirrors the merge-risk
+surface used by CI: frontend/backend lint, shared export validation, monorepo
+type-check, full build, backend + bot + frontend tests, and `audit:high`.
+Playwright stays separate under `npm run test:e2e` as a smoke/regression lane
+instead of running on every local verify cycle.
 
 For dependency security maintenance, run:
 
@@ -442,7 +451,7 @@ Lucky now supports declarative server automation for guild operations:
 
 1. Fork and create a feature branch
 2. Follow conventional commits (`feat:`, `fix:`, `refactor:`, etc.)
-3. Run `npm run lint && npm run type:check && npm run test` before PR
+3. Run `npm run verify` before PR (`npm run test:e2e` stays separate for browser smoke)
 4. Keep functions <50 lines, files <250 lines
 
 ## License

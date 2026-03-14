@@ -1,59 +1,35 @@
 # Dependency update plan
 
-Phased plan for updating Lucky dependencies. Run each phase on a branch; verify build, type-check, tests, and `npm run audit:critical` before merging.
+Phased plan for updating Lucky dependencies. Run each phase on a branch; verify
+with `npm run verify` before merging.
 
-**Plan status:** Phase 1, Phase 2 (2a–2d), and Phase 3 are complete. Current
-security cycle (`chore/security-high-remediation`) is scoped to high/critical
-findings only; moderate findings remain tracked for follow-up.
+**Plan status:** High/critical remediation is complete on `main`
+(`npm audit`: `high=0`, `critical=0` as of March 14, 2026). The next
+dependency cycle is moderate-only follow-up.
 
 ## Current stack summary
 
-| Area     | Key deps                                                                                  | Notes                                                                |
-| -------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Root     | @prisma/client ^7.2, ESLint 9, Jest 30, Prettier 3.7, TypeScript 5.9                      | Prisma CLI not in package.json (scripts use `prisma`; add as devDep) |
-| Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                           |                                                                      |
-| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                       | Opus via opusscript; transitive undici tracked                       |
-| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                            | Zod 4 deferred (hookform/resolvers); Node 20.19+ / 22.12+ for Vite 7 |
-| Shared   | @prisma/client 7.2, Sentry 10, ioredis, unleash-client, Zod 3.25, optional @infisical/sdk |                                                                      |
+| Area     | Key deps                                                                                   | Notes                                                              |
+| -------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Root     | @prisma/client ^7.4.2, Prisma ^7.4.2, ESLint 9, Jest 30, Prettier 3.8, TypeScript 5.9     | `npm run verify` is the canonical local validation gate            |
+| Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                            |                                                                    |
+| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                        | High `undici` exposure mitigated via override on `main`            |
+| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                             | Zod 4 remains deferred because resolver compatibility is not ready |
+| Shared   | @prisma/client 7.4.2, Sentry 10, ioredis, unleash-client, Zod 3.25, optional @infisical/sdk |                                                                    |
 
 ## Phase 1: Safe patch/minor and audit fixes
 
-**Goal:** Bump within semver range, add missing Prisma CLI, fix what `npm audit fix` can fix without `--force`.
+**Status:** Complete.
 
-1. **Branch:** `chore/deps-phase1-safe-updates`
-
-2. **Root**
-    - Add devDependency: `prisma@^7.3.0` (CLI for `db:generate`, `db:migrate`, etc.).
-    - Bump `@prisma/client` to `^7.3.0`.
-    - Bump: `prettier`, `globals`, `@typescript-eslint/*` to latest within range.
-    - Run at repo root:
-        ```bash
-        npm install prisma@^7.3.0 --save-dev
-        npm update
-        npm audit fix
-        ```
-    - If `audit fix` suggests `--force`, do **not** use it in this phase (avoid breaking discord stack).
-
-3. **Workspaces**
-    - From root: `npm update` (respects each package’s semver).
-    - Manually bump in package.json where “Wanted” ≠ “Current” for non-major bumps (e.g. `@prisma/client` 7.3 in shared, `express-session`, `ws`, `ioredis`, `@sentry/node`, `axios`, `react-router-dom`, `lucide-react`, `postcss`, etc.).
-
-4. **Verification**
-
-    ```bash
-    npm run type:check
-    npm run build
-    npm run test:ci
-    npm run audit:critical
-    ```
-
-5. **Commit:** e.g. `chore(deps): phase 1 – safe patch/minor and audit fix`.
+Patch/minor refreshes and Prisma CLI alignment already landed. Do not reopen
+this phase unless a new advisory or runtime regression proves a gap in the
+current baseline.
 
 ---
 
 ## Phase 2: Major upgrades (optional, separate PRs)
 
-Do these only after Phase 1 is merged and stable.
+**Status:** Complete except for deferred Zod 4 migration.
 
 ### 2a. Tailwind CSS v3 → v4 (frontend)
 
@@ -84,35 +60,37 @@ Do these only after Phase 1 is merged and stable.
 
 ---
 
-## Phase 3: Transitive / security (track only; no force-downgrade)
+## Phase 3: Transitive / security follow-up
 
-**Known audit issues (baseline before high/critical hotfix: 10 moderate, 2 high, 0 critical):**
+**Current audit state:** 10 moderate, 0 high, 0 critical.
 
-- **@smithy/config-resolver** (via @infisical/sdk): Override `@smithy/config-resolver@>=4.4.0` was tried; incompatible with AWS SDK v3 chain (SDK v3 uses @smithy v3). Wait for @infisical/sdk to upgrade to an AWS SDK that pulls @smithy v4+.
-- **hono** (via prisma): pinned via root override to `>=4.12.7`.
-- **lodash** (via chevrotain → @mrleebo/prisma-ast): Prisma/ecosystem updates may resolve; no override unless patched.
-- **tar** (via tooling): pinned via root override to `>=7.5.11`.
-- **file-type** (via transitive media tooling): pinned via root override to `>=21.3.1`.
-- **undici** (via discord.js, youtubei.js): high advisories are mitigated in
-  this cycle via root override `undici >=7.24.0`; keep discord.js and
-  youtubei.js updated to reduce long-term override reliance.
-- **flatted** (via eslint flat-cache): high advisory is mitigated in this
-  cycle via root override `flatted >=3.4.0`; remove override once upstream
-  minimums include patched ranges.
+- **file-type / yauzl chain**: the active moderate set is centered on
+  `file-type`, `yauzl`, and the related `@xhmikosr/*` archive/decompress
+  transitive packages.
+- **@smithy/config-resolver** (via `@infisical/sdk`) stays watch-only: do not
+  force a v4 override while the dependency chain still expects AWS SDK v3.
+- **undici** and **flatted** are no longer open audit findings on `main`, but
+  the overrides should be revisited and removed once upstream minimums absorb
+  the patched ranges.
 
 **Actions:**
 
-- Re-run `npm audit` and `npm run audit:high` after this high/critical cycle
-  and after any major upgrade.
+- Re-run `npm audit` and `npm run audit:high` after every dependency PR and
+  before each release cut.
 - Add `overrides` in root `package.json` only when a specific patch is required and safe. Do **not** override `@smithy/config-resolver` to v4+ while @infisical/sdk uses AWS SDK v3 (incompatible). Test thoroughly.
-- Document remaining known high/critical in this file or in a short “Known vulnerabilities” section and update when upstream fixes land.
+- Prefer upstream dependency bumps over long-lived overrides; remove overrides
+  once patched minimums are carried by the dependency graph.
+- Track moderate-only cleanup in a dedicated issue/PR cycle instead of mixing it
+  into product work.
 
 ---
 
 ## Scripts and CI
 
-- Use existing: `npm run check:outdated`, `npm run audit:critical`, `npm run audit:high` (CI).
-- Optional: from root, `npm update && npm audit fix` in a single script if you want a one-liner for Phase 1; avoid one-off throwaway scripts.
+- Canonical local gate: `npm run verify`
+- Dependency drift check: `npm run check:outdated`
+- Security gate: `npm run audit:high` (used in CI)
+- Playwright lane stays separate: `npm run test:e2e`
 
 ---
 

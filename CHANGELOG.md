@@ -52,12 +52,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added bot tests for command registration coverage, command-file filtering, and
   `/serversetup` template/mode behavior (`register.spec`,
   `getCommandsFromDirectory.spec`, `serversetup.spec`, `serversetupCriativaria.spec`) (PR #164)
+- Added root verification scripts `npm run test:all` and `npm run verify` so
+  local pre-PR validation matches the monorepo merge-risk surface instead of
+  backend-only root test execution
 
 ### Fixed
 
 - Security high/critical dependency remediation: pinned transitive overrides
   to `undici >=7.24.0` and `flatted >=3.4.0` to clear current high advisories;
   moderate findings remain tracked for a dedicated follow-up cycle.
+- CI security audit gate now fails on high/critical findings (`npm run audit:high`)
+  instead of non-blocking critical-only audit output, aligning workflow behavior
+  with the repo security policy and recent remediation work
 - GitGuardian incident hardening: removed hardcoded compose PostgreSQL password
   fallbacks, enforced secret-managed expected client-id checks in deploy OAuth
   smoke validation, and replaced secret-like literals in test/example fixtures

@@ -83,8 +83,7 @@ jobs:
               run: npm ci --legacy-peer-deps --ignore-scripts
 
             - name: Security audit
-              run: npm audit --audit-level critical
-              continue-on-error: true
+              run: npm run audit:high
 
             - name: Secrets scan
               run: npx secretlint "**/*"
