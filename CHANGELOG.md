@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded CI triage skill with deterministic required-vs-informational status
   classification and explicit ruleset-mismatch handling.
 
+### Added
+
+- Added repo-local OpenCode guardrail plugins, verification/install helper
+  scripts, and the `opencode-lucky-workflows` project skill for Lucky Codex
+  sessions on local and `server-do-luk`.
+
 ### Fixed
 
 - Bot music stability hotfix: `/autoplay` now acknowledges interactions before
@@ -301,6 +307,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Node-native shared-export scanning (PR #186)
 
 ### Changed
+
+- Standardized Lucky OpenCode sessions around repo-local policy/context/doc
+  plugins, approved community add-ons (`opencode-shell-strategy`,
+  `@tarquinen/opencode-dcp@latest`), and repo-local workflow commands
+  (`/verify`, `/e2e`, `/db`).
+- Documented the OpenCode config split, hard-block guardrails, remote attach
+  flow, and the intentionally excluded heavy orchestration plugin set in
+  `README.md`, `docs/MCP_SETUP.md`, and `AGENTS.md`.
 
 - Bot command registration now loads moderation/automod/management command
   groups through the active register pipeline, so centralized management
