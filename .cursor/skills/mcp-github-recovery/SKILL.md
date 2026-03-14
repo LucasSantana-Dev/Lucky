@@ -35,34 +35,119 @@ print('env_keys=', list((s.get('env') or {}).keys()))
 PY
 ```
 
-3. Refresh GitHub token wiring from active `gh` auth:
+Expected steady state:
+
+- `command=/Users/<user>/.codex/scripts/run-mcp-github.sh`
+- no static `env_keys` for GitHub tokens
+
+3. Verify config integrity for related MCP entries (`filesystem`, `fetch`, `playwright`):
 
 ```bash
-export GH_TOKEN_VALUE="$(gh auth token)"
 python3 - <<'PY'
-import os, pathlib, re
+import pathlib, tomllib
 p = pathlib.Path.home()/'.codex'/'config.toml'
-text = p.read_text()
-token = os.environ['GH_TOKEN_VALUE']
-text, n = re.subn(
-    r'(?m)^(GITHUB_PERSONAL_ACCESS_TOKEN\\s*=\\s*\")[^\"]*(\"\\s*)$',
-    r'\\1' + token + r'\\2',
-    text,
-)
-if n != 1:
-    raise SystemExit(f'Expected 1 token entry, found {n}')
-p.write_text(text)
-print('updated')
+cfg = tomllib.loads(p.read_text())
+servers = cfg.get('mcp_servers', {})
+for key in ('filesystem', 'fetch', 'playwright', 'github'):
+    s = servers.get(key, {})
+    print(f'[{key}] command=', s.get('command'))
+    print(f'[{key}] args=', s.get('args'))
 PY
 ```
 
-4. Re-run MCP GitHub calls:
+Run focused checks for known break signatures:
+
+```bash
+python3 - <<'PY'
+import pathlib, tomllib
+p = pathlib.Path.home()/'.codex'/'config.toml'
+cfg = tomllib.loads(p.read_text())
+s = cfg.get('mcp_servers', {})
+filesystem_args = s.get('filesystem', {}).get('args') or []
+playwright_args = s.get('playwright', {}).get('args') or []
+for arg in filesystem_args:
+    if arg.startswith('/'):
+        print('filesystem_path_exists', arg, pathlib.Path(arg).exists())
+for arg in playwright_args:
+    if arg.startswith('/'):
+        print('playwright_path_exists', arg, pathlib.Path(arg).exists())
+PY
+```
+
+If a configured path/package is invalid, fix or disable that entry before retrying GitHub MCP to avoid startup churn.
+
+4. Detect legacy/deprecated GitHub MCP server behavior (line-delimited JSON only):
+
+```bash
+node - <<'NODE'
+const {spawn}=require('child_process')
+const cp=spawn('npx',['-y','@modelcontextprotocol/server-github'],{stdio:['pipe','pipe','pipe']})
+cp.stderr.on('data',d=>process.stderr.write(d))
+cp.stdout.on('data',d=>process.stdout.write(d))
+const framed={jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'probe',version:'1'}}}
+const bytes=Buffer.from(JSON.stringify(framed))
+cp.stdin.write(Buffer.from(`Content-Length: ${bytes.length}\\r\\n\\r\\n`))
+cp.stdin.write(bytes)
+setTimeout(()=>cp.kill('SIGTERM'),3000)
+NODE
+```
+
+If framed initialize returns no payload but newline JSON initialize does, treat it as protocol incompatibility and use `gh` fallback evidence while you switch to a compatible GitHub MCP server/runtime.
+
+5. Align Codex GitHub MCP with wrapper-based runtime auth (same model used by OpenCode):
+
+```bash
+mkdir -p "$HOME/.codex/scripts"
+cat > "$HOME/.codex/scripts/run-mcp-github.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+token="$(gh auth token)"
+if [[ -z "$token" ]]; then
+  echo "GitHub CLI is not authenticated" >&2
+  exit 1
+fi
+
+exec env \
+  GITHUB_TOKEN="$token" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="$token" \
+  npx -y @modelcontextprotocol/server-github
+EOF
+chmod +x "$HOME/.codex/scripts/run-mcp-github.sh"
+
+python3 - <<'PY'
+from pathlib import Path
+import re
+p = Path.home()/'.codex'/'config.toml'
+text = p.read_text()
+text, n = re.subn(
+    r'(?ms)^\[mcp_servers\.github\]\ncommand = "[^"]+"\nargs = \[[^\]]*\]\n(?:\n\[mcp_servers\.github\.env\]\n(?:[^\n]*\n)+?)?(?=\n\[|\Z)',
+    '[mcp_servers.github]\ncommand = "/Users/lucassantana/.codex/scripts/run-mcp-github.sh"\n',
+    text,
+    count=1,
+)
+if n != 1:
+    raise SystemExit(f'Expected 1 github block, replaced {n}')
+p.write_text(text)
+print('updated', p)
+PY
+```
+
+6. Verify Codex sees the repaired server and can execute a GitHub MCP call:
+
+```bash
+codex mcp get github
+codex exec --json --skip-git-repo-check -C /path/to/Lucky \
+  "Using only the configured github MCP server, list one open issue in repository LucasSantana-Dev/Lucky and return only its number."
+```
+
+7. Re-run MCP GitHub calls:
 
 - list PRs
 - list issues
 - read issue details
 
-5. If still failing, document as environment/server instability and use `gh` as operational fallback until fixed.
+8. If still failing, document as environment/server instability and use `gh` as operational fallback until fixed.
 
 ## Close criteria (`#224`)
 
