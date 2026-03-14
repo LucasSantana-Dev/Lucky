@@ -184,4 +184,103 @@ describe('music command', () => {
             }),
         )
     })
+
+    it('includes resolver diagnostics and actionable next steps', async () => {
+        getAllStatusesMock.mockReturnValue({
+            youtube: {
+                provider: 'youtube',
+                score: 0.4,
+                cooldownUntil: 1000,
+                consecutiveFailures: 3,
+            },
+        })
+        getGuildStateMock.mockReturnValue({
+            timeoutMs: 25000,
+            lastRecoveryAction: 'failed',
+            lastActivityAt: 0,
+            lastRecoveryAt: 0,
+        })
+        getSnapshotMock.mockResolvedValue(null)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: null,
+            source: 'miss',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 2,
+                cacheSampleKeys: ['guild-9', 'guild-3'],
+            },
+        })
+
+        await musicCommand.execute({
+            client: createClient(),
+            interaction: createInteraction(),
+        } as any)
+
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fields: expect.arrayContaining([
+                    expect.objectContaining({ name: 'Resolver diagnostics' }),
+                    expect.objectContaining({ name: 'Actionable next steps' }),
+                ]),
+            }),
+        )
+
+        const payload = createEmbedMock.mock.calls.at(-1)?.[0] as {
+            fields: Array<{ name: string; value: string }>
+        }
+        const actionField = payload.fields.find(
+            (field) => field.name === 'Actionable next steps',
+        )
+        const resolverField = payload.fields.find(
+            (field) => field.name === 'Resolver diagnostics',
+        )
+
+        expect(actionField?.value).toContain('/play')
+        expect(actionField?.value).toContain('/session save')
+        expect(actionField?.value).toContain('Providers on cooldown')
+        expect(resolverField?.value).toContain('Source: miss')
+        expect(resolverField?.value).toContain('Cache size: 2')
+        expect(resolverField?.value).toContain('guild-9, guild-3')
+    })
+
+    it('formats repeat mode label and watchdog recovery timestamp', async () => {
+        const queue = {
+            node: { isPlaying: () => false },
+            tracks: { size: 1 },
+            repeatMode: 3,
+        }
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'cache.id',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
+        getGuildStateMock.mockReturnValue({
+            timeoutMs: 25000,
+            lastRecoveryAction: 'play_next',
+            lastActivityAt: 10,
+            lastRecoveryAt: 20,
+        })
+
+        await musicCommand.execute({
+            client: createClient(queue),
+            interaction: createInteraction(),
+        } as any)
+
+        const payload = createEmbedMock.mock.calls.at(-1)?.[0] as {
+            fields: Array<{ name: string; value: string }>
+        }
+        const queueField = payload.fields.find(
+            (field) => field.name === 'Queue state',
+        )
+        const watchdogField = payload.fields.find(
+            (field) => field.name === 'Watchdog',
+        )
+
+        expect(queueField?.value).toContain('Repeat mode: autoplay')
+        expect(watchdogField?.value).toContain('Last recovery at:')
+    })
 })

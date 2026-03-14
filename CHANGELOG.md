@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added repo-local OpenCode guardrail plugins, verification/install helper
   scripts, and the `opencode-lucky-workflows` project skill for Lucky Codex
   sessions on local and `server-do-luk`.
+- Enhanced `/music health` diagnostics output for operator triage with resolver
+  source/cache visibility, repeat-mode labels, watchdog recovery timestamps,
+  and actionable recovery steps.
 
 ### Fixed
 
