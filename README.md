@@ -362,6 +362,9 @@ Deploy workflow now also validates the `/api/auth/discord` redirect contract:
 `redirect_uri=https://lucky.lucassantana.tech/api/auth/callback`.
 Both deploy smoke checks now retry during rollout until the new backend
 containers are serving the expected contract.
+Webhook-side deploy readiness probing now falls back to BusyBox `wget` when
+`curl` is unavailable inside the webhook container, preventing false
+post-rollout timeouts on healthy services.
 If OAuth redirect smoke receives only Discord rate-limit responses (`429`)
 across all retries, deploy now emits a warning and proceeds after auth-config
 contract success, instead of failing the rollout as a false negative.
