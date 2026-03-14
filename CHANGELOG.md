@@ -215,6 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy workflow webhook retries now normalize URL candidates and de-duplicate
   path retries, preventing malformed attempts like
   `/webhook/deploy/webhook/deploy` in failure loops
+- Deploy webhook readiness probes now fall back to BusyBox `wget` when `curl`
+  is unavailable inside the webhook container, preventing false timeout loops
+  after healthy service rollout
 - Deploy OAuth redirect smoke validation now derives expected `client_id` and
   `redirect_uri` from live `/api/health/auth-config` payload instead of a
   hardcoded host, preventing false-negative deploy failures during domain

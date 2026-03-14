@@ -9,6 +9,7 @@ LOG_PREFIX="[deploy]"
 LOCK_DIR="/tmp/lucky-deploy.lock"
 LOCK_PID_FILE="$LOCK_DIR/pid"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 export COMPOSE_PROJECT_NAME
 
@@ -177,9 +178,9 @@ wait_for_http_ready() {
     local attempt response http_code body
 
     for attempt in $(seq 1 18); do
-        response=$(curl -sS --max-time 10 -w "\n%{http_code}" "$url" || true)
-        http_code=$(echo "$response" | tail -1)
-        body=$(echo "$response" | sed '$d')
+        response=$("$SCRIPT_DIR/http-probe.sh" "$url" || true)
+        http_code=$(printf '%s\n' "$response" | sed -n '1p')
+        body=$(printf '%s\n' "$response" | sed '1d')
 
         if [[ "$http_code" = "200" ]] && echo "$body" | grep -Eq "$body_pattern"; then
             log "$label ready (HTTP 200)"

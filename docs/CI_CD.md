@@ -153,6 +153,9 @@ upstream "webhook"`:
 
 To reduce recurrence, deploy rollout now restarts target services with
 `--no-deps`, and nginx no longer depends on webhook service startup.
+Webhook-side readiness checks use `curl` when available and fall back to
+BusyBox `wget` otherwise, so the deploy container does not require a separate
+`curl` install to validate `/api/health` and `/api/health/auth-config`.
 
 ### Cloudflared config directory
 
