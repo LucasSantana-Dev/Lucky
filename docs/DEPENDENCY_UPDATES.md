@@ -3,18 +3,17 @@
 Phased plan for updating Lucky dependencies. Run each phase on a branch; verify
 with `npm run verify` before merging.
 
-**Plan status:** High/critical remediation is complete on `main`
-(`npm audit`: `high=0`, `critical=0` as of March 14, 2026). The next
-dependency cycle is moderate-only follow-up.
+**Plan status:** Security remediation cycle is complete on `main`
+(`npm audit`: `low=0`, `moderate=0`, `high=0`, `critical=0` as of March 14, 2026).
 
 ## Current stack summary
 
-| Area     | Key deps                                                                                   | Notes                                                              |
-| -------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| Root     | @prisma/client ^7.4.2, Prisma ^7.4.2, ESLint 9, Jest 30, Prettier 3.8, TypeScript 5.9     | `npm run verify` is the canonical local validation gate            |
-| Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                            |                                                                    |
-| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                        | High `undici` exposure mitigated via override on `main`            |
-| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                             | Zod 4 remains deferred because resolver compatibility is not ready |
+| Area     | Key deps                                                                                    | Notes                                                              |
+| -------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Root     | @prisma/client ^7.4.2, Prisma ^7.4.2, ESLint 9, Jest 30, Prettier 3.8, TypeScript 5.9       | `npm run verify` is the canonical local validation gate            |
+| Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                             |                                                                    |
+| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                         | High `undici` exposure mitigated via override on `main`            |
+| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                              | Zod 4 remains deferred because resolver compatibility is not ready |
 | Shared   | @prisma/client 7.4.2, Sentry 10, ioredis, unleash-client, Zod 3.25, optional @infisical/sdk |                                                                    |
 
 ## Phase 1: Safe patch/minor and audit fixes
@@ -62,11 +61,11 @@ current baseline.
 
 ## Phase 3: Transitive / security follow-up
 
-**Current audit state:** 10 moderate, 0 high, 0 critical.
+**Current audit state:** 0 moderate, 0 high, 0 critical.
 
-- **file-type / yauzl chain**: the active moderate set is centered on
-  `file-type`, `yauzl`, and the related `@xhmikosr/*` archive/decompress
-  transitive packages.
+- **file-type / yauzl chain**: resolved by bumping `@swc/cli` in shared to
+  `^0.8.0`, raising root override to `file-type >=21.3.2`, and updating `yauzl`
+  to `3.2.1` in lockfile resolution.
 - **@smithy/config-resolver** (via `@infisical/sdk`) stays watch-only: do not
   force a v4 override while the dependency chain still expects AWS SDK v3.
 - **undici** and **flatted** are no longer open audit findings on `main`, but
@@ -80,8 +79,8 @@ current baseline.
 - Add `overrides` in root `package.json` only when a specific patch is required and safe. Do **not** override `@smithy/config-resolver` to v4+ while @infisical/sdk uses AWS SDK v3 (incompatible). Test thoroughly.
 - Prefer upstream dependency bumps over long-lived overrides; remove overrides
   once patched minimums are carried by the dependency graph.
-- Track moderate-only cleanup in a dedicated issue/PR cycle instead of mixing it
-  into product work.
+- Keep moderate cleanup in dedicated issue/PR cycles instead of mixing it into
+  product work when new advisories appear.
 
 ---
 
