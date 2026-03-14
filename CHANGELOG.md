@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Made music watchdog recovery deterministic after disconnects by waiting for
+  voice reconnection before replay attempts, recording recovery detail for
+  failures/successes, and surfacing that detail in `/music health`.
+
 ## [2.6.16] - 2026-03-14
 
 ### Added
