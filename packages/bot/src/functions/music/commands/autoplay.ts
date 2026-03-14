@@ -6,7 +6,7 @@ import {
     EMBED_COLORS,
     EMOJIS,
 } from '../../../utils/general/embeds'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { QueueRepeatMode, type GuildQueue } from 'discord-player'
 import {
     requireGuild,
@@ -53,10 +53,6 @@ async function handleEnableAutoplay(
 ): Promise<void> {
     queue?.setRepeatMode(QueueRepeatMode.AUTOPLAY)
 
-    if (queue?.currentTrack) {
-        await populateQueueWithRelatedTracks(queue, interaction)
-    }
-
     await interactionReply({
         interaction,
         content: {
@@ -72,6 +68,10 @@ async function handleEnableAutoplay(
             ],
         },
     })
+
+    if (queue?.currentTrack) {
+        void populateQueueWithRelatedTracks(queue, interaction)
+    }
 }
 
 /**
@@ -144,7 +144,26 @@ export default new Command({
         const guildId = interaction.guildId
         if (!guildId) return
 
-        const { queue } = resolveGuildQueue(client, guildId)
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply()
+        }
+
+        const { queue, source, diagnostics } = resolveGuildQueue(
+            client,
+            guildId,
+        )
+        if (!queue) {
+            warnLog({
+                message: 'Autoplay queue resolution miss',
+                data: {
+                    guildId,
+                    userId: interaction.user.id,
+                    source,
+                    cacheSize: diagnostics.cacheSize,
+                    cacheSampleKeys: diagnostics.cacheSampleKeys,
+                },
+            })
+        }
         if (!(await requireQueue(queue, interaction))) return
 
         try {

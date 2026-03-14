@@ -9,6 +9,7 @@ const createEmbedMock = jest.fn((payload: unknown) => payload)
 const replenishQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -43,12 +44,21 @@ jest.mock('../../../utils/music/queueResolver', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 function createInteraction(guildId = 'guild-1') {
-    return {
+    const interaction = {
         guildId,
-    } as any
+        deferred: false,
+        replied: false,
+        user: { id: 'user-1' },
+        deferReply: jest.fn(async () => {
+            interaction.deferred = true
+        }),
+    }
+
+    return interaction as any
 }
 
 function createQueue(repeatMode = QueueRepeatMode.OFF) {
@@ -61,11 +71,7 @@ function createQueue(repeatMode = QueueRepeatMode.OFF) {
     } as any
 }
 
-function createClient({
-    directQueue = null,
-}: {
-    directQueue?: unknown
-}) {
+function createClient({ directQueue = null }: { directQueue?: unknown }) {
     return {
         player: {
             nodes: {
@@ -114,6 +120,7 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(resolveGuildQueueMock).toHaveBeenCalledWith(client, 'guild-1')
         expect(requireQueueMock).toHaveBeenCalledWith(queue, interaction)
         expect(queue.setRepeatMode).toHaveBeenCalledWith(
@@ -144,6 +151,7 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
         expect(replenishQueueMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).toHaveBeenCalled()
@@ -161,6 +169,7 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
+        expect(interaction.deferReply).not.toHaveBeenCalled()
         expect(requireQueueMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).not.toHaveBeenCalled()
         expect(resolveGuildQueueMock).not.toHaveBeenCalled()
@@ -176,6 +185,7 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(requireQueueMock).toHaveBeenCalledWith(null, interaction)
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
@@ -201,8 +211,52 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(requireQueueMock).toHaveBeenCalledWith(null, interaction)
         expect(interactionReplyMock).not.toHaveBeenCalled()
+    })
+
+    it('replies before replenishment finishes', async () => {
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const client = createClient({
+            directQueue: queue,
+        })
+        const interaction = createInteraction()
+        let resolveReplenish: () => void = () => {}
+
+        replenishQueueMock.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveReplenish = resolve
+                }),
+        )
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
+
+        const executePromise = autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+        const completion = await Promise.race([
+            executePromise.then(() => 'done'),
+            new Promise<string>((resolve) => {
+                setTimeout(() => resolve('timeout'), 25)
+            }),
+        ])
+
+        expect(completion).toBe('done')
+        expect(interactionReplyMock).toHaveBeenCalled()
+        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+
+        resolveReplenish()
+        await executePromise
     })
 
     it('logs error and still replies when queue replenish fails', async () => {
@@ -227,6 +281,7 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
+        await Promise.resolve()
         expect(queue.setRepeatMode).toHaveBeenCalledWith(
             QueueRepeatMode.AUTOPLAY,
         )

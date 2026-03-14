@@ -56,10 +56,15 @@ export async function requireQueue(
     interaction: ChatInputCommandInteraction,
 ): Promise<boolean> {
     if (!queue) {
-        const error = handleError(new Error('No music queue found'), {
-            guildId: interaction.guildId ?? undefined,
-            userId: interaction.user.id,
-        })
+        const error = handleError(
+            new Error(
+                'No active music queue found. The player may have restarted. Use /play to start a new queue.',
+            ),
+            {
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+            },
+        )
 
         await interactionReply({
             interaction,

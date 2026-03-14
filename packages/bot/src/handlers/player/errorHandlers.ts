@@ -15,54 +15,145 @@ type PlayerEvents = {
     events: {
         on: (event: string, handler: Function) => void
     }
+    on?: (event: string, handler: Function) => void
 }
 
 interface IQueueMetadata {
     requestedBy?: User | null
 }
 
+function toErrorDetails(error: unknown): {
+    errorMessage: string
+    errorStack?: string
+    errorName?: string
+} {
+    if (error instanceof Error) {
+        return {
+            errorMessage: error.message,
+            errorStack: error.stack,
+            errorName: error.name,
+        }
+    }
+
+    return {
+        errorMessage: String(error),
+        errorName: typeof error,
+    }
+}
+
+function toErrorInstance(error: unknown): Error | undefined {
+    return error instanceof Error ? error : undefined
+}
+
+function safeErrorLog(payload: {
+    message: string
+    error?: Error
+    data?: Record<string, unknown>
+}): void {
+    try {
+        errorLog(payload)
+    } catch {}
+}
+
+function logHandlerFailure(message: string, error: unknown): void {
+    safeErrorLog({
+        message,
+        error: toErrorInstance(error),
+        data: toErrorDetails(error),
+    })
+}
+
+function runSafely(message: string, fn: () => void): void {
+    try {
+        fn()
+    } catch (error) {
+        logHandlerFailure(message, error)
+    }
+}
+
+async function runSafelyAsync(
+    message: string,
+    fn: () => Promise<void>,
+): Promise<void> {
+    try {
+        await fn()
+    } catch (error) {
+        logHandlerFailure(message, error)
+    }
+}
+
 export const setupErrorHandlers = (player: PlayerEvents): void => {
     player.events.on('error', (queue: GuildQueue, error: Error) => {
-        errorLog({
-            message: `Error in queue ${queue?.guild?.name || 'unknown'}:`,
-            error,
-        })
-
-        const isConnectionError =
-            error.message.includes('ECONNRESET') ||
-            error.message.includes('ECONNREFUSED') ||
-            error.message.includes('ETIMEDOUT') ||
-            error.message.includes('Connection reset by peer')
-
-        if (isConnectionError && queue?.connection) {
-            debugLog({
-                message: 'Detected connection error, attempting recovery...',
+        runSafely('Queue error handler failed:', () => {
+            const details = toErrorDetails(error)
+            safeErrorLog({
+                message: `Error in queue ${queue?.guild?.name || 'unknown'}:`,
+                error: toErrorInstance(error),
+                data: {
+                    guildId: queue?.guild?.id ?? 'unknown',
+                    guildName: queue?.guild?.name ?? 'unknown',
+                    ...details,
+                },
             })
-            try {
-                if (queue.connection.state.status !== 'ready') {
-                    queue.connection.rejoin()
-                    debugLog({
-                        message: 'Attempting to recover from connection error',
-                    })
-                }
-            } catch (recoveryError) {
-                errorLog({
-                    message: 'Failed to recover from connection error:',
-                    error: recoveryError,
+
+            const isConnectionError =
+                details.errorMessage.includes('ECONNRESET') ||
+                details.errorMessage.includes('ECONNREFUSED') ||
+                details.errorMessage.includes('ETIMEDOUT') ||
+                details.errorMessage.includes('Connection reset by peer')
+
+            const connection = queue?.connection
+            if (isConnectionError && connection) {
+                debugLog({
+                    message:
+                        'Detected connection error, attempting recovery...',
+                })
+                runSafely('Failed to recover from connection error:', () => {
+                    if (connection.state.status !== 'ready') {
+                        connection.rejoin()
+                        debugLog({
+                            message:
+                                'Attempting to recover from connection error',
+                        })
+                    }
                 })
             }
-        }
+        })
     })
 
-    player.events.on('playerError', async (queue: GuildQueue, error: Error) => {
-        await handlePlayerError(queue, error)
+    player.events.on('playerError', (queue: GuildQueue, error: Error) => {
+        void runSafelyAsync('Player error event handler failed:', async () => {
+            await handlePlayerError(queue, error)
+        })
     })
 
     player.events.on('debug', (queue: GuildQueue, message: string) => {
-        debugLog({
-            message: `Player debug from ${queue.guild.name}: ${message}`,
+        runSafely('Player queue debug handler failed:', () => {
+            debugLog({
+                message: `Player debug from ${queue?.guild?.name ?? 'unknown'}: ${message}`,
+            })
         })
     })
+
+    if (typeof player.on === 'function') {
+        player.on('error', (error: Error) => {
+            runSafely('Player top-level error handler failed:', () => {
+                safeErrorLog({
+                    message: 'Unhandled player error:',
+                    error: toErrorInstance(error),
+                    data: toErrorDetails(error),
+                })
+            })
+        })
+
+        player.on('debug', (message: string) => {
+            runSafely('Player top-level debug handler failed:', () => {
+                debugLog({
+                    message: `Player runtime debug: ${message}`,
+                })
+            })
+        })
+    }
 }
 
 function handleYouTubeParserError(
@@ -167,7 +258,12 @@ const handlePlayerError = async (
 
         errorLog({
             message: `Player error in queue ${queue.guild.name}:`,
-            error,
+            error: toErrorInstance(error),
+            data: {
+                guildId: queue.guild.id,
+                guildName: queue.guild.name,
+                ...toErrorDetails(error),
+            },
         })
 
         const isStreamExtractionError =
@@ -189,17 +285,14 @@ const handlePlayerError = async (
                     queue.node.skip()
                 }
             } catch (recoveryError) {
-                errorLog({
-                    message: 'Failed to recover from stream extraction error:',
-                    error: recoveryError,
-                })
+                logHandlerFailure(
+                    'Failed to recover from stream extraction error:',
+                    recoveryError,
+                )
                 queue.node.skip()
             }
         }
     } catch (handlerError) {
-        errorLog({
-            message: 'Error in player error handler:',
-            error: handlerError,
-        })
+        logHandlerFailure('Error in player error handler:', handlerError)
     }
 }
