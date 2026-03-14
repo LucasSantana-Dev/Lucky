@@ -143,19 +143,22 @@ If deploy trigger fails with `502` and nginx logs show `host not found in
 upstream "webhook"`:
 
 1. Confirm webhook container is running:
-   - `docker compose ps webhook`
+    - `docker compose ps webhook`
 2. Confirm service discovery from nginx:
-   - `docker exec lucky-nginx getent hosts webhook backend frontend`
+    - `docker exec lucky-nginx getent hosts webhook backend frontend`
 3. Restart only webhook if needed:
-   - `docker compose up -d webhook`
+    - `docker compose up -d webhook`
 4. Check recent logs:
-   - `docker compose logs --tail=200 --no-color webhook nginx`
+    - `docker compose logs --tail=200 --no-color webhook nginx`
 
 To reduce recurrence, deploy rollout now restarts target services with
 `--no-deps`, and nginx no longer depends on webhook service startup.
 Webhook-side readiness checks use `curl` when available and fall back to
 BusyBox `wget` otherwise, so the deploy container does not require a separate
 `curl` install to validate `/api/health` and `/api/health/auth-config`.
+The GitHub Actions deploy trigger now allows the webhook request to run for up
+to 120 seconds before treating it as a timeout, which prevents false retry
+storms while a healthy homelab rollout is still in progress.
 
 ### Cloudflared config directory
 
@@ -192,14 +195,14 @@ If `Auth config smoke check` times out with repeated `HTTP 502`:
 
 1. Treat this as upstream backend/nginx availability, not OAuth contract shape.
 2. Trigger deploy again with:
-   - `npm run deploy:homelab`
+    - `npm run deploy:homelab`
 3. Inspect run logs for:
-   - `upstream unavailable` counters in `Auth config smoke summary`
-   - deploy-side service/log diagnostics from `scripts/deploy.sh`
+    - `upstream unavailable` counters in `Auth config smoke summary`
+    - deploy-side service/log diagnostics from `scripts/deploy.sh`
 4. Confirm public probes recover:
-   - `https://lucky-api.lucassantana.tech/api/health` -> `200`
-   - `https://lucky-api.lucassantana.tech/api/health/auth-config` -> `200`
-   - `https://lucky-api.lucassantana.tech/api/auth/discord` -> `302`
+    - `https://lucky-api.lucassantana.tech/api/health` -> `200`
+    - `https://lucky-api.lucassantana.tech/api/health/auth-config` -> `200`
+    - `https://lucky-api.lucassantana.tech/api/auth/discord` -> `302`
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 

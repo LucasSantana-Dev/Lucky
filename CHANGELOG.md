@@ -218,6 +218,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deploy webhook readiness probes now fall back to BusyBox `wget` when `curl`
   is unavailable inside the webhook container, preventing false timeout loops
   after healthy service rollout
+- Deploy workflow webhook trigger now allows up to 120 seconds for the homelab
+  rollout request to finish, preventing false client-side timeout retries while
+  a healthy deploy is still running
 - Deploy OAuth redirect smoke validation now derives expected `client_id` and
   `redirect_uri` from live `/api/health/auth-config` payload instead of a
   hardcoded host, preventing false-negative deploy failures during domain
