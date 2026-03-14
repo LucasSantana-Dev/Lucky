@@ -259,6 +259,9 @@ verification in CI or local checks.
 Sonar main-gate reliability checks are strict on new code: use deterministic
 string sorting (`localeCompare`), keyboard-accessible UI interactions for
 clickable controls, and bounded parsing logic for user-facing text handling.
+SonarCloud workflow policy is token-aware: non-Dependabot runs fail fast when
+`SONAR_TOKEN` is missing, while Dependabot PRs skip the Sonar scan step as a
+non-blocking success path when secrets are unavailable.
 Bundle-size PR checks export `YOUTUBE_DL_SKIP_DOWNLOAD=true` to keep
 `youtube-dl-exec` postinstall deterministic under GitHub API rate limits.
 
