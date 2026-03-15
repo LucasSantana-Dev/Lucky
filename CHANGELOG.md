@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.18] - 2026-03-15
+
 ### Added
 
 - Startup session sweep (`restoreSessionsOnStartup`) — on `clientReady`, the
@@ -15,6 +17,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Stale snapshots are deleted. Per-guild errors are isolated so one failure
   does not abort the rest. Gated by `MUSIC_SESSION_RESTORE_ENABLED` (default
   enabled).
+- Deploy-homelab skill (`.cursor/skills/deploy-homelab/SKILL.md`) with full
+  architecture diagram, failure patterns, SSH commands, and container details.
+
+### Changed
+
+- Deploy webhook now uses async wrapper (`deploy-wrapper.sh`) that launches
+  `deploy.sh` via `nohup` and returns HTTP 200 immediately, eliminating CI
+  curl timeouts and LOCK_CONTENTION cascades (#258).
+- Deploy workflow (`deploy.yml`) reduced `max_attempts` from 8 to 3 and
+  adjusted `max-time` to 30s to match async response pattern (#258).
+- Webhook hooks.json now mounts at `/hooks/hooks.json` instead of
+  `/etc/webhook/hooks.json` to avoid the `almir/webhook` base image
+  `VOLUME /etc/webhook` anonymous volume shadow (#262).
+- Deploy script rebuilds the webhook container as the final step so
+  hooks.json changes take effect on the next deploy cycle (#261).
+- Replaced `-hotreload` with `-verbose` in webhook command since config
+  is now baked into the image at build time (#261, #262).
+
+### Fixed
+
+- Fixed webhook VOLUME shadow where `almir/webhook` base image `VOLUME`
+  directive created an anonymous volume that shadowed bind-mounted
+  `hooks.json`, causing the container to use stale config (#261, #262).
+- Fixed CI gate URLs in `lucky-ci-gate-recovery` and `lucky-deploy-recovery`
+  skills (corrected domain from `lucky-api` to `lucky`) (#259).
 
 ## [2.6.17] - 2026-03-15
 
