@@ -1,11 +1,35 @@
-import { describe, expect, it } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     ProviderHealthService,
     providerFromQueryType,
     providerFromTrack,
+    initProviderHealth,
+    providerHealthService,
 } from './providerHealth'
 
+const getMock = jest.fn<() => Promise<string | null>>()
+const setexMock = jest.fn<() => Promise<void>>()
+const isHealthyMock = jest.fn<() => boolean>()
+
+jest.mock('@lucky/shared/utils', () => ({
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    redisClient: {
+        isHealthy: (...args: unknown[]) => isHealthyMock(...args),
+        get: (...args: unknown[]) => getMock(...args),
+        setex: (...args: unknown[]) => setexMock(...args),
+    },
+}))
+
 describe('ProviderHealthService', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isHealthyMock.mockReturnValue(false)
+    })
+
     it('marks provider unavailable after consecutive failures', () => {
         const service = new ProviderHealthService({
             cooldownMs: 5_000,
@@ -99,6 +123,11 @@ describe('ProviderHealthService', () => {
 })
 
 describe('ProviderHealthService cooldown boundary conditions', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isHealthyMock.mockReturnValue(false)
+    })
+
     it('clears cooldownUntil in-place when expiry is reached on isAvailable call', () => {
         const service = new ProviderHealthService({
             cooldownMs: 1_000,
@@ -181,6 +210,11 @@ describe('ProviderHealthService cooldown boundary conditions', () => {
 })
 
 describe('provider mappers', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isHealthyMock.mockReturnValue(false)
+    })
+
     it('maps query types to providers', () => {
         expect(providerFromQueryType('youtubeSearch' as any)).toBe('youtube')
         expect(providerFromQueryType('spotifySearch' as any)).toBe('spotify')
@@ -211,5 +245,119 @@ describe('provider mappers', () => {
         expect(
             providerFromTrack({ source: 'other', url: 'https://x.com' }),
         ).toBe('unknown')
+    })
+})
+
+describe('ProviderHealthService Redis persistence', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isHealthyMock.mockReturnValue(true)
+        setexMock.mockResolvedValue(undefined)
+    })
+
+    it('calls setex on recordFailure when Redis is healthy', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 10_000,
+            failureThreshold: 2,
+        })
+        service.recordFailure('youtube', 1_000, 'timeout')
+
+        expect(isHealthyMock).toHaveBeenCalled()
+        expect(setexMock).toHaveBeenCalledWith(
+            'music:provider_health:youtube',
+            expect.any(Number),
+            expect.stringContaining('youtube'),
+        )
+    })
+
+    it('calls setex on recordSuccess when Redis is healthy', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 10_000,
+            failureThreshold: 2,
+        })
+        service.recordSuccess('spotify', 2_000)
+
+        expect(setexMock).toHaveBeenCalledWith(
+            'music:provider_health:spotify',
+            expect.any(Number),
+            expect.stringContaining('spotify'),
+        )
+    })
+
+    it('skips setex when Redis is not healthy', () => {
+        isHealthyMock.mockReturnValue(false)
+        const service = new ProviderHealthService({
+            cooldownMs: 10_000,
+            failureThreshold: 2,
+        })
+        service.recordFailure('soundcloud', 1_000, 'fail')
+
+        expect(setexMock).not.toHaveBeenCalled()
+    })
+
+    it('uses TTL of cooldownMs * 2 / 1000 seconds', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 60_000,
+            failureThreshold: 1,
+        })
+        service.recordFailure('youtube', 1_000, 'fail')
+
+        const ttlArg = (setexMock.mock.calls[0] as unknown[])[1]
+        expect(ttlArg).toBe(120)
+    })
+})
+
+describe('initProviderHealth / loadFromRedis', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isHealthyMock.mockReturnValue(true)
+    })
+
+    it('restores provider status from Redis on init', async () => {
+        const restoredStatus = {
+            provider: 'youtube',
+            score: 0.4,
+            consecutiveFailures: 2,
+            cooldownUntil: Date.now() + 50_000,
+            lastFailureAt: Date.now() - 1_000,
+            lastSuccessAt: null,
+            lastError: 'rate limited',
+        }
+        getMock.mockImplementation(async (key: unknown) => {
+            if ((key as string).includes('youtube'))
+                return JSON.stringify(restoredStatus)
+            return null
+        })
+
+        await initProviderHealth()
+
+        const status = providerHealthService.getStatus('youtube')
+        expect(status.score).toBeCloseTo(0.4)
+        expect(status.consecutiveFailures).toBe(2)
+        expect(status.lastError).toBe('rate limited')
+    })
+
+    it('skips loading when Redis is not healthy', async () => {
+        isHealthyMock.mockReturnValue(false)
+
+        await initProviderHealth()
+
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('leaves default state when Redis key is missing', async () => {
+        getMock.mockResolvedValue(null)
+
+        await initProviderHealth()
+
+        const status = providerHealthService.getStatus('soundcloud')
+        expect(status.score).toBe(1)
+        expect(status.consecutiveFailures).toBe(0)
+    })
+
+    it('ignores corrupt Redis data and keeps default state', async () => {
+        getMock.mockResolvedValue('not-valid-json{{')
+
+        await expect(initProviderHealth()).resolves.not.toThrow()
     })
 })
