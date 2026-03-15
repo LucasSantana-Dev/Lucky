@@ -1,7 +1,7 @@
 {
   "name": "lucky-bot",
   "version": "2.6.20",
-  "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
+  "description": "All-in-one Discord bot platform \u2014 music, moderation, auto-mod, custom commands, and web dashboard",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -96,7 +96,7 @@
     "@prisma/client": "^7.4.2",
     "@snazzah/davey": "^0.1.10",
     "chalk": "^5.6.2",
-    "discord-player-youtubei": "^2.0.0-dev.2",
+    "discord-player-youtubei": "^2.0.0",
     "jintr": "^3.3.1",
     "minipass-flush": "^1.0.5",
     "unleash-client": "^6.10.1"
