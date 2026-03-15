@@ -22,6 +22,7 @@ import {
     resolveGuildQueue,
     type QueueResolutionResult,
 } from '../../../utils/music/queueResolver'
+import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
 import type { GuildQueue } from 'discord-player'
 
 function formatProviderHealth(statuses: ProviderStatus[]): string {
@@ -69,6 +70,21 @@ function formatResolverDiagnostics(resolution: QueueResolutionResult): string {
             : 'none'
 
     return `Source: ${source}\nCache size: ${diagnostics.cacheSize}\nCache keys: ${keys}`
+}
+
+async function formatFeedbackState(
+    guildId: string,
+    userId: string,
+): Promise<string> {
+    const dislikedKeys = await recommendationFeedbackService.getDislikedTrackKeys(
+        guildId,
+        userId,
+    )
+    const dislikedCount = dislikedKeys.size
+    if (dislikedCount === 0) {
+        return 'No feedback recorded. Use /recommendation feedback to tune autoplay.'
+    }
+    return `Disliked tracks: ${dislikedCount} (filtered from autoplay)`
 }
 
 function buildActionableSteps({
@@ -174,6 +190,10 @@ export default new Command({
         const watchdog = musicWatchdogService.getGuildState(guildId)
         const snapshot = await musicSessionSnapshotService.getSnapshot(guildId)
         const providers = Object.values(providerHealthService.getAllStatuses())
+        const feedbackState = await formatFeedbackState(
+            guildId,
+            interaction.user.id,
+        )
         const actions = buildActionableSteps({
             queue,
             providers,
@@ -220,6 +240,11 @@ export default new Command({
                               `Upcoming tracks: ${snapshot.upcomingTracks.length}`,
                           ].join('\n')
                         : 'No snapshot saved',
+                    inline: false,
+                },
+                {
+                    name: 'Recommendation feedback',
+                    value: feedbackState,
                     inline: false,
                 },
                 {

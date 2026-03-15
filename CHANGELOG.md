@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/music health` now shows a **Recommendation feedback** field with the count
+  of tracks the user has disliked, giving visibility into autoplay filtering
+  state without leaving the health embed.
+
 ## [2.6.18] - 2026-03-15
 
 ### Added
