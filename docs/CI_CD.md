@@ -88,10 +88,11 @@ migration/schema error and runtime services are not restarted.
 
 Add these repository secrets in **Settings → Secrets and variables → Actions**:
 
-| Secret                  | Description                                                |
-| ----------------------- | ---------------------------------------------------------- |
-| `DEPLOY_WEBHOOK_SECRET` | Shared secret validated by `scripts/deploy.sh`             |
-| `DEPLOY_WEBHOOK_URL`    | Public deploy endpoint (`https://<domain>/webhook/deploy`) |
+| Secret                    | Description                                                              |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `DEPLOY_WEBHOOK_SECRET`   | Shared secret validated by `scripts/deploy.sh`                           |
+| `DEPLOY_WEBHOOK_URL`      | Public deploy endpoint (`https://<domain>/webhook/deploy`)               |
+| `DISCORD_DEPLOY_WEBHOOK`  | Optional Discord webhook URL for deploy start/success/failure embeds     |
 
 #### One-time setup via GitHub CLI
 
@@ -101,6 +102,26 @@ From the repo root, with [GitHub CLI](https://cli.github.com/) installed and aut
 gh secret set DEPLOY_WEBHOOK_SECRET --body "your-random-secret"
 gh secret set DEPLOY_WEBHOOK_URL --body "https://lucky.lucassantana.tech/webhook/deploy"
 ```
+
+#### Discord deploy notifications (optional)
+
+Set `DISCORD_DEPLOY_WEBHOOK` on the homelab host to receive rich Discord embeds for every deploy lifecycle event (started, succeeded, failed, skipped).
+
+1. In your Discord server, go to **Server Settings → Integrations → Webhooks → New Webhook**.
+2. Select the channel and copy the webhook URL.
+3. On the homelab host, add the variable to `.env` (same directory as `docker-compose.yml`):
+
+```bash
+echo 'DISCORD_DEPLOY_WEBHOOK=https://discord.com/api/webhooks/<id>/<token>' >> /home/luk-server/Lucky/.env
+```
+
+4. Restart the webhook container to pick up the new variable:
+
+```bash
+docker compose up -d webhook
+```
+
+The `notify()` function in `scripts/deploy.sh` uses this variable and silently skips notifications when it is unset.
 
 #### Manual no-SSH trigger from local machine
 
@@ -197,9 +218,9 @@ If `Auth config smoke check` times out with repeated `HTTP 502`:
    - `upstream unavailable` counters in `Auth config smoke summary`
    - deploy-side service/log diagnostics from `scripts/deploy.sh`
 4. Confirm public probes recover:
-   - `https://lucky-api.lucassantana.tech/api/health` -> `200`
-   - `https://lucky-api.lucassantana.tech/api/health/auth-config` -> `200`
-   - `https://lucky-api.lucassantana.tech/api/auth/discord` -> `302`
+    - `https://lucky.lucassantana.tech/api/health` -> `200`
+    - `https://lucky.lucassantana.tech/api/health/auth-config` -> `200`
+    - `https://lucky.lucassantana.tech/api/auth/discord` -> `302`
 
 **Recommendation**: Configure branch protection for `main` so that the CI workflow must pass before merge. Deploy then runs only when CI has already succeeded.
 
