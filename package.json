@@ -1,6 +1,6 @@
 {
   "name": "lucky-bot",
-  "version": "2.6.20",
+  "version": "2.6.21",
   "description": "All-in-one Discord bot platform \u2014 music, moderation, auto-mod, custom commands, and web dashboard",
   "type": "module",
   "workspaces": [

@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.21] - 2026-03-15
+
 ### Added
 
-- Provider health cooldown state is now **persisted to Redis** and restored on bot startup, so rate-limited providers remain in cooldown across restarts. TTL is set to `2 × MUSIC_PROVIDER_COOLDOWN_MS` (default 4 min). Falls back gracefully when Redis is unavailable (#280).
+- Provider health cooldown state is now **persisted to Redis** and restored on bot startup, so rate-limited providers remain in cooldown across restarts. TTL is set to `2 × MUSIC_PROVIDER_COOLDOWN_MS` (default 4 min). Falls back gracefully when Redis is unavailable (#286).
+- **Music watchdog** now runs a **periodic cross-guild scan** (default every 60 s) that checks Redis session keys for orphaned sessions (voice dropped while queue is stale) and automatically arms recovery. Configurable via `MUSIC_WATCHDOG_SCAN_INTERVAL_MS` (#287).
+- **Autoplay feedback** is now **user-scoped** (not guild-scoped), persists for **30 days** (was 24 h), and tracks both likes and dislikes. New `/music clearfeedback` command lets users reset their history. `/music health` shows liked + disliked counts. Configurable via `AUTOPLAY_FEEDBACK_TTL_DAYS` (#287).
+- `MUSIC_PROVIDER_FAILURE_THRESHOLD` env var now controls how many consecutive failures before a provider enters cooldown (default 2) (#287).
 
 ## [2.6.20] - 2026-03-15
 
