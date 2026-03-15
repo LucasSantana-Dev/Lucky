@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.17] - 2026-03-15
+
 ### Added
 
 - `MusicSessionSnapshotService.deleteSnapshot()` — explicit Redis delete after a
@@ -32,12 +34,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `isAvailable()` now self-heals by clearing `cooldownUntil` in-place when the
   expiry timestamp has passed, so `/music health` no longer shows stale
   cooldown values for recovered providers.
+- Deploy script (`scripts/deploy.sh`) now archives local drift state before
+  origin sync via `git stash` with labeled stash, and enforces archive-reset
+  checkout hygiene to prevent stale checkout artifacts.
 
 ### Fixed
 
+- Restored executable bit on `scripts/deploy.sh` (PR #253 inadvertently changed
+  mode from `100755` to `100644`), which caused the `almir/webhook` binary to
+  return HTTP 500 with empty body on every deploy trigger.
 - Made music watchdog recovery deterministic after disconnects by waiting for
   voice reconnection before replay attempts, recording recovery detail for
   failures/successes, and surfacing that detail in `/music health`.
+- Deploy workflow now classifies failures into `LOCK_CONTENTION`,
+  `CHECKOUT_RECOVERY_FAILED`, `MIGRATION_FAILED`, `RUNTIME_PRECHECK_FAILED`
+  categories with hooks.json output capture for deterministic CI diagnosis.
 
 ## [2.6.16] - 2026-03-14
 
