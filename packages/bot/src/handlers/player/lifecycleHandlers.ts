@@ -1,5 +1,6 @@
 import type { GuildQueue } from 'discord-player'
 import { infoLog, debugLog } from '@lucky/shared/utils'
+import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import type { User } from 'discord.js'
@@ -29,7 +30,7 @@ export const setupLifecycleHandlers = (player: {
             })
         }
 
-        if (process.env.MUSIC_SESSION_RESTORE_ENABLED !== 'false') {
+        if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
             const metadata = queue.metadata as
                 | { requestedBy?: User | null }
                 | undefined
