@@ -4,6 +4,7 @@ import type { User } from 'discord.js'
 import { randomUUID } from 'crypto'
 import { redisClient } from '@lucky/shared/services'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 
 export type SnapshotTrack = {
     title: string
@@ -29,6 +30,9 @@ export type SnapshotRestoreResult = {
 }
 
 const MAX_SNAPSHOT_TRACKS = 25
+
+/** Maximum age in ms for a snapshot to be automatically restored (30 minutes). */
+const DEFAULT_MAX_SNAPSHOT_AGE_MS = 30 * 60 * 1_000
 
 type SearchOptions = {
     requestedBy?: User
@@ -74,7 +78,10 @@ function applySnapshotMetadata(
 }
 
 export class MusicSessionSnapshotService {
-    constructor(private readonly ttlSeconds = 7_200) {}
+    constructor(
+        private readonly ttlSeconds = ENVIRONMENT_CONFIG.SESSIONS.QUEUE_SESSION_TTL,
+        private readonly maxSnapshotAgeMs = DEFAULT_MAX_SNAPSHOT_AGE_MS,
+    ) {}
 
     private getKey(guildId: string): string {
         return `music:session:${guildId}`
@@ -137,9 +144,26 @@ export class MusicSessionSnapshotService {
         }
     }
 
+    /**
+     * Delete the snapshot for a guild from Redis.
+     * Called after a successful restore so the same snapshot is not re-applied
+     * on subsequent connections.
+     */
+    async deleteSnapshot(guildId: string): Promise<void> {
+        try {
+            await redisClient.del(this.getKey(guildId))
+        } catch (error) {
+            errorLog({
+                message: 'Failed to delete music session snapshot',
+                error,
+            })
+        }
+    }
+
     async restoreSnapshot(
         queue: GuildQueue,
         requestedBy?: User,
+        options: { maxAgeMs?: number } = {},
     ): Promise<SnapshotRestoreResult> {
         try {
             if (queue.currentTrack || queue.tracks.size > 0) {
@@ -151,13 +175,34 @@ export class MusicSessionSnapshotService {
                 return { restoredCount: 0, sessionSnapshotId: null }
             }
 
+            // Staleness guard: reject snapshots older than maxAgeMs.
+            const maxAge = options.maxAgeMs ?? this.maxSnapshotAgeMs
+            if (Date.now() - snapshot.savedAt > maxAge) {
+                debugLog({
+                    message: 'Music session snapshot is too old; skipping restore',
+                    data: {
+                        guildId: queue.guild.id,
+                        savedAt: snapshot.savedAt,
+                        ageMs: Date.now() - snapshot.savedAt,
+                        maxAgeMs: maxAge,
+                    },
+                })
+                return { restoredCount: 0, sessionSnapshotId: null }
+            }
+
             const searchOptions: SearchOptions = {
                 searchEngine: QueryType.AUTO,
                 ...(requestedBy ? { requestedBy } : {}),
             }
 
+            // Build ordered track list: currentTrack first so it replays from the top.
+            const tracksToRestore: SnapshotTrack[] = [
+                ...(snapshot.currentTrack ? [snapshot.currentTrack] : []),
+                ...snapshot.upcomingTracks,
+            ]
+
             let restoredCount = 0
-            for (const entry of snapshot.upcomingTracks) {
+            for (const entry of tracksToRestore) {
                 const query =
                     entry.url || `${entry.title} ${entry.author}`.trim()
                 const result = await queue.player.search(query, searchOptions)
@@ -173,8 +218,14 @@ export class MusicSessionSnapshotService {
                 restoredCount += 1
             }
 
-            if (restoredCount > 0 && !queue.node.isPlaying()) {
-                await queue.node.play()
+            if (restoredCount > 0) {
+                // Clear the snapshot after a successful restore so it cannot
+                // be applied again on the next connection event.
+                await this.deleteSnapshot(queue.guild.id)
+
+                if (!queue.node.isPlaying()) {
+                    await queue.node.play()
+                }
             }
 
             debugLog({
@@ -188,7 +239,8 @@ export class MusicSessionSnapshotService {
 
             return {
                 restoredCount,
-                sessionSnapshotId: snapshot.sessionSnapshotId,
+                sessionSnapshotId:
+                    restoredCount > 0 ? snapshot.sessionSnapshotId : null,
             }
         } catch (error) {
             errorLog({

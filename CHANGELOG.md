@@ -7,8 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `MusicSessionSnapshotService.deleteSnapshot()` — explicit Redis delete after a
+  successful restore so the same snapshot is not re-applied on subsequent
+  connections (double-restore prevention).
+
 ### Changed
 
+- Session snapshot restore now prepends `currentTrack` to the restored queue so
+  the track that was playing at crash/disconnect time is also recovered, not
+  only upcoming tracks.
+- `restoreSnapshot()` now enforces a configurable `maxAgeMs` staleness guard
+  (default 30 minutes) and skips snapshots older than the threshold.
+- `lifecycleHandlers.ts` now reads the session-restore gate from
+  `ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED` instead of raw
+  `process.env`, aligning with the shared config source of truth.
+- `MusicSessionSnapshotService` constructor now uses
+  `ENVIRONMENT_CONFIG.SESSIONS.QUEUE_SESSION_TTL` as the default TTL so the
+  `QUEUE_SESSION_TTL` env var is respected at the singleton level.
 - Provider fallback ordering in search now sorts by health score so degraded
   providers are deprioritized before hitting their cooldown threshold, and
   on-cooldown providers are skipped entirely (`engineManager.ts`).
