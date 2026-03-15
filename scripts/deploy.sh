@@ -15,20 +15,6 @@ export COMPOSE_PROJECT_NAME
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
-env_file_value() {
-    local key="$1"
-    local env_file="$2"
-
-    [[ -f "$env_file" ]] || return 1
-
-    awk -F= -v target="$key" '
-        $1 == target {
-            print substr($0, index($0, "=") + 1)
-            exit
-        }
-    ' "$env_file"
-}
-
 resolve_cloudflared_config_dir() {
     if [[ -n "${CLOUDFLARED_CONFIG_DIR:-}" ]]; then
         echo "$CLOUDFLARED_CONFIG_DIR"
@@ -101,7 +87,7 @@ notify() {
                 \"fields\": [
                     {
                         \"name\": \"Commit\",
-                        \"value\": \"\`$commit_sha\` $commit_msg\",
+                        \"value\": \"'$commit_sha' $commit_msg\",
                         \"inline\": false
                     }
                 ],
@@ -183,99 +169,88 @@ resolve_postgres_password() {
     fi
 
     local env_file="$COMPOSE_WORKDIR/.env"
-    local value
-    value="$(env_file_value "POSTGRES_PASSWORD" "$env_file" || true)"
-    if [[ -n "$value" ]]; then
-        echo "$value"
-        return
+    if [[ -f "$env_file" ]]; then
+        local value
+        value=$(awk -F= '/^POSTGRES_PASSWORD=/{print substr($0, index($0, "=") + 1); exit}' \
+            "$env_file")
+        if [[ -n "$value" ]]; then
+            echo "$value"
+            return
+        fi
     fi
 
     echo ""
 }
 
-collect_required_compose_vars() {
-    local compose_file="$COMPOSE_WORKDIR/docker-compose.yml"
-    [[ -f "$compose_file" ]] || return 0
+archive_local_checkout_state() {
+    local changes archive_root timestamp archive_prefix stash_label stash_output
+    changes="$(git status --porcelain 2>/dev/null || true)"
+    if [[ -z "$changes" ]]; then
+        log "Checkout is clean before origin sync"
+        return 0
+    fi
 
-    grep -oE '\$\{[A-Z0-9_]+\?[^}]*\}' "$compose_file" \
-        | sed -E 's/^\$\{([A-Z0-9_]+)\?.*/\1/' \
-        | sort -u
-}
+    archive_root="${DEPLOY_ARCHIVE_DIR:-${HOME}/.lucky/deploy-archive}"
+    timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    archive_prefix="${archive_root}/${timestamp}"
 
-require_compose_env_vars() {
-    local env_file="$COMPOSE_WORKDIR/.env"
-    local missing=()
-    local key value
-    local required=()
-
-    mapfile -t required < <(collect_required_compose_vars)
-
-    for key in "${required[@]}"; do
-        value="${!key:-}"
-        if [[ -z "$value" ]]; then
-            value="$(env_file_value "$key" "$env_file" || true)"
-        fi
-
-        if [[ -z "$value" ]]; then
-            missing+=("$key")
-            continue
-        fi
-
-        export "$key=$value"
-    done
-
-    if [[ "${#missing[@]}" -gt 0 ]]; then
-        log "ERROR: required compose env vars missing: ${missing[*]}"
-        notify 16711680 "Deploy Failed" "Missing required compose env vars: ${missing[*]}"
+    if ! mkdir -p "$archive_root"; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (cannot create archive dir: $archive_root)"
         return 1
     fi
 
-    return 0
-}
+    git status --short >"${archive_prefix}-status.txt"
+    git diff >"${archive_prefix}-tracked.diff"
+    git diff --cached >"${archive_prefix}-staged.diff"
+    git ls-files --others --exclude-standard >"${archive_prefix}-untracked.txt"
 
-run_compose_preflight() {
-    log "Running compose preflight..."
-    if ! docker_compose config >/dev/null; then
-        log "ERROR: docker compose preflight failed (invalid config or unresolved vars)"
-        notify 16711680 "Deploy Failed" "Compose preflight failed"
+    stash_label="deploy-archive-${timestamp}"
+    stash_output="$(git stash push -u -m "$stash_label" 2>&1 || true)"
+
+    if [[ "$stash_output" == *"No local changes to save"* ]]; then
+        log "Checkout drift archive skipped (changes disappeared during snapshot)"
+        return 0
+    fi
+
+    if ! git stash list | grep -qF "$stash_label"; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (stash failed: $stash_output)"
         return 1
     fi
-    log "Compose preflight passed"
+
+    log "Archived checkout drift at ${archive_prefix}-* with stash ${stash_label}"
     return 0
 }
 
-resolve_healthcheck_base_url() {
-    if [[ -n "${HEALTHCHECK_BASE_URL:-}" ]]; then
-        echo "${HEALTHCHECK_BASE_URL%/}"
-        return
+sync_checkout_to_origin_main() {
+    local drift_after_reset
+
+    if ! archive_local_checkout_state; then
+        return 1
     fi
 
-    if getent hosts nginx >/dev/null 2>&1; then
-        echo "http://nginx"
-        return
+    if ! git fetch origin main; then
+        log "ERROR: CHECKOUT_FETCH_FAILED (git fetch origin main)"
+        return 1
     fi
 
-    local mapped_port
-    mapped_port="$(docker port lucky-nginx 80/tcp 2>/dev/null | head -n1 | awk -F: '{print $NF}')"
-    if [[ -n "$mapped_port" ]]; then
-        echo "http://127.0.0.1:$mapped_port"
-        return
+    if ! git reset --hard origin/main; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (git reset --hard origin/main)"
+        return 1
     fi
 
-    if [[ -n "${WEBAPP_BACKEND_URL:-}" ]]; then
-        echo "${WEBAPP_BACKEND_URL%/}"
-        return
+    if ! git clean -fd; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (git clean -fd)"
+        return 1
     fi
 
-    local env_file="$COMPOSE_WORKDIR/.env"
-    local configured_port
-    configured_port="$(env_file_value "NGINX_PORT" "$env_file" || true)"
-    if [[ -n "$configured_port" ]]; then
-        echo "http://127.0.0.1:$configured_port"
-        return
+    drift_after_reset="$(git status --porcelain 2>/dev/null || true)"
+    if [[ -n "$drift_after_reset" ]]; then
+        log "ERROR: CHECKOUT_RECOVERY_FAILED (tree not clean after reset)"
+        return 1
     fi
 
-    echo "http://127.0.0.1:8080"
+    log "Checkout synced to origin/main and verified clean"
+    return 0
 }
 
 wait_for_http_ready() {
@@ -315,52 +290,18 @@ acquire_lock() {
     fi
 
     local existing_pid=""
-    local now lock_mtime lock_age
     if [[ -f "$LOCK_PID_FILE" ]]; then
         existing_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || true)
     fi
 
-    # Guard against races where lock dir exists briefly before pid is written.
-    if [[ -z "$existing_pid" ]]; then
-        now=$(date +%s)
-        lock_mtime=$(stat -c %Y "$LOCK_DIR" 2>/dev/null || echo "$now")
-        lock_age=$((now - lock_mtime))
-
-        if [[ "$lock_age" -lt 120 ]]; then
-            return 1
-        fi
-    fi
-
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
-        local existing_cmd
-        existing_cmd=$(ps -p "$existing_pid" -o args= 2>/dev/null || true)
-        if echo "$existing_cmd" | grep -Eq '(^|[[:space:]])([^[:space:]]*/)?deploy\.sh([[:space:]]|$)'; then
-            return 1
-        fi
+        return 1
     fi
 
     rm -rf "$LOCK_DIR" 2>/dev/null || true
     mkdir "$LOCK_DIR" 2>/dev/null || return 1
     echo "$$" >"$LOCK_PID_FILE"
     return 0
-}
-
-fail_if_git_dirty() {
-    local dirty
-    dirty=$(git -C "$DEPLOY_DIR" status --porcelain --untracked-files=no || true)
-
-    if [[ -z "$dirty" ]]; then
-        return 0
-    fi
-
-    log "ERROR: working tree has tracked local changes; refusing deploy pull"
-    while IFS= read -r entry; do
-        [[ -z "$entry" ]] && continue
-        log "DIRTY: $entry"
-    done <<<"$dirty"
-    log "ERROR: remediate by committing/stashing/discarding local changes, then rerun deploy"
-    notify 16711680 "Deploy Failed" "Dirty working tree blocks deploy pull"
-    return 1
 }
 
 if [[ -z "$EXPECTED_SECRET" ]]; then
@@ -374,7 +315,7 @@ if [[ "$RECEIVED_SECRET" != "$EXPECTED_SECRET" ]]; then
 fi
 
 if ! acquire_lock; then
-    log "ERROR: another deploy is already running"
+    log "ERROR: LOCK_CONTENTION (another deploy is already running)"
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
@@ -382,19 +323,7 @@ trap 'rm -rf "$LOCK_DIR" 2>/dev/null || true' EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
 CLOUDFLARED_CONFIG_DIR="$(resolve_cloudflared_config_dir)"
-
-if ! require_compose_env_vars; then
-    exit 1
-fi
-
-if ! run_compose_preflight; then
-    exit 1
-fi
-
-POSTGRES_PASSWORD_EFFECTIVE="${POSTGRES_PASSWORD:-}"
-if [[ -z "$POSTGRES_PASSWORD_EFFECTIVE" ]]; then
-    POSTGRES_PASSWORD_EFFECTIVE="$(resolve_postgres_password)"
-fi
+POSTGRES_PASSWORD_EFFECTIVE="$(resolve_postgres_password)"
 
 if [[ -z "$POSTGRES_PASSWORD_EFFECTIVE" ]]; then
     log "ERROR: POSTGRES_PASSWORD is required"
@@ -412,11 +341,12 @@ git config --global --add safe.directory "$DEPLOY_DIR"
 
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
 
-log "Pulling latest changes..."
-if ! fail_if_git_dirty; then
+log "Synchronizing checkout with origin/main..."
+if ! sync_checkout_to_origin_main; then
+    log "ERROR: CHECKOUT_RECOVERY_FAILED (unable to prepare clean checkout)"
+    notify 16711680 "Deploy Failed" "Checkout recovery failed"
     exit 1
 fi
-git pull --ff-only origin main
 
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
@@ -433,7 +363,7 @@ docker_compose up -d postgres redis
 log "Running database migrations..."
 if ! docker_compose run --rm --no-deps backend \
     sh -lc "npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
-    log "ERROR: prisma migrate deploy failed (migration execution error)"
+    log "ERROR: MIGRATION_FAILED (prisma migrate deploy)"
     notify 16711680 "Deploy Failed" "Database migration failed"
     exit 1
 fi
@@ -441,7 +371,7 @@ fi
 log "Checking migration status..."
 if ! docker_compose run --rm --no-deps backend \
     sh -lc "npx prisma migrate status --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
-    log "ERROR: prisma migrate status failed (migration drift/history mismatch)"
+    log "ERROR: MIGRATION_FAILED (prisma migrate status)"
     notify 16711680 "Deploy Failed" "Database migration status guard failed"
     exit 1
 fi
@@ -464,7 +394,7 @@ NODE
 log "Verifying required database relations..."
 if ! docker_compose run --rm --no-deps backend \
     node --input-type=module -e "$relation_guard_script"; then
-    log "ERROR: required database relation verification failed (schema drift)"
+    log "ERROR: RUNTIME_PRECHECK_FAILED (required relation verification)"
     notify 16711680 "Deploy Failed" "Database relation guard failed"
     exit 1
 fi
@@ -474,7 +404,7 @@ docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postg
 
 if ! verify_cloudflared_config "$CLOUDFLARED_CONFIG_DIR"; then
     print_targeted_logs
-    notify 16711680 "Deploy Failed" "Cloudflare tunnel config is invalid"
+    notify 16711680 "Deploy Failed" "Runtime precheck failed (cloudflared config)"
     exit 1
 fi
 
@@ -494,18 +424,15 @@ sleep 10
 log "Service status:"
 docker_compose ps --format "table {{.Name}}\t{{.Status}}"
 
-HEALTHCHECK_BASE_URL="$(resolve_healthcheck_base_url)"
-log "Using healthcheck base URL: $HEALTHCHECK_BASE_URL"
-
 if ! require_running_containers; then
     print_targeted_logs
-    notify 16711680 "Deploy Failed" "Required services are missing or not running"
+    notify 16711680 "Deploy Failed" "Runtime precheck failed (required services)"
     exit 1
 fi
 
 unhealthy=$(docker_compose ps --format json | grep -c '"unhealthy"' || true)
 if [[ "$unhealthy" -gt 0 ]]; then
-    log "ERROR: $unhealthy unhealthy container(s)"
+    log "ERROR: RUNTIME_PRECHECK_FAILED ($unhealthy unhealthy container(s))"
     print_targeted_logs
     notify 16711680 "Deploy Failed" "$unhealthy unhealthy container(s)"
     exit 1
@@ -513,7 +440,7 @@ fi
 
 if ! wait_for_http_ready \
     "API health" \
-    "$HEALTHCHECK_BASE_URL/api/health" \
+    "http://nginx/api/health" \
     '"status"[[:space:]]*:[[:space:]]*"ok"'; then
     print_targeted_logs
     notify 16711680 "Deploy Failed" "API health endpoint did not become ready"
@@ -522,7 +449,7 @@ fi
 
 if ! wait_for_http_ready \
     "Auth config health" \
-    "$HEALTHCHECK_BASE_URL/api/health/auth-config" \
+    "http://nginx/api/health/auth-config" \
     '"auth"[[:space:]]*:'; then
     print_targeted_logs
     notify 16711680 "Deploy Failed" "Auth config health endpoint did not become ready"
