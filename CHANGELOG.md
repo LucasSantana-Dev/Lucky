@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.19] - 2026-03-15
+
 ### Added
 
 - `/music health` now shows a **Recommendation feedback** field with the count
@@ -24,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   candidates are now preferred over same-source ones.
 - `RecommendationConfig` extended with `maxTracksPerArtist` (default 2) and
   `maxTracksPerSource` (default 3) fields for future tunability.
+
+### Fixed
+
+- Deploy webhook now defers its own restart to prevent self-kill during
+  container update cycles (#270).
+- Webhook container no longer attempts to rebuild itself when it detects it is
+  running inside Docker (#274).
+- Frontend Docker build no longer fails from GitHub API rate-limiting during
+  `youtube-dl-exec` postinstall; binary download is skipped in CI (#272).
 
 ## [2.6.18] - 2026-03-15
 
