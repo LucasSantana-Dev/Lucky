@@ -14,11 +14,14 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 const dislikedTrackKeysMock = jest.fn()
+const likedTrackKeysMock = jest.fn()
 
 jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         getDislikedTrackKeys: (...args: unknown[]) =>
             dislikedTrackKeysMock(...args),
+        getLikedTrackKeys: (...args: unknown[]) =>
+            likedTrackKeysMock(...args),
     },
 }))
 
@@ -61,6 +64,7 @@ function createQueueMock(overrides: Partial<QueueMock> = {}): QueueMock {
 describe('queueManipulation.replenishQueue', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
     })
 
     async function replenishWithSingleCandidate(options: {
@@ -259,6 +263,48 @@ describe('queueManipulation.replenishQueue', () => {
             }),
         )
     })
+    it('boosts liked tracks to the top of autoplay recommendations', async () => {
+        likedTrackKeysMock.mockResolvedValue(
+            new Set(['likedtrack::artistb']),
+        )
+
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Neutral Track',
+                            author: 'Artist C',
+                            url: 'https://example.com/neutral',
+                        },
+                        {
+                            title: 'Liked Track',
+                            author: 'Artist B',
+                            url: 'https://example.com/liked',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const calls = queue.addTrack.mock.calls
+        expect(calls.length).toBeGreaterThan(0)
+        const firstAdded = calls[0][0] as Track
+        expect(firstAdded.url).toBe('https://example.com/liked')
+        expect(firstAdded.metadata).toEqual(
+            expect.objectContaining({
+                isAutoplay: true,
+                recommendationReason: expect.stringContaining('liked track'),
+            }),
+        )
+    })
+
 
     it.each([
         {
