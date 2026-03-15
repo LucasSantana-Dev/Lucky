@@ -174,7 +174,10 @@ export const providerHealthService = new ProviderHealthService({
         process.env.MUSIC_PROVIDER_COOLDOWN_MS ?? '120000',
         10,
     ),
-    failureThreshold: 2,
+    failureThreshold: Number.parseInt(
+        process.env.MUSIC_PROVIDER_FAILURE_THRESHOLD ?? '2',
+        10,
+    ),
 })
 
 export async function initProviderHealth(): Promise<void> {
