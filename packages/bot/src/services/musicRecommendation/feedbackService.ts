@@ -115,9 +115,9 @@ export class RecommendationFeedbackService {
         return { map: next, changed }
     }
 
-    async getDislikedTrackKeys(
-        guildId: string,
+    private async getTrackKeysByFeedback(
         userId: string | undefined,
+        type: RecommendationFeedback,
         now = Date.now(),
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
@@ -129,11 +129,19 @@ export class RecommendationFeedbackService {
             await this.saveFeedbackMap(userId, validMap)
         }
 
-        const disliked = Object.entries(validMap)
-            .filter(([, entry]) => entry.feedback === 'dislike')
-            .map(([trackKey]) => trackKey)
+        return new Set(
+            Object.entries(validMap)
+                .filter(([, entry]) => entry.feedback === type)
+                .map(([trackKey]) => trackKey),
+        )
+    }
 
-        return new Set(disliked)
+    async getDislikedTrackKeys(
+        guildId: string,
+        userId: string | undefined,
+        now = Date.now(),
+    ): Promise<Set<string>> {
+        return this.getTrackKeysByFeedback(userId, 'dislike', now)
     }
 
     async getLikedTrackKeys(
@@ -141,20 +149,7 @@ export class RecommendationFeedbackService {
         userId: string | undefined,
         now = Date.now(),
     ): Promise<Set<string>> {
-        if (!userId) return new Set<string>()
-
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap, changed } = this.pruneExpired(map, now)
-
-        if (changed) {
-            await this.saveFeedbackMap(userId, validMap)
-        }
-
-        const liked = Object.entries(validMap)
-            .filter(([, entry]) => entry.feedback === 'like')
-            .map(([trackKey]) => trackKey)
-
-        return new Set(liked)
+        return this.getTrackKeysByFeedback(userId, 'like', now)
     }
 
     async getFeedbackCounts(
