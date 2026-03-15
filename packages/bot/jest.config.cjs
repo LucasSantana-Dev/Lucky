@@ -21,6 +21,8 @@ module.exports = {
         '^@lucky/shared/utils$': '<rootDir>/../shared/src/utils/index',
         '^@lucky/shared/config$': '<rootDir>/../shared/src/config/index',
         '^@lucky/shared/types$': '<rootDir>/../shared/src/types/index',
+        '^@lucky/shared/utils/database/prismaClient$':
+            '<rootDir>/tests/__mocks__/prismaClient.ts',
         '^@lucky/shared/(.*)$': '<rootDir>/../shared/src/$1',
     },
     transform: {

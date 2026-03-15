@@ -30,14 +30,14 @@ gh run view <RUN_ID> --log-failed
 2. Validate target host checkout state:
 
 ```bash
-ssh server-do-luk 'cd /home/luk-server/Lucky && git status --short --branch'
+ssh luk-server@100.95.204.103 'cd /home/luk-server/Lucky && git status --short --branch'
 ```
 
 3. If dirty checkout is present, archive drift and clean checkout:
 
 ```bash
-ssh server-do-luk 'cd /home/luk-server/Lucky && git stash push -u -m "manual-deploy-unblock-$(date -u +%Y%m%dT%H%M%SZ)"'
-ssh server-do-luk 'cd /home/luk-server/Lucky && git fetch origin main && git reset --hard origin/main && git clean -fd'
+ssh luk-server@100.95.204.103 'cd /home/luk-server/Lucky && git stash push -u -m "manual-deploy-unblock-$(date -u +%Y%m%dT%H%M%SZ)"'
+ssh luk-server@100.95.204.103 'cd /home/luk-server/Lucky && git fetch origin main && git reset --hard origin/main && git clean -fd'
 ```
 
 4. Rerun deploy workflow:

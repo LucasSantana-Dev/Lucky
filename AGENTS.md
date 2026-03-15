@@ -38,7 +38,7 @@ At the start of every session:
 | Unit tests, Jest ESM mocks, fixing disabled tests | `testing-lucky`            |
 | CI gate triage and required-check recovery        | `lucky-ci-gate-recovery`   |
 | Recover GitHub MCP transport/auth failures        | `mcp-github-recovery`      |
-| OpenCode config, plugins, attach, verification    | `opencode-lucky-workflows` |
+| Claude Code config, plugins, attach, verification    | `Claude-lucky-workflows`   |
 
 ### Ecosystem skills (`.agent-skills/` — from skills.sh)
 
@@ -146,9 +146,9 @@ Use the **specific specialist and skills** for the task; use **MCP tools** to fi
 
 Use Docker for local when available (`docker-compose.dev.yml`). Prefer scripts in `scripts/` for documented operations.
 
-- Repo-local OpenCode behavior lives in `opencode.jsonc`, `.opencode/plugins`, and `.opencode/skills`.
-- Host-local OpenCode auth, provider state, and MCP credentials stay in `~/.config/opencode`.
-- Use `scripts/opencode-sync-project-skills.sh` after changing project skills or OpenCode skill bridges.
-- Use `scripts/opencode-install-community-plugins.sh` to prime approved OpenCode community add-ons locally or on `server-do-luk`.
-- Use `scripts/opencode-verify.sh` after OpenCode config/plugin changes.
-- `scripts/opencode-attach-server-do-luk.sh` supports `OPENCODE_REMOTE_DIR` when the remote session should target a remote worktree instead of `/home/luk-server/Lucky`.
+- Repo-local Claude Code behavior lives in `Claude.jsonc`, `.Claude/plugins`, and `.Claude/skills`.
+- Host-local Claude Code auth, provider state, and MCP credentials stay in `~/.config/Claude`.
+- Use `scripts/Claude-sync-project-skills.sh` after changing project skills or Claude Code skill bridges.
+- Use `scripts/Claude-install-community-plugins.sh` to prime approved Claude Code community add-ons locally or on `server-do-luk`.
+- Use `scripts/Claude-verify.sh` after Claude Code config/plugin changes.
+- `scripts/Claude-attach-server-do-luk.sh` supports `Claude_REMOTE_DIR` when the remote session should target a remote worktree instead of `/home/luk-server/Lucky`.
