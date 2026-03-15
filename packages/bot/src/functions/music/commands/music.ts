@@ -72,19 +72,19 @@ function formatResolverDiagnostics(resolution: QueueResolutionResult): string {
     return `Source: ${source}\nCache size: ${diagnostics.cacheSize}\nCache keys: ${keys}`
 }
 
-async function formatFeedbackState(
-    guildId: string,
-    userId: string,
-): Promise<string> {
-    const dislikedKeys = await recommendationFeedbackService.getDislikedTrackKeys(
-        guildId,
-        userId,
-    )
-    const dislikedCount = dislikedKeys.size
-    if (dislikedCount === 0) {
+async function formatFeedbackState(userId: string): Promise<string> {
+    const stats = await recommendationFeedbackService.getFeedbackStats(userId)
+    if (stats.likedCount === 0 && stats.dislikedCount === 0) {
         return 'No feedback recorded. Use /recommendation feedback to tune autoplay.'
     }
-    return `Disliked tracks: ${dislikedCount} (filtered from autoplay)`
+    const activeSince = stats.activeSince
+        ? new Date(stats.activeSince).toISOString()
+        : 'unknown'
+    return [
+        `Liked: ${stats.likedCount} | Disliked: ${stats.dislikedCount}`,
+        `Active since: ${activeSince}`,
+        'Use /music clearfeedback to reset.',
+    ].join('\n')
 }
 
 function buildActionableSteps({
@@ -150,12 +150,40 @@ export default new Command({
             subcommand
                 .setName('health')
                 .setDescription('Show queue health and recovery status'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('clearfeedback')
+                .setDescription(
+                    'Clear your personal recommendation feedback history',
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
         const subcommand = interaction.options.getSubcommand()
+        if (subcommand === 'clearfeedback') {
+            await recommendationFeedbackService.clearAllFeedback(
+                interaction.user.id,
+            )
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createEmbed({
+                            title: `${EMOJIS.SUCCESS} Feedback cleared`,
+                            description:
+                                'Your recommendation feedback history has been reset.',
+                            color: EMBED_COLORS.SUCCESS,
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
+            return
+        }
+
         if (subcommand !== 'health') {
             await interactionReply({
                 interaction,
@@ -190,10 +218,7 @@ export default new Command({
         const watchdog = musicWatchdogService.getGuildState(guildId)
         const snapshot = await musicSessionSnapshotService.getSnapshot(guildId)
         const providers = Object.values(providerHealthService.getAllStatuses())
-        const feedbackState = await formatFeedbackState(
-            guildId,
-            interaction.user.id,
-        )
+        const feedbackState = await formatFeedbackState(interaction.user.id)
         const actions = buildActionableSteps({
             queue,
             providers,

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Autoplay recommendation feedback is now **user-scoped** and persisted to Redis
+  with a configurable 30-day TTL (`AUTOPLAY_FEEDBACK_TTL_DAYS`). Feedback
+  survives bot restarts and is keyed per user (`music:feedback:{userId}`) rather
+  than per guild (#282).
+- `/music health` **Recommendation feedback** field now shows liked count,
+  disliked count, and the date feedback was first recorded for the requesting
+  user (#282).
+- `/music clearfeedback` subcommand lets users reset their personal
+  recommendation feedback history (#282).
+
 ## [2.6.20] - 2026-03-15
 
 ### Added

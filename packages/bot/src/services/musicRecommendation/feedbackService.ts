@@ -11,18 +11,21 @@ type FeedbackEntry = {
 
 type FeedbackMap = Record<string, FeedbackEntry>
 
-export class RecommendationFeedbackService {
-    constructor(private readonly ttlHours = 24) {}
+export type FeedbackStats = {
+    likedCount: number
+    dislikedCount: number
+    activeSince: number | null
+}
 
-    private getRedisKey(guildId: string, userId: string): string {
-        return `music:recommendation:feedback:${guildId}:${userId}`
+export class RecommendationFeedbackService {
+    constructor(private readonly ttlDays = 30) {}
+
+    private getRedisKey(userId: string): string {
+        return `music:feedback:${userId}`
     }
 
-    private async getFeedbackMap(
-        guildId: string,
-        userId: string,
-    ): Promise<FeedbackMap> {
-        const key = this.getRedisKey(guildId, userId)
+    private async getFeedbackMap(userId: string): Promise<FeedbackMap> {
+        const key = this.getRedisKey(userId)
         try {
             const value = await redisClient.get(key)
             if (!value) return {}
@@ -38,13 +41,11 @@ export class RecommendationFeedbackService {
     }
 
     private async saveFeedbackMap(
-        guildId: string,
         userId: string,
         map: FeedbackMap,
     ): Promise<void> {
-        const key = this.getRedisKey(guildId, userId)
-        const ttlSeconds = this.ttlHours * 60 * 60
-
+        const key = this.getRedisKey(userId)
+        const ttlSeconds = this.ttlDays * 24 * 60 * 60
         await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
     }
 
@@ -57,25 +58,23 @@ export class RecommendationFeedbackService {
             .toLowerCase()
             .replaceAll(/[^a-z0-9]+/g, '')
             .trim()
-
         return `${normalizedTitle}::${normalizedAuthor}`
     }
 
     async setFeedback(
-        guildId: string,
         userId: string,
         trackKey: string,
         feedback: RecommendationFeedback,
         now = Date.now(),
     ): Promise<void> {
         try {
-            const map = await this.getFeedbackMap(guildId, userId)
+            const map = await this.getFeedbackMap(userId)
             map[trackKey] = {
                 feedback,
                 updatedAt: now,
-                expiresAt: now + this.ttlHours * 60 * 60 * 1000,
+                expiresAt: now + this.ttlDays * 24 * 60 * 60 * 1000,
             }
-            await this.saveFeedbackMap(guildId, userId, map)
+            await this.saveFeedbackMap(userId, map)
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',
@@ -87,13 +86,9 @@ export class RecommendationFeedbackService {
     private pruneExpired(
         map: FeedbackMap,
         now: number,
-    ): {
-        map: FeedbackMap
-        changed: boolean
-    } {
+    ): { map: FeedbackMap; changed: boolean } {
         const next: FeedbackMap = {}
         let changed = false
-
         for (const [trackKey, entry] of Object.entries(map)) {
             if (entry.expiresAt <= now) {
                 changed = true
@@ -101,32 +96,80 @@ export class RecommendationFeedbackService {
             }
             next[trackKey] = entry
         }
-
         return { map: next, changed }
     }
 
     async getDislikedTrackKeys(
-        guildId: string,
         userId: string | undefined,
         now = Date.now(),
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
-
-        const map = await this.getFeedbackMap(guildId, userId)
+        const map = await this.getFeedbackMap(userId)
         const { map: validMap, changed } = this.pruneExpired(map, now)
-
         if (changed) {
-            await this.saveFeedbackMap(guildId, userId, validMap)
+            await this.saveFeedbackMap(userId, validMap)
         }
+        return new Set(
+            Object.entries(validMap)
+                .filter(([, entry]) => entry.feedback === 'dislike')
+                .map(([trackKey]) => trackKey),
+        )
+    }
 
-        const disliked = Object.entries(validMap)
-            .filter(([, entry]) => entry.feedback === 'dislike')
-            .map(([trackKey]) => trackKey)
+    async getLikedTrackKeys(
+        userId: string | undefined,
+        now = Date.now(),
+    ): Promise<Set<string>> {
+        if (!userId) return new Set<string>()
+        const map = await this.getFeedbackMap(userId)
+        const { map: validMap, changed } = this.pruneExpired(map, now)
+        if (changed) {
+            await this.saveFeedbackMap(userId, validMap)
+        }
+        return new Set(
+            Object.entries(validMap)
+                .filter(([, entry]) => entry.feedback === 'like')
+                .map(([trackKey]) => trackKey),
+        )
+    }
 
-        return new Set(disliked)
+    async getFeedbackStats(
+        userId: string | undefined,
+        now = Date.now(),
+    ): Promise<FeedbackStats> {
+        if (!userId) {
+            return { likedCount: 0, dislikedCount: 0, activeSince: null }
+        }
+        const map = await this.getFeedbackMap(userId)
+        const { map: validMap, changed } = this.pruneExpired(map, now)
+        if (changed) {
+            await this.saveFeedbackMap(userId, validMap)
+        }
+        const entries = Object.values(validMap)
+        const likedCount = entries.filter((e) => e.feedback === 'like').length
+        const dislikedCount = entries.filter(
+            (e) => e.feedback === 'dislike',
+        ).length
+        const activeSince =
+            entries.length > 0
+                ? Math.min(...entries.map((e) => e.updatedAt))
+                : null
+        return { likedCount, dislikedCount, activeSince }
+    }
+
+    async clearAllFeedback(userId: string): Promise<void> {
+        try {
+            const key = this.getRedisKey(userId)
+            await redisClient.del(key)
+        } catch (error) {
+            errorLog({
+                message: 'Failed to clear recommendation feedback',
+                error,
+            })
+        }
     }
 }
 
 export const recommendationFeedbackService = new RecommendationFeedbackService(
-    parseInt(process.env.AUTOPLAY_DISLIKE_TTL_HOURS ?? '24', 10),
+    parseInt(process.env.AUTOPLAY_FEEDBACK_TTL_DAYS ?? '30', 10),
 )
