@@ -50,9 +50,9 @@ gh run watch <RUN_ID> --exit-status
 5. Post-deploy smoke:
 
 ```bash
-curl -i https://lucky-api.lucassantana.tech/api/health
-curl -i https://lucky-api.lucassantana.tech/api/health/auth-config
-curl -i https://lucky-api.lucassantana.tech/api/auth/discord
+curl -i https://lucky.lucassantana.tech/api/health
+curl -i https://lucky.lucassantana.tech/api/health/auth-config
+curl -i https://lucky.lucassantana.tech/api/auth/discord
 ```
 
 ## Rerun policy
@@ -60,3 +60,7 @@ curl -i https://lucky-api.lucassantana.tech/api/auth/discord
 - One immediate rerun is allowed for `LOCK_CONTENTION`.
 - If rerun still fails with `CHECKOUT_RECOVERY_FAILED`, perform host checkout cleanup before another rerun.
 - Do not keep blind rerunning on repeated `CHECKOUT_RECOVERY_FAILED`; require host cleanup evidence first.
+
+## See also
+
+- `deploy-homelab` skill for full architecture, SSH access, container details, and manual deploy procedures
