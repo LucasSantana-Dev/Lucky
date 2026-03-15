@@ -8,6 +8,7 @@ import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
 import { initProviderHealth } from '../../utils/music/search/providerHealth'
+import { musicWatchdogService } from '../../utils/music/watchdog'
 import type {
     BotInitializationOptions,
     BotInitializationResult,
@@ -53,6 +54,7 @@ export class BotInitializer {
         if (options.skipPlayer !== true && this.client) {
             const player = await createPlayer({ client: this.client })
             this.client.player = player
+            musicWatchdogService.startOrphanSessionMonitor(player)
         }
     }
 
