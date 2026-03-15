@@ -459,5 +459,11 @@ fi
 log "Pruning old images..."
 docker image prune -f --filter "until=24h"
 
+# Rebuild the webhook container last so it picks up any hooks.json changes.
+# This kills the current deploy-wrapper.sh process, so it MUST be the final step.
+log "Rebuilding webhook container..."
+docker_compose build --no-cache webhook
+docker_compose up -d --force-recreate --no-deps webhook
+
 log "Deploy complete!"
 notify 65280 "Deploy Successful" "All services healthy and running"
