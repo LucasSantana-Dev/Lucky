@@ -1,6 +1,6 @@
 [{
   "id": "deploy",
-  "execute-command": "/home/luk-server/Lucky/scripts/deploy.sh",
+  "execute-command": "/home/luk-server/Lucky/scripts/deploy-wrapper.sh",
   "command-working-directory": "/home/luk-server/Lucky",
   "response-message": "Deploy triggered",
   "include-command-output-in-response": true,

@@ -44,14 +44,14 @@ jobs:
                       -X POST \
                       -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
                       --connect-timeout 10 \
-                      --max-time 20 \
+                      --max-time 30 \
                       "$url"
                   }
 
                   call_webhook_with_retry() {
                     local url="$1"
                     local attempt http body response max_attempts
-                    max_attempts=8
+                    max_attempts=3
 
                     for attempt in $(seq 1 "$max_attempts"); do
                       response=$(call_webhook "$url" || true)
@@ -66,7 +66,7 @@ jobs:
                       fi
 
                       if [ "$attempt" -lt "$max_attempts" ] && { [ "$http" -ge 500 ] || [ "$http" = "000" ]; }; then
-                        sleep $((attempt * 4))
+                        sleep $((attempt * 5))
                         continue
                       fi
 
