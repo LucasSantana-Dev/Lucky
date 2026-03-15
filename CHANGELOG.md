@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Music watchdog** now detects orphaned voice sessions (bot disconnected but
+  Redis session key still active) and automatically rejoins the voice channel
+  and restores the queue from snapshot if the snapshot is ≤ 30 minutes old and
+  at least one non-bot member is present. Configurable interval via
+  `MUSIC_WATCHDOG_ORPHAN_INTERVAL_MS` (default 60 s) (#279).
+
 ## [2.6.21] - 2026-03-15
 
 ### Added
