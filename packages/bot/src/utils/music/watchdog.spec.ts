@@ -5,6 +5,13 @@ import { MusicWatchdogService } from './watchdog'
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    infoLog: jest.fn(),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    redisClient: {
+        keys: jest.fn(),
+    },
 }))
 
 describe('MusicWatchdogService', () => {
