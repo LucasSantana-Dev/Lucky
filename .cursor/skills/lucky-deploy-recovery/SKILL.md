@@ -1,57 +1,62 @@
 ---
 name: lucky-deploy-recovery
-description: Recover Lucky when workflow checks pass but production stays stale, webhook deploys fail, or deploy signaling is inconsistent.
+description: Use when Lucky Deploy to Homelab fails due webhook lock contention, dirty checkout drift, or runtime precheck failures.
 ---
 
 # Lucky Deploy Recovery
 
 ## When to use
 
-- GitHub deploy workflow is green but production revision is old
-- Webhook returns success while deploy command failed (or never started)
-- Deploys fail on missing compose secrets, lock collisions, or stale runtime drift
+- `Deploy to Homelab` is red on `main`
+- Webhook response returns `another deploy is already running`
+- Webhook response mentions local changes, overwritten merge files, or unmerged files
+- Auth-config smoke never starts because webhook trigger failed
 
-## Recovery workflow
+## Failure buckets
 
-1. Capture baseline
+- `LOCK_CONTENTION`: concurrent webhook deploy already running
+- `CHECKOUT_RECOVERY_FAILED`: target checkout drift or merge-conflict state
+- `RUNTIME_PRECHECK_FAILED`: compose/migration/health precheck failed after webhook accepted
 
-- `git rev-parse --short HEAD`
-- `git rev-parse --short origin/main`
-- container revisions from `org.opencontainers.image.revision` for backend/bot/frontend/nginx
+## Triage sequence
 
-2. Repair deploy prerequisites
+1. Confirm latest failing run and failed step log:
 
-- restore/confirm required `.env` values, especially `POSTGRES_PASSWORD` and `DEPLOY_WEBHOOK_SECRET`
-- run compose preflight before deploy:
-    - `docker compose --project-directory /home/luk-server/Lucky --env-file /home/luk-server/Lucky/.env config`
+```bash
+gh run list --branch main --workflow "Deploy to Homelab" --limit 5
+gh run view <RUN_ID> --log-failed
+```
 
-3. Harden webhook signaling
+2. Validate target host checkout state:
 
-- in `deploy/hooks.json`, keep:
-    - `include-command-output-in-response: true`
-    - `include-command-output-in-response-on-error: true`
-- remove webhook `-verbose` runtime flag from `docker-compose.yml`
-- rotate `DEPLOY_WEBHOOK_SECRET` when compromise/drift is suspected and sync with GitHub secret
-- align deploy workflow trigger behavior with synchronous webhook execution:
-    - webhook trigger curl `--max-time` must cover full deploy runtime
-    - retries should be transport-only (`HTTP 000`) to avoid duplicate deploy launches
-    - set deploy workflow `concurrency` to serialize overlapping `workflow_run` + `workflow_dispatch` deploys
+```bash
+ssh server-do-luk 'cd /home/luk-server/Lucky && git status --short --branch'
+```
 
-4. Redeploy and validate
+3. If dirty checkout is present, archive drift and clean checkout:
 
-- pull latest: `git pull --ff-only origin main`
-- run deploy script with explicit env context
-- verify containers are healthy and smoke endpoints pass:
-    - `/api/health`, `/api/health/auth-config`, `/api/auth/discord`, `/install`, `/legal`, `/discovery`
+```bash
+ssh server-do-luk 'cd /home/luk-server/Lucky && git stash push -u -m "manual-deploy-unblock-$(date -u +%Y%m%dT%H%M%SZ)"'
+ssh server-do-luk 'cd /home/luk-server/Lucky && git fetch origin main && git reset --hard origin/main && git clean -fd'
+```
 
-5. Verify outcome, not just workflow status
+4. Rerun deploy workflow:
 
-- compare running image revisions to intended deploy target
-- if webhook tests are noisy due edge timeouts, re-test directly against webhook container IP (`:9000/hooks/deploy`) to confirm true command outcome
+```bash
+gh run rerun <RUN_ID>
+gh run watch <RUN_ID> --exit-status
+```
 
-## Incident guardrails
+5. Post-deploy smoke:
 
-- Treat concurrent deploy agents as a blocker; wait for a quiet window before mutation steps.
-- Preserve evidence (`curl` bodies/status codes, deploy output snippets, container revision checks) in handoff notes.
-- If lock file PID is stale/reused, validate process command line before honoring lock ownership.
-- If lock PID file is momentarily missing, do not immediately clear lock; treat fresh lock directories as active to avoid race-induced dual deploys.
+```bash
+curl -i https://lucky-api.lucassantana.tech/api/health
+curl -i https://lucky-api.lucassantana.tech/api/health/auth-config
+curl -i https://lucky-api.lucassantana.tech/api/auth/discord
+```
+
+## Rerun policy
+
+- One immediate rerun is allowed for `LOCK_CONTENTION`.
+- If rerun still fails with `CHECKOUT_RECOVERY_FAILED`, perform host checkout cleanup before another rerun.
+- Do not keep blind rerunning on repeated `CHECKOUT_RECOVERY_FAILED`; require host cleanup evidence first.

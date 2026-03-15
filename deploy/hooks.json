@@ -1,16 +1,9 @@
-[
-    {
-        "id": "deploy",
-        "execute-command": "/home/luk-server/Lucky/scripts/deploy.sh",
-        "command-working-directory": "/home/luk-server/Lucky",
-        "response-message": "Deploy triggered",
-        "include-command-output-in-response": true,
-        "include-command-output-in-response-on-error": true,
-        "pass-arguments-to-command": [
-            {
-                "source": "header",
-                "name": "X-Webhook-Secret"
-            }
-        ]
-    }
-]
+[{
+  "id": "deploy",
+  "execute-command": "/home/luk-server/Lucky/scripts/deploy.sh",
+  "command-working-directory": "/home/luk-server/Lucky",
+  "response-message": "Deploy triggered",
+  "include-command-output-in-response": true,
+  "include-command-output-in-response-on-error": true,
+  "pass-arguments-to-command": [{"source": "header", "name": "X-Webhook-Secret"}]
+}]
