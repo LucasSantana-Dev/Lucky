@@ -14,6 +14,14 @@ const HISTORY_SEED_LIMIT = 3
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
+const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
+    process.env.QUEUE_RESCUE_PROBE_TIMEOUT_MS ?? '5000',
+    10,
+)
+const QUEUE_RESCUE_REFILL_THRESHOLD = Number.parseInt(
+    process.env.QUEUE_RESCUE_REFILL_THRESHOLD ?? '3',
+    10,
+)
 
 type ScoredTrack = {
     track: Track
@@ -406,13 +414,64 @@ function isPlayableTrack(track: Track): boolean {
     return Boolean(track.url) && Boolean(track.title) && Boolean(track.author)
 }
 
+async function probeTrackResolvable(
+    queue: GuildQueue,
+    track: Track,
+    timeoutMs: number,
+): Promise<boolean> {
+    const query = track.url || `${track.title} ${track.author}`.trim()
+    try {
+        const result = await Promise.race([
+            queue.player.search(query, { searchEngine: QueryType.AUTO }),
+            new Promise<null>((resolve) =>
+                setTimeout(() => resolve(null), timeoutMs),
+            ),
+        ])
+        return result !== null && result.tracks.length > 0
+    } catch {
+        return false
+    }
+}
+
+export type RescueQueueOptions = {
+    probeResolvable?: boolean
+    probeTimeoutMs?: number
+    refillThreshold?: number
+}
+
 export async function rescueQueue(
     queue: GuildQueue,
+    opts: RescueQueueOptions = {},
 ): Promise<QueueRescueResult> {
+    const {
+        probeResolvable = false,
+        probeTimeoutMs = QUEUE_RESCUE_PROBE_TIMEOUT_MS,
+        refillThreshold = QUEUE_RESCUE_REFILL_THRESHOLD,
+    } = opts
+
     try {
         const tracks = queue.tracks.toArray()
-        const keptTracks = tracks.filter((track) => isPlayableTrack(track))
-        const removedTracks = tracks.length - keptTracks.length
+        const keptTracks: Track[] = []
+        let removedTracks = 0
+
+        for (const track of tracks) {
+            if (!isPlayableTrack(track)) {
+                removedTracks++
+                continue
+            }
+            if (probeResolvable) {
+                const resolvable = await probeTrackResolvable(
+                    queue,
+                    track,
+                    probeTimeoutMs,
+                )
+                if (!resolvable) {
+                    removedTracks++
+                    continue
+                }
+            }
+            keptTracks.push(track)
+        }
 
         queue.clear()
         for (const track of keptTracks) {
@@ -420,11 +479,7 @@ export async function rescueQueue(
         }
 
         const beforeReplenish = queue.tracks.size
-        if (
-            queue.repeatMode === QueueRepeatMode.AUTOPLAY &&
-            queue.currentTrack &&
-            queue.tracks.size < 4
-        ) {
+        if (queue.currentTrack && queue.tracks.size < refillThreshold) {
             await replenishQueue(queue)
         }
         const addedTracks = Math.max(0, queue.tracks.size - beforeReplenish)

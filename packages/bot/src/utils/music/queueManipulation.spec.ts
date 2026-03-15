@@ -492,7 +492,7 @@ describe('queueManipulation.queueOperations', () => {
             currentTrack: playableTrack,
         } as unknown as GuildQueue
 
-        const result = await rescueQueue(queue)
+        const result = await rescueQueue(queue, { refillThreshold: 0 })
 
         expect(result).toEqual({
             removedTracks: 1,
@@ -501,5 +501,74 @@ describe('queueManipulation.queueOperations', () => {
         })
         expect((queue as any).clear).toHaveBeenCalled()
         expect((queue as any).addTrack).toHaveBeenCalledWith(playableTrack)
+    })
+
+    it('probe-based rescue removes tracks that fail player.search', async () => {
+        const resolvableTrack = {
+            title: 'Good Track',
+            author: 'Artist A',
+            url: 'https://youtube.com/good',
+        } as Track
+        const deadTrack = {
+            title: 'Dead Track',
+            author: 'Artist B',
+            url: 'https://youtube.com/removed',
+        } as Track
+        const searchMock = jest
+            .fn()
+            .mockImplementationOnce(() =>
+                Promise.resolve({ tracks: [resolvableTrack] }),
+            )
+            .mockImplementationOnce(() => Promise.resolve({ tracks: [] }))
+        const queue = {
+            player: { search: searchMock },
+            tracks: {
+                toArray: jest
+                    .fn()
+                    .mockReturnValue([resolvableTrack, deadTrack]),
+                size: 2,
+            },
+            clear: jest.fn(),
+            addTrack: jest.fn(),
+            currentTrack: null,
+        } as unknown as GuildQueue
+
+        const result = await rescueQueue(queue, {
+            probeResolvable: true,
+            refillThreshold: 0,
+        })
+
+        expect(result.removedTracks).toBe(1)
+        expect(result.keptTracks).toBe(1)
+        expect((queue as any).addTrack).toHaveBeenCalledWith(resolvableTrack)
+        expect((queue as any).addTrack).not.toHaveBeenCalledWith(deadTrack)
+    })
+
+    it('probe-based rescue treats timed-out probe as unresolvable', async () => {
+        const track = {
+            title: 'Stalled Track',
+            author: 'Artist',
+            url: 'https://youtube.com/stalled',
+        } as Track
+        const searchMock = jest.fn().mockImplementation(
+            () => new Promise(() => { /* never resolves */ }),
+        )
+        const queue = {
+            player: { search: searchMock },
+            tracks: { toArray: jest.fn().mockReturnValue([track]), size: 1 },
+            clear: jest.fn(),
+            addTrack: jest.fn(),
+            currentTrack: null,
+        } as unknown as GuildQueue
+
+        const result = await rescueQueue(queue, {
+            probeResolvable: true,
+            probeTimeoutMs: 50,
+            refillThreshold: 0,
+        })
+
+        expect(result.removedTracks).toBe(1)
+        expect(result.keptTracks).toBe(0)
+        expect((queue as any).addTrack).not.toHaveBeenCalled()
     })
 })

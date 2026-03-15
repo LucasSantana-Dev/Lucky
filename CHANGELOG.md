@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/music health` now shows a **Recommendation feedback** field with the count
   of tracks the user has disliked, giving visibility into autoplay filtering
   state without leaving the health embed (#271).
+- `/queue rescue` now uses **probe-based URL validation** (`player.search` with
+  configurable timeout, default 5 s) to detect actually unresolvable tracks
+  (removed videos, geo-blocked content, dead links) in addition to the existing
+  structural check. Configurable via `QUEUE_RESCUE_PROBE_TIMEOUT_MS` and
+  `QUEUE_RESCUE_REFILL_THRESHOLD` env vars.
 
 ### Changed
 

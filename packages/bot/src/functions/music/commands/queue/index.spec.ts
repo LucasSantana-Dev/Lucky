@@ -140,7 +140,7 @@ describe('queue command', () => {
             interaction: createInteraction('rescue'),
         } as any)
 
-        expect(rescueQueueMock).toHaveBeenCalledWith(queue)
+        expect(rescueQueueMock).toHaveBeenCalledWith(queue, { probeResolvable: true })
         expect(successEmbedMock).toHaveBeenCalledWith(
             'Queue rescue complete',
             expect.stringContaining('Removed 1 broken track(s)'),

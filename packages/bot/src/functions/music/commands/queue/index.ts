@@ -105,7 +105,7 @@ export default new Command({
             }
 
             if (action === 'rescue') {
-                const result = await rescueQueue(queue)
+                const result = await rescueQueue(queue, { probeResolvable: true })
                 await interactionReply({
                     interaction,
                     content: {
