@@ -459,13 +459,26 @@ fi
 log "Pruning old images..."
 docker image prune -f --filter "until=24h"
 
-# Rebuild the webhook container last so it picks up any hooks.json changes.
-# -V (--renew-anon-volumes) ensures the VOLUME /etc/webhook from the base
-# image gets a fresh anonymous volume instead of reusing a stale one.
-# This kills the current deploy-wrapper.sh process, so it MUST be the final step.
+# Rebuild the webhook container to pick up any hooks.json / Dockerfile changes.
+# When deploy.sh runs INSIDE the webhook container (via deploy-wrapper.sh),
+# the recreate command kills our own container. We handle this by:
+#   1. Building the new image first (safe, doesn't kill anything)
+#   2. Releasing the deploy lock BEFORE the recreate
+#   3. Firing the recreate detached so the Docker daemon completes it
+#      even after our process is killed
 log "Rebuilding webhook container..."
 docker_compose build --no-cache webhook
-docker_compose up -d -V --force-recreate --no-deps webhook
 
 log "Deploy complete!"
 notify 65280 "Deploy Successful" "All services healthy and running"
+
+# Release lock before recreating webhook (which may kill this process)
+# Lock is normally released by the EXIT trap, but we need it gone before
+# the detached recreate fires (which kills this process and triggers EXIT).
+rm -rf "$LOCK_DIR" 2>/dev/null || true
+trap - EXIT
+
+# Detach the recreate so Docker daemon handles it independently of this process.
+# The -V flag renews anonymous volumes to avoid stale VOLUME shadow.
+log "Recreating webhook container (detached)..."
+nohup docker_compose up -d -V --force-recreate --no-deps webhook > /dev/null 2>&1 &
