@@ -7,23 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.19] - 2026-03-15
+
 ### Added
 
 - `/music health` now shows a **Recommendation feedback** field with the count
   of tracks the user has disliked, giving visibility into autoplay filtering
-  state without leaving the health embed.
+  state without leaving the health embed (#271).
 
 ### Changed
 
 - Autoplay fallback selection now enforces configurable **artist diversity** (max
   2 tracks per artist, up from 1) and **source diversity** (max 3 tracks per
   source) caps via `selectDiverseCandidates`, preventing a single artist or
-  platform from dominating the queue.
+  platform from dominating the queue (#273).
 - Same-source bonus in recommendation scoring replaced with a **same-source
   penalty** (−0.15), promoting cross-platform variety; different-source
-  candidates are now preferred over same-source ones.
+  candidates are now preferred over same-source ones (#273).
 - `RecommendationConfig` extended with `maxTracksPerArtist` (default 2) and
-  `maxTracksPerSource` (default 3) fields for future tunability.
+  `maxTracksPerSource` (default 3) fields for future tunability (#273).
+
+### Fixed
+
+- Deploy script now detects when running inside the webhook container and
+  skips self-rebuild to prevent killing its own process, fixing the recurring
+  Exited(0) webhook state after automated deploys (#274).
+- Frontend Docker build no longer downloads yt-dlp binary during
+  `npm install` — `YOUTUBE_DL_SKIP_DOWNLOAD=true` prevents rate-limit
+  failures in CI (#272).
+- Superseded the broken `nohup`-detached webhook restart approach from
+  v2.6.18 with an early container-detection guard (#270, #274).
 
 ## [2.6.18] - 2026-03-15
 
