@@ -200,11 +200,16 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             HISTORY_SEED_LIMIT + 1,
         )
         const requestedBy = getRequestedBy(queue, currentTrack)
-        const dislikedTrackKeys =
-            await recommendationFeedbackService.getDislikedTrackKeys(
+        const [dislikedTrackKeys, likedTrackKeys] = await Promise.all([
+            recommendationFeedbackService.getDislikedTrackKeys(
                 queue.guild.id,
                 requestedBy?.id,
-            )
+            ),
+            recommendationFeedbackService.getLikedTrackKeys(
+                queue.guild.id,
+                requestedBy?.id,
+            ),
+        ])
         const excludedUrls = buildExcludedUrls(queue, currentTrack, historyTracks)
         const excludedKeys = buildExcludedKeys(queue, currentTrack, historyTracks)
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
@@ -215,6 +220,7 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             excludedUrls,
             excludedKeys,
             dislikedTrackKeys,
+            likedTrackKeys,
             currentTrack,
             recentArtists,
         )
@@ -298,6 +304,7 @@ async function collectRecommendationCandidates(
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
     dislikedTrackKeys: Set<string>,
+    likedTrackKeys: Set<string>,
     currentTrack: Track,
     recentArtists: Set<string>,
 ): Promise<Map<string, ScoredTrack>> {
@@ -316,7 +323,7 @@ async function collectRecommendationCandidates(
             upsertScoredCandidate(
                 candidates,
                 candidate,
-                calculateRecommendationScore(candidate, currentTrack, recentArtists),
+                calculateRecommendationScore(candidate, currentTrack, recentArtists, likedTrackKeys),
             )
         }
     }
@@ -544,11 +551,18 @@ function calculateRecommendationScore(
     candidate: Track,
     currentTrack: Track,
     recentArtists: Set<string>,
+    likedTrackKeys: Set<string> = new Set(),
 ): { score: number; reason: string } {
     let score = 1
     const reasons: string[] = []
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
+
+    const candidateKey = normalizeTrackKey(candidate.title, candidate.author)
+    if (likedTrackKeys.has(candidateKey)) {
+        score += 0.3
+        reasons.push('liked track')
+    }
 
     if (candidateArtist === currentArtist) {
         score -= 0.35
