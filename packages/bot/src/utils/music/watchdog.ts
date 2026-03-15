@@ -1,5 +1,9 @@
-import type { GuildQueue } from 'discord-player'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import type { GuildQueue, Player } from 'discord-player'
+import type { VoiceChannel } from 'discord.js'
+import { ChannelType } from 'discord.js'
+import { redisClient } from '@lucky/shared/services'
+import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
+import { musicSessionSnapshotService } from './sessionSnapshots'
 
 export type RecoveryAction =
     | 'none'
@@ -14,32 +18,25 @@ export type WatchdogGuildState = {
     lastActivityAt: number | null
     lastRecoveryAt: number | null
     lastRecoveryAction: RecoveryAction
-    lastRecoveryDetail: string | null
 }
 
 type MusicWatchdogOptions = {
     timeoutMs?: number
-    recoveryWaitTimeoutMs?: number
-    recoveryPollIntervalMs?: number
 }
+
+const SESSION_KEY_PREFIX = 'music:session:'
+const SNAPSHOT_MAX_AGE_MS = 30 * 60 * 1_000
 
 export class MusicWatchdogService {
     private readonly timeoutMs: number
-    private readonly recoveryWaitTimeoutMs: number
-    private readonly recoveryPollIntervalMs: number
     private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
     private readonly states = new Map<string, WatchdogGuildState>()
+    private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
 
     constructor(options: MusicWatchdogOptions = {}) {
         this.timeoutMs =
             options.timeoutMs ??
             parseInt(process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000', 10)
-        this.recoveryWaitTimeoutMs =
-            options.recoveryWaitTimeoutMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_WAIT_MS ?? '1500', 10)
-        this.recoveryPollIntervalMs =
-            options.recoveryPollIntervalMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_POLL_MS ?? '100', 10)
     }
 
     private ensureState(guildId: string): WatchdogGuildState {
@@ -51,34 +48,9 @@ export class MusicWatchdogService {
             lastActivityAt: null,
             lastRecoveryAt: null,
             lastRecoveryAction: 'none',
-            lastRecoveryDetail: null,
         }
         this.states.set(guildId, created)
         return created
-    }
-
-    private async waitForConnectionReady(
-        connection: GuildQueue['connection'],
-    ): Promise<boolean> {
-        if (!connection) return true
-        if (this.isConnectionReady(connection)) return true
-
-        const deadline = Date.now() + this.recoveryWaitTimeoutMs
-        while (Date.now() < deadline) {
-            await new Promise((resolve) =>
-                setTimeout(resolve, this.recoveryPollIntervalMs),
-            )
-
-            if (this.isConnectionReady(connection)) {
-                return true
-            }
-        }
-
-        return this.isConnectionReady(connection)
-    }
-
-    private isConnectionReady(connection: GuildQueue['connection']): boolean {
-        return connection?.state?.status === 'ready'
     }
 
     touch(guildId: string, now = Date.now()): void {
@@ -111,45 +83,25 @@ export class MusicWatchdogService {
 
         if (queue.node.isPlaying()) {
             state.lastRecoveryAction = 'none'
-            state.lastRecoveryDetail = 'queue_playing'
             return 'none'
         }
 
         let action: RecoveryAction = 'none'
-        let detail = 'nothing_to_recover'
-        let didRejoin = false
         try {
             if (queue.connection?.state?.status !== 'ready') {
                 queue.connection?.rejoin?.()
-                didRejoin = true
-                const ready = await this.waitForConnectionReady(queue.connection)
-                if (!ready) {
-                    action = 'failed'
-                    detail = 'connection_not_ready_after_rejoin'
-                    state.lastRecoveryAction = action
-                    state.lastRecoveryDetail = detail
-                    state.lastRecoveryAt = Date.now()
-                    return action
-                }
+                action = 'rejoin'
             }
 
             if (queue.currentTrack) {
                 await queue.node.play()
                 action = 'requeue_current'
-                detail = didRejoin
-                    ? 'rejoined_and_requeued_current'
-                    : 'requeue_current'
             } else if (queue.tracks.size > 0) {
                 await queue.node.play()
                 action = 'play_next'
-                detail = 'started_next_track'
             }
         } catch (error) {
             action = 'failed'
-            detail =
-                error instanceof Error
-                    ? `recovery_failed:${error.message}`
-                    : `recovery_failed:${String(error)}`
             errorLog({
                 message: 'Music watchdog recovery failed',
                 error,
@@ -158,15 +110,106 @@ export class MusicWatchdogService {
         }
 
         state.lastRecoveryAction = action
-        state.lastRecoveryDetail = detail
         state.lastRecoveryAt = Date.now()
 
         debugLog({
             message: 'Music watchdog recovery result',
-            data: { guildId, action, detail },
+            data: { guildId, action },
         })
 
         return action
+    }
+
+    startOrphanSessionMonitor(
+        player: Player,
+        intervalMs = 60_000,
+    ): void {
+        if (this.orphanMonitorInterval) return
+
+        this.orphanMonitorInterval = setInterval(() => {
+            void this.scanOrphanSessions(player)
+        }, intervalMs)
+
+        debugLog({ message: 'Music watchdog orphan session monitor started' })
+    }
+
+    stopOrphanSessionMonitor(): void {
+        if (this.orphanMonitorInterval) {
+            clearInterval(this.orphanMonitorInterval)
+            this.orphanMonitorInterval = null
+        }
+    }
+
+    async scanOrphanSessions(player: Player): Promise<void> {
+        if (!redisClient.isHealthy()) return
+
+        let sessionKeys: string[]
+        try {
+            sessionKeys = await redisClient.keys(`${SESSION_KEY_PREFIX}*`)
+        } catch (error) {
+            errorLog({ message: 'Watchdog failed to scan session keys', error })
+            return
+        }
+
+        for (const key of sessionKeys) {
+            const guildId = key.slice(SESSION_KEY_PREFIX.length)
+            try {
+                await this.recoverOrphanSession(player, guildId)
+            } catch (error) {
+                errorLog({
+                    message: 'Watchdog orphan recovery error',
+                    error,
+                    data: { guildId },
+                })
+            }
+        }
+    }
+
+    private async recoverOrphanSession(
+        player: Player,
+        guildId: string,
+    ): Promise<void> {
+        const existingQueue = player.nodes.get(guildId)
+        if (existingQueue?.node.isPlaying()) return
+
+        const snapshot = await musicSessionSnapshotService.getSnapshot(guildId)
+        if (!snapshot) return
+
+        const ageMs = Date.now() - snapshot.savedAt
+        if (ageMs > SNAPSHOT_MAX_AGE_MS) return
+
+        const guild = player.client.guilds.cache.get(guildId)
+        if (!guild) return
+
+        const voiceChannelId = snapshot.voiceChannelId
+        if (!voiceChannelId) return
+
+        const channel = guild.channels.cache.get(voiceChannelId)
+        if (!channel || channel.type !== ChannelType.GuildVoice) return
+
+        const voiceChannel = channel as VoiceChannel
+        const membersInChannel = voiceChannel.members.filter((m) => !m.user.bot)
+        if (membersInChannel.size === 0) return
+
+        infoLog({
+            message: 'Watchdog detected orphan session, attempting rejoin',
+            data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
+        })
+
+        const queue = player.nodes.create(guild)
+        queue.setRepeatMode(3)
+
+        await queue.connect(voiceChannel)
+        await musicSessionSnapshotService.restoreSnapshot(queue)
+
+        const state = this.ensureState(guildId)
+        state.lastRecoveryAction = 'rejoin'
+        state.lastRecoveryAt = Date.now()
+
+        infoLog({
+            message: 'Watchdog orphan session recovered',
+            data: { guildId },
+        })
     }
 
     getGuildState(guildId: string): WatchdogGuildState {
