@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.23] - 2026-03-15
+
+### Added
+
+- **Autoplay liked-track boost** — tracks the user has liked now receive a
+  `+0.3` score bonus in `calculateRecommendationScore`, making them more likely
+  to appear in autoplay suggestions. A `'liked track'` reason tag is appended
+  to the recommendation when the boost applies (#294).
+
 ## [2.6.22] - 2026-03-15
 
 ### Added
