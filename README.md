@@ -62,15 +62,17 @@ packages/
   - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/04-navigation-loop.gif`
   - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/05-live-control-loop.gif`
 
-### Latest Release (`v2.6.14`)
-- Fixed production backend crash-loop caused by
-  `ERR_PACKAGE_PATH_NOT_EXPORTED` on shared deep imports.
-- Added wildcard shared exports for `@lucky/shared/services/*` to keep backend
-  runtime imports stable.
-- Added CI regression guard (`npm run verify:shared-exports`) after
-  `build:shared`.
-- Added homelab diagnostics helper (`scripts/homelab-diagnostics.sh`) for fast
-  deploy smoke incident triage.
+### Latest Release (`v2.6.17`)
+- Hardened queue snapshot restore: staleness guard (30-min default),
+  `deleteSnapshot()` after successful restore prevents double-restore,
+  `currentTrack` now included in restore so the playing track is recovered.
+- Enforced provider health cooldown ordering in search fallback; degraded
+  providers are deprioritized before hitting their cooldown threshold.
+- Deploy pipeline hardened: checkout drift recovery, failure classification
+  (`LOCK_CONTENTION`, `CHECKOUT_RECOVERY_FAILED`, `MIGRATION_FAILED`,
+  `RUNTIME_PRECHECK_FAILED`), and hooks.json output capture for CI diagnosis.
+- Branch protection on main now requires `quality-gates`, `security`, and
+  `SonarCloud Code Analysis` checks with strict mode enabled.
 
 ## Features
 
