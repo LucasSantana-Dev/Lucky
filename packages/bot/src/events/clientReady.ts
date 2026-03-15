@@ -1,11 +1,13 @@
 import type { Client } from 'discord.js'
 import chalk from 'chalk'
 import { infoLog } from '@lucky/shared/utils'
+import type { CustomClient } from '../types'
+import { restoreSessionsOnStartup } from '../utils/music/sessionStartupRestore'
 
 export const name = 'clientReady'
 export const once = true
 
-export function execute(client: Client): void {
+export async function execute(client: Client): Promise<void> {
     infoLog({ message: `Logged in as ${chalk.white(client.user?.tag)}!` })
     infoLog({ message: `Bot is active in ${client.guilds.cache.size} guilds` })
     infoLog({ message: `Connection status: ${client.ws.status}` })
@@ -13,4 +15,6 @@ export function execute(client: Client): void {
     client.guilds.cache.forEach((guild) => {
         infoLog({ message: `Connected to guild: ${guild.name} (${guild.id})` })
     })
+
+    await restoreSessionsOnStartup(client as CustomClient)
 }

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Startup session sweep (`restoreSessionsOnStartup`) — on `clientReady`, the
+  bot scans Redis for `music:session:*` keys, rejoins the stored voice channel,
+  and calls `restoreSnapshot` for each valid, fresh snapshot (≤ 30 min old).
+  Stale snapshots are deleted. Per-guild errors are isolated so one failure
+  does not abort the rest. Gated by `MUSIC_SESSION_RESTORE_ENABLED` (default
+  enabled).
+
 ## [2.6.17] - 2026-03-15
 
 ### Added
