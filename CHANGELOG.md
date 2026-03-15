@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pinned webhook-driven `prisma migrate deploy` and `prisma migrate status`
   calls to `prisma/prisma.config.ts` so homelab deploys keep `DATABASE_URL`
   resolution when run from the webhook container.
+- Updated GitHub MCP recovery docs and skills to use the official
+  `github-mcp-server` binary with `gh auth token` as the primary runtime auth
+  source and environment token fallback.
 - Deploy webhook contract now includes command output in both success and error
   responses (`include-command-output-in-response*`) to prevent false-positive
   trigger results.

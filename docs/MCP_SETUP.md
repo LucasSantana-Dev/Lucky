@@ -30,7 +30,10 @@ Scripts live under `~/.cursor/scripts/` and must be executable (`chmod +x`).
 
 The filesystem MCP server is configured with the Lucky workspace path so it can read this repo. To point it at another directory, edit the `filesystem` entry in `~/.cursor/mcp.json` and change the path in `args`.
 
-**GitHub** uses `run-mcp-github.sh` and reads `GITHUB_PERSONAL_ACCESS_TOKEN` from `.env.mcp` (no Docker required).
+**GitHub** uses `run-mcp-github.sh` and should launch the official
+`github-mcp-server` binary, not `@modelcontextprotocol/server-github`.
+The wrapper should prefer `gh auth token` and fall back to
+`GITHUB_PERSONAL_ACCESS_TOKEN` or `GITHUB_TOKEN` when `gh` is unavailable.
 
 **BrowserStack** uses `run-mcp-browserstack.sh` and reads `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` from `.env.mcp`. If either is unset, the server is skipped (no error).
 
@@ -73,7 +76,10 @@ For each [mcpmarket.com/tools/skills/...](https://mcpmarket.com/tools/skills/) o
 
 ## Troubleshooting
 
-- **GitHub**: Set `GITHUB_PERSONAL_ACCESS_TOKEN` in `.env.mcp`.
+- **GitHub**: If MCP calls fail with `Transport closed`, confirm the wrapper is
+  using the official `github-mcp-server` binary and not the deprecated npm
+  server. Use `gh auth token` as the primary runtime auth source; keep
+  `GITHUB_PERSONAL_ACCESS_TOKEN` in `.env.mcp` only as fallback.
 - **BrowserStack**: Set `BROWSERSTACK_USERNAME` and `BROWSERSTACK_ACCESS_KEY` in `.env.mcp`; if unset, the server exits without error.
 - **fetch**: Removed from the default `mcp.json` (requires Docker). To use it, add a `fetch` entry with `"command": "docker"` and `"args": ["run", "-i", "--rm", "mcp/fetch"]` and ensure Docker is running.
 - **cloudflare-observability / cloudflare-bindings**: Each uses a distinct OAuth callback port (3335 and 3336) to avoid port conflicts.
