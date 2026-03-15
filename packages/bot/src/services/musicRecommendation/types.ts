@@ -20,6 +20,8 @@ export type RecommendationConfig = {
   durationWeight: number
   popularityWeight: number
   diversityFactor: number
+  maxTracksPerArtist: number
+  maxTracksPerSource: number
 }
 
 export type RecommendationResult = {

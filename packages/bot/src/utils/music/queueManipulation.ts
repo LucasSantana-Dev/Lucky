@@ -12,6 +12,8 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 const AUTOPLAY_BUFFER_SIZE = 4
 const HISTORY_SEED_LIMIT = 3
 const SEARCH_RESULTS_LIMIT = 8
+const MAX_TRACKS_PER_ARTIST = 2
+const MAX_TRACKS_PER_SOURCE = 3
 
 type ScoredTrack = {
     track: Track
@@ -355,20 +357,26 @@ function upsertScoredCandidate(
 function selectDiverseCandidates(
     candidates: Map<string, ScoredTrack>,
     missingTracks: number,
+    maxPerArtist = MAX_TRACKS_PER_ARTIST,
+    maxPerSource = MAX_TRACKS_PER_SOURCE,
 ): ScoredTrack[] {
     const sortedCandidates = Array.from(candidates.values()).sort(
         (a, b) => b.score - a.score,
     )
     const selected: ScoredTrack[] = []
-    const selectedArtists = new Set<string>()
+    const artistCount = new Map<string, number>()
+    const sourceCount = new Map<string, number>()
 
     for (const candidate of sortedCandidates) {
         const artistKey = candidate.track.author.toLowerCase()
-        if (selectedArtists.has(artistKey)) {
-            continue
-        }
+        const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
+
+        if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) continue
+        if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) continue
+
         selected.push(candidate)
-        selectedArtists.add(artistKey)
+        artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1)
+        sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
         if (selected.length >= missingTracks) {
             break
         }
@@ -496,8 +504,9 @@ function calculateRecommendationScore(
         score -= 0.25
     }
     if (candidate.source === currentTrack.source) {
-        score += 0.1
-        reasons.push('same source profile')
+        score -= 0.15
+    } else if (candidate.source) {
+        reasons.push('source variety')
     }
     const tokenScore = sharedTitleTokenScore(
         candidate.title,

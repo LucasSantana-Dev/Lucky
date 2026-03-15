@@ -27,6 +27,8 @@ export class MusicRecommendationService {
             durationWeight: 0.05,
             popularityWeight: 0.05,
             diversityFactor: 0.3,
+            maxTracksPerArtist: 2,
+            maxTracksPerSource: 3,
             ...config,
         }
     }

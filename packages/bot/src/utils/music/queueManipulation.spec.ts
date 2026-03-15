@@ -294,6 +294,60 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
+    it('caps autoplay to maxTracksPerArtist when same-artist candidates score highest', async () => {
+        // 3 tracks from 'Artist B' + 1 from 'Artist C'. With MAX_TRACKS_PER_ARTIST=2 (default),
+        // should pick at most 2 from 'Artist B' + 1 from 'Artist C' = 3 total (buffer needs 4)
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        { title: 'Same Artist 1', author: 'Artist B', url: 'https://example.com/b1', source: 'soundcloud' },
+                        { title: 'Same Artist 2', author: 'Artist B', url: 'https://example.com/b2', source: 'soundcloud' },
+                        { title: 'Same Artist 3', author: 'Artist B', url: 'https://example.com/b3', source: 'soundcloud' },
+                        { title: 'Fresh Song', author: 'Artist C', url: 'https://example.com/c1', source: 'spotify' },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        // Should have at most 2 tracks from Artist B + 1 from Artist C = 3 total
+        const calls = queue.addTrack.mock.calls
+        const artistBCount = calls.filter((c) =>
+            (c[0] as Track).author === 'Artist B'
+        ).length
+        expect(artistBCount).toBeLessThanOrEqual(2)
+        expect(queue.addTrack).toHaveBeenCalledTimes(3)
+    })
+
+    it('caps autoplay tracks by source when all candidates are from same source', async () => {
+        // 5 candidates all from 'youtube'. With MAX_TRACKS_PER_SOURCE=3 (default), at most 3 selected.
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: { title: 'Song A', author: 'Artist A', url: 'https://example.com/a', source: 'spotify' } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        { title: 'Y Song 1', author: 'Artist B', url: 'https://example.com/y1', source: 'youtube' },
+                        { title: 'Y Song 2', author: 'Artist C', url: 'https://example.com/y2', source: 'youtube' },
+                        { title: 'Y Song 3', author: 'Artist D', url: 'https://example.com/y3', source: 'youtube' },
+                        { title: 'Y Song 4', author: 'Artist E', url: 'https://example.com/y4', source: 'youtube' },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const calls = queue.addTrack.mock.calls
+        const youtubeCount = calls.filter((c) =>
+            (c[0] as Track).source === 'youtube'
+        ).length
+        expect(youtubeCount).toBeLessThanOrEqual(3)
+    })
+
     it('returns without adding tracks when candidate set is exhausted', async () => {
         const queue = await replenishWithSingleCandidate({
             candidateTitle: 'Song A clone',

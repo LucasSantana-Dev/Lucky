@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of tracks the user has disliked, giving visibility into autoplay filtering
   state without leaving the health embed.
 
+### Changed
+
+- Autoplay fallback selection now enforces configurable **artist diversity** (max
+  2 tracks per artist, up from 1) and **source diversity** (max 3 tracks per
+  source) caps via `selectDiverseCandidates`, preventing a single artist or
+  platform from dominating the queue.
+- Same-source bonus in recommendation scoring replaced with a **same-source
+  penalty** (−0.15), promoting cross-platform variety; different-source
+  candidates are now preferred over same-source ones.
+- `RecommendationConfig` extended with `maxTracksPerArtist` (default 2) and
+  `maxTracksPerSource` (default 3) fields for future tunability.
+
 ## [2.6.18] - 2026-03-15
 
 ### Added
