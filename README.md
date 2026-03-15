@@ -494,9 +494,9 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 ### Music
 `/play` `/pause` `/resume` `/skip` `/stop` `/queue` `/volume` `/seek` `/lyrics` `/shuffle` `/repeat` `/clear` `/remove` `/move` `/jump` `/history` `/songinfo` `/autoplay` `/music health`
 
-`/music health` provides operator diagnostics for queue state, resolver source/cache
-signals, provider cooldown/score status, watchdog recovery state, snapshot
-availability, and actionable recovery next steps.
+`/music health` provides operator diagnostics for queue state, resolver
+source/cache signals, provider cooldown/score status, watchdog recovery state
+and detail, snapshot availability, and actionable recovery next steps.
 
 ### Download
 `/download` `/download-audio` `/download-video`

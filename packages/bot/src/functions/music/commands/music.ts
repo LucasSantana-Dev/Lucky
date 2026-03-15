@@ -9,14 +9,20 @@ import {
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireGuild } from '../../../utils/command/commandValidations'
-import { providerHealthService } from '../../../utils/music/search/providerHealth'
-import { musicWatchdogService } from '../../../utils/music/watchdog'
+import {
+    providerHealthService,
+    type ProviderStatus,
+} from '../../../utils/music/search/providerHealth'
+import {
+    musicWatchdogService,
+    type WatchdogGuildState,
+} from '../../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
-import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import type { ProviderStatus } from '../../../utils/music/search/providerHealth'
+import {
+    resolveGuildQueue,
+    type QueueResolutionResult,
+} from '../../../utils/music/queueResolver'
 import type { GuildQueue } from 'discord-player'
-import type { QueueResolutionResult } from '../../../utils/music/queueResolver'
-import type { WatchdogGuildState } from '../../../utils/music/watchdog'
 
 function formatProviderHealth(statuses: ProviderStatus[]): string {
     if (statuses.length === 0) {
@@ -97,7 +103,11 @@ function buildActionableSteps({
 
     if (watchdog.lastRecoveryAction === 'failed') {
         steps.push(
-            '• Last watchdog recovery failed: run /skip or /play to recover manually.',
+            `• Last watchdog recovery failed${
+                watchdog.lastRecoveryDetail
+                    ? ` (${watchdog.lastRecoveryDetail})`
+                    : ''
+            }: run /skip or /play to recover manually.`,
         )
     }
 
@@ -190,6 +200,7 @@ export default new Command({
                     value: [
                         `Timeout: ${watchdog.timeoutMs}ms`,
                         `Last recovery: ${watchdog.lastRecoveryAction}`,
+                        `Last recovery detail: ${watchdog.lastRecoveryDetail ?? 'n/a'}`,
                         `Last recovery at: ${formatTime(watchdog.lastRecoveryAt)}`,
                         `Last activity: ${formatTime(watchdog.lastActivityAt)}`,
                     ].join('\n'),

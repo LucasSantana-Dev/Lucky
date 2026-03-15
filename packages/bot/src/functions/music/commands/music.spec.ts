@@ -83,6 +83,8 @@ describe('music command', () => {
             timeoutMs: 25000,
             lastRecoveryAction: 'none',
             lastActivityAt: 0,
+            lastRecoveryAt: null,
+            lastRecoveryDetail: null,
         })
         getSnapshotMock.mockResolvedValue(null)
         resolveGuildQueueMock.mockReturnValue({
@@ -199,6 +201,7 @@ describe('music command', () => {
             lastRecoveryAction: 'failed',
             lastActivityAt: 0,
             lastRecoveryAt: 0,
+            lastRecoveryDetail: 'connection_not_ready_after_rejoin',
         })
         getSnapshotMock.mockResolvedValue(null)
         resolveGuildQueueMock.mockReturnValue({
@@ -241,6 +244,13 @@ describe('music command', () => {
         expect(resolverField?.value).toContain('Source: miss')
         expect(resolverField?.value).toContain('Cache size: 2')
         expect(resolverField?.value).toContain('guild-9, guild-3')
+
+        const watchdogField = payload.fields.find(
+            (field) => field.name === 'Watchdog',
+        )
+        expect(watchdogField?.value).toContain(
+            'Last recovery detail: connection_not_ready_after_rejoin',
+        )
     })
 
     it('formats repeat mode label and watchdog recovery timestamp', async () => {
@@ -263,6 +273,7 @@ describe('music command', () => {
             lastRecoveryAction: 'play_next',
             lastActivityAt: 10,
             lastRecoveryAt: 20,
+            lastRecoveryDetail: 'started_next_track',
         })
 
         await musicCommand.execute({
@@ -282,5 +293,8 @@ describe('music command', () => {
 
         expect(queueField?.value).toContain('Repeat mode: autoplay')
         expect(watchdogField?.value).toContain('Last recovery at:')
+        expect(watchdogField?.value).toContain(
+            'Last recovery detail: started_next_track',
+        )
     })
 })
