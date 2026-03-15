@@ -172,14 +172,16 @@ services:
         container_name: lucky-webhook
         restart: unless-stopped
         command: >
-            -hooks /etc/webhook/hooks.json
+            -hooks /hooks/hooks.json
             -verbose
+            -hotreload
         environment:
             - DEPLOY_WEBHOOK_SECRET=${DEPLOY_WEBHOOK_SECRET}
             - DISCORD_DEPLOY_WEBHOOK=${DISCORD_DEPLOY_WEBHOOK:-}
             - DEPLOY_DIR=/home/luk-server/Lucky
         volumes:
             - .:/home/luk-server/Lucky
+            - ./deploy/hooks.json:/hooks/hooks.json:ro
             - ${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:ro
             - /var/run/docker.sock:/var/run/docker.sock
         working_dir: /home/luk-server/Lucky
