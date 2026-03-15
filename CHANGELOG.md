@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.20] - 2026-03-15
+
+### Added
+
+- `/queue rescue` now uses **probe-based URL validation** (`player.search` with
+  configurable timeout, default 5 s) to detect actually unresolvable tracks
+  (removed videos, geo-blocked content, dead links) in addition to the existing
+  structural check. Configurable via `QUEUE_RESCUE_PROBE_TIMEOUT_MS` and
+  `QUEUE_RESCUE_REFILL_THRESHOLD` env vars (#278).
+- `/queue show` upcoming tracks list now appends an inline **recommendation
+  reason tag** (e.g. `fresh artist rotation`, `similar title mood`) next to
+  autoplay-sourced tracks, making the autoplay decision transparent at a glance (#275).
+- **Now Playing** section in `/queue show` appends a `Recommended because:`
+  line when the current track originated from autoplay (#275).
+
 ## [2.6.19] - 2026-03-15
 
 ### Added
@@ -14,16 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/music health` now shows a **Recommendation feedback** field with the count
   of tracks the user has disliked, giving visibility into autoplay filtering
   state without leaving the health embed (#271).
-- `/queue rescue` now uses **probe-based URL validation** (`player.search` with
-  configurable timeout, default 5 s) to detect actually unresolvable tracks
-  (removed videos, geo-blocked content, dead links) in addition to the existing
-  structural check. Configurable via `QUEUE_RESCUE_PROBE_TIMEOUT_MS` and
-  `QUEUE_RESCUE_REFILL_THRESHOLD` env vars.
-- `/queue show` upcoming tracks list now appends an inline **recommendation
-  reason tag** (e.g. `fresh artist rotation`, `similar title mood`) next to
-  autoplay-sourced tracks, making the autoplay decision transparent at a glance.
-- **Now Playing** section in `/queue show` appends a `Recommended because:`
-  line when the current track originated from autoplay.
 
 ### Changed
 
@@ -1628,6 +1633,21 @@ npm run db:generate
   - Security considerations
 
 ## [Unreleased]
+
+## [2.6.20] - 2026-03-15
+
+### Added
+
+- `/queue rescue` now uses **probe-based URL validation** (`player.search` with
+  configurable timeout, default 5 s) to detect actually unresolvable tracks
+  (removed videos, geo-blocked content, dead links) in addition to the existing
+  structural check. Configurable via `QUEUE_RESCUE_PROBE_TIMEOUT_MS` and
+  `QUEUE_RESCUE_REFILL_THRESHOLD` env vars (#278).
+- `/queue show` upcoming tracks list now appends an inline **recommendation
+  reason tag** (e.g. `fresh artist rotation`, `similar title mood`) next to
+  autoplay-sourced tracks, making the autoplay decision transparent at a glance (#275).
+- **Now Playing** section in `/queue show` appends a `Recommended because:`
+  line when the current track originated from autoplay (#275).
 
 ### Added
 
