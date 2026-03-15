@@ -98,7 +98,11 @@ export class ProviderHealthService {
     isAvailable(provider: MusicProvider, now = Date.now()): boolean {
         const status = this.ensure(provider)
         if (status.cooldownUntil === null) return true
-        return now >= status.cooldownUntil
+        if (now >= status.cooldownUntil) {
+            status.cooldownUntil = null
+            return true
+        }
+        return false
     }
 
     getStatus(provider: MusicProvider): ProviderStatus {

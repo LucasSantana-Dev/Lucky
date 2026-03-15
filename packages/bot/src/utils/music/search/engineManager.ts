@@ -51,15 +51,22 @@ export class SearchEngineManager {
             return attempts
         }
 
-        for (const fallback of FALLBACK_ATTEMPTS) {
-            if (
-                attempts.some(
+        const remainingFallbacks = FALLBACK_ATTEMPTS.filter(
+            (fallback) =>
+                !attempts.some(
                     (candidate) => candidate.provider === fallback.provider,
-                )
-            ) {
-                continue
-            }
-            attempts.push(fallback)
+                ),
+        )
+
+        const orderedProviders = providerHealthService.getOrderedProviders(
+            remainingFallbacks.map((f) => f.provider),
+        )
+
+        for (const provider of orderedProviders) {
+            const fallback = remainingFallbacks.find(
+                (f) => f.provider === provider,
+            )
+            if (fallback) attempts.push(fallback)
         }
 
         return attempts

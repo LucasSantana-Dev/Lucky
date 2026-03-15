@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Provider fallback ordering in search now sorts by health score so degraded
+  providers are deprioritized before hitting their cooldown threshold, and
+  on-cooldown providers are skipped entirely (`engineManager.ts`).
+- `isAvailable()` now self-heals by clearing `cooldownUntil` in-place when the
+  expiry timestamp has passed, so `/music health` no longer shows stale
+  cooldown values for recovered providers.
+
 ### Fixed
 
 - Made music watchdog recovery deterministic after disconnects by waiting for

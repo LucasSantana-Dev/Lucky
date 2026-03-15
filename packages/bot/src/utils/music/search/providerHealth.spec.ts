@@ -98,6 +98,88 @@ describe('ProviderHealthService', () => {
     })
 })
 
+describe('ProviderHealthService cooldown boundary conditions', () => {
+    it('clears cooldownUntil in-place when expiry is reached on isAvailable call', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 1_000,
+            failureThreshold: 1,
+        })
+        const now = 5_000
+
+        service.recordFailure('youtube', now, 'fail')
+        expect(service.isAvailable('youtube', now + 500)).toBe(false)
+        // Cooldown still set before expiry
+        expect(service.getStatus('youtube').cooldownUntil).not.toBeNull()
+
+        // At expiry boundary, isAvailable clears cooldownUntil in-place
+        expect(service.isAvailable('youtube', now + 1_000)).toBe(true)
+        expect(service.getStatus('youtube').cooldownUntil).toBeNull()
+    })
+
+    it('deprioritizes degraded-but-available provider relative to healthy one', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 10_000,
+            failureThreshold: 3,
+            failurePenalty: 0.3,
+        })
+        const now = 1_000
+
+        // Degrade spotify (score: 0.7) but not yet in cooldown
+        service.recordFailure('spotify', now, 'partial fail')
+        // youtube untouched (score: 1.0)
+
+        const ordered = service.getOrderedProviders(
+            ['spotify', 'youtube'],
+            now + 100,
+        )
+        expect(ordered[0]).toBe('youtube')
+        expect(ordered[1]).toBe('spotify')
+    })
+
+    it('excludes on-cooldown providers while ordering remaining by score', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 5_000,
+            failureThreshold: 1,
+            failurePenalty: 0.4,
+        })
+        const now = 1_000
+
+        // soundcloud goes into cooldown
+        service.recordFailure('soundcloud', now, 'fail')
+        // spotify degraded but available
+        service.recordFailure('spotify', now, 'degraded')
+        service.recordSuccess('spotify', now)
+        // youtube healthy
+        service.recordSuccess('youtube', now)
+
+        const ordered = service.getOrderedProviders(
+            ['soundcloud', 'spotify', 'youtube'],
+            now + 100,
+        )
+
+        expect(ordered).not.toContain('soundcloud')
+        expect(ordered[0]).toBe('youtube')
+    })
+
+    it('returns empty array when all providers are on cooldown', () => {
+        const service = new ProviderHealthService({
+            cooldownMs: 60_000,
+            failureThreshold: 1,
+        })
+        const now = 1_000
+
+        service.recordFailure('youtube', now)
+        service.recordFailure('spotify', now)
+        service.recordFailure('soundcloud', now)
+
+        const ordered = service.getOrderedProviders(
+            ['youtube', 'spotify', 'soundcloud'],
+            now + 100,
+        )
+        expect(ordered).toHaveLength(0)
+    })
+})
+
 describe('provider mappers', () => {
     it('maps query types to providers', () => {
         expect(providerFromQueryType('youtubeSearch' as any)).toBe('youtube')

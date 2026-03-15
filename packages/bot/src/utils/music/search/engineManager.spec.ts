@@ -20,11 +20,15 @@ jest.mock('../youtubeErrorHandler', () => ({
     logYouTubeError: (...args: unknown[]) => logYouTubeErrorMock(...args),
 }))
 
+const getOrderedProvidersMock = jest.fn()
+
 jest.mock('./providerHealth', () => ({
     providerHealthService: {
         isAvailable: (...args: unknown[]) => isAvailableMock(...args),
         recordSuccess: (...args: unknown[]) => recordSuccessMock(...args),
         recordFailure: (...args: unknown[]) => recordFailureMock(...args),
+        getOrderedProviders: (...args: unknown[]) =>
+            getOrderedProvidersMock(...args),
     },
     providerFromQueryType: (...args: unknown[]) =>
         providerFromQueryTypeMock(...args),
@@ -34,6 +38,7 @@ describe('SearchEngineManager', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         isAvailableMock.mockReturnValue(true)
+        getOrderedProvidersMock.mockImplementation((providers: string[]) => providers)
         providerFromQueryTypeMock.mockImplementation((engine: QueryType) => {
             if (engine === QueryType.YOUTUBE_SEARCH) return 'youtube'
             if (engine === QueryType.AUTO) return 'youtube'
@@ -151,6 +156,52 @@ describe('SearchEngineManager', () => {
             result: { tracks: [{ title: 'C' }] },
             attempts: 2,
         })
+    })
+
+    it('sorts fallback providers by health score via getOrderedProviders', async () => {
+        // spotify degraded so getOrderedProviders puts soundcloud first
+        getOrderedProvidersMock.mockReturnValue(['soundcloud', 'spotify'])
+        const player = {
+            search: jest
+                .fn()
+                .mockResolvedValueOnce({ tracks: [] }) // youtube (preferred) fails
+                .mockResolvedValueOnce({ tracks: [{ title: 'SC track' }] }), // soundcloud succeeds
+        }
+        const manager = new SearchEngineManager(player as any)
+
+        const result = await manager.performSearch({
+            query: 'degraded fallback test',
+            requestedBy: { id: 'user-1' } as any,
+            preferredEngine: QueryType.YOUTUBE_SEARCH,
+            enableFallbacks: true,
+        })
+
+        expect(getOrderedProvidersMock).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+        expect(result.usedFallback).toBe(true)
+        expect(result.attempts).toBe(2)
+    })
+
+    it('skips on-cooldown fallback providers and uses remaining healthy ones', async () => {
+        // getOrderedProviders returns only soundcloud (spotify on cooldown)
+        getOrderedProvidersMock.mockReturnValue(['soundcloud'])
+        const player = {
+            search: jest
+                .fn()
+                .mockResolvedValueOnce({ tracks: [] }) // youtube fails
+                .mockResolvedValueOnce({ tracks: [{ title: 'SC' }] }), // soundcloud ok
+        }
+        const manager = new SearchEngineManager(player as any)
+
+        const result = await manager.performSearch({
+            query: 'cooldown skip test',
+            requestedBy: { id: 'user-1' } as any,
+            preferredEngine: QueryType.YOUTUBE_SEARCH,
+            enableFallbacks: true,
+        })
+
+        expect(result.success).toBe(true)
+        expect(result.attempts).toBe(2)
     })
 
     it('returns failure details after max retry exhaustion', async () => {
