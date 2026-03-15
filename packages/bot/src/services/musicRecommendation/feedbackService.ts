@@ -12,17 +12,14 @@ type FeedbackEntry = {
 type FeedbackMap = Record<string, FeedbackEntry>
 
 export class RecommendationFeedbackService {
-    constructor(private readonly ttlHours = 24) {}
+    constructor(private readonly ttlDays = 30) {}
 
-    private getRedisKey(guildId: string, userId: string): string {
-        return `music:recommendation:feedback:${guildId}:${userId}`
+    private getRedisKey(userId: string): string {
+        return `music:feedback:${userId}`
     }
 
-    private async getFeedbackMap(
-        guildId: string,
-        userId: string,
-    ): Promise<FeedbackMap> {
-        const key = this.getRedisKey(guildId, userId)
+    private async getFeedbackMap(userId: string): Promise<FeedbackMap> {
+        const key = this.getRedisKey(userId)
         try {
             const value = await redisClient.get(key)
             if (!value) return {}
@@ -38,12 +35,11 @@ export class RecommendationFeedbackService {
     }
 
     private async saveFeedbackMap(
-        guildId: string,
         userId: string,
         map: FeedbackMap,
     ): Promise<void> {
-        const key = this.getRedisKey(guildId, userId)
-        const ttlSeconds = this.ttlHours * 60 * 60
+        const key = this.getRedisKey(userId)
+        const ttlSeconds = this.ttlDays * 24 * 60 * 60
 
         await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
     }
@@ -69,17 +65,31 @@ export class RecommendationFeedbackService {
         now = Date.now(),
     ): Promise<void> {
         try {
-            const map = await this.getFeedbackMap(guildId, userId)
+            const map = await this.getFeedbackMap(userId)
             map[trackKey] = {
                 feedback,
                 updatedAt: now,
-                expiresAt: now + this.ttlHours * 60 * 60 * 1000,
+                expiresAt: now + this.ttlDays * 24 * 60 * 60 * 1000,
             }
-            await this.saveFeedbackMap(guildId, userId, map)
+            await this.saveFeedbackMap(userId, map)
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',
                 error,
+                data: { guildId },
+            })
+        }
+    }
+
+    async clearFeedback(userId: string): Promise<void> {
+        try {
+            const key = this.getRedisKey(userId)
+            await redisClient.del(key)
+        } catch (error) {
+            errorLog({
+                message: 'Failed to clear recommendation feedback',
+                error,
+                data: { userId },
             })
         }
     }
@@ -112,11 +122,11 @@ export class RecommendationFeedbackService {
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
 
-        const map = await this.getFeedbackMap(guildId, userId)
+        const map = await this.getFeedbackMap(userId)
         const { map: validMap, changed } = this.pruneExpired(map, now)
 
         if (changed) {
-            await this.saveFeedbackMap(guildId, userId, validMap)
+            await this.saveFeedbackMap(userId, validMap)
         }
 
         const disliked = Object.entries(validMap)
@@ -125,8 +135,48 @@ export class RecommendationFeedbackService {
 
         return new Set(disliked)
     }
+
+    async getLikedTrackKeys(
+        guildId: string,
+        userId: string | undefined,
+        now = Date.now(),
+    ): Promise<Set<string>> {
+        if (!userId) return new Set<string>()
+
+        const map = await this.getFeedbackMap(userId)
+        const { map: validMap, changed } = this.pruneExpired(map, now)
+
+        if (changed) {
+            await this.saveFeedbackMap(userId, validMap)
+        }
+
+        const liked = Object.entries(validMap)
+            .filter(([, entry]) => entry.feedback === 'like')
+            .map(([trackKey]) => trackKey)
+
+        return new Set(liked)
+    }
+
+    async getFeedbackCounts(
+        userId: string | undefined,
+        now = Date.now(),
+    ): Promise<{ liked: number; disliked: number }> {
+        if (!userId) return { liked: 0, disliked: 0 }
+
+        const map = await this.getFeedbackMap(userId)
+        const { map: validMap } = this.pruneExpired(map, now)
+
+        let liked = 0
+        let disliked = 0
+        for (const entry of Object.values(validMap)) {
+            if (entry.feedback === 'like') liked++
+            else if (entry.feedback === 'dislike') disliked++
+        }
+
+        return { liked, disliked }
+    }
 }
 
 export const recommendationFeedbackService = new RecommendationFeedbackService(
-    parseInt(process.env.AUTOPLAY_DISLIKE_TTL_HOURS ?? '24', 10),
+    parseInt(process.env.AUTOPLAY_FEEDBACK_TTL_DAYS ?? '30', 10),
 )

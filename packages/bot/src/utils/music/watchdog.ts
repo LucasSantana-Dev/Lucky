@@ -1,5 +1,6 @@
 import type { GuildQueue } from 'discord-player'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
+import { redisClient } from '@lucky/shared/services'
 
 export type RecoveryAction =
     | 'none'
@@ -17,16 +18,21 @@ export type WatchdogGuildState = {
     lastRecoveryDetail: string | null
 }
 
+const SNAPSHOT_KEY_PREFIX = 'music:session:'
+
 type MusicWatchdogOptions = {
     timeoutMs?: number
     recoveryWaitTimeoutMs?: number
     recoveryPollIntervalMs?: number
+    scanIntervalMs?: number
 }
 
 export class MusicWatchdogService {
     private readonly timeoutMs: number
     private readonly recoveryWaitTimeoutMs: number
     private readonly recoveryPollIntervalMs: number
+    private readonly scanIntervalMs: number
+    private scanTimer: ReturnType<typeof setInterval> | null = null
     private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
     private readonly states = new Map<string, WatchdogGuildState>()
 
@@ -40,6 +46,9 @@ export class MusicWatchdogService {
         this.recoveryPollIntervalMs =
             options.recoveryPollIntervalMs ??
             parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_POLL_MS ?? '100', 10)
+        this.scanIntervalMs =
+            options.scanIntervalMs ??
+            parseInt(process.env.MUSIC_WATCHDOG_SCAN_INTERVAL_MS ?? '60000', 10)
     }
 
     private ensureState(guildId: string): WatchdogGuildState {
@@ -175,6 +184,56 @@ export class MusicWatchdogService {
 
     getAllStates(): WatchdogGuildState[] {
         return Array.from(this.states.values()).map((state) => ({ ...state }))
+    }
+
+    async scanOrphanedSessions(
+        getQueue: (guildId: string) => GuildQueue | null,
+    ): Promise<string[]> {
+        const recovered: string[] = []
+        try {
+            const keys = await redisClient.keys(`${SNAPSHOT_KEY_PREFIX}*`)
+            for (const key of keys) {
+                const guildId = key.slice(SNAPSHOT_KEY_PREFIX.length)
+                const queue = getQueue(guildId)
+                if (!queue) continue
+                if (queue.node.isPlaying()) continue
+                if (this.timers.has(guildId)) continue
+
+                debugLog({
+                    message: 'Watchdog scan: arming orphaned session',
+                    data: { guildId },
+                })
+                this.arm(queue)
+                recovered.push(guildId)
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Watchdog periodic scan failed',
+                error,
+            })
+        }
+        return recovered
+    }
+
+    startPeriodicScan(
+        getQueue: (guildId: string) => GuildQueue | null,
+    ): void {
+        if (this.scanTimer) return
+
+        infoLog({
+            message: `Music watchdog periodic scan started (interval: ${this.scanIntervalMs}ms)`,
+        })
+
+        this.scanTimer = setInterval(() => {
+            void this.scanOrphanedSessions(getQueue)
+        }, this.scanIntervalMs)
+    }
+
+    stopPeriodicScan(): void {
+        if (this.scanTimer) {
+            clearInterval(this.scanTimer)
+            this.scanTimer = null
+        }
     }
 }
 
