@@ -348,6 +348,26 @@ if ! sync_checkout_to_origin_main; then
     exit 1
 fi
 
+# Rebuild webhook early: after git pull lands new hooks.json/Dockerfile but
+# BEFORE the long build/migrate/rollout phase. The -V flag renews anonymous
+# volumes so the COPY'd hooks.json from the Dockerfile takes effect.
+#
+# IMPORTANT: Skip if we're running INSIDE the webhook container (detected by
+# /.dockerenv + hostname matching the webhook container ID). Rebuilding from
+# inside kills our own process. The webhook will be rebuilt on the NEXT deploy.
+if [[ -f /.dockerenv ]] && \
+   docker inspect lucky-webhook --format '{{.Id}}' 2>/dev/null | grep -q "$(hostname)"; then
+    log "Skipping webhook rebuild (running inside webhook container)"
+else
+    log "Rebuilding webhook container (early, before app build)..."
+    if docker_compose build --no-cache webhook 2>/dev/null; then
+        docker_compose up -d -V --force-recreate --no-deps webhook 2>/dev/null || true
+        log "Webhook container rebuilt successfully"
+    else
+        log "WARN: Webhook rebuild failed (non-fatal, will retry next deploy)"
+    fi
+fi
+
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
     log "WARN: Pull failed, falling back to local build..."
@@ -459,26 +479,5 @@ fi
 log "Pruning old images..."
 docker image prune -f --filter "until=24h"
 
-# Rebuild the webhook container to pick up any hooks.json / Dockerfile changes.
-# When deploy.sh runs INSIDE the webhook container (via deploy-wrapper.sh),
-# the recreate command kills our own container. We handle this by:
-#   1. Building the new image first (safe, doesn't kill anything)
-#   2. Releasing the deploy lock BEFORE the recreate
-#   3. Firing the recreate detached so the Docker daemon completes it
-#      even after our process is killed
-log "Rebuilding webhook container..."
-docker_compose build --no-cache webhook
-
 log "Deploy complete!"
 notify 65280 "Deploy Successful" "All services healthy and running"
-
-# Release lock before recreating webhook (which may kill this process)
-# Lock is normally released by the EXIT trap, but we need it gone before
-# the detached recreate fires (which kills this process and triggers EXIT).
-rm -rf "$LOCK_DIR" 2>/dev/null || true
-trap - EXIT
-
-# Detach the recreate so Docker daemon handles it independently of this process.
-# The -V flag renews anonymous volumes to avoid stale VOLUME shadow.
-log "Recreating webhook container (detached)..."
-nohup docker_compose up -d -V --force-recreate --no-deps webhook > /dev/null 2>&1 &
