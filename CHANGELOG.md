@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.23] - 2026-03-15
+
+### Added
+
+- **Autoplay like-boost**: tracks previously liked via /recommendation feedback now receive a +0.3 score bonus and a 'liked track' reason tag in autoplay scoring, surfacing them more often in recommendations (#294).
+
 ## [2.6.22] - 2026-03-15
 
 ### Added
