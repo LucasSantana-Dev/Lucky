@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (removed videos, geo-blocked content, dead links) in addition to the existing
   structural check. Configurable via `QUEUE_RESCUE_PROBE_TIMEOUT_MS` and
   `QUEUE_RESCUE_REFILL_THRESHOLD` env vars.
+- `/queue show` upcoming tracks list now appends an inline **recommendation
+  reason tag** (e.g. `fresh artist rotation`, `similar title mood`) next to
+  autoplay-sourced tracks, making the autoplay decision transparent at a glance.
+- **Now Playing** section in `/queue show` appends a `Recommended because:`
+  line when the current track originated from autoplay.
 
 ### Changed
 
