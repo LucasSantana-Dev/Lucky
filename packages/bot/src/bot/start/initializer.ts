@@ -7,6 +7,7 @@ import handleEvents from '../../handlers/eventHandler'
 import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
+import { initProviderHealth } from '../../utils/music/search/providerHealth'
 import type {
     BotInitializationOptions,
     BotInitializationResult,
@@ -97,6 +98,7 @@ export class BotInitializer {
             infoLog({ message: 'Starting bot initialization...' })
 
             await this.initializeRedisServices(options)
+            await initProviderHealth()
             await this.createDiscordClient()
             await this.initializePlayer(options)
             await this.setupCommands(options)
