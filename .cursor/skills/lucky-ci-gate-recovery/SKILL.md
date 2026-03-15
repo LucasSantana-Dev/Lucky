@@ -80,13 +80,13 @@ gh pr merge <PR#> --squash --match-head-commit "$SHA"
 ## Post-merge smoke contract
 
 ```bash
-curl -i https://lucky-api.lucassantana.tech/api/health
-curl -i https://lucky-api.lucassantana.tech/api/health/auth-config
-curl -i https://lucky-api.lucassantana.tech/api/auth/discord
+curl -i https://lucky.lucassantana.tech/api/health
+curl -i https://lucky.lucassantana.tech/api/health/auth-config
+curl -i https://lucky.lucassantana.tech/api/auth/discord
 ```
 
 Expect:
 
-- `/api/health` => `200`
-- `/api/health/auth-config` => `status: ok`
-- `/api/auth/discord` => `302`
+- `/api/health` => `200` with `{"status":"ok","redis":true}`
+- `/api/health/auth-config` => `200` with `status: ok`, valid clientId, redirectUri, redis healthy
+- `/api/auth/discord` => `302` to `discord.com/api/oauth2/authorize`

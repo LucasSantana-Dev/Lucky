@@ -27,6 +27,7 @@ At the start of every session:
 | Schema, migrations, DB/Redis in shared            | `prisma-redis-lucky`       |
 | Docker, compose, local run                        | `lucky-docker-dev`         |
 | Workflow green but production stale deploy drift  | `lucky-deploy-recovery`    |
+| Deploy fails, webhook errors, container recovery   | `deploy-homelab`           |
 | Frontend (React, Vite, Tailwind)                  | `frontend-react-vite`      |
 | Backend (Express API, routes, services)           | `backend-express`          |
 | E2E tests, Playwright, browser verification       | `e2e-playwright`           |
