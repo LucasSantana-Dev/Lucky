@@ -12,6 +12,7 @@ export async function formatTrackForDisplay(
     _options: QueueDisplayOptions,
 ): Promise<TrackDisplayInfo> {
     const trackInfo = await getTrackInfo(track)
+    const metadata = (track.metadata ?? {}) as { isAutoplay?: boolean; recommendationReason?: string }
 
     return {
         title: track.title,
@@ -21,6 +22,8 @@ export async function formatTrackForDisplay(
         thumbnail: track.thumbnail,
         requestedBy: track.requestedBy?.username,
         position,
+        isAutoplay: metadata.isAutoplay,
+        recommendationReason: metadata.recommendationReason,
     }
 }
 
@@ -38,7 +41,11 @@ export async function createTrackListDisplay(
         const track = displayTracks[i]
         const trackInfo = await formatTrackForDisplay(track, i + 1, options)
 
-        const trackDisplay = `${i + 1}. [${trackInfo.title}](${trackInfo.url}) - ${trackInfo.author} (${trackInfo.duration})`
+        const reasonTag =
+            trackInfo.isAutoplay && trackInfo.recommendationReason
+                ? ` — _${trackInfo.recommendationReason}_`
+                : ''
+        const trackDisplay = `${i + 1}. [${trackInfo.title}](${trackInfo.url}) - ${trackInfo.author} (${trackInfo.duration})${reasonTag}`
         trackDisplays.push(trackDisplay)
     }
 

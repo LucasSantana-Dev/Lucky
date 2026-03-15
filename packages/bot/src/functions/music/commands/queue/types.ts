@@ -33,4 +33,6 @@ export type TrackDisplayInfo = {
     thumbnail?: string
     requestedBy?: string
     position: number
+    isAutoplay?: boolean
+    recommendationReason?: string
 }

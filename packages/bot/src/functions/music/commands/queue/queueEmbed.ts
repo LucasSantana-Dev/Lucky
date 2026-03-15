@@ -16,9 +16,17 @@ function addCurrentTrackInfo(
 ): void {
     if (options.showCurrentTrack && queue.currentTrack) {
         const { currentTrack } = queue
+        const metadata = (currentTrack.metadata ?? {}) as {
+            isAutoplay?: boolean
+            recommendationReason?: string
+        }
+        const reasonLine =
+            metadata.isAutoplay && metadata.recommendationReason
+                ? `\nRecommended because: _${metadata.recommendationReason}_`
+                : ''
         embed.addFields({
-            name: '🎵 Now Playing',
-            value: `[${currentTrack.title}](${currentTrack.url}) by **${currentTrack.author}**`,
+            name: '\u{1f3b5} Now Playing',
+            value: `[${currentTrack.title}](${currentTrack.url}) by **${currentTrack.author}**${reasonLine}`,
             inline: false,
         })
 
