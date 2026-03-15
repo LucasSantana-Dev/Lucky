@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.22] - 2026-03-15
+
 ### Added
 
 - **Music watchdog** now detects orphaned voice sessions (bot disconnected but
@@ -14,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and restores the queue from snapshot if the snapshot is ≤ 30 minutes old and
   at least one non-bot member is present. Configurable interval via
   `MUSIC_WATCHDOG_ORPHAN_INTERVAL_MS` (default 60 s) (#279).
+
+### Changed
+
+- Migrated project skills from `opencode-lucky-workflows` to `Claude-lucky-workflows`,
+  updated SSH references from `server-do-luk` to `luk-server@100.95.204.103` (#289).
+
+### Fixed
+
+- Added `prismaClient` mock to `jest.config.cjs` to prevent `ts-jest` from
+  hitting `SyntaxError: Cannot use 'import.meta' outside a module` when
+  transforming `packages/shared/src/utils/database/prismaClient.ts` (#289).
 
 ## [2.6.21] - 2026-03-15
 
