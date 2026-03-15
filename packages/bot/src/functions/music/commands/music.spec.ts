@@ -8,17 +8,24 @@ const errorEmbedMock = jest.fn((title: string, message: string) => ({
     title,
     message,
 }))
+const successEmbedMock = jest.fn((title: string, message: string) => ({
+    type: 'success',
+    title,
+    message,
+}))
 const requireGuildMock = jest.fn()
 const getAllStatusesMock = jest.fn()
 const getGuildStateMock = jest.fn()
 const getSnapshotMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
-const getDislikedTrackKeysMock = jest.fn()
+const getFeedbackCountsMock = jest.fn()
+const clearFeedbackMock = jest.fn()
 
 jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
-        getDislikedTrackKeys: (...args: unknown[]) =>
-            getDislikedTrackKeysMock(...args),
+        getFeedbackCounts: (...args: unknown[]) =>
+            getFeedbackCountsMock(...args),
+        clearFeedback: (...args: unknown[]) => clearFeedbackMock(...args),
     },
 }))
 
@@ -29,6 +36,7 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 jest.mock('../../../utils/general/embeds', () => ({
     createEmbed: (...args: unknown[]) => createEmbedMock(...args),
     errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
+    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
     EMBED_COLORS: { INFO: '#00BFFF' },
     EMOJIS: { INFO: 'ℹ️' },
 }))
@@ -96,7 +104,8 @@ describe('music command', () => {
             lastRecoveryDetail: null,
         })
         getSnapshotMock.mockResolvedValue(null)
-        getDislikedTrackKeysMock.mockResolvedValue(new Set())
+        getFeedbackCountsMock.mockResolvedValue({ liked: 0, disliked: 0 })
+        clearFeedbackMock.mockResolvedValue(undefined)
         resolveGuildQueueMock.mockReturnValue({
             queue: null,
             source: 'miss',
@@ -308,17 +317,12 @@ describe('music command', () => {
         )
     })
 
-    it('shows disliked track count in recommendation feedback field', async () => {
-        getDislikedTrackKeysMock.mockResolvedValue(
-            new Set(['track::artist1', 'track::artist2']),
-        )
+    it('shows liked and disliked counts in recommendation feedback field', async () => {
+        getFeedbackCountsMock.mockResolvedValue({ liked: 3, disliked: 2 })
 
         await musicCommand.execute({
             client: createClient(),
-            interaction: {
-                ...createInteraction(),
-                user: { id: 'user-1' },
-            },
+            interaction: createInteraction(),
         } as any)
 
         const payload = createEmbedMock.mock.calls.at(-1)?.[0] as {
@@ -329,7 +333,55 @@ describe('music command', () => {
         )
 
         expect(feedbackField).toBeDefined()
-        expect(feedbackField?.value).toContain('Disliked tracks: 2')
-        expect(getDislikedTrackKeysMock).toHaveBeenCalledWith('guild-1', expect.any(String))
+        expect(feedbackField?.value).toContain('Liked: 3')
+        expect(feedbackField?.value).toContain('Disliked: 2')
+        expect(getFeedbackCountsMock).toHaveBeenCalledWith('user-1')
+    })
+
+    it('shows no-feedback message when counts are zero', async () => {
+        getFeedbackCountsMock.mockResolvedValue({ liked: 0, disliked: 0 })
+
+        await musicCommand.execute({
+            client: createClient(),
+            interaction: createInteraction(),
+        } as any)
+
+        const payload = createEmbedMock.mock.calls.at(-1)?.[0] as {
+            fields: Array<{ name: string; value: string }>
+        }
+        const feedbackField = payload.fields.find(
+            (field) => field.name === 'Recommendation feedback',
+        )
+
+        expect(feedbackField?.value).toContain('/recommendation feedback')
+    })
+
+    it('clearfeedback subcommand clears user feedback and replies with success', async () => {
+        await musicCommand.execute({
+            client: createClient(),
+            interaction: createInteraction('clearfeedback'),
+        } as any)
+
+        expect(clearFeedbackMock).toHaveBeenCalledWith('user-1')
+        expect(successEmbedMock).toHaveBeenCalledWith(
+            'Feedback cleared',
+            expect.stringContaining('cleared'),
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
+        )
+    })
+
+    it('clearfeedback does not call health lookup methods', async () => {
+        await musicCommand.execute({
+            client: createClient(),
+            interaction: createInteraction('clearfeedback'),
+        } as any)
+
+        expect(getFeedbackCountsMock).not.toHaveBeenCalled()
+        expect(getAllStatusesMock).not.toHaveBeenCalled()
+        expect(getSnapshotMock).not.toHaveBeenCalled()
     })
 })

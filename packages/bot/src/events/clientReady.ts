@@ -3,6 +3,8 @@ import chalk from 'chalk'
 import { infoLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../types'
 import { restoreSessionsOnStartup } from '../utils/music/sessionStartupRestore'
+import { musicWatchdogService } from '../utils/music/watchdog'
+import { resolveGuildQueue } from '../utils/music/queueResolver'
 
 export const name = 'clientReady'
 export const once = true
@@ -17,4 +19,9 @@ export async function execute(client: Client): Promise<void> {
     })
 
     await restoreSessionsOnStartup(client as CustomClient)
+
+    musicWatchdogService.startPeriodicScan((guildId) => {
+        const { queue } = resolveGuildQueue(client as CustomClient, guildId)
+        return queue ?? null
+    })
 }

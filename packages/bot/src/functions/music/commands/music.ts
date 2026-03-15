@@ -6,6 +6,7 @@ import {
     EMBED_COLORS,
     EMOJIS,
     errorEmbed,
+    successEmbed,
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireGuild } from '../../../utils/command/commandValidations'
@@ -72,19 +73,12 @@ function formatResolverDiagnostics(resolution: QueueResolutionResult): string {
     return `Source: ${source}\nCache size: ${diagnostics.cacheSize}\nCache keys: ${keys}`
 }
 
-async function formatFeedbackState(
-    guildId: string,
-    userId: string,
-): Promise<string> {
-    const dislikedKeys = await recommendationFeedbackService.getDislikedTrackKeys(
-        guildId,
-        userId,
-    )
-    const dislikedCount = dislikedKeys.size
-    if (dislikedCount === 0) {
+async function formatFeedbackState(userId: string): Promise<string> {
+    const counts = await recommendationFeedbackService.getFeedbackCounts(userId)
+    if (counts.liked === 0 && counts.disliked === 0) {
         return 'No feedback recorded. Use /recommendation feedback to tune autoplay.'
     }
-    return `Disliked tracks: ${dislikedCount} (filtered from autoplay)`
+    return `Liked: ${counts.liked} | Disliked: ${counts.disliked} (filtered from autoplay)`
 }
 
 function buildActionableSteps({
@@ -150,12 +144,39 @@ export default new Command({
             subcommand
                 .setName('health')
                 .setDescription('Show queue health and recovery status'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('clearfeedback')
+                .setDescription(
+                    'Clear your personal autoplay feedback history (likes and dislikes)',
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
 
         const subcommand = interaction.options.getSubcommand()
+
+        if (subcommand === 'clearfeedback') {
+            await recommendationFeedbackService.clearFeedback(
+                interaction.user.id,
+            )
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        successEmbed(
+                            'Feedback cleared',
+                            'Your autoplay feedback history has been cleared. Autoplay will no longer filter previously disliked tracks.',
+                        ),
+                    ],
+                    ephemeral: true,
+                },
+            })
+            return
+        }
+
         if (subcommand !== 'health') {
             await interactionReply({
                 interaction,
@@ -190,10 +211,7 @@ export default new Command({
         const watchdog = musicWatchdogService.getGuildState(guildId)
         const snapshot = await musicSessionSnapshotService.getSnapshot(guildId)
         const providers = Object.values(providerHealthService.getAllStatuses())
-        const feedbackState = await formatFeedbackState(
-            guildId,
-            interaction.user.id,
-        )
+        const feedbackState = await formatFeedbackState(interaction.user.id)
         const actions = buildActionableSteps({
             queue,
             providers,
