@@ -13,6 +13,14 @@ const getAllStatusesMock = jest.fn()
 const getGuildStateMock = jest.fn()
 const getSnapshotMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
+const getDislikedTrackKeysMock = jest.fn()
+
+jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        getDislikedTrackKeys: (...args: unknown[]) =>
+            getDislikedTrackKeysMock(...args),
+    },
+}))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -54,6 +62,7 @@ jest.mock('../../../utils/music/queueResolver', () => ({
 function createInteraction(subcommand = 'health', guildId = 'guild-1') {
     return {
         guildId,
+        user: { id: 'user-1' },
         options: {
             getSubcommand: jest.fn(() => subcommand),
         },
@@ -87,6 +96,7 @@ describe('music command', () => {
             lastRecoveryDetail: null,
         })
         getSnapshotMock.mockResolvedValue(null)
+        getDislikedTrackKeysMock.mockResolvedValue(new Set())
         resolveGuildQueueMock.mockReturnValue({
             queue: null,
             source: 'miss',
@@ -296,5 +306,30 @@ describe('music command', () => {
         expect(watchdogField?.value).toContain(
             'Last recovery detail: started_next_track',
         )
+    })
+
+    it('shows disliked track count in recommendation feedback field', async () => {
+        getDislikedTrackKeysMock.mockResolvedValue(
+            new Set(['track::artist1', 'track::artist2']),
+        )
+
+        await musicCommand.execute({
+            client: createClient(),
+            interaction: {
+                ...createInteraction(),
+                user: { id: 'user-1' },
+            },
+        } as any)
+
+        const payload = createEmbedMock.mock.calls.at(-1)?.[0] as {
+            fields: Array<{ name: string; value: string }>
+        }
+        const feedbackField = payload.fields.find(
+            (field) => field.name === 'Recommendation feedback',
+        )
+
+        expect(feedbackField).toBeDefined()
+        expect(feedbackField?.value).toContain('Disliked tracks: 2')
+        expect(getDislikedTrackKeysMock).toHaveBeenCalledWith('guild-1', expect.any(String))
     })
 })
