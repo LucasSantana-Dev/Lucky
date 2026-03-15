@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Provider health cooldown state is now **persisted to Redis** and restored on bot startup, so rate-limited providers remain in cooldown across restarts. TTL is set to `2 × MUSIC_PROVIDER_COOLDOWN_MS` (default 4 min). Falls back gracefully when Redis is unavailable (#280).
+
 ## [2.6.20] - 2026-03-15
 
 ### Added
