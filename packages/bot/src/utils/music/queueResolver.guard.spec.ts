@@ -52,8 +52,6 @@ describe('queue resolver guardrails', () => {
             }
         }
 
-        expect(violations).toEqual([
-            'src/functions/music/commands/play/index.ts',
-        ])
+        expect(violations).toEqual([])
     })
 })
