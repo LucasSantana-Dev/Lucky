@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.26] - 2026-03-16
+
+### Added
+
+- **`/starboard`**: star-worthy messages rise to a configurable starboard channel. Subcommands: `setup` (set channel, emoji, threshold, self-star toggle), `disable`, `top` (top starred messages), `status`. Powered by new `StarboardService` with Prisma-backed `StarboardConfig` and `StarboardEntry` models.
+- **`/level`**: per-guild XP system with level-up announcements and role rewards. Subcommands: `rank` (your or another member's XP/level), `leaderboard`, `setup` (configure XP per message, cooldown, announce channel), `reward add/remove`. Powered by new `LevelService` with `LevelConfig`, `MemberXP`, and `LevelReward` Prisma models. XP is awarded on each message after a configurable cooldown.
+
 ## [2.6.25] - 2026-03-16
 
 ### Added
