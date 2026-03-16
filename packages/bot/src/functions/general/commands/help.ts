@@ -11,6 +11,7 @@ import {
     getCommandCategory,
     getAllCategories,
 } from '../../../utils/command/commandCategory'
+import { EMBED_COLORS } from '../../../utils/general/embeds'
 
 function buildCategoryCommands(
     commands: Map<string, Command>,
@@ -26,7 +27,7 @@ function buildCategoryCommands(
         const category = getCommandCategory(command)
         const commandData = command.data
         categoryCommands[category].push(
-            `**/${commandData.name}** - ${commandData.description}`,
+            `**/${commandData.name}** — ${commandData.description}`,
         )
     })
 
@@ -39,21 +40,28 @@ function createHelpEmbed(
     interaction: ChatInputCommandInteraction,
 ): EmbedBuilder {
     const categories = getAllCategories()
+    const totalCommands = Object.values(categoryCommands).reduce(
+        (sum, cmds) => sum + cmds.length,
+        0,
+    )
+
     const embed = new EmbedBuilder()
-        .setColor('#0099ff')
-        .setTitle('📚 Bot Help — Commands by Category')
-        .setDescription('Available DiscordBot commands.')
+        .setColor(EMBED_COLORS.INFO)
+        .setTitle('📚 Lucky — Command Reference')
+        .setDescription(
+            'All available slash commands grouped by category. Use `/` to start any command.',
+        )
         .setThumbnail(client.user?.displayAvatarURL() ?? '')
         .setTimestamp()
         .setFooter({
-            text: `Requested by ${interaction.user.tag}`,
+            text: `${totalCommands} commands · Requested by ${interaction.user.tag}`,
             iconURL: interaction.user.displayAvatarURL(),
         })
 
     for (const { key, label } of categories) {
         if (categoryCommands[key].length > 0) {
             embed.addFields({
-                name: label,
+                name: `${label} (${categoryCommands[key].length})`,
                 value: `\u200B\n${categoryCommands[key].join('\n')}`,
                 inline: false,
             })

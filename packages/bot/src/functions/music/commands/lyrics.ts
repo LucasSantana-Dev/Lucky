@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { musicEmbed } from '../../../utils/general/embeds'
+import { errorEmbed, musicEmbed, warningEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
 import { featureToggleService } from '@lucky/shared/services'
@@ -31,7 +31,13 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    content: 'Lyrics feature is currently disabled',
+                    embeds: [
+                        warningEmbed(
+                            'Feature unavailable',
+                            'The lyrics feature is currently disabled.',
+                        ),
+                    ],
+                    ephemeral: true,
                 },
             })
             return
@@ -46,7 +52,12 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: {
-                        content: 'This command can only be used in a server.',
+                        embeds: [
+                            errorEmbed(
+                                'Server only',
+                                'This command can only be used in a server.',
+                            ),
+                        ],
                         ephemeral: true,
                     },
                 })
