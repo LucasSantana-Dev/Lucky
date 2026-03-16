@@ -129,13 +129,13 @@ describe('bot presence', () => {
             },
         }
 
-        const stop = startPresenceRotation(client as never)
+        const controls = startPresenceRotation(client as never)
 
         expect(setPresence).toHaveBeenCalledTimes(1)
         jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
         expect(setPresence).toHaveBeenCalledTimes(2)
 
-        stop()
+        controls.stop()
         jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
         expect(setPresence).toHaveBeenCalledTimes(2)
         jest.useRealTimers()

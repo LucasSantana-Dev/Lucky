@@ -5,8 +5,9 @@ import type { CustomClient } from '../../types'
 import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
 import { startPresenceRotation } from './presence'
+import { initMusicPresence } from '../../services/MusicPresenceService'
 
-let stopPresenceRotation: (() => void) | null = null
+let presenceControls: { stop: () => void; pause: () => void; resume: () => void } | null = null
 
 export async function createClient(): Promise<CustomClient> {
     try {
@@ -54,8 +55,9 @@ export async function startClient({
                     infoLog({
                         message: `Bot logged in as ${client.user.tag}`,
                     })
-                    stopPresenceRotation?.()
-                    stopPresenceRotation = startPresenceRotation(client)
+                    presenceControls?.stop()
+                    presenceControls = startPresenceRotation(client)
+                    initMusicPresence(client, presenceControls.pause, presenceControls.resume)
                 }
 
                 const rest = new REST({ version: '10' }).setToken(TOKEN)
