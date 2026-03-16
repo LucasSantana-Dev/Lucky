@@ -9,7 +9,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 
-const AUTOPLAY_BUFFER_SIZE = 4
+const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
@@ -241,6 +241,36 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
     } catch (error) {
         errorLog({ message: 'Error replenishing queue:', error })
     }
+}
+
+export function insertUserTrackWithPriority(queue: GuildQueue, track: Track): void {
+    const tracks = queue.tracks.toArray()
+    const firstAutoplayIndex = tracks.findIndex((t) => {
+        const meta = (t as unknown as { metadata?: Record<string, unknown> }).metadata
+        return meta?.isAutoplay === true
+    })
+    if (firstAutoplayIndex === -1) {
+        queue.addTrack(track)
+    } else {
+        queue.insertTrack(track, firstAutoplayIndex)
+    }
+    debugLog({ message: 'User track inserted with priority', data: { guildId: queue.guild.id, track: track.title } })
+}
+
+export async function blendAutoplayTracks(queue: GuildQueue, newSeedTrack: Track, blendRatio = 0.5): Promise<void> {
+    const tracks = queue.tracks.toArray()
+    const autoplayTracks = tracks.filter((t) => {
+        const meta = (t as unknown as { metadata?: Record<string, unknown> }).metadata
+        return meta?.isAutoplay === true
+    })
+    const removeCount = Math.floor(autoplayTracks.length * blendRatio)
+    for (let i = 0; i < removeCount; i++) {
+        const t = autoplayTracks[i]
+        queue.node.remove(t)
+    }
+    const queueWithNewSeed = { ...queue, currentTrack: newSeedTrack } as GuildQueue
+    await replenishQueue(queueWithNewSeed)
+    debugLog({ message: 'Autoplay blend complete', data: { guildId: queue.guild.id, removedCount: removeCount } })
 }
 
 function randomIndex(maxExclusive: number): number {

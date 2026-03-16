@@ -6,6 +6,8 @@ import {
     removeTrackFromQueue,
     moveTrackInQueue,
     rescueQueue,
+    insertUserTrackWithPriority,
+    blendAutoplayTracks,
 } from './queueManipulation'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -341,8 +343,6 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('caps autoplay to maxTracksPerArtist when same-artist candidates score highest', async () => {
-        // 3 tracks from 'Artist B' + 1 from 'Artist C'. With MAX_TRACKS_PER_ARTIST=2 (default),
-        // should pick at most 2 from 'Artist B' + 1 from 'Artist C' = 3 total (buffer needs 4)
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             player: {
@@ -359,7 +359,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Should have at most 2 tracks from Artist B + 1 from Artist C = 3 total
         const calls = queue.addTrack.mock.calls
         const artistBCount = calls.filter((c) =>
             (c[0] as Track).author === 'Artist B'
@@ -369,7 +368,6 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('caps autoplay tracks by source when all candidates are from same source', async () => {
-        // 5 candidates all from 'youtube'. With MAX_TRACKS_PER_SOURCE=3 (default), at most 3 selected.
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             currentTrack: { title: 'Song A', author: 'Artist A', url: 'https://example.com/a', source: 'spotify' } as unknown as Track,
@@ -616,5 +614,123 @@ describe('queueManipulation.queueOperations', () => {
         expect(result.removedTracks).toBe(1)
         expect(result.keptTracks).toBe(0)
         expect((queue as any).addTrack).not.toHaveBeenCalled()
+    })
+})
+
+describe('queueManipulation.insertUserTrackWithPriority', () => {
+    it('appends track when no autoplay tracks exist', () => {
+        const track = { title: 'User Track', author: 'User' } as Track
+        const existingTrack = { title: 'Normal Track', metadata: {} } as Track
+        const addTrackMock = jest.fn()
+        const insertTrackMock = jest.fn()
+        const queue = {
+            guild: { id: 'guild-1' },
+            tracks: { toArray: jest.fn().mockReturnValue([existingTrack]) },
+            addTrack: addTrackMock,
+            insertTrack: insertTrackMock,
+        } as unknown as GuildQueue
+
+        insertUserTrackWithPriority(queue, track)
+
+        expect(addTrackMock).toHaveBeenCalledWith(track)
+        expect(insertTrackMock).not.toHaveBeenCalled()
+    })
+
+    it('inserts before first autoplay track', () => {
+        const userTrack = { title: 'User Track', author: 'User' } as Track
+        const autoplayTrack = { title: 'Auto Track', metadata: { isAutoplay: true } } as Track
+        const normalTrack = { title: 'Normal Track', metadata: {} } as Track
+        const addTrackMock = jest.fn()
+        const insertTrackMock = jest.fn()
+        const queue = {
+            guild: { id: 'guild-1' },
+            tracks: { toArray: jest.fn().mockReturnValue([normalTrack, autoplayTrack]) },
+            addTrack: addTrackMock,
+            insertTrack: insertTrackMock,
+        } as unknown as GuildQueue
+
+        insertUserTrackWithPriority(queue, userTrack)
+
+        expect(insertTrackMock).toHaveBeenCalledWith(userTrack, 1)
+        expect(addTrackMock).not.toHaveBeenCalled()
+    })
+
+    it('inserts at index 0 when all tracks are autoplay', () => {
+        const userTrack = { title: 'User Track', author: 'User' } as Track
+        const autoplayTrack1 = { title: 'Auto 1', metadata: { isAutoplay: true } } as Track
+        const autoplayTrack2 = { title: 'Auto 2', metadata: { isAutoplay: true } } as Track
+        const addTrackMock = jest.fn()
+        const insertTrackMock = jest.fn()
+        const queue = {
+            guild: { id: 'guild-1' },
+            tracks: { toArray: jest.fn().mockReturnValue([autoplayTrack1, autoplayTrack2]) },
+            addTrack: addTrackMock,
+            insertTrack: insertTrackMock,
+        } as unknown as GuildQueue
+
+        insertUserTrackWithPriority(queue, userTrack)
+
+        expect(insertTrackMock).toHaveBeenCalledWith(userTrack, 0)
+        expect(addTrackMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('queueManipulation.blendAutoplayTracks', () => {
+    beforeEach(() => {
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+    })
+
+    it('removes half of autoplay tracks and calls replenishQueue', async () => {
+        const autoTrack1 = { title: 'Auto 1', metadata: { isAutoplay: true } } as Track
+        const autoTrack2 = { title: 'Auto 2', metadata: { isAutoplay: true } } as Track
+        const userTrack = { title: 'User Track', metadata: {} } as Track
+        const newSeedTrack = { title: 'New Seed', author: 'Artist', url: 'https://example.com/seed', requestedBy: { id: 'u1' } } as Track
+        const removeMock = jest.fn()
+        const addTrackMock = jest.fn()
+        const queue = {
+            guild: { id: 'guild-1' },
+            tracks: {
+                size: 3,
+                toArray: jest.fn().mockReturnValue([userTrack, autoTrack1, autoTrack2]),
+            },
+            node: { remove: removeMock },
+            currentTrack: newSeedTrack,
+            metadata: {},
+            addTrack: addTrackMock,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [{ title: 'New Auto', author: 'New Artist', url: 'https://example.com/new' }],
+                }),
+            },
+        } as unknown as GuildQueue
+
+        await blendAutoplayTracks(queue, newSeedTrack)
+
+        expect(removeMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('does nothing when there are no autoplay tracks', async () => {
+        const userTrack = { title: 'User Track', metadata: {} } as Track
+        const newSeedTrack = { title: 'New Seed', author: 'Artist', url: 'https://example.com/seed' } as Track
+        const removeMock = jest.fn()
+        const queue = {
+            guild: { id: 'guild-1' },
+            tracks: {
+                size: 1,
+                toArray: jest.fn().mockReturnValue([userTrack]),
+            },
+            node: { remove: removeMock },
+            currentTrack: newSeedTrack,
+            metadata: {},
+            addTrack: jest.fn(),
+            player: {
+                search: jest.fn().mockResolvedValue({ tracks: [] }),
+            },
+        } as unknown as GuildQueue
+
+        await blendAutoplayTracks(queue, newSeedTrack)
+
+        expect(removeMock).not.toHaveBeenCalled()
     })
 })

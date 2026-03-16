@@ -12,6 +12,7 @@ import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
 import { reactionRolesService } from '@lucky/shared/services'
+import { handleMusicButtonInteraction } from './musicButtonHandler'
 
 type HandleInteractionsParams = {
     client: CustomClient
@@ -97,7 +98,17 @@ export async function handleInteraction(
         }
 
         if (interaction.isButton()) {
-            await reactionRolesService.handleButtonInteraction(interaction)
+            const id = interaction.customId
+            if (
+                id.startsWith('music_') ||
+                id.startsWith('queue_page')
+            ) {
+                await handleMusicButtonInteraction(interaction)
+                return
+            }
+            await reactionRolesService.handleButtonInteraction(
+                interaction,
+            )
         }
     } catch (error) {
         errorLog({ message: 'Error handling interaction:', error })

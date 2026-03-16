@@ -33,8 +33,11 @@ export async function formatTrackForDisplay(
 export async function createTrackListDisplay(
     tracks: Track[],
     options: QueueDisplayOptions,
+    page = 0,
 ): Promise<string> {
-    const displayTracks = tracks.slice(0, options.maxTracksToShow)
+    const tracksPerPage = options.maxTracksToShow
+    const startIndex = page * tracksPerPage
+    const displayTracks = tracks.slice(startIndex, startIndex + tracksPerPage)
     const trackDisplays = []
 
     for (let i = 0; i < displayTracks.length; i++) {

@@ -1,0 +1,184 @@
+import { type ButtonInteraction, type GuildMember } from 'discord.js'
+import { useQueue, QueueRepeatMode } from 'discord-player'
+import { debugLog, errorLog } from '@lucky/shared/utils'
+import { createErrorEmbed } from '../utils/general/embeds'
+import {
+    MUSIC_BUTTON_IDS,
+    QUEUE_BUTTON_PREFIX,
+} from '../types/musicButtons'
+import { createMusicControlButtons } from '../utils/music/buttonComponents'
+import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
+import { shuffleQueue } from '../utils/music/queueManipulation'
+import type { GuildQueue } from 'discord-player'
+
+type NonNullQueue = NonNullable<ReturnType<typeof useQueue>>
+
+export async function handleMusicButtonInteraction(
+    interaction: ButtonInteraction,
+): Promise<void> {
+    try {
+        const member = interaction.member as GuildMember
+        if (!member.voice.channel) {
+            await interaction.reply({
+                embeds: [
+                    createErrorEmbed(
+                        'Not in Voice',
+                        'Join a voice channel first',
+                    ),
+                ],
+                ephemeral: true,
+            })
+            return
+        }
+
+        const queue = useQueue(interaction.guildId!)
+        if (!queue) {
+            await interaction.reply({
+                embeds: [
+                    createErrorEmbed(
+                        'No Music',
+                        'Nothing is playing right now',
+                    ),
+                ],
+                ephemeral: true,
+            })
+            return
+        }
+
+        await routeButtonAction(interaction, queue)
+    } catch (error) {
+        errorLog({
+            message: 'Music button interaction error',
+            error,
+        })
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction
+                .reply({
+                    embeds: [
+                        createErrorEmbed('Error', 'Something went wrong'),
+                    ],
+                    ephemeral: true,
+                })
+                .catch(() => {})
+        }
+    }
+}
+
+async function routeButtonAction(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    const { customId } = interaction
+
+    switch (customId) {
+        case MUSIC_BUTTON_IDS.PREVIOUS:
+            return handlePrevious(interaction, queue)
+        case MUSIC_BUTTON_IDS.PAUSE_RESUME:
+            return handlePauseResume(interaction, queue)
+        case MUSIC_BUTTON_IDS.SKIP:
+            return handleSkip(interaction, queue)
+        case MUSIC_BUTTON_IDS.SHUFFLE:
+            return handleShuffle(interaction, queue)
+        case MUSIC_BUTTON_IDS.LOOP:
+            return handleLoop(interaction, queue)
+        default:
+            if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
+                return handleQueuePage(interaction, queue)
+            }
+    }
+}
+
+async function handlePrevious(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    await queue.history.back()
+    debugLog({ message: 'Previous track via button' })
+    await interaction.deferUpdate()
+}
+
+async function handlePauseResume(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    if (queue.node.isPaused()) {
+        queue.node.resume()
+    } else {
+        queue.node.pause()
+    }
+
+    await interaction.update({
+        components: [createMusicControlButtons(queue)],
+    })
+}
+
+async function handleSkip(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    queue.node.skip()
+    debugLog({ message: 'Track skipped via button' })
+    await interaction.deferUpdate()
+}
+
+async function handleShuffle(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    await shuffleQueue(queue)
+    debugLog({ message: 'Queue shuffled via button' })
+    await interaction.deferUpdate()
+}
+
+const LOOP_MODE_NAMES: Record<number, string> = {
+    [QueueRepeatMode.OFF]: 'Off',
+    [QueueRepeatMode.TRACK]: 'Track',
+    [QueueRepeatMode.QUEUE]: 'Queue',
+    [QueueRepeatMode.AUTOPLAY]: 'Autoplay',
+}
+
+const LOOP_MODE_ORDER = [
+    QueueRepeatMode.OFF,
+    QueueRepeatMode.TRACK,
+    QueueRepeatMode.QUEUE,
+    QueueRepeatMode.AUTOPLAY,
+]
+
+async function handleLoop(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    const currentIdx = LOOP_MODE_ORDER.indexOf(queue.repeatMode)
+    const nextIdx = (currentIdx + 1) % LOOP_MODE_ORDER.length
+    const newMode = LOOP_MODE_ORDER[nextIdx]
+    queue.setRepeatMode(newMode)
+
+    const modeName = LOOP_MODE_NAMES[newMode] ?? 'Off'
+    await interaction.reply({
+        content: `\u{1F501} Loop mode: **${modeName}**`,
+        ephemeral: true,
+    })
+}
+
+async function handleQueuePage(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    const pageMatch = interaction.customId.match(
+        /queue_page_(\d+)/,
+    )
+    if (!pageMatch?.[1]) return
+
+    const page = parseInt(pageMatch[1], 10)
+    const { embed, components } = await createQueueEmbed(
+        queue,
+        undefined,
+        page,
+    )
+
+    await interaction.update({
+        embeds: [embed],
+        components,
+    })
+    debugLog({ message: `Queue page: ${page}` })
+}
