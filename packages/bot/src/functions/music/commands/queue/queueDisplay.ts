@@ -54,16 +54,20 @@ export async function createTrackListDisplay(
     const userTracks = pageTracks.filter((t) => !isAutoplayTrack(t))
     const autoTracks = pageTracks.filter((t) => isAutoplayTrack(t))
 
-    const sections: string[] = []
-
-    if (userTracks.length > 0) {
+    const renderSection = async (bucket: Track[]): Promise<string> => {
         const lines: string[] = []
-        for (const track of userTracks) {
+        for (const track of bucket) {
             const idx = tracks.indexOf(track)
             const info = await formatTrackForDisplay(track, idx, options)
             lines.push(formatSingleTrack(info, idx))
         }
-        sections.push(lines.join('\n'))
+        return lines.join('\n')
+    }
+
+    const sections: string[] = []
+
+    if (userTracks.length > 0) {
+        sections.push(await renderSection(userTracks))
     }
 
     if (autoTracks.length > 0) {
@@ -72,13 +76,7 @@ export async function createTrackListDisplay(
                 '\u2500\u2500\u2500 \u{1F916} Autoplay Recommendations \u2500\u2500\u2500',
             )
         }
-        const lines: string[] = []
-        for (const track of autoTracks) {
-            const idx = tracks.indexOf(track)
-            const info = await formatTrackForDisplay(track, idx, options)
-            lines.push(formatSingleTrack(info, idx))
-        }
-        sections.push(lines.join('\n'))
+        sections.push(await renderSection(autoTracks))
     }
 
     let result = sections.join('\n')
