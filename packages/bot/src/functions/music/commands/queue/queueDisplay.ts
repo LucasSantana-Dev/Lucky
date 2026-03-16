@@ -3,16 +3,16 @@ import { getTrackInfo } from '../../../../utils/music/trackUtils'
 import { isSimilarTitle } from '../../../../utils/music/titleComparison'
 import type { TrackDisplayInfo, QueueDisplayOptions } from './types'
 
-/**
- * Format track information for display
- */
 export async function formatTrackForDisplay(
     track: Track,
     position: number,
     _options: QueueDisplayOptions,
 ): Promise<TrackDisplayInfo> {
     const trackInfo = await getTrackInfo(track)
-    const metadata = (track.metadata ?? {}) as { isAutoplay?: boolean; recommendationReason?: string }
+    const metadata = (track.metadata ?? {}) as {
+        isAutoplay?: boolean
+        recommendationReason?: string
+    }
 
     return {
         title: track.title,
@@ -27,40 +27,68 @@ export async function formatTrackForDisplay(
     }
 }
 
-/**
- * Create track list display string
- */
+function isAutoplayTrack(track: Track): boolean {
+    const meta = (track.metadata ?? {}) as { isAutoplay?: boolean }
+    return meta.isAutoplay === true
+}
+
+function formatSingleTrack(info: TrackDisplayInfo, index: number): string {
+    const marker = info.isAutoplay ? '\u{1F916}' : '\u{1F464}'
+    const reason =
+        info.isAutoplay && info.recommendationReason
+            ? ` \u2014 _${info.recommendationReason}_`
+            : ''
+    const by = info.requestedBy ? ` \u2022 ${info.requestedBy}` : ''
+    return `${marker} ${index + 1}. [${info.title}](${info.url}) - ${info.author} (${info.duration})${by}${reason}`
+}
+
 export async function createTrackListDisplay(
     tracks: Track[],
     options: QueueDisplayOptions,
+    page = 0,
 ): Promise<string> {
-    const displayTracks = tracks.slice(0, options.maxTracksToShow)
-    const trackDisplays = []
+    const perPage = options.maxTracksToShow
+    const start = page * perPage
+    const pageTracks = tracks.slice(start, start + perPage)
 
-    for (let i = 0; i < displayTracks.length; i++) {
-        const track = displayTracks[i]
-        const trackInfo = await formatTrackForDisplay(track, i + 1, options)
+    const userTracks = pageTracks.filter((t) => !isAutoplayTrack(t))
+    const autoTracks = pageTracks.filter((t) => isAutoplayTrack(t))
 
-        const reasonTag =
-            trackInfo.isAutoplay && trackInfo.recommendationReason
-                ? ` — _${trackInfo.recommendationReason}_`
-                : ''
-        const trackDisplay = `${i + 1}. [${trackInfo.title}](${trackInfo.url}) - ${trackInfo.author} (${trackInfo.duration})${reasonTag}`
-        trackDisplays.push(trackDisplay)
+    const renderSection = async (bucket: Track[]): Promise<string> => {
+        const lines: string[] = []
+        for (const track of bucket) {
+            const idx = tracks.indexOf(track)
+            const info = await formatTrackForDisplay(track, idx, options)
+            lines.push(formatSingleTrack(info, idx))
+        }
+        return lines.join('\n')
     }
 
-    let result = trackDisplays.join('\n')
+    const sections: string[] = []
 
-    if (tracks.length > options.maxTracksToShow) {
-        result += `\n... and ${tracks.length - options.maxTracksToShow} more tracks`
+    if (userTracks.length > 0) {
+        sections.push(await renderSection(userTracks))
     }
 
-    return result
+    if (autoTracks.length > 0) {
+        if (userTracks.length > 0) {
+            sections.push(
+                '\u2500\u2500\u2500 \u{1F916} Autoplay Recommendations \u2500\u2500\u2500',
+            )
+        }
+        sections.push(await renderSection(autoTracks))
+    }
+
+    let result = sections.join('\n')
+
+    if (tracks.length > start + perPage) {
+        const remaining = tracks.length - (start + perPage)
+        result += `\n... and ${remaining} more tracks`
+    }
+
+    return result || 'No tracks in queue'
 }
 
-/**
- * Check for similar tracks in queue
- */
 export async function findSimilarTracksInQueue(
     currentTrack: Track,
     upcomingTracks: Track[],
@@ -76,9 +104,6 @@ export async function findSimilarTracksInQueue(
     return similarTracks
 }
 
-/**
- * Create queue summary
- */
 export function createQueueSummary(
     totalTracks: number,
     totalDuration: string,
@@ -93,12 +118,9 @@ export function createQueueSummary(
         summary.push(`**Current Position:** ${formatTime(currentPosition)}`)
     }
 
-    return summary.join(' • ')
+    return summary.join(' \u2022 ')
 }
 
-/**
- * Format time in seconds to readable format
- */
 function formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)

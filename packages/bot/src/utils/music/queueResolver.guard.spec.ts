@@ -6,10 +6,7 @@ const TARGET_DIRECTORIES = [
     'src/functions/music/commands',
     'src/handlers/webMusic',
 ]
-const FORBIDDEN_PATTERNS = [
-    /\.player\.nodes\.get\(/,
-    /\.player\.queues\.get\(/,
-]
+const FORBIDDEN_PATTERNS = [/\.player\.nodes\.get\(/, /\.player\.queues\.get\(/]
 
 function readTsFiles(directory: string): string[] {
     const absolute = path.resolve(ROOT, directory)
@@ -26,7 +23,10 @@ function readTsFiles(directory: string): string[] {
 
         if (!entry.isFile()) continue
         if (!entry.name.endsWith('.ts')) continue
-        if (entry.name.endsWith('.spec.ts') || entry.name.endsWith('.test.ts')) {
+        if (
+            entry.name.endsWith('.spec.ts') ||
+            entry.name.endsWith('.test.ts')
+        ) {
             continue
         }
 
