@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.27] - 2026-03-16
+
+### Changed
+
+- **UI/UX overhaul**: replaced generic flat visuals with a premium dark-dashboard aesthetic across the web frontend.
+  - `Button`: gradient fills (purple → deep purple for primary, gold → amber for accent) with matching glow box-shadows on hover; `active:scale-[0.97]` press feedback.
+  - `Card`: depth shadows, `rounded-xl`, hover glow, and optional `glow` prop for accent-bordered cards.
+  - `StatTile`: per-tone icon drop-shadow, gradient overlay tint, animated fade-up entrance on the value.
+  - `EmptyState`: gradient-ring icon container with purple ambient overlay instead of plain background.
+  - `Layout` header: 1 px purple → transparent → gold gradient accent line below the sticky header bar.
+  - `Login` page: gradient hero text (`lucky-gradient-text`), toned stat tiles, animated entrance stagger, accent-gradient Discord OAuth button, hover icon glow on feature tiles.
+  - `NowPlaying`: album-art ambient glow (purple) while playing, gradient progress bar (purple → gold), blur overlay on playing-state indicator.
+  - Design system (`index.css`): new CSS vars for brand/accent glows and gradients, `glow-pulse`, `float`, `count-up` keyframes, `surface-elevated`, `surface-glass`, `.lucky-gradient-text`, `.lucky-header-accent-line` utilities.
+
 ## [2.6.26] - 2026-03-16
 
 ### Added
