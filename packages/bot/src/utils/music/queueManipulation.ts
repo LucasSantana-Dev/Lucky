@@ -181,6 +181,68 @@ export async function moveTrackInQueue(
     }
 }
 
+export function insertUserTrackWithPriority(
+    queue: GuildQueue,
+    track: Track,
+): void {
+    const tracks = queue.tracks.toArray()
+    const firstAutoplayIndex = tracks.findIndex((t) => {
+        const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
+        return meta.isAutoplay === true
+    })
+
+    if (firstAutoplayIndex === -1) {
+        queue.addTrack(track)
+    } else {
+        queue.insertTrack(track, firstAutoplayIndex)
+    }
+
+    debugLog({
+        message: 'User track inserted with priority',
+        data: {
+            title: track.title,
+            position:
+                firstAutoplayIndex === -1 ? tracks.length : firstAutoplayIndex,
+        },
+    })
+}
+
+export async function blendAutoplayTracks(
+    queue: GuildQueue,
+    newSeedTrack: Track,
+    blendRatio = 0.5,
+): Promise<void> {
+    const tracks = queue.tracks.toArray()
+    const autoplayTracks = tracks.filter((t) => {
+        const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
+        return meta.isAutoplay === true
+    })
+
+    if (autoplayTracks.length === 0) return
+
+    const keepCount = Math.ceil(autoplayTracks.length * blendRatio)
+    const toRemove = autoplayTracks.slice(keepCount)
+
+    for (const track of toRemove) {
+        try {
+            queue.node.remove(track)
+        } catch {
+            // Track may already be removed
+        }
+    }
+
+    debugLog({
+        message: 'Autoplay tracks blended',
+        data: {
+            kept: keepCount,
+            removed: toRemove.length,
+            newSeed: newSeedTrack.title,
+        },
+    })
+
+    await replenishQueue(queue)
+}
+
 export async function replenishQueue(queue: GuildQueue): Promise<void> {
     try {
         debugLog({
