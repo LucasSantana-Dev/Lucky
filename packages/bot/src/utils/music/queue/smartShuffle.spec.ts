@@ -78,8 +78,10 @@ describe('smartShuffle', () => {
     })
 
     test('requester streak never exceeds streakLimit=2 with balanced requesters', () => {
-        const tracks = Array.from({ length: 10 }, (_, i) =>
-            makeTrack(`T${i}`, 'youtube', '3:00', i < 5 ? 'u1' : 'u2'),
+        // Use equal-ratio pools (3u1 : 3u2) so neither pool exhausts before the other,
+        // guaranteeing the algorithm can always break a streak.
+        const tracks = Array.from({ length: 6 }, (_, i) =>
+            makeTrack(`T${i}`, 'youtube', '3:00', i < 3 ? 'u1' : 'u2'),
         )
         const result = smartShuffle(tracks, { streakLimit: 2 })
         for (let i = 2; i < result.length; i++) {
