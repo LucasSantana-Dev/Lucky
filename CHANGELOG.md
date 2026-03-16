@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.29] - 2026-03-16
+
+### Added
+
+- AutoMessages page wired to real backend API (`/api/guilds/:guildId/automessages`): list, create, edit, toggle, and delete auto-messages via a modal form; was a non-functional stub with a fake `setTimeout` (#319)
+- New `autoMessagesApi` service client in the frontend API layer (#319)
+
+### Fixed
+
+- Dashboard Overview: removed hardcoded fake trend percentages (`+8%` / `-3%`) from the Cases by Type section (#319)
+- Server Logs: pagination now correctly passes the page offset to the backend API instead of always fetching the first page (#319)
+
 ## [2.6.28] - 2026-03-16
 
 ### Added
