@@ -8,6 +8,7 @@ const handleMessageCreateMock = jest.fn()
 const handleMemberEventsMock = jest.fn()
 const handleAuditEventsMock = jest.fn()
 const handleExternalScrobblerMock = jest.fn()
+const handleReactionEventsMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -36,6 +37,11 @@ jest.mock('./auditHandler', () => ({
 jest.mock('./externalScrobbler', () => ({
     handleExternalScrobbler: (...args: unknown[]) =>
         handleExternalScrobblerMock(...args),
+}))
+
+jest.mock('./reactionHandler', () => ({
+    handleReactionEvents: (...args: unknown[]) =>
+        handleReactionEventsMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({

@@ -562,3 +562,72 @@ model ServerLog {
   @@index([userId])
   @@map("server_logs")
 }
+
+model StarboardConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  channelId String
+  emoji     String   @default("⭐")
+  threshold Int      @default(3)
+  selfStar  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("starboard_configs")
+}
+
+model StarboardEntry {
+  id             String   @id @default(cuid())
+  guildId        String
+  messageId      String
+  channelId      String
+  authorId       String
+  starboardMsgId String?
+  starCount      Int      @default(0)
+  content        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([guildId, messageId])
+  @@index([guildId])
+  @@map("starboard_entries")
+}
+
+model LevelConfig {
+  id              String   @id @default(cuid())
+  guildId         String   @unique
+  enabled         Boolean  @default(true)
+  xpPerMessage    Int      @default(15)
+  xpCooldownMs    Int      @default(60000)
+  announceChannel String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("level_configs")
+}
+
+model MemberXP {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  xp        Int      @default(0)
+  level     Int      @default(0)
+  lastXpAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId])
+  @@map("member_xp")
+}
+
+model LevelReward {
+  id      String @id @default(cuid())
+  guildId String
+  level   Int
+  roleId  String
+
+  @@unique([guildId, level])
+  @@index([guildId])
+  @@map("level_rewards")
+}
