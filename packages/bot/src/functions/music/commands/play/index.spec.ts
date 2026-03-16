@@ -1,4 +1,25 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
+const insertUserTrackWithPriorityMock = jest.fn()
+const blendAutoplayTracksMock = jest.fn().mockResolvedValue(undefined)
+
+jest.mock('../../../../utils/music/queueManipulation', () => ({
+    insertUserTrackWithPriority: (...args: unknown[]) =>
+        insertUserTrackWithPriorityMock(...args),
+    blendAutoplayTracks: (...args: unknown[]) =>
+        blendAutoplayTracksMock(...args),
+}))
+
+jest.mock('discord-player', () => ({
+    QueryType: {},
+    QueueRepeatMode: {
+        OFF: 0,
+        TRACK: 1,
+        QUEUE: 2,
+        AUTOPLAY: 3,
+    },
+}))
+
 import playCommand from './index'
 
 const requireVoiceChannelMock = jest.fn()
@@ -17,7 +38,8 @@ const canAddTracksMock = jest.fn()
 const recordContributionMock = jest.fn()
 
 jest.mock('../../../../utils/command/commandValidations', () => ({
-    requireVoiceChannel: (...args: unknown[]) => requireVoiceChannelMock(...args),
+    requireVoiceChannel: (...args: unknown[]) =>
+        requireVoiceChannelMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -32,7 +54,8 @@ jest.mock('../../../../utils/general/embeds', () => ({
 jest.mock('../../../../utils/music/collaborativePlaylist', () => ({
     collaborativePlaylistService: {
         canAddTracks: (...args: unknown[]) => canAddTracksMock(...args),
-        recordContribution: (...args: unknown[]) => recordContributionMock(...args),
+        recordContribution: (...args: unknown[]) =>
+            recordContributionMock(...args),
     },
 }))
 
@@ -51,10 +74,23 @@ function createInteraction(guildId: string | null) {
     } as any
 }
 
-function createClient(playImpl: (...args: unknown[]) => unknown) {
+function createClient(
+    playImpl: (...args: unknown[]) => unknown,
+    queueOptions?: { repeatMode?: number; tracksSize?: number },
+) {
+    const queue = queueOptions
+        ? {
+              repeatMode: queueOptions.repeatMode ?? 0,
+              tracks: { size: queueOptions.tracksSize ?? 0 },
+          }
+        : null
+
     return {
         player: {
             play: jest.fn(playImpl),
+            nodes: {
+                get: jest.fn(() => queue),
+            },
         },
     } as any
 }
@@ -64,6 +100,8 @@ describe('play command', () => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
         canAddTracksMock.mockReturnValue({ allowed: true, limit: 3 })
+        insertUserTrackWithPriorityMock.mockImplementation(() => {})
+        blendAutoplayTracksMock.mockResolvedValue(undefined)
     })
 
     it('rejects command outside guilds', async () => {
@@ -103,12 +141,19 @@ describe('play command', () => {
         }
 
         await playCommand.execute({
-            client: createClient(async () => result),
+            client: createClient(async () => result, {
+                repeatMode: 3,
+                tracksSize: 2,
+            }),
             interaction,
         } as any)
 
         expect(interaction.deferReply).toHaveBeenCalled()
-        expect(recordContributionMock).toHaveBeenCalledWith('guild-1', 'user-1', 1)
+        expect(recordContributionMock).toHaveBeenCalledWith(
+            'guild-1',
+            'user-1',
+            1,
+        )
         expect(interaction.editReply).toHaveBeenCalled()
         expect(createSuccessEmbedMock).toHaveBeenCalled()
     })

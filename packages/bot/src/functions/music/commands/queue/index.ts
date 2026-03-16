@@ -105,7 +105,9 @@ export default new Command({
             }
 
             if (action === 'rescue') {
-                const result = await rescueQueue(queue, { probeResolvable: true })
+                const result = await rescueQueue(queue, {
+                    probeResolvable: true,
+                })
                 await interactionReply({
                     interaction,
                     content: {
@@ -125,12 +127,13 @@ export default new Command({
                 data: { queueExists: !!queue },
             })
 
-            const embed = await createQueueEmbed(queue)
+            const { embed, components } = await createQueueEmbed(queue)
 
             await interactionReply({
                 interaction,
                 content: {
                     embeds: [embed],
+                    components,
                 },
             })
         } catch (error) {

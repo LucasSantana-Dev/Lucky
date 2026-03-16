@@ -4,6 +4,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
 import { constants } from '@lucky/shared/config'
+import { createMusicControlButtons } from '../../utils/music/buttonComponents'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
@@ -106,7 +107,12 @@ export async function sendNowPlayingEmbed(
             const message = await metadata.channel.messages.fetch(
                 previousMessage.messageId,
             )
-            await message.edit({ content: null, embeds: [embed] })
+            const buttons = createMusicControlButtons(queue)
+            await message.edit({
+                content: null,
+                embeds: [embed],
+                components: [buttons],
+            })
             debugLog({
                 message: 'Updated now playing message in channel',
                 data: {
@@ -121,7 +127,11 @@ export async function sendNowPlayingEmbed(
         }
     }
 
-    const message = await metadata.channel.send({ embeds: [embed] })
+    const controlButtons = createMusicControlButtons(queue)
+    const message = await metadata.channel.send({
+        embeds: [embed],
+        components: [controlButtons],
+    })
 
     songInfoMessages.set(queue.guild.id, {
         messageId: message.id,

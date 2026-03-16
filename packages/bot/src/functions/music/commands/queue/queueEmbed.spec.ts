@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { createQueueEmbed, createEmptyQueueEmbed, createQueueErrorEmbed } from './queueEmbed'
+jest.mock('../../../../utils/music/buttonComponents', () => ({
+    createQueuePaginationButtons: jest.fn().mockReturnValue(null),
+}))
+
+import {
+    createQueueEmbed,
+    createEmptyQueueEmbed,
+    createQueueErrorEmbed,
+} from './queueEmbed'
 import type { QueueDisplayOptions } from './types'
 
 const addFieldsMock = jest.fn().mockReturnThis()
@@ -19,12 +27,14 @@ jest.mock('../../../../utils/general/embeds', () => ({
 }))
 
 jest.mock('./queueStats', () => ({
-    calculateQueueStats: (...args: unknown[]) => calculateQueueStatsMock(...args),
+    calculateQueueStats: (...args: unknown[]) =>
+        calculateQueueStatsMock(...args),
     getQueueStatus: (...args: unknown[]) => getQueueStatusMock(...args),
 }))
 
 jest.mock('./queueDisplay', () => ({
-    createTrackListDisplay: (...args: unknown[]) => createTrackListDisplayMock(...args),
+    createTrackListDisplay: (...args: unknown[]) =>
+        createTrackListDisplayMock(...args),
     createQueueSummary: (...args: unknown[]) => createQueueSummaryMock(...args),
 }))
 
@@ -65,7 +75,9 @@ describe('queueEmbed', () => {
             currentPosition: 0,
         })
         getQueueStatusMock.mockReturnValue('Playing')
-        createTrackListDisplayMock.mockResolvedValue('1. Track One\n2. Track Two')
+        createTrackListDisplayMock.mockResolvedValue(
+            '1. Track One\n2. Track Two',
+        )
         createQueueSummaryMock.mockReturnValue('**Total Tracks:** 2')
     })
 
@@ -89,7 +101,10 @@ describe('queueEmbed', () => {
 
         it('appends recommendation reason line for autoplay tracks with a reason', async () => {
             const track = createTrack({
-                metadata: { isAutoplay: true, recommendationReason: 'fresh artist rotation' },
+                metadata: {
+                    isAutoplay: true,
+                    recommendationReason: 'fresh artist rotation',
+                },
             })
             const queue = createQueue({ currentTrack: track })
 
@@ -121,7 +136,10 @@ describe('queueEmbed', () => {
 
         it('does not append reason line when recommendationReason is set but isAutoplay is false', async () => {
             const track = createTrack({
-                metadata: { isAutoplay: false, recommendationReason: 'some reason' },
+                metadata: {
+                    isAutoplay: false,
+                    recommendationReason: 'some reason',
+                },
             })
             const queue = createQueue({ currentTrack: track })
 
@@ -136,12 +154,16 @@ describe('queueEmbed', () => {
         })
 
         it('sets thumbnail when track has one', async () => {
-            const track = createTrack({ thumbnail: 'https://example.com/thumb.jpg' })
+            const track = createTrack({
+                thumbnail: 'https://example.com/thumb.jpg',
+            })
             const queue = createQueue({ currentTrack: track })
 
             await createQueueEmbed(queue as any, defaultOptions)
 
-            expect(setThumbnailMock).toHaveBeenCalledWith('https://example.com/thumb.jpg')
+            expect(setThumbnailMock).toHaveBeenCalledWith(
+                'https://example.com/thumb.jpg',
+            )
         })
 
         it('does not call setThumbnail when track has no thumbnail', async () => {
@@ -162,14 +184,19 @@ describe('queueEmbed', () => {
 
             await createQueueEmbed(queue as any, defaultOptions)
 
-            const upcomingCall = addFieldsMock.mock.calls.find(
-                (call) => String((call[0] as any).name).startsWith('📋 Upcoming Tracks ('),
+            const upcomingCall = addFieldsMock.mock.calls.find((call) =>
+                String((call[0] as any).name).startsWith(
+                    '📋 Upcoming Tracks (',
+                ),
             )
             expect(upcomingCall).toBeDefined()
         })
 
         it('adds empty upcoming tracks field when queue is empty', async () => {
-            const queue = createQueue({ currentTrack: null, tracks: { toArray: () => [] } })
+            const queue = createQueue({
+                currentTrack: null,
+                tracks: { toArray: () => [] },
+            })
 
             await createQueueEmbed(queue as any, defaultOptions)
 
@@ -214,8 +241,8 @@ describe('queueEmbed', () => {
 
             await createQueueEmbed(queue as any, options)
 
-            const upcomingCall = addFieldsMock.mock.calls.find(
-                (call) => String((call[0] as any).name ?? '').startsWith('📋 Upcoming'),
+            const upcomingCall = addFieldsMock.mock.calls.find((call) =>
+                String((call[0] as any).name ?? '').startsWith('📋 Upcoming'),
             )
             expect(upcomingCall).toBeUndefined()
         })
@@ -223,7 +250,10 @@ describe('queueEmbed', () => {
         it('returns the embed instance', async () => {
             const queue = createQueue()
 
-            const result = await createQueueEmbed(queue as any, defaultOptions)
+            const { embed: result } = await createQueueEmbed(
+                queue as any,
+                defaultOptions,
+            )
 
             expect(result).toBe(mockEmbed)
         })
@@ -235,7 +265,8 @@ describe('queueEmbed', () => {
 
             expect(createEmbedMock).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    description: 'The queue is empty. Add some tracks to get started!',
+                    description:
+                        'The queue is empty. Add some tracks to get started!',
                 }),
             )
         })

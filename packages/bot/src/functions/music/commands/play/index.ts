@@ -8,6 +8,11 @@ import { errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
+import { QueueRepeatMode } from 'discord-player'
+import {
+    insertUserTrackWithPriority,
+    blendAutoplayTracks,
+} from '../../../../utils/music/queueManipulation'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -84,6 +89,17 @@ export default new Command({
             })
 
             const track = result.track
+
+            const queue = client.player.nodes.get(interaction.guildId!)
+            if (
+                queue &&
+                queue.repeatMode === QueueRepeatMode.AUTOPLAY &&
+                queue.tracks.size > 1
+            ) {
+                insertUserTrackWithPriority(queue, track)
+                await blendAutoplayTracks(queue, track)
+            }
+
             const embed = result.searchResult.playlist
                 ? createSuccessEmbed(
                       'Playlist Enqueued',

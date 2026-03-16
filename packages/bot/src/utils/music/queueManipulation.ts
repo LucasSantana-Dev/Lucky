@@ -9,7 +9,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 
-const AUTOPLAY_BUFFER_SIZE = 4
+const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
@@ -181,6 +181,68 @@ export async function moveTrackInQueue(
     }
 }
 
+export function insertUserTrackWithPriority(
+    queue: GuildQueue,
+    track: Track,
+): void {
+    const tracks = queue.tracks.toArray()
+    const firstAutoplayIndex = tracks.findIndex((t) => {
+        const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
+        return meta.isAutoplay === true
+    })
+
+    if (firstAutoplayIndex === -1) {
+        queue.addTrack(track)
+    } else {
+        queue.insertTrack(track, firstAutoplayIndex)
+    }
+
+    debugLog({
+        message: 'User track inserted with priority',
+        data: {
+            title: track.title,
+            position:
+                firstAutoplayIndex === -1 ? tracks.length : firstAutoplayIndex,
+        },
+    })
+}
+
+export async function blendAutoplayTracks(
+    queue: GuildQueue,
+    newSeedTrack: Track,
+    blendRatio = 0.5,
+): Promise<void> {
+    const tracks = queue.tracks.toArray()
+    const autoplayTracks = tracks.filter((t) => {
+        const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
+        return meta.isAutoplay === true
+    })
+
+    if (autoplayTracks.length === 0) return
+
+    const keepCount = Math.ceil(autoplayTracks.length * blendRatio)
+    const toRemove = autoplayTracks.slice(keepCount)
+
+    for (const track of toRemove) {
+        try {
+            queue.node.remove(track)
+        } catch {
+            // Track may already be removed
+        }
+    }
+
+    debugLog({
+        message: 'Autoplay tracks blended',
+        data: {
+            kept: keepCount,
+            removed: toRemove.length,
+            newSeed: newSeedTrack.title,
+        },
+    })
+
+    await replenishQueue(queue)
+}
+
 export async function replenishQueue(queue: GuildQueue): Promise<void> {
     try {
         debugLog({
@@ -210,8 +272,16 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
                 requestedBy?.id,
             ),
         ])
-        const excludedUrls = buildExcludedUrls(queue, currentTrack, historyTracks)
-        const excludedKeys = buildExcludedKeys(queue, currentTrack, historyTracks)
+        const excludedUrls = buildExcludedUrls(
+            queue,
+            currentTrack,
+            historyTracks,
+        )
+        const excludedKeys = buildExcludedKeys(
+            queue,
+            currentTrack,
+            historyTracks,
+        )
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const candidates = await collectRecommendationCandidates(
             queue,
@@ -226,7 +296,13 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
         )
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
-        addSelectedTracks(queue, selected, excludedUrls, excludedKeys, requestedBy?.id)
+        addSelectedTracks(
+            queue,
+            selected,
+            excludedUrls,
+            excludedKeys,
+            requestedBy?.id,
+        )
 
         if (selected.length === 0) return
 
@@ -311,19 +387,33 @@ async function collectRecommendationCandidates(
     const candidates = new Map<string, ScoredTrack>()
 
     for (const seed of seedTracks) {
-        const seedCandidates = await searchSeedCandidates(queue, seed, requestedBy)
+        const seedCandidates = await searchSeedCandidates(
+            queue,
+            seed,
+            requestedBy,
+        )
         for (const candidate of seedCandidates) {
-            if (!shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)) {
+            if (
+                !shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)
+            ) {
                 continue
             }
-            const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
+            const normalizedKey = normalizeTrackKey(
+                candidate.title,
+                candidate.author,
+            )
             if (dislikedTrackKeys.has(normalizedKey)) {
                 continue
             }
             upsertScoredCandidate(
                 candidates,
                 candidate,
-                calculateRecommendationScore(candidate, currentTrack, recentArtists, likedTrackKeys),
+                calculateRecommendationScore(
+                    candidate,
+                    currentTrack,
+                    recentArtists,
+                    likedTrackKeys,
+                ),
             )
         }
     }
@@ -613,14 +703,19 @@ function splitTokens(value: string): string[] {
         .filter((token) => token.length > 2)
 }
 
-function markAsAutoplayTrack(track: Track, recommendationReason: string, requestedById?: string): void {
+function markAsAutoplayTrack(
+    track: Track,
+    recommendationReason: string,
+    requestedById?: string,
+): void {
     const trackWithMetadata = track as unknown as {
         metadata?: Record<string, unknown>
     }
     const metadata = trackWithMetadata.metadata ?? {}
-    const existingRequestedById = typeof metadata.requestedById === 'string'
-        ? metadata.requestedById
-        : undefined
+    const existingRequestedById =
+        typeof metadata.requestedById === 'string'
+            ? metadata.requestedById
+            : undefined
 
     trackWithMetadata.metadata = {
         ...metadata,

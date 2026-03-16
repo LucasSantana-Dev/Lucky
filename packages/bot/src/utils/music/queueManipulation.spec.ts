@@ -20,8 +20,7 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         getDislikedTrackKeys: (...args: unknown[]) =>
             dislikedTrackKeysMock(...args),
-        getLikedTrackKeys: (...args: unknown[]) =>
-            likedTrackKeysMock(...args),
+        getLikedTrackKeys: (...args: unknown[]) => likedTrackKeysMock(...args),
     },
 }))
 
@@ -93,7 +92,8 @@ describe('queueManipulation.replenishQueue', () => {
                         {
                             title: options.candidateTitle ?? 'Song B',
                             author: options.candidateAuthor ?? 'Artist B',
-                            url: options.candidateUrl ?? 'https://example.com/b',
+                            url:
+                                options.candidateUrl ?? 'https://example.com/b',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -162,7 +162,7 @@ describe('queueManipulation.replenishQueue', () => {
 
     it('does not search when queue already has buffer size', async () => {
         const queue = createQueueMock({
-            tracks: { size: 4, toArray: jest.fn().mockReturnValue([]) },
+            tracks: { size: 8, toArray: jest.fn().mockReturnValue([]) },
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
@@ -264,9 +264,7 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
     it('boosts liked tracks to the top of autoplay recommendations', async () => {
-        likedTrackKeysMock.mockResolvedValue(
-            new Set(['likedtrack::artistb']),
-        )
+        likedTrackKeysMock.mockResolvedValue(new Set(['likedtrack::artistb']))
 
         const queue = createQueueMock({
             tracks: {
@@ -304,7 +302,6 @@ describe('queueManipulation.replenishQueue', () => {
             }),
         )
     })
-
 
     it.each([
         {
@@ -348,10 +345,30 @@ describe('queueManipulation.replenishQueue', () => {
             player: {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
-                        { title: 'Same Artist 1', author: 'Artist B', url: 'https://example.com/b1', source: 'soundcloud' },
-                        { title: 'Same Artist 2', author: 'Artist B', url: 'https://example.com/b2', source: 'soundcloud' },
-                        { title: 'Same Artist 3', author: 'Artist B', url: 'https://example.com/b3', source: 'soundcloud' },
-                        { title: 'Fresh Song', author: 'Artist C', url: 'https://example.com/c1', source: 'spotify' },
+                        {
+                            title: 'Same Artist 1',
+                            author: 'Artist B',
+                            url: 'https://example.com/b1',
+                            source: 'soundcloud',
+                        },
+                        {
+                            title: 'Same Artist 2',
+                            author: 'Artist B',
+                            url: 'https://example.com/b2',
+                            source: 'soundcloud',
+                        },
+                        {
+                            title: 'Same Artist 3',
+                            author: 'Artist B',
+                            url: 'https://example.com/b3',
+                            source: 'soundcloud',
+                        },
+                        {
+                            title: 'Fresh Song',
+                            author: 'Artist C',
+                            url: 'https://example.com/c1',
+                            source: 'spotify',
+                        },
                     ],
                 }),
             },
@@ -361,8 +378,8 @@ describe('queueManipulation.replenishQueue', () => {
 
         // Should have at most 2 tracks from Artist B + 1 from Artist C = 3 total
         const calls = queue.addTrack.mock.calls
-        const artistBCount = calls.filter((c) =>
-            (c[0] as Track).author === 'Artist B'
+        const artistBCount = calls.filter(
+            (c) => (c[0] as Track).author === 'Artist B',
         ).length
         expect(artistBCount).toBeLessThanOrEqual(2)
         expect(queue.addTrack).toHaveBeenCalledTimes(3)
@@ -372,14 +389,39 @@ describe('queueManipulation.replenishQueue', () => {
         // 5 candidates all from 'youtube'. With MAX_TRACKS_PER_SOURCE=3 (default), at most 3 selected.
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            currentTrack: { title: 'Song A', author: 'Artist A', url: 'https://example.com/a', source: 'spotify' } as unknown as Track,
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                source: 'spotify',
+            } as unknown as Track,
             player: {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
-                        { title: 'Y Song 1', author: 'Artist B', url: 'https://example.com/y1', source: 'youtube' },
-                        { title: 'Y Song 2', author: 'Artist C', url: 'https://example.com/y2', source: 'youtube' },
-                        { title: 'Y Song 3', author: 'Artist D', url: 'https://example.com/y3', source: 'youtube' },
-                        { title: 'Y Song 4', author: 'Artist E', url: 'https://example.com/y4', source: 'youtube' },
+                        {
+                            title: 'Y Song 1',
+                            author: 'Artist B',
+                            url: 'https://example.com/y1',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Y Song 2',
+                            author: 'Artist C',
+                            url: 'https://example.com/y2',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Y Song 3',
+                            author: 'Artist D',
+                            url: 'https://example.com/y3',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Y Song 4',
+                            author: 'Artist E',
+                            url: 'https://example.com/y4',
+                            source: 'youtube',
+                        },
                     ],
                 }),
             },
@@ -388,8 +430,8 @@ describe('queueManipulation.replenishQueue', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         const calls = queue.addTrack.mock.calls
-        const youtubeCount = calls.filter((c) =>
-            (c[0] as Track).source === 'youtube'
+        const youtubeCount = calls.filter(
+            (c) => (c[0] as Track).source === 'youtube',
         ).length
         expect(youtubeCount).toBeLessThanOrEqual(3)
     })
@@ -597,7 +639,10 @@ describe('queueManipulation.queueOperations', () => {
             url: 'https://youtube.com/stalled',
         } as Track
         const searchMock = jest.fn().mockImplementation(
-            () => new Promise(() => { /* never resolves */ }),
+            () =>
+                new Promise(() => {
+                    /* never resolves */
+                }),
         )
         const queue = {
             player: { search: searchMock },
