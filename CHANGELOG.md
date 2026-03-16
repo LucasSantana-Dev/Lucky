@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.32] - 2026-03-16
+
+### Added
+
+- **Manager Roles**: new role multi-select field in Server Settings to configure which Discord roles can manage the bot; previously the `managerRoles` setting existed in the data model but had no UI (#328)
+
+### Fixed
+
+- **Config page**: Moderation tile now navigates to `/automod` instead of loading `ModerationConfig` component which called a non-existent backend endpoint; avoids broken fetch on load (#328)
+- **AutoMod**: exempt channels and exempt roles fields now use Select dropdowns populated from the Discord guild's channel/role list, showing names instead of raw IDs; falls back to manual ID input when data unavailable (#328)
+- **Server Settings**: Updates Channel field now uses a channel picker dropdown instead of a raw ID text input; requires channel data to be loaded from Discord (#328)
+
 ## [2.6.31] - 2026-03-16
 
 ### Added
