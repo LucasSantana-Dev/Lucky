@@ -22,6 +22,7 @@ import { createLogsApi } from './logsApi'
 import { createAutoMessagesApi } from './autoMessagesApi'
 import { createEmbedsApi } from './embedsApi'
 import { createReactionRolesApi } from './reactionRolesApi'
+import { createAutomationApi } from './automationApi'
 import { inferApiBase } from './apiBase'
 
 const browserLocation =
@@ -401,6 +402,7 @@ export const api = {
     autoMessages: createAutoMessagesApi(apiClient),
     embeds: createEmbedsApi(apiClient),
     reactionRoles: createReactionRolesApi(apiClient),
+    automation: createAutomationApi(apiClient),
     music: createMusicApi(apiClient),
     moderation: createModerationApi(apiClient),
     automod: createAutoModApi(apiClient),

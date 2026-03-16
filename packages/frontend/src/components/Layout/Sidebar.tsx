@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
     ChevronDown,
+    GitBranch,
     History,
     LayoutDashboard,
     Layers,
@@ -111,6 +112,12 @@ const navSections: NavSection[] = [
                 path: '/reaction-roles',
                 label: 'Reaction Roles',
                 icon: Link2,
+                module: 'automation',
+            },
+            {
+                path: '/guild-automation',
+                label: 'Guild Automation',
+                icon: GitBranch,
                 module: 'automation',
             },
         ],
