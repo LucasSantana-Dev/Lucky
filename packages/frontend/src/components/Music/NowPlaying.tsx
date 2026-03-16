@@ -61,7 +61,7 @@ export default memo(function NowPlaying({
     if (isLoading) return <NowPlayingSkeleton />
 
     return (
-        <Card className='p-0 overflow-hidden contain-layout'>
+        <Card className='p-0 overflow-hidden contain-layout' glow={isPlaying}>
             <div className='flex flex-col sm:flex-row'>
                 <AlbumArt track={currentTrack} isPlaying={isPlaying} />
                 <div className='flex-1 p-4 sm:p-6 flex flex-col justify-between min-w-0'>
@@ -127,9 +127,18 @@ function AlbumArt({
 
     return (
         <div
-            className='relative w-full sm:w-56 md:w-64 h-44 sm:h-56 md:h-64 bg-lucky-bg-tertiary shrink-0'
+            className='relative w-full sm:w-56 md:w-64 h-44 sm:h-56 md:h-64 bg-lucky-bg-tertiary shrink-0 overflow-hidden'
             aria-hidden='true'
         >
+            {isPlaying && (
+                <div
+                    className='pointer-events-none absolute inset-0 z-10'
+                    style={{
+                        background: 'radial-gradient(circle at center, rgb(139 92 246 / 0.15) 0%, transparent 70%)',
+                    }}
+                    aria-hidden='true'
+                />
+            )}
             {track?.thumbnail ? (
                 <>
                     {!imgLoaded && (
@@ -146,15 +155,19 @@ function AlbumArt({
                 </>
             ) : (
                 <div className='w-full h-full flex items-center justify-center'>
+                    <div
+                        className='absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent'
+                        aria-hidden='true'
+                    />
                     <Disc3
-                        className={`h-16 w-16 sm:h-20 sm:w-20 text-lucky-text-secondary opacity-30 ${isPlaying ? 'animate-spin motion-reduce:animate-none' : ''}`}
+                        className={`relative h-16 w-16 sm:h-20 sm:w-20 text-lucky-text-secondary opacity-30 ${isPlaying ? 'animate-spin motion-reduce:animate-none' : ''}`}
                         style={{ animationDuration: '3s' }}
                     />
                 </div>
             )}
             {isPlaying && (
                 <div
-                    className='absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 rounded-full px-2 py-1'
+                    className='absolute bottom-2 left-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-full px-2 py-1 border border-white/10'
                     role='status'
                     aria-label='Now playing'
                 >
@@ -165,7 +178,7 @@ function AlbumArt({
                         {[1, 2, 3].map((i) => (
                             <span
                                 key={i}
-                                className='w-0.5 bg-primary rounded-full animate-pulse'
+                                className='w-0.5 bg-purple-400 rounded-full animate-pulse'
                                 style={{
                                     height: `${8 + i * 3}px`,
                                     animationDelay: `${i * 0.15}s`,
@@ -283,8 +296,11 @@ function ProgressBar({
                 tabIndex={0}
             >
                 <div
-                    className='bg-primary h-full rounded-full transition-[width] duration-150 group-hover:h-2.5 sm:group-hover:h-2'
-                    style={{ width: `${pct}%` }}
+                    className='h-full rounded-full transition-[width] duration-150 group-hover:h-2.5 sm:group-hover:h-2'
+                    style={{
+                        width: `${pct}%`,
+                        background: 'linear-gradient(90deg, #8b5cf6 0%, #d4a017 100%)',
+                    }}
                 />
             </div>
             <div className='flex justify-between text-xs text-lucky-text-secondary mt-1'>
