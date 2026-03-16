@@ -1,39 +1,23 @@
-# Next Priorities (2026-03-14)
+# Next Priorities (2026-03-16)
 
-## P0
-1. Cut the next patch release from `main` (`v2.6.14` unless semver scope changes)
-   so the March 13 stabilization/security wave is published.
-2. Run production smoke on:
-   - `/api/auth/discord`
-   - `/api/health/auth-config`
-   - `https://lucky.lucassantana.tech/install`
-   - legal/discovery URLs
-   - Discord discovery media URLs
-3. Complete a real browser-based Discord login validation and confirm dashboard
-   bootstrap, guild selection, settings, features, and Twitch notifications.
-4. Triage open Dependabot PRs `#212` to `#217` immediately after the release.
+## P0 (Pending merge)
+- PR #302 — fix(lint): remove unused params in lucky-policy-lib.mjs — MERGED
+- PR #303 — chore(deps): patch/minor dep updates Mar 2026 — open, CI running, auto-merge enabled
 
-## P1
-1. Keep CI security enforcement aligned with repo policy:
-   `audit:high` must stay blocking in CI and local release verification.
-2. Use `npm run verify` as the canonical pre-PR gate; keep `npm run test:e2e`
-   separate as the browser smoke/regression lane.
-3. Run a moderate-only dependency cleanup cycle for the `file-type` / `yauzl`
-   transitive chain.
-4. Restore GitHub MCP authentication for this environment.
+## P1 (Next features)
+No open issues. Potential enhancements identified from codebase:
+1. **Guild automation / RBAC** — `packages/shared` has skeleton for automation manifests; not yet wired to bot commands
+2. **Playback analytics dashboard** — track history stored in DB, frontend `/music/history` route exists; no charts/stats view
+3. **Rate limit UI** — provider health cooldown in Redis/bot; no admin command to view current cooldown state
+4. **Auto-message scheduling** — `AutoMessageService` supports trigger-based; could add cron-based scheduled messages
+5. **Queue persistence** — current queue is in-memory; persisting to Redis on graceful shutdown would allow bot-restart recovery
 
-## P2
-1. Triage unmerged local branches/worktrees into `keep`, `salvage`, or `delete`.
-2. Normalize docs that still reflect pre-`main` stabilization assumptions.
-3. Convert backlog items into GitHub issues/epics instead of keeping them only
-   in local branch names and memory files.
+## P2 (Housekeeping)
+1. Update Serena memories after PR #303 merges (current state will be v2.6.25)
+2. Audit major dep bumps (vite 7→8, zod 3→4) when time allows
+3. Cleanup: 0 worktrees currently (all stale ones removed)
 
-## P3
-1. Resume the locked bot reliability roadmap:
-   `/music health`, music watchdog auto-recovery, provider health cooldown,
-   queue snapshot restore.
-2. Follow with autoplay intelligence v2:
-   feedback, diversity constraints, reason tags, `/queue rescue`.
-3. Revisit remaining guild automation / RBAC deltas only after branch triage.
-4. Defer presence/activity improvement work until reliability and admin/runtime
-   follow-up items are closed.
+## Out of Scope (do not re-raise)
+- PR #268 (smartshuffle) — merged in v2.6.24
+- PR #269 (mod digest) — merged in v2.6.24
+- npm audit — 0 vulnerabilities (CLEAN)
