@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.30] - 2026-03-16
+
+### Added
+
+- **Embed Builder**: full embed template management page in the web dashboard. Create, preview, edit, and delete Discord embed templates with a side-by-side live preview. Supports title, description, color picker, footer, thumbnail, image, and custom fields (with inline toggle). Accessible via Management → Embed Builder in the sidebar. Powered by the new `embedsApi` frontend service client (#323)
+
 ## [2.6.29] - 2026-03-16
 
 ### Added
