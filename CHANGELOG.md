@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.24] - 2026-03-16
+
+### Added
+
+- **`/queue smartshuffle`**: energy-aware shuffle that orders tracks by energy score (short YouTube → high energy, long YouTube → low energy, Spotify → medium-high) and interleaves high/low buckets. Respects a per-requester streak limit (default 2, configurable via `SMART_SHUFFLE_STREAK_LIMIT`) to prevent one user's tracks from dominating (#268).
+- **`/digest`**: moderation activity digest command showing all-time case totals, period-filtered actions by type, and top 5 moderators. Supports 7d / 30d / 90d periods. Requires `ModerateMembers` permission (#269).
+
 ## [2.6.23] - 2026-03-15
 
 ### Added
