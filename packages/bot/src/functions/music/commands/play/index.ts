@@ -84,7 +84,7 @@ export default new Command({
                     leaveOnEmpty: true,
                     leaveOnEmptyCooldown: 30_000,
                     leaveOnEnd: true,
-                    leaveOnEndCooldown: 30_000,
+                    leaveOnEndCooldown: 300_000,
                 },
                 requestedBy: interaction.user,
             })

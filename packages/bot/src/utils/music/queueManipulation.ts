@@ -365,11 +365,19 @@ async function searchSeedCandidates(
     requestedBy: User | null,
 ): Promise<Track[]> {
     const query = `${seed.title} ${seed.author}`.trim()
-    const searchResult = await queue.player.search(query, {
-        requestedBy: requestedBy ?? undefined,
-        searchEngine: QueryType.AUTO,
-    })
-    return searchResult.tracks.slice(0, SEARCH_RESULTS_LIMIT)
+    try {
+        const searchResult = await queue.player.search(query, {
+            requestedBy: requestedBy ?? undefined,
+            searchEngine: QueryType.AUTO,
+        })
+        return searchResult.tracks.slice(0, SEARCH_RESULTS_LIMIT)
+    } catch (error) {
+        debugLog({
+            message: 'Search failed for seed, skipping',
+            data: { query, error: String(error) },
+        })
+        return []
+    }
 }
 
 function shouldIncludeCandidate(
