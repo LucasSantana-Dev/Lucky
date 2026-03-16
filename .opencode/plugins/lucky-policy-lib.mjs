@@ -122,7 +122,7 @@ export function shouldBlockRootMutation({
   command,
 }) {
   if (!repoRoot || allowRootMutation) return false
-  if (!isPrimaryCheckout(repoRoot)) return false
+  if (!isPrimaryCheckout(cwd)) return false
   if (!isMutatingShellCommand(command)) return false
   const normalizedRoot = path.resolve(repoRoot)
   const normalizedCwd = path.resolve(cwd)

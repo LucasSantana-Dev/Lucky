@@ -1,38 +1,35 @@
-# Lucky Current State (2026-03-14)
+# Lucky — Current State
 
-## Version / Branch
-- Latest published release: `v2.6.13` (`2026-03-12T17:48:31Z`)
-- Current `origin/main`: `e1d99ce chore(security): remediate high transitive advisories (#211)`
-- Root workspace policy: detached at `origin/main` for orchestration
-- Dedicated main worktree: `/Users/lucassantana/Desenvolvimento/Lucky/.worktrees/fix-pr171-closure-v2612`
+**Updated**: 2026-03-16
+**Latest release**: v2.6.24
+**Main branch**: at `e69c048` (origin/main); local root checkout still at `393b857` (needs pull)
 
-## Mainline Delivery Since `v2.6.13`
-- ✅ PR #205 merged: GitGuardian incident `28574658` remediation
-- ✅ PR #206 merged: env-only OAuth expected client-id and compose secret hardening
-- ✅ PR #207 merged: frontend auth bootstrap probe stabilization
-- ✅ PR #208 merged: deploy OAuth smoke secret contract hardening
-- ✅ PR #209 merged: high npm audit remediation
-- ✅ PR #210 closed as duplicate
-- ✅ PR #211 merged: follow-up high advisory remediation (`undici` / `flatted`)
+## What's in v2.6.24
+- feat: /queue smartshuffle — energy-aware ordering with streak limit (#298)
+- feat: /mod digest command for moderation summary (#299)
 
-## Mainline Health
-- ✅ `CI/CD Pipeline` passed for `e1d99ce`
-- ✅ `SonarCloud Analysis` passed for `e1d99ce`
-- ✅ `Build & Push Docker Images` passed for `e1d99ce`
-- ✅ `Deploy to Homelab` passed for `e1d99ce`
-- ✅ `npm audit` on `main`: `high=0`, `critical=0`, `moderate=10`
+## What's on main post-v2.6.24 (unreleased — will be v2.6.25)
+- fix(lint): remove unused params in lucky-policy-lib.mjs (#302)
+- chore(deps): patch/minor dep updates Mar 2026 (#303)
+- test(frontend): enable skipped Moderation filter tests (#304)
+- fix(bot): standardize command responses to embeds and English (#305)
 
-## Current Contracts
-- Deploy OAuth smoke is derived from `GET /api/health/auth-config`
-- Deploy requires `WEBAPP_EXPECTED_CLIENT_ID` secret
-- Compose runtime requires explicit `POSTGRES_PASSWORD`
-- Root verification contract is now `npm run verify`
-- Playwright remains a separate smoke/regression lane via `npm run test:e2e`
+## CI / Quality
+- npm audit: 0 vulnerabilities
+- All tests: 429/429 bot passing, 18/18 Moderation frontend passing
+- SonarCloud: passing on main
 
-## Operational Gaps
-- Real browser-based Discord login validation is still required to confirm the
-  full callback/session/dashboard path after the March 13 auth/deploy changes
-- GitHub MCP authentication is broken in this environment; `gh` CLI is the
-  current fallback for PR/release/issue operations
-- Moderate dependency findings remain for the `file-type` / `yauzl` transitive
-  chain and need a separate cleanup cycle
+## Active Worktrees
+- `.worktrees/fix-command-polish` — stale (PR #305 merged)
+- `.worktrees/fix-moderation-tests` — stale (PR #304 merged)
+
+## Open Issues
+- None
+
+## Open PRs
+- None
+
+## Known Issues / Pending Work
+- lucky-policy-lib.mjs has a bug: `isPrimaryCheckout(repoRoot)` should be `isPrimaryCheckout(cwd)` — fix has been applied locally, needs to be committed via PR
+- Stale worktrees need cleanup
+- v2.6.25 release not yet cut
