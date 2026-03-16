@@ -4,6 +4,7 @@ import { interactionReply } from "../../../utils/general/interactionReply"
 import type { CommandExecuteParams } from "../../../types/CommandData"
 import { requireQueue } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { successEmbed, warningEmbed } from '../../../utils/general/embeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -19,7 +20,13 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    content: '▶️ Music is already playing.',
+                    embeds: [
+                        warningEmbed(
+                            'Already playing',
+                            '▶️ Music is already playing.',
+                        ),
+                    ],
+                    ephemeral: true,
                 },
             })
             return
@@ -30,7 +37,12 @@ export default new Command({
         await interactionReply({
             interaction,
             content: {
-                content: '▶️ Music has been resumed.',
+                embeds: [
+                    successEmbed(
+                        'Resumed',
+                        '▶️ Music has been resumed.',
+                    ),
+                ],
             },
         })
     },

@@ -4,6 +4,7 @@ import { interactionReply } from "../../../utils/general/interactionReply"
 import type { CommandExecuteParams } from "../../../types/CommandData"
 import { requireQueue } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { successEmbed } from '../../../utils/general/embeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -20,7 +21,12 @@ export default new Command({
         await interactionReply({
             interaction,
             content: {
-                content: '⏹️ A reprodução foi interrompida e a fila foi limpa.',
+                embeds: [
+                    successEmbed(
+                        'Playback stopped',
+                        '⏹️ Playback has been stopped and the queue has been cleared.',
+                    ),
+                ],
             },
         })
     },

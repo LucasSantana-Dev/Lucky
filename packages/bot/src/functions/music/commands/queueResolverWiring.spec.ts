@@ -50,6 +50,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('../../../utils/general/embeds', () => ({
     errorEmbed: jest.fn(() => ({})),
     successEmbed: jest.fn(() => ({})),
+    warningEmbed: jest.fn(() => ({})),
     musicEmbed: jest.fn(() => ({
         setThumbnail: jest.fn(),
     })),
@@ -198,7 +199,7 @@ describe('music command resolver wiring', () => {
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.objectContaining({
-                    content: 'This command can only be used in a server.',
+                    embeds: expect.any(Array),
                     ephemeral: true,
                 }),
             }),
