@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.28] - 2026-03-16
+
+### Added
+
+- Music button controls: pause/resume, skip, shuffle, loop, and previous-track buttons rendered inline in the now-playing embed (#320)
+- Queue pagination buttons for multi-page queue display (#320)
+
+### Fixed
+
+- Autoplay blending correctly inserts user-requested tracks with priority over autoplay tracks (#320)
+- Queue display renderSection helper extracted to eliminate duplicated rendering logic (#320)
+
 ## [2.6.27] - 2026-03-16
 
 ### Changed
