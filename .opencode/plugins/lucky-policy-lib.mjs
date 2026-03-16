@@ -72,7 +72,7 @@ export function isSensitivePath(
 
 export function commandTouchesSensitivePath(
   command,
-  { cwd = process.cwd(), home = os.homedir(), repoRoot } = {},
+  { repoRoot } = {},
 ) {
   if (!command || typeof command !== 'string') return false
   const candidates = [
