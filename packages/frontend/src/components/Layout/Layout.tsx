@@ -63,7 +63,7 @@ function Layout({ children }: LayoutProps) {
         <div className='lucky-shell flex min-h-screen'>
             <Sidebar />
             <div className='flex min-w-0 flex-1 flex-col'>
-                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/70 backdrop-blur'>
+                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/70 backdrop-blur relative'>
                     <div className='mx-auto flex w-full max-w-[1400px] flex-wrap items-end justify-between gap-4 px-4 py-4 md:px-8'>
                         <div className='space-y-1'>
                             <p className='type-meta text-lucky-text-tertiary'>
@@ -87,6 +87,7 @@ function Layout({ children }: LayoutProps) {
                             </div>
                         )}
                     </div>
+                    <div className='lucky-header-accent-line' aria-hidden='true' />
                 </header>
 
                 <main className='flex-1 min-w-0 overflow-y-auto'>
