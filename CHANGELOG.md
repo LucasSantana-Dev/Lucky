@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.33] - 2026-03-16
+
+### Added
+
+- **Guild Automation UI**: new dashboard page for server configuration management. View current automation status and run history, edit the guild automation manifest (JSON editor), and trigger plan/apply/reconcile operations directly from the web dashboard. Accessible via Management → Guild Automation in the sidebar (#330)
+- New `automationApi` frontend service client with `getManifest`, `updateManifest`, `capture`, `plan`, `apply`, `reconcile`, `getStatus`, `cutover`, and `applyPreset` methods (#330)
+
 ## [2.6.32] - 2026-03-16
 
 ### Added
