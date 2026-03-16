@@ -1,4 +1,5 @@
 import { Crown, LayoutGrid, Settings, ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Skeleton from '@/components/ui/Skeleton'
 import SectionHeader from '@/components/ui/SectionHeader'
@@ -12,6 +13,7 @@ export default function ServersPage() {
     const guilds = useGuildStore((state) => state.guilds)
     const isLoading = useGuildStore((state) => state.isLoading)
     const user = useAuthStore((state) => state.user)
+    const navigate = useNavigate()
 
     usePageMetadata({
         title: 'Servers - Lucky',
@@ -95,6 +97,7 @@ export default function ServersPage() {
                 <button
                     className='type-body-sm inline-flex items-center gap-2 rounded-xl border border-lucky-border bg-lucky-bg-secondary px-4 py-2 text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
                     aria-label='Premium features'
+                    onClick={() => navigate('/features')}
                 >
                     <Crown className='h-4 w-4' aria-hidden='true' />
                     Premium
@@ -102,6 +105,7 @@ export default function ServersPage() {
                 <button
                     className='type-body-sm inline-flex items-center gap-2 rounded-xl border border-lucky-border bg-lucky-bg-secondary px-4 py-2 text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
                     aria-label='Settings'
+                    onClick={() => navigate('/settings')}
                 >
                     <Settings className='h-4 w-4' aria-hidden='true' />
                     Settings
