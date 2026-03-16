@@ -13,7 +13,7 @@ import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('leave')
-        .setDescription('🚪 Sai do canal de voz e limpa a fila'),
+        .setDescription('🚪 Leave the voice channel and clear the queue.'),
     category: 'music',
     execute: async ({
         client,
@@ -38,8 +38,8 @@ export default new Command({
                 content: {
                     embeds: [
                         successEmbed(
-                            '👋 Até logo!',
-                            'Desconectei do canal de voz e limpei a fila.',
+                            'Goodbye!',
+                            '🚪 Disconnected from the voice channel and cleared the queue.',
                         ),
                     ],
                 },
@@ -52,7 +52,7 @@ export default new Command({
                     embeds: [
                         errorEmbed(
                             'Error',
-                            'An error occurred while trying to leave the voice channel!',
+                            'An error occurred while trying to leave the voice channel.',
                         ),
                     ],
                 },
