@@ -21,6 +21,7 @@ import { createAutoModApi } from './automodApi'
 import { createLogsApi } from './logsApi'
 import { createAutoMessagesApi } from './autoMessagesApi'
 import { createEmbedsApi } from './embedsApi'
+import { createReactionRolesApi } from './reactionRolesApi'
 import { inferApiBase } from './apiBase'
 
 const browserLocation =
@@ -399,6 +400,7 @@ export const api = {
 
     autoMessages: createAutoMessagesApi(apiClient),
     embeds: createEmbedsApi(apiClient),
+    reactionRoles: createReactionRolesApi(apiClient),
     music: createMusicApi(apiClient),
     moderation: createModerationApi(apiClient),
     automod: createAutoModApi(apiClient),
