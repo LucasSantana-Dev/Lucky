@@ -29,6 +29,7 @@ const MusicPage = lazy(() => import('./pages/Music'))
 const ServerSettingsPage = lazy(() => import('./pages/ServerSettings'))
 const CustomCommandsPage = lazy(() => import('./pages/CustomCommands'))
 const AutoMessagesPage = lazy(() => import('./pages/AutoMessages'))
+const EmbedBuilderPage = lazy(() => import('./pages/EmbedBuilder'))
 const TrackHistoryPage = lazy(() => import('./pages/TrackHistory'))
 const LyricsPage = lazy(() => import('./pages/Lyrics'))
 const TwitchNotificationsPage = lazy(
@@ -131,6 +132,10 @@ function AuthenticatedRoutes() {
             <Route
                 path='/automessages'
                 element={guardedRoute('automation', <AutoMessagesPage />)}
+            />
+            <Route
+                path='/embed-builder'
+                element={guardedRoute('automation', <EmbedBuilderPage />)}
             />
             <Route
                 path='/music'
