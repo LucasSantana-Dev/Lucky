@@ -12,6 +12,9 @@ const isLastFmConfiguredMock = jest.fn()
 const getSessionKeyForUserMock = jest.fn()
 const updateNowPlayingMock = jest.fn()
 const scrobbleMock = jest.fn()
+const createMusicControlButtonsMock = jest.fn(() => ({
+    toJSON: () => ({ type: 1, components: [] }),
+}))
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -21,6 +24,11 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../utils/general/embeds', () => ({
     createEmbed: (...args: unknown[]) => createEmbedMock(...args),
     EMBED_COLORS: { MUSIC: '#123456' },
+}))
+
+jest.mock('../../utils/music/buttonComponents', () => ({
+    createMusicControlButtons: (...args: unknown[]) =>
+        createMusicControlButtonsMock(...args),
 }))
 
 jest.mock('../../utils/music/autoplayManager', () => ({
@@ -56,7 +64,18 @@ function createQueue(guildId: string) {
             guild: { id: guildId },
             metadata: { channel, requestedBy: undefined },
             currentTrack: null,
-            tracks: { at: jest.fn(() => null) },
+            tracks: {
+                at: jest.fn(() => null),
+                size: 0,
+            },
+            node: {
+                isPaused: jest.fn(() => false),
+            },
+            history: {
+                tracks: {
+                    data: [],
+                },
+            },
         },
         channel,
     }
