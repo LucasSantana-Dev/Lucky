@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.31] - 2026-03-16
+
+### Added
+
+- **Reaction Roles**: read-only list page in the dashboard showing all reaction-role messages and their button mappings (emoji, label, style, role ID). Accessible via Management → Reaction Roles in the sidebar (#325)
+- New `reactionRolesApi` frontend service client with `list` and `listExclusions` methods (#325)
+
+### Fixed
+
+- Track History: `playedBy` field now rendered in each track row (was fetched from API but never displayed) (#326)
+- Servers page: Premium and Settings navigation buttons now navigate to `/features` and `/settings` respectively; were previously non-functional dead buttons (#326)
+
 ## [2.6.30] - 2026-03-16
 
 ### Added
