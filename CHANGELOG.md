@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.34] - 2026-03-16
+
+### Added
+
+- **Level System dashboard**: new full-stack `/levels` page with animated XP leaderboard (medal tiers, XP progress bars), level config panel (enable toggle, XP per message, cooldown, announce channel), and Role Rewards CRUD (add/remove role rewards at specific levels). Backend route `GET/PATCH /api/guilds/:guildId/levels/config`, `GET /api/guilds/:guildId/levels/leaderboard`, `GET/POST/DELETE /api/guilds/:guildId/levels/rewards` (#332)
+- **Starboard dashboard**: new full-stack `/starboard` page with top starred entries grid (star count, content preview, author, channel, date) and config panel (channel picker, emoji, threshold, selfStar toggle, Save and Disable buttons). Backend route `GET/PATCH/DELETE /api/guilds/:guildId/starboard/config`, `GET /api/guilds/:guildId/starboard/entries` (#332)
+- New `levelsApi` and `starboardApi` frontend service clients (#332)
+
 ## [2.6.33] - 2026-03-16
 
 ### Added
