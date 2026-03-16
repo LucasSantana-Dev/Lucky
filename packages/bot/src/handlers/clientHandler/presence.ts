@@ -94,15 +94,28 @@ export const setPresenceActivity = (
     return nextPresenceIndex(safeIndex, activities.length)
 }
 
-export const startPresenceRotation = (client: CustomClient): (() => void) => {
+export const startPresenceRotation = (
+    client: CustomClient,
+): { stop: () => void; pause: () => void; resume: () => void } => {
     let currentIndex = 0
+    let paused = false
 
     const rotate = (): void => {
+        if (paused) return
         currentIndex = setPresenceActivity(client, currentIndex)
     }
 
     rotate()
 
     const timer = setInterval(rotate, PRESENCE_ROTATION_INTERVAL_MS)
-    return (): void => clearInterval(timer)
+    return {
+        stop: () => clearInterval(timer),
+        pause: () => {
+            paused = true
+        },
+        resume: () => {
+            paused = false
+            rotate()
+        },
+    }
 }
