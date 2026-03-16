@@ -8,6 +8,7 @@ import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
+import { smartShuffle } from './smartShuffle'
 
 const AUTOPLAY_BUFFER_SIZE = 4
 const HISTORY_SEED_LIMIT = 3
@@ -74,39 +75,7 @@ export async function smartShuffleQueue(queue: GuildQueue): Promise<boolean> {
         const tracks = queue.tracks.toArray()
         if (tracks.length <= 1) return true
 
-        const pool = [...tracks]
-        const shuffled: Track[] = []
-        const initialByUser = new Map<string, number>()
-        const placedByUser = new Map<string, number>()
-
-        for (const track of pool) {
-            const userId = track.requestedBy?.id ?? 'autoplay'
-            initialByUser.set(userId, (initialByUser.get(userId) ?? 0) + 1)
-        }
-
-        while (pool.length > 0) {
-            const scored = pool.map((track, index) => {
-                const userId = track.requestedBy?.id ?? 'autoplay'
-                const totalForUser = initialByUser.get(userId) ?? 1
-                const placedForUser = placedByUser.get(userId) ?? 0
-                const fairnessScore = placedForUser / totalForUser
-                return {
-                    track,
-                    index,
-                    score: fairnessScore + randomJitter(0.05),
-                }
-            })
-
-            scored.sort((a, b) => a.score - b.score)
-            const candidateWindow = scored.slice(0, Math.min(3, scored.length))
-            const chosen = candidateWindow[randomIndex(candidateWindow.length)]
-            if (!chosen) break
-
-            const userId = chosen.track.requestedBy?.id ?? 'autoplay'
-            placedByUser.set(userId, (placedByUser.get(userId) ?? 0) + 1)
-            shuffled.push(chosen.track)
-            pool.splice(chosen.index, 1)
-        }
+        const shuffled = smartShuffle(tracks)
 
         queue.clear()
         for (const track of shuffled) {
