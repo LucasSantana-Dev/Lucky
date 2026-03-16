@@ -199,6 +199,7 @@ export default function TrackHistoryPage() {
                                             <p className='text-xs text-lucky-text-tertiary truncate'>
                                                 {track.author} ·{' '}
                                                 {track.duration}
+                                                {track.playedBy ? ` · Played by ${track.playedBy}` : ''}
                                             </p>
                                         </div>
                                         <span className='text-xs text-lucky-text-tertiary shrink-0'>
