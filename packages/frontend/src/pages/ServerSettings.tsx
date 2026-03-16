@@ -21,12 +21,14 @@ import {
     Shield,
     RotateCcw,
     WandSparkles,
+    X,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import {
     Select,
     SelectContent,
@@ -39,7 +41,7 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
-import { RBAC_MODULES, type RoleGrant, type ServerSettings } from '@/types'
+import { RBAC_MODULES, type RoleGrant, type ServerSettings, type GuildChannelOption, type GuildRoleOption } from '@/types'
 
 const TIMEZONES = [
     'UTC',
@@ -127,6 +129,8 @@ export default function ServerSettingsPage() {
         Array<{ id: string; name: string }>
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
+    const [channels, setChannels] = useState<GuildChannelOption[]>([])
+    const [managerRoleOptions, setManagerRoleOptions] = useState<GuildRoleOption[]>([])
     const rbacRequestIdRef = useRef(0)
     const settingsRequestVersion = useRef(0)
 
@@ -215,6 +219,18 @@ export default function ServerSettingsPage() {
 
         loadRbac(selectedGuild.id)
     }, [selectedGuild?.id, canManageRbac, loadRbac])
+
+    useEffect(() => {
+        if (!selectedGuild?.id) return
+        api.guilds
+            .getChannels(selectedGuild.id)
+            .then((res) => setChannels(res.data.channels))
+            .catch(() => setChannels([]))
+        api.guilds
+            .getRbac(selectedGuild.id)
+            .then((res) => setManagerRoleOptions(res.data.roles))
+            .catch(() => setManagerRoleOptions([]))
+    }, [selectedGuild?.id])
 
     const update = <K extends keyof ServerSettings>(
         key: K,
@@ -530,6 +546,12 @@ export default function ServerSettingsPage() {
         )
     }
 
+    const availableManagerRoles = managerRoleOptions.filter(
+        (r) => !(settings.managerRoles ?? []).includes(r.id),
+    )
+    const getManagerRoleName = (id: string) =>
+        managerRoleOptions.find((r) => r.id === id)?.name ?? id
+
     return (
         <div className='space-y-6'>
             <div className='flex items-start justify-between'>
@@ -640,16 +662,112 @@ export default function ServerSettingsPage() {
                             <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Bell className='w-3 h-3' /> Updates Channel
                             </Label>
-                            <Input
-                                value={settings.updatesChannel}
-                                onChange={(e) =>
-                                    update('updatesChannel', e.target.value)
-                                }
-                                placeholder='Channel ID for bot updates'
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                            />
+                            {channels.length > 0 ? (
+                                <Select
+                                    value={settings.updatesChannel || '__none__'}
+                                    onValueChange={(v) =>
+                                        update('updatesChannel', v === '__none__' ? '' : v)
+                                    }
+                                >
+                                    <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
+                                        <SelectValue placeholder='Select a channel...' />
+                                    </SelectTrigger>
+                                    <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                        <SelectItem value='__none__'>
+                                            <span className='text-lucky-text-tertiary'>None</span>
+                                        </SelectItem>
+                                        {channels.map((ch) => (
+                                            <SelectItem key={ch.id} value={ch.id}>
+                                                <span className='flex items-center gap-2'>
+                                                    <Hash className='w-3 h-3 text-lucky-text-tertiary' />
+                                                    {ch.name}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Input
+                                    value={settings.updatesChannel}
+                                    onChange={(e) =>
+                                        update('updatesChannel', e.target.value)
+                                    }
+                                    placeholder='Channel ID for bot updates'
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                />
+                            )}
                         </div>
                     </div>
+                </Card>
+            </motion.div>
+
+            {/* Manager Roles */}
+            <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08 }}
+            >
+                <Card className='p-5 space-y-4'>
+                    <div className='flex items-center gap-2'>
+                        <Shield className='w-5 h-5 text-lucky-text-secondary' />
+                        <div>
+                            <h2 className='text-base font-semibold text-white'>
+                                Manager Roles
+                            </h2>
+                            <p className='text-xs text-lucky-text-tertiary mt-0.5'>
+                                Roles that can manage bot settings via commands
+                            </p>
+                        </div>
+                    </div>
+                    {managerRoleOptions.length > 0 && availableManagerRoles.length > 0 && (
+                        <Select
+                            onValueChange={(id) => {
+                                update('managerRoles', [...(settings.managerRoles ?? []), id])
+                            }}
+                        >
+                            <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white h-9 text-sm'>
+                                <SelectValue placeholder='Add a manager role...' />
+                            </SelectTrigger>
+                            <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                {availableManagerRoles.map((role) => (
+                                    <SelectItem key={role.id} value={role.id}>
+                                        {role.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                    {(settings.managerRoles ?? []).length > 0 ? (
+                        <div className='flex flex-wrap gap-1.5'>
+                            {(settings.managerRoles ?? []).map((id) => (
+                                <Badge
+                                    key={id}
+                                    variant='outline'
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                                >
+                                    <Shield className='w-3 h-3' />
+                                    {getManagerRoleName(id)}
+                                    <button
+                                        onClick={() =>
+                                            update(
+                                                'managerRoles',
+                                                (settings.managerRoles ?? []).filter(
+                                                    (r) => r !== id,
+                                                ),
+                                            )
+                                        }
+                                        className='hover:text-lucky-error transition-colors p-0.5'
+                                    >
+                                        <X className='w-3 h-3' />
+                                    </button>
+                                </Badge>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className='text-xs text-lucky-text-tertiary'>
+                            No manager roles configured.
+                        </p>
+                    )}
                 </Card>
             </motion.div>
 

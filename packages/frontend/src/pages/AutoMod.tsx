@@ -13,6 +13,8 @@ import {
     Loader2,
     CheckCircle2,
     Sparkles,
+    Hash,
+    Shield,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -20,13 +22,20 @@ import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import Skeleton from '@/components/ui/Skeleton'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
-import type { AutoModSettings, AutoModTemplate } from '@/types'
+import type { AutoModSettings, AutoModTemplate, GuildChannelOption, GuildRoleOption } from '@/types'
 
 interface FilterCardProps {
     title: string
@@ -182,6 +191,134 @@ function TagList({
     )
 }
 
+function ChannelPicker({
+    selectedIds,
+    channels,
+    onAdd,
+    onRemove,
+}: {
+    selectedIds: string[]
+    channels: GuildChannelOption[]
+    onAdd: (id: string) => void
+    onRemove: (id: string) => void
+}) {
+    const available = channels.filter((c) => !selectedIds.includes(c.id))
+
+    const getChannelName = (id: string) =>
+        channels.find((c) => c.id === id)?.name ?? id
+
+    return (
+        <div className='space-y-2'>
+            {available.length > 0 && (
+                <Select onValueChange={onAdd}>
+                    <SelectTrigger className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm'>
+                        <SelectValue placeholder='Select a channel...' />
+                    </SelectTrigger>
+                    <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                        {available.map((channel) => (
+                            <SelectItem key={channel.id} value={channel.id}>
+                                <span className='flex items-center gap-2'>
+                                    <Hash className='w-3 h-3 text-lucky-text-tertiary' />
+                                    {channel.name}
+                                </span>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+            {selectedIds.length > 0 && (
+                <div className='flex flex-wrap gap-1.5'>
+                    {selectedIds.map((id) => (
+                        <Badge
+                            key={id}
+                            variant='outline'
+                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                        >
+                            <Hash className='w-3 h-3' />
+                            {getChannelName(id)}
+                            <button
+                                onClick={() => onRemove(id)}
+                                className='hover:text-lucky-error transition-colors p-0.5'
+                            >
+                                <X className='w-3 h-3' />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
+            {channels.length === 0 && (
+                <p className='text-xs text-lucky-text-tertiary'>
+                    Channels unavailable — enter IDs manually below
+                </p>
+            )}
+        </div>
+    )
+}
+
+function RolePicker({
+    selectedIds,
+    roles,
+    onAdd,
+    onRemove,
+}: {
+    selectedIds: string[]
+    roles: GuildRoleOption[]
+    onAdd: (id: string) => void
+    onRemove: (id: string) => void
+}) {
+    const available = roles.filter((r) => !selectedIds.includes(r.id))
+
+    const getRoleName = (id: string) =>
+        roles.find((r) => r.id === id)?.name ?? id
+
+    return (
+        <div className='space-y-2'>
+            {available.length > 0 && (
+                <Select onValueChange={onAdd}>
+                    <SelectTrigger className='h-9 bg-lucky-bg-tertiary border-lucky-border text-white text-sm'>
+                        <SelectValue placeholder='Select a role...' />
+                    </SelectTrigger>
+                    <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                        {available.map((role) => (
+                            <SelectItem key={role.id} value={role.id}>
+                                <span className='flex items-center gap-2'>
+                                    <Shield className='w-3 h-3 text-lucky-text-tertiary' />
+                                    {role.name}
+                                </span>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+            {selectedIds.length > 0 && (
+                <div className='flex flex-wrap gap-1.5'>
+                    {selectedIds.map((id) => (
+                        <Badge
+                            key={id}
+                            variant='outline'
+                            className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                        >
+                            <Shield className='w-3 h-3' />
+                            {getRoleName(id)}
+                            <button
+                                onClick={() => onRemove(id)}
+                                className='hover:text-lucky-error transition-colors p-0.5'
+                            >
+                                <X className='w-3 h-3' />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
+            {roles.length === 0 && (
+                <p className='text-xs text-lucky-text-tertiary'>
+                    Roles unavailable — enter IDs manually below
+                </p>
+            )}
+        </div>
+    )
+}
+
 const DEFAULT_SETTINGS: AutoModSettings = {
     id: '',
     guildId: '',
@@ -212,6 +349,8 @@ export default function AutoModPage() {
     const [applyingTemplateId, setApplyingTemplateId] = useState<
         string | null
     >(null)
+    const [channels, setChannels] = useState<GuildChannelOption[]>([])
+    const [roles, setRoles] = useState<GuildRoleOption[]>([])
 
     useEffect(() => {
         if (!selectedGuild?.id) return
@@ -233,6 +372,18 @@ export default function AutoModPage() {
             .then((res) => setTemplates(res.data.templates))
             .catch(() => setTemplates([]))
             .finally(() => setTemplatesLoading(false))
+    }, [selectedGuild?.id])
+
+    useEffect(() => {
+        if (!selectedGuild?.id) return
+        api.guilds
+            .getChannels(selectedGuild.id)
+            .then((res) => setChannels(res.data.channels))
+            .catch(() => setChannels([]))
+        api.guilds
+            .getRbac(selectedGuild.id)
+            .then((res) => setRoles(res.data.roles))
+            .catch(() => setRoles([]))
     }, [selectedGuild?.id])
 
     const update = <K extends keyof AutoModSettings>(
@@ -579,49 +730,89 @@ export default function AutoModPage() {
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
                             <Label className='text-xs text-lucky-text-secondary'>
-                                Exempt Channels (IDs)
+                                Exempt Channels
                             </Label>
-                            <TagList
-                                items={settings.exemptChannels}
-                                onAdd={(c) =>
+                            <ChannelPicker
+                                selectedIds={settings.exemptChannels}
+                                channels={channels}
+                                onAdd={(id) =>
                                     update('exemptChannels', [
                                         ...settings.exemptChannels,
-                                        c,
+                                        id,
                                     ])
                                 }
-                                onRemove={(c) =>
+                                onRemove={(id) =>
                                     update(
                                         'exemptChannels',
                                         settings.exemptChannels.filter(
-                                            (x) => x !== c,
+                                            (x) => x !== id,
                                         ),
                                     )
                                 }
-                                placeholder='Channel ID...'
                             />
+                            {channels.length === 0 && (
+                                <TagList
+                                    items={settings.exemptChannels}
+                                    onAdd={(c) =>
+                                        update('exemptChannels', [
+                                            ...settings.exemptChannels,
+                                            c,
+                                        ])
+                                    }
+                                    onRemove={(c) =>
+                                        update(
+                                            'exemptChannels',
+                                            settings.exemptChannels.filter(
+                                                (x) => x !== c,
+                                            ),
+                                        )
+                                    }
+                                    placeholder='Channel ID...'
+                                />
+                            )}
                         </div>
                         <div className='space-y-2'>
                             <Label className='text-xs text-lucky-text-secondary'>
-                                Exempt Roles (IDs)
+                                Exempt Roles
                             </Label>
-                            <TagList
-                                items={settings.exemptRoles}
-                                onAdd={(r) =>
+                            <RolePicker
+                                selectedIds={settings.exemptRoles}
+                                roles={roles}
+                                onAdd={(id) =>
                                     update('exemptRoles', [
                                         ...settings.exemptRoles,
-                                        r,
+                                        id,
                                     ])
                                 }
-                                onRemove={(r) =>
+                                onRemove={(id) =>
                                     update(
                                         'exemptRoles',
                                         settings.exemptRoles.filter(
-                                            (x) => x !== r,
+                                            (x) => x !== id,
                                         ),
                                     )
                                 }
-                                placeholder='Role ID...'
                             />
+                            {roles.length === 0 && (
+                                <TagList
+                                    items={settings.exemptRoles}
+                                    onAdd={(r) =>
+                                        update('exemptRoles', [
+                                            ...settings.exemptRoles,
+                                            r,
+                                        ])
+                                    }
+                                    onRemove={(r) =>
+                                        update(
+                                            'exemptRoles',
+                                            settings.exemptRoles.filter(
+                                                (x) => x !== r,
+                                            ),
+                                        )
+                                    }
+                                    placeholder='Role ID...'
+                                />
+                            )}
                         </div>
                     </div>
                 </Card>

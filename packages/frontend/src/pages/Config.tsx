@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Music, MessageSquare, Shield } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -8,9 +9,6 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 const MusicConfig = lazy(() => import('@/components/Config/MusicConfig'))
 const CommandsConfig = lazy(() => import('@/components/Config/CommandsConfig'))
-const ModerationConfig = lazy(
-    () => import('@/components/Config/ModerationConfig'),
-)
 
 export default function ConfigPage() {
     usePageMetadata({
@@ -19,6 +17,7 @@ export default function ConfigPage() {
     })
     const [selectedModule, setSelectedModule] = useState<string | null>(null)
     const { selectedGuild } = useGuildSelection()
+    const navigate = useNavigate()
 
     const modules = [
         {
@@ -42,6 +41,14 @@ export default function ConfigPage() {
             icon: Shield,
         },
     ]
+
+    const handleModuleClick = (moduleId: string) => {
+        if (moduleId === 'moderation') {
+            navigate('/automod')
+            return
+        }
+        setSelectedModule(moduleId)
+    }
 
     if (!selectedGuild) {
         return (
@@ -79,13 +86,13 @@ export default function ConfigPage() {
                             <Card
                                 key={module.id}
                                 className='p-6 hover:bg-lucky-bg-tertiary transition-colors cursor-pointer'
-                                onClick={() => setSelectedModule(module.id)}
+                                onClick={() => handleModuleClick(module.id)}
                                 role='button'
                                 tabIndex={0}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault()
-                                        setSelectedModule(module.id)
+                                        handleModuleClick(module.id)
                                     }
                                 }}
                                 aria-label={`Configure ${module.name}`}
@@ -127,9 +134,6 @@ export default function ConfigPage() {
                         )}
                         {selectedModule === 'commands' && (
                             <CommandsConfig guildId={selectedGuild.id} />
-                        )}
-                        {selectedModule === 'moderation' && (
-                            <ModerationConfig guildId={selectedGuild.id} />
                         )}
                     </Suspense>
                 </section>
