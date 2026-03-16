@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.25] - 2026-03-16
+
+### Added
+
+- **`/automod preset`**: apply pre-built auto-moderation rule packs (`balanced`, `strict`, `light`) with a single command. Omit the `name` option to list all available presets with descriptions. Merges allowed domains and banned words with existing settings, preserving exempt channels and roles.
+
+
 ## [2.6.24] - 2026-03-16
 
 ### Added

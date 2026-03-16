@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
-**Last Updated:** 2026-03-15  
-**Current Version:** v2.6.20
+**Last Updated:** 2026-03-16  
+**Current Version:** v2.6.24
 
 This document reflects what is currently shipped and running in production.
 
@@ -21,7 +21,9 @@ This document reflects what is currently shipped and running in production.
 
 #### Music (`/play`, `/queue`, `/skip`, `/stop`, `/pause`, `/resume`, `/volume`, etc.)
 - Full playback lifecycle with Discord Player v7
-- Queue management: `/queue show`, `/queue clear`, `/queue remove`, `/queue move`, `/queue shuffle`
+- Queue management: `/queue show`, `/queue clear`, `/queue remove`, `/queue move`
+- `/queue shuffle` — standard Fisher-Yates shuffle
+- `/queue smartshuffle` — energy-aware shuffle ordered by source/duration energy score, interleaved high/low buckets, per-requester streak limit (v2.6.24)
 - `/queue rescue` — probe-based detection and removal of unresolvable tracks (v2.6.20)
 - `/lyrics` — paginated lyrics via lyrics.ovh with smart query cleaning
 - `/repeat`, `/autoplay` — repeat mode and autoplay toggle
@@ -30,29 +32,35 @@ This document reflects what is currently shipped and running in production.
 - **Autoplay** — recommendation engine with similarity scoring (genre, tag, artist, duration, popularity)
 - **Diversity caps** — max 2 tracks per artist, max 3 per source; same-source penalty −0.15 (v2.6.19)
 - **Recommendation reason tags** — shows why a track was autoplay-queued (v2.6.20)
-- **Feedback** — `/recommendation feedback` (like/dislike) stored per guild+user in Redis, 24h TTL
+- **Autoplay like-boost** — liked tracks receive +0.3 score bonus and appear more often (v2.6.23)
+- **Feedback** — `/recommendation feedback` (like/dislike) stored per-user in Redis, 30-day TTL; `/music clearfeedback` to reset (v2.6.21)
 - **`/music health`** — provider health, watchdog state, queue diagnostics, session snapshot, feedback count
 
 #### Music Reliability
-- **ProviderHealthService** — score-based provider ordering, cooldown on repeated failures, configurable via `MUSIC_PROVIDER_COOLDOWN_MS`
-- **MusicWatchdogService** — per-guild arm/clear/recover cycle; detects stale connection and retries rejoin + replay
+- **ProviderHealthService** — score-based provider ordering, cooldown on repeated failures, Redis-persisted state across restarts; configurable via `MUSIC_PROVIDER_COOLDOWN_MS`, `MUSIC_PROVIDER_FAILURE_THRESHOLD` (v2.6.21)
+- **MusicWatchdogService** — per-guild arm/clear/recover cycle; detects stale connection and retries rejoin + replay; periodic cross-guild orphan scan (default 60s) via `MUSIC_WATCHDOG_SCAN_INTERVAL_MS` (v2.6.21, v2.6.22)
 - **Session snapshots** — Redis-backed queue state (`music:snapshot:{guildId}`, 30-min TTL); restored on bot restart via `restoreSessionsOnStartup`
 
-#### Moderation (`/warn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/unban`, `/case`)
+#### Moderation (`/warn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/unban`, `/case`, `/cases`, `/history`)
 - Full case management with case number tracking, DM notifications, evidence logging
-- **AutoModService** — spam detection, caps lock threshold, link filtering, word filter, raid detection
-- Configurable per-guild via management commands
+- **`/digest`** — moderation activity digest with period-filtered stats and top 5 moderators (7d/30d/90d) (v2.6.24)
+
+#### Auto-Moderation (`/automod`)
+- **AutoModService** — spam detection, caps lock threshold, link filtering, invite filtering, word filter
+- Configurable per-guild: `/automod spam`, `/automod caps`, `/automod links`, `/automod invites`, `/automod words`
+- **`/automod status`** — view current settings
+- **`/automod preset`** — apply pre-built rule packs: `balanced`, `strict`, `light`; merges with existing exempt channels/roles (v2.6.25, in progress)
 
 #### Management
-- Embed builder, custom commands, auto-messages (welcome/leave/scheduled), server logs
-- Guild automation (RBAC-aware role assignment, member join/leave events)
-- `/session` — view and restore music session snapshots
+- Embed builder (`/embed`), custom commands (`/customcommand`), auto-messages (`/automessage`)
+- Server logs (`/serverlog`), guild automation (RBAC-aware role assignment)
+- Reaction roles (`/reactionrole`)
 
 #### Download
 - `/download` — yt-dlp powered media download command
 
 #### General
-- `/help`, `/ping`, `/invite`, standard utility commands
+- `/help`, `/ping`, `/lastfm`, `/twitch`, `/roleconfig` — standard utility commands
 
 ### Backend API (`packages/backend`)
 - Express REST API for the web dashboard
@@ -67,23 +75,25 @@ This document reflects what is currently shipped and running in production.
 
 ---
 
-## Known Gaps (Tracked as Issues)
+## Known Gaps / Future Work
 
-| Issue | Title | Status |
-|-------|-------|--------|
-| #279 | Music watchdog cross-guild periodic scan | Open |
-| #280 | `MUSIC_PROVIDER_FAILURE_THRESHOLD` env var | Open |
-| #281 | discord-player-youtubei v2.0.0 | **Closed (merged v2.6.20)** |
-| #282 | Autoplay feedback: user-scoped, 30d TTL, like-boost, clearfeedback | Open |
-| #268 | /queue smartshuffle | Open |
-| #269 | /mod digest | Open |
+| Area | Description | Complexity |
+|------|-------------|------------|
+| `/starboard` | Message star pinning with leaderboard — needs new Prisma model | L |
+| `/level` | XP + role rewards + leaderboard — needs new Prisma model + service | L |
+| Autoplay diversity | Reason tag expansion, feedback diversity constraints | M |
+| Guild automation | RBAC delta review post-v2.6.21 | M |
+| Presence/activity | Bot activity/status customization | S |
 
 ---
 
-## Deferred / Backlog
+## Env Vars Reference
 
-- Presence/activity improvement
-- `/queue smartshuffle` (#268)
-- `/mod digest` (#269)
-- Autoplay intelligence v2: feedback diversity, reason tag expansion
-- Guild automation RBAC deltas
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `SMART_SHUFFLE_STREAK_LIMIT` | `2` | Max consecutive tracks from one requester in smartshuffle |
+| `AUTOPLAY_FEEDBACK_TTL_DAYS` | `30` | Feedback Redis entry TTL in days |
+| `MUSIC_PROVIDER_FAILURE_THRESHOLD` | `2` | Failures before provider enters cooldown |
+| `MUSIC_PROVIDER_COOLDOWN_MS` | `240000` | Provider cooldown duration in ms |
+| `MUSIC_WATCHDOG_SCAN_INTERVAL_MS` | `60000` | Periodic orphan session scan interval |
+| `QUEUE_RESCUE_PROBE_TIMEOUT_MS` | `5000` | Probe timeout for /queue rescue |

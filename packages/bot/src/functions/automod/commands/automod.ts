@@ -106,6 +106,22 @@ export default new Command({
         )
         .addSubcommand((subcommand) =>
             subcommand
+                .setName('preset')
+                .setDescription('Apply a preset configuration pack to auto-moderation')
+                .addStringOption((option) =>
+                    option
+                        .setName('name')
+                        .setDescription('Preset to apply — omit to list available presets')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Balanced — baseline for mixed communities', value: 'balanced' },
+                            { name: 'Strict Shield — aggressive anti-spam for public servers', value: 'strict' },
+                            { name: 'Light — basic spam and link protection only', value: 'light' },
+                        ),
+                ),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
                 .setName('status')
                 .setDescription('View current auto-moderation settings'),
         ),
@@ -115,7 +131,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    content: '❌ This command can only be used in a server.',
+                    content: 'This command can only be used in a server.',
                 },
             })
             return
@@ -133,7 +149,7 @@ export default new Command({
                         interaction,
                         content: {
                             content:
-                                '❌ No auto-mod settings found. Use `/automod configure` first.',
+                                'No auto-mod settings found. Use `/automod spam`, `/automod links`, or `/automod preset` first.',
                         },
                     })
                     return
@@ -141,37 +157,35 @@ export default new Command({
 
                 const embed = new EmbedBuilder()
                     .setColor(0x5865f2)
-                    .setTitle('🤖 Auto-Moderation Settings')
+                    .setTitle('Auto-Moderation Settings')
                     .addFields(
                         {
-                            name: '📨 Spam Detection',
+                            name: 'Spam Detection',
                             value: settings.spamEnabled
-                                ? `✅ Enabled\n└ ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
-                                : '❌ Disabled',
+                                ? `Enabled — ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
+                                : 'Disabled',
                         },
                         {
-                            name: '🔠 Caps Detection',
+                            name: 'Caps Detection',
                             value: settings.capsEnabled
-                                ? `✅ Enabled\n└ ${settings.capsThreshold}% caps threshold`
-                                : '❌ Disabled',
+                                ? `Enabled — ${settings.capsThreshold}% caps threshold`
+                                : 'Disabled',
                         },
                         {
-                            name: '🔗 Link Filtering',
+                            name: 'Link Filtering',
                             value: settings.linksEnabled
-                                ? `✅ Enabled\n└ Allowed domains: ${settings.allowedDomains.length}`
-                                : '❌ Disabled',
+                                ? `Enabled — ${settings.allowedDomains.length} allowed domains`
+                                : 'Disabled',
                         },
                         {
-                            name: '📧 Invite Filtering',
-                            value: settings.invitesEnabled
-                                ? `✅ Enabled`
-                                : '❌ Disabled',
+                            name: 'Invite Filtering',
+                            value: settings.invitesEnabled ? 'Enabled' : 'Disabled',
                         },
                         {
-                            name: '🚫 Bad Words Filter',
+                            name: 'Bad Words Filter',
                             value: settings.wordsEnabled
-                                ? `✅ Enabled\n└ ${settings.bannedWords.length} banned words`
-                                : '❌ Disabled',
+                                ? `Enabled — ${settings.bannedWords.length} banned words`
+                                : 'Disabled',
                         },
                     )
                     .setTimestamp()
@@ -201,8 +215,91 @@ export default new Command({
                 return
             }
 
+            if (subcommand === 'preset') {
+                const presetName = interaction.options.getString('name')
+
+                if (!presetName) {
+                    const templates = await autoModService.listTemplates()
+                    const embed = new EmbedBuilder()
+                        .setColor(0x5865f2)
+                        .setTitle('Auto-Moderation Presets')
+                        .setDescription(
+                            'Use `/automod preset name:<preset>` to apply one of these configurations.\n\nExisting settings are merged — exempt channels and roles are preserved.',
+                        )
+
+                    for (const template of templates) {
+                        embed.addFields({
+                            name: template.name,
+                            value: template.description,
+                        })
+                    }
+
+                    await interactionReply({
+                        interaction,
+                        content: { embeds: [embed] },
+                    })
+                    return
+                }
+
+                const { settings, template } = await autoModService.applyTemplate(
+                    interaction.guild.id,
+                    presetName,
+                )
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x51cf66)
+                    .setTitle(`Preset Applied: ${template.name}`)
+                    .setDescription(template.description)
+                    .addFields(
+                        {
+                            name: 'Spam Detection',
+                            value: settings.spamEnabled
+                                ? `Enabled — ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
+                                : 'Disabled',
+                            inline: true,
+                        },
+                        {
+                            name: 'Caps Detection',
+                            value: settings.capsEnabled
+                                ? `Enabled — ${settings.capsThreshold}%`
+                                : 'Disabled',
+                            inline: true,
+                        },
+                        {
+                            name: 'Link Filtering',
+                            value: settings.linksEnabled
+                                ? `Enabled — ${settings.allowedDomains.length} domains`
+                                : 'Disabled',
+                            inline: true,
+                        },
+                        {
+                            name: 'Invite Filtering',
+                            value: settings.invitesEnabled ? 'Enabled' : 'Disabled',
+                            inline: true,
+                        },
+                        {
+                            name: 'Bad Words Filter',
+                            value: settings.wordsEnabled
+                                ? `Enabled — ${settings.bannedWords.length} words`
+                                : 'Disabled',
+                            inline: true,
+                        },
+                    )
+                    .setTimestamp()
+
+                await interactionReply({
+                    interaction,
+                    content: { embeds: [embed] },
+                })
+
+                infoLog({
+                    message: `Auto-mod preset '${presetName}' applied by ${interaction.user.tag} in ${interaction.guild.name}`,
+                })
+                return
+            }
+
             const enabled = interaction.options.getBoolean('enabled', true)
-            const updateData: any = {}
+            const updateData: Record<string, unknown> = {}
 
             if (subcommand === 'spam') {
                 updateData.spamEnabled = enabled
@@ -239,7 +336,7 @@ export default new Command({
             const embed = new EmbedBuilder()
                 .setColor(enabled ? 0x51cf66 : 0xc92a2a)
                 .setTitle(
-                    `🤖 Auto-Moderation ${enabled ? 'Enabled' : 'Disabled'}`,
+                    `Auto-Moderation ${enabled ? 'Enabled' : 'Disabled'}`,
                 )
                 .addFields({
                     name: 'Module',
@@ -266,7 +363,7 @@ export default new Command({
                 interaction,
                 content: {
                     content:
-                        '❌ Failed to update auto-moderation settings. Please try again.',
+                        'Failed to update auto-moderation settings. Please try again.',
                 },
             })
         }
