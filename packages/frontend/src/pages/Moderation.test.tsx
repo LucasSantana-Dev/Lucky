@@ -81,6 +81,10 @@ function renderPage() {
 describe('ModerationPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        Object.defineProperty(globalThis.HTMLElement.prototype, 'scrollIntoView', {
+            configurable: true,
+            value: vi.fn(),
+        })
     })
 
     test('shows no server selected message when no guild selected', () => {
@@ -202,7 +206,7 @@ describe('ModerationPage', () => {
         expect(searchInput).toHaveValue('')
     })
 
-    test.skip('type filter dropdown filters cases', async () => {
+    test('type filter dropdown filters cases', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.moderation.getCases).mockResolvedValue({
@@ -401,7 +405,7 @@ describe('ModerationPage', () => {
         })
     })
 
-    test.skip('resetting filters resets page to 1', async () => {
+    test('resetting filters resets page to 1', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.moderation.getCases).mockResolvedValue({
