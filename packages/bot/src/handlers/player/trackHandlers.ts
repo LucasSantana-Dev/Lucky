@@ -113,9 +113,12 @@ async function handleQueueReplenishment(
             })
         } catch (error) {
             errorLog({
-                message: 'Error replenishing queue after track start:',
-                error,
+                message: 'Replenish failed, retrying in 5s',
+                error: String(error),
             })
+            setTimeout(() => {
+                replenishQueue(queue).catch(() => {})
+            }, 5000)
         }
     } else {
         debugLog({
