@@ -42,7 +42,7 @@ export function smartShuffle<T extends SmartShuffleTrack>(
 
     // Fisher-Yates shuffle within scored to randomize same-score ties
     for (let i = scored.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
+        const j = Math.floor(Math.random() * (i + 1)) // NOSONAR - non-cryptographic shuffle is intentional
         const tmp = scored[i]
         scored[i] = scored[j]
         scored[j] = tmp

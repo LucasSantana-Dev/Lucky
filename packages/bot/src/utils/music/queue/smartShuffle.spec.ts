@@ -48,8 +48,8 @@ describe('smartShuffle', () => {
         ]
         const result = smartShuffle(tracks)
         expect(result).toHaveLength(tracks.length)
-        expect(result.map((t) => t.title).sort()).toEqual(
-            tracks.map((t) => t.title).sort(),
+        expect(result.map((t) => t.title).sort((a, b) => a.localeCompare(b))).toEqual(
+            tracks.map((t) => t.title).sort((a, b) => a.localeCompare(b)),
         )
     })
 
