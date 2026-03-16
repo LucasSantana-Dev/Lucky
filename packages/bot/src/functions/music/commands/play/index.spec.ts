@@ -68,10 +68,23 @@ function createInteraction(guildId: string | null) {
     } as any
 }
 
-function createClient(playImpl: (...args: unknown[]) => unknown) {
+function createClient(
+    playImpl: (...args: unknown[]) => unknown,
+    queueOptions?: { repeatMode?: number; tracksSize?: number },
+) {
+    const queue = queueOptions
+        ? {
+              repeatMode: queueOptions.repeatMode ?? 0,
+              tracks: { size: queueOptions.tracksSize ?? 0 },
+          }
+        : null
+
     return {
         player: {
             play: jest.fn(playImpl),
+            nodes: {
+                get: jest.fn(() => queue),
+            },
         },
     } as any
 }
@@ -127,7 +140,10 @@ describe('play command', () => {
         }
 
         await playCommand.execute({
-            client: createClient(async () => result),
+            client: createClient(async () => result, {
+                repeatMode: 3,
+                tracksSize: 2,
+            }),
             interaction,
         } as any)
 
