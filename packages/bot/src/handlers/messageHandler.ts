@@ -1,8 +1,9 @@
-import { Events, type Client, type Message } from 'discord.js'
+import { Events, type Client, type Message, type TextChannel } from 'discord.js'
 import { autoModService } from '@lucky/shared/services'
 import { customCommandService } from '@lucky/shared/services'
 import { featureToggleService } from '@lucky/shared/services'
 import { moderationService } from '@lucky/shared/services'
+import { levelService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
 const AUTOMOD_MUTE_DURATION = 300
@@ -260,11 +261,44 @@ async function handleCustomCommands(message: Message): Promise<void> {
     }
 }
 
+async function handleXP(message: Message): Promise<void> {
+    if (!message.guild || message.author.bot) return
+    const guildId = message.guild.id
+    const userId = message.author.id
+
+    try {
+        const config = await levelService.getConfig(guildId)
+        if (!config || !config.enabled) return
+
+        const current = await levelService.getMemberXP(guildId, userId)
+        const now = Date.now()
+
+        if (current && now - current.lastXpAt.getTime() < config.xpCooldownMs) return
+
+        const result = await levelService.addXP(guildId, userId, config.xpPerMessage)
+
+        if (result.leveledUp && config.announceChannel) {
+            const rawChannel = await message.client.channels.fetch(config.announceChannel).catch(() => null)
+            if (rawChannel?.isTextBased()) {
+                await (rawChannel as TextChannel).send(`🎉 ${message.author} reached level **${result.newLevel}**!`)
+            }
+            const rewards = await levelService.getRewards(guildId)
+            const reward = rewards.find((r: { level: number }) => r.level === result.newLevel)
+            if (reward && message.member) {
+                await message.member.roles.add(reward.roleId).catch(() => {})
+            }
+        }
+    } catch (error) {
+        errorLog({ message: 'Error handling XP:', error })
+    }
+}
+
 export function handleMessageCreate(client: Client): void {
     client.on(Events.MessageCreate, async (message: Message) => {
         try {
             await handleAutoMod(message)
             await handleCustomCommands(message)
+            await handleXP(message)
         } catch (error) {
             errorLog({
                 message: 'Error handling message:',

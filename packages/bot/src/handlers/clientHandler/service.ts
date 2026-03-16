@@ -23,6 +23,7 @@ export async function createClient(): Promise<CustomClient> {
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.GuildVoiceStates,
                 GatewayIntentBits.MessageContent,
+                GatewayIntentBits.GuildMessageReactions,
             ],
         }) as CustomClient
 

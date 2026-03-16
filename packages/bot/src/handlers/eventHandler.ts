@@ -12,6 +12,7 @@ import { handleMessageCreate } from './messageHandler'
 import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
+import { handleReactionEvents } from './reactionHandler'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -145,6 +146,7 @@ export default function handleEvents(client: Client) {
     handleMemberEvents(client)
     handleAuditEvents(client)
     handleExternalScrobbler(client)
+    handleReactionEvents(client)
     handleError(client)
     handleWarn(client)
     handleDebug(client)
