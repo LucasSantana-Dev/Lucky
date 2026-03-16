@@ -1,17 +1,19 @@
 <p align="center">
-  <img src="assets/lucky-mascot/outline-v4-neon.jpeg" alt="Lucky" width="320" />
+  <img src="assets/lucky-social-preview.png" alt="Lucky — Verified Discord Bot" width="720" />
 </p>
 
 <p align="center">
-  All-in-one Discord bot platform with web dashboard.<br/>
+  <b>Verified Discord Bot</b> — All-in-one platform with web dashboard.<br/>
   Music, moderation, auto-mod, custom commands, feature toggles, and server management.
 </p>
 
+[![CI](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Discord.js](https://img.shields.io/badge/Discord.js-14.25-purple.svg)](https://discord.js.org/)
 [![License](https://img.shields.io/badge/License-ISC-yellow.svg)](LICENSE)
-[![CI](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml)
+[![Discord](https://img.shields.io/badge/Discord-Verified_Bot-5865F2?logo=discord&logoColor=white)](https://discord.com/application-directory)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
 
 ## Architecture
 
@@ -53,14 +55,14 @@ packages/
     `ActionPanel` in `packages/frontend/src/components/ui`
 
 ### Discord Discovery Media
-- Discovery carousel media is stored at
-  `assets/discord-discovery-media/2026-03/final` and should be referenced from
-  `main` branch raw URLs for long-term stability:
-  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/01-auth-control.png`
-  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/02-server-management.png`
-  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/03-feature-suite.png`
-  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/04-navigation-loop.gif`
-  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/final/05-live-control-loop.gif`
+- **Current (v2)** — branded cards with neon cat mascot + Discord verified badge:
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/v2/01-auth-dashboard.png`
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/v2/02-server-management.png`
+  - `https://raw.githubusercontent.com/LucasSantana-Dev/Lucky/main/assets/discord-discovery-media/2026-03/v2/03-feature-suite.png`
+- **Bot banner**: `assets/lucky-bot-banner.png` (600x240)
+- **Social preview**: `assets/lucky-social-preview.png` (1280x640)
+- **Verified announcement**: `assets/lucky-verified-announcement.png` (1280x640)
+- Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
 ### Latest Release (`v2.6.17`)
 - Hardened queue snapshot restore: staleness guard (30-min default),
