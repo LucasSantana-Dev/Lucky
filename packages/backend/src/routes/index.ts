@@ -12,6 +12,8 @@ import { setupLyricsRoutes } from './lyrics'
 import { setupRolesRoutes } from './roles'
 import { setupRbacRoutes } from './rbac'
 import { setupGuildAutomationRoutes } from './guildAutomation'
+import { setupLevelsRoutes } from './levels'
+import { setupStarboardRoutes } from './starboard'
 import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
@@ -45,6 +47,8 @@ const guildGuardConfigs: GuildGuardConfig[] = [
         mode: 'manage',
     },
     { path: '/api/guilds/:id/features', module: 'automation' },
+    { path: '/api/guilds/:guildId/levels', module: 'settings' },
+    { path: '/api/guilds/:guildId/starboard', module: 'settings' },
 ]
 
 const routeSetups = [
@@ -61,6 +65,8 @@ const routeSetups = [
     setupRolesRoutes,
     setupRbacRoutes,
     setupGuildAutomationRoutes,
+    setupLevelsRoutes,
+    setupStarboardRoutes,
 ]
 
 export function setupRoutes(app: Express): void {

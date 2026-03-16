@@ -32,6 +32,8 @@ const AutoMessagesPage = lazy(() => import('./pages/AutoMessages'))
 const EmbedBuilderPage = lazy(() => import('./pages/EmbedBuilder'))
 const ReactionRolesPage = lazy(() => import('./pages/ReactionRoles'))
 const GuildAutomationPage = lazy(() => import('./pages/GuildAutomation'))
+const LevelsPage = lazy(() => import('./pages/Levels'))
+const StarboardPage = lazy(() => import('./pages/Starboard'))
 const TrackHistoryPage = lazy(() => import('./pages/TrackHistory'))
 const LyricsPage = lazy(() => import('./pages/Lyrics'))
 const TwitchNotificationsPage = lazy(
@@ -146,6 +148,14 @@ function AuthenticatedRoutes() {
             <Route
                 path='/guild-automation'
                 element={guardedRoute('automation', <GuildAutomationPage />)}
+            />
+            <Route
+                path='/levels'
+                element={guardedRoute('settings', <LevelsPage />)}
+            />
+            <Route
+                path='/starboard'
+                element={guardedRoute('settings', <StarboardPage />)}
             />
             <Route
                 path='/music'
