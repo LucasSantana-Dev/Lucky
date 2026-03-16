@@ -10,8 +10,6 @@ import {
     ScrollText,
     Shield,
     ShieldAlert,
-    TrendingDown,
-    TrendingUp,
     Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -320,7 +318,6 @@ export default function DashboardOverview() {
                 <div className='mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
                     {Object.entries(stats?.casesByType ?? {}).map(
                         ([type, value]) => {
-                            const delta = type === 'warn' ? 8 : -3
                             return (
                                 <div
                                     key={type}
@@ -331,21 +328,6 @@ export default function DashboardOverview() {
                                     </p>
                                     <p className='type-title text-lucky-text-primary'>
                                         {value}
-                                    </p>
-                                    <p
-                                        className={cn(
-                                            'type-body-sm inline-flex items-center gap-1',
-                                            delta >= 0
-                                                ? 'text-lucky-success'
-                                                : 'text-lucky-error',
-                                        )}
-                                    >
-                                        {delta >= 0 ? (
-                                            <TrendingUp className='h-3.5 w-3.5' />
-                                        ) : (
-                                            <TrendingDown className='h-3.5 w-3.5' />
-                                        )}
-                                        {Math.abs(delta)}%
                                     </p>
                                 </div>
                             )

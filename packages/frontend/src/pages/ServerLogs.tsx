@@ -164,15 +164,18 @@ export default function ServerLogsPage() {
             const filters: Record<string, string | number | undefined> = {}
             if (levelFilter !== 'all') filters.level = levelFilter
             if (debouncedSearch) filters.search = debouncedSearch
+            const pageLimit = limit * page
             const res =
                 levelFilter !== 'all'
                     ? await api.serverLogs.getByType(
                           selectedGuild.id,
                           levelFilter,
+                          pageLimit,
                       )
-                    : await api.serverLogs.getRecent(selectedGuild.id)
-            setLogs(res.data.logs)
-            setTotal(res.data.logs.length)
+                    : await api.serverLogs.getRecent(selectedGuild.id, pageLimit)
+            const allLogs = res.data.logs
+            setLogs(allLogs.slice((page - 1) * limit, page * limit))
+            setTotal(allLogs.length)
         } catch {
             setLogs([])
             setTotal(0)
