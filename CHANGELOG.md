@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`/automod preset`**: apply pre-built auto-moderation rule packs (`balanced`, `strict`, `light`) with a single command. Omit the `name` option to list all available presets with descriptions. Merges allowed domains and banned words with existing settings, preserving exempt channels and roles.
+- **Voice channel status + music presence**: while music is playing, sets the voice channel status to the current track and overrides bot presence to `Listening to Track — Artist`. Clears both automatically when music stops or the bot disconnects. Multi-guild aware.
+
+### Fixed
+
+- Replaced `opusscript` with `@discordjs/opus` native binding for improved audio performance.
+- Standardized command responses to use embeds and English throughout.
+
+### Tests
+
+- Fixed flaky `smartShuffle` streak test by using balanced requester pools.
 
 
 ## [2.6.24] - 2026-03-16
