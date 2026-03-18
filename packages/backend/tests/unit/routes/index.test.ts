@@ -15,6 +15,8 @@ const setupLyricsRoutes = jest.fn()
 const setupRolesRoutes = jest.fn()
 const setupRbacRoutes = jest.fn()
 const setupGuildAutomationRoutes = jest.fn()
+const setupLevelsRoutes = jest.fn()
+const setupStarboardRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
@@ -75,6 +77,14 @@ jest.mock('../../../src/routes/rbac', () => ({
 
 jest.mock('../../../src/routes/guildAutomation', () => ({
     setupGuildAutomationRoutes,
+}))
+
+jest.mock('../../../src/routes/levels', () => ({
+    setupLevelsRoutes,
+}))
+
+jest.mock('../../../src/routes/starboard', () => ({
+    setupStarboardRoutes,
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
@@ -150,6 +160,8 @@ describe('setupRoutes', () => {
         expect(setupRolesRoutes).toHaveBeenCalledWith(app)
         expect(setupRbacRoutes).toHaveBeenCalledWith(app)
         expect(setupGuildAutomationRoutes).toHaveBeenCalledWith(app)
+        expect(setupLevelsRoutes).toHaveBeenCalledWith(app)
+        expect(setupStarboardRoutes).toHaveBeenCalledWith(app)
 
         expect(app.use).toHaveBeenCalledWith(errorHandler)
         expect(useCalls[0]).toEqual(['/api/', apiLimiter])

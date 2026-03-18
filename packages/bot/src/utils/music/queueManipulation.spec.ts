@@ -226,6 +226,66 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
+    it.each([
+        {
+            name: 'when AUTO search throws',
+            firstSearch: () => Promise.reject(new Error('AUTO parser failed')),
+            fallbackUrl: 'https://example.com/fallback',
+        },
+        {
+            name: 'when AUTO search returns no tracks',
+            firstSearch: () => Promise.resolve({ tracks: [] }),
+            fallbackUrl: 'https://example.com/recovered',
+        },
+    ])(
+        'falls back to YouTube search $name',
+        async ({ firstSearch, fallbackUrl }) => {
+            const queue = createQueueMock({
+                tracks: {
+                    size: 0,
+                    toArray: jest.fn().mockReturnValue([]),
+                },
+                player: {
+                    search: jest
+                        .fn()
+                        .mockImplementationOnce(firstSearch)
+                        .mockResolvedValueOnce({
+                            tracks: [
+                                {
+                                    title: 'Fallback Song',
+                                    author: 'Fallback Artist',
+                                    url: fallbackUrl,
+                                },
+                            ],
+                        }),
+                },
+            })
+
+            await replenishQueue(queue as unknown as GuildQueue)
+
+            expect(queue.player.search).toHaveBeenNthCalledWith(
+                1,
+                'Song A Artist A',
+                expect.objectContaining({ searchEngine: QueryType.AUTO }),
+            )
+            expect(queue.player.search).toHaveBeenNthCalledWith(
+                2,
+                'Song A Artist A',
+                expect.objectContaining({
+                    searchEngine: QueryType.YOUTUBE_SEARCH,
+                }),
+            )
+            expect(queue.addTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: fallbackUrl,
+                    metadata: expect.objectContaining({
+                        isAutoplay: true,
+                    }),
+                }),
+            )
+        },
+    )
+
     it('skips tracks disliked by the requester feedback profile', async () => {
         dislikedTrackKeysMock.mockResolvedValue(
             new Set(['dislikedtrack::artistb']),

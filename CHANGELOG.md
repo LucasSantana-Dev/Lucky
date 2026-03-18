@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Music playback now invokes yt-dlp with `-f bestaudio/best` so tracks with missing `bestaudio` variants still stream.
+- Autoplay recommendation search now falls back from `AUTO` to `YOUTUBE_SEARCH` when provider parsing fails, keeping queue replenishment working.
+
 ## [2.6.35] - 2026-03-18
 
 ### Added

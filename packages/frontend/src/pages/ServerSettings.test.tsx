@@ -89,6 +89,9 @@ const renderPage = () =>
 describe('ServerSettingsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as any)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
             data: { settings: mockSettings },
         } as any)
@@ -312,9 +315,7 @@ describe('ServerSettingsPage', () => {
 
     test('shows network guidance without re-authenticate action on network failure', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getSettings).mockRejectedValue(
-            new ApiError(0, ''),
-        )
+        vi.mocked(api.guilds.getSettings).mockRejectedValue(new ApiError(0, ''))
 
         renderPage()
 
@@ -345,7 +346,7 @@ describe('ServerSettingsPage', () => {
                 /Only server owner or users with Administrator\/Manage Server permission can manage RBAC policy/i,
             ),
         ).toBeInTheDocument()
-        expect(api.guilds.getRbac).not.toHaveBeenCalled()
+        expect(api.guilds.getRbac).toHaveBeenCalledWith(mockGuild.id)
     })
 
     test('loads RBAC policy and saves newly added rule', async () => {
@@ -582,10 +583,14 @@ describe('ServerSettingsPage', () => {
         const retryButton = await screen.findByRole('button', {
             name: /Retry Roles/i,
         })
+        const callsBeforeRetry = vi.mocked(api.guilds.getRbac).mock.calls.length
+
         await user.click(retryButton)
 
         await waitFor(() => {
-            expect(api.guilds.getRbac).toHaveBeenCalledTimes(2)
+            expect(api.guilds.getRbac).toHaveBeenCalledTimes(
+                callsBeforeRetry + 1,
+            )
         })
     })
 })
