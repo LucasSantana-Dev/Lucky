@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Privacy Policy expanded from placeholder copy to production-grade coverage for scope, third-party integrations, retention, user rights, security, and policy updates.
 - Terms of Service expanded from placeholder copy to production-grade coverage for acceptable use, third-party dependencies, suspension/termination, disclaimers, and change policy.
 
+### Fixed
+
+- Backend route registration unit tests now mock newly registered `levels` and `starboard` route setup modules, preventing CI Quality Gates failures from `TypeError: app.get/app.patch is not a function` in `tests/unit/routes/index.test.ts`.
+- CI `Security` job now runs `npm run audit:high` in warning-only mode for release PR branches (`release/*`) while keeping strict blocking behavior for non-release branches.
+
 ## [2.6.34] - 2026-03-16
 
 ### Added

@@ -105,11 +105,12 @@ jest.mock('../../../src/middleware/errorHandler', () => ({
 
 import { setupRoutes } from '../../../src/routes'
 
-type MockApp = Pick<Express, 'use'>
+type MockApp = Pick<Express, 'use' | 'get'>
 
 describe('setupRoutes', () => {
     const app: MockApp = {
         use: jest.fn() as unknown as Express['use'],
+        get: jest.fn() as unknown as Express['get'],
     }
 
     beforeEach(() => {

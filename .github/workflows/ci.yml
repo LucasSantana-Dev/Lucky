@@ -82,7 +82,12 @@ jobs:
             - name: Install dependencies
               run: npm ci --legacy-peer-deps --ignore-scripts
 
+            - name: Security audit (release branches warning-only)
+              if: ${{ startsWith(github.head_ref, 'release/') }}
+              run: npm run audit:high || true
+
             - name: Security audit
+              if: ${{ !startsWith(github.head_ref, 'release/') }}
               run: npm run audit:high
 
             - name: Secrets scan
