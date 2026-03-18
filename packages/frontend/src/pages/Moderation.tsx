@@ -15,6 +15,7 @@ import {
     Hash,
     User,
     Calendar,
+    BarChart3,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -37,7 +38,8 @@ import Skeleton from '@/components/ui/Skeleton'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
-import type { ModerationCase } from '@/types'
+import { toast } from 'sonner'
+import type { ModerationCase, ModerationStats } from '@/types'
 
 const ACTION_STYLES: Record<
     string,
@@ -115,14 +117,55 @@ function timeAgo(dateStr: string): string {
     return formatDate(dateStr)
 }
 
+function StatCard({
+    label,
+    value,
+    icon: Icon,
+    tone,
+}: {
+    label: string
+    value: number
+    icon: React.ComponentType<{ className?: string }>
+    tone: 'blue' | 'green' | 'yellow' | 'red'
+}) {
+    const toneClass: Record<typeof tone, string> = {
+        blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        green: 'bg-green-500/10 text-green-400 border-green-500/20',
+        yellow: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+        red: 'bg-red-500/10 text-red-400 border-red-500/20',
+    }
+
+    return (
+        <Card className='p-4'>
+            <div className='flex items-start justify-between gap-3'>
+                <div>
+                    <p className='text-xs text-lucky-text-tertiary uppercase tracking-wide'>
+                        {label}
+                    </p>
+                    <p className='text-2xl font-semibold text-white mt-1'>
+                        {value.toLocaleString()}
+                    </p>
+                </div>
+                <div className={cn('p-2 rounded-lg border', toneClass[tone])}>
+                    <Icon className='w-4 h-4' />
+                </div>
+            </div>
+        </Card>
+    )
+}
+
 function CaseDetailModal({
     caseData,
     open,
     onClose,
+    onDeactivate,
+    deactivating,
 }: {
     caseData: ModerationCase | null
     open: boolean
     onClose: () => void
+    onDeactivate: (caseId: string) => Promise<void>
+    deactivating: boolean
 }) {
     if (!caseData) return null
     const style = ACTION_STYLES[caseData.type] || ACTION_STYLES.warn
@@ -224,6 +267,28 @@ function CaseDetailModal({
                             </div>
                         )}
                     </div>
+                    <div className='flex justify-end gap-2 pt-2 border-t border-lucky-border'>
+                        <Button
+                            size='sm'
+                            variant='ghost'
+                            onClick={onClose}
+                            disabled={deactivating}
+                        >
+                            Close
+                        </Button>
+                        {caseData.active && (
+                            <Button
+                                size='sm'
+                                variant='destructive'
+                                onClick={() => onDeactivate(caseData.id)}
+                                disabled={deactivating}
+                            >
+                                {deactivating
+                                    ? 'Deactivating...'
+                                    : 'Deactivate Case'}
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>
@@ -234,6 +299,11 @@ export default function ModerationPage() {
     const { selectedGuild } = useGuildStore()
     const [cases, setCases] = useState<ModerationCase[]>([])
     const [total, setTotal] = useState(0)
+    const [stats, setStats] = useState<ModerationStats | null>(null)
+    const [statsLoading, setStatsLoading] = useState(true)
+    const [deactivatingCaseId, setDeactivatingCaseId] = useState<string | null>(
+        null,
+    )
     const [loading, setLoading] = useState(true)
     const [page, setPage] = useState(1)
     const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -272,9 +342,49 @@ export default function ModerationPage() {
         }
     }, [selectedGuild?.id, page, typeFilter, debouncedSearch])
 
+    const fetchStats = useCallback(async () => {
+        if (!selectedGuild?.id) return
+
+        setStatsLoading(true)
+        try {
+            const res = await api.moderation.getStats(selectedGuild.id)
+            setStats(res.data.stats)
+        } catch {
+            setStats(null)
+        } finally {
+            setStatsLoading(false)
+        }
+    }, [selectedGuild?.id])
+
+    const handleDeactivateCase = useCallback(
+        async (caseId: string) => {
+            if (!selectedGuild?.id) return
+
+            setDeactivatingCaseId(caseId)
+            try {
+                await api.moderation.deactivateCase(selectedGuild.id, caseId)
+                toast.success('Case deactivated')
+                await Promise.all([fetchCases(), fetchStats()])
+                setSelectedCase((prev) =>
+                    prev ? { ...prev, active: false } : prev,
+                )
+            } catch {
+                toast.error('Failed to deactivate case')
+            } finally {
+                setDeactivatingCaseId(null)
+            }
+        },
+        [selectedGuild?.id, fetchCases, fetchStats],
+    )
+
     useEffect(() => {
         fetchCases()
     }, [fetchCases])
+
+    useEffect(() => {
+        fetchStats()
+    }, [fetchStats])
+
     useEffect(() => {
         setPage(1)
     }, [typeFilter, debouncedSearch])
@@ -305,6 +415,44 @@ export default function ModerationPage() {
                     Manage warnings, mutes, kicks, and bans
                 </p>
             </header>
+
+            {statsLoading ? (
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
+                    {Array.from({ length: 4 }).map((_, index) => (
+                        <Card key={index} className='p-4'>
+                            <Skeleton className='h-3 w-20' />
+                            <Skeleton className='h-8 w-16 mt-2' />
+                        </Card>
+                    ))}
+                </div>
+            ) : stats ? (
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
+                    <StatCard
+                        label='Total Cases'
+                        value={stats.totalCases}
+                        icon={BarChart3}
+                        tone='blue'
+                    />
+                    <StatCard
+                        label='Active Cases'
+                        value={stats.activeCases}
+                        icon={Shield}
+                        tone='green'
+                    />
+                    <StatCard
+                        label='Warnings'
+                        value={stats.casesByType.warn ?? 0}
+                        icon={AlertTriangle}
+                        tone='yellow'
+                    />
+                    <StatCard
+                        label='Bans'
+                        value={stats.casesByType.ban ?? 0}
+                        icon={Ban}
+                        tone='red'
+                    />
+                </div>
+            ) : null}
 
             {/* Filters */}
             <Card className='p-4'>
@@ -533,6 +681,10 @@ export default function ModerationPage() {
                 caseData={selectedCase}
                 open={!!selectedCase}
                 onClose={() => setSelectedCase(null)}
+                onDeactivate={handleDeactivateCase}
+                deactivating={
+                    !!selectedCase && deactivatingCaseId === selectedCase.id
+                }
             />
         </div>
     )
