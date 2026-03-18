@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.36] - 2026-03-18
+
 ### Fixed
 
 - Music playback now invokes yt-dlp with `-f bestaudio/best` so tracks with missing `bestaudio` variants still stream.
