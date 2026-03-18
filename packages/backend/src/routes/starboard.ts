@@ -3,6 +3,7 @@ import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
+import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 import { starboardService } from '@lucky/shared/services'
 
@@ -40,7 +41,23 @@ export function setupStarboardRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const data = upsertConfigBody.parse(req.body)
-            const config = await starboardService.upsertConfig(guildId, data)
+
+            let channelId = data.channelId
+            if (!channelId) {
+                const existing = await starboardService.getConfig(guildId)
+                channelId = existing?.channelId
+            }
+
+            if (!channelId) {
+                throw AppError.badRequest(
+                    'channelId is required when creating starboard config',
+                )
+            }
+
+            const config = await starboardService.upsertConfig(guildId, {
+                ...data,
+                channelId,
+            })
             res.json({ config })
         }),
     )
@@ -64,7 +81,10 @@ export function setupStarboardRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const limit = Number(req.query.limit) || 10
-            const entries = await starboardService.getTopEntries(guildId, Math.min(limit, 50))
+            const entries = await starboardService.getTopEntries(
+                guildId,
+                Math.min(limit, 50),
+            )
             res.json({ entries })
         }),
     )
