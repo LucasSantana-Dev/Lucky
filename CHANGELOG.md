@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.35] - 2026-03-18
+
 ### Added
 
 - Moderation dashboard stats panel with live totals for total cases, active cases, warnings, and bans using `/api/guilds/:guildId/moderation/stats`.
