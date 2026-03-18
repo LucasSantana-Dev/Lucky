@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.37] - 2026-03-18
+
+### Fixed
+
+- Docker compose postgres service now sets `PGDATA=/var/lib/postgresql/data` to keep Postgres 18 data on the mounted `postgres_data` volume.
+
 ## [2.6.36] - 2026-03-18
 
 ### Fixed
