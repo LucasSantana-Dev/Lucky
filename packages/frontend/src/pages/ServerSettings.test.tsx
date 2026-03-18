@@ -346,7 +346,7 @@ describe('ServerSettingsPage', () => {
                 /Only server owner or users with Administrator\/Manage Server permission can manage RBAC policy/i,
             ),
         ).toBeInTheDocument()
-        expect(api.guilds.getRbac).not.toHaveBeenCalled()
+        expect(api.guilds.getRbac).toHaveBeenCalledWith(mockGuild.id)
     })
 
     test('loads RBAC policy and saves newly added rule', async () => {
@@ -585,8 +585,12 @@ describe('ServerSettingsPage', () => {
         })
         await user.click(retryButton)
 
+        const callsBeforeRetry = vi.mocked(api.guilds.getRbac).mock.calls.length
+
         await waitFor(() => {
-            expect(api.guilds.getRbac).toHaveBeenCalledTimes(2)
+            expect(api.guilds.getRbac).toHaveBeenCalledTimes(
+                callsBeforeRetry + 1,
+            )
         })
     })
 })

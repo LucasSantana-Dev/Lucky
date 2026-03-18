@@ -70,6 +70,9 @@ describe('AutoModPage', () => {
         vi.mocked(api.guilds.getChannels).mockResolvedValue({
             data: { channels: [] },
         } as any)
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: { roles: [] },
+        } as any)
         vi.mocked(api.automod.listTemplates).mockResolvedValue({
             data: { templates: [] },
         } as any)
