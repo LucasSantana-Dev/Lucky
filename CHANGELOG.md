@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Moderation dashboard stats panel with live totals for total cases, active cases, warnings, and bans using `/api/guilds/:guildId/moderation/stats`.
+- Case detail modal now supports direct case deactivation for active cases via `/api/guilds/:guildId/moderation/cases/:caseId/deactivate`.
+
+### Changed
+
+- Privacy Policy expanded from placeholder copy to production-grade coverage for scope, third-party integrations, retention, user rights, security, and policy updates.
+- Terms of Service expanded from placeholder copy to production-grade coverage for acceptable use, third-party dependencies, suspension/termination, disclaimers, and change policy.
+
 ## [2.6.34] - 2026-03-16
 
 ### Added
