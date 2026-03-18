@@ -270,6 +270,50 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
+    it('falls back to YouTube search when AUTO search returns no tracks', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest
+                    .fn()
+                    .mockResolvedValueOnce({ tracks: [] })
+                    .mockResolvedValueOnce({
+                        tracks: [
+                            {
+                                title: 'Recovered Song',
+                                author: 'Recovered Artist',
+                                url: 'https://example.com/recovered',
+                            },
+                        ],
+                    }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.player.search).toHaveBeenNthCalledWith(
+            1,
+            'Song A Artist A',
+            expect.objectContaining({ searchEngine: QueryType.AUTO }),
+        )
+        expect(queue.player.search).toHaveBeenNthCalledWith(
+            2,
+            'Song A Artist A',
+            expect.objectContaining({ searchEngine: QueryType.YOUTUBE_SEARCH }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/recovered',
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                }),
+            }),
+        )
+    })
+
     it('skips tracks disliked by the requester feedback profile', async () => {
         dislikedTrackKeysMock.mockResolvedValue(
             new Set(['dislikedtrack::artistb']),
