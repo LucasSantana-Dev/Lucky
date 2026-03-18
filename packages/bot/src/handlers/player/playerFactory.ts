@@ -44,7 +44,7 @@ const getYtDlpStream = (url: string): Readable => {
     debugLog({ message: `yt-dlp piping audio stream: ${url}` })
     const proc = spawn(
         'yt-dlp',
-        ['-f', 'bestaudio', '-o', '-', '--no-warnings', '--quiet', url],
+        ['-f', 'bestaudio/best', '-o', '-', '--no-warnings', '--quiet', url],
         { stdio: ['ignore', 'pipe', 'pipe'] },
     )
 
