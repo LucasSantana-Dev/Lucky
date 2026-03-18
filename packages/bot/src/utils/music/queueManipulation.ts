@@ -365,19 +365,27 @@ async function searchSeedCandidates(
     requestedBy: User | null,
 ): Promise<Track[]> {
     const query = `${seed.title} ${seed.author}`.trim()
-    try {
-        const searchResult = await queue.player.search(query, {
-            requestedBy: requestedBy ?? undefined,
-            searchEngine: QueryType.AUTO,
-        })
-        return searchResult.tracks.slice(0, SEARCH_RESULTS_LIMIT)
-    } catch (error) {
-        debugLog({
-            message: 'Search failed for seed, skipping',
-            data: { query, error: String(error) },
-        })
-        return []
+    const engines: QueryType[] = [QueryType.AUTO, QueryType.YOUTUBE_SEARCH]
+
+    for (const engine of engines) {
+        try {
+            const searchResult = await queue.player.search(query, {
+                requestedBy: requestedBy ?? undefined,
+                searchEngine: engine,
+            })
+
+            if (searchResult.tracks.length > 0) {
+                return searchResult.tracks.slice(0, SEARCH_RESULTS_LIMIT)
+            }
+        } catch (error) {
+            debugLog({
+                message: 'Search failed for seed, trying next engine',
+                data: { query, engine, error: String(error) },
+            })
+        }
     }
+
+    return []
 }
 
 function shouldIncludeCandidate(

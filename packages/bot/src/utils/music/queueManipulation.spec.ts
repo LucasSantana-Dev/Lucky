@@ -226,6 +226,50 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
+    it('falls back to YouTube search when AUTO search throws', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest
+                    .fn()
+                    .mockRejectedValueOnce(new Error('AUTO parser failed'))
+                    .mockResolvedValueOnce({
+                        tracks: [
+                            {
+                                title: 'Fallback Song',
+                                author: 'Fallback Artist',
+                                url: 'https://example.com/fallback',
+                            },
+                        ],
+                    }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.player.search).toHaveBeenNthCalledWith(
+            1,
+            'Song A Artist A',
+            expect.objectContaining({ searchEngine: QueryType.AUTO }),
+        )
+        expect(queue.player.search).toHaveBeenNthCalledWith(
+            2,
+            'Song A Artist A',
+            expect.objectContaining({ searchEngine: QueryType.YOUTUBE_SEARCH }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/fallback',
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                }),
+            }),
+        )
+    })
+
     it('skips tracks disliked by the requester feedback profile', async () => {
         dislikedTrackKeysMock.mockResolvedValue(
             new Set(['dislikedtrack::artistb']),
