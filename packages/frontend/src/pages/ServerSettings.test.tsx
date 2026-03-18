@@ -89,6 +89,9 @@ const renderPage = () =>
 describe('ServerSettingsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as any)
         vi.mocked(api.guilds.getSettings).mockResolvedValue({
             data: { settings: mockSettings },
         } as any)
@@ -312,9 +315,7 @@ describe('ServerSettingsPage', () => {
 
     test('shows network guidance without re-authenticate action on network failure', async () => {
         mockGuildStoreFn(mockGuild)
-        vi.mocked(api.guilds.getSettings).mockRejectedValue(
-            new ApiError(0, ''),
-        )
+        vi.mocked(api.guilds.getSettings).mockRejectedValue(new ApiError(0, ''))
 
         renderPage()
 

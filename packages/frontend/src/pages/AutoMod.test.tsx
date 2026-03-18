@@ -67,6 +67,9 @@ const renderPage = () => {
 describe('AutoModPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as any)
         vi.mocked(api.automod.listTemplates).mockResolvedValue({
             data: { templates: [] },
         } as any)
@@ -503,13 +506,21 @@ describe('AutoModPage', () => {
     test.each([
         {
             name: 'shows API error message when template apply fails with ApiError',
-            template: { id: 'strict', name: 'Strict', description: 'Strict defaults' },
+            template: {
+                id: 'strict',
+                name: 'Strict',
+                description: 'Strict defaults',
+            },
             error: new ApiError(404, 'Template not found'),
             expectedToast: 'Template not found',
         },
         {
             name: 'shows generic error when template apply fails unexpectedly',
-            template: { id: 'light', name: 'Light', description: 'Light defaults' },
+            template: {
+                id: 'light',
+                name: 'Light',
+                description: 'Light defaults',
+            },
             error: new Error('boom'),
             expectedToast: 'Failed to apply template',
         },
