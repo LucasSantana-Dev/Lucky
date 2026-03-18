@@ -435,10 +435,8 @@ describe('AutoModPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Exemptions')).toBeInTheDocument()
-            expect(
-                screen.getByText('Exempt Channels (IDs)'),
-            ).toBeInTheDocument()
-            expect(screen.getByText('Exempt Roles (IDs)')).toBeInTheDocument()
+            expect(screen.getByText('Exempt Channels')).toBeInTheDocument()
+            expect(screen.getByText('Exempt Roles')).toBeInTheDocument()
         })
     })
 

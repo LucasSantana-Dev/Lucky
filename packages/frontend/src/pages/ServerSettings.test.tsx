@@ -583,9 +583,9 @@ describe('ServerSettingsPage', () => {
         const retryButton = await screen.findByRole('button', {
             name: /Retry Roles/i,
         })
-        await user.click(retryButton)
-
         const callsBeforeRetry = vi.mocked(api.guilds.getRbac).mock.calls.length
+
+        await user.click(retryButton)
 
         await waitFor(() => {
             expect(api.guilds.getRbac).toHaveBeenCalledTimes(
