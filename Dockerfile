@@ -35,6 +35,7 @@ COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
 RUN --mount=type=cache,id=npm-build-stage,target=/root/.npm,sharing=locked \
+    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
     (npm cache verify 2>/dev/null || true)
 
@@ -64,6 +65,7 @@ COPY packages/backend/package*.json ./packages/backend/
 COPY packages/frontend/package*.json ./packages/frontend/
 
 RUN --mount=type=cache,id=npm-deps-production,target=/root/.npm,sharing=locked \
+    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     YOUTUBE_DL_SKIP_PYTHON_CHECK=1 \
     npm ci --legacy-peer-deps --omit=dev --no-audit --no-fund && \
     (npm cache verify 2>/dev/null || true)
