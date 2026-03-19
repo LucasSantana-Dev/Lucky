@@ -42,6 +42,7 @@ build
 
 # Session data
 .data/
+.worktrees/
 
 # Downloads and logs
 downloads/
