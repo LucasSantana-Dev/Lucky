@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.38] - 2026-03-19
+
 ### Fixed
 
 - Root Docker build now sets `YOUTUBE_DL_SKIP_DOWNLOAD=1` during dependency install to avoid yt-dlp GitHub API rate-limit failures in CI image builds.
