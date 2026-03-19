@@ -3,8 +3,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import AutoMessagesPage from './AutoMessages'
 import { useGuildStore } from '@/stores/guildStore'
+import { api } from '@/services/api'
 
 vi.mock('@/stores/guildStore')
+vi.mock('@/services/api')
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 
@@ -29,6 +31,9 @@ const renderPage = () =>
 describe('AutoMessagesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(api.autoMessages.list).mockResolvedValue({
+            data: { messages: [] },
+        } as any)
     })
 
     test('shows no server selected when no guild', () => {
@@ -75,5 +80,18 @@ describe('AutoMessagesPage', () => {
             { timeout: 2000 },
         )
         expect(screen.getByText('Create Auto Message')).toBeInTheDocument()
+    })
+
+    test('handles legacy automessages payload without crashing', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.autoMessages.list).mockResolvedValue({
+            data: { welcome: null, leave: null },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('No auto messages configured')).toBeInTheDocument()
+        })
     })
 })

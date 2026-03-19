@@ -155,7 +155,7 @@ export default function AutoMessagesPage() {
         setLoading(true)
         try {
             const res = await api.autoMessages.list(selectedGuild.id)
-            setMessages(res.data.messages)
+            setMessages(Array.isArray(res.data.messages) ? res.data.messages : [])
         } catch {
             setMessages([])
         } finally {

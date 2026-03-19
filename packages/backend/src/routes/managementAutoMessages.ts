@@ -47,7 +47,13 @@ export function setupAutoMessageRoutes(app: Express): void {
                 autoMessageService.getWelcomeMessage(guildId),
                 autoMessageService.getLeaveMessage(guildId),
             ])
-            res.json({ welcome, leave })
+
+            const messages = [welcome, leave].filter(
+                (message): message is NonNullable<typeof message> =>
+                    message !== null,
+            )
+
+            res.json({ messages })
         }),
     )
 

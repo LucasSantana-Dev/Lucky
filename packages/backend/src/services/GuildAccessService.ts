@@ -358,9 +358,7 @@ class GuildAccessService {
         session: SessionData,
         guildId: string,
     ): Promise<GuildAccessContext | null> {
-        const guilds = await this.fetchUserGuilds(session, {
-            allowCachedFallback: false,
-        })
+        const guilds = await this.fetchUserGuilds(session)
         const guild = guilds.find((item) => item.id === guildId)
 
         if (!guild) {
