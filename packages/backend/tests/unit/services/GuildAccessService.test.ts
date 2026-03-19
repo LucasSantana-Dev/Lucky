@@ -590,7 +590,7 @@ describe('GuildAccessService', () => {
         expect(mockGetGuildMemberContext).not.toHaveBeenCalled()
     })
 
-    test('resolveGuildContext does not authorize using cached guilds on upstream 429', async () => {
+    test('resolveGuildContext authorizes using cached guilds on upstream 429', async () => {
         const guild = makeGuild('919', { owner: true })
         const adminAccess = MANAGE_ALL_ACCESS
         const cachedGuilds = JSON.stringify([guild])
@@ -606,9 +606,9 @@ describe('GuildAccessService', () => {
 
         await expect(
             guildAccessService.resolveGuildContext(SESSION, guild.id),
-        ).rejects.toMatchObject({
-            statusCode: 502,
-            message: 'Discord API is temporarily unavailable. Please retry.',
+        ).resolves.toMatchObject({
+            guildId: guild.id,
+            isAdmin: true,
         })
         expect(mockRedisGet).toHaveBeenCalled()
     })

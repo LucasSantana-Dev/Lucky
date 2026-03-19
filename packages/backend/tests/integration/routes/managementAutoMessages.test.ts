@@ -43,7 +43,7 @@ describe('Auto Message Routes Integration', () => {
     })
 
     describe('GET /api/guilds/:guildId/automessages', () => {
-        test('should return welcome and leave messages without type query', async () => {
+        test('should return unified messages payload without type query', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
@@ -69,8 +69,7 @@ describe('Auto Message Routes Integration', () => {
                 .expect(200)
 
             expect(response.body).toEqual({
-                welcome: welcomeMsg,
-                leave: leaveMsg,
+                messages: [welcomeMsg, leaveMsg],
             })
             expect(
                 mockAutoMessageService.getWelcomeMessage,

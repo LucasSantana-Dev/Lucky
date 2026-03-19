@@ -182,7 +182,7 @@ describe('AutoModPage', () => {
         })
     })
 
-    test('save button calls updateSettings with current settings', async () => {
+    test('save button calls updateSettings with sanitized settings payload', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({
@@ -203,15 +203,20 @@ describe('AutoModPage', () => {
         await user.click(saveButton)
 
         await waitFor(() => {
-            expect(api.automod.updateSettings).toHaveBeenCalledWith(
-                '123',
-                expect.objectContaining({
-                    guildId: '123',
-                    spamEnabled: true,
-                    wordsEnabled: true,
-                }),
-            )
+            expect(api.automod.updateSettings).toHaveBeenCalledWith('123', expect.any(Object))
         })
+
+        const payload = vi.mocked(api.automod.updateSettings).mock.calls[0][1] as
+            Record<string, unknown>
+
+        expect(payload).toMatchObject({
+            spamEnabled: true,
+            wordsEnabled: true,
+        })
+        expect(payload).not.toHaveProperty('id')
+        expect(payload).not.toHaveProperty('guildId')
+        expect(payload).not.toHaveProperty('createdAt')
+        expect(payload).not.toHaveProperty('updatedAt')
     })
 
     test('save success shows toast', async () => {

@@ -25,6 +25,31 @@ export interface AutomationStatus {
     runs: AutomationRun[]
 }
 
+type RawAutomationStatus =
+    | string
+    | {
+          manifest?: unknown
+          latestRun?: { status?: unknown } | null
+      }
+
+function normalizeAutomationStatus(rawStatus: RawAutomationStatus): string {
+    if (typeof rawStatus === 'string') {
+        return rawStatus
+    }
+
+    if (rawStatus && typeof rawStatus === 'object') {
+        if (typeof rawStatus.latestRun?.status === 'string') {
+            return rawStatus.latestRun.status
+        }
+
+        if ('manifest' in rawStatus && rawStatus.manifest) {
+            return 'configured'
+        }
+    }
+
+    return 'unknown'
+}
+
 export interface PlanResult {
     changes: Array<{
         type: string
@@ -106,10 +131,13 @@ export function createAutomationApi(client: AxiosInstance) {
             return res.data
         },
         getStatus: async (guildId: string): Promise<AutomationStatus> => {
-            const res = await client.get<AutomationStatus>(
+            const res = await client.get<{ status: RawAutomationStatus; runs?: AutomationRun[] }>(
                 `/guilds/${guildId}/automation/status`,
             )
-            return res.data
+            return {
+                status: normalizeAutomationStatus(res.data.status),
+                runs: Array.isArray(res.data.runs) ? res.data.runs : [],
+            }
         },
         cutover: async (
             guildId: string,

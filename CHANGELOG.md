@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Root Docker build now sets `YOUTUBE_DL_SKIP_DOWNLOAD=1` during dependency install to avoid yt-dlp GitHub API rate-limit failures in CI image builds.
+- Dashboard Guild Automation status handling now normalizes non-string status payloads before rendering, preventing `toLowerCase` runtime crashes.
+- Auto Messages now tolerates legacy API payloads and backend now returns a consistent `{ messages }` shape for `/api/guilds/:guildId/automessages`.
+- AutoMod settings save now strips read-only metadata fields (`id`, `guildId`, `createdAt`, `updatedAt`) before PATCHing strict backend schema.
+- Guild access resolution for `/api/guilds/:id/me` now reuses cached guild fallback on transient Discord upstream failures (429/5xx), reducing avoidable 502 responses.
 
 ## [2.6.37] - 2026-03-18
 
