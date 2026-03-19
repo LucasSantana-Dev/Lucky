@@ -64,17 +64,11 @@ packages/
 - **Verified announcement**: `assets/lucky-verified-announcement.png` (1280x640)
 - Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
-### Latest Release (`v2.6.17`)
-- Hardened queue snapshot restore: staleness guard (30-min default),
-  `deleteSnapshot()` after successful restore prevents double-restore,
-  `currentTrack` now included in restore so the playing track is recovered.
-- Enforced provider health cooldown ordering in search fallback; degraded
-  providers are deprioritized before hitting their cooldown threshold.
-- Deploy pipeline hardened: checkout drift recovery, failure classification
-  (`LOCK_CONTENTION`, `CHECKOUT_RECOVERY_FAILED`, `MIGRATION_FAILED`,
-  `RUNTIME_PRECHECK_FAILED`), and hooks.json output capture for CI diagnosis.
-- Branch protection on main now requires `quality-gates`, `security`, and
-  `SonarCloud Code Analysis` checks with strict mode enabled.
+### Latest Release (`v2.6.37`)
+- Fixed PostgreSQL persistence in Docker by setting `PGDATA=/var/lib/postgresql/data`
+  for Postgres 18 compatibility.
+- Previous release (`v2.6.36`) restored play/autoplay reliability with yt-dlp format
+  fallback (`bestaudio/best`) and autoplay search fallback (`AUTO -> YOUTUBE_SEARCH`).
 
 ## Features
 
