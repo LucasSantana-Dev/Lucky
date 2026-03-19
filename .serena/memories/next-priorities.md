@@ -1,23 +1,20 @@
-# Next Priorities (2026-03-16)
+# Next Priorities (2026-03-18)
 
-## P0 (Pending merge)
-- PR #302 — fix(lint): remove unused params in lucky-policy-lib.mjs — MERGED
-- PR #303 — chore(deps): patch/minor dep updates Mar 2026 — open, CI running, auto-merge enabled
+## P1 — Metadata and docs integrity (small PRs)
+1. Sync stale release references across docs and README to v2.6.37.
+2. Repair `CHANGELOG.md` structure drift (duplicate release blocks, duplicate `Unreleased` section).
+3. Align package metadata (`package-lock.json` top-level version) with `package.json`.
 
-## P1 (Next features)
-No open issues. Potential enhancements identified from codebase:
-1. **Guild automation / RBAC** — `packages/shared` has skeleton for automation manifests; not yet wired to bot commands
-2. **Playback analytics dashboard** — track history stored in DB, frontend `/music/history` route exists; no charts/stats view
-3. **Rate limit UI** — provider health cooldown in Redis/bot; no admin command to view current cooldown state
-4. **Auto-message scheduling** — `AutoMessageService` supports trigger-based; could add cron-based scheduled messages
-5. **Queue persistence** — current queue is in-memory; persisting to Redis on graceful shutdown would allow bot-restart recovery
+## P2 — CI and local hygiene
+1. Resolve or archive local `.worktrees/fix-319` uncommitted frontend tests.
+2. Keep branch/worktree cleanup strict after each release PR.
+3. Preserve required-check reliability posture (avoid weakening release-branch CI requirements).
 
-## P2 (Housekeeping)
-1. Update Serena memories after PR #303 merges (current state will be v2.6.25)
-2. Audit major dep bumps (vite 7→8, zod 3→4) when time allows
-3. Cleanup: 0 worktrees currently (all stale ones removed)
+## P3 — Product backlog candidates
+1. Autoplay intelligence follow-ups: broader reason tags and feedback diversity constraints.
+2. Guild automation RBAC drift follow-up after recent command and route changes.
+3. Presence/activity customization pass (low risk quality-of-life).
 
-## Out of Scope (do not re-raise)
-- PR #268 (smartshuffle) — merged in v2.6.24
-- PR #269 (mod digest) — merged in v2.6.24
-- npm audit — 0 vulnerabilities (CLEAN)
+## Execution preference (user)
+- Prioritize small commits/PRs for fastest production delivery.
+- Avoid batching large cumulative changes.
