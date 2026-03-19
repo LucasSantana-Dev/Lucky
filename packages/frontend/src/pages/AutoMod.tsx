@@ -397,7 +397,14 @@ export default function AutoModPage() {
         if (!selectedGuild?.id) return
         setSaving(true)
         try {
-            await api.automod.updateSettings(selectedGuild.id, settings)
+            const {
+                id: _id,
+                guildId: _guildId,
+                createdAt: _createdAt,
+                updatedAt: _updatedAt,
+                ...payload
+            } = settings
+            await api.automod.updateSettings(selectedGuild.id, payload)
             toast.success('Auto-moderation settings saved!')
         } catch {
             toast.error('Failed to save settings')
