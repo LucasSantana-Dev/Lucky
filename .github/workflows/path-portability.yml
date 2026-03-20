@@ -1,0 +1,20 @@
+name: Path Portability
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  portability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq and ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq ripgrep
+      - name: Run path portability guard
+        run: |
+          bash scripts/check-path-portability.sh
+          bash scripts/check-path-portability.sh --json | jq -e '.status == "ok" and .issueCount == 0'
