@@ -8,7 +8,7 @@
 ## Logo Source
 
 - Canonical source file:
-    - `/Users/lucassantana/Desenvolvimento/Lucky/assets/lucky-mascot/outline-v4-neon.jpeg`
+    - `assets/lucky-mascot/outline-v4-neon.jpeg`
 - Frontend runtime asset:
     - `packages/frontend/public/lucky-logo.png`
 - Favicon:
