@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated npm security overrides and refreshed the lockfile to remove high-severity
+  audit findings (`effect`, `flatted`) that were blocking required CI Security checks.
+
 ## [2.6.38] - 2026-03-19
 
 ### Fixed
