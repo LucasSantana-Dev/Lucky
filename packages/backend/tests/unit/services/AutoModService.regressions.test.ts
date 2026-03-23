@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals'
 
-const mockPrisma: any = {
+type MockAutoModSettingsDelegate = {
+    findUnique: jest.Mock
+    create: jest.Mock
+    upsert: jest.Mock
+}
+
+type MockPrisma = {
+    autoModSettings: MockAutoModSettingsDelegate
+}
+
+const mockPrisma: MockPrisma = {
     autoModSettings: {
-        findUnique: jest.fn<any>(),
-        create: jest.fn<any>(),
-        upsert: jest.fn<any>(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        upsert: jest.fn(),
     },
 }
 
@@ -86,6 +96,21 @@ describe('AutoModService regressions', () => {
         )
 
         expect(result).toBe(false)
+    })
+
+    test('checkLinks blocks deceptive hostnames that contain allowed domain', async () => {
+        mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+            ...DEFAULT_SETTINGS,
+            linksEnabled: true,
+            allowedDomains: ['tenor.com'],
+        })
+
+        const result = await service.checkLinks(
+            DEFAULT_SETTINGS.guildId,
+            'https://tenor.com.evil.tld/some-gif',
+        )
+
+        expect(result).toBe(true)
     })
 
     test('checkWords does not match partial substrings like laughter', async () => {

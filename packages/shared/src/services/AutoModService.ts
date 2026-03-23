@@ -126,25 +126,46 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
     },
 ]
 
-const escapeRegExp = (value: string): string =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
 const normalizeForMatch = (value: string): string =>
     value
         .normalize('NFD')
-        .replace(/\p{M}+/gu, '')
+        .replaceAll(/\p{M}+/gu, '')
         .toLowerCase()
 
 const normalizeAllowedDomains = (domains: string[]): string[] =>
     domains
         .map((domain) => domain.trim().toLowerCase())
-        .map((domain) => domain.replace(/^https?:\/\//, ''))
-        .map((domain) => domain.replace(/^www\./, ''))
-        .map((domain) => domain.replace(/\/+$/, ''))
+        .map((domain) => {
+            if (!domain) return ''
+
+            const candidate = domain.includes('://')
+                ? domain
+                : `https://${domain}`
+
+            try {
+                return new URL(candidate).hostname.toLowerCase()
+            } catch {
+                return domain.split(/[/:?#]/, 1)[0]?.toLowerCase() ?? ''
+            }
+        })
+        .map((domain) =>
+            domain.startsWith('www.') ? domain.slice(4) : domain,
+        )
         .filter((domain) => domain.length > 0)
 
+const trimTrailingUrlPunctuation = (value: string): string => {
+    let result = value.trim()
+    const trailing = new Set([')', ',', '.', '!', '?', ';', ':'])
+
+    while (result.length > 0 && trailing.has(result.at(-1) ?? '')) {
+        result = result.slice(0, -1)
+    }
+
+    return result
+}
+
 const extractHostname = (rawUrl: string): string | null => {
-    const sanitized = rawUrl.trim().replace(/[),.!?;:]+$/g, '')
+    const sanitized = trimTrailingUrlPunctuation(rawUrl)
 
     try {
         const parsed = new URL(sanitized)
@@ -314,6 +335,9 @@ export class AutoModService {
         if (settings.bannedWords.length === 0) return false
 
         const normalizedContent = normalizeForMatch(content)
+        const contentTokens = normalizedContent
+            .split(/[^\p{L}\p{N}_]+/u)
+            .filter((token) => token.length > 0)
 
         return settings.bannedWords.some((word) => {
             const normalizedWord = normalizeForMatch(word.trim())
@@ -323,8 +347,7 @@ export class AutoModService {
                 return normalizedContent.includes(normalizedWord)
             }
 
-            const pattern = new RegExp(`(^|[^\\p{L}\\p{N}_])${escapeRegExp(normalizedWord)}([^\\p{L}\\p{N}_]|$)`, 'u')
-            return pattern.test(normalizedContent)
+            return contentTokens.includes(normalizedWord)
         })
     }
 
