@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
-**Last Updated:** 2026-03-18  
-**Current Version:** v2.6.37
+**Last Updated:** 2026-03-23  
+**Current Version:** v2.6.38
 
 This document reflects what is currently shipped and running in production.
 
@@ -78,10 +78,12 @@ This document reflects what is currently shipped and running in production.
 - **LevelService** — XP accrual, level progression (`level^2 * 100`), rank/leaderboard queries, and level-based role rewards
 - **Event wiring** — reaction handler updates starboard entries; message handler awards XP with cooldown, level-up announcement, and role reward assignment
 
-### Playback Stability (v2.6.36)
+### Playback Stability (v2.6.38)
 
 - **Play reliability** — yt-dlp extraction now uses resilient format fallback `-f bestaudio/best`
 - **Autoplay reliability** — search fallback retries with `YOUTUBE_SEARCH` when `AUTO` parser/search fails
+- **Docker build stability** — root image builds skip yt-dlp binary download via
+  `YOUTUBE_DL_SKIP_DOWNLOAD=1`, preventing GitHub API rate-limit install failures
 
 ### Backend API (`packages/backend`)
 
