@@ -126,6 +126,55 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
     },
 ]
 
+const normalizeForMatch = (value: string): string =>
+    value
+        .normalize('NFD')
+        .replaceAll(/\p{M}+/gu, '')
+        .toLowerCase()
+
+const normalizeAllowedDomains = (domains: string[]): string[] =>
+    domains
+        .map((domain) => domain.trim().toLowerCase())
+        .map((domain) => {
+            if (!domain) return ''
+
+            const candidate = domain.includes('://')
+                ? domain
+                : `https://${domain}`
+
+            try {
+                return new URL(candidate).hostname.toLowerCase()
+            } catch {
+                return domain.split(/[/:?#]/, 1)[0]?.toLowerCase() ?? ''
+            }
+        })
+        .map((domain) =>
+            domain.startsWith('www.') ? domain.slice(4) : domain,
+        )
+        .filter((domain) => domain.length > 0)
+
+const trimTrailingUrlPunctuation = (value: string): string => {
+    let result = value.trim()
+    const trailing = new Set([')', ',', '.', '!', '?', ';', ':'])
+
+    while (result.length > 0 && trailing.has(result.at(-1) ?? '')) {
+        result = result.slice(0, -1)
+    }
+
+    return result
+}
+
+const extractHostname = (rawUrl: string): string | null => {
+    const sanitized = trimTrailingUrlPunctuation(rawUrl)
+
+    try {
+        const parsed = new URL(sanitized)
+        return parsed.hostname.toLowerCase().replace(/^www\./, '')
+    } catch {
+        return null
+    }
+}
+
 export class AutoModService {
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
         if (redisClient.isHealthy()) {
@@ -253,15 +302,22 @@ export class AutoModService {
         const settings = await this.getSettings(guildId)
         if (!settings?.linksEnabled) return false
 
+        const allowedDomains = normalizeAllowedDomains(settings.allowedDomains)
+        if (allowedDomains.length === 0) return false
+
         const urlRegex = /(https?:\/\/[^\s]+)/gi
         const urls = content.match(urlRegex)
 
         if (!urls) return false
 
-        return urls.some(
-            (url) =>
-                !settings.allowedDomains.some((domain) => url.includes(domain)),
-        )
+        return urls.some((url) => {
+            const host = extractHostname(url)
+            if (!host) return false
+
+            return !allowedDomains.some(
+                (domain) => host === domain || host.endsWith(`.${domain}`),
+            )
+        })
     }
 
     async checkInvites(guildId: string, content: string): Promise<boolean> {
@@ -278,10 +334,21 @@ export class AutoModService {
         if (!settings?.wordsEnabled) return false
         if (settings.bannedWords.length === 0) return false
 
-        const lowerContent = content.toLowerCase()
-        return settings.bannedWords.some((word) =>
-            lowerContent.includes(word.toLowerCase()),
-        )
+        const normalizedContent = normalizeForMatch(content)
+        const contentTokens = normalizedContent
+            .split(/[^\p{L}\p{N}_]+/u)
+            .filter((token) => token.length > 0)
+
+        return settings.bannedWords.some((word) => {
+            const normalizedWord = normalizeForMatch(word.trim())
+            if (!normalizedWord) return false
+
+            if (normalizedWord.includes(' ')) {
+                return normalizedContent.includes(normalizedWord)
+            }
+
+            return contentTokens.includes(normalizedWord)
+        })
     }
 
     isExempt(
