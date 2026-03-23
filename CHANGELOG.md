@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Aligned repository metadata references to `v2.6.38` in `README.md`,
+  `docs/IMPLEMENTATION_STATUS.md`, and root lockfile version fields (`#354`).
+- Tightened npm overrides for `flatted` and `effect` to patched bounded ranges
+  so required Security checks no longer fail on high-severity audit findings.
+
 ## [2.6.38] - 2026-03-19
 
 ### Fixed

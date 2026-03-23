@@ -64,11 +64,13 @@ packages/
 - **Verified announcement**: `assets/lucky-verified-announcement.png` (1280x640)
 - Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
-### Latest Release (`v2.6.37`)
-- Fixed PostgreSQL persistence in Docker by setting `PGDATA=/var/lib/postgresql/data`
-  for Postgres 18 compatibility.
-- Previous release (`v2.6.36`) restored play/autoplay reliability with yt-dlp format
-  fallback (`bestaudio/best`) and autoplay search fallback (`AUTO -> YOUTUBE_SEARCH`).
+### Latest Release (`v2.6.38`)
+- Fixed Docker/CI image dependency installs by setting
+  `YOUTUBE_DL_SKIP_DOWNLOAD=1` during root image builds.
+- Fixed dashboard guild automation status rendering and normalized Auto Messages /
+  AutoMod payload handling.
+- Previous release (`v2.6.37`) fixed PostgreSQL persistence in Docker by setting
+  `PGDATA=/var/lib/postgresql/data` for Postgres 18 compatibility.
 
 ## Features
 
