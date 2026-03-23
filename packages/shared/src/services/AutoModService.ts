@@ -126,6 +126,34 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
     },
 ]
 
+const escapeRegExp = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const normalizeForMatch = (value: string): string =>
+    value
+        .normalize('NFD')
+        .replace(/\p{M}+/gu, '')
+        .toLowerCase()
+
+const normalizeAllowedDomains = (domains: string[]): string[] =>
+    domains
+        .map((domain) => domain.trim().toLowerCase())
+        .map((domain) => domain.replace(/^https?:\/\//, ''))
+        .map((domain) => domain.replace(/^www\./, ''))
+        .map((domain) => domain.replace(/\/+$/, ''))
+        .filter((domain) => domain.length > 0)
+
+const extractHostname = (rawUrl: string): string | null => {
+    const sanitized = rawUrl.trim().replace(/[),.!?;:]+$/g, '')
+
+    try {
+        const parsed = new URL(sanitized)
+        return parsed.hostname.toLowerCase().replace(/^www\./, '')
+    } catch {
+        return null
+    }
+}
+
 export class AutoModService {
     async getSettings(guildId: string): Promise<AutoModSettings | null> {
         if (redisClient.isHealthy()) {
@@ -253,15 +281,22 @@ export class AutoModService {
         const settings = await this.getSettings(guildId)
         if (!settings?.linksEnabled) return false
 
+        const allowedDomains = normalizeAllowedDomains(settings.allowedDomains)
+        if (allowedDomains.length === 0) return false
+
         const urlRegex = /(https?:\/\/[^\s]+)/gi
         const urls = content.match(urlRegex)
 
         if (!urls) return false
 
-        return urls.some(
-            (url) =>
-                !settings.allowedDomains.some((domain) => url.includes(domain)),
-        )
+        return urls.some((url) => {
+            const host = extractHostname(url)
+            if (!host) return false
+
+            return !allowedDomains.some(
+                (domain) => host === domain || host.endsWith(`.${domain}`),
+            )
+        })
     }
 
     async checkInvites(guildId: string, content: string): Promise<boolean> {
@@ -278,10 +313,19 @@ export class AutoModService {
         if (!settings?.wordsEnabled) return false
         if (settings.bannedWords.length === 0) return false
 
-        const lowerContent = content.toLowerCase()
-        return settings.bannedWords.some((word) =>
-            lowerContent.includes(word.toLowerCase()),
-        )
+        const normalizedContent = normalizeForMatch(content)
+
+        return settings.bannedWords.some((word) => {
+            const normalizedWord = normalizeForMatch(word.trim())
+            if (!normalizedWord) return false
+
+            if (normalizedWord.includes(' ')) {
+                return normalizedContent.includes(normalizedWord)
+            }
+
+            const pattern = new RegExp(`(^|[^\\p{L}\\p{N}_])${escapeRegExp(normalizedWord)}([^\\p{L}\\p{N}_]|$)`, 'u')
+            return pattern.test(normalizedContent)
+        })
     }
 
     isExempt(
