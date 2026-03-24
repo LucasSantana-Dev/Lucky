@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.39] - 2026-03-24
+
 ### Fixed
 
 - Search engine selection now honors explicit provider engines (for example direct YouTube queries) even when provider cooldown is active, so play/autoplay can still recover from transient health-state false negatives.
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autoplay recommendation selection now caps liked-feedback boosted picks to half
   of each replenish batch (with fallback fill) and adds reason tags for session
   novelty and similar track length.
+- CI Quality Gates now include a dedicated music incident regression suite to fast-fail autoplay/play provider fallback regressions.
 
 ## [2.6.38] - 2026-03-19
 
