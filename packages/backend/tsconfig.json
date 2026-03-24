@@ -12,6 +12,7 @@
         "forceConsistentCasingInFileNames": true,
         "outDir": "./dist",
         "baseUrl": ".",
+        "ignoreDeprecations": "6.0",
         "paths": {
             "@/*": ["./src/*"],
             "@lucky/shared": ["../shared/src/index.ts"],
