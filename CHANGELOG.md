@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Search engine selection now honors explicit provider engines (for example direct YouTube queries) even when provider cooldown is active, so play/autoplay can still recover from transient health-state false negatives.
+
 ### Changed
 
 - Aligned repository metadata references to `v2.6.38` in `README.md`,

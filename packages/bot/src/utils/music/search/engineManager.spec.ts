@@ -226,4 +226,26 @@ describe('SearchEngineManager', () => {
             attempts: 1,
         })
     })
+
+    it('still tries preferred engine for direct provider queries even during cooldown', async () => {
+        isAvailableMock.mockReturnValue(false)
+        const player = {
+            search: jest.fn().mockResolvedValue({ tracks: [{ title: 'Direct URL' }] }),
+        }
+        const manager = new SearchEngineManager(player as any)
+
+        const result = await manager.performSearch({
+            query: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            requestedBy: { id: 'user-1' } as any,
+            preferredEngine: QueryType.YOUTUBE_VIDEO,
+            enableFallbacks: false,
+        })
+
+        expect(player.search).toHaveBeenCalledTimes(1)
+        expect(player.search).toHaveBeenCalledWith(
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            expect.objectContaining({ searchEngine: QueryType.YOUTUBE_VIDEO }),
+        )
+        expect(result.success).toBe(true)
+    })
 })
