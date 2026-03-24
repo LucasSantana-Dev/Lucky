@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   UI access that led to API 403 responses.
 - Added `BOT_PRESENCE_STATUS` support so rotating bot presence and music now-playing
   presence can use `online`, `idle`, `dnd`, or `invisible` without code changes.
+- Autoplay recommendation selection now caps liked-feedback boosted picks to half
+  of each replenish batch (with fallback fill) and adds reason tags for session
+  novelty and similar track length.
 
 ## [2.6.38] - 2026-03-19
 

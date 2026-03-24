@@ -35,6 +35,8 @@ This document reflects what is currently shipped and running in production.
 - **Diversity caps** — max 2 tracks per artist, max 3 per source; same-source penalty −0.15 (v2.6.19)
 - **Recommendation reason tags** — shows why a track was autoplay-queued (v2.6.20)
 - **Autoplay like-boost** — liked tracks receive +0.3 score bonus and appear more often (v2.6.23)
+- **Feedback diversity cap** — liked-feedback tracks are limited to 50% of each autoplay replenish batch with fallback fill when only liked candidates exist (v2.6.39)
+- **Expanded reason tags** — autoplay metadata now includes `new in session` and `similar track length` context when applicable (v2.6.39)
 - **Feedback** — `/recommendation feedback` (like/dislike) stored per-user in Redis, 30-day TTL; `/music clearfeedback` to reset (v2.6.21)
 - **`/music health`** — provider health, watchdog state, queue diagnostics, session snapshot, feedback count
 
@@ -104,7 +106,7 @@ This document reflects what is currently shipped and running in production.
 
 | Area               | Description                                          | Complexity |
 | ------------------ | ---------------------------------------------------- | ---------- |
-| Autoplay diversity | Reason tag expansion, feedback diversity constraints | M          |
+| Autoplay diversity | Additional tuning of diversity heuristics            | S          |
 | Presence/activity  | Activity template customization                      | S          |
 
 ---
