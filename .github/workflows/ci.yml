@@ -50,6 +50,9 @@ jobs:
             - name: Run bot tests
               run: npm run test --workspace=packages/bot -- --ci
 
+            - name: Run music incident regression suite
+              run: npm run test:music:incident
+
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend
 
