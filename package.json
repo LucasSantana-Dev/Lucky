@@ -33,7 +33,7 @@
         "audit:high": "npm audit --audit-level=high",
         "lint:secrets": "secretlint \"**/*\"",
         "check:outdated": "npm outdated || true",
-        "db:generate": "prisma generate --config prisma/prisma.config.ts",
+        "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/postgres} prisma generate --config prisma/prisma.config.ts",
         "db:migrate": "./scripts/db-migrate-safe.sh",
         "db:deploy": "prisma migrate deploy --config prisma/prisma.config.ts",
         "db:reset": "prisma migrate reset --config prisma/prisma.config.ts",
