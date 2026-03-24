@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/IMPLEMENTATION_STATUS.md`, and root lockfile version fields (`#354`).
 - Tightened npm overrides for `flatted` and `effect` to patched bounded ranges
   so required Security checks no longer fail on high-severity audit findings.
+- Aligned Guild Automation dashboard access controls to backend policy by requiring
+  `settings:manage` on both route and sidebar visibility, preventing false-positive
+  UI access that led to API 403 responses.
 
 ## [2.6.38] - 2026-03-19
 
