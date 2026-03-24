@@ -5,6 +5,47 @@ import react from '@vitejs/plugin-react'
 
 const rootModules = path.resolve(__dirname, '../../node_modules')
 
+const manualChunkGroups: Array<{ name: string; packages: string[] }> = [
+  {
+    name: 'vendor-react',
+    packages: ['react', 'react-dom', 'react-router-dom'],
+  },
+  {
+    name: 'vendor-radix',
+    packages: [
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-slot',
+    ],
+  },
+  {
+    name: 'vendor-state',
+    packages: ['zustand', '@tanstack/react-query', 'axios'],
+  },
+  {
+    name: 'vendor-ui',
+    packages: [
+      'framer-motion',
+      'lucide-react',
+      'class-variance-authority',
+      'clsx',
+      'tailwind-merge',
+      'sonner',
+    ],
+  },
+  {
+    name: 'vendor-forms',
+    packages: ['react-hook-form', '@hookform/resolvers', 'zod'],
+  },
+]
+
 export default defineConfig({
   base: process.env.NODE_ENV === 'development' ? '/' : process.env.VITE_BASE_PATH || '/',
   plugins: [react()],
@@ -34,42 +75,18 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': [
-            'react',
-            'react-dom',
-            'react-router-dom',
-          ],
-          'vendor-radix': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-select',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-slot',
-          ],
-          'vendor-state': [
-            'zustand',
-            '@tanstack/react-query',
-            'axios',
-          ],
-          'vendor-ui': [
-            'framer-motion',
-            'lucide-react',
-            'class-variance-authority',
-            'clsx',
-            'tailwind-merge',
-            'sonner',
-          ],
-          'vendor-forms': [
-            'react-hook-form',
-            '@hookform/resolvers',
-            'zod',
-          ],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined
+          }
+
+          for (const group of manualChunkGroups) {
+            if (group.packages.some((pkg) => id.includes(`/node_modules/${pkg}/`))) {
+              return group.name
+            }
+          }
+
+          return undefined
         },
       },
     },
