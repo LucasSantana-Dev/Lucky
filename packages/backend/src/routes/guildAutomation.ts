@@ -124,7 +124,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const result = await guildAutomationService.createApplyRun(guildId, {
                 actualState,
                 initiatedBy: userId,
-                allowProtected: body.allowProtected,
+                allowProtected: body.allowProtected === true,
                 runType: 'apply',
             })
 
@@ -148,7 +148,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const result = await guildAutomationService.createApplyRun(guildId, {
                 actualState,
                 initiatedBy: userId,
-                allowProtected: body.allowProtected,
+                allowProtected: body.allowProtected === true,
                 runType: 'reconcile',
             })
 
@@ -183,7 +183,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const body = s.guildAutomationRunBody.parse(req.body)
             const result = await guildAutomationService.runCutover(guildId, {
                 initiatedBy: userId,
-                completeChecklist: body.completeChecklist,
+                completeChecklist: body.completeChecklist === true,
             })
 
             res.json(result)

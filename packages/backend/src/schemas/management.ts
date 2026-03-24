@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { guildAutomationManifestSchema } from '@lucky/shared/services/guildAutomation/manifestSchema'
 
 const guildIdParam = z.object({
     guildId: z.string().regex(/^\d{17,20}$/, 'Invalid guild ID'),
@@ -31,11 +30,11 @@ const autoModSettingsBody = z
     })
     .strict()
 
-const guildAutomationManifestBody = guildAutomationManifestSchema
+const guildAutomationManifestBody = z.unknown()
 
 const guildAutomationRunBody = z
     .object({
-        actualState: guildAutomationManifestSchema.optional(),
+        actualState: z.unknown().optional(),
         allowProtected: z.boolean().optional(),
         completeChecklist: z.boolean().optional(),
     })
