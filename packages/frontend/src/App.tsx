@@ -15,7 +15,7 @@ import Layout from './components/Layout/Layout'
 import PageLoader from './components/ui/PageLoader'
 import EmptyState from './components/ui/EmptyState'
 import { hasModuleAccess } from './lib/rbac'
-import type { ModuleKey } from './types'
+import type { AccessMode, ModuleKey } from './types'
 
 const LoginPage = lazy(() => import('./pages/Login'))
 const ServersPage = lazy(() => import('./pages/ServersPage'))
@@ -66,9 +66,11 @@ function ForbiddenModulePage({ module }: { module: ModuleKey }) {
 
 function RouteModuleGuard({
     module,
+    requiredMode = 'view',
     children,
 }: {
     module: ModuleKey
+    requiredMode?: AccessMode
     children: ReactNode
 }) {
     const { selectedGuild, memberContext, memberContextLoading } =
@@ -86,15 +88,23 @@ function RouteModuleGuard({
 
     const effectiveAccess = memberContext?.effectiveAccess ?? fallbackAccess
 
-    if (!hasModuleAccess(effectiveAccess, module, 'view')) {
+    if (!hasModuleAccess(effectiveAccess, module, requiredMode)) {
         return <ForbiddenModulePage module={module} />
     }
 
     return <>{children}</>
 }
 
-function guardedRoute(module: ModuleKey, element: ReactNode) {
-    return <RouteModuleGuard module={module}>{element}</RouteModuleGuard>
+function guardedRoute(
+    module: ModuleKey,
+    element: ReactNode,
+    requiredMode: AccessMode = 'view',
+) {
+    return (
+        <RouteModuleGuard module={module} requiredMode={requiredMode}>
+            {element}
+        </RouteModuleGuard>
+    )
 }
 
 function AuthenticatedRoutes() {
@@ -147,7 +157,11 @@ function AuthenticatedRoutes() {
             />
             <Route
                 path='/guild-automation'
-                element={guardedRoute('automation', <GuildAutomationPage />)}
+                element={guardedRoute(
+                    'settings',
+                    <GuildAutomationPage />,
+                    'manage',
+                )}
             />
             <Route
                 path='/levels'
