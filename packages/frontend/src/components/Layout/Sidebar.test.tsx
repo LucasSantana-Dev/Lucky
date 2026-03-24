@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
 import type { User, Guild } from '@/types'
+import type { EffectiveAccessMap } from '@/types/rbac'
 
 vi.mock('@/stores/authStore')
 vi.mock('@/stores/guildStore')
@@ -35,6 +36,15 @@ const mockGuild2: Guild = {
     permissions: '0',
     features: [],
     botAdded: true,
+}
+
+const ACCESS_NONE: EffectiveAccessMap = {
+    overview: 'none',
+    settings: 'none',
+    moderation: 'none',
+    automation: 'none',
+    music: 'none',
+    integrations: 'none',
 }
 
 describe('Sidebar', () => {
@@ -336,6 +346,51 @@ describe('Sidebar', () => {
                 screen.queryByRole('link', { name: 'Re-authenticate' }),
             ).not.toBeInTheDocument()
         })
+    })
+
+    test('hides Guild Automation nav item without settings manage access', () => {
+        mockGuildStoreState({
+            memberContext: {
+                guildId: mockGuild.id,
+                nickname: null,
+                username: 'TestUser',
+                globalName: null,
+                roleIds: [],
+                effectiveAccess: {
+                    ...ACCESS_NONE,
+                    overview: 'view',
+                    settings: 'view',
+                    automation: 'manage',
+                },
+                canManageRbac: false,
+            },
+        })
+
+        renderSidebar()
+
+        expect(screen.queryByText('Guild Automation')).not.toBeInTheDocument()
+    })
+
+    test('shows Guild Automation nav item with settings manage access', () => {
+        mockGuildStoreState({
+            memberContext: {
+                guildId: mockGuild.id,
+                nickname: null,
+                username: 'TestUser',
+                globalName: null,
+                roleIds: [],
+                effectiveAccess: {
+                    ...ACCESS_NONE,
+                    overview: 'view',
+                    settings: 'manage',
+                },
+                canManageRbac: true,
+            },
+        })
+
+        renderSidebar()
+
+        expect(screen.getByText('Guild Automation')).toBeInTheDocument()
     })
 
     test('opens and closes mobile sidebar', async () => {

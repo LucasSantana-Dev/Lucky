@@ -105,7 +105,7 @@ This document reflects what is currently shipped and running in production.
 | Area               | Description                                          | Complexity |
 | ------------------ | ---------------------------------------------------- | ---------- |
 | Autoplay diversity | Reason tag expansion, feedback diversity constraints | M          |
-| Guild automation   | RBAC delta review post-v2.6.21                       | M          |
+| Guild automation   | RBAC follow-up sweep for route/sidebar guard parity  | M          |
 | Presence/activity  | Bot activity/status customization                    | S          |
 
 ---

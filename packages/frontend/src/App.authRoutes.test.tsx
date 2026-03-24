@@ -36,6 +36,10 @@ vi.mock('./pages/Features', () => ({
     default: () => <h1>Features Page</h1>,
 }))
 
+vi.mock('./pages/GuildAutomation', () => ({
+    default: () => <h1>Guild Automation Page</h1>,
+}))
+
 type AuthState = {
     isAuthenticated: boolean
     isLoading: boolean
@@ -261,5 +265,34 @@ describe('App authenticated routing', () => {
         expect(
             await screen.findByRole('heading', { name: 'Servers Page' }),
         ).toBeInTheDocument()
+    })
+
+    test('requires settings manage access for /guild-automation route', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: {
+                    ...NONE_ACCESS,
+                    overview: 'view',
+                    settings: 'view',
+                    automation: 'manage',
+                },
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/guild-automation')
+
+        expect(await screen.findByText('Access denied')).toBeInTheDocument()
+        expect(
+            screen.getByText(
+                'You do not have permission to view the settings module for this server.',
+            ),
+        ).toBeInTheDocument()
+        expect(
+            screen.queryByText('Guild Automation Page'),
+        ).not.toBeInTheDocument()
     })
 })

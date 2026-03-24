@@ -33,13 +33,14 @@ import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
 import { hasModuleAccess } from '@/lib/rbac'
-import type { ModuleKey } from '@/types'
+import type { AccessMode, ModuleKey } from '@/types'
 
 interface NavItem {
     path: string
     label: string
     icon: React.ComponentType<{ className?: string }>
     module: ModuleKey
+    requiredMode?: AccessMode
     badge?: number
 }
 
@@ -120,7 +121,8 @@ const navSections: NavSection[] = [
                 path: '/guild-automation',
                 label: 'Guild Automation',
                 icon: GitBranch,
-                module: 'automation',
+                module: 'settings',
+                requiredMode: 'manage',
             },
             {
                 path: '/levels',
@@ -207,12 +209,12 @@ function Sidebar() {
     const effectiveAccess =
         memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
 
-    const canViewModule = (module: ModuleKey) => {
+    const canViewModule = (module: ModuleKey, requiredMode: AccessMode = 'view') => {
         if (!selectedGuild || !effectiveAccess) {
             return true
         }
 
-        return hasModuleAccess(effectiveAccess, module, 'view')
+        return hasModuleAccess(effectiveAccess, module, requiredMode)
     }
 
     const profileName =
@@ -427,7 +429,10 @@ function Sidebar() {
                             <div className='space-y-1'>
                                 {section.items
                                     .filter((item) =>
-                                        canViewModule(item.module),
+                                        canViewModule(
+                                            item.module,
+                                            item.requiredMode,
+                                        ),
                                     )
                                     .map((item) => {
                                         const active = isActive(item.path)
