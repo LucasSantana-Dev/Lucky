@@ -65,9 +65,9 @@
     },
     "devDependencies": {
         "@swc/cli": "^0.8.0",
-        "@swc/core": "^1.15.8",
-        "@types/node": "^25.1.0",
-        "glob": "^7.2.3",
-        "typescript": "^5.9.3"
+        "@swc/core": "^1.15.21",
+        "@types/node": "^25.5.0",
+        "glob": "^13.0.6",
+        "typescript": "^6.0.2"
     }
 }
