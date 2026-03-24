@@ -24,7 +24,7 @@
         "test:backend": "npm run test --workspace=packages/backend -- --ci",
         "test:bot": "npm run test --workspace=packages/bot -- --ci",
         "test:frontend": "npm run test --workspace=packages/frontend",
-        "test:music:incident": "node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs --testPathPatterns=\"engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec\" --runInBand",
+        "test:music:incident": "jest --config packages/bot/jest.config.cjs --testPathPatterns=\"engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec\" --runInBand",
         "test:all": "npm run test:backend && npm run test:bot && npm run test:frontend",
         "test:ci": "npm run test --workspace=packages/backend -- --ci",
         "test:coverage": "npm run test --workspace=packages/backend -- --coverage",
