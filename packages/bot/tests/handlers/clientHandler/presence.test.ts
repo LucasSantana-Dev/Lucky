@@ -10,6 +10,21 @@ import {
 } from '../../../src/handlers/clientHandler/presence'
 
 describe('bot presence', () => {
+    const originalPresenceStatus = process.env.BOT_PRESENCE_STATUS
+
+    beforeEach(() => {
+        delete process.env.BOT_PRESENCE_STATUS
+    })
+
+    afterAll(() => {
+        if (originalPresenceStatus) {
+            process.env.BOT_PRESENCE_STATUS = originalPresenceStatus
+            return
+        }
+
+        delete process.env.BOT_PRESENCE_STATUS
+    })
+
     it('builds premium rotation with runtime stats', () => {
         const activities = buildPresenceActivities({
             guildCount: 12,
@@ -106,6 +121,64 @@ describe('bot presence', () => {
                 },
             ],
         })
+    })
+
+    it('uses configured presence status when valid', () => {
+        process.env.BOT_PRESENCE_STATUS = 'dnd'
+
+        const setPresence = jest.fn()
+        const client = {
+            user: { setPresence },
+            commands: { size: 3 },
+            guilds: {
+                cache: {
+                    size: 1,
+                    values: () => [{ memberCount: 8 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [],
+                    },
+                },
+            },
+        }
+
+        setPresenceActivity(client as never, 0)
+
+        expect(setPresence).toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'dnd' }),
+        )
+    })
+
+    it('falls back to online when configured presence status is invalid', () => {
+        process.env.BOT_PRESENCE_STATUS = 'busy'
+
+        const setPresence = jest.fn()
+        const client = {
+            user: { setPresence },
+            commands: { size: 3 },
+            guilds: {
+                cache: {
+                    size: 1,
+                    values: () => [{ memberCount: 8 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [],
+                    },
+                },
+            },
+        }
+
+        setPresenceActivity(client as never, 0)
+
+        expect(setPresence).toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'online' }),
+        )
     })
 
     it('starts rotation and returns stop function', () => {

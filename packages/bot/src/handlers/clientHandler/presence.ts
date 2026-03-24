@@ -1,5 +1,6 @@
 import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
+import { getBotPresenceStatus } from '../../utils/presenceStatus'
 
 type PresenceActivity = {
     type: ActivityType
@@ -87,7 +88,7 @@ export const setPresenceActivity = (
     const safeIndex =
         ((index % activities.length) + activities.length) % activities.length
     client.user.setPresence({
-        status: 'online',
+        status: getBotPresenceStatus(),
         activities: [activities[safeIndex]],
     })
 

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Aligned Guild Automation dashboard access controls to backend policy by requiring
   `settings:manage` on both route and sidebar visibility, preventing false-positive
   UI access that led to API 403 responses.
+- Added `BOT_PRESENCE_STATUS` support so rotating bot presence and music now-playing
+  presence can use `online`, `idle`, `dnd`, or `invisible` without code changes.
 
 ## [2.6.38] - 2026-03-19
 
