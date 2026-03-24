@@ -1,6 +1,6 @@
 # Lucky Implementation Status
 
-**Last Updated:** 2026-03-23  
+**Last Updated:** 2026-03-24  
 **Current Version:** v2.6.38
 
 This document reflects what is currently shipped and running in production.
@@ -105,8 +105,7 @@ This document reflects what is currently shipped and running in production.
 | Area               | Description                                          | Complexity |
 | ------------------ | ---------------------------------------------------- | ---------- |
 | Autoplay diversity | Reason tag expansion, feedback diversity constraints | M          |
-| Guild automation   | RBAC follow-up sweep for route/sidebar guard parity  | M          |
-| Presence/activity  | Bot activity/status customization                    | S          |
+| Presence/activity  | Activity template customization                      | S          |
 
 ---
 
@@ -120,3 +119,4 @@ This document reflects what is currently shipped and running in production.
 | `MUSIC_PROVIDER_COOLDOWN_MS`       | `240000` | Provider cooldown duration in ms                          |
 | `MUSIC_WATCHDOG_SCAN_INTERVAL_MS`  | `60000`  | Periodic orphan session scan interval                     |
 | `QUEUE_RESCUE_PROBE_TIMEOUT_MS`    | `5000`   | Probe timeout for /queue rescue                           |
+| `BOT_PRESENCE_STATUS`              | `online` | Bot presence status for rotation and now-playing updates  |

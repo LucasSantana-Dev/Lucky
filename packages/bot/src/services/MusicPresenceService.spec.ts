@@ -17,9 +17,21 @@ const makeClient = () => ({
     user: { setPresence: jest.fn() },
 })
 
+const originalPresenceStatus = process.env.BOT_PRESENCE_STATUS
+
 beforeEach(() => {
     debugLogMock.mockReset()
     jest.resetModules()
+    delete process.env.BOT_PRESENCE_STATUS
+})
+
+afterAll(() => {
+    if (originalPresenceStatus) {
+        process.env.BOT_PRESENCE_STATUS = originalPresenceStatus
+        return
+    }
+
+    delete process.env.BOT_PRESENCE_STATUS
 })
 
 describe('MusicPresenceService', () => {
@@ -33,6 +45,42 @@ describe('MusicPresenceService', () => {
             setNowPlaying('guild-1', { title: 'Song', author: 'Artist' } as never)
 
             expect(pause).toHaveBeenCalledTimes(1)
+            expect(client.user.setPresence).toHaveBeenCalledWith({
+                status: 'online',
+                activities: [
+                    { type: ActivityType.Listening, name: 'Song — Artist' },
+                ],
+            })
+        })
+
+        it('uses configured presence status when valid', () => {
+            process.env.BOT_PRESENCE_STATUS = 'idle'
+
+            const client = makeClient()
+            const pause = jest.fn()
+            const resume = jest.fn()
+            initMusicPresence(client as never, pause, resume)
+
+            setNowPlaying('guild-1', { title: 'Song', author: 'Artist' } as never)
+
+            expect(client.user.setPresence).toHaveBeenCalledWith({
+                status: 'idle',
+                activities: [
+                    { type: ActivityType.Listening, name: 'Song — Artist' },
+                ],
+            })
+        })
+
+        it('falls back to online when configured presence status is invalid', () => {
+            process.env.BOT_PRESENCE_STATUS = 'away'
+
+            const client = makeClient()
+            const pause = jest.fn()
+            const resume = jest.fn()
+            initMusicPresence(client as never, pause, resume)
+
+            setNowPlaying('guild-1', { title: 'Song', author: 'Artist' } as never)
+
             expect(client.user.setPresence).toHaveBeenCalledWith({
                 status: 'online',
                 activities: [

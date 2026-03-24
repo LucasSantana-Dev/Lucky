@@ -2,6 +2,7 @@ import { ActivityType } from 'discord.js'
 import type { Track } from 'discord-player'
 import type { CustomClient } from '../types'
 import { debugLog } from '@lucky/shared/utils'
+import { getBotPresenceStatus } from '../utils/presenceStatus'
 
 const activeGuilds = new Set<string>()
 let pauseRotationFn: (() => void) | null = null
@@ -26,7 +27,7 @@ export function setNowPlaying(guildId: string, track: Track): void {
 
     const name = truncateActivityName(`${track.title} — ${track.author}`)
     clientRef.user.setPresence({
-        status: 'online',
+        status: getBotPresenceStatus(),
         activities: [{ type: ActivityType.Listening, name }],
     })
 
