@@ -119,8 +119,10 @@ export const guildAutomationManifestSchema = z
             .optional(),
         moderation: z
             .object({
-                automod: z.record(z.unknown()).optional(),
-                moderationSettings: z.record(z.unknown()).optional(),
+                automod: z.record(z.string(), z.unknown()).optional(),
+                moderationSettings: z
+                    .record(z.string(), z.unknown())
+                    .optional(),
             })
             .optional(),
         automessages: z
