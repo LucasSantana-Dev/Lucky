@@ -76,7 +76,15 @@ export class SearchEngineManager {
         options: EnhancedSearchOptions,
         attempt: SearchAttempt,
     ): Promise<{ success: boolean; result?: SearchResult; error?: Error }> {
-        if (!providerHealthService.isAvailable(attempt.provider)) {
+        const isExplicitPreferredEngine =
+            options.preferredEngine !== undefined &&
+            options.preferredEngine !== QueryType.AUTO &&
+            attempt.engine === options.preferredEngine
+
+        if (
+            !isExplicitPreferredEngine &&
+            !providerHealthService.isAvailable(attempt.provider)
+        ) {
             return { success: false }
         }
 

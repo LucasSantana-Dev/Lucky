@@ -34,3 +34,15 @@ description: Work with Discord Player, queue, and music commands in Lucky. Use w
 ## Validations
 
 - Ensure user is in a voice channel; bot has join permissions. Use existing queue/voice validators before touching queue or player.
+
+## Autoplay incident guardrails
+
+- In `packages/bot/src/utils/music/search/engineManager.ts`, keep provider cooldown gating for fallback attempts, but do not skip an explicit non-`AUTO` `preferredEngine` request only because that provider is in cooldown.
+- This protects direct-provider queries (for example direct YouTube URLs) from false negatives when provider health cooldown is stale.
+- Keep regression coverage in `packages/bot/src/utils/music/search/engineManager.spec.ts`:
+  - `still tries preferred engine for direct provider queries even during cooldown`
+
+## Fast verification commands
+
+- `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs packages/bot/src/utils/music/search/engineManager.spec.ts --runInBand`
+- `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs --testPathPatterns="engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec" --runInBand`
