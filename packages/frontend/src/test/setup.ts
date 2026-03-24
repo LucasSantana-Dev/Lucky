@@ -1,6 +1,6 @@
-import '@testing-library/jest-dom/vitest'
+import '@testing-library/jest-dom'
 
-global.ResizeObserver = class ResizeObserver {
+globalThis.ResizeObserver = class ResizeObserver {
     observe() {}
     unobserve() {}
     disconnect() {}
