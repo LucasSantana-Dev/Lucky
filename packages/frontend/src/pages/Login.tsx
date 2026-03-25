@@ -128,9 +128,26 @@ export default function LoginPage() {
                 </section>
             </div>
 
-            <p className='pb-2 text-center type-body-sm text-lucky-text-disabled'>
-                © 2026 Lucky. All rights reserved.
-            </p>
+            <footer className='pb-2 text-center space-y-1'>
+                <nav className='flex items-center justify-center gap-3' aria-label='Legal links'>
+                    <a
+                        href='/terms'
+                        className='type-body-sm text-lucky-text-tertiary underline-offset-2 hover:underline hover:text-lucky-text-secondary transition-colors'
+                    >
+                        Terms of Service
+                    </a>
+                    <span className='text-lucky-border' aria-hidden='true'>·</span>
+                    <a
+                        href='/privacy'
+                        className='type-body-sm text-lucky-text-tertiary underline-offset-2 hover:underline hover:text-lucky-text-secondary transition-colors'
+                    >
+                        Privacy Policy
+                    </a>
+                </nav>
+                <p className='type-body-sm text-lucky-text-disabled'>
+                    © 2026 Lucky. All rights reserved.
+                </p>
+            </footer>
         </div>
     )
 }

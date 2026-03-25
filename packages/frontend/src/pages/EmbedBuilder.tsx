@@ -43,7 +43,7 @@ function EmbedPreview({ form }: { form: FormState }) {
         >
             <div className='bg-lucky-bg-tertiary p-4 space-y-2'>
                 {form.title && (
-                    <p className='type-body-sm font-semibold text-lucky-text-primary'>{form.title}</p>
+                    <p className='type-title text-lucky-text-primary'>{form.title}</p>
                 )}
                 {form.description && (
                     <p className='type-body-sm text-lucky-text-secondary whitespace-pre-wrap'>
@@ -57,7 +57,7 @@ function EmbedPreview({ form }: { form: FormState }) {
                                 key={i}
                                 className={field.inline ? 'col-span-1' : 'col-span-3'}
                             >
-                                <p className='type-meta font-semibold text-lucky-text-primary'>{field.name}</p>
+                                <p className='type-body-sm text-lucky-text-primary'>{field.name}</p>
                                 <p className='type-meta text-lucky-text-secondary'>{field.value}</p>
                             </div>
                         ))}
@@ -101,7 +101,7 @@ function FieldEditor({
     return (
         <div className='space-y-3'>
             <div className='flex items-center justify-between'>
-                <p className='type-body-sm font-medium text-lucky-text-secondary'>Fields</p>
+                <p className='type-body-sm text-lucky-text-secondary'>Fields</p>
                 <Button variant='secondary' size='sm' onClick={addField}>
                     <Plus className='h-3 w-3 mr-1' />
                     Add Field
@@ -216,7 +216,7 @@ function EmbedFormModal({
                 <div className='flex flex-1 overflow-hidden'>
                     <div className='flex-1 overflow-y-auto p-5 space-y-4'>
                         {error && (
-                            <p className='text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2'>
+                            <p className='text-red-400 type-body-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2'>
                                 {error}
                             </p>
                         )}
@@ -474,21 +474,21 @@ export default function EmbedBuilder() {
                                                     backgroundColor: template.color ?? '#5865F2',
                                                 }}
                                             />
-                                            <p className='type-body-sm font-medium text-lucky-text-primary truncate'>
+                                            <p className='type-body text-lucky-text-primary truncate'>
                                                 {template.name}
                                             </p>
                                         </div>
                                         <div className='flex gap-1 flex-shrink-0'>
                                             <button
                                                 onClick={() => setModalTemplate(template)}
-                                                className='p-1.5 rounded-md text-lucky-text-secondary hover:text-lucky-brand hover:bg-lucky-bg-active/50 transition-colors'
+                                                className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-secondary hover:text-lucky-brand hover:bg-lucky-bg-active/50 transition-colors'
                                                 aria-label={`Edit ${template.name}`}
                                             >
                                                 <Pencil className='h-4 w-4' />
                                             </button>
                                             <button
                                                 onClick={() => setDeleteTarget(template.name)}
-                                                className='p-1.5 rounded-md text-lucky-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors'
+                                                className='flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors'
                                                 aria-label={`Delete ${template.name}`}
                                             >
                                                 <Trash2 className='h-4 w-4' />
@@ -497,7 +497,7 @@ export default function EmbedBuilder() {
                                     </div>
 
                                     {template.title && (
-                                        <p className='type-body-sm font-medium text-lucky-text-primary line-clamp-1'>
+                                        <p className='type-body-sm text-lucky-text-primary line-clamp-1'>
                                             {template.title}
                                         </p>
                                     )}
