@@ -6,6 +6,8 @@ import Card from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
 import Skeleton from '@/components/ui/Skeleton'
 import SectionHeader from '@/components/ui/SectionHeader'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
 import type { EmbedTemplate, EmbedField } from '@/services/embedsApi'
@@ -108,16 +110,17 @@ function FieldEditor({
             {fields.map((field, i) => (
                 <div key={i} className='surface-panel p-3 space-y-2 rounded-lg'>
                     <div className='flex gap-2'>
-                        <input
+                        <Input
                             type='text'
                             placeholder='Field name'
                             value={field.name}
                             onChange={(e) => updateField(i, { name: e.target.value })}
-                            className='flex-1 bg-lucky-bg-tertiary border border-lucky-border rounded px-2 py-1 type-body-sm text-lucky-text-primary'
+                            className='flex-1 bg-lucky-bg-tertiary border-lucky-border'
                         />
                         <button
                             onClick={() => removeField(i)}
-                            className='min-h-[36px] min-w-[36px] flex items-center justify-center text-lucky-text-secondary hover:text-red-400 rounded transition-colors'
+                            className='min-h-[44px] min-w-[44px] flex items-center justify-center text-lucky-text-secondary hover:text-red-400 rounded transition-colors'
+                            aria-label={`Remove field ${i + 1}`}
                         >
                             <Trash2 className='h-4 w-4' />
                         </button>
@@ -127,9 +130,9 @@ function FieldEditor({
                         value={field.value}
                         onChange={(e) => updateField(i, { value: e.target.value })}
                         rows={2}
-                        className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded px-2 py-1 type-body-sm text-lucky-text-primary resize-none'
+                        className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
                     />
-                    <label className='flex items-center gap-2 type-meta text-lucky-text-secondary cursor-pointer'>
+                    <Label className='flex items-center gap-2 type-meta text-lucky-text-secondary cursor-pointer font-normal'>
                         <input
                             type='checkbox'
                             checked={field.inline ?? false}
@@ -137,7 +140,7 @@ function FieldEditor({
                             className='rounded'
                         />
                         Inline
-                    </label>
+                    </Label>
                 </div>
             ))}
         </div>
@@ -219,23 +222,23 @@ function EmbedFormModal({
                         )}
 
                         <div className='grid grid-cols-2 gap-4'>
-                            <div className='space-y-1'>
-                                <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                            <div className='space-y-1.5'>
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                     Template Name *
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     type='text'
                                     value={form.name}
                                     onChange={set('name')}
                                     disabled={isEdit}
                                     placeholder='e.g. welcome-message'
-                                    className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary disabled:opacity-50'
+                                    className='bg-lucky-bg-tertiary border-lucky-border'
                                 />
                             </div>
-                            <div className='space-y-1'>
-                                <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                            <div className='space-y-1.5'>
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                     Color
-                                </label>
+                                </Label>
                                 <div className='flex gap-2 items-center'>
                                     <input
                                         type='color'
@@ -243,80 +246,80 @@ function EmbedFormModal({
                                         onChange={set('color')}
                                         className='h-9 w-12 rounded cursor-pointer bg-transparent border border-lucky-border'
                                     />
-                                    <input
+                                    <Input
                                         type='text'
                                         value={form.color}
                                         onChange={set('color')}
                                         placeholder='#5865F2'
-                                        className='flex-1 bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary font-mono'
+                                        className='flex-1 bg-lucky-bg-tertiary border-lucky-border font-mono'
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        <div className='space-y-1'>
-                            <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                        <div className='space-y-1.5'>
+                            <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                 Title
-                            </label>
-                            <input
+                            </Label>
+                            <Input
                                 type='text'
                                 value={form.title}
                                 onChange={set('title')}
                                 placeholder='Embed title'
-                                className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary'
+                                className='bg-lucky-bg-tertiary border-lucky-border'
                             />
                         </div>
 
-                        <div className='space-y-1'>
-                            <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                        <div className='space-y-1.5'>
+                            <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                 Description
-                            </label>
+                            </Label>
                             <textarea
                                 value={form.description}
                                 onChange={set('description')}
                                 placeholder='Embed description (supports markdown)'
                                 rows={4}
-                                className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary resize-none'
+                                className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-md px-3 py-2 type-body-sm text-lucky-text-primary resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
                             />
                         </div>
 
                         <div className='grid grid-cols-2 gap-4'>
-                            <div className='space-y-1'>
-                                <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                            <div className='space-y-1.5'>
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                     Thumbnail URL
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     type='url'
                                     value={form.thumbnail}
                                     onChange={set('thumbnail')}
                                     placeholder='https://...'
-                                    className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary'
+                                    className='bg-lucky-bg-tertiary border-lucky-border'
                                 />
                             </div>
-                            <div className='space-y-1'>
-                                <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                            <div className='space-y-1.5'>
+                                <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                     Image URL
-                                </label>
-                                <input
+                                </Label>
+                                <Input
                                     type='url'
                                     value={form.image}
                                     onChange={set('image')}
                                     placeholder='https://...'
-                                    className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary'
+                                    className='bg-lucky-bg-tertiary border-lucky-border'
                                 />
                             </div>
                         </div>
 
-                        <div className='space-y-1'>
-                            <label className='type-meta text-lucky-text-tertiary uppercase tracking-wide'>
+                        <div className='space-y-1.5'>
+                            <Label className='type-meta text-lucky-text-tertiary uppercase tracking-wide font-normal'>
                                 Footer
-                            </label>
-                            <input
+                            </Label>
+                            <Input
                                 type='text'
                                 value={form.footer}
                                 onChange={set('footer')}
                                 placeholder='Footer text'
-                                className='w-full bg-lucky-bg-tertiary border border-lucky-border rounded-lg px-3 py-2 type-body-sm text-lucky-text-primary'
+                                className='bg-lucky-bg-tertiary border-lucky-border'
                             />
                         </div>
 

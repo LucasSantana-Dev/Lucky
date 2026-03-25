@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
     Shield,
     Search,
@@ -261,6 +261,7 @@ function CaseDetailModal({
 }
 
 export default function ModerationPage() {
+    const prefersReducedMotion = useReducedMotion()
     const { selectedGuild } = useGuildStore()
     const [cases, setCases] = useState<ModerationCase[]>([])
     const [total, setTotal] = useState(0)
@@ -512,11 +513,11 @@ export default function ModerationPage() {
                                 return (
                                     <motion.div
                                         key={c.id}
-                                        initial={{ opacity: 0 }}
+                                        initial={prefersReducedMotion ? false : { opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{
                                             duration: 0.15,
-                                            delay: i * 0.02,
+                                            delay: prefersReducedMotion ? 0 : i * 0.02,
                                         }}
                                         className='grid grid-cols-1 md:grid-cols-[60px_1fr_1fr_100px_100px_140px_48px] gap-2 md:gap-4 px-5 py-3.5 hover:bg-lucky-bg-tertiary/30 transition-colors cursor-pointer group'
                                         onClick={() => setSelectedCase(c)}
