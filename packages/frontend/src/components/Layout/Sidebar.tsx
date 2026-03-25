@@ -226,7 +226,7 @@ function Sidebar() {
                     </div>
                     <button
                         type='button'
-                        className='lucky-focus-visible ml-auto rounded-lg p-2 text-lucky-text-secondary transition-colors hover:text-lucky-text-primary lg:hidden'
+                        className='lucky-focus-visible ml-auto flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-lucky-text-secondary transition-colors hover:text-lucky-text-primary lg:hidden'
                         onClick={() => setMobileOpen(false)}
                         aria-label='Close sidebar'
                     >
@@ -260,7 +260,7 @@ function Sidebar() {
                                                     to={item.path}
                                                     aria-current={active ? 'page' : undefined}
                                                     className={cn(
-                                                        'lucky-focus-visible group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150',
+                                                        'lucky-focus-visible group relative flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2 transition-all duration-150',
                                                         active
                                                             ? 'bg-lucky-bg-active/80 text-lucky-text-primary ring-1 ring-lucky-border-strong'
                                                             : 'text-lucky-text-secondary hover:bg-lucky-bg-tertiary/70 hover:text-lucky-text-primary',
@@ -329,7 +329,7 @@ function Sidebar() {
                     <button
                         type='button'
                         onClick={logout}
-                        className='lucky-focus-visible flex min-h-[36px] min-w-[36px] items-center justify-center rounded-md p-2 text-lucky-text-tertiary transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
+                        className='lucky-focus-visible flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-tertiary transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
                         aria-label='Log out'
                         title='Log out'
                     >
@@ -344,7 +344,7 @@ function Sidebar() {
         <>
             <button
                 type='button'
-                className='lucky-focus-visible fixed left-3 top-3 z-50 flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-lucky-border bg-lucky-bg-secondary p-2 text-lucky-text-primary transition-colors hover:bg-lucky-bg-tertiary lg:hidden'
+                className='lucky-focus-visible fixed left-3 top-3 z-50 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-lucky-border bg-lucky-bg-secondary text-lucky-text-primary transition-colors hover:bg-lucky-bg-tertiary lg:hidden'
                 onClick={() => setMobileOpen(true)}
                 aria-label='Open navigation menu'
                 aria-expanded={mobileOpen}
