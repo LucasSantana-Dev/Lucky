@@ -553,7 +553,7 @@ export default function ServerSettingsPage() {
         managerRoleOptions.find((r) => r.id === id)?.name ?? id
 
     return (
-        <div className='space-y-6'>
+        <div className='space-y-6 lg:pb-0 pb-24'>
             <div className='flex items-start justify-between'>
                 <header>
                     <h1 className='type-h1 text-lucky-text-primary'>
