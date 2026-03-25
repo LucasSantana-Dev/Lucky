@@ -21,6 +21,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import StatTile from '@/components/ui/StatTile'
 import {
     Select,
     SelectContent,
@@ -117,42 +118,6 @@ function timeAgo(dateStr: string): string {
     return formatDate(dateStr)
 }
 
-function StatCard({
-    label,
-    value,
-    icon: Icon,
-    tone,
-}: {
-    label: string
-    value: number
-    icon: React.ComponentType<{ className?: string }>
-    tone: 'blue' | 'green' | 'yellow' | 'red'
-}) {
-    const toneClass: Record<typeof tone, string> = {
-        blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-        green: 'bg-green-500/10 text-green-400 border-green-500/20',
-        yellow: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-        red: 'bg-red-500/10 text-red-400 border-red-500/20',
-    }
-
-    return (
-        <Card className='p-4'>
-            <div className='flex items-start justify-between gap-3'>
-                <div>
-                    <p className='type-meta text-lucky-text-tertiary'>
-                        {label}
-                    </p>
-                    <p className='type-h2 text-lucky-text-primary mt-1'>
-                        {value.toLocaleString()}
-                    </p>
-                </div>
-                <div className={cn('p-2 rounded-lg border', toneClass[tone])}>
-                    <Icon className='w-4 h-4' />
-                </div>
-            </div>
-        </Card>
-    )
-}
 
 function CaseDetailModal({
     caseData,
@@ -427,29 +392,29 @@ export default function ModerationPage() {
                 </div>
             ) : stats ? (
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
-                    <StatCard
+                    <StatTile
                         label='Total Cases'
                         value={stats.totalCases}
-                        icon={BarChart3}
-                        tone='blue'
+                        icon={<BarChart3 className='w-4 h-4' />}
+                        tone='brand'
                     />
-                    <StatCard
+                    <StatTile
                         label='Active Cases'
                         value={stats.activeCases}
-                        icon={Shield}
-                        tone='green'
+                        icon={<Shield className='w-4 h-4' />}
+                        tone='success'
                     />
-                    <StatCard
+                    <StatTile
                         label='Warnings'
                         value={stats.casesByType.warn ?? 0}
-                        icon={AlertTriangle}
-                        tone='yellow'
+                        icon={<AlertTriangle className='w-4 h-4' />}
+                        tone='warning'
                     />
-                    <StatCard
+                    <StatTile
                         label='Bans'
                         value={stats.casesByType.ban ?? 0}
-                        icon={Ban}
-                        tone='red'
+                        icon={<Ban className='w-4 h-4' />}
+                        tone='accent'
                     />
                 </div>
             ) : null}
