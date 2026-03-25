@@ -54,7 +54,7 @@ export default memo(function SearchBar({ onPlay }: SearchBarProps) {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder='Song name, artist, or URL...'
-                    className='flex-1 h-10 sm:h-9 text-base sm:text-sm'
+                    className='flex-1 h-10 sm:h-9'
                     aria-label='Search query'
                     autoComplete='off'
                     enterKeyHint='search'

@@ -106,7 +106,7 @@ export default function MusicPage() {
 
             {player.error && (
                 <div
-                    className='text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center'
+                    className='type-body-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center'
                     role='alert'
                 >
                     {player.error}
@@ -119,7 +119,7 @@ export default function MusicPage() {
 function ConnectionBadge({ connected }: { connected: boolean }) {
     return (
         <div
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full type-meta shrink-0 ${
                 connected
                     ? 'bg-green-500/10 text-green-400 border border-green-500/20'
                     : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'

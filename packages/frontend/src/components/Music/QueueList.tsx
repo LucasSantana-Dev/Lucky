@@ -80,7 +80,7 @@ export default memo(function QueueList({
                     <h3 className='type-title text-lucky-text-primary'>
                         Queue
                     </h3>
-                    <span className='text-xs sm:text-sm text-lucky-text-secondary tabular-nums'>
+                    <span className='type-body-sm text-lucky-text-secondary tabular-nums'>
                         ({tracks.length} track{tracks.length !== 1 ? 's' : ''})
                     </span>
                 </div>
@@ -131,7 +131,7 @@ export default memo(function QueueList({
                     {hasMore && (
                         <button
                             onClick={showMore}
-                            className='w-full mt-2 py-2.5 text-sm text-lucky-text-secondary hover:text-white flex items-center justify-center gap-1 rounded-lg hover:bg-lucky-bg-tertiary active:bg-lucky-bg-tertiary transition-colors'
+                            className='w-full mt-2 min-h-[44px] type-body-sm text-lucky-text-secondary hover:text-white flex items-center justify-center gap-1 rounded-lg hover:bg-lucky-bg-tertiary active:bg-lucky-bg-tertiary transition-colors'
                             aria-label={`Show more tracks (${tracks.length - visibleCount} remaining)`}
                         >
                             <ChevronDown
@@ -207,7 +207,7 @@ const QueueItem = memo(function QueueItem({
             onDragEnd={onDragEnd}
         >
             <span
-                className='text-xs text-lucky-text-secondary w-5 sm:w-6 text-right font-mono tabular-nums shrink-0'
+                className='type-meta text-lucky-text-secondary w-5 sm:w-6 text-right tabular-nums shrink-0'
                 aria-hidden='true'
             >
                 {index + 1}
@@ -221,13 +221,13 @@ const QueueItem = memo(function QueueItem({
             <TrackThumbnail thumbnail={track.thumbnail} />
 
             <div className='flex-1 min-w-0'>
-                <p className='text-sm text-white truncate'>{track.title}</p>
-                <p className='text-xs text-lucky-text-secondary truncate'>
+                <p className='type-body text-lucky-text-primary truncate'>{track.title}</p>
+                <p className='type-meta text-lucky-text-secondary truncate'>
                     {track.author}
                 </p>
             </div>
 
-            <span className='text-xs text-lucky-text-secondary font-mono tabular-nums shrink-0 hidden sm:block'>
+            <span className='type-meta text-lucky-text-secondary tabular-nums shrink-0 hidden sm:block'>
                 {track.durationFormatted}
             </span>
 

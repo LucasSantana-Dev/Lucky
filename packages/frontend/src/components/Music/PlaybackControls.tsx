@@ -157,7 +157,7 @@ export function VolumeSlider({ volume, onChange }: VolumeSliderProps) {
                 aria-valuenow={displayVol}
             />
             <span
-                className='text-xs text-lucky-text-secondary w-8 text-right tabular-nums'
+                className='type-meta text-lucky-text-secondary w-8 text-right tabular-nums'
                 aria-hidden='true'
             >
                 {displayVol}%
