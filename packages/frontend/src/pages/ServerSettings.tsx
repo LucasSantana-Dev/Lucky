@@ -346,7 +346,7 @@ export default function ServerSettingsPage() {
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lucky-text-secondary text-sm'>
+                <p className='type-body text-lucky-text-secondary'>
                     Select a server to manage settings
                 </p>
             </div>
@@ -378,7 +378,7 @@ export default function ServerSettingsPage() {
                     <h1 className='type-h1 text-lucky-text-primary'>
                         Server Settings
                     </h1>
-                    <p className='text-sm text-lucky-text-secondary mt-1'>
+                    <p className='type-body text-lucky-text-secondary mt-1'>
                         General configuration for {selectedGuild.name}
                     </p>
                 </header>
@@ -389,7 +389,7 @@ export default function ServerSettingsPage() {
                             Unable to load server settings
                         </h2>
                     </div>
-                    <p className='text-sm text-lucky-text-secondary'>
+                    <p className='type-body text-lucky-text-secondary'>
                         {settingsLoadError.message}
                     </p>
                     <div className='flex items-center gap-3'>
@@ -408,7 +408,7 @@ export default function ServerSettingsPage() {
                             settingsLoadError.kind === 'forbidden') && (
                             <a
                                 href={api.auth.getDiscordLoginUrl()}
-                                className='text-sm text-lucky-text-secondary hover:text-lucky-text-primary'
+                                className='type-body-sm text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
                                 Re-authenticate
                             </a>
@@ -423,7 +423,7 @@ export default function ServerSettingsPage() {
     if (!canManageRbac) {
         rbacContent = (
             <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'>
-                <p className='text-sm text-lucky-text-secondary'>
+                <p className='type-body text-lucky-text-secondary'>
                     Only server owner or users with Administrator/Manage Server
                     permission can manage RBAC policy.
                 </p>
@@ -443,7 +443,7 @@ export default function ServerSettingsPage() {
         rbacContent = (
             <div className='space-y-3'>
                 {rbacRolesError && (
-                    <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 text-sm text-lucky-text-secondary'>
+                    <div className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 type-body-sm text-lucky-text-secondary'>
                         <div className='flex items-center justify-between gap-3'>
                             <span>{rbacRolesError}</span>
                             {selectedGuild?.id && (
@@ -464,7 +464,7 @@ export default function ServerSettingsPage() {
                     </div>
                 )}
                 {rbacGrants.length === 0 ? (
-                    <p className='text-sm text-lucky-text-tertiary'>
+                    <p className='type-body-sm text-lucky-text-tertiary'>
                         No RBAC rules configured. Add a rule to grant module
                         access.
                     </p>
@@ -559,7 +559,7 @@ export default function ServerSettingsPage() {
                     <h1 className='type-h1 text-lucky-text-primary'>
                         Server Settings
                     </h1>
-                    <p className='text-sm text-lucky-text-secondary mt-1'>
+                    <p className='type-body text-lucky-text-secondary mt-1'>
                         General configuration for {selectedGuild.name}
                     </p>
                 </header>
@@ -593,7 +593,7 @@ export default function ServerSettingsPage() {
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
                                 <UserCog className='w-3 h-3' /> Bot Nickname
                             </Label>
                             <Input
@@ -606,7 +606,7 @@ export default function ServerSettingsPage() {
                             />
                         </div>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Hash className='w-3 h-3' /> Command Prefix
                             </Label>
                             <Input
@@ -639,7 +639,7 @@ export default function ServerSettingsPage() {
 
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Clock className='w-3 h-3' /> Timezone
                             </Label>
                             <Select
@@ -659,7 +659,7 @@ export default function ServerSettingsPage() {
                             </Select>
                         </div>
                         <div className='space-y-2'>
-                            <Label className='text-xs text-lucky-text-secondary flex items-center gap-1.5'>
+                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
                                 <Bell className='w-3 h-3' /> Updates Channel
                             </Label>
                             {channels.length > 0 ? (
@@ -714,7 +714,7 @@ export default function ServerSettingsPage() {
                             <h2 className='type-title text-lucky-text-primary'>
                                 Manager Roles
                             </h2>
-                            <p className='text-xs text-lucky-text-tertiary mt-0.5'>
+                            <p className='type-meta text-lucky-text-tertiary mt-0.5'>
                                 Roles that can manage bot settings via commands
                             </p>
                         </div>
@@ -764,7 +764,7 @@ export default function ServerSettingsPage() {
                             ))}
                         </div>
                     ) : (
-                        <p className='text-xs text-lucky-text-tertiary'>
+                        <p className='type-meta text-lucky-text-tertiary'>
                             No manager roles configured.
                         </p>
                     )}
@@ -784,10 +784,10 @@ export default function ServerSettingsPage() {
                                 <AlertTriangle className='w-4 h-4 text-yellow-400' />
                             </div>
                             <div>
-                                <h3 className='text-sm font-semibold text-white'>
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
                                     Disable Command Warnings
                                 </h3>
-                                <p className='text-xs text-lucky-text-tertiary mt-0.5'>
+                                <p className='type-meta text-lucky-text-tertiary mt-0.5'>
                                     Hide permission and cooldown warnings for
                                     users
                                 </p>
@@ -832,7 +832,7 @@ export default function ServerSettingsPage() {
                                 <h2 className='type-title text-lucky-text-primary'>
                                     Criativaria Baseline
                                 </h2>
-                                <p className='text-xs text-lucky-text-tertiary'>
+                                <p className='type-meta text-lucky-text-tertiary'>
                                     Apply the migration baseline from legacy bots
                                     with safe reconcile defaults.
                                 </p>
@@ -868,7 +868,7 @@ export default function ServerSettingsPage() {
                                 <h2 className='type-title text-lucky-text-primary'>
                                     Access Control
                                 </h2>
-                                <p className='text-xs text-lucky-text-tertiary'>
+                                <p className='type-meta text-lucky-text-tertiary'>
                                     Assign role-based web dashboard permissions
                                 </p>
                             </div>
