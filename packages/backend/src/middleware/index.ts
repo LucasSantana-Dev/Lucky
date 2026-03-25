@@ -32,7 +32,10 @@ export function setupMiddleware(app: Express): void {
                 host === 'lucassantana.tech' ||
                 host.endsWith('.lucassantana.tech') ||
                 host === 'luk-homeserver.com.br' ||
-                host.endsWith('.luk-homeserver.com.br')
+                host.endsWith('.luk-homeserver.com.br') ||
+                host.endsWith('.replit.dev') ||
+                host.endsWith('.repl.co') ||
+                host.endsWith('.replit.app')
             )
         } catch {
             return false
