@@ -8,6 +8,7 @@ import ServerGrid from '@/components/Dashboard/ServerGrid'
 import { useGuildStore } from '@/stores/guildStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { cn } from '@/lib/utils'
 
 export default function ServersPage() {
     const guilds = useGuildStore((state) => state.guilds)
@@ -19,6 +20,9 @@ export default function ServersPage() {
         title: 'Servers - Lucky',
         description: 'View and manage your Discord servers',
     })
+
+    const withBotCount = guilds.filter((g) => g.botAdded).length
+    const withoutBotCount = guilds.length - withBotCount
 
     if (isLoading) {
         return (
@@ -53,7 +57,7 @@ export default function ServersPage() {
                         src={user?.avatar || undefined}
                         alt={user?.username || 'User avatar'}
                     />
-                    <AvatarFallback className='bg-lucky-red text-xl text-white'>
+                    <AvatarFallback className='bg-lucky-brand/20 type-h2 text-lucky-brand'>
                         {user?.username?.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
@@ -70,11 +74,11 @@ export default function ServersPage() {
                     </p>
                 </div>
 
-                <div className='ml-auto rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-4 py-2'>
+                <div className='ml-auto rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-4 py-2 text-center'>
                     <p className='type-meta text-lucky-text-tertiary'>
-                        Managed servers
+                        Total servers
                     </p>
-                    <p className='type-title text-lucky-text-primary'>
+                    <p className='type-h2 text-lucky-text-primary'>
                         {guilds.length}
                     </p>
                 </div>
@@ -83,45 +87,69 @@ export default function ServersPage() {
             <SectionHeader
                 eyebrow='Guild management'
                 title='Servers'
-                description={`Servers you're in (${guilds.length} servers)`}
+                description={`${guilds.length} server${guilds.length !== 1 ? 's' : ''} — ${withBotCount} with Lucky installed`}
             />
 
             <nav
                 className='flex flex-wrap gap-2'
                 aria-label='Server navigation'
             >
-                <button className='type-body-sm inline-flex items-center gap-2 rounded-xl border border-lucky-border-strong bg-lucky-bg-active px-4 py-2 text-lucky-text-primary'>
-                    <LayoutGrid className='h-4 w-4' aria-hidden='true' />
-                    Servers
-                </button>
-                <button
-                    className='type-body-sm inline-flex items-center gap-2 rounded-xl border border-lucky-border bg-lucky-bg-secondary px-4 py-2 text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
-                    aria-label='Premium features'
-                    onClick={() => navigate('/features')}
-                >
-                    <Crown className='h-4 w-4' aria-hidden='true' />
-                    Premium
-                </button>
-                <button
-                    className='type-body-sm inline-flex items-center gap-2 rounded-xl border border-lucky-border bg-lucky-bg-secondary px-4 py-2 text-lucky-text-secondary transition-colors hover:text-lucky-text-primary'
-                    aria-label='Settings'
-                    onClick={() => navigate('/settings')}
-                >
-                    <Settings className='h-4 w-4' aria-hidden='true' />
-                    Settings
-                </button>
+                {(
+                    [
+                        { label: 'Servers', icon: <LayoutGrid className='h-4 w-4' />, active: true, onClick: undefined },
+                        { label: 'Premium', icon: <Crown className='h-4 w-4' />, active: false, onClick: () => navigate('/features') },
+                        { label: 'Settings', icon: <Settings className='h-4 w-4' />, active: false, onClick: () => navigate('/settings') },
+                    ] as const
+                ).map((tab) => (
+                    <button
+                        key={tab.label}
+                        className={cn(
+                            'type-body-sm inline-flex items-center gap-2 rounded-xl border px-4 py-2 transition-colors',
+                            tab.active
+                                ? 'border-lucky-border-strong bg-lucky-bg-active text-lucky-text-primary'
+                                : 'border-lucky-border bg-lucky-bg-secondary text-lucky-text-secondary hover:text-lucky-text-primary hover:border-lucky-border-strong',
+                        )}
+                        aria-current={tab.active ? 'page' : undefined}
+                        onClick={tab.onClick}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
             </nav>
 
             <div className='grid gap-4 lg:grid-cols-2'>
                 <ActionPanel
-                    title='Bot Status'
-                    description='Review where Lucky is already installed and ready.'
+                    title='Bot Installed'
+                    description={
+                        withBotCount === 0
+                            ? 'Lucky is not installed in any of your servers yet.'
+                            : `Lucky is active in ${withBotCount} of your ${guilds.length} server${guilds.length !== 1 ? 's' : ''}.`
+                    }
                     icon={<ShieldCheck className='h-4 w-4' />}
+                    action={
+                        withBotCount > 0 ? (
+                            <span className='type-body-sm rounded-lg bg-lucky-success/15 px-3 py-1 text-lucky-success'>
+                                {withBotCount} active
+                            </span>
+                        ) : undefined
+                    }
                 />
                 <ActionPanel
-                    title='Server Discovery'
-                    description='Use cards below to invite Lucky to missing servers.'
+                    title='Invite Lucky'
+                    description={
+                        withoutBotCount === 0
+                            ? 'Great — Lucky is installed in all your servers.'
+                            : `${withoutBotCount} server${withoutBotCount !== 1 ? 's' : ''} ${withoutBotCount !== 1 ? 'are' : 'is'} missing Lucky. Click a card below to invite.`
+                    }
                     icon={<LayoutGrid className='h-4 w-4' />}
+                    action={
+                        withoutBotCount > 0 ? (
+                            <span className='type-body-sm rounded-lg bg-lucky-warning/15 px-3 py-1 text-lucky-warning'>
+                                {withoutBotCount} pending
+                            </span>
+                        ) : undefined
+                    }
                 />
             </div>
 
@@ -130,7 +158,7 @@ export default function ServersPage() {
                     id='servers-heading'
                     className='type-title text-lucky-text-primary'
                 >
-                    Servers
+                    Your Servers
                 </h2>
                 <ServerGrid />
             </section>
