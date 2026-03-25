@@ -66,7 +66,7 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                     <>
                         <Avatar className='h-7 w-7 shrink-0'>
                             <AvatarImage src={iconSrc} alt={selectedGuild.name} />
-                            <AvatarFallback className='bg-lucky-bg-active text-[10px] font-bold text-white'>
+                            <AvatarFallback className='bg-lucky-bg-active type-meta normal-case tracking-normal text-lucky-text-primary'>
                                 {selectedGuild.name.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
@@ -168,7 +168,7 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                                             >
                                                 <Avatar className='h-6 w-6 shrink-0'>
                                                     <AvatarImage src={guildIconSrc} alt={guild.name} />
-                                                    <AvatarFallback className='bg-lucky-bg-active text-[9px] font-bold text-white'>
+                                                    <AvatarFallback className='bg-lucky-bg-active type-meta normal-case tracking-normal text-lucky-text-primary'>
                                                         {guild.name.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>

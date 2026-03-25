@@ -287,7 +287,7 @@ function Sidebar() {
                                                     </span>
                                                     {item.badge !== undefined && item.badge > 0 && (
                                                         <span
-                                                            className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-accent px-1 text-[10px] font-bold text-black'
+                                                            className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-accent px-1 type-meta normal-case tracking-normal text-black'
                                                             aria-label={`${item.badge} notifications`}
                                                         >
                                                             {item.badge > 99 ? '99+' : item.badge}
@@ -314,7 +314,7 @@ function Sidebar() {
                             }
                             alt={profileName}
                         />
-                        <AvatarFallback className='bg-lucky-bg-active text-[11px] font-bold text-white'>
+                        <AvatarFallback className='bg-lucky-bg-active type-meta normal-case tracking-normal text-lucky-text-primary'>
                             {(user?.username || 'U').substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
