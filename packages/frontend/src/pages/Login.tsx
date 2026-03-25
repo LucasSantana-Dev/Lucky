@@ -1,5 +1,7 @@
 import { Loader2, Sparkles, Zap, ShieldCheck } from 'lucide-react'
+import { useReducedMotion } from 'framer-motion'
 import Button from '@/components/ui/Button'
+import StatTile from '@/components/ui/StatTile'
 import { useAuthStore } from '@/stores/authStore'
 import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
@@ -7,6 +9,7 @@ import { usePageMetadata } from '@/hooks/usePageMetadata'
 export default function LoginPage() {
     const isLoading = useAuthStore((state) => state.isLoading)
     const login = useAuthStore((state) => state.login)
+    const prefersReducedMotion = useReducedMotion()
 
     useAuthRedirect()
     usePageMetadata({
@@ -14,10 +17,26 @@ export default function LoginPage() {
         description: 'Login to Lucky Dashboard to manage your Discord servers',
     })
 
+    const sectionStyle = prefersReducedMotion
+        ? {}
+        : { animationFillMode: 'both' as const }
+
+    const sectionClass = prefersReducedMotion
+        ? 'space-y-7'
+        : 'space-y-7 animate-[fade-up_0.4s_ease-out]'
+
+    const cardClass = prefersReducedMotion
+        ? 'surface-card space-y-6 p-6 md:p-8'
+        : 'surface-card space-y-6 p-6 md:p-8 animate-[fade-up_0.4s_ease-out]'
+
+    const cardStyle = prefersReducedMotion
+        ? {}
+        : { animationDelay: '100ms', animationFillMode: 'both' as const }
+
     return (
         <div className='lucky-shell relative min-h-screen overflow-hidden px-4 py-8 md:px-8'>
             <div className='mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]'>
-                <section className='space-y-7 animate-[fade-up_0.4s_ease-out]' style={{ animationFillMode: 'both' }}>
+                <section className={sectionClass} style={sectionStyle}>
                     <div className='inline-flex items-center gap-2 rounded-full border border-lucky-border bg-lucky-bg-secondary/80 px-3 py-1 shadow-[0_0_12px_rgb(212_160_23/0.1)]'>
                         <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
                         <span className='type-body-sm text-lucky-text-secondary'>
@@ -49,40 +68,15 @@ export default function LoginPage() {
                     </div>
 
                     <div className='grid gap-3 sm:grid-cols-3'>
-                        {[
-                            { value: '32+', label: 'Modules', tone: 'brand' as const },
-                            { value: '100+', label: 'Commands', tone: 'accent' as const },
-                            { value: '24/7', label: 'Uptime', tone: 'success' as const },
-                        ].map(({ value, label, tone }, i) => (
-                            <div
-                                key={label}
-                                className='surface-panel group px-4 py-4 overflow-hidden relative'
-                                style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
-                            >
-                                <div
-                                    className={`pointer-events-none absolute inset-0 rounded-xl opacity-40 bg-gradient-to-br ${
-                                        tone === 'brand' ? 'from-purple-500/8 to-transparent' :
-                                        tone === 'accent' ? 'from-yellow-500/8 to-transparent' :
-                                        'from-green-500/8 to-transparent'
-                                    }`}
-                                    aria-hidden='true'
-                                />
-                                <p className={`type-h2 relative ${
-                                    tone === 'brand' ? 'text-purple-300' :
-                                    tone === 'accent' ? 'text-yellow-300' :
-                                    'text-green-300'
-                                }`}>
-                                    {value}
-                                </p>
-                                <p className='type-body-sm relative text-lucky-text-tertiary'>{label}</p>
-                            </div>
-                        ))}
+                        <StatTile value='32+' label='Modules' tone='brand' />
+                        <StatTile value='100+' label='Commands' tone='accent' />
+                        <StatTile value='24/7' label='Uptime' tone='success' />
                     </div>
                 </section>
 
                 <section
-                    className='surface-card space-y-6 p-6 md:p-8 animate-[fade-up_0.4s_ease-out]'
-                    style={{ animationDelay: '100ms', animationFillMode: 'both' }}
+                    className={cardClass}
+                    style={cardStyle}
                 >
                     <div className='space-y-2'>
                         <p className='type-meta text-lucky-text-tertiary'>Authentication</p>
@@ -97,7 +91,7 @@ export default function LoginPage() {
                         onClick={login}
                         disabled={isLoading}
                         variant='accent'
-                        className='lucky-focus-visible h-14 w-full rounded-xl text-sm font-semibold'
+                        className='lucky-focus-visible h-14 w-full rounded-xl'
                     >
                         {isLoading ? (
                             <>
