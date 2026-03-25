@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
-    ChevronDown,
     GitBranch,
     History,
     LayoutDashboard,
@@ -17,7 +16,6 @@ import {
     Settings,
     Shield,
     ShieldAlert,
-    Sparkles,
     Star,
     Terminal,
     ToggleLeft,
@@ -30,9 +28,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
-import { api } from '@/services/api'
 import { cn } from '@/lib/utils'
 import { hasModuleAccess } from '@/lib/rbac'
+import GuildSwitcher from './GuildSwitcher'
 import type { AccessMode, ModuleKey } from '@/types'
 
 interface NavItem {
@@ -184,58 +182,28 @@ const navSections: NavSection[] = [
 function Sidebar() {
     const location = useLocation()
     const { user, logout } = useAuthStore()
-    const {
-        guilds,
-        selectedGuild,
-        selectGuild,
-        memberContext,
-        guildLoadError,
-        isLoading,
-        fetchGuilds,
-    } = useGuildStore()
+    const { selectedGuild, memberContext } = useGuildStore()
     const [mobileOpen, setMobileOpen] = useState(false)
-    const [serverDropdownOpen, setServerDropdownOpen] = useState(false)
+    const [switcherOpen, setSwitcherOpen] = useState(false)
     const prefersReducedMotion = useReducedMotion()
-
-    useEffect(() => {
-        setMobileOpen(false)
-        setServerDropdownOpen(false)
-    }, [location.pathname])
 
     const isActive = (path: string) => {
         if (path === '/') return location.pathname === '/'
         return location.pathname.startsWith(path)
     }
 
-    const effectiveAccess =
-        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
+    const effectiveAccess = memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
 
     const canViewModule = (module: ModuleKey, requiredMode: AccessMode = 'view') => {
-        if (!selectedGuild || !effectiveAccess) {
-            return true
-        }
-
+        if (!selectedGuild || !effectiveAccess) return true
         return hasModuleAccess(effectiveAccess, module, requiredMode)
     }
 
-    const profileName =
-        memberContext?.nickname || user?.globalName || user?.username || 'User'
+    const profileName = memberContext?.nickname || user?.globalName || user?.username || 'User'
     const profileSubtitle = user?.username ? `@${user.username}` : 'Online'
-    const showReauth =
-        guildLoadError?.kind === 'auth' || guildLoadError?.kind === 'forbidden'
-    const discordAuthUrl = api.auth.getDiscordLoginUrl()
-
-    let guildLoadErrorMessage = guildLoadError?.message ?? ''
-    if (guildLoadError?.kind === 'forbidden') {
-        guildLoadErrorMessage = 'Discord access is missing required scope.'
-    } else if (guildLoadError?.kind === 'network') {
-        guildLoadErrorMessage =
-            'Network connection failed. Check connectivity and retry.'
-    }
 
     const sidebarContent = (
         <div className='flex h-full flex-col'>
-            {/* Logo / Brand */}
             <div className='border-b border-lucky-border px-4 py-4'>
                 <div className='flex items-center gap-3'>
                     <img
@@ -262,175 +230,8 @@ function Sidebar() {
                 </div>
             </div>
 
-            {/* Guild Switcher */}
-            <div className='border-b border-lucky-border px-3 py-3'>
-                <p className='type-meta mb-2 px-1 text-lucky-text-tertiary'>
-                    Server context
-                </p>
-                <div className='relative'>
-                    <button
-                        type='button'
-                        onClick={() => setServerDropdownOpen((v) => !v)}
-                        aria-expanded={serverDropdownOpen}
-                        aria-haspopup='menu'
-                        aria-label={
-                            selectedGuild
-                                ? `Switch server, currently ${selectedGuild.name}`
-                                : 'Select a server'
-                        }
-                        className='lucky-focus-visible flex w-full items-center gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-3 py-2.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active/60'
-                    >
-                        {selectedGuild ? (
-                            <>
-                                <Avatar className='h-7 w-7 shrink-0'>
-                                    <AvatarImage
-                                        src={
-                                            selectedGuild.icon
-                                                ? `https://cdn.discordapp.com/icons/${selectedGuild.id}/${selectedGuild.icon}.png?size=64`
-                                                : undefined
-                                        }
-                                        alt={selectedGuild.name}
-                                    />
-                                    <AvatarFallback className='bg-lucky-bg-active text-[10px] font-bold text-white'>
-                                        {selectedGuild.name
-                                            .substring(0, 2)
-                                            .toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <span className='type-body-sm flex-1 truncate text-lucky-text-primary'>
-                                    {selectedGuild.name}
-                                </span>
-                            </>
-                        ) : (
-                            <span className='type-body-sm flex-1 text-lucky-text-secondary'>
-                                Select a server
-                            </span>
-                        )}
-                        <ChevronDown
-                            className={cn(
-                                'h-4 w-4 shrink-0 text-lucky-text-tertiary transition-transform duration-150',
-                                serverDropdownOpen && 'rotate-180',
-                            )}
-                            aria-hidden='true'
-                        />
-                    </button>
+            <GuildSwitcher open={switcherOpen} onOpenChange={setSwitcherOpen} />
 
-                    <AnimatePresence>
-                        {serverDropdownOpen && (
-                            <motion.div
-                                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                                transition={{ duration: prefersReducedMotion ? 0 : 0.14 }}
-                                className='absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-lucky-border bg-lucky-bg-secondary shadow-2xl'
-                                role='menu'
-                                aria-label='Server list'
-                            >
-                                {guildLoadError && (
-                                    <div className='space-y-2 border-b border-lucky-border px-3 py-3 text-center'>
-                                        <p className='type-body-sm font-semibold text-lucky-text-primary'>
-                                            Could not load servers
-                                        </p>
-                                        <p className='type-body-sm text-lucky-text-tertiary'>
-                                            {guildLoadErrorMessage}
-                                        </p>
-                                        <div className='mt-3 flex items-center justify-center gap-2'>
-                                            <button
-                                                type='button'
-                                                onClick={() => {
-                                                    Promise.resolve(
-                                                        fetchGuilds(true),
-                                                    ).catch(() => {})
-                                                }}
-                                                className='lucky-focus-visible rounded-md border border-lucky-border px-2.5 py-1.5 type-body-sm text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
-                                            >
-                                                Retry
-                                            </button>
-                                            {showReauth && (
-                                                <a
-                                                    href={discordAuthUrl}
-                                                    className='lucky-focus-visible rounded-md border border-lucky-border px-2.5 py-1.5 type-body-sm text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
-                                                >
-                                                    Re-authenticate
-                                                </a>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                                <ScrollArea className='max-h-56'>
-                                    <div>
-                                        {guilds.length === 0 ? (
-                                            <div className='space-y-2 px-3 py-4 text-center'>
-                                                {!guildLoadError && (
-                                                    <p className='type-body-sm text-lucky-text-tertiary'>
-                                                        {isLoading
-                                                            ? 'Loading servers…'
-                                                            : 'No accessible servers found'}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            guilds.map((guild) => {
-                                                const isSelected = selectedGuild?.id === guild.id
-                                                return (
-                                                    <button
-                                                        key={guild.id}
-                                                        type='button'
-                                                        role='menuitemradio'
-                                                        aria-checked={isSelected}
-                                                        onClick={() => {
-                                                            selectGuild(guild)
-                                                            setServerDropdownOpen(false)
-                                                        }}
-                                                        className={cn(
-                                                            'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
-                                                            isSelected && 'bg-lucky-bg-active/70',
-                                                        )}
-                                                    >
-                                                        <Avatar className='h-6 w-6 shrink-0'>
-                                                            <AvatarImage
-                                                                src={
-                                                                    guild.icon
-                                                                        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
-                                                                        : undefined
-                                                                }
-                                                                alt={guild.name}
-                                                            />
-                                                            <AvatarFallback className='bg-lucky-bg-active text-[9px] font-bold text-white'>
-                                                                {guild.name
-                                                                    .substring(0, 2)
-                                                                    .toUpperCase()}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <span className='type-body-sm flex-1 truncate text-lucky-text-primary'>
-                                                            {guild.name}
-                                                        </span>
-                                                        <span className='ml-auto flex items-center gap-2'>
-                                                            {!guild.botAdded && (
-                                                                <span className='rounded-md border border-lucky-border px-1.5 py-0.5 type-meta text-lucky-text-tertiary normal-case tracking-normal'>
-                                                                    Invite bot
-                                                                </span>
-                                                            )}
-                                                            {isSelected && (
-                                                                <Sparkles
-                                                                    className='h-3.5 w-3.5 text-lucky-accent'
-                                                                    aria-hidden='true'
-                                                                />
-                                                            )}
-                                                        </span>
-                                                    </button>
-                                                )
-                                            })
-                                        )}
-                                    </div>
-                                </ScrollArea>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
-
-            {/* Navigation */}
             <ScrollArea className='flex-1 py-3'>
                 <nav aria-label='Main navigation' className='space-y-4 px-3'>
                     {navSections.map((section) => (
@@ -444,10 +245,7 @@ function Sidebar() {
                             <ul className='space-y-0.5' role='list'>
                                 {section.items
                                     .filter((item) =>
-                                        canViewModule(
-                                            item.module,
-                                            item.requiredMode,
-                                        ),
+                                        canViewModule(item.module, item.requiredMode),
                                     )
                                     .map((item) => {
                                         const active = isActive(item.path)
@@ -463,13 +261,10 @@ function Sidebar() {
                                                             : 'text-lucky-text-secondary hover:bg-lucky-bg-tertiary/70 hover:text-lucky-text-primary',
                                                     )}
                                                 >
-                                                    {/* Active indicator bar */}
                                                     <span
                                                         className={cn(
                                                             'absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r transition-all duration-150',
-                                                            active
-                                                                ? 'bg-lucky-accent'
-                                                                : 'bg-transparent',
+                                                            active ? 'bg-lucky-accent' : 'bg-transparent',
                                                         )}
                                                         aria-hidden='true'
                                                     />
@@ -485,17 +280,14 @@ function Sidebar() {
                                                     <span className='type-body-sm truncate'>
                                                         {item.label}
                                                     </span>
-                                                    {item.badge !== undefined &&
-                                                        item.badge > 0 && (
-                                                            <span
-                                                                className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-accent px-1 text-[10px] font-bold text-black'
-                                                                aria-label={`${item.badge} notifications`}
-                                                            >
-                                                                {item.badge > 99
-                                                                    ? '99+'
-                                                                    : item.badge}
-                                                            </span>
-                                                        )}
+                                                    {item.badge !== undefined && item.badge > 0 && (
+                                                        <span
+                                                            className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-accent px-1 text-[10px] font-bold text-black'
+                                                            aria-label={`${item.badge} notifications`}
+                                                        >
+                                                            {item.badge > 99 ? '99+' : item.badge}
+                                                        </span>
+                                                    )}
                                                 </Link>
                                             </li>
                                         )
@@ -506,7 +298,6 @@ function Sidebar() {
                 </nav>
             </ScrollArea>
 
-            {/* User profile footer */}
             <div className='border-t border-lucky-border px-3 py-3'>
                 <div className='flex items-center gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 px-3 py-2.5'>
                     <Avatar className='h-8 w-8 shrink-0'>
@@ -519,9 +310,7 @@ function Sidebar() {
                             alt={profileName}
                         />
                         <AvatarFallback className='bg-lucky-bg-active text-[11px] font-bold text-white'>
-                            {(user?.username || 'U')
-                                .substring(0, 2)
-                                .toUpperCase()}
+                            {(user?.username || 'U').substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div className='min-w-0 flex-1'>
@@ -535,7 +324,7 @@ function Sidebar() {
                     <button
                         type='button'
                         onClick={logout}
-                        className='lucky-focus-visible rounded-md p-2 text-lucky-text-tertiary transition-colors hover:bg-lucky-error/10 hover:text-lucky-error min-w-[36px] min-h-[36px] flex items-center justify-center'
+                        className='lucky-focus-visible flex min-h-[36px] min-w-[36px] items-center justify-center rounded-md p-2 text-lucky-text-tertiary transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
                         aria-label='Log out'
                         title='Log out'
                     >
@@ -548,10 +337,9 @@ function Sidebar() {
 
     return (
         <>
-            {/* Mobile hamburger */}
             <button
                 type='button'
-                className='lucky-focus-visible fixed left-3 top-3 z-50 rounded-lg border border-lucky-border bg-lucky-bg-secondary p-2 text-lucky-text-primary transition-colors hover:bg-lucky-bg-tertiary lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center'
+                className='lucky-focus-visible fixed left-3 top-3 z-50 flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-lucky-border bg-lucky-bg-secondary p-2 text-lucky-text-primary transition-colors hover:bg-lucky-bg-tertiary lg:hidden'
                 onClick={() => setMobileOpen(true)}
                 aria-label='Open navigation menu'
                 aria-expanded={mobileOpen}
@@ -560,7 +348,6 @@ function Sidebar() {
                 <Menu className='h-5 w-5' aria-hidden='true' />
             </button>
 
-            {/* Mobile backdrop */}
             <AnimatePresence>
                 {mobileOpen && (
                     <motion.div
@@ -575,7 +362,6 @@ function Sidebar() {
                 )}
             </AnimatePresence>
 
-            {/* Mobile sidebar panel */}
             <AnimatePresence>
                 {mobileOpen && (
                     <motion.aside
@@ -596,7 +382,6 @@ function Sidebar() {
                 )}
             </AnimatePresence>
 
-            {/* Desktop sidebar */}
             <aside
                 className='hidden h-screen w-72 shrink-0 border-r border-lucky-border bg-lucky-bg-secondary lg:flex lg:sticky lg:top-0'
                 aria-label='Navigation sidebar'
