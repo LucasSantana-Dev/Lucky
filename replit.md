@@ -65,7 +65,7 @@ The frontend uses a custom design system built on Tailwind CSS with the followin
 ### Sidebar & Layout
 - **Sidebar.tsx** — includes GuildSwitcher with avatar+dropdown, section-labelled nav, user profile footer. Nav links use `<Link>` with `aria-current="page"` on active items.
 - **Layout.tsx** — sticky header with `GuildChip` component showing active guild icon+name+click-to-switch. Route copy map provides per-page titles and subtitles.
-- **ServerSelector.tsx** — legacy file; now just re-exports Sidebar (the native `<select>` has been removed).
+- **ServerSelector.tsx** — legacy file; now re-exports GuildSwitcher (the old native `<select>` has been removed).
 
 ## Package Manager
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
@@ -186,6 +186,11 @@ function Sidebar() {
     const [mobileOpen, setMobileOpen] = useState(false)
     const [switcherOpen, setSwitcherOpen] = useState(false)
     const prefersReducedMotion = useReducedMotion()
+
+    useEffect(() => {
+        setMobileOpen(false)
+        setSwitcherOpen(false)
+    }, [location.pathname])
 
     const isActive = (path: string) => {
         if (path === '/') return location.pathname === '/'
