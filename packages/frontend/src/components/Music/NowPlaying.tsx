@@ -37,7 +37,7 @@ function SourceBadge({ source }: { source: TrackInfo['source'] }) {
     return (
         <div className='flex items-center gap-1.5'>
             <Icon className={`h-3 w-3 ${meta.color}`} aria-hidden='true' />
-            <span className={`text-xs uppercase font-medium ${meta.color}`}>
+            <span className={`type-meta uppercase ${meta.color}`}>
                 {source}
             </span>
         </div>
@@ -197,10 +197,10 @@ function TrackDetails({ track }: { track: TrackInfo | null }) {
     if (!track) {
         return (
             <div role='status' aria-label='No track playing'>
-                <h2 className='text-lg sm:text-xl font-bold text-lucky-text-secondary'>
+                <h2 className='type-h2 text-lucky-text-secondary'>
                     Nothing playing
                 </h2>
-                <p className='text-sm text-lucky-text-secondary'>
+                <p className='type-body-sm text-lucky-text-secondary'>
                     Search for a song or import a playlist
                 </p>
             </div>
@@ -210,16 +210,16 @@ function TrackDetails({ track }: { track: TrackInfo | null }) {
         <div aria-label={`Now playing: ${track.title} by ${track.author}`}>
             <SourceBadge source={track.source} />
             <h2
-                className='text-lg sm:text-xl font-bold text-white truncate mt-1'
+                className='type-h2 text-lucky-text-primary truncate mt-1'
                 title={track.title}
             >
                 {track.title}
             </h2>
-            <p className='text-sm text-lucky-text-secondary truncate'>
+            <p className='type-body-sm text-lucky-text-secondary truncate'>
                 {track.author}
             </p>
             {track.requestedBy && (
-                <p className='text-xs text-lucky-text-secondary mt-1'>
+                <p className='type-body-sm text-lucky-text-secondary mt-1'>
                     Requested by {track.requestedBy}
                 </p>
             )}

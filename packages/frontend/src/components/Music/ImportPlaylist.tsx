@@ -46,11 +46,11 @@ export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
                     className='h-5 w-5 text-primary shrink-0'
                     aria-hidden='true'
                 />
-                <h3 className='text-base sm:text-lg font-semibold text-white'>
+                <h3 className='type-title text-lucky-text-primary'>
                     Import Playlist
                 </h3>
             </div>
-            <p className='text-xs sm:text-sm text-lucky-text-secondary mb-3 sm:mb-4'>
+            <p className='type-body-sm text-lucky-text-secondary mb-3 sm:mb-4'>
                 Import from Spotify, YouTube, or SoundCloud
             </p>
             <form

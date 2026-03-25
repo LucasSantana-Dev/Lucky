@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
     Activity,
     AlertTriangle,
@@ -67,12 +67,13 @@ function timeAgo(dateStr: string): string {
 
 function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
     const ActionIcon = ACTION_ICONS[c.type] || Shield
+    const prefersReducedMotion = useReducedMotion()
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: -8 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.2, delay: index * 0.05 }}
+            transition={{ duration: 0.2, delay: prefersReducedMotion ? 0 : index * 0.05 }}
             className='grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
         >
             <p className='text-xs font-mono text-lucky-text-tertiary'>
@@ -106,6 +107,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
 }
 
 export default function DashboardOverview() {
+    const prefersReducedMotion = useReducedMotion()
     const { selectedGuild, memberContext } = useGuildStore()
     const { data: stats, isLoading: statsLoading } = useModerationStats(
         selectedGuild?.id,
@@ -223,9 +225,9 @@ export default function DashboardOverview() {
             <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
                 <motion.section
                     className='surface-panel overflow-hidden lg:col-span-2'
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
+                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.2 }}
                 >
                     <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
                         <div>
@@ -285,9 +287,9 @@ export default function DashboardOverview() {
 
                 <motion.section
                     className='space-y-4'
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.3 }}
+                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.3 }}
                 >
                     <h2 className='type-title text-lucky-text-primary'>
                         Quick Actions

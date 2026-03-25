@@ -6,6 +6,7 @@ import NowPlaying from '@/components/Music/NowPlaying'
 import SearchBar from '@/components/Music/SearchBar'
 import ImportPlaylist from '@/components/Music/ImportPlaylist'
 import QueueList from '@/components/Music/QueueList'
+import EmptyState from '@/components/ui/EmptyState'
 
 export default function MusicPage() {
     const { selectedGuild } = useGuildSelection()
@@ -42,15 +43,11 @@ export default function MusicPage() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary px-4'>
-                <Music2
-                    className='h-10 w-10 sm:h-12 sm:w-12 mb-4 opacity-50'
-                    aria-hidden='true'
-                />
-                <p className='text-base sm:text-lg text-center'>
-                    Select a server to control music
-                </p>
-            </div>
+            <EmptyState
+                icon={<Music2 className='h-10 w-10' aria-hidden='true' />}
+                title='No Server Selected'
+                description='Select a server to control music playback'
+            />
         )
     }
 
@@ -63,10 +60,10 @@ export default function MusicPage() {
                         aria-hidden='true'
                     />
                     <div className='min-w-0'>
-                        <h1 className='text-xl sm:text-2xl font-bold text-white truncate'>
+                        <h1 className='type-h1 text-lucky-text-primary truncate'>
                             Music Player
                         </h1>
-                        <p className='text-xs sm:text-sm text-lucky-text-secondary truncate'>
+                        <p className='type-body-sm text-lucky-text-secondary truncate'>
                             {player.state.voiceChannelName
                                 ? `Connected to ${player.state.voiceChannelName}`
                                 : 'Not connected to a voice channel'}

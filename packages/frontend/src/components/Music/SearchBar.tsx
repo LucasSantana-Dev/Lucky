@@ -34,11 +34,11 @@ export default memo(function SearchBar({ onPlay }: SearchBarProps) {
                     className='h-5 w-5 text-primary shrink-0'
                     aria-hidden='true'
                 />
-                <h3 className='text-base sm:text-lg font-semibold text-white'>
+                <h3 className='type-title text-lucky-text-primary'>
                     Search & Play
                 </h3>
             </div>
-            <p className='text-xs sm:text-sm text-lucky-text-secondary mb-3 sm:mb-4'>
+            <p className='type-body-sm text-lucky-text-secondary mb-3 sm:mb-4'>
                 Search for a song or paste a YouTube/Spotify URL
             </p>
             <form
