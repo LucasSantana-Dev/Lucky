@@ -1,133 +1,109 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
 import type { Guild } from '@/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Button from '@/components/ui/Button'
 import AddBotButton from './AddBotButton'
+import { useGuildStore } from '@/stores/guildStore'
 
 interface ServerCardProps {
     guild: Guild
 }
 
-const ServerIcon = memo(
-    ({
-        name,
-        icon,
-        guildId,
-    }: {
-        name: string
-        icon: string | null
-        guildId: string
-    }) => {
-        const [imageError, setImageError] = useState(false)
-        const initial = name.charAt(0).toUpperCase()
-
-        if (!icon || imageError) {
-            return (
-                <div
-                    className='w-16 h-16 rounded-full bg-linear-to-br from-primary/80 to-primary flex items-center justify-center text-2xl font-bold text-white ring-2 ring-bg-border transition-all duration-300'
-                    aria-hidden='true'
-                >
-                    {initial}
-                </div>
-            )
-        }
-
-        return (
-            <img
-                src={`https://cdn.discordapp.com/icons/${guildId}/${icon}.png`}
-                alt={`${name} server icon`}
-                className='w-16 h-16 rounded-full object-cover ring-2 ring-bg-border transition-all duration-300'
-                onError={() => setImageError(true)}
-                loading='lazy'
-            />
-        )
-    },
-)
-
-ServerIcon.displayName = 'ServerIcon'
-
 function ServerCard({ guild }: ServerCardProps) {
     const navigate = useNavigate()
+    const { selectGuild } = useGuildStore()
 
     const handleManage = useCallback(() => {
+        selectGuild(guild)
         navigate('/')
-    }, [navigate])
+    }, [navigate, selectGuild, guild])
 
     return (
         <article
             className={cn(
-                'group bg-lucky-bg-secondary border border-lucky-border rounded-lg p-6 space-y-4',
-                'transition-all duration-300 ease-out',
-                'hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10',
-                'hover:-translate-y-1',
-                'focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background',
+                'surface-card group flex flex-col gap-4 p-5 transition-all duration-200',
+                'hover:border-lucky-border-strong hover:-translate-y-0.5',
+                'focus-within:ring-2 focus-within:ring-lucky-brand focus-within:ring-offset-2 focus-within:ring-offset-lucky-bg-primary',
             )}
             role='article'
-            aria-label={guild.name}
             aria-labelledby={`server-${guild.id}-name`}
         >
             <div className='flex items-center gap-4'>
                 <div className='relative shrink-0'>
-                    <ServerIcon
-                        name={guild.name}
-                        icon={guild.icon}
-                        guildId={guild.id}
-                    />
+                    <Avatar className='h-14 w-14'>
+                        <AvatarImage
+                            src={
+                                guild.icon
+                                    ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`
+                                    : undefined
+                            }
+                            alt={`${guild.name} icon`}
+                        />
+                        <AvatarFallback className='type-h2 bg-lucky-bg-active text-lucky-text-secondary'>
+                            {guild.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                    </Avatar>
                     {guild.botAdded && (
                         <div
-                            className='absolute -bottom-1 -right-1 w-5 h-5 bg-lucky-success rounded-full border-2 border-lucky-bg-secondary flex items-center justify-center'
-                            aria-label='Bot is online'
+                            className='absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-lucky-bg-secondary bg-lucky-success'
+                            aria-label='Bot is installed'
                         >
-                            <CheckCircle2 className='w-3 h-3 text-white' />
+                            <CheckCircle2 className='h-3 w-3 text-white' aria-hidden='true' />
                         </div>
                     )}
                 </div>
-                <div className='flex-1 min-w-0'>
+
+                <div className='min-w-0 flex-1'>
                     <h3
                         id={`server-${guild.id}-name`}
-                        className='text-lg font-semibold text-white truncate'
+                        className='type-title truncate text-lucky-text-primary'
                     >
                         {guild.name}
                     </h3>
-                    <div className='flex items-center gap-2 mt-1'>
+                    <div className='mt-1.5 flex items-center gap-2'>
                         <Badge
+                            variant='outline'
                             className={cn(
-                                'text-xs transition-colors duration-200',
+                                'type-meta normal-case tracking-normal gap-1 transition-colors',
                                 guild.botAdded
-                                    ? 'bg-lucky-success/20 text-lucky-success border-lucky-success/30'
-                                    : 'bg-lucky-error/20 text-lucky-error border-lucky-error/30',
+                                    ? 'bg-lucky-success/10 text-lucky-success border-lucky-success/30'
+                                    : 'bg-lucky-error/10 text-lucky-error border-lucky-error/30',
                             )}
-                            aria-label={
-                                guild.botAdded
-                                    ? 'Bot is added'
-                                    : 'Bot is not added'
-                            }
+                            aria-label={guild.botAdded ? 'Bot installed' : 'Bot not installed'}
                         >
                             {guild.botAdded ? (
                                 <>
-                                    <CheckCircle2 className='w-3 h-3 mr-1 inline' />
-                                    Bot Added
+                                    <CheckCircle2 className='h-3 w-3' aria-hidden='true' />
+                                    Bot Active
                                 </>
                             ) : (
                                 <>
-                                    <XCircle className='w-3 h-3 mr-1 inline' />
-                                    Not Added
+                                    <XCircle className='h-3 w-3' aria-hidden='true' />
+                                    No Bot
                                 </>
                             )}
                         </Badge>
+                        {guild.memberCount != null && (
+                            <span className='type-meta text-lucky-text-tertiary normal-case tracking-normal'>
+                                {guild.memberCount.toLocaleString()} members
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
+
             <div className='flex gap-2'>
                 {guild.botAdded ? (
                     <Button
                         onClick={handleManage}
-                        className='flex-1 bg-lucky-red hover:bg-lucky-red/90 text-white shadow-xs hover:shadow-md transition-all duration-200'
+                        className='flex-1 gap-1.5'
                         aria-label={`Manage ${guild.name}`}
                     >
+                        <ExternalLink className='h-3.5 w-3.5' aria-hidden='true' />
                         Manage
                     </Button>
                 ) : (

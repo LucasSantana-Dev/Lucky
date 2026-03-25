@@ -27,15 +27,16 @@ export default function ServerGrid() {
                 {[1, 2, 3].map((i) => (
                     <div
                         key={i}
-                        className='bg-lucky-bg-secondary border border-lucky-border rounded-lg p-6 space-y-4'
+                        className='surface-card p-5 space-y-4'
                     >
                         <div className='flex items-center gap-4'>
-                            <Skeleton className='w-16 h-16 rounded-full' />
+                            <Skeleton className='w-14 h-14 rounded-full' />
                             <div className='flex-1 space-y-2'>
                                 <Skeleton className='h-4 w-3/4' />
                                 <Skeleton className='h-3 w-1/2' />
                             </div>
                         </div>
+                        <Skeleton className='h-9 w-full rounded-lg' />
                     </div>
                 ))}
             </div>
@@ -52,15 +53,15 @@ export default function ServerGrid() {
                                 key={filterType}
                                 onClick={() => handleFilterChange(filterType)}
                                 className={cn(
-                                    'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+                                    'px-4 py-1.5 rounded-lg transition-all duration-150 type-body-sm font-medium',
                                     filter === filterType
-                                        ? 'bg-lucky-red text-white'
-                                        : 'bg-lucky-bg-secondary text-lucky-text-secondary hover:bg-lucky-bg-tertiary hover:text-white',
+                                        ? 'bg-lucky-brand text-white shadow-sm'
+                                        : 'bg-lucky-bg-secondary text-lucky-text-secondary border border-lucky-border hover:border-lucky-border-strong hover:text-lucky-text-primary',
                                 )}
                                 aria-pressed={filter === filterType}
                             >
                                 {filterType === 'all'
-                                    ? 'All'
+                                    ? 'All Servers'
                                     : filterType === 'with-bot'
                                       ? 'With Bot'
                                       : 'Without Bot'}
@@ -76,7 +77,7 @@ export default function ServerGrid() {
             </div>
             {filteredGuilds.length === 0 && (
                 <div
-                    className='text-center text-lucky-text-secondary py-12'
+                    className='type-body text-lucky-text-secondary text-center py-12'
                     role='status'
                 >
                     No servers found matching the filter.
