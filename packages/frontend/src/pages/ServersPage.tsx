@@ -140,14 +140,17 @@ export default function ServersPage() {
                     description={
                         withoutBotCount === 0
                             ? 'Great — Lucky is installed in all your servers.'
-                            : `${withoutBotCount} server${withoutBotCount !== 1 ? 's' : ''} ${withoutBotCount !== 1 ? 'are' : 'is'} missing Lucky. Click a card below to invite.`
+                            : `${withoutBotCount} server${withoutBotCount !== 1 ? 's' : ''} ${withoutBotCount !== 1 ? 'are' : 'is'} missing Lucky.`
                     }
                     icon={<LayoutGrid className='h-4 w-4' />}
                     action={
                         withoutBotCount > 0 ? (
-                            <span className='type-body-sm rounded-lg bg-lucky-warning/15 px-3 py-1 text-lucky-warning'>
-                                {withoutBotCount} pending
-                            </span>
+                            <a
+                                href='#servers-heading'
+                                className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary transition-colors'
+                            >
+                                View servers
+                            </a>
                         ) : undefined
                     }
                 />
