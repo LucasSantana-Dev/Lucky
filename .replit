@@ -72,3 +72,8 @@ YOUTUBE_DL_SKIP_PYTHON_CHECK = "1"
 WEBAPP_PORT = "3000"
 WEBAPP_HOST = "0.0.0.0"
 LOG_LEVEL = "1"
+
+[deployment]
+build = ["bash", "-c", "npm run build && mkdir -p packages/backend/dist/frontend && cp -r packages/frontend/dist packages/backend/dist/frontend/dist"]
+run = ["bash", "-c", "NODE_ENV=production npm run start --workspace=packages/backend"]
+deploymentTarget = "autoscale"
