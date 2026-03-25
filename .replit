@@ -61,6 +61,10 @@ args = "npm run dev --workspace=packages/bot"
 outputType = "console"
 
 [[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
@@ -74,6 +78,6 @@ WEBAPP_HOST = "0.0.0.0"
 LOG_LEVEL = "1"
 
 [deployment]
-build = ["bash", "-c", "npm run build && mkdir -p packages/backend/dist/frontend && cp -r packages/frontend/dist packages/backend/dist/frontend/dist"]
-run = ["bash", "-c", "NODE_ENV=production npm run start --workspace=packages/backend"]
+build = ["sh", "-c", "npm run db:generate && npm run build:shared && npm run build:backend && npm run build:frontend && mkdir -p packages/backend/dist/frontend && cp -r packages/frontend/dist packages/backend/dist/frontend/dist"]
+run = ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts; NODE_ENV=production node packages/backend/dist/index.js"]
 deploymentTarget = "autoscale"
