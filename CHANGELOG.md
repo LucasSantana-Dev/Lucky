@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `/autoplay` queue resolution now falls back to queue metadata channel guild IDs, so autoplay can be enabled while a single current track is playing even when the queue cache key is non-standard.
+- Watchdog orphan-session recovery now clears non-restorable snapshots and marks recovery as failed when zero tracks are restored, preventing repeated rejoin loops and VoiceConnection listener leaks.
 
 ## [2.6.39] - 2026-03-24
 
