@@ -44,9 +44,14 @@ description: Work with Discord Player, queue, and music commands in Lucky. Use w
 - In `packages/bot/src/utils/music/queueResolver.ts`, also resolve by `queue.metadata.channel.guildId` / `queue.metadata.channel.guild.id` to avoid false queue misses when cache keys are non-standard.
 - Keep regression coverage in `packages/bot/src/utils/music/queueResolver.spec.ts`:
   - `falls back to cache scan by metadata.channel.guildId`
+- In `packages/bot/src/utils/music/watchdog.ts`, do not treat orphan recovery as successful when snapshot restore yields zero tracks.
+- Clear the stale snapshot in that case to prevent repeated rejoin loops and listener growth.
+- Keep regression coverage in `packages/bot/src/utils/music/watchdog.spec.ts`:
+  - `clears snapshot and marks failed when restore yields no tracks`
 
 ## Fast verification commands
 
 - `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs packages/bot/src/utils/music/search/engineManager.spec.ts --runInBand`
 - `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs packages/bot/src/utils/music/queueResolver.spec.ts --runInBand`
+- `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs packages/bot/src/utils/music/watchdog.spec.ts --runInBand`
 - `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs --testPathPatterns="engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec" --runInBand`
