@@ -289,6 +289,42 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         )
     })
 
+    it('reuses existing queue during orphan recovery and avoids creating a new queue', async () => {
+        keysMock.mockResolvedValue(['music:session:guild-existing'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-existing',
+            tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+        })
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 1,
+            sessionSnapshotId: 'snapshot-existing',
+        })
+
+        const voiceChannel = {
+            type: ChannelType.GuildVoice,
+            members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+        }
+        const existingQueue = {
+            node: { isPlaying: () => false },
+        }
+        const guild = {
+            channels: { cache: { get: jest.fn().mockReturnValue(voiceChannel) } },
+        }
+        const nodes = {
+            get: jest.fn().mockReturnValue(existingQueue),
+            create: jest.fn(),
+        }
+        const client = { guilds: { cache: { get: jest.fn().mockReturnValue(guild) } } }
+        const player = { nodes, client } as unknown as Player
+
+        const service = new MusicWatchdogService()
+        await service.scanOrphanSessions(player)
+
+        expect(nodes.create).not.toHaveBeenCalled()
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(existingQueue)
+    })
+
     it('clears snapshot and marks failed when restore yields no tracks', async () => {
         keysMock.mockResolvedValue(['music:session:guild-empty-restore'])
         getSnapshotMock.mockResolvedValue({
