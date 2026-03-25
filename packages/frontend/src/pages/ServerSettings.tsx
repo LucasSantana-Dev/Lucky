@@ -37,6 +37,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import Skeleton from '@/components/ui/Skeleton'
+import SectionHeader from '@/components/ui/SectionHeader'
 import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
@@ -554,28 +555,25 @@ export default function ServerSettingsPage() {
 
     return (
         <div className='space-y-6 lg:pb-0 pb-24'>
-            <div className='flex items-start justify-between'>
-                <header>
-                    <h1 className='type-h1 text-lucky-text-primary'>
-                        Server Settings
-                    </h1>
-                    <p className='type-body text-lucky-text-secondary mt-1'>
-                        General configuration for {selectedGuild.name}
-                    </p>
-                </header>
-                <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className='bg-lucky-red hover:bg-lucky-red/90 gap-2'
-                >
-                    {saving ? (
-                        <Loader2 className='w-4 h-4 animate-spin' />
-                    ) : (
-                        <Save className='w-4 h-4' />
-                    )}
-                    Save Changes
-                </Button>
-            </div>
+            <SectionHeader
+                eyebrow='Configuration'
+                title='Server Settings'
+                description={`General configuration for ${selectedGuild.name}`}
+                actions={
+                    <Button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className='gap-2'
+                    >
+                        {saving ? (
+                            <Loader2 className='w-4 h-4 animate-spin' />
+                        ) : (
+                            <Save className='w-4 h-4' />
+                        )}
+                        Save Changes
+                    </Button>
+                }
+            />
 
             {/* General Settings */}
             <motion.div
