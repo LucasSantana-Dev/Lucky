@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { History, BarChart3, Music2, User, Trash2, Clock } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
+import StatTile from '@/components/ui/StatTile'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface TrackEntry {
     trackId: string
@@ -81,10 +83,11 @@ export default function TrackHistoryPage() {
 
     if (!selectedGuild) {
         return (
-            <div className='flex flex-col items-center justify-center h-64 text-lucky-text-secondary'>
-                <History className='h-12 w-12 mb-4 opacity-50' />
-                <p className='text-lg'>Select a server to view track history</p>
-            </div>
+            <EmptyState
+                icon={<History className='h-10 w-10' aria-hidden='true' />}
+                title='No Server Selected'
+                description='Select a server to view track history'
+            />
         )
     }
 
@@ -127,25 +130,29 @@ export default function TrackHistoryPage() {
                 <>
                     {stats && (
                         <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-                            <StatCard
-                                icon={Music2}
+                            <StatTile
+                                icon={<Music2 className='w-4 h-4' />}
                                 label='Tracks Played'
-                                value={stats.totalTracks.toString()}
+                                value={stats.totalTracks}
+                                tone='brand'
                             />
-                            <StatCard
-                                icon={Clock}
+                            <StatTile
+                                icon={<Clock className='w-4 h-4' />}
                                 label='Play Time'
                                 value={formatPlayTime(stats.totalPlayTime)}
+                                tone='neutral'
                             />
-                            <StatCard
-                                icon={User}
+                            <StatTile
+                                icon={<User className='w-4 h-4' />}
                                 label='Top Artist'
                                 value={stats.topArtists[0]?.artist ?? 'None'}
+                                tone='accent'
                             />
-                            <StatCard
-                                icon={BarChart3}
+                            <StatTile
+                                icon={<BarChart3 className='w-4 h-4' />}
                                 label='Most Played'
                                 value={stats.topTracks[0]?.title ?? 'None'}
+                                tone='warning'
                             />
                         </div>
                     )}
@@ -170,13 +177,16 @@ export default function TrackHistoryPage() {
                     )}
 
                     <div className='space-y-1'>
-                        <h2 className='text-sm font-semibold text-lucky-text-secondary uppercase tracking-wider px-1'>
+                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wider px-1'>
                             Recent Tracks
                         </h2>
                         {history.length === 0 ? (
-                            <div className='text-center py-12 text-lucky-text-tertiary'>
-                                No tracks played yet
-                            </div>
+                            <EmptyState
+                                icon={<History className='h-10 w-10' aria-hidden='true' />}
+                                title='No tracks played yet'
+                                description='Play some music to see your history here'
+                                className='min-h-[180px]'
+                            />
                         ) : (
                             <div className='space-y-1'>
                                 {history.map((track, i) => (
@@ -196,13 +206,13 @@ export default function TrackHistoryPage() {
                                             >
                                                 {track.title}
                                             </a>
-                                            <p className='text-xs text-lucky-text-tertiary truncate'>
+                                            <p className='type-body-sm text-lucky-text-tertiary truncate'>
                                                 {track.author} ·{' '}
                                                 {track.duration}
                                                 {track.playedBy ? ` · Played by ${track.playedBy}` : ''}
                                             </p>
                                         </div>
-                                        <span className='text-xs text-lucky-text-tertiary shrink-0'>
+                                        <span className='type-body-sm text-lucky-text-tertiary shrink-0'>
                                             {formatTimeAgo(track.timestamp)}
                                         </span>
                                     </div>
@@ -212,28 +222,6 @@ export default function TrackHistoryPage() {
                     </div>
                 </>
             )}
-        </div>
-    )
-}
-
-function StatCard({
-    icon: Icon,
-    label,
-    value,
-}: {
-    icon: React.ComponentType<{ className?: string }>
-    label: string
-    value: string
-}) {
-    return (
-        <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-            <div className='flex items-center gap-2 mb-1'>
-                <Icon className='w-4 h-4 text-lucky-text-tertiary' />
-                <span className='text-xs text-lucky-text-tertiary'>
-                    {label}
-                </span>
-            </div>
-            <p className='type-h2 text-lucky-text-primary truncate'>{value}</p>
         </div>
     )
 }

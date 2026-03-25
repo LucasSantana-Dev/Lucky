@@ -9,6 +9,7 @@ import {
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Skeleton from '@/components/ui/Skeleton'
+import EmptyState from '@/components/ui/EmptyState'
 import { toast } from 'sonner'
 import type { TrackInfo } from '@/types'
 
@@ -76,7 +77,7 @@ export default memo(function QueueList({
                         className='h-5 w-5 text-primary shrink-0'
                         aria-hidden='true'
                     />
-                    <h3 className='text-base sm:text-lg font-semibold text-white'>
+                    <h3 className='type-title text-lucky-text-primary'>
                         Queue
                     </h3>
                     <span className='text-xs sm:text-sm text-lucky-text-secondary tabular-nums'>
@@ -101,7 +102,12 @@ export default memo(function QueueList({
             </div>
 
             {tracks.length === 0 ? (
-                <EmptyQueue />
+                <EmptyState
+                    icon={<ListMusic className='h-10 w-10' aria-hidden='true' />}
+                    title='Queue is empty'
+                    description='Search for a song or import a playlist to get started'
+                    className='min-h-[180px]'
+                />
             ) : (
                 <div role='list' aria-label='Music queue'>
                     <div
@@ -166,23 +172,6 @@ function QueueSkeleton() {
     )
 }
 
-function EmptyQueue() {
-    return (
-        <div
-            className='text-center py-8 sm:py-12 text-lucky-text-secondary'
-            role='status'
-        >
-            <ListMusic
-                className='h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 opacity-30'
-                aria-hidden='true'
-            />
-            <p className='text-sm sm:text-base'>Queue is empty</p>
-            <p className='text-xs sm:text-sm mt-1'>
-                Search for a song or import a playlist
-            </p>
-        </div>
-    )
-}
 
 const QueueItem = memo(function QueueItem({
     track,
@@ -247,10 +236,10 @@ const QueueItem = memo(function QueueItem({
                     onRemove(index)
                     toast.success('Track removed')
                 }}
-                className='p-2 sm:p-1.5 rounded hover:bg-red-500/10 active:bg-red-500/10 text-lucky-text-secondary hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0'
+                className='min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-red-500/10 active:bg-red-500/10 text-lucky-text-secondary hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0'
                 aria-label={`Remove ${track.title} from queue`}
             >
-                <Trash2 className='h-4 w-4 sm:h-3.5 sm:w-3.5' />
+                <Trash2 className='h-4 w-4' />
             </button>
         </div>
     )
