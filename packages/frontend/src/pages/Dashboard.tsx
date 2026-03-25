@@ -22,15 +22,14 @@ export default function DashboardPage() {
                         aria-hidden='true'
                     />
                 </div>
-                <h2 className='text-xl font-semibold text-white mb-2'>
+                <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lucky-text-secondary mb-4'>
-                    Select a server from the dropdown above to manage it
+                <p className='type-body text-lucky-text-secondary mb-4'>
+                    Select a server from the sidebar to manage it
                 </p>
                 <Button
                     onClick={() => navigate('/servers')}
-                    className='bg-lucky-red hover:bg-lucky-red/90'
                 >
                     View Your Servers
                 </Button>
@@ -41,7 +40,7 @@ export default function DashboardPage() {
     return (
         <main className='space-y-6'>
             <header>
-                <h1 className='text-2xl font-bold text-white mb-4'>
+                <h1 className='type-h1 text-lucky-text-primary mb-4'>
                     Dashboard
                 </h1>
             </header>

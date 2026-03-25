@@ -71,7 +71,7 @@ function FilterCard({
                         <Icon className='w-4 h-4 text-white' />
                     </div>
                     <div>
-                        <h3 className='text-sm font-semibold text-white'>
+                        <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
                             {title}
                         </h3>
                         <p className='text-xs text-lucky-text-tertiary mt-0.5'>
@@ -454,7 +454,7 @@ export default function AutoModPage() {
                         key={template.id}
                         className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'
                     >
-                        <h3 className='text-sm font-semibold text-white'>
+                        <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
                             {template.name}
                         </h3>
                         <p className='mt-1 text-xs text-lucky-text-secondary'>
@@ -489,7 +489,7 @@ export default function AutoModPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <ShieldAlert className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='text-xl font-semibold text-white mb-2'>
+                <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
@@ -519,7 +519,7 @@ export default function AutoModPage() {
         <div className='space-y-6'>
             <div className='flex items-start justify-between'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white'>
+                    <h1 className='type-h1 text-lucky-text-primary'>
                         Auto-Moderation
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
@@ -551,7 +551,7 @@ export default function AutoModPage() {
                     <Card className='p-5 space-y-4'>
                         <div className='flex items-center gap-2'>
                             <Sparkles className='w-5 h-5 text-lucky-warning' />
-                            <h2 className='text-base font-semibold text-white'>
+                            <h2 className='type-title text-lucky-text-primary'>
                                 Templates
                             </h2>
                         </div>
@@ -726,7 +726,7 @@ export default function AutoModPage() {
                 <Card className='p-5'>
                     <div className='flex items-center gap-2 mb-4'>
                         <CheckCircle2 className='w-5 h-5 text-lucky-success' />
-                        <h2 className='text-base font-semibold text-white'>
+                        <h2 className='type-title text-lucky-text-primary'>
                             Exemptions
                         </h2>
                     </div>

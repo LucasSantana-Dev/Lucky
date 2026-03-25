@@ -80,7 +80,7 @@ export default function CustomCommandsPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Terminal className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='text-xl font-semibold text-white mb-2'>
+                <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
@@ -93,7 +93,7 @@ export default function CustomCommandsPage() {
     return (
         <div className='space-y-6'>
             <header>
-                <h1 className='text-2xl font-bold text-white'>
+                <h1 className='type-h1 text-lucky-text-primary'>
                     Custom Commands
                 </h1>
                 <p className='text-sm text-lucky-text-secondary mt-1'>
@@ -204,7 +204,7 @@ export default function CustomCommandsPage() {
                                         </div>
                                         <div className='flex-1 min-w-0'>
                                             <div className='flex items-center gap-2'>
-                                                <h3 className='text-sm font-semibold text-white truncate'>
+                                                <h3 className='type-body-sm font-semibold text-lucky-text-primary truncate'>
                                                     /{cmd.name}
                                                 </h3>
                                                 <Badge

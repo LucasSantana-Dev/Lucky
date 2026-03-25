@@ -45,7 +45,7 @@ export default function FeaturesPage() {
         <main className='p-4 md:p-6 space-y-8'>
             <header className='flex items-center gap-3'>
                 <Shield className='w-7 h-7 text-lucky-red' aria-hidden='true' />
-                <h1 className='text-2xl font-bold text-white'>Features</h1>
+                <h1 className='type-h1 text-lucky-text-primary'>Features</h1>
             </header>
 
             {loadError && (
@@ -54,7 +54,7 @@ export default function FeaturesPage() {
                         <AlertTriangle className='h-5 w-5 text-lucky-yellow mt-0.5' />
                         <div className='space-y-3'>
                             <div>
-                                <h2 className='text-sm font-semibold text-white'>
+                                <h2 className='type-body-sm font-semibold text-lucky-text-primary'>
                                     Unable to load feature data
                                 </h2>
                                 <p className='text-sm text-lucky-text-secondary'>

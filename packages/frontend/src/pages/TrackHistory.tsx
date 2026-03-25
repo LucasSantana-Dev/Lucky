@@ -93,7 +93,7 @@ export default function TrackHistoryPage() {
             <header className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
                     <History className='h-6 w-6 text-lucky-red' />
-                    <h1 className='text-xl font-bold text-white'>
+                    <h1 className='type-h2 text-lucky-text-primary'>
                         Track History
                     </h1>
                 </div>
@@ -192,7 +192,7 @@ export default function TrackHistoryPage() {
                                                 href={track.url}
                                                 target='_blank'
                                                 rel='noopener noreferrer'
-                                                className='text-sm font-medium text-white truncate block hover:text-lucky-red transition-colors'
+                                                className='type-body-sm font-medium text-lucky-text-primary truncate block hover:text-lucky-accent transition-colors'
                                             >
                                                 {track.title}
                                             </a>
@@ -233,7 +233,7 @@ function StatCard({
                     {label}
                 </span>
             </div>
-            <p className='text-lg font-bold text-white truncate'>{value}</p>
+            <p className='type-h2 text-lucky-text-primary truncate'>{value}</p>
         </div>
     )
 }
@@ -248,7 +248,7 @@ function RankingCard({
     const max = items[0]?.count ?? 1
     return (
         <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-            <h3 className='text-sm font-semibold text-white mb-3'>{title}</h3>
+            <h3 className='type-body-sm font-semibold text-lucky-text-primary mb-3'>{title}</h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>
@@ -257,10 +257,10 @@ function RankingCard({
                         </span>
                         <div className='flex-1 min-w-0'>
                             <div className='flex items-center justify-between mb-0.5'>
-                                <span className='text-sm text-white truncate'>
+                                <span className='type-body-sm text-lucky-text-primary truncate'>
                                     {item.label}
                                 </span>
-                                <span className='text-xs text-lucky-text-tertiary ml-2 shrink-0'>
+                                <span className='type-body-sm text-lucky-text-tertiary ml-2 shrink-0'>
                                     {item.count}
                                 </span>
                             </div>

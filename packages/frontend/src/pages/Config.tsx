@@ -54,7 +54,7 @@ export default function ConfigPage() {
         return (
             <main className='space-y-6'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white mb-2'>
+                    <h1 className='type-h1 text-lucky-text-primary mb-2'>
                         Configuration
                     </h1>
                     <p className='text-lucky-text-secondary'>
@@ -68,7 +68,7 @@ export default function ConfigPage() {
     return (
         <main className='space-y-6'>
             <header>
-                <h1 className='text-2xl font-bold text-white mb-2'>
+                <h1 className='type-h1 text-lucky-text-primary mb-2'>
                     Configuration
                 </h1>
                 <p className='text-lucky-text-secondary'>
@@ -105,7 +105,7 @@ export default function ConfigPage() {
                                         <module.icon className='w-6 h-6 text-primary' />
                                     </div>
                                     <div className='flex-1'>
-                                        <h3 className='text-lg font-semibold text-white mb-1'>
+                                        <h3 className='type-h2 text-lucky-text-primary mb-1'>
                                             {module.name}
                                         </h3>
                                         <p className='text-sm text-lucky-text-secondary'>

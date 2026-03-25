@@ -268,7 +268,7 @@ export default function TwitchNotificationsPage() {
             <header className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
                     <Tv className='h-6 w-6 text-purple-500' />
-                    <h1 className='text-xl font-bold text-white'>
+                    <h1 className='type-h2 text-lucky-text-primary'>
                         Twitch Notifications
                     </h1>
                     <span className='text-sm text-lucky-text-tertiary'>
@@ -292,7 +292,7 @@ export default function TwitchNotificationsPage() {
 
             {showAdd && (
                 <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border space-y-3'>
-                    <h3 className='text-sm font-semibold text-white'>
+                    <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
                         Add Twitch Notification
                     </h3>
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>

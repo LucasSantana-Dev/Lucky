@@ -211,7 +211,7 @@ export default function ServerLogsPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <ScrollText className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='text-xl font-semibold text-white mb-2'>
+                <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
@@ -225,7 +225,7 @@ export default function ServerLogsPage() {
         <div className='space-y-6'>
             <div className='flex items-start justify-between flex-wrap gap-3'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white'>
+                    <h1 className='type-h1 text-lucky-text-primary'>
                         Server Logs
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
