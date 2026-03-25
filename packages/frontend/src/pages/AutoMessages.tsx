@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import {
     MessageSquare,
     Plus,
@@ -162,6 +162,7 @@ function MessageFormDialog({ open, initial, onSave, onClose }: MessageFormProps)
 }
 
 export default function AutoMessagesPage() {
+    const prefersReducedMotion = useReducedMotion()
     const { selectedGuild } = useGuildStore()
     const [messages, setMessages] = useState<AutoMessage[]>([])
     const [loading, setLoading] = useState(true)
@@ -268,11 +269,11 @@ export default function AutoMessagesPage() {
                             {messages.map((msg, i) => (
                                 <motion.div
                                     key={msg.id}
-                                    layout
-                                    initial={{ opacity: 0, y: 8 }}
+                                    layout={!prefersReducedMotion}
+                                    initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ duration: 0.2, delay: i * 0.03 }}
+                                    exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.2, delay: prefersReducedMotion ? 0 : i * 0.03 }}
                                 >
                                     <Card className='p-5 hover:border-lucky-border-strong transition-all'>
                                         <div className='flex items-start justify-between mb-3'>
