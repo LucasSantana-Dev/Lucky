@@ -26,6 +26,12 @@ export type QueueResolutionResult = {
 type QueueNodeLike = {
     id?: string
     guild?: { id?: string }
+    metadata?: {
+        channel?: {
+            guildId?: string
+            guild?: { id?: string }
+        }
+    }
 }
 
 type QueueCacheLike = {
@@ -142,7 +148,10 @@ export function resolveGuildQueue(
 
         const fromCacheGuild = resolveByCacheScan(
             cache,
-            (queue) => queue.guild?.id === guildId,
+            (queue) =>
+                queue.guild?.id === guildId ||
+                queue.metadata?.channel?.guildId === guildId ||
+                queue.metadata?.channel?.guild?.id === guildId,
         )
         if (fromCacheGuild) {
             return resolveWithSource(fromCacheGuild, 'cache.guild', diagnostics)

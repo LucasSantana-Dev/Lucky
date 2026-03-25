@@ -12,6 +12,12 @@ jest.mock('@lucky/shared/utils', () => ({
 type QueueLike = {
     id?: string
     guild?: { id?: string }
+    metadata?: {
+        channel?: {
+            guildId?: string
+            guild?: { id?: string }
+        }
+    }
 }
 
 function createQueue(id: string, guildId = id): QueueLike {
@@ -123,6 +129,24 @@ describe('queueResolver', () => {
 
     it('falls back to cache scan by queue.guild.id', () => {
         const queue = createQueue('queue-id', 'guild-1')
+        const cacheMap = new Map<string, QueueLike>([['different-key', queue]])
+        const client = createClient({ cacheMap })
+
+        const result = resolveGuildQueue(client, 'guild-1')
+
+        expect(result.queue).toBe(queue)
+        expect(result.source).toBe('cache.guild')
+    })
+
+    it('falls back to cache scan by metadata.channel.guildId', () => {
+        const queue: QueueLike = {
+            id: 'queue-id',
+            metadata: {
+                channel: {
+                    guildId: 'guild-1',
+                },
+            },
+        }
         const cacheMap = new Map<string, QueueLike>([['different-key', queue]])
         const client = createClient({ cacheMap })
 

@@ -41,8 +41,12 @@ description: Work with Discord Player, queue, and music commands in Lucky. Use w
 - This protects direct-provider queries (for example direct YouTube URLs) from false negatives when provider health cooldown is stale.
 - Keep regression coverage in `packages/bot/src/utils/music/search/engineManager.spec.ts`:
   - `still tries preferred engine for direct provider queries even during cooldown`
+- In `packages/bot/src/utils/music/queueResolver.ts`, also resolve by `queue.metadata.channel.guildId` / `queue.metadata.channel.guild.id` to avoid false queue misses when cache keys are non-standard.
+- Keep regression coverage in `packages/bot/src/utils/music/queueResolver.spec.ts`:
+  - `falls back to cache scan by metadata.channel.guildId`
 
 ## Fast verification commands
 
 - `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs packages/bot/src/utils/music/search/engineManager.spec.ts --runInBand`
+- `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs packages/bot/src/utils/music/queueResolver.spec.ts --runInBand`
 - `node /home/luk-server/Lucky/node_modules/.bin/jest --config packages/bot/jest.config.cjs --testPathPatterns="engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec" --runInBand`
