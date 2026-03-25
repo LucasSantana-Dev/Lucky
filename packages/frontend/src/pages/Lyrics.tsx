@@ -53,7 +53,7 @@ export default function LyricsPage() {
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center gap-3'>
                 <MicVocal className='h-6 w-6 text-lucky-red' />
-                <h1 className='text-xl font-bold text-white'>Lyrics Search</h1>
+                <h1 className='type-h2 text-lucky-text-primary'>Lyrics Search</h1>
             </header>
 
             <form

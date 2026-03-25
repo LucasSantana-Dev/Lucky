@@ -343,7 +343,7 @@ export default function ServerSettingsPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Settings className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='text-xl font-semibold text-white mb-2'>
+                <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
@@ -375,7 +375,7 @@ export default function ServerSettingsPage() {
         return (
             <div className='space-y-6'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white'>
+                    <h1 className='type-h1 text-lucky-text-primary'>
                         Server Settings
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
@@ -385,7 +385,7 @@ export default function ServerSettingsPage() {
                 <Card className='p-5 space-y-4'>
                     <div className='flex items-center gap-2 text-lucky-yellow'>
                         <AlertTriangle className='w-5 h-5' />
-                        <h2 className='text-base font-semibold text-white'>
+                        <h2 className='type-title text-lucky-text-primary'>
                             Unable to load server settings
                         </h2>
                     </div>
@@ -556,7 +556,7 @@ export default function ServerSettingsPage() {
         <div className='space-y-6'>
             <div className='flex items-start justify-between'>
                 <header>
-                    <h1 className='text-2xl font-bold text-white'>
+                    <h1 className='type-h1 text-lucky-text-primary'>
                         Server Settings
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
@@ -586,7 +586,7 @@ export default function ServerSettingsPage() {
                 <Card className='p-5 space-y-5'>
                     <div className='flex items-center gap-2'>
                         <Settings className='w-5 h-5 text-lucky-text-secondary' />
-                        <h2 className='text-base font-semibold text-white'>
+                        <h2 className='type-title text-lucky-text-primary'>
                             General
                         </h2>
                     </div>
@@ -632,7 +632,7 @@ export default function ServerSettingsPage() {
                 <Card className='p-5 space-y-5'>
                     <div className='flex items-center gap-2'>
                         <Globe className='w-5 h-5 text-lucky-text-secondary' />
-                        <h2 className='text-base font-semibold text-white'>
+                        <h2 className='type-title text-lucky-text-primary'>
                             Region & Notifications
                         </h2>
                     </div>
@@ -711,7 +711,7 @@ export default function ServerSettingsPage() {
                     <div className='flex items-center gap-2'>
                         <Shield className='w-5 h-5 text-lucky-text-secondary' />
                         <div>
-                            <h2 className='text-base font-semibold text-white'>
+                            <h2 className='type-title text-lucky-text-primary'>
                                 Manager Roles
                             </h2>
                             <p className='text-xs text-lucky-text-tertiary mt-0.5'>
@@ -829,7 +829,7 @@ export default function ServerSettingsPage() {
                         <div className='flex items-center gap-2'>
                             <WandSparkles className='w-5 h-5 text-lucky-warning' />
                             <div>
-                                <h2 className='text-base font-semibold text-white'>
+                                <h2 className='type-title text-lucky-text-primary'>
                                     Criativaria Baseline
                                 </h2>
                                 <p className='text-xs text-lucky-text-tertiary'>
@@ -865,7 +865,7 @@ export default function ServerSettingsPage() {
                         <div className='flex items-center gap-2'>
                             <Shield className='w-5 h-5 text-lucky-text-secondary' />
                             <div>
-                                <h2 className='text-base font-semibold text-white'>
+                                <h2 className='type-title text-lucky-text-primary'>
                                     Access Control
                                 </h2>
                                 <p className='text-xs text-lucky-text-tertiary'>

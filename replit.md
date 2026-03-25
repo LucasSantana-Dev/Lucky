@@ -52,6 +52,21 @@ To run the Discord bot and backend, add these secrets via the Secrets tab:
 - **env vars** — `YOUTUBE_DL_SKIP_PYTHON_CHECK=1`, `NODE_ENV=development`, `WEBAPP_PORT=3000`
 - **DATABASE_URL** — Uses Replit's built-in PostgreSQL (pre-configured)
 
+## UI / Design System
+
+The frontend uses a custom design system built on Tailwind CSS with the following conventions:
+
+- **Typography tokens** — `type-display`, `type-h1`, `type-h2`, `type-title`, `type-body-lg`, `type-body`, `type-body-sm`, `type-meta` — **always use these instead of raw Tailwind text classes**
+- **Color tokens** — `lucky-text-primary/secondary/tertiary/disabled`, `lucky-accent` (gold), `lucky-brand` (purple), `lucky-bg-primary/secondary/tertiary/active`
+- **Surface classes** — `surface-panel`, `surface-card`, `surface-elevated`, `surface-glass`
+- **Focus ring** — `lucky-focus-visible` (replaces raw `focus:ring`)
+- **Background** — `.lucky-shell` on the root div creates the radial gradient scene
+
+### Sidebar & Layout
+- **Sidebar.tsx** — includes GuildSwitcher with avatar+dropdown, section-labelled nav, user profile footer. Nav links use `<Link>` with `aria-current="page"` on active items.
+- **Layout.tsx** — sticky header with `GuildChip` component showing active guild icon+name+click-to-switch. Route copy map provides per-page titles and subtitles.
+- **ServerSelector.tsx** — legacy file; now just re-exports Sidebar (the native `<select>` has been removed).
+
 ## Package Manager
 
 npm with workspaces (`package-lock.json`)

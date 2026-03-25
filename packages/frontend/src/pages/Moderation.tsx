@@ -139,10 +139,10 @@ function StatCard({
         <Card className='p-4'>
             <div className='flex items-start justify-between gap-3'>
                 <div>
-                    <p className='text-xs text-lucky-text-tertiary uppercase tracking-wide'>
+                    <p className='type-meta text-lucky-text-tertiary'>
                         {label}
                     </p>
-                    <p className='text-2xl font-semibold text-white mt-1'>
+                    <p className='type-h2 text-lucky-text-primary mt-1'>
                         {value.toLocaleString()}
                     </p>
                 </div>
@@ -175,7 +175,7 @@ function CaseDetailModal({
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className='bg-lucky-bg-secondary border-lucky-border max-w-lg'>
                 <DialogHeader>
-                    <DialogTitle className='flex items-center gap-3 text-white'>
+                    <DialogTitle className='flex items-center gap-3 text-lucky-text-primary'>
                         <div className={cn('p-2 rounded-lg', style.bg)}>
                             <ActionIcon className={cn('w-5 h-5', style.text)} />
                         </div>
@@ -185,29 +185,29 @@ function CaseDetailModal({
                 <div className='space-y-4 mt-2'>
                     <div className='grid grid-cols-2 gap-4'>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lucky-text-tertiary flex items-center gap-1.5'>
+                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
                                 <User className='w-3 h-3' /> User
                             </p>
-                            <p className='text-sm font-medium text-white'>
+                            <p className='type-body-sm font-medium text-lucky-text-primary'>
                                 {caseData.userName || caseData.userId}
                             </p>
                         </div>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lucky-text-tertiary flex items-center gap-1.5'>
+                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
                                 <Shield className='w-3 h-3' /> Moderator
                             </p>
-                            <p className='text-sm font-medium text-white'>
+                            <p className='type-body-sm font-medium text-lucky-text-primary'>
                                 {caseData.moderatorName || caseData.moderatorId}
                             </p>
                         </div>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lucky-text-tertiary flex items-center gap-1.5'>
+                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
                                 <Hash className='w-3 h-3' /> Action
                             </p>
                             <Badge
                                 variant='outline'
                                 className={cn(
-                                    'text-xs uppercase font-semibold border',
+                                    'type-meta uppercase font-semibold border',
                                     style.bg,
                                     style.text,
                                     style.border,
@@ -217,26 +217,26 @@ function CaseDetailModal({
                             </Badge>
                         </div>
                         <div className='space-y-1'>
-                            <p className='text-xs text-lucky-text-tertiary flex items-center gap-1.5'>
+                            <p className='type-meta text-lucky-text-tertiary flex items-center gap-1.5'>
                                 <Calendar className='w-3 h-3' /> Date
                             </p>
-                            <p className='text-sm text-lucky-text-secondary'>
+                            <p className='type-body-sm text-lucky-text-secondary'>
                                 {formatDate(caseData.createdAt)}
                             </p>
                         </div>
                     </div>
                     <div className='p-3 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-                        <p className='text-xs text-lucky-text-tertiary mb-1'>
+                        <p className='type-meta text-lucky-text-tertiary mb-1'>
                             Reason
                         </p>
-                        <p className='text-sm text-lucky-text-secondary'>
+                        <p className='type-body-sm text-lucky-text-secondary'>
                             {caseData.reason || 'No reason provided'}
                         </p>
                     </div>
                     {caseData.duration && (
-                        <div className='flex items-center gap-2 text-sm'>
+                        <div className='flex items-center gap-2'>
                             <Clock className='w-4 h-4 text-lucky-text-tertiary' />
-                            <span className='text-lucky-text-secondary'>
+                            <span className='type-body-sm text-lucky-text-secondary'>
                                 Duration: {Math.floor(caseData.duration / 60)}{' '}
                                 minutes
                             </span>
@@ -395,10 +395,10 @@ export default function ModerationPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <Shield className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='text-xl font-semibold text-white mb-2'>
+                <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
-                <p className='text-lucky-text-secondary text-sm'>
+                <p className='type-body text-lucky-text-secondary'>
                     Select a server to view moderation cases
                 </p>
             </div>
@@ -408,10 +408,10 @@ export default function ModerationPage() {
     return (
         <div className='space-y-6'>
             <header>
-                <h1 className='text-2xl font-bold text-white'>
+                <h1 className='type-h1 text-lucky-text-primary'>
                     Moderation Cases
                 </h1>
-                <p className='text-sm text-lucky-text-secondary mt-1'>
+                <p className='type-body text-lucky-text-secondary mt-1'>
                     Manage warnings, mutes, kicks, and bans
                 </p>
             </header>
@@ -512,7 +512,7 @@ export default function ModerationPage() {
                     ].map((h) => (
                         <span
                             key={h}
-                            className='text-[10px] font-semibold uppercase tracking-wider text-lucky-text-tertiary'
+                            className='type-meta text-lucky-text-tertiary'
                         >
                             {h}
                         </span>
@@ -557,24 +557,24 @@ export default function ModerationPage() {
                                         onClick={() => setSelectedCase(c)}
                                     >
                                         <div className='flex items-center'>
-                                            <span className='text-xs font-mono text-lucky-text-tertiary'>
+                                            <span className='type-meta font-mono text-lucky-text-tertiary normal-case tracking-normal'>
                                                 #{c.caseNumber}
                                             </span>
                                         </div>
                                         <div className='flex items-center gap-2.5 min-w-0'>
                                             <div className='w-7 h-7 rounded-full bg-lucky-bg-active flex items-center justify-center shrink-0'>
-                                                <span className='text-[10px] font-medium text-lucky-text-secondary'>
+                                                <span className='type-meta font-medium text-lucky-text-secondary normal-case tracking-normal'>
                                                     {(c.userName || c.userId)
                                                         .substring(0, 2)
                                                         .toUpperCase()}
                                                 </span>
                                             </div>
-                                            <span className='text-sm text-white truncate'>
+                                            <span className='type-body-sm text-lucky-text-primary truncate'>
                                                 {c.userName || c.userId}
                                             </span>
                                         </div>
                                         <div className='flex items-center min-w-0'>
-                                            <span className='text-sm text-lucky-text-secondary truncate'>
+                                            <span className='type-body-sm text-lucky-text-secondary truncate'>
                                                 {c.moderatorName ||
                                                     c.moderatorId}
                                             </span>
@@ -596,7 +596,7 @@ export default function ModerationPage() {
                                         <div className='flex items-center'>
                                             <div
                                                 className={cn(
-                                                    'flex items-center gap-1.5 text-[11px]',
+                                                    'type-body-sm flex items-center gap-1.5',
                                                     c.active
                                                         ? 'text-green-400'
                                                         : 'text-lucky-text-tertiary',
@@ -604,7 +604,7 @@ export default function ModerationPage() {
                                             >
                                                 <div
                                                     className={cn(
-                                                        'w-1.5 h-1.5 rounded-full',
+                                                        'w-1.5 h-1.5 rounded-full shrink-0',
                                                         c.active
                                                             ? 'bg-green-400'
                                                             : 'bg-lucky-text-disabled',
@@ -616,7 +616,7 @@ export default function ModerationPage() {
                                             </div>
                                         </div>
                                         <div className='flex items-center'>
-                                            <span className='text-xs text-lucky-text-tertiary'>
+                                            <span className='type-body-sm text-lucky-text-tertiary'>
                                                 {timeAgo(c.createdAt)}
                                             </span>
                                         </div>
@@ -630,10 +630,10 @@ export default function ModerationPage() {
                     ) : (
                         <div className='py-16 text-center'>
                             <Shield className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
-                            <p className='text-sm text-lucky-text-secondary'>
+                            <p className='type-body text-lucky-text-secondary'>
                                 No cases found
                             </p>
-                            <p className='text-xs text-lucky-text-tertiary mt-1'>
+                            <p className='type-body-sm text-lucky-text-tertiary mt-1'>
                                 {searchQuery || typeFilter !== 'all'
                                     ? 'Try adjusting your filters'
                                     : 'Moderation cases will appear here'}
@@ -645,8 +645,8 @@ export default function ModerationPage() {
                 {/* Pagination */}
                 {total > limit && (
                     <div className='flex items-center justify-between px-5 py-3 border-t border-lucky-border'>
-                        <span className='text-xs text-lucky-text-tertiary'>
-                            Showing {(page - 1) * limit + 1}-
+                        <span className='type-body-sm text-lucky-text-tertiary'>
+                            Showing {(page - 1) * limit + 1}–
                             {Math.min(page * limit, total)} of {total}
                         </span>
                         <div className='flex items-center gap-1'>
@@ -655,11 +655,11 @@ export default function ModerationPage() {
                                 variant='ghost'
                                 disabled={page <= 1}
                                 onClick={() => setPage((p) => p - 1)}
-                                className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-white'
+                                className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
                                 <ChevronLeft className='w-4 h-4' />
                             </Button>
-                            <span className='text-xs text-lucky-text-secondary px-2'>
+                            <span className='type-body-sm text-lucky-text-secondary px-2'>
                                 {page} / {totalPages}
                             </span>
                             <Button
@@ -667,7 +667,7 @@ export default function ModerationPage() {
                                 variant='ghost'
                                 disabled={page >= totalPages}
                                 onClick={() => setPage((p) => p + 1)}
-                                className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-white'
+                                className='h-8 w-8 p-0 text-lucky-text-secondary hover:text-lucky-text-primary'
                             >
                                 <ChevronRight className='w-4 h-4' />
                             </Button>
