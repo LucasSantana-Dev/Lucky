@@ -260,11 +260,29 @@ export class MusicWatchdogService {
             data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
         })
 
-        const queue = player.nodes.create(guild)
-        queue.setRepeatMode(3)
+        const queue = existingQueue ?? player.nodes.create(guild)
+        if (!existingQueue) {
+            queue.setRepeatMode(3)
+            await queue.connect(voiceChannel)
+        }
 
-        await queue.connect(voiceChannel)
-        await musicSessionSnapshotService.restoreSnapshot(queue)
+        const restoreResult = await musicSessionSnapshotService.restoreSnapshot(
+            queue,
+        )
+        if (!restoreResult || restoreResult.restoredCount <= 0) {
+            await musicSessionSnapshotService.deleteSnapshot(guildId)
+
+            const state = this.ensureState(guildId)
+            state.lastRecoveryAction = 'failed'
+            state.lastRecoveryAt = Date.now()
+            state.lastRecoveryDetail = 'snapshot_restore_empty'
+
+            infoLog({
+                message: 'Watchdog orphan session restore produced no tracks; snapshot cleared',
+                data: { guildId, voiceChannelId },
+            })
+            return
+        }
 
         const state = this.ensureState(guildId)
         state.lastRecoveryAction = 'rejoin'
