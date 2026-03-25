@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import Skeleton from '@/components/ui/Skeleton'
+import EmptyState from '@/components/ui/EmptyState'
 import {
     Dialog,
     DialogContent,
@@ -339,18 +340,16 @@ export default function AutoMessagesPage() {
                         </AnimatePresence>
                     </div>
                 ) : (
-                    <Card className='py-16 text-center'>
-                        <MessageSquare className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' aria-hidden='true' />
-                        <p className='type-body text-lucky-text-secondary'>
-                            No auto messages configured
-                        </p>
-                        <p className='type-body-sm text-lucky-text-tertiary mt-1 mb-4'>
-                            Create scheduled messages that are posted automatically
-                        </p>
-                        <Button variant='primary' className='gap-2 mx-auto' onClick={openCreate}>
-                            <Plus className='w-4 h-4' aria-hidden='true' /> Create Auto Message
-                        </Button>
-                    </Card>
+                    <EmptyState
+                        icon={<MessageSquare className='w-10 h-10' aria-hidden='true' />}
+                        title='No auto messages configured'
+                        description='Create scheduled messages that are posted automatically to your server'
+                        action={
+                            <Button variant='primary' className='gap-2' onClick={openCreate}>
+                                <Plus className='w-4 h-4' aria-hidden='true' /> Create Auto Message
+                            </Button>
+                        }
+                    />
                 )}
             </div>
         </>

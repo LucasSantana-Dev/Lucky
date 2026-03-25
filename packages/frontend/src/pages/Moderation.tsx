@@ -22,6 +22,7 @@ import Button from '@/components/ui/Button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import StatTile from '@/components/ui/StatTile'
+import EmptyState from '@/components/ui/EmptyState'
 import {
     Select,
     SelectContent,
@@ -594,17 +595,16 @@ export default function ModerationPage() {
                             })}
                         </AnimatePresence>
                     ) : (
-                        <div className='py-16 text-center'>
-                            <Shield className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
-                            <p className='type-body text-lucky-text-secondary'>
-                                No cases found
-                            </p>
-                            <p className='type-body-sm text-lucky-text-tertiary mt-1'>
-                                {searchQuery || typeFilter !== 'all'
+                        <EmptyState
+                            icon={<Shield className='w-10 h-10' aria-hidden='true' />}
+                            title='No cases found'
+                            description={
+                                searchQuery || typeFilter !== 'all'
                                     ? 'Try adjusting your filters'
-                                    : 'Moderation cases will appear here'}
-                            </p>
-                        </div>
+                                    : 'Moderation cases will appear here'
+                            }
+                            className='rounded-none border-0 min-h-[240px]'
+                        />
                     )}
                 </div>
 
