@@ -65,7 +65,7 @@ export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder='Paste playlist URL...'
-                    className='flex-1 h-10 sm:h-9 text-base sm:text-sm'
+                    className='flex-1 h-10 sm:h-9'
                     aria-label='Playlist URL'
                     autoComplete='off'
                     enterKeyHint='go'
@@ -88,7 +88,7 @@ export default memo(function ImportPlaylist({ onImport }: ImportPlaylistProps) {
                 {SOURCES.map((s) => (
                     <span
                         key={s.label}
-                        className={`text-xs px-2 py-1 rounded border ${s.cls}`}
+                        className={`type-meta px-2 py-1 rounded border ${s.cls}`}
                     >
                         {s.label}
                     </span>

@@ -186,7 +186,7 @@ function AlbumArt({
                             />
                         ))}
                     </span>
-                    <span className='text-xs text-white ml-1'>Playing</span>
+                    <span className='type-meta text-lucky-text-primary ml-1'>Playing</span>
                 </div>
             )}
         </div>
@@ -303,7 +303,7 @@ function ProgressBar({
                     }}
                 />
             </div>
-            <div className='flex justify-between text-xs text-lucky-text-secondary mt-1'>
+            <div className='flex justify-between type-meta text-lucky-text-secondary mt-1'>
                 <span>{formatDuration(position)}</span>
                 <span>{formatted}</span>
             </div>

@@ -103,7 +103,7 @@ export default function TrackHistoryPage() {
                 {history.length > 0 && (
                     <button
                         onClick={handleClear}
-                        className='flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors'
+                        className='flex items-center gap-2 px-3 min-h-[44px] type-body-sm rounded-lg bg-lucky-error/10 text-lucky-error hover:bg-lucky-error/20 transition-colors'
                     >
                         <Trash2 className='w-4 h-4' />
                         Clear
@@ -112,7 +112,7 @@ export default function TrackHistoryPage() {
             </header>
 
             {error && (
-                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error type-body-sm'>
                     {error}
                 </div>
             )}
@@ -194,7 +194,7 @@ export default function TrackHistoryPage() {
                                         key={`${track.trackId}-${i}`}
                                         className='flex items-center gap-3 px-3 py-2.5 rounded-lg bg-lucky-bg-tertiary hover:bg-lucky-bg-active transition-colors'
                                     >
-                                        <div className='w-8 h-8 rounded bg-lucky-bg-active flex items-center justify-center text-lucky-text-tertiary text-xs font-mono shrink-0'>
+                                        <div className='w-8 h-8 rounded bg-lucky-bg-active flex items-center justify-center text-lucky-text-tertiary type-meta shrink-0'>
                                             {i + 1}
                                         </div>
                                         <div className='flex-1 min-w-0'>
@@ -202,7 +202,7 @@ export default function TrackHistoryPage() {
                                                 href={track.url}
                                                 target='_blank'
                                                 rel='noopener noreferrer'
-                                                className='type-body-sm font-medium text-lucky-text-primary truncate block hover:text-lucky-accent transition-colors'
+                                                className='type-body text-lucky-text-primary truncate block hover:text-lucky-accent transition-colors'
                                             >
                                                 {track.title}
                                             </a>
@@ -236,11 +236,11 @@ function RankingCard({
     const max = items[0]?.count ?? 1
     return (
         <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border'>
-            <h3 className='type-body-sm font-semibold text-lucky-text-primary mb-3'>{title}</h3>
+            <h3 className='type-title text-lucky-text-primary mb-3'>{title}</h3>
             <div className='space-y-2'>
                 {items.slice(0, 5).map((item, i) => (
                     <div key={item.label} className='flex items-center gap-2'>
-                        <span className='text-xs text-lucky-text-tertiary w-4'>
+                        <span className='type-meta text-lucky-text-tertiary w-4'>
                             {i + 1}
                         </span>
                         <div className='flex-1 min-w-0'>
