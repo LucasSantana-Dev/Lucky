@@ -60,9 +60,10 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
   },
   server: {
-    host: true,
-    port: 5173,
+    host: '0.0.0.0',
+    port: 5000,
     strictPort: true,
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
