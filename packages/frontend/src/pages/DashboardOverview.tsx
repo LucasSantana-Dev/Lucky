@@ -311,30 +311,25 @@ export default function DashboardOverview() {
                 </motion.section>
             </div>
 
-            <section className='surface-panel p-5'>
-                <h2 className='type-title text-lucky-text-primary'>
-                    Cases by Type
-                </h2>
-                <div className='mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
-                    {Object.entries(stats?.casesByType ?? {}).map(
-                        ([type, value]) => {
-                            return (
-                                <div
+            {Object.keys(stats?.casesByType ?? {}).length > 0 && (
+                <section className='space-y-4'>
+                    <h2 className='type-title text-lucky-text-primary'>
+                        Cases by Type
+                    </h2>
+                    <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6'>
+                        {Object.entries(stats?.casesByType ?? {}).map(
+                            ([type, value]) => (
+                                <StatTile
                                     key={type}
-                                    className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 p-3'
-                                >
-                                    <p className='type-meta text-lucky-text-tertiary'>
-                                        {type}
-                                    </p>
-                                    <p className='type-title text-lucky-text-primary'>
-                                        {value}
-                                    </p>
-                                </div>
-                            )
-                        },
-                    )}
-                </div>
-            </section>
+                                    label={type.charAt(0).toUpperCase() + type.slice(1)}
+                                    value={value as number}
+                                    tone='neutral'
+                                />
+                            ),
+                        )}
+                    </div>
+                </section>
+            )}
         </div>
     )
 }
