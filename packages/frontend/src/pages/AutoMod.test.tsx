@@ -532,7 +532,7 @@ describe('AutoModPage', () => {
 
         expect(screen.getByText('safe.example')).toBeInTheDocument()
         expect(screen.getByText('blocked')).toBeInTheDocument()
-        expect(screen.getByText('123')).toBeInTheDocument()
+        expect(screen.getAllByText('123')).toHaveLength(2)
         expect(screen.getByText('456')).toBeInTheDocument()
         expect(screen.queryByText('42')).not.toBeInTheDocument()
     })
