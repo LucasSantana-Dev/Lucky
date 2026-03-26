@@ -202,7 +202,7 @@ export default function TrackHistoryPage() {
                                                 href={track.url}
                                                 target='_blank'
                                                 rel='noopener noreferrer'
-                                                className='type-body text-lucky-text-primary truncate block hover:text-lucky-accent transition-colors'
+                                                className='type-body text-lucky-text-primary truncate block hover:text-lucky-brand transition-colors'
                                             >
                                                 {track.title}
                                             </a>

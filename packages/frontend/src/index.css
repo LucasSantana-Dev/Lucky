@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @import 'tailwindcss';
 
@@ -54,50 +54,72 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --color-lucky-purple-900: #190d2f;
-  --color-lucky-purple-800: #231245;
-  --color-lucky-purple-700: #331a63;
-  --color-lucky-purple-600: #4a2387;
-  --color-lucky-purple-500: #6d34bf;
-  --color-lucky-purple-400: #8b5cf6;
-  --color-lucky-gold-500: #d4a017;
-  --color-lucky-gold-400: #e4b83f;
-  --color-lucky-gold-300: #f3cc64;
-  --color-lucky-success: #22c55e;
-  --color-lucky-error: #ef4444;
-  --color-lucky-warning: #f59e0b;
-  --color-lucky-info: #38bdf8;
+  /* Discord blurple accent palette */
+  --color-lucky-blurple-700: #4752c4;
+  --color-lucky-blurple-600: #5865f2;
+  --color-lucky-blurple-500: #6d7af4;
+  --color-lucky-blurple-400: #8891f6;
+  --color-lucky-blurple-200: #c0c5fb;
 
-  --color-lucky-surface-canvas: #130826;
-  --color-lucky-surface-sidebar: #1c0d36;
-  --color-lucky-surface-panel: #241246;
-  --color-lucky-surface-elevated: #30165b;
-  --color-lucky-surface-highlight: #3a1f68;
-  --color-lucky-border-soft: #3f2c64;
-  --color-lucky-border-strong: #5a3a8b;
-  --color-lucky-text-strong: #ffffff;
-  --color-lucky-text-body: #ddd2ef;
-  --color-lucky-text-muted: #b5a3d5;
-  --color-lucky-text-subtle: #8a75b0;
-  --color-lucky-shadow-soft: 0 12px 40px rgb(7 2 20 / 0.35);
-  --color-lucky-shadow-panel: 0 22px 64px rgb(4 1 16 / 0.45);
-  --color-lucky-shadow-focus: 0 0 0 2px rgb(212 160 23 / 0.6);
+  /* Semantic brand tokens (for bg-lucky-brand, text-lucky-brand, etc.) */
+  --color-lucky-brand: #5865f2;
+  --color-lucky-brand-strong: #4752c4;
+  --color-lucky-accent: #5865f2;
+  --color-lucky-accent-soft: #6d7af4;
 
-  --color-lucky-red: var(--color-lucky-gold-500);
-  --color-lucky-bg-primary: var(--color-lucky-surface-canvas);
-  --color-lucky-bg-secondary: var(--color-lucky-surface-sidebar);
-  --color-lucky-bg-tertiary: var(--color-lucky-surface-panel);
-  --color-lucky-bg-active: var(--color-lucky-surface-highlight);
-  --color-lucky-border: var(--color-lucky-border-soft);
-  --color-lucky-text-primary: var(--color-lucky-text-strong);
-  --color-lucky-text-secondary: var(--color-lucky-text-body);
-  --color-lucky-text-tertiary: var(--color-lucky-text-muted);
-  --color-lucky-text-disabled: var(--color-lucky-text-subtle);
-  --color-lucky-blue: var(--color-lucky-purple-400);
-  --color-lucky-purple: var(--color-lucky-purple-400);
+  /* Status colors */
+  --color-lucky-success: #23a55a;
+  --color-lucky-error: #f23f42;
+  --color-lucky-warning: #f0b232;
+  --color-lucky-info: #00aafc;
 
-  --font-lucky-display: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
-  --font-lucky-body: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  /* Neutral dark surfaces */
+  --color-lucky-surface-canvas: #0f1117;
+  --color-lucky-surface-sidebar: #161b22;
+  --color-lucky-surface-panel: #1c2129;
+  --color-lucky-surface-elevated: #222831;
+  --color-lucky-surface-highlight: #2a3140;
+
+  /* Tailwind-compatible bg-lucky-* aliases */
+  --color-lucky-bg-primary: #0f1117;
+  --color-lucky-bg-secondary: #161b22;
+  --color-lucky-bg-tertiary: #1c2129;
+  --color-lucky-bg-active: #2a3140;
+
+  /* Borders */
+  --color-lucky-border-soft: #2d333b;
+  --color-lucky-border-strong: #444c56;
+  --color-lucky-border: #2d333b;
+
+  /* Text */
+  --color-lucky-text-strong: #e6edf3;
+  --color-lucky-text-body: #adbac7;
+  --color-lucky-text-muted: #768390;
+  --color-lucky-text-subtle: #545d68;
+
+  /* Tailwind-compatible text-lucky-* aliases */
+  --color-lucky-text-primary: #e6edf3;
+  --color-lucky-text-secondary: #adbac7;
+  --color-lucky-text-tertiary: #768390;
+  --color-lucky-text-disabled: #545d68;
+
+  /* Shadows */
+  --color-lucky-shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
+  --color-lucky-shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
+  --color-lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4);
+
+  /* Legacy aliases for backward compat */
+  --color-lucky-purple-400: #5865f2;
+  --color-lucky-purple-500: #4752c4;
+  --color-lucky-gold-500: #5865f2;
+  --color-lucky-gold-400: #6d7af4;
+  --color-lucky-gold-300: #8891f6;
+  --color-lucky-red: #5865f2;
+  --color-lucky-blue: #5865f2;
+  --color-lucky-purple: #5865f2;
+
+  --font-lucky-display: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-lucky-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-lucky-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
     'Liberation Mono', 'Courier New', monospace;
   --font-sans: var(--font-lucky-body);
@@ -109,12 +131,8 @@
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
-  --animate-shimmer: shimmer 2s infinite;
-  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
   --animate-fade-up: fade-up 0.25s ease-out;
   --animate-fade-in: fade-in 0.2s ease-out;
-  --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
-  --animate-float: float 6s ease-in-out infinite;
 
   @keyframes accordion-down {
     from {
@@ -130,23 +148,6 @@
     }
     to {
       height: 0;
-    }
-  }
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(100%);
-    }
-  }
-  @keyframes pulse-glow {
-    0%,
-    100% {
-      opacity: 0.6;
-    }
-    50% {
-      opacity: 1;
     }
   }
   @keyframes fade-up {
@@ -165,22 +166,6 @@
     }
     to {
       opacity: 1;
-    }
-  }
-  @keyframes glow-pulse {
-    0%, 100% {
-      box-shadow: 0 0 20px rgb(139 92 246 / 0.2), 0 0 40px rgb(139 92 246 / 0.1);
-    }
-    50% {
-      box-shadow: 0 0 30px rgb(139 92 246 / 0.4), 0 0 60px rgb(139 92 246 / 0.2);
-    }
-  }
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-6px);
     }
   }
   @keyframes count-up {
@@ -226,62 +211,62 @@
 
 @utility type-display {
   font-family: var(--font-lucky-display);
-  font-size: clamp(2.25rem, 4vw, 3.5rem);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  font-weight: 750;
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 @utility type-h1 {
   font-family: var(--font-lucky-display);
-  font-size: clamp(1.9rem, 3vw, 2.8rem);
-  line-height: 1.1;
-  letter-spacing: -0.022em;
+  font-size: clamp(1.6rem, 2.5vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
   font-weight: 700;
 }
 
 @utility type-h2 {
   font-family: var(--font-lucky-display);
-  font-size: clamp(1.45rem, 2.4vw, 2rem);
-  line-height: 1.2;
-  letter-spacing: -0.018em;
-  font-weight: 650;
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 @utility type-title {
   font-family: var(--font-lucky-display);
-  font-size: 1.125rem;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
+  font-size: 1rem;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
   font-weight: 600;
 }
 
 @utility type-body-lg {
   font-family: var(--font-lucky-body);
-  font-size: 1.05rem;
-  line-height: 1.55;
-  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 400;
 }
 
 @utility type-body {
   font-family: var(--font-lucky-body);
-  font-size: 1rem;
-  line-height: 1.5;
-  font-weight: 500;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  font-weight: 400;
 }
 
 @utility type-body-sm {
   font-family: var(--font-lucky-body);
   font-size: 0.875rem;
-  line-height: 1.4;
-  font-weight: 500;
+  line-height: 1.45;
+  font-weight: 400;
 }
 
 @utility type-meta {
   font-family: var(--font-lucky-body);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   line-height: 1.35;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -289,88 +274,76 @@
 @utility surface-panel {
   border: 1px solid var(--lucky-border);
   border-radius: var(--radius-lg);
-  background: linear-gradient(
-    160deg,
-    rgb(255 255 255 / 0.04),
-    rgb(255 255 255 / 0)
-  );
   background-color: var(--lucky-bg-secondary);
-  box-shadow: var(--lucky-shadow-soft), inset 0 1px 0 rgb(255 255 255 / 0.04);
-  transition: border-color 220ms ease, box-shadow 220ms ease;
+  box-shadow: var(--lucky-shadow-soft);
+  transition: border-color 180ms ease;
 
   &:hover {
     border-color: var(--lucky-border-strong);
-    box-shadow: var(--lucky-shadow-soft), 0 0 0 1px rgb(139 92 246 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.06);
   }
 }
 
 @utility surface-card {
-  border: 1px solid rgb(90 58 139 / 0.4);
-  border-top-color: rgb(139 92 246 / 0.2);
-  border-radius: calc(var(--radius) + 0.3rem);
+  border: 1px solid var(--lucky-border);
+  border-radius: var(--radius-lg);
   background-color: var(--lucky-bg-tertiary);
-  background-image: linear-gradient(180deg, rgb(139 92 246 / 0.04) 0%, transparent 50%);
-  box-shadow: var(--lucky-shadow-panel), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  box-shadow: var(--lucky-shadow-soft);
 }
 
 @utility surface-elevated {
   border: 1px solid var(--lucky-border-strong);
-  border-top-color: rgb(139 92 246 / 0.3);
   border-radius: var(--radius-lg);
   background-color: var(--lucky-surface-elevated);
-  background-image: linear-gradient(160deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0));
-  box-shadow: 0 8px 32px rgb(7 2 20 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.08);
+  box-shadow: var(--lucky-shadow-panel);
 }
 
 @utility surface-glass {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgb(255 255 255 / 0.08);
+  border: 1px solid var(--lucky-border);
   border-radius: var(--radius-lg);
-  background-color: rgb(28 13 54 / 0.8);
-  box-shadow: 0 8px 32px rgb(7 2 20 / 0.3);
+  background-color: var(--lucky-bg-secondary);
+  box-shadow: var(--lucky-shadow-soft);
 }
 
 @layer base {
   :root {
-    --background: 262 61% 9%;
-    --foreground: 0 0% 100%;
+    --background: 216 13% 7%;
+    --foreground: 210 17% 90%;
 
-    --card: 263 48% 16%;
-    --card-foreground: 0 0% 100%;
+    --card: 215 14% 13%;
+    --card-foreground: 210 17% 90%;
 
-    --popover: 263 48% 16%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 215 14% 13%;
+    --popover-foreground: 210 17% 90%;
 
-    --primary: 265 89% 67%;
+    --primary: 233 88% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 78% 47%;
-    --secondary-foreground: 20 17% 12%;
+    --secondary: 215 14% 13%;
+    --secondary-foreground: 210 17% 90%;
 
-    --muted: 262 34% 26%;
-    --muted-foreground: 260 36% 80%;
+    --muted: 215 12% 18%;
+    --muted-foreground: 213 13% 55%;
 
-    --accent: 45 78% 47%;
-    --accent-foreground: 20 17% 12%;
+    --accent: 233 88% 62%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 359 90% 59%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 262 35% 29%;
-    --input: 263 43% 21%;
-    --ring: 45 78% 57%;
+    --border: 216 12% 18%;
+    --input: 215 14% 13%;
+    --ring: 233 88% 62%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    --sidebar-background: 262 58% 11%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 264 89% 67%;
+    --sidebar-background: 217 14% 10%;
+    --sidebar-foreground: 210 17% 90%;
+    --sidebar-primary: 233 88% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 263 43% 21%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 262 35% 29%;
-    --sidebar-ring: 45 78% 57%;
+    --sidebar-accent: 215 12% 18%;
+    --sidebar-accent-foreground: 210 17% 90%;
+    --sidebar-border: 216 12% 18%;
+    --sidebar-ring: 233 88% 62%;
 
     --lucky-surface-canvas: var(--color-lucky-surface-canvas);
     --lucky-surface-sidebar: var(--color-lucky-surface-sidebar);
@@ -386,27 +359,23 @@
     --lucky-shadow-soft: var(--color-lucky-shadow-soft);
     --lucky-shadow-panel: var(--color-lucky-shadow-panel);
     --lucky-shadow-focus: var(--color-lucky-shadow-focus);
-    --lucky-motion-fast: 140ms;
-    --lucky-motion-standard: 220ms;
-    --lucky-motion-slow: 320ms;
+    --lucky-motion-fast: 120ms;
+    --lucky-motion-standard: 180ms;
+    --lucky-motion-slow: 280ms;
 
-    --lucky-brand: var(--color-lucky-purple-400);
-    --lucky-brand-strong: var(--color-lucky-purple-500);
-    --lucky-accent: var(--color-lucky-gold-500);
-    --lucky-accent-soft: var(--color-lucky-gold-400);
+    --lucky-brand: var(--color-lucky-blurple-600);
+    --lucky-brand-strong: var(--color-lucky-blurple-700);
+    --lucky-accent: var(--color-lucky-blurple-600);
+    --lucky-accent-soft: var(--color-lucky-blurple-500);
     --lucky-success: var(--color-lucky-success);
     --lucky-error: var(--color-lucky-error);
     --lucky-warning: var(--color-lucky-warning);
     --lucky-info: var(--color-lucky-info);
 
-    --lucky-glow-brand: 0 0 20px rgb(139 92 246 / 0.4), 0 0 40px rgb(139 92 246 / 0.15);
-    --lucky-glow-accent: 0 0 20px rgb(212 160 23 / 0.5), 0 0 40px rgb(212 160 23 / 0.2);
-    --lucky-glow-success: 0 0 16px rgb(34 197 94 / 0.4);
-    --lucky-gradient-brand: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-    --lucky-gradient-accent: linear-gradient(135deg, #d4a017 0%, #e4b83f 100%);
-    --lucky-gradient-brand-soft: linear-gradient(135deg, rgb(139 92 246 / 0.15) 0%, rgb(109 52 191 / 0.05) 100%);
+    --lucky-gradient-brand: linear-gradient(135deg, #5865f2 0%, #4752c4 100%);
+    --lucky-gradient-brand-soft: linear-gradient(135deg, rgb(88 101 242 / 0.15) 0%, rgb(71 82 196 / 0.05) 100%);
 
-    --lucky-red: var(--lucky-accent);
+    --lucky-red: var(--lucky-brand);
     --lucky-bg-primary: var(--lucky-surface-canvas);
     --lucky-bg-secondary: var(--lucky-surface-sidebar);
     --lucky-bg-tertiary: var(--lucky-surface-panel);
@@ -421,42 +390,42 @@
   }
 
   .dark {
-    --background: 262 61% 9%;
-    --foreground: 0 0% 100%;
+    --background: 216 13% 7%;
+    --foreground: 210 17% 90%;
 
-    --card: 263 48% 16%;
-    --card-foreground: 0 0% 100%;
+    --card: 215 14% 13%;
+    --card-foreground: 210 17% 90%;
 
-    --popover: 263 48% 16%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 215 14% 13%;
+    --popover-foreground: 210 17% 90%;
 
-    --primary: 265 89% 67%;
+    --primary: 233 88% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 78% 47%;
-    --secondary-foreground: 20 17% 12%;
+    --secondary: 215 14% 13%;
+    --secondary-foreground: 210 17% 90%;
 
-    --muted: 262 34% 26%;
-    --muted-foreground: 260 36% 80%;
+    --muted: 215 12% 18%;
+    --muted-foreground: 213 13% 55%;
 
-    --accent: 45 78% 47%;
-    --accent-foreground: 20 17% 12%;
+    --accent: 233 88% 62%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 359 90% 59%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 262 35% 29%;
-    --input: 263 43% 21%;
-    --ring: 45 78% 57%;
+    --border: 216 12% 18%;
+    --input: 215 14% 13%;
+    --ring: 233 88% 62%;
 
-    --sidebar-background: 262 58% 11%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 264 89% 67%;
+    --sidebar-background: 217 14% 10%;
+    --sidebar-foreground: 210 17% 90%;
+    --sidebar-primary: 233 88% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 263 43% 21%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 262 35% 29%;
-    --sidebar-ring: 45 78% 57%;
+    --sidebar-accent: 215 12% 18%;
+    --sidebar-accent-foreground: 210 17% 90%;
+    --sidebar-border: 216 12% 18%;
+    --sidebar-ring: 233 88% 62%;
   }
 }
 
@@ -468,11 +437,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-lucky-body);
-    background-image:
-      radial-gradient(circle at 15% 20%, rgb(139 92 246 / 0.14), transparent 36%),
-      radial-gradient(circle at 80% 8%, rgb(212 160 23 / 0.1), transparent 28%),
-      radial-gradient(circle at 85% 85%, rgb(139 92 246 / 0.1), transparent 30%);
-    background-attachment: fixed;
+    background-color: var(--lucky-surface-canvas);
   }
 
   h1,
@@ -481,7 +446,7 @@
   h4,
   .font-display {
     font-family: var(--font-lucky-display);
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
   }
 
   code,
@@ -491,7 +456,7 @@
   }
 
   ::selection {
-    background-color: rgb(212 160 23 / 0.3);
+    background-color: rgb(88 101 242 / 0.3);
     color: var(--lucky-text-primary);
   }
 }
@@ -501,37 +466,7 @@
     position: relative;
     min-height: 100vh;
     color: var(--lucky-text-primary);
-  }
-
-  .lucky-shell::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
-    background-image:
-      linear-gradient(140deg, rgb(255 255 255 / 0.032), rgb(255 255 255 / 0) 22%),
-      radial-gradient(circle at 88% 12%, rgb(212 160 23 / 0.12), transparent 42%),
-      radial-gradient(circle at 14% 78%, rgb(139 92 246 / 0.12), transparent 46%);
-    opacity: 0.98;
-  }
-
-  .lucky-shell::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
-    opacity: 0.18;
-    background-image:
-      repeating-linear-gradient(
-        0deg,
-        rgb(255 255 255 / 0.06) 0,
-        rgb(255 255 255 / 0.06) 1px,
-        transparent 1px,
-        transparent 3px
-      );
-    mix-blend-mode: soft-light;
+    background-color: var(--lucky-surface-canvas);
   }
 
   .lucky-focus-visible:focus-visible {
@@ -540,10 +475,7 @@
   }
 
   .lucky-gradient-text {
-    background: linear-gradient(135deg, #8b5cf6 0%, #d4a017 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--lucky-brand);
   }
 
   .lucky-header-accent-line {
@@ -552,6 +484,6 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgb(139 92 246 / 0.6) 30%, rgb(212 160 23 / 0.4) 70%, transparent 100%);
+    background-color: var(--lucky-border-soft);
   }
 }

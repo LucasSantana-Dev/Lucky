@@ -156,7 +156,7 @@ function AlbumArt({
             ) : (
                 <div className='w-full h-full flex items-center justify-center'>
                     <div
-                        className='absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent'
+                        className='absolute inset-0 bg-lucky-bg-tertiary/30'
                         aria-hidden='true'
                     />
                     <Disc3

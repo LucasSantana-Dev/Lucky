@@ -18,8 +18,8 @@ export default function SectionHeader({
 }: SectionHeaderProps) {
     return (
         <header className={cn('flex items-start justify-between gap-4', className)}>
-            <div className='space-y-2'>
-                {eyebrow && <p className='type-meta text-lucky-text-tertiary'>{eyebrow}</p>}
+            <div className='space-y-1'>
+                {eyebrow && <p className='type-meta text-lucky-text-subtle'>{eyebrow}</p>}
                 <h1 className='type-h1 text-lucky-text-primary'>{title}</h1>
                 {description && (
                     <p className='type-body text-lucky-text-secondary max-w-3xl'>

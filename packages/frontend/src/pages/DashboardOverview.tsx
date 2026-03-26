@@ -240,7 +240,7 @@ export default function DashboardOverview() {
                         </div>
                         <Link
                             to='/moderation'
-                            className='type-body-sm inline-flex items-center gap-1 text-lucky-accent transition-colors hover:text-lucky-accent-soft'
+                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
                         >
                             View all
                             <ArrowRight className='h-3.5 w-3.5' />

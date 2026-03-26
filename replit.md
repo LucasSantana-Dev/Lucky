@@ -61,18 +61,33 @@ To run the Discord bot and backend, add these secrets via the Secrets tab:
 
 ## UI / Design System
 
-The frontend uses a custom design system built on Tailwind CSS with the following conventions:
+The frontend uses a custom design system built on Tailwind CSS v4 with the following conventions:
 
-- **Typography tokens** — `type-display`, `type-h1`, `type-h2`, `type-title`, `type-body-lg`, `type-body`, `type-body-sm`, `type-meta` — **always use these instead of raw Tailwind text classes**
-- **Color tokens** — `lucky-text-primary/secondary/tertiary/disabled`, `lucky-accent` (gold), `lucky-brand` (purple), `lucky-bg-primary/secondary/tertiary/active`
-- **Surface classes** — `surface-panel`, `surface-card`, `surface-elevated`, `surface-glass`
-- **Focus ring** — `lucky-focus-visible` (replaces raw `focus:ring`)
-- **Background** — `.lucky-shell` on the root div creates the radial gradient scene
+### Color Palette (v4 — blurple/neutral dark, redesigned)
+- **Background** — `#0f1117` (canvas) / `#161b22` (sidebar) / `#1c2129` (panel)
+- **Accent** — Discord blurple `#5865f2` (`--lucky-brand`). Use `bg-lucky-brand text-white` — **never** `bg-lucky-accent text-black`
+- **Text** — `lucky-text-primary` (white-ish) / `lucky-text-secondary` (muted) / `lucky-text-tertiary` (subtle)
+- **No gold**, no glow, no gradient text — the old AI-aesthetic has been completely removed
+
+### Tailwind v4 Token Rules
+- All `bg-lucky-*` / `text-lucky-*` classes require the corresponding `--color-lucky-*` in the `@theme` block in `index.css`
+- Both `@theme` (for Tailwind class generation) and `:root` (for `var()` in `@utility` blocks) are populated
+- Do NOT use `from-purple`, `to-purple`, or old `lucky-accent` gradient patterns
+
+### Typography
+- **Font** — Inter only (dropped Sora, Manrope)
+- **Scale tokens** — `type-display`, `type-h1`, `type-h2`, `type-title`, `type-body-lg`, `type-body`, `type-body-sm`, `type-meta`
+
+### Surface / Layout Classes
+- `surface-panel` — standard panel (`bg-lucky-bg-tertiary` + border)
+- `surface-card` — card (`bg-lucky-bg-tertiary` + subtle border)
+- `surface-elevated` — elevated panel
+- **No glassmorphism**, no `.surface-glass` with backdrop blur — removed
 
 ### Sidebar & Layout
-- **Sidebar.tsx** — includes GuildSwitcher with avatar+dropdown, section-labelled nav, user profile footer. Nav links use `<Link>` with `aria-current="page"` on active items.
+- **Sidebar.tsx** — flat nav with 2px blurple left-accent bar on active item (not glow ring). GuildSwitcher with avatar+dropdown, section-labelled nav, user profile footer. Nav links use `<Link>` with `aria-current="page"` on active items.
 - **Layout.tsx** — sticky header with `GuildChip` component showing active guild icon+name+click-to-switch. Route copy map provides per-page titles and subtitles.
-- **ServerSelector.tsx** — legacy file; now re-exports GuildSwitcher (the old native `<select>` has been removed).
+- **ServerSelector.tsx** — legacy file; re-exports GuildSwitcher (the old native `<select>` has been removed).
 
 ## Package Manager
 
