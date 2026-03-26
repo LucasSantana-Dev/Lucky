@@ -401,7 +401,9 @@ describe('Sidebar', () => {
             screen.getAllByRole('button', { name: /close sidebar/i }),
         ).toHaveLength(1)
 
-        const openButton = screen.getByRole('button', { name: /open sidebar/i })
+        const openButton = screen.getByRole('button', {
+            name: /open navigation menu/i,
+        })
         await user.click(openButton)
 
         await waitFor(() => {
