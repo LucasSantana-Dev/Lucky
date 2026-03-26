@@ -503,6 +503,8 @@ describe('AutoModPage', () => {
             data: {
                 settings: {
                     guildId: '',
+                    linksEnabled: true,
+                    wordsEnabled: true,
                     allowedDomains: ['safe.example', 42],
                     bannedWords: ['blocked', null],
                     exemptChannels: ['123', {}],
