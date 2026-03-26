@@ -53,7 +53,7 @@ describe('Login', () => {
 
         expect(screen.getByText('Lucky')).toBeInTheDocument()
         expect(
-            screen.getByText('Welcome to Lucky Dashboard'),
+            screen.getByText('Manage your Discord servers'),
         ).toBeInTheDocument()
         expect(
             screen.getByRole('button', { name: /login with discord/i }),
@@ -104,7 +104,7 @@ describe('Login', () => {
 
         renderLogin()
 
-        expect(screen.getByText('Discord Bot Management')).toBeInTheDocument()
+        expect(screen.getByText('Discord Bot Dashboard')).toBeInTheDocument()
         expect(
             screen.getByText(/manage your discord servers/i),
         ).toBeInTheDocument()
