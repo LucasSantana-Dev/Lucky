@@ -31,11 +31,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     'active:scale-[0.98]',
                     {
                         'bg-lucky-brand text-white hover:bg-lucky-brand-strong':
-                            variant === 'primary',
+                            variant === 'primary' || variant === 'accent',
                         'bg-lucky-bg-tertiary border border-lucky-border text-lucky-text-primary hover:border-lucky-border-strong hover:bg-lucky-bg-active':
                             variant === 'secondary',
-                        'bg-lucky-brand text-white hover:bg-lucky-brand-strong':
-                            variant === 'accent',
                         'bg-transparent hover:bg-lucky-bg-tertiary text-lucky-text-secondary hover:text-lucky-text-primary':
                             variant === 'ghost',
                         'bg-lucky-error hover:bg-red-600 text-white':
