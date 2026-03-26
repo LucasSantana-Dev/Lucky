@@ -4,8 +4,10 @@ import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerCard from './ServerCard'
 import type { Guild } from '@/types'
+import { useGuildStore } from '@/stores/guildStore'
 
 const mockNavigate = vi.fn()
+const mockSelectGuild = vi.fn()
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual('react-router-dom')
@@ -14,6 +16,10 @@ vi.mock('react-router-dom', async () => {
         useNavigate: () => mockNavigate,
     }
 })
+
+vi.mock('@/stores/guildStore', () => ({
+    useGuildStore: vi.fn(),
+}))
 
 const mockGuild: Guild = {
     id: '123456789',
@@ -36,6 +42,9 @@ const mockGuildWithoutBot: Guild = {
 describe('ServerCard', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.mocked(useGuildStore).mockReturnValue({
+            selectGuild: mockSelectGuild,
+        } as unknown as ReturnType<typeof useGuildStore>)
     })
 
     const renderCard = (guild: Guild) => {
@@ -50,10 +59,10 @@ describe('ServerCard', () => {
         renderCard(mockGuild)
 
         expect(screen.getByText('Test Server')).toBeInTheDocument()
-        const icon = screen.getByAltText('Test Server server icon')
+        const icon = screen.getByAltText('Test Server icon')
         expect(icon).toHaveAttribute(
             'src',
-            `https://cdn.discordapp.com/icons/${mockGuild.id}/${mockGuild.icon}.png`,
+            `https://cdn.discordapp.com/icons/${mockGuild.id}/${mockGuild.icon}.png?size=128`,
         )
     })
 
@@ -64,20 +73,28 @@ describe('ServerCard', () => {
         expect(screen.getByText('T')).toBeInTheDocument()
     })
 
-    test('shows "Bot Added" badge when bot is in server', () => {
+    test('shows active badge when bot is in server', () => {
         renderCard(mockGuild)
 
-        const badge = screen.getByText(/bot added/i)
+        const badge = screen.getByLabelText('Bot installed')
         expect(badge).toBeInTheDocument()
-        expect(badge).toHaveClass('bg-lucky-success/20')
+        expect(screen.getByText(/bot active/i)).toBeInTheDocument()
+        expect(badge).toHaveClass('bg-lucky-success/10')
     })
 
-    test('shows "Not Added" badge when bot is not in server', () => {
+    test('shows no bot badge when bot is not in server', () => {
         renderCard(mockGuildWithoutBot)
 
-        const badge = screen.getByText(/not added/i)
+        const badge = screen.getByLabelText('Bot not installed')
         expect(badge).toBeInTheDocument()
-        expect(badge).toHaveClass('bg-lucky-error/20')
+        expect(screen.getByText(/no bot/i)).toBeInTheDocument()
+        expect(badge).toHaveClass('bg-lucky-error/10')
+    })
+
+    test('shows member count when present', () => {
+        renderCard(mockGuild)
+
+        expect(screen.getByText('150 members')).toBeInTheDocument()
     })
 
     test('shows Manage button when bot is added', () => {
@@ -87,13 +104,14 @@ describe('ServerCard', () => {
         expect(manageButton).toBeInTheDocument()
     })
 
-    test('Manage button navigates to overview route', async () => {
+    test('Manage button selects guild and navigates to overview route', async () => {
         const user = userEvent.setup()
         renderCard(mockGuild)
 
         const manageButton = screen.getByRole('button', { name: /manage/i })
         await user.click(manageButton)
 
+        expect(mockSelectGuild).toHaveBeenCalledWith(mockGuild)
         expect(mockNavigate).toHaveBeenCalledWith('/')
     })
 
@@ -101,18 +119,25 @@ describe('ServerCard', () => {
         renderCard(mockGuildWithoutBot)
 
         expect(screen.queryByText(/manage/i)).not.toBeInTheDocument()
+        expect(
+            screen.getByRole('button', {
+                name: /add bot to server without bot/i,
+            }),
+        ).toBeInTheDocument()
     })
 
-    test('displays online indicator when bot is added', () => {
+    test('displays installed indicator when bot is added', () => {
         renderCard(mockGuild)
 
-        const indicator = screen.getByLabelText('Bot is online')
+        const indicator = screen.getByLabelText('Bot is installed')
         expect(indicator).toBeInTheDocument()
     })
 
-    test('does not display online indicator when bot is not added', () => {
+    test('does not display installed indicator when bot is not added', () => {
         renderCard(mockGuildWithoutBot)
 
-        expect(screen.queryByLabelText('Bot is online')).not.toBeInTheDocument()
+        expect(
+            screen.queryByLabelText('Bot is installed'),
+        ).not.toBeInTheDocument()
     })
 })
