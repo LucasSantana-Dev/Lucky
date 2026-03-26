@@ -114,8 +114,8 @@ describe('Sidebar', () => {
         const featuresLink = screen.getByText('Features').closest('a')
         const dashboardLink = screen.getByText('Dashboard').closest('a')
 
-        expect(featuresLink).toHaveAttribute('data-active', 'true')
-        expect(dashboardLink).toHaveAttribute('data-active', 'false')
+        expect(featuresLink).toHaveAttribute('aria-current', 'page')
+        expect(dashboardLink).not.toHaveAttribute('aria-current')
     })
 
     test('shows server selector dropdown with guilds', async () => {
@@ -162,7 +162,7 @@ describe('Sidebar', () => {
         const user = userEvent.setup()
         renderSidebar()
 
-        const logoutButton = screen.getByRole('button', { name: /logout/i })
+        const logoutButton = screen.getByRole('button', { name: /log out/i })
         await user.click(logoutButton)
 
         expect(mockLogout).toHaveBeenCalledTimes(1)
@@ -413,7 +413,7 @@ describe('Sidebar', () => {
         })
 
         const mobileSidebar = document.querySelector(
-            'aside.fixed.inset-y-0.left-0.z-50.w-72.bg-lucky-bg-secondary.lg\\:hidden',
+            'aside.fixed.inset-y-0.left-0.z-50.w-64.bg-lucky-bg-secondary.lg\\:hidden',
         )
         expect(mobileSidebar).toBeTruthy()
 
