@@ -82,7 +82,7 @@ The frontend uses a custom design system built on Tailwind CSS v4 with the follo
 - `surface-panel` — standard panel (`bg-lucky-bg-tertiary` + border)
 - `surface-card` — card (`bg-lucky-bg-tertiary` + subtle border)
 - `surface-elevated` — elevated panel
-- **No glassmorphism**, no `.surface-glass` with backdrop blur — removed
+- **No glassmorphism in primary UI** — `.surface-glass` retained as a compatibility utility but de-glowed (flat styled, not used in core layout)
 
 ### Sidebar & Layout
 - **Sidebar.tsx** — flat nav with 2px blurple left-accent bar on active item (not glow ring). GuildSwitcher with avatar+dropdown, section-labelled nav, user profile footer. Nav links use `<Link>` with `aria-current="page"` on active items.
