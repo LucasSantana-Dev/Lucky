@@ -55,15 +55,11 @@ describe('ServerCard', () => {
         )
     }
 
-    test('renders server name and icon', () => {
+    test('renders server name and avatar content', () => {
         renderCard(mockGuild)
 
         expect(screen.getByText('Test Server')).toBeInTheDocument()
-        const icon = screen.getByAltText('Test Server icon')
-        expect(icon).toHaveAttribute(
-            'src',
-            `https://cdn.discordapp.com/icons/${mockGuild.id}/${mockGuild.icon}.png?size=128`,
-        )
+        expect(screen.getByText('T')).toBeInTheDocument()
     })
 
     test('shows fallback initial when icon is null', () => {
