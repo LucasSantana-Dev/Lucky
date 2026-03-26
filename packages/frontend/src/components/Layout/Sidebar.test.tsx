@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
 import type { User, Guild } from '@/types'
+import type { EffectiveAccessMap } from '@/types/rbac'
 
 vi.mock('@/stores/authStore')
 vi.mock('@/stores/guildStore')
@@ -35,6 +36,15 @@ const mockGuild2: Guild = {
     permissions: '0',
     features: [],
     botAdded: true,
+}
+
+const FULL_ACCESS: EffectiveAccessMap = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
 }
 
 describe('Sidebar', () => {
@@ -267,8 +277,12 @@ describe('Sidebar', () => {
         )
 
         await waitFor(() => {
-            expect(screen.getByText('Could not load servers')).toBeInTheDocument()
-            expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+            expect(
+                screen.getByText('Could not load servers'),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByRole('button', { name: 'Retry' }),
+            ).toBeInTheDocument()
             expect(
                 screen.getByRole('link', { name: 'Re-authenticate' }),
             ).toBeInTheDocument()
@@ -276,6 +290,36 @@ describe('Sidebar', () => {
 
         await user.click(screen.getByRole('button', { name: 'Retry' }))
         expect(mockFetchGuilds).toHaveBeenCalledTimes(1)
+    })
+
+    test('hides guild automation when settings access is view only', () => {
+        mockGuildStoreState({
+            selectedGuild: {
+                ...mockGuild,
+                effectiveAccess: {
+                    ...FULL_ACCESS,
+                    settings: 'view',
+                },
+            },
+        })
+
+        renderSidebar()
+
+        expect(screen.queryByText('Guild Automation')).not.toBeInTheDocument()
+        expect(screen.getByText('Features')).toBeInTheDocument()
+    })
+
+    test('shows guild automation when settings access is manage', () => {
+        mockGuildStoreState({
+            selectedGuild: {
+                ...mockGuild,
+                effectiveAccess: FULL_ACCESS,
+            },
+        })
+
+        renderSidebar()
+
+        expect(screen.getByText('Guild Automation')).toBeInTheDocument()
     })
 
     test('shows re-auth CTA when guild fetch fails from forbidden state', async () => {
