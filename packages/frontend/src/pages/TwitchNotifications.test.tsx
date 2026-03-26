@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TwitchNotificationsPage from './TwitchNotifications'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api')
 vi.mock('@/hooks/useGuildSelection')
@@ -74,7 +75,10 @@ async function fillNotificationForm(
     user: ReturnType<typeof userEvent.setup>,
     twitchInput: string,
 ) {
-    await user.type(screen.getByPlaceholderText(TWITCH_INPUT_PLACEHOLDER), twitchInput)
+    await user.type(
+        screen.getByPlaceholderText(TWITCH_INPUT_PLACEHOLDER),
+        twitchInput,
+    )
     await user.click(screen.getByRole('combobox'))
     await user.click(screen.getByText('#general'))
 }
@@ -82,10 +86,14 @@ async function fillNotificationForm(
 describe('TwitchNotificationsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        Object.defineProperty(globalThis.HTMLElement.prototype, 'scrollIntoView', {
-            configurable: true,
-            value: vi.fn(),
-        })
+        Object.defineProperty(
+            globalThis.HTMLElement.prototype,
+            'scrollIntoView',
+            {
+                configurable: true,
+                value: vi.fn(),
+            },
+        )
         vi.mocked(api.guilds.getChannels).mockResolvedValue({
             data: {
                 channels: [{ id: '67890', name: '#general' }],
@@ -184,9 +192,7 @@ describe('TwitchNotificationsPage', () => {
                 'Twitch URL or login (e.g. https://twitch.tv/luk)',
             ),
         ).toBeInTheDocument()
-        expect(
-            screen.getByText('Select Discord channel'),
-        ).toBeInTheDocument()
+        expect(screen.getByText('Select Discord channel')).toBeInTheDocument()
     })
 
     test('save button disabled when form fields empty', async () => {
@@ -321,7 +327,9 @@ describe('TwitchNotificationsPage', () => {
         await user.click(screen.getByText('Save'))
 
         expect(
-            await screen.findByText('This Twitch channel is already configured'),
+            await screen.findByText(
+                'This Twitch channel is already configured',
+            ),
         ).toBeInTheDocument()
     })
 
@@ -342,4 +350,25 @@ describe('TwitchNotificationsPage', () => {
             await screen.findByText('Failed to load Discord channels'),
         ).toBeInTheDocument()
     })
-})
+
+    test('shows backend error message when add notification fails', async () => {
+        const user = userEvent.setup()
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: [] },
+        } as any)
+        vi.mocked(api.twitch.lookupUser).mockRejectedValue(
+            new ApiError(404, 'Twitch user not found'),
+        )
+
+        renderPage()
+
+        await openAddForm(user)
+        await fillNotificationForm(user, 'teststreamer')
+        await user.click(screen.getByText('Save'))
+
+        expect(
+            await screen.findByText('Twitch user not found'),
+        ).toBeInTheDocument()
+    })
+}

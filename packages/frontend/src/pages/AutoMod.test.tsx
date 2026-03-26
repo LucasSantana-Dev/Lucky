@@ -203,11 +203,14 @@ describe('AutoModPage', () => {
         await user.click(saveButton)
 
         await waitFor(() => {
-            expect(api.automod.updateSettings).toHaveBeenCalledWith('123', expect.any(Object))
+            expect(api.automod.updateSettings).toHaveBeenCalledWith(
+                '123',
+                expect.any(Object),
+            )
         })
 
-        const payload = vi.mocked(api.automod.updateSettings).mock.calls[0][1] as
-            Record<string, unknown>
+        const payload = vi.mocked(api.automod.updateSettings).mock
+            .calls[0][1] as Record<string, unknown>
 
         expect(payload).toMatchObject({
             spamEnabled: true,
@@ -457,6 +460,23 @@ describe('AutoModPage', () => {
             expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
         })
 
+        const switches = screen.getAllByRole('switch')
+        expect(switches.every((s) => !s.hasAttribute('checked'))).toBe(true)
+    })
+
+    test('uses default settings when API returns malformed success payload', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: undefined },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
+        })
+
+        expect(screen.getByText('Spam Detection')).toBeInTheDocument()
         const switches = screen.getAllByRole('switch')
         expect(switches.every((s) => !s.hasAttribute('checked'))).toBe(true)
     })

@@ -17,6 +17,7 @@ const setupRbacRoutes = jest.fn()
 const setupGuildAutomationRoutes = jest.fn()
 const setupLevelsRoutes = jest.fn()
 const setupStarboardRoutes = jest.fn()
+const setupMusicRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
@@ -85,6 +86,10 @@ jest.mock('../../../src/routes/levels', () => ({
 
 jest.mock('../../../src/routes/starboard', () => ({
     setupStarboardRoutes,
+}))
+
+jest.mock('../../../src/routes/music', () => ({
+    setupMusicRoutes,
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
@@ -162,6 +167,7 @@ describe('setupRoutes', () => {
         expect(setupGuildAutomationRoutes).toHaveBeenCalledWith(app)
         expect(setupLevelsRoutes).toHaveBeenCalledWith(app)
         expect(setupStarboardRoutes).toHaveBeenCalledWith(app)
+        expect(setupMusicRoutes).toHaveBeenCalledWith(app)
 
         expect(app.use).toHaveBeenCalledWith(errorHandler)
         expect(useCalls[0]).toEqual(['/api/', apiLimiter])
@@ -187,4 +193,4 @@ describe('setupRoutes', () => {
         expect(rbacGuardCallOrder).toBeLessThan(firstRouteSetupOrder)
         expect(featuresGuardCallOrder).toBeLessThan(firstRouteSetupOrder)
     })
-})
+}
