@@ -79,5 +79,5 @@ LOG_LEVEL = "1"
 
 [deployment]
 build = ["sh", "-c", "npm run db:generate && npm run build:shared && npm run build:backend && npm run build:frontend && mkdir -p packages/backend/dist/frontend && cp -r packages/frontend/dist packages/backend/dist/frontend/dist"]
-run = ["sh", "-c", "npx prisma migrate deploy --schema prisma/schema.prisma; NODE_ENV=production PORT=5000 node packages/backend/dist/index.js"]
+run = ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts; NODE_ENV=production PORT=5000 node packages/backend/dist/index.js"]
 deploymentTarget = "autoscale"
