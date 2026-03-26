@@ -364,4 +364,26 @@ describe('TwitchNotificationsPage', () => {
             await screen.findByText('Twitch user not found'),
         ).toBeInTheDocument()
     })
+
+    test('shows backend error message when remove notification fails', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: mockNotifications },
+        } as any)
+        vi.mocked(api.twitch.remove).mockRejectedValue(
+            new ApiError(500, 'Failed to remove Twitch notification'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('shroud')).toBeInTheDocument()
+        })
+
+        await userEvent.click(screen.getByLabelText('Remove shroud'))
+
+        expect(
+            await screen.findByText('Failed to remove Twitch notification'),
+        ).toBeInTheDocument()
+    })
 })
