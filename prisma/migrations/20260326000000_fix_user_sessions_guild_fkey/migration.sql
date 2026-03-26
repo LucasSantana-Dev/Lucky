@@ -1,23 +1,32 @@
--- Ensure guilds.discordId has a unique constraint so it can be used as a FK target.
--- CREATE UNIQUE INDEX IF NOT EXISTS is safe to run even if the index already exists.
-CREATE UNIQUE INDEX IF NOT EXISTS "guilds_discordId_key" ON "guilds"("discordId");
+-- Fix user_sessions foreign keys to reference primary keys (id) instead of discordId.
+-- Referencing a primary key is always safe; referencing discordId requires an explicit
+-- unique constraint that may be absent on databases initialised via db push.
 
--- Add the FK from user_sessions.guildId -> guilds.discordId.
--- Wrapped in a DO block so it is a no-op if the constraint already exists.
+-- Drop the discordId-based FK constraints if they were previously created.
+DO $$ BEGIN
+    ALTER TABLE "user_sessions" DROP CONSTRAINT "user_sessions_guildId_fkey";
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "user_sessions" DROP CONSTRAINT "user_sessions_userId_fkey";
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+
+-- Add corrected FK: user_sessions.guildId -> guilds.id (primary key)
 DO $$ BEGIN
     ALTER TABLE "user_sessions"
         ADD CONSTRAINT "user_sessions_guildId_fkey"
-        FOREIGN KEY ("guildId") REFERENCES "guilds"("discordId")
+        FOREIGN KEY ("guildId") REFERENCES "guilds"("id")
         ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- Add the FK from user_sessions.userId -> users.discordId.
--- Same guard in case this was already applied.
+-- Add corrected FK: user_sessions.userId -> users.id (primary key)
 DO $$ BEGIN
     ALTER TABLE "user_sessions"
         ADD CONSTRAINT "user_sessions_userId_fkey"
-        FOREIGN KEY ("userId") REFERENCES "users"("discordId")
+        FOREIGN KEY ("userId") REFERENCES "users"("id")
         ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
