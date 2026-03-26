@@ -114,8 +114,8 @@ describe('Sidebar', () => {
         const featuresLink = screen.getByText('Features').closest('a')
         const dashboardLink = screen.getByText('Dashboard').closest('a')
 
-        expect(featuresLink).toHaveAttribute('data-active', 'true')
-        expect(dashboardLink).toHaveAttribute('data-active', 'false')
+        expect(featuresLink).toHaveAttribute('aria-current', 'page')
+        expect(dashboardLink).not.toHaveAttribute('aria-current')
     })
 
     test('shows server selector dropdown with guilds', async () => {
