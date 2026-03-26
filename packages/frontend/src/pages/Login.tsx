@@ -1,4 +1,4 @@
-import { Loader2, Sparkles, Zap, ShieldCheck } from 'lucide-react'
+import { Loader2, ShieldCheck, Zap, BarChart2 } from 'lucide-react'
 import { useReducedMotion } from 'framer-motion'
 import Button from '@/components/ui/Button'
 import StatTile from '@/components/ui/StatTile'
@@ -22,8 +22,8 @@ export default function LoginPage() {
         : { animationFillMode: 'both' as const }
 
     const sectionClass = prefersReducedMotion
-        ? 'space-y-7'
-        : 'space-y-7 animate-[fade-up_0.4s_ease-out]'
+        ? 'space-y-8'
+        : 'space-y-8 animate-[fade-up_0.4s_ease-out]'
 
     const cardClass = prefersReducedMotion
         ? 'surface-card space-y-6 p-6 md:p-8'
@@ -34,42 +34,33 @@ export default function LoginPage() {
         : { animationDelay: '100ms', animationFillMode: 'both' as const }
 
     return (
-        <div className='lucky-shell relative min-h-screen overflow-hidden px-4 py-8 md:px-8'>
+        <div className='lucky-shell min-h-screen px-4 py-8 md:px-8'>
             <div className='mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]'>
                 <section className={sectionClass} style={sectionStyle}>
-                    <div className='inline-flex items-center gap-2 rounded-full border border-lucky-border bg-lucky-bg-secondary/80 px-3 py-1 shadow-[0_0_12px_rgb(212_160_23/0.1)]'>
-                        <Sparkles className='h-3.5 w-3.5 text-lucky-accent' />
-                        <span className='type-body-sm text-lucky-text-secondary'>
-                            Neo-editorial command center
-                        </span>
+                    <div className='flex items-center gap-3'>
+                        <img
+                            src='/lucky-logo.png'
+                            alt='Lucky'
+                            className='h-12 w-12 rounded-xl object-cover border border-lucky-border'
+                        />
+                        <div>
+                            <h1 className='type-display text-lucky-text-primary'>Lucky</h1>
+                            <p className='type-body-sm text-lucky-text-tertiary'>Discord Bot Dashboard</p>
+                        </div>
                     </div>
 
                     <div className='space-y-3'>
-                        <div className='flex items-center gap-3'>
-                            <div className='relative'>
-                                <div className='absolute -inset-1 rounded-2xl bg-gradient-to-br from-purple-500/30 to-yellow-500/20 blur-md' aria-hidden='true' />
-                                <img
-                                    src='/lucky-logo.png'
-                                    alt='Lucky'
-                                    className='relative h-16 w-16 rounded-2xl object-cover ring-1 ring-lucky-border-strong'
-                                />
-                            </div>
-                            <div>
-                                <h1 className='type-display lucky-gradient-text'>Lucky</h1>
-                                <p className='type-body text-lucky-text-secondary'>Discord Bot Management</p>
-                            </div>
-                        </div>
-
-                        <h2 className='type-h2 text-lucky-text-primary'>Welcome to Lucky Dashboard</h2>
+                        <h2 className='type-h1 text-lucky-text-primary'>
+                            Manage your Discord servers
+                        </h2>
                         <p className='type-body max-w-xl text-lucky-text-secondary'>
-                            Manage your Discord servers, configure bot features, and customize
-                            commands all in one place.
+                            Configure moderation, custom commands, music, and more — all in one place.
                         </p>
                     </div>
 
                     <div className='grid gap-3 sm:grid-cols-3'>
                         <StatTile value='32+' label='Modules' tone='brand' />
-                        <StatTile value='100+' label='Commands' tone='accent' />
+                        <StatTile value='100+' label='Commands' tone='brand' />
                         <StatTile value='24/7' label='Uptime' tone='success' />
                     </div>
                 </section>
@@ -80,22 +71,21 @@ export default function LoginPage() {
                 >
                     <div className='space-y-2'>
                         <p className='type-meta text-lucky-text-tertiary'>Authentication</p>
-                        <h3 className='type-h2 text-lucky-text-primary'>Secure Discord sign-in</h3>
+                        <h3 className='type-h2 text-lucky-text-primary'>Sign in with Discord</h3>
                         <p className='type-body-sm text-lucky-text-secondary'>
-                            Login keeps your guild permissions and bot controls tied to your
-                            Discord account.
+                            Your guild permissions and bot controls are tied to your Discord account.
                         </p>
                     </div>
 
                     <Button
                         onClick={login}
                         disabled={isLoading}
-                        variant='accent'
-                        className='lucky-focus-visible h-14 w-full rounded-xl'
+                        variant='primary'
+                        className='lucky-focus-visible h-12 w-full rounded-lg'
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 className='h-5 w-5 animate-spin' />
+                                <Loader2 className='h-4 w-4 animate-spin' />
                                 Connecting...
                             </>
                         ) : (
@@ -110,18 +100,16 @@ export default function LoginPage() {
 
                     <div className='grid gap-3 sm:grid-cols-3'>
                         {[
-                            { icon: ShieldCheck, color: 'text-lucky-success', glow: 'rgb(34_197_94/0.3)', label: 'OAuth secured' },
-                            { icon: Zap, color: 'text-lucky-accent', glow: 'rgb(212_160_23/0.3)', label: 'Fast setup' },
-                            { icon: Sparkles, color: 'text-lucky-brand', glow: 'rgb(139_92_246/0.3)', label: 'Live controls' },
-                        ].map(({ icon: Icon, color, glow, label }) => (
+                            { icon: ShieldCheck, label: 'OAuth secured' },
+                            { icon: Zap, label: 'Fast setup' },
+                            { icon: BarChart2, label: 'Live controls' },
+                        ].map(({ icon: Icon, label }) => (
                             <div
                                 key={label}
-                                className='group rounded-xl border border-lucky-border bg-lucky-bg-secondary/80 p-3 transition-all duration-200 hover:border-lucky-border-strong'
+                                className='rounded-lg border border-lucky-border bg-lucky-bg-primary/60 p-3'
                             >
-                                <Icon
-                                    className={`h-4 w-4 ${color} transition-all duration-200 group-hover:drop-shadow-[0_0_6px_${glow}]`}
-                                />
-                                <p className='mt-2 type-body-sm text-lucky-text-primary'>{label}</p>
+                                <Icon className='h-4 w-4 text-lucky-brand' />
+                                <p className='mt-2 type-body-sm text-lucky-text-secondary'>{label}</p>
                             </div>
                         ))}
                     </div>

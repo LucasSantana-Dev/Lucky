@@ -1,4 +1,4 @@
-import { Bot, LayoutDashboard, Shield, X, Gift } from 'lucide-react'
+import { Bot, LayoutDashboard, Shield, X, HelpCircle } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Button from '@/components/ui/Button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -33,30 +33,30 @@ export default function DashboardSidebar({
     return (
         <aside
             className={cn(
-                'fixed inset-y-0 left-0 z-50 w-64 bg-lucky-bg-primary border-r border-lucky-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto',
+                'fixed inset-y-0 left-0 z-50 w-60 bg-lucky-bg-secondary border-r border-lucky-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full',
             )}
         >
             <div className='flex flex-col h-full'>
-                <div className='flex items-center justify-between p-4 border-b border-lucky-border'>
-                    <div className='flex items-center gap-2'>
-                        <div className='w-10 h-10 bg-lucky-red rounded-lg flex items-center justify-center'>
-                            <Bot className='w-6 h-6 text-white' />
+                <div className='flex items-center justify-between px-4 py-3.5 border-b border-lucky-border'>
+                    <div className='flex items-center gap-2.5'>
+                        <div className='w-8 h-8 bg-lucky-brand rounded-lg flex items-center justify-center'>
+                            <Bot className='w-4.5 h-4.5 text-white' />
                         </div>
-                        <span className='text-xl font-bold text-white'>
+                        <span className='type-title text-lucky-text-primary'>
                             Lucky
                         </span>
                     </div>
                     <button
-                        className='lg:hidden text-lucky-text-secondary hover:text-white'
+                        className='lg:hidden text-lucky-text-subtle hover:text-lucky-text-primary transition-colors'
                         onClick={() => setSidebarOpen(false)}
                     >
-                        <X className='w-5 h-5' />
+                        <X className='w-4 h-4' />
                     </button>
                 </div>
 
-                <ScrollArea className='flex-1 py-4'>
-                    <nav className='space-y-1 px-3'>
+                <ScrollArea className='flex-1 py-3'>
+                    <nav className='space-y-0.5 px-2'>
                         {navItems.map((item) => (
                             <button
                                 key={item.path}
@@ -65,13 +65,13 @@ export default function DashboardSidebar({
                                     setSidebarOpen(false)
                                 }}
                                 className={cn(
-                                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                                    'w-full flex items-center gap-2.5 px-2 py-2 rounded-md type-body-sm font-medium transition-colors',
                                     isActivePath(item.path)
-                                        ? 'bg-lucky-bg-active text-white'
-                                        : 'text-lucky-text-secondary hover:text-white hover:bg-lucky-bg-tertiary',
+                                        ? 'bg-lucky-bg-active text-lucky-text-primary'
+                                        : 'text-lucky-text-tertiary hover:text-lucky-text-primary hover:bg-lucky-bg-tertiary',
                                 )}
                             >
-                                <item.icon className='w-5 h-5' />
+                                <item.icon className='w-4 h-4' />
                                 <span className='flex-1 text-left'>
                                     {item.name}
                                 </span>
@@ -80,20 +80,21 @@ export default function DashboardSidebar({
                     </nav>
                 </ScrollArea>
 
-                <div className='p-4 border-t border-lucky-border'>
-                    <div className='bg-linear-to-r from-lucky-purple/20 to-lucky-blue/20 rounded-lg p-4 border border-lucky-purple/30'>
+                <div className='p-3 border-t border-lucky-border'>
+                    <div className='bg-lucky-bg-tertiary rounded-lg p-3.5 border border-lucky-border'>
                         <div className='flex items-center gap-2 mb-2'>
-                            <Gift className='w-5 h-5 text-lucky-purple' />
-                            <span className='font-semibold text-white'>
+                            <HelpCircle className='w-4 h-4 text-lucky-text-tertiary' />
+                            <span className='type-body-sm font-semibold text-lucky-text-primary'>
                                 Need Help?
                             </span>
                         </div>
-                        <p className='text-xs text-lucky-text-secondary mb-3'>
+                        <p className='text-[12px] text-lucky-text-tertiary mb-3'>
                             Join our Discord for support and updates
                         </p>
                         <Button
                             size='sm'
-                            className='w-full bg-lucky-purple hover:bg-lucky-purple/90 text-white'
+                            variant='primary'
+                            className='w-full'
                         >
                             Join Discord
                         </Button>

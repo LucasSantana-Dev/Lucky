@@ -17,11 +17,11 @@ export default function ActionPanel({
     className,
 }: ActionPanelProps) {
     return (
-        <section className={cn('surface-card p-5', className)}>
+        <section className={cn('surface-panel p-4', className)}>
             <div className='flex items-start justify-between gap-4'>
-                <div className='space-y-2'>
+                <div className='space-y-1.5'>
                     <div className='flex items-center gap-2'>
-                        {icon && <span className='text-lucky-accent'>{icon}</span>}
+                        {icon && <span className='text-lucky-brand'>{icon}</span>}
                         <h3 className='type-title text-lucky-text-primary'>{title}</h3>
                     </div>
                     <p className='type-body-sm text-lucky-text-secondary'>{description}</p>

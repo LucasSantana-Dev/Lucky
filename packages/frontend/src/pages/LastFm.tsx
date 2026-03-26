@@ -144,7 +144,7 @@ export default function LastFmPage() {
                     </p>
                     <button
                         onClick={handleConnect}
-                        className='lucky-focus-visible inline-flex items-center gap-2 rounded-lg bg-lucky-accent px-4 py-2 type-body-sm text-black transition-colors hover:bg-lucky-accent-soft'
+                        className='lucky-focus-visible inline-flex items-center gap-2 rounded-md bg-lucky-brand px-4 py-2 type-body-sm text-white transition-colors hover:bg-lucky-brand-strong'
                     >
                         <Link2 className='h-4 w-4' />
                         Connect Last.fm

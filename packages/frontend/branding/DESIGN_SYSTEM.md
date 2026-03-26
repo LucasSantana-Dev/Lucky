@@ -1,91 +1,94 @@
 # Lucky Design System
 
-## Theme Direction
+## Overview
 
-- Brand personality: premium, playful, high-contrast.
-- Core palette: purple (brand) + gold (accent).
-- Primary mode: dark interface.
+Lucky uses a clean, neutral dark design system inspired by professional developer tools and Discord bots like Dyno and Carl-bot. The palette is dark greys/near-black with Discord blurple as the single accent color.
 
-## Typography System
+## Color Palette
 
-- Display typeface: `Sora` (headlines, hero, major labels).
-- Body typeface: `Manrope` (UI text, controls, paragraphs).
-- Monospace typeface: `JetBrains Mono` (code, IDs, technical values).
-- Fallbacks:
-    - Display/body: `Avenir Next`, `Segoe UI`, `sans-serif`
-    - Mono: `SFMono-Regular`, `Menlo`, `Monaco`, `Consolas`, `monospace`
+### Surfaces (darkest to lightest)
+| Token | Hex | Usage |
+|---|---|---|
+| `--lucky-surface-canvas` | `#0f1117` | Page background |
+| `--lucky-surface-sidebar` | `#161b22` | Sidebar background |
+| `--lucky-surface-panel` | `#1c2129` | Content panels |
+| `--lucky-surface-elevated` | `#222831` | Elevated panels |
+| `--lucky-surface-highlight` | `#2a3140` | Active states, selected items |
 
-## Type Tokens
+### Borders
+| Token | Hex | Usage |
+|---|---|---|
+| `--lucky-border-soft` | `#2d333b` | Default borders |
+| `--lucky-border-strong` | `#444c56` | Hover/active borders |
 
-- `--font-lucky-display`: `Sora` stack.
-- `--font-lucky-body`: `Manrope` stack.
-- `--font-lucky-mono`: `JetBrains Mono` stack.
-- `--font-sans`: mapped to `--font-lucky-body`.
-- `--font-mono`: mapped to `--font-lucky-mono`.
+### Text
+| Token | Hex | Usage |
+|---|---|---|
+| `--lucky-text-strong` | `#e6edf3` | Primary text |
+| `--lucky-text-body` | `#adbac7` | Body text |
+| `--lucky-text-muted` | `#768390` | Secondary labels |
+| `--lucky-text-subtle` | `#545d68` | Disabled / meta |
 
-## Type Scale
+### Accent (single accent — Discord Blurple)
+| Token | Hex | Usage |
+|---|---|---|
+| `--lucky-brand` | `#5865f2` | Primary accent, CTAs, active states |
+| `--lucky-brand-strong` | `#4752c4` | Hover state for brand |
 
-- `Display`: `48/56`, weight `700` or `800`, tracking `-0.02em`
-- `H1`: `36/44`, weight `700`, tracking `-0.015em`
-- `H2`: `30/38`, weight `700`, tracking `-0.015em`
-- `H3`: `24/32`, weight `600`, tracking `-0.01em`
-- `H4`: `20/28`, weight `600`, tracking `-0.01em`
-- `Body L`: `18/28`, weight `500`
-- `Body`: `16/24`, weight `400` or `500`
-- `Body S`: `14/20`, weight `400` or `500`
-- `Caption`: `12/16`, weight `500`, tracking `0.01em`
-- `Code`: `13/20`, weight `500`
+### Status
+| Token | Hex |
+|---|---|
+| `--lucky-success` | `#23a55a` |
+| `--lucky-error` | `#f23f42` |
+| `--lucky-warning` | `#f0b232` |
+| `--lucky-info` | `#00aafc` |
 
-## Core Tokens
+## Typography
 
-- `--lucky-brand`: `#8b5cf6`
-- `--lucky-brand-strong`: `#6d34bf`
-- `--lucky-accent`: `#d4a017`
-- `--lucky-accent-soft`: `#e4b83f`
-- `--lucky-surface-1`: `#190d2f`
-- `--lucky-surface-2`: `#231245`
-- `--lucky-surface-3`: `#331a63`
-- `--lucky-border`: `#3c2c5f`
-- `--lucky-text-primary`: `#ffffff`
-- `--lucky-text-secondary`: `#d0c7e6`
-- `--lucky-text-muted`: `#a898c9`
-- `--lucky-success`: `#22c55e`
-- `--lucky-error`: `#ef4444`
+**Font**: Inter (system fallback: Segoe UI, system-ui, sans-serif)
+**Mono**: JetBrains Mono
 
-## Semantic Roles
+### Type Scale
+| Class | Size | Weight | Usage |
+|---|---|---|---|
+| `type-display` | clamp(2rem, 3.5vw, 3rem) | 700 | Hero headings |
+| `type-h1` | clamp(1.6rem, 2.5vw, 2.25rem) | 700 | Page headings |
+| `type-h2` | clamp(1.25rem, 2vw, 1.75rem) | 600 | Section headings |
+| `type-title` | 1rem | 600 | Card titles |
+| `type-body-lg` | 1rem | 400 | Lead text |
+| `type-body` | 0.9375rem | 400 | Standard body |
+| `type-body-sm` | 0.875rem | 400 | Secondary body |
+| `type-meta` | 0.6875rem | 600 | Labels, eyebrows (uppercase) |
 
-- `primary`: brand purple for primary controls.
-- `secondary`: gold for emphasis and highlights.
-- `accent`: gold for focus rings and active indicators.
-- `background`: deep purple surfaces.
-- `muted`: secondary surface for cards and panels.
+## Surface Utilities
+
+| Class | Description |
+|---|---|
+| `surface-panel` | Standard content panel — sidebar background, subtle border, hover border darkens |
+| `surface-card` | Content card — panel background |
+| `surface-elevated` | Elevated surface for modals/dropdowns |
+| `surface-glass` | Same as panel (glassmorphism removed) |
+
+## Interaction & Motion
+
+- Focus ring: 3px blurple ring (`--lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4)`)
+- Hover borders: upgrade from `border-soft` to `border-strong`
+- Active nav items: blurple left-accent bar (2px) + `surface-highlight` background
+- Allowed animations: `fade-up`, `fade-in`, `accordion-down/up`, `animate-spin` (loaders)
+- Removed: glow-pulse, float, shimmer, pulse-glow animations
 
 ## Component Rules
 
-- Buttons:
-    - Primary: purple background, white text.
-    - Accent: gold background, dark text.
-    - Destructive: red only for destructive actions.
-- Typography:
-    - Headings and `.font-display` use display typeface.
-    - Body text and controls use body typeface.
-    - Code, IDs, and command snippets use mono typeface.
-- Cards and panels:
-    - Use `surface-2` by default.
-    - Use `surface-3` for active/hover.
-    - Always include `lucky-border`.
-- Navigation:
-    - Active item uses gold indicator and purple highlight.
-    - Inactive items use `text-secondary`, hover to white.
+- **Button primary/accent**: blurple background, white text, hover → `brand-strong`
+- **Button secondary**: panel background, border, hover → active highlight
+- **Cards**: flat border, no gradient overlays, no box-shadow glow
+- **Nav items**: left accent bar on active (blurple), `type-meta` section labels in subtle color
+- **StatTile**: toned icon container (blurple/success/warning), no glow drop-shadow
 
-## Accessibility
+## Principles
 
-- Target WCAG AA contrast for text and interactive states.
-- Keep gold text on dark purple or near-black only.
-- Keep white text on purple surfaces; avoid gold-on-purple for body text.
-
-## Implementation Mapping
-
-- Frontend CSS variables are defined in `packages/frontend/src/index.css`.
-- Legacy `lucky-*` utility classes are mapped to Lucky colors for migration safety.
-- New UI work should use semantic tokens and avoid hardcoded hex colors.
+1. **Single accent**: Discord blurple `#5865f2` is the only accent. No gold, no purple gradients.
+2. **Flat panels**: No glassmorphism, no background radial gradients on pages.
+3. **Professional motion**: Only fade transitions. No glow-pulse, float, or shimmer.
+4. **Inter only**: No Sora or Manrope fonts.
+5. **Consistent spacing**: panels use `p-4` or `p-5`.

@@ -121,11 +121,11 @@ function GuildChip() {
             <button
                 type='button'
                 onClick={() => navigate('/servers')}
-                className='lucky-focus-visible flex items-center gap-2 rounded-xl border border-lucky-border bg-lucky-bg-secondary/80 px-3 py-2 text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary/80 hover:text-lucky-text-primary'
+                className='lucky-focus-visible flex items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-3 py-1.5 text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
                 aria-label='Select a server'
             >
                 <span className='type-body-sm'>Select a server</span>
-                <ChevronDown className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary' />
+                <ChevronDown className='h-3.5 w-3.5 shrink-0 text-lucky-text-subtle' />
             </button>
         )
     }
@@ -134,11 +134,11 @@ function GuildChip() {
         <button
             type='button'
             onClick={() => navigate('/servers')}
-            className='lucky-focus-visible flex items-center gap-2.5 rounded-xl border border-lucky-border bg-lucky-bg-secondary/80 px-3 py-2 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary/80'
+            className='lucky-focus-visible flex items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-3 py-1.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
             aria-label={`Active server: ${selectedGuild.name}. Click to switch.`}
             title='Click to switch server'
         >
-            <Avatar className='h-6 w-6 shrink-0'>
+            <Avatar className='h-5 w-5 shrink-0'>
                 <AvatarImage
                     src={
                         selectedGuild.icon
@@ -147,19 +147,14 @@ function GuildChip() {
                     }
                     alt={selectedGuild.name}
                 />
-                <AvatarFallback className='bg-lucky-bg-active type-meta normal-case tracking-normal text-lucky-text-primary'>
+                <AvatarFallback className='bg-lucky-bg-active text-[9px] font-semibold text-lucky-text-primary'>
                     {selectedGuild.name.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
             </Avatar>
-            <div className='min-w-0'>
-                <p className='type-meta text-lucky-text-tertiary leading-none mb-0.5'>
-                    Active server
-                </p>
-                <p className='type-body-sm truncate max-w-[160px] text-lucky-text-primary'>
-                    {selectedGuild.name}
-                </p>
-            </div>
-            <ChevronDown className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary' />
+            <p className='type-body-sm truncate max-w-[140px] text-lucky-text-primary'>
+                {selectedGuild.name}
+            </p>
+            <ChevronDown className='h-3.5 w-3.5 shrink-0 text-lucky-text-subtle' />
         </button>
     )
 }
@@ -172,16 +167,13 @@ function Layout({ children }: LayoutProps) {
         <div className='lucky-shell flex min-h-screen'>
             <Sidebar />
             <div className='flex min-w-0 flex-1 flex-col'>
-                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/80 backdrop-blur-md relative'>
-                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3 md:px-8'>
-                        <div className='min-w-0 space-y-0.5'>
-                            <p className='type-meta text-lucky-text-tertiary'>
-                                Lucky control center
-                            </p>
+                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/95 backdrop-blur-md relative'>
+                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3 md:px-6'>
+                        <div className='min-w-0'>
                             <h1 className='type-title text-lucky-text-primary leading-tight'>
                                 {routeCopy.title}
                             </h1>
-                            <p className='type-body-sm text-lucky-text-secondary hidden sm:block'>
+                            <p className='type-body-sm text-lucky-text-tertiary hidden sm:block'>
                                 {routeCopy.subtitle}
                             </p>
                         </div>
@@ -191,7 +183,7 @@ function Layout({ children }: LayoutProps) {
                 </header>
 
                 <main className='flex-1 min-w-0 overflow-y-auto'>
-                    <div className='mx-auto w-full max-w-[1400px] px-4 py-6 md:px-8 lg:px-10'>
+                    <div className='mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6 lg:px-8'>
                         {children}
                     </div>
                 </main>

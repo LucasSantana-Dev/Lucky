@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ChevronDown, Sparkles } from 'lucide-react'
+import { ChevronDown, Check } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGuildStore } from '@/stores/guildStore'
@@ -46,9 +46,9 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
         : undefined
 
     return (
-        <div className='relative px-3 py-3 border-b border-lucky-border'>
-            <p className='type-meta mb-2 px-1 text-lucky-text-tertiary'>
-                Server context
+        <div className='relative px-2 py-2.5 border-b border-lucky-border'>
+            <p className='type-meta mb-1.5 px-2 text-lucky-text-subtle'>
+                Server
             </p>
             <button
                 type='button'
@@ -60,13 +60,13 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                         ? `Switch server, currently ${selectedGuild.name}`
                         : 'Select a server'
                 }
-                className='lucky-focus-visible flex w-full items-center gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/70 px-3 py-2.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active/60'
+                className='lucky-focus-visible flex w-full items-center gap-2.5 rounded-md border border-lucky-border bg-lucky-bg-tertiary px-2.5 py-2 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active'
             >
                 {selectedGuild ? (
                     <>
-                        <Avatar className='h-7 w-7 shrink-0'>
+                        <Avatar className='h-6 w-6 shrink-0'>
                             <AvatarImage src={iconSrc} alt={selectedGuild.name} />
-                            <AvatarFallback className='bg-lucky-bg-active type-meta normal-case tracking-normal text-lucky-text-primary'>
+                            <AvatarFallback className='bg-lucky-bg-active text-[10px] font-semibold text-lucky-text-primary'>
                                 {selectedGuild.name.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
@@ -74,19 +74,19 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                             {selectedGuild.name}
                         </span>
                         {hasBotStatus && (
-                            <span className='rounded-md border border-lucky-border px-1.5 py-0.5 type-meta text-lucky-text-tertiary normal-case tracking-normal shrink-0'>
+                            <span className='rounded border border-lucky-border px-1.5 py-0.5 text-[10px] font-medium text-lucky-text-subtle shrink-0'>
                                 No bot
                             </span>
                         )}
                     </>
                 ) : (
-                    <span className='type-body-sm flex-1 text-lucky-text-secondary'>
+                    <span className='type-body-sm flex-1 text-lucky-text-tertiary'>
                         Select a server
                     </span>
                 )}
                 <ChevronDown
                     className={cn(
-                        'h-4 w-4 shrink-0 text-lucky-text-tertiary transition-transform duration-150',
+                        'h-3.5 w-3.5 shrink-0 text-lucky-text-subtle transition-transform duration-150',
                         open && 'rotate-180',
                     )}
                     aria-hidden='true'
@@ -96,11 +96,11 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
             <AnimatePresence>
                 {open && (
                     <motion.div
-                        initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                        initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
                         animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                        exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                        transition={{ duration: prefersReducedMotion ? 0 : 0.14 }}
-                        className='absolute left-3 right-3 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-lucky-border bg-lucky-bg-secondary shadow-2xl'
+                        exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                        transition={{ duration: prefersReducedMotion ? 0 : 0.12 }}
+                        className='absolute left-2 right-2 top-full z-50 mt-1 overflow-hidden rounded-lg border border-lucky-border bg-lucky-bg-secondary shadow-[0_8px_24px_rgb(0_0_0/0.4)]'
                         role='menu'
                         aria-label='Server list'
                     >
@@ -162,13 +162,13 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                                                     onOpenChange(false)
                                                 }}
                                                 className={cn(
-                                                    'lucky-focus-visible flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-lucky-bg-tertiary/90',
-                                                    isSelected && 'bg-lucky-bg-active/70',
+                                                    'lucky-focus-visible flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-lucky-bg-tertiary',
+                                                    isSelected && 'bg-lucky-bg-active',
                                                 )}
                                             >
                                                 <Avatar className='h-6 w-6 shrink-0'>
                                                     <AvatarImage src={guildIconSrc} alt={guild.name} />
-                                                    <AvatarFallback className='bg-lucky-bg-active type-meta normal-case tracking-normal text-lucky-text-primary'>
+                                                    <AvatarFallback className='bg-lucky-bg-active text-[10px] font-semibold text-lucky-text-primary'>
                                                         {guild.name.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -177,13 +177,13 @@ export default function GuildSwitcher({ open, onOpenChange }: GuildSwitcherProps
                                                 </span>
                                                 <span className='ml-auto flex items-center gap-2'>
                                                     {!guild.botAdded && (
-                                                        <span className='rounded-md border border-lucky-border px-1.5 py-0.5 type-meta text-lucky-text-tertiary normal-case tracking-normal'>
+                                                        <span className='rounded border border-lucky-border px-1.5 py-0.5 text-[10px] font-medium text-lucky-text-subtle'>
                                                             Invite bot
                                                         </span>
                                                     )}
                                                     {isSelected && (
-                                                        <Sparkles
-                                                            className='h-3.5 w-3.5 text-lucky-accent'
+                                                        <Check
+                                                            className='h-3.5 w-3.5 text-lucky-brand'
                                                             aria-hidden='true'
                                                         />
                                                     )}
