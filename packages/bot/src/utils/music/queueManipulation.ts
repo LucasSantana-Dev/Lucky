@@ -624,8 +624,7 @@ function isDuplicateCandidate(
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
 ): boolean {
-    if (!track.url) return true
-    if (excludedUrls.has(track.url)) return true
+    if (track.url && excludedUrls.has(track.url)) return true
 
     const key = normalizeTrackKey(track.title, track.author)
     return excludedKeys.has(key)
@@ -785,7 +784,6 @@ export async function blendAutoplayTracks(
         try {
             queue.node.remove(track)
         } catch {
-            // Track may already be removed
         }
     }
 

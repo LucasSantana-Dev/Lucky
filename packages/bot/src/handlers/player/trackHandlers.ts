@@ -142,7 +142,8 @@ const handlePlayerStart = async (
             queue.node.setVolume(constants.VOLUME)
 
         const isAutoplay = track.requestedBy?.id === client.user?.id
-        const isAutoplayEnabled = queue.repeatMode === 3
+        const isAutoplayEnabled =
+            queue.repeatMode === QueueRepeatMode.AUTOPLAY
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)
 

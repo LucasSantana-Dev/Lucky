@@ -622,8 +622,6 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('caps autoplay to maxTracksPerArtist when same-artist candidates score highest', async () => {
-        // 3 tracks from 'Artist B' + 1 from 'Artist C'. With MAX_TRACKS_PER_ARTIST=2 (default),
-        // should pick at most 2 from 'Artist B' + 1 from 'Artist C' = 3 total (buffer needs 4)
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             player: {
@@ -660,7 +658,6 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        // Should have at most 2 tracks from Artist B + 1 from Artist C = 3 total
         const calls = queue.addTrack.mock.calls
         const artistBCount = calls.filter(
             (c) => (c[0] as Track).author === 'Artist B',
@@ -670,7 +667,6 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('caps autoplay tracks by source when all candidates are from same source', async () => {
-        // 5 candidates all from 'youtube'. With MAX_TRACKS_PER_SOURCE=3 (default), at most 3 selected.
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             currentTrack: {
@@ -728,6 +724,39 @@ describe('queueManipulation.replenishQueue', () => {
         })
 
         expect(queue.addTrack).not.toHaveBeenCalled()
+    })
+
+    it('adds unique autoplay candidates even when search results omit url', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            id: 'autoplay-track-1',
+                            title: 'Fresh Song',
+                            author: 'Fresh Artist',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'autoplay-track-1',
+                title: 'Fresh Song',
+                author: 'Fresh Artist',
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                }),
+            }),
+        )
     })
 })
 
@@ -925,7 +954,6 @@ describe('queueManipulation.queueOperations', () => {
         const searchMock = jest.fn().mockImplementation(
             () =>
                 new Promise(() => {
-                    /* never resolves */
                 }),
         )
         const queue = {
@@ -946,4 +974,4 @@ describe('queueManipulation.queueOperations', () => {
         expect(result.keptTracks).toBe(0)
         expect((queue as any).addTrack).not.toHaveBeenCalled()
     })
-})
+}
