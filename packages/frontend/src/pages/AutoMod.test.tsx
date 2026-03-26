@@ -557,4 +557,4 @@ describe('AutoModPage', () => {
             expect(toast.error).toHaveBeenCalledWith(expectedToast)
         })
     })
-}
+})
