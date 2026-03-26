@@ -371,4 +371,4 @@ describe('TwitchNotificationsPage', () => {
             await screen.findByText('Twitch user not found'),
         ).toBeInTheDocument()
     })
-}
+})
