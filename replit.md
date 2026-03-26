@@ -43,6 +43,13 @@ To run the Discord bot and backend, add these secrets via the Secrets tab:
 4. Start frontend workflow ("Start application")
 5. Add Discord secrets, then start "Backend" and "Discord Bot" workflows
 
+## Database Notes
+
+- **UserSession model removed** — The `UserSession` Prisma model was removed to prevent FK constraint generation issues during deployment. The `user_sessions` table still exists in the DB but is unmanaged by Prisma. No application code used this model.
+- **migration_lock.toml** — Added to `prisma/migrations/` to properly signal the database provider to Prisma's migration engine.
+- **pre-migrate.mjs** — `scripts/pre-migrate.mjs` ensures unique indexes on `guilds.discordId` and `users.discordId` exist before `prisma migrate deploy` runs. Call it in the run command before migrations if needed.
+- **Deployment run command** — `node scripts/pre-migrate.mjs || true; npx prisma migrate deploy --config prisma/prisma.config.ts; NODE_ENV=production PORT=5000 node packages/backend/dist/index.js`
+
 ## Replit-Specific Changes
 
 - **Node.js 22** — Upgraded from default 20 to match project requirement

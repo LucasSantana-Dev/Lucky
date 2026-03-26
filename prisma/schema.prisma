@@ -21,7 +21,6 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  sessions     UserSession[]
   preferences  UserPreferences?
   commandUsage CommandUsage[]
 
@@ -63,7 +62,6 @@ model Guild {
   // Relations
   settings            GuildSettings?
   sessions            GuildSession[]
-  userSessions        UserSession[]
   trackHistory        TrackHistory[]
   commandUsage        CommandUsage[]
   twitchNotifications TwitchNotification[]
@@ -184,24 +182,8 @@ model GuildAutomationDrift {
 }
 
 // Session Management
-model UserSession {
-  id      String @id @default(cuid())
-  userId  String
-  guildId String
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
-
-  // Session data
-  lastActivity   DateTime @default(now())
-  commandHistory String[] @default([])
-  preferences    Json? // User-specific preferences for this guild
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, guildId])
-  @@map("user_sessions")
-}
+// Note: user_sessions table exists in DB but is unmanaged by Prisma.
+// UserSession model removed to prevent FK constraint generation issues.
 
 model GuildSession {
   id      String @id @default(cuid())
