@@ -339,13 +339,48 @@ const DEFAULT_SETTINGS: AutoModSettings = {
     updatedAt: new Date(),
 }
 
+function normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return []
+    return value.filter((item): item is string => typeof item === 'string')
+}
+
+function normalizeAutoModSettings(
+    value: unknown,
+    guildId: string,
+): AutoModSettings {
+    const settings =
+        value && typeof value === 'object'
+            ? (value as Partial<AutoModSettings>)
+            : undefined
+
+    return {
+        ...DEFAULT_SETTINGS,
+        ...settings,
+        guildId: settings?.guildId || guildId,
+        allowedDomains: normalizeStringArray(settings?.allowedDomains),
+        bannedWords: normalizeStringArray(settings?.bannedWords),
+        exemptChannels: normalizeStringArray(settings?.exemptChannels),
+        exemptRoles: normalizeStringArray(settings?.exemptRoles),
+        createdAt:
+            settings?.createdAt instanceof Date
+                ? settings.createdAt
+                : DEFAULT_SETTINGS.createdAt,
+        updatedAt:
+            settings?.updatedAt instanceof Date
+                ? settings.updatedAt
+                : DEFAULT_SETTINGS.updatedAt,
+    }
+}
+
 export default function AutoModPage() {
     const { selectedGuild } = useGuildStore()
     const [settings, setSettings] = useState<AutoModSettings>(DEFAULT_SETTINGS)
     const [templates, setTemplates] = useState<AutoModTemplate[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [templatesLoading, setTemplatesLoading] = useState(false)
+    const [templatesLoading, setTemplatesLoading] = useState<
+        boolean
+    >(false)
     const [applyingTemplateId, setApplyingTemplateId] = useState<
         string | null
     >(null)
@@ -357,9 +392,16 @@ export default function AutoModPage() {
         setLoading(true)
         api.automod
             .getSettings(selectedGuild.id)
-            .then((res) => setSettings(res.data.settings))
+            .then((res) =>
+                setSettings(
+                    normalizeAutoModSettings(
+                        res.data?.settings,
+                        selectedGuild.id,
+                    ),
+                ),
+            )
             .catch(() =>
-                setSettings({ ...DEFAULT_SETTINGS, guildId: selectedGuild.id }),
+                setSettings(normalizeAutoModSettings(undefined, selectedGuild.id)),
             )
             .finally(() => setLoading(false))
     }, [selectedGuild?.id])
@@ -421,7 +463,12 @@ export default function AutoModPage() {
                 selectedGuild.id,
                 templateId,
             )
-            setSettings(response.data.settings)
+            setSettings(
+                normalizeAutoModSettings(
+                    response.data?.settings,
+                    selectedGuild.id,
+                ),
+            )
             toast.success('Auto-moderation template applied')
         } catch (error) {
             if (error instanceof ApiError) {
@@ -563,7 +610,6 @@ export default function AutoModPage() {
                     </Card>
                 </motion.div>
 
-                {/* Spam Detection */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -596,7 +642,6 @@ export default function AutoModPage() {
                     </FilterCard>
                 </motion.div>
 
-                {/* Caps Detection */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -620,7 +665,6 @@ export default function AutoModPage() {
                     </FilterCard>
                 </motion.div>
 
-                {/* Link Filtering */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -660,7 +704,6 @@ export default function AutoModPage() {
                     </FilterCard>
                 </motion.div>
 
-                {/* Invite Filtering */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -676,7 +719,6 @@ export default function AutoModPage() {
                     />
                 </motion.div>
 
-                {/* Banned Words */}
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -717,7 +759,6 @@ export default function AutoModPage() {
                 </motion.div>
             </div>
 
-            {/* Exempt Channels & Roles */}
             <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -825,7 +866,6 @@ export default function AutoModPage() {
                 </Card>
             </motion.div>
 
-            {/* Sticky Save Bar (mobile) */}
             <div className='lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-lucky-bg-primary/95 backdrop-blur-sm border-t border-lucky-border z-30'>
                 <Button
                     onClick={handleSave}

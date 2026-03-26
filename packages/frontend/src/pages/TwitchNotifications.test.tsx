@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TwitchNotificationsPage from './TwitchNotifications'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 
 vi.mock('@/services/api')
 vi.mock('@/hooks/useGuildSelection')
@@ -340,6 +341,27 @@ describe('TwitchNotificationsPage', () => {
 
         expect(
             await screen.findByText('Failed to load Discord channels'),
+        ).toBeInTheDocument()
+    })
+
+    test('shows backend error message when add notification fails', async () => {
+        const user = userEvent.setup()
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.list).mockResolvedValue({
+            data: { notifications: [] },
+        } as any)
+        vi.mocked(api.twitch.lookupUser).mockRejectedValue(
+            new ApiError(404, 'Twitch user not found'),
+        )
+
+        renderPage()
+
+        await openAddForm(user)
+        await fillNotificationForm(user, 'teststreamer')
+        await user.click(screen.getByText('Save'))
+
+        expect(
+            await screen.findByText('Twitch user not found'),
         ).toBeInTheDocument()
     })
 })

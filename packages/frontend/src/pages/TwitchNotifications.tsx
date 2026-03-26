@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Tv, Plus, Trash2, Hash } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import {
     Select,
     SelectContent,
@@ -20,6 +21,10 @@ interface TwitchNotification {
 }
 
 const TWITCH_LOADING_SKELETON_KEYS = ['tw-loading-1', 'tw-loading-2', 'tw-loading-3']
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof ApiError ? error.message : fallback
+}
 
 export default function TwitchNotificationsPage() {
     const { selectedGuild } = useGuildSelection()
@@ -180,8 +185,8 @@ export default function TwitchNotificationsPage() {
             if (selectedGuildIdRef.current === requestGuildId) {
                 await loadNotifications(requestGuildId)
             }
-        } catch {
-            setError('Failed to add notification')
+        } catch (error) {
+            setError(getErrorMessage(error, 'Failed to add notification'))
         }
     }
 
@@ -192,8 +197,8 @@ export default function TwitchNotificationsPage() {
             setNotifications((prev) =>
                 prev.filter((n) => n.twitchUserId !== twitchUserId),
             )
-        } catch {
-            setError('Failed to remove notification')
+        } catch (error) {
+            setError(getErrorMessage(error, 'Failed to remove notification'))
         }
     }
 
