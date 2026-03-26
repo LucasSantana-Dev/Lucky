@@ -43,6 +43,7 @@ const mockPlayer = {
     removeTrack: vi.fn(),
     clearQueue: vi.fn(),
     importPlaylist: vi.fn(),
+    moveTrack: vi.fn(),
 }
 
 describe('MusicPage', () => {
@@ -61,7 +62,7 @@ describe('MusicPage', () => {
             </MemoryRouter>,
         )
         expect(
-            screen.getByText('Select a server to control music'),
+            screen.getByText('Select a server to control music playback'),
         ).toBeInTheDocument()
     })
 
