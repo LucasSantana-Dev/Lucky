@@ -458,7 +458,9 @@ describe('AutoModPage', () => {
         })
 
         const switches = screen.getAllByRole('switch')
-        expect(switches.every((s) => !s.hasAttribute('checked'))).toBe(true)
+        switches.forEach((switchEl) => {
+            expect(switchEl).not.toBeChecked()
+        })
     })
 
     test('uses default settings when API returns malformed success payload', async () => {
@@ -475,7 +477,62 @@ describe('AutoModPage', () => {
 
         expect(screen.getByText('Spam Detection')).toBeInTheDocument()
         const switches = screen.getAllByRole('switch')
-        expect(switches.every((s) => !s.hasAttribute('checked'))).toBe(true)
+        switches.forEach((switchEl) => {
+            expect(switchEl).not.toBeChecked()
+        })
+    })
+
+    test('normalizes malformed template payloads before rendering', async () => {
+        const { toast } = await import('sonner')
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.automod.listTemplates).mockResolvedValue({
+            data: {
+                templates: [
+                    {
+                        id: 'strict',
+                        name: 'Strict',
+                        description: 'Strict defaults',
+                    },
+                ],
+            },
+        } as any)
+        vi.mocked(api.automod.applyTemplate).mockResolvedValue({
+            data: {
+                settings: {
+                    guildId: '',
+                    allowedDomains: ['safe.example', 42],
+                    bannedWords: ['blocked', null],
+                    exemptChannels: ['123', {}],
+                    exemptRoles: ['456', false],
+                    createdAt: 'not-a-date',
+                    updatedAt: 'not-a-date',
+                },
+            },
+        } as any)
+
+        const user = userEvent.setup()
+        renderPage()
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Apply Strict template',
+            }),
+        )
+
+        await waitFor(() => {
+            expect(toast.success).toHaveBeenCalledWith(
+                'Auto-moderation template applied',
+            )
+        })
+
+        expect(screen.getByText('safe.example')).toBeInTheDocument()
+        expect(screen.getByText('blocked')).toBeInTheDocument()
+        expect(screen.getByText('123')).toBeInTheDocument()
+        expect(screen.getByText('456')).toBeInTheDocument()
+        expect(screen.queryByText('42')).not.toBeInTheDocument()
     })
 
     const setTemplateContext = (template: {
