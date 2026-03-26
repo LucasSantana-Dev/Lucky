@@ -56,27 +56,31 @@ export default function DashboardSidebar({
                 </div>
 
                 <ScrollArea className='flex-1 py-3'>
-                    <nav className='space-y-0.5 px-2'>
-                        {navItems.map((item) => (
-                            <button
-                                key={item.path}
-                                onClick={() => {
-                                    navigate(item.path)
-                                    setSidebarOpen(false)
-                                }}
-                                className={cn(
-                                    'w-full flex items-center gap-2.5 px-2 py-2 rounded-md type-body-sm font-medium transition-colors',
-                                    isActivePath(item.path)
-                                        ? 'bg-lucky-bg-active text-lucky-text-primary'
-                                        : 'text-lucky-text-tertiary hover:text-lucky-text-primary hover:bg-lucky-bg-tertiary',
-                                )}
-                            >
-                                <item.icon className='w-4 h-4' />
-                                <span className='flex-1 text-left'>
-                                    {item.name}
-                                </span>
-                            </button>
-                        ))}
+                    <nav className='space-y-0.5'>
+                        {navItems.map((item) => {
+                            const active = isActivePath(item.path)
+                            return (
+                                <button
+                                    key={item.path}
+                                    onClick={() => {
+                                        navigate(item.path)
+                                        setSidebarOpen(false)
+                                    }}
+                                    aria-current={active ? 'page' : undefined}
+                                    className={cn(
+                                        'w-full flex items-center gap-2.5 px-3 py-2 type-body-sm font-medium transition-colors border-l-2',
+                                        active
+                                            ? 'border-lucky-brand bg-lucky-bg-active text-lucky-text-primary'
+                                            : 'border-transparent text-lucky-text-tertiary hover:text-lucky-text-primary hover:bg-lucky-bg-tertiary',
+                                    )}
+                                >
+                                    <item.icon className='w-4 h-4 shrink-0' />
+                                    <span className='flex-1 text-left'>
+                                        {item.name}
+                                    </span>
+                                </button>
+                            )
+                        })}
                     </nav>
                 </ScrollArea>
 
