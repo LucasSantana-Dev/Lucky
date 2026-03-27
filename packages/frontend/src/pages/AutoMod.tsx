@@ -357,15 +357,27 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
     return typeof value === 'boolean' ? value : fallback
 }
 
-function normalizeNumber(value: unknown, fallback: number): number {
+function normalizeNumber(
+    value: unknown,
+    fallback: number,
+    options?: { min?: number; max?: number; integer?: boolean },
+): number {
+    const toValid = (candidate: number): number => {
+        if (!Number.isFinite(candidate)) return fallback
+        if (options?.integer && !Number.isInteger(candidate)) return fallback
+        if (options?.min !== undefined && candidate < options.min) return fallback
+        if (options?.max !== undefined && candidate > options.max) return fallback
+        return candidate
+    }
+
     if (typeof value === 'number' && Number.isFinite(value)) {
-        return value
+        return toValid(value)
     }
 
     if (typeof value === 'string' && value.trim() !== '') {
         const parsed = Number(value)
         if (Number.isFinite(parsed)) {
-            return parsed
+            return toValid(parsed)
         }
     }
 
@@ -409,10 +421,12 @@ function normalizeAutoModSettings(
         spamThreshold: normalizeNumber(
             settings?.spamThreshold,
             DEFAULT_SETTINGS.spamThreshold,
+            { min: 2, max: 20, integer: true },
         ),
         spamTimeWindow: normalizeNumber(
             settings?.spamTimeWindow,
             DEFAULT_SETTINGS.spamTimeWindow,
+            { min: 1, max: 60, integer: true },
         ),
         capsEnabled: normalizeBoolean(
             settings?.capsEnabled,
@@ -421,6 +435,7 @@ function normalizeAutoModSettings(
         capsThreshold: normalizeNumber(
             settings?.capsThreshold,
             DEFAULT_SETTINGS.capsThreshold,
+            { min: 50, max: 100, integer: true },
         ),
         linksEnabled: normalizeBoolean(
             settings?.linksEnabled,

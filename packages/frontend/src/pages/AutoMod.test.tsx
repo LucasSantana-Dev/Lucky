@@ -531,6 +531,29 @@ describe('AutoModPage', () => {
         expect(screen.getAllByText('789')).toHaveLength(2)
     })
 
+    test('falls back for out-of-range numeric values from API payload', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: {
+                settings: {
+                    ...mockSettings,
+                    spamThreshold: '-1',
+                    spamTimeWindow: '999',
+                    capsThreshold: '49',
+                },
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
+        })
+
+        expect(screen.getByDisplayValue(5)).toBeInTheDocument()
+        expect(screen.getByDisplayValue(70)).toBeInTheDocument()
+    })
+
     const setTemplateContext = (template: {
         id: string
         name: string
