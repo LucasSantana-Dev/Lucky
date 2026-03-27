@@ -84,14 +84,16 @@ describe('ServersPage', () => {
         expect(screen.getByText('Settings')).toBeInTheDocument()
     })
 
-    test('shows server count', () => {
+    test('shows server count summary', () => {
         mockStores()
         render(
             <MemoryRouter>
                 <ServersPage />
             </MemoryRouter>,
         )
-        expect(screen.getByText(/2 servers/)).toBeInTheDocument()
+        expect(
+            screen.getByText('2 servers — 0 with Lucky installed'),
+        ).toBeInTheDocument()
     })
 
     test('renders server grid', () => {

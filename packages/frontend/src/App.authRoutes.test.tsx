@@ -295,4 +295,28 @@ describe('App authenticated routing', () => {
             screen.queryByText('Guild Automation Page'),
         ).not.toBeInTheDocument()
     })
+
+    test('renders /guild-automation when user has settings manage access', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: {
+                    ...NONE_ACCESS,
+                    overview: 'manage',
+                    settings: 'manage',
+                },
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/guild-automation')
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Guild Automation Page',
+            }),
+        ).toBeInTheDocument()
+    })
 })

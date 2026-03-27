@@ -49,7 +49,11 @@ describe('Layout', () => {
                 'Operational overview and key status signals for your server.',
             ),
         ).toBeInTheDocument()
-        expect(screen.getByText('Active server')).toBeInTheDocument()
+        expect(
+            screen.getByRole('button', {
+                name: 'Active server: Test Server. Click to switch.',
+            }),
+        ).toBeInTheDocument()
         expect(screen.getByText('Test Server')).toBeInTheDocument()
     })
 
@@ -88,6 +92,8 @@ describe('Layout', () => {
                 'Configure modules, moderation, and engagement workflows.',
             ),
         ).toBeInTheDocument()
-        expect(screen.queryByText('Active server')).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole('button', { name: /active server:/i }),
+        ).not.toBeInTheDocument()
     })
 })

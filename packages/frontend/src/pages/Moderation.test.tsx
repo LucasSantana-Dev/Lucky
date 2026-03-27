@@ -263,7 +263,7 @@ describe('ModerationPage', () => {
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByText('Showing 1-15 of 30')).toBeInTheDocument()
+            expect(screen.getByText(/Showing 1.*15 of 30/)).toBeInTheDocument()
         })
 
         expect(screen.getByText('1 / 2')).toBeInTheDocument()
