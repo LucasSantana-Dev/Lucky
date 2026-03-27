@@ -537,6 +537,7 @@ describe('AutoModPage', () => {
             data: {
                 settings: {
                     ...mockSettings,
+                    capsEnabled: true,
                     spamThreshold: '-1',
                     spamTimeWindow: '999',
                     capsThreshold: '49',
