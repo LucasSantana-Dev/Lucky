@@ -349,6 +349,44 @@ function normalizeStringArray(value: unknown): string[] {
     return value.filter((item): item is string => typeof item === 'string')
 }
 
+function normalizeString(value: unknown, fallback: string): string {
+    return typeof value === 'string' ? value : fallback
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+    return typeof value === 'boolean' ? value : fallback
+}
+
+function normalizeNumber(value: unknown, fallback: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value
+    }
+
+    if (typeof value === 'string' && value.trim() !== '') {
+        const parsed = Number(value)
+        if (Number.isFinite(parsed)) {
+            return parsed
+        }
+    }
+
+    return fallback
+}
+
+function normalizeDate(value: unknown, fallback: Date): Date {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return value
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+        const parsed = new Date(value)
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed
+        }
+    }
+
+    return fallback
+}
+
 function normalizeAutoModSettings(
     value: unknown,
     guildId: string,
@@ -361,19 +399,53 @@ function normalizeAutoModSettings(
     return {
         ...DEFAULT_SETTINGS,
         ...settings,
-        guildId: settings?.guildId || guildId,
+        id: normalizeString(settings?.id, DEFAULT_SETTINGS.id),
+        guildId: normalizeString(settings?.guildId, guildId) || guildId,
+        enabled: normalizeBoolean(settings?.enabled, DEFAULT_SETTINGS.enabled),
+        spamEnabled: normalizeBoolean(
+            settings?.spamEnabled,
+            DEFAULT_SETTINGS.spamEnabled,
+        ),
+        spamThreshold: normalizeNumber(
+            settings?.spamThreshold,
+            DEFAULT_SETTINGS.spamThreshold,
+        ),
+        spamTimeWindow: normalizeNumber(
+            settings?.spamTimeWindow,
+            DEFAULT_SETTINGS.spamTimeWindow,
+        ),
+        capsEnabled: normalizeBoolean(
+            settings?.capsEnabled,
+            DEFAULT_SETTINGS.capsEnabled,
+        ),
+        capsThreshold: normalizeNumber(
+            settings?.capsThreshold,
+            DEFAULT_SETTINGS.capsThreshold,
+        ),
+        linksEnabled: normalizeBoolean(
+            settings?.linksEnabled,
+            DEFAULT_SETTINGS.linksEnabled,
+        ),
         allowedDomains: normalizeStringArray(settings?.allowedDomains),
+        invitesEnabled: normalizeBoolean(
+            settings?.invitesEnabled,
+            DEFAULT_SETTINGS.invitesEnabled,
+        ),
+        wordsEnabled: normalizeBoolean(
+            settings?.wordsEnabled,
+            DEFAULT_SETTINGS.wordsEnabled,
+        ),
         bannedWords: normalizeStringArray(settings?.bannedWords),
         exemptChannels: normalizeStringArray(settings?.exemptChannels),
         exemptRoles: normalizeStringArray(settings?.exemptRoles),
-        createdAt:
-            settings?.createdAt instanceof Date
-                ? settings.createdAt
-                : DEFAULT_SETTINGS.createdAt,
-        updatedAt:
-            settings?.updatedAt instanceof Date
-                ? settings.updatedAt
-                : DEFAULT_SETTINGS.updatedAt,
+        createdAt: normalizeDate(
+            settings?.createdAt,
+            DEFAULT_SETTINGS.createdAt,
+        ),
+        updatedAt: normalizeDate(
+            settings?.updatedAt,
+            DEFAULT_SETTINGS.updatedAt,
+        ),
     }
 }
 
