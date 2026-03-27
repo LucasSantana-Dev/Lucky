@@ -461,7 +461,9 @@ describe('AutoModPage', () => {
         })
 
         const switches = screen.getAllByRole('switch')
-        expect(switches.every((s) => !s.hasAttribute('checked'))).toBe(true)
+        switches.forEach((switchElement) => {
+            expect(switchElement).not.toBeChecked()
+        })
     })
 
     test('uses default settings when API returns malformed success payload', async () => {
@@ -478,7 +480,79 @@ describe('AutoModPage', () => {
 
         expect(screen.getByText('Spam Detection')).toBeInTheDocument()
         const switches = screen.getAllByRole('switch')
-        expect(switches.every((s) => !s.hasAttribute('checked'))).toBe(true)
+        switches.forEach((switchElement) => {
+            expect(switchElement).not.toBeChecked()
+        })
+    })
+
+    test('normalizes malformed scalar and date values from API payload', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: {
+                settings: {
+                    ...mockSettings,
+                    spamEnabled: true,
+                    spamThreshold: 'bad',
+                    spamTimeWindow: '10',
+                    capsEnabled: 'nope',
+                    capsThreshold: '85',
+                    linksEnabled: true,
+                    allowedDomains: ['safe.example', 42],
+                    invitesEnabled: 'nope',
+                    wordsEnabled: true,
+                    bannedWords: ['blocked', 42],
+                    exemptChannels: ['123', 456],
+                    exemptRoles: ['789', null],
+                    createdAt: '2026-01-02T03:04:05.000Z',
+                    updatedAt: 'invalid-date',
+                },
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
+        })
+
+        const switches = screen.getAllByRole('switch')
+        expect(switches[0]).toBeChecked()
+        expect(switches[1]).not.toBeChecked()
+        expect(switches[2]).toBeChecked()
+        expect(switches[3]).not.toBeChecked()
+        expect(switches[4]).toBeChecked()
+
+        expect(screen.getByDisplayValue(5)).toBeInTheDocument()
+        expect(screen.getByDisplayValue(10)).toBeInTheDocument()
+        expect(screen.getByText('safe.example')).toBeInTheDocument()
+        expect(screen.queryByText('42')).not.toBeInTheDocument()
+        expect(screen.getByText('blocked')).toBeInTheDocument()
+        expect(screen.getAllByText('123')).toHaveLength(2)
+        expect(screen.getAllByText('789')).toHaveLength(2)
+    })
+
+    test('falls back for out-of-range numeric values from API payload', async () => {
+        mockGuildStore(mockGuild)
+        vi.mocked(api.automod.getSettings).mockResolvedValue({
+            data: {
+                settings: {
+                    ...mockSettings,
+                    capsEnabled: true,
+                    spamThreshold: '-1',
+                    spamTimeWindow: '999',
+                    capsThreshold: '49',
+                },
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
+        })
+
+        expect(screen.getAllByDisplayValue('5')).toHaveLength(2)
+        expect(screen.getByDisplayValue('70')).toBeInTheDocument()
     })
 
     const setTemplateContext = (template: {
