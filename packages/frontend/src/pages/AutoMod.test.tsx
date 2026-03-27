@@ -550,8 +550,8 @@ describe('AutoModPage', () => {
             expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
         })
 
-        expect(screen.getByDisplayValue(5)).toBeInTheDocument()
-        expect(screen.getByDisplayValue(70)).toBeInTheDocument()
+        expect(screen.getAllByDisplayValue('5')).toHaveLength(2)
+        expect(screen.getByDisplayValue('70')).toBeInTheDocument()
     })
 
     const setTemplateContext = (template: {
