@@ -528,7 +528,7 @@ describe('AutoModPage', () => {
         expect(screen.queryByText('42')).not.toBeInTheDocument()
         expect(screen.getByText('blocked')).toBeInTheDocument()
         expect(screen.getAllByText('123')).toHaveLength(2)
-        expect(screen.getByText('789')).toBeInTheDocument()
+        expect(screen.getAllByText('789')).toHaveLength(2)
     })
 
     const setTemplateContext = (template: {
