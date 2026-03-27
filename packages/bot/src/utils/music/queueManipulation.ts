@@ -14,7 +14,6 @@ const HISTORY_SEED_LIMIT = 3
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
-const MAX_LIKED_TRACK_SHARE = 0.5
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
     process.env.QUEUE_RESCUE_PROBE_TIMEOUT_MS ?? '5000',
     10,
@@ -28,7 +27,6 @@ type ScoredTrack = {
     track: Track
     score: number
     reason: string
-    isLiked: boolean
 }
 
 export type QueueRescueResult = {
@@ -401,7 +399,7 @@ function shouldIncludeCandidate(
 function upsertScoredCandidate(
     candidates: Map<string, ScoredTrack>,
     candidate: Track,
-    recommendation: { score: number; reason: string; isLiked: boolean },
+    recommendation: { score: number; reason: string },
 ): void {
     const candidateKey = getTrackKey(candidate)
     const existing = candidates.get(candidateKey)
@@ -411,7 +409,6 @@ function upsertScoredCandidate(
             track: candidate,
             score: recommendation.score,
             reason: recommendation.reason,
-            isLiked: recommendation.isLiked,
         })
     }
 }
@@ -421,7 +418,6 @@ function selectDiverseCandidates(
     missingTracks: number,
     maxPerArtist = MAX_TRACKS_PER_ARTIST,
     maxPerSource = MAX_TRACKS_PER_SOURCE,
-    maxLikedShare = MAX_LIKED_TRACK_SHARE,
 ): ScoredTrack[] {
     const sortedCandidates = Array.from(candidates.values()).sort(
         (a, b) => b.score - a.score,
@@ -429,53 +425,17 @@ function selectDiverseCandidates(
     const selected: ScoredTrack[] = []
     const artistCount = new Map<string, number>()
     const sourceCount = new Map<string, number>()
-    const selectedKeys = new Set<string>()
-    const likedCap = Math.max(1, Math.ceil(missingTracks * maxLikedShare))
-    let likedSelected = 0
 
-    const canAddCandidate = (candidate: ScoredTrack): boolean => {
+    for (const candidate of sortedCandidates) {
         const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
 
-        if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) return false
-        if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) return false
-
-        return true
-    }
-
-    const addCandidate = (candidate: ScoredTrack): void => {
-        const artistKey = candidate.track.author.toLowerCase()
-        const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
+        if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) continue
+        if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) continue
 
         selected.push(candidate)
-        selectedKeys.add(getTrackKey(candidate.track))
         artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1)
         sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
-
-        if (candidate.isLiked) {
-            likedSelected++
-        }
-    }
-
-    for (const candidate of sortedCandidates) {
-        if (!canAddCandidate(candidate)) continue
-        if (candidate.isLiked && likedSelected >= likedCap) continue
-
-        addCandidate(candidate)
-        if (selected.length >= missingTracks) {
-            break
-        }
-    }
-
-    if (selected.length >= missingTracks) {
-        return selected
-    }
-
-    for (const candidate of sortedCandidates) {
-        if (selectedKeys.has(getTrackKey(candidate.track))) continue
-        if (!canAddCandidate(candidate)) continue
-
-        addCandidate(candidate)
         if (selected.length >= missingTracks) {
             break
         }
@@ -624,8 +584,7 @@ function isDuplicateCandidate(
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
 ): boolean {
-    if (!track.url) return true
-    if (excludedUrls.has(track.url)) return true
+    if (track.url && excludedUrls.has(track.url)) return true
 
     const key = normalizeTrackKey(track.title, track.author)
     return excludedKeys.has(key)
@@ -636,18 +595,16 @@ function calculateRecommendationScore(
     currentTrack: Track,
     recentArtists: Set<string>,
     likedTrackKeys: Set<string> = new Set(),
-): { score: number; reason: string; isLiked: boolean } {
+): { score: number; reason: string } {
     let score = 1
     const reasons: string[] = []
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
-    let isLiked = false
 
     const candidateKey = normalizeTrackKey(candidate.title, candidate.author)
     if (likedTrackKeys.has(candidateKey)) {
         score += 0.3
         reasons.push('liked track')
-        isLiked = true
     }
 
     if (candidateArtist === currentArtist) {
@@ -657,8 +614,6 @@ function calculateRecommendationScore(
     }
     if (recentArtists.has(candidateArtist)) {
         score -= 0.25
-    } else {
-        reasons.push('new in session')
     }
     if (candidate.source === currentTrack.source) {
         score -= 0.15
@@ -673,28 +628,12 @@ function calculateRecommendationScore(
     if (tokenScore > 0) {
         reasons.push('similar title mood')
     }
-    const durationScore = getDurationSimilarityScore(candidate, currentTrack)
-    score += durationScore
-    if (durationScore > 0) {
-        reasons.push('similar track length')
-    }
 
     return {
         score,
         reason:
             reasons.length > 0 ? reasons.join(' • ') : 'balanced autoplay pick',
-        isLiked,
     }
-}
-
-function getDurationSimilarityScore(candidate: Track, currentTrack: Track): number {
-    if (typeof candidate.durationMS !== 'number') return 0
-    if (typeof currentTrack.durationMS !== 'number') return 0
-
-    const difference = Math.abs(candidate.durationMS - currentTrack.durationMS)
-    if (difference > 30_000) return 0
-
-    return 0.08
 }
 
 function sharedTitleTokenScore(titleA: string, titleB: string): number {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Tv, Plus, Trash2, Hash } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import {
     Select,
     SelectContent,
@@ -19,7 +20,15 @@ interface TwitchNotification {
     discordChannelId: string
 }
 
-const TWITCH_LOADING_SKELETON_KEYS = ['tw-loading-1', 'tw-loading-2', 'tw-loading-3']
+const TWITCH_LOADING_SKELETON_KEYS = [
+    'tw-loading-1',
+    'tw-loading-2',
+    'tw-loading-3',
+]
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof ApiError ? error.message : fallback
+}
 
 export default function TwitchNotificationsPage() {
     const { selectedGuild } = useGuildSelection()
@@ -180,8 +189,8 @@ export default function TwitchNotificationsPage() {
             if (selectedGuildIdRef.current === requestGuildId) {
                 await loadNotifications(requestGuildId)
             }
-        } catch {
-            setError('Failed to add notification')
+        } catch (error) {
+            setError(getErrorMessage(error, 'Failed to add notification'))
         }
     }
 
@@ -192,8 +201,8 @@ export default function TwitchNotificationsPage() {
             setNotifications((prev) =>
                 prev.filter((n) => n.twitchUserId !== twitchUserId),
             )
-        } catch {
-            setError('Failed to remove notification')
+        } catch (error) {
+            setError(getErrorMessage(error, 'Failed to remove notification'))
         }
     }
 
@@ -268,7 +277,7 @@ export default function TwitchNotificationsPage() {
             <header className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
                     <Tv className='h-6 w-6 text-purple-500' />
-                    <h1 className='type-h2 text-lucky-text-primary'>
+                    <h1 className='text-xl font-bold text-white'>
                         Twitch Notifications
                     </h1>
                     <span className='text-sm text-lucky-text-tertiary'>
@@ -292,14 +301,11 @@ export default function TwitchNotificationsPage() {
 
             {showAdd && (
                 <div className='p-4 rounded-lg bg-lucky-bg-tertiary border border-lucky-border space-y-3'>
-                    <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                    <h3 className='text-sm font-semibold text-white'>
                         Add Twitch Notification
                     </h3>
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
-                        <label
-                            htmlFor='twitch-login-input'
-                            className='sr-only'
-                        >
+                        <label htmlFor='twitch-login-input' className='sr-only'>
                             Twitch URL or login
                         </label>
                         <input

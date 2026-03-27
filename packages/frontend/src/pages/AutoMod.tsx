@@ -35,7 +35,12 @@ import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
 import { cn } from '@/lib/utils'
-import type { AutoModSettings, AutoModTemplate, GuildChannelOption, GuildRoleOption } from '@/types'
+import type {
+    AutoModSettings,
+    AutoModTemplate,
+    GuildChannelOption,
+    GuildRoleOption,
+} from '@/types'
 
 interface FilterCardProps {
     title: string
@@ -71,7 +76,7 @@ function FilterCard({
                         <Icon className='w-4 h-4 text-white' />
                     </div>
                     <div>
-                        <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                        <h3 className='text-sm font-semibold text-white'>
                             {title}
                         </h3>
                         <p className='text-xs text-lucky-text-tertiary mt-0.5'>
@@ -339,6 +344,39 @@ const DEFAULT_SETTINGS: AutoModSettings = {
     updatedAt: new Date(),
 }
 
+function normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return []
+    return value.filter((item): item is string => typeof item === 'string')
+}
+
+function normalizeAutoModSettings(
+    value: unknown,
+    guildId: string,
+): AutoModSettings {
+    const settings =
+        value && typeof value === 'object'
+            ? (value as Partial<AutoModSettings>)
+            : undefined
+
+    return {
+        ...DEFAULT_SETTINGS,
+        ...settings,
+        guildId: settings?.guildId || guildId,
+        allowedDomains: normalizeStringArray(settings?.allowedDomains),
+        bannedWords: normalizeStringArray(settings?.bannedWords),
+        exemptChannels: normalizeStringArray(settings?.exemptChannels),
+        exemptRoles: normalizeStringArray(settings?.exemptRoles),
+        createdAt:
+            settings?.createdAt instanceof Date
+                ? settings.createdAt
+                : DEFAULT_SETTINGS.createdAt,
+        updatedAt:
+            settings?.updatedAt instanceof Date
+                ? settings.updatedAt
+                : DEFAULT_SETTINGS.updatedAt,
+    }
+}
+
 export default function AutoModPage() {
     const { selectedGuild } = useGuildStore()
     const [settings, setSettings] = useState<AutoModSettings>(DEFAULT_SETTINGS)
@@ -346,9 +384,9 @@ export default function AutoModPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [templatesLoading, setTemplatesLoading] = useState(false)
-    const [applyingTemplateId, setApplyingTemplateId] = useState<
-        string | null
-    >(null)
+    const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(
+        null,
+    )
     const [channels, setChannels] = useState<GuildChannelOption[]>([])
     const [roles, setRoles] = useState<GuildRoleOption[]>([])
 
@@ -357,9 +395,18 @@ export default function AutoModPage() {
         setLoading(true)
         api.automod
             .getSettings(selectedGuild.id)
-            .then((res) => setSettings(res.data.settings))
+            .then((res) =>
+                setSettings(
+                    normalizeAutoModSettings(
+                        res.data?.settings,
+                        selectedGuild.id,
+                    ),
+                ),
+            )
             .catch(() =>
-                setSettings({ ...DEFAULT_SETTINGS, guildId: selectedGuild.id }),
+                setSettings(
+                    normalizeAutoModSettings(undefined, selectedGuild.id),
+                ),
             )
             .finally(() => setLoading(false))
     }, [selectedGuild?.id])
@@ -421,7 +468,12 @@ export default function AutoModPage() {
                 selectedGuild.id,
                 templateId,
             )
-            setSettings(response.data.settings)
+            setSettings(
+                normalizeAutoModSettings(
+                    response.data?.settings,
+                    selectedGuild.id,
+                ),
+            )
             toast.success('Auto-moderation template applied')
         } catch (error) {
             if (error instanceof ApiError) {
@@ -454,7 +506,7 @@ export default function AutoModPage() {
                         key={template.id}
                         className='rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-4'
                     >
-                        <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                        <h3 className='text-sm font-semibold text-white'>
                             {template.name}
                         </h3>
                         <p className='mt-1 text-xs text-lucky-text-secondary'>
@@ -489,7 +541,7 @@ export default function AutoModPage() {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <ShieldAlert className='w-16 h-16 text-lucky-text-tertiary mb-4' />
-                <h2 className='type-h2 text-lucky-text-primary mb-2'>
+                <h2 className='text-xl font-semibold text-white mb-2'>
                     No Server Selected
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
@@ -519,7 +571,7 @@ export default function AutoModPage() {
         <div className='space-y-6'>
             <div className='flex items-start justify-between'>
                 <header>
-                    <h1 className='type-h1 text-lucky-text-primary'>
+                    <h1 className='text-2xl font-bold text-white'>
                         Auto-Moderation
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
@@ -551,7 +603,7 @@ export default function AutoModPage() {
                     <Card className='p-5 space-y-4'>
                         <div className='flex items-center gap-2'>
                             <Sparkles className='w-5 h-5 text-lucky-warning' />
-                            <h2 className='type-title text-lucky-text-primary'>
+                            <h2 className='text-base font-semibold text-white'>
                                 Templates
                             </h2>
                         </div>
@@ -726,7 +778,7 @@ export default function AutoModPage() {
                 <Card className='p-5'>
                     <div className='flex items-center gap-2 mb-4'>
                         <CheckCircle2 className='w-5 h-5 text-lucky-success' />
-                        <h2 className='type-title text-lucky-text-primary'>
+                        <h2 className='text-base font-semibold text-white'>
                             Exemptions
                         </h2>
                     </div>
