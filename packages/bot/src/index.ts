@@ -37,6 +37,10 @@ main().catch(async (error: unknown) => {
         errorLog({ message: 'Error message:', data: error.message })
         errorLog({ message: 'Error stack:', data: error.stack })
     }
-    await flushSentry(3000)
-    process.exit(1)
+
+    try {
+        await flushSentry(3000)
+    } finally {
+        process.exit(1)
+    }
 })

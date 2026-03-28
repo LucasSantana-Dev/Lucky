@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     console.log(`Sentry test event queued successfully at ${timestamp}.`)
 }
 
-void main().catch((error: unknown) => {
+await main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
     console.error(`Sentry test failed: ${message}`)
     process.exit(1)

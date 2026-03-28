@@ -85,6 +85,7 @@ describe('sentry monitoring', () => {
     it('sanitizes sensitive extras before capturing exceptions and messages', () => {
         captureException(new Error('boom'), {
             token: 'secret-token',
+            secret: 'secret-value',
             correlationId: 'abc',
         })
         captureMessage('hello', 'info', {
@@ -105,4 +106,4 @@ describe('sentry monitoring', () => {
         await expect(flushSentry(1234)).resolves.toBe(true)
         expect(flushMock).toHaveBeenCalledWith(1234)
     })
-})
+}

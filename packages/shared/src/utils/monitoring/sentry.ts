@@ -64,6 +64,48 @@ function resolveSampleRate(
     return fallbackValue
 }
 
+function getSentryEnvironment(options: InitializeSentryOptions): string {
+    return (
+        options.environment ??
+        process.env.SENTRY_ENVIRONMENT ??
+        process.env.NODE_ENV ??
+        'development'
+    )
+}
+
+function getSentryMetadata(options: InitializeSentryOptions): {
+    appName: string | undefined
+    serviceName: string | undefined
+    release: string | undefined
+    serverName: string | undefined
+} {
+    return {
+        appName: options.appName ?? process.env.SENTRY_APP_NAME,
+        serviceName: options.serviceName ?? process.env.SENTRY_SERVICE_NAME,
+        release: options.release ?? process.env.SENTRY_RELEASE,
+        serverName:
+            options.serverName ??
+            process.env.SENTRY_SERVER_NAME ??
+            process.env.HOSTNAME,
+    }
+}
+
+function getSentryTags(
+    options: InitializeSentryOptions,
+    appName: string | undefined,
+    serviceName: string | undefined,
+): Record<string, string> {
+    return {
+        ...(appName ? { app: appName } : {}),
+        ...(serviceName ? { service: serviceName } : {}),
+        ...options.tags,
+    }
+}
+
+function logSentrySkip(message: string): void {
+    infoLog({ message })
+}
+
 /**
  * Capture an exception in Sentry
  * @param error The error to capture
@@ -107,17 +149,13 @@ export function captureMessage(
 export function initializeSentry(options: InitializeSentryOptions = {}): void {
     if (!process.env.SENTRY_DSN) {
         if (process.env.NODE_ENV === 'production') {
-            infoLog({
-                message: 'Sentry DSN not configured, skipping initialization',
-            })
+            logSentrySkip('Sentry DSN not configured, skipping initialization')
         }
         return
     }
 
     if (process.env.SENTRY_ENABLED === 'false') {
-        infoLog({
-            message: 'Sentry explicitly disabled, skipping initialization',
-        })
+        logSentrySkip('Sentry explicitly disabled, skipping initialization')
         return
     }
 
@@ -125,11 +163,7 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         return
     }
 
-    const environment =
-        options.environment ??
-        process.env.SENTRY_ENVIRONMENT ??
-        process.env.NODE_ENV ??
-        'development'
+    const environment = getSentryEnvironment(options)
     const tracesSampleRate = resolveSampleRate(
         options.tracesSampleRate,
         process.env.SENTRY_TRACES_SAMPLE_RATE,
@@ -140,13 +174,8 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         process.env.SENTRY_PROFILES_SAMPLE_RATE,
         environment === 'production' ? 0.1 : 1.0,
     )
-    const appName = options.appName ?? process.env.SENTRY_APP_NAME
-    const serviceName = options.serviceName ?? process.env.SENTRY_SERVICE_NAME
-    const release = options.release ?? process.env.SENTRY_RELEASE
-    const serverName =
-        options.serverName ??
-        process.env.SENTRY_SERVER_NAME ??
-        process.env.HOSTNAME
+    const { appName, serviceName, release, serverName } =
+        getSentryMetadata(options)
 
     Sentry.init({
         dsn: process.env.SENTRY_DSN,
@@ -157,11 +186,7 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         profilesSampleRate,
         integrations: [],
         initialScope: {
-            tags: {
-                ...(appName ? { app: appName } : {}),
-                ...(serviceName ? { service: serviceName } : {}),
-                ...options.tags,
-            },
+            tags: getSentryTags(options, appName, serviceName),
         },
         beforeSend(event) {
             event.extra = getSanitizedExtra(event.extra)

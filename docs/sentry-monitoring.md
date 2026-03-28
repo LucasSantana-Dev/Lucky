@@ -20,7 +20,7 @@ Optional environment variables:
 Docker and host wiring:
 
 - `docker-compose.yml` forwards the supported `SENTRY_*` variables into the production `bot` and `backend` containers.
-- `docker-compose.dev.yml` forwards the same variables for local parity, but Sentry still stays off in normal development runs unless you deliberately use a non-development environment.
+- `docker-compose.dev.yml` forwards the same variables for local parity, but now defaults `SENTRY_ENABLED=false` so local runs do not imply Sentry is active.
 - On the homelab host, add the variables to `/home/luk-server/Lucky/.env` alongside the other compose secrets before restarting the bot.
 
 Example:
@@ -38,6 +38,7 @@ SENTRY_SERVICE_NAME=bot
 Behavior:
 
 - **Development**: no events are sent
+- `isSentryEnabled()` short-circuits when `NODE_ENV === 'development'`, so simply forwarding `SENTRY_*` variables into the dev compose stack does not enable local event delivery by itself
 - **Production/staging**: errors, breadcrumbs, and configured performance telemetry are sent when `SENTRY_DSN` is configured
 - **Fatal shutdowns**: Lucky now flushes pending Sentry events before process exit on startup failures and shared fatal error handlers
 
