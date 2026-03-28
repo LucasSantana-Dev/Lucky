@@ -57,7 +57,7 @@ jobs:
               run: npm run test --workspace=packages/frontend
 
             - name: Upload coverage reports
-              uses: codecov/codecov-action@v5
+              uses: codecov/codecov-action@v6
               with:
                   files: |
                       packages/backend/coverage/lcov.info
