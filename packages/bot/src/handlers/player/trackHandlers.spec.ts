@@ -18,6 +18,9 @@ const resetAutoplayCountMock = jest.fn()
 const watchdogArmMock = jest.fn()
 const watchdogClearMock = jest.fn()
 const saveSnapshotMock = jest.fn()
+const clearStatusMock = jest.fn()
+const setNowPlayingPresenceMock = jest.fn()
+const clearMusicPresenceMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -68,6 +71,16 @@ jest.mock('../../utils/music/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
     },
+}))
+
+jest.mock('../../services/VoiceChannelStatusService', () => ({
+    clearStatus: (...args: unknown[]) => clearStatusMock(...args),
+    setTrackStatus: jest.fn(),
+}))
+
+jest.mock('../../services/MusicPresenceService', () => ({
+    setNowPlaying: (...args: unknown[]) => setNowPlayingPresenceMock(...args),
+    clearMusicPresence: (...args: unknown[]) => clearMusicPresenceMock(...args),
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -230,6 +243,43 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
         expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('keeps running after now-playing updates fail and logs the error', async () => {
+        sendNowPlayingEmbedMock.mockRejectedValue(new Error('send failed'))
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-5')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error sending now playing message:',
+            }),
+        )
+        expect(saveSnapshotMock).toHaveBeenCalledWith(autoplayQueue)
+        expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
+    })
+
+    it('clears voice status, presence, and watchdog when playerFinish empties the queue', async () => {
+        const handlers = setupHandlers()
+        const playerFinish = handlers.playerFinish
+        const finishedTrack = createTrack('listener-6')
+        const queue = {
+            ...createQueue(QueueRepeatMode.OFF),
+            currentTrack: null,
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        await playerFinish(queue, finishedTrack)
+
+        expect(clearStatusMock).toHaveBeenCalledWith(queue)
+        expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogArmMock).not.toHaveBeenCalled()
     })
 
     it('does not replenish on playerSkip when autoplay feature is disabled', async () => {
