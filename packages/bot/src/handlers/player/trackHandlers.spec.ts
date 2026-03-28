@@ -1,6 +1,10 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { type GuildQueue, type Track } from 'discord-player'
-import { setupTrackHandlers } from './trackHandlers'
+import {
+    lastPlayedTracks,
+    recentlyPlayedTracks,
+    setupTrackHandlers,
+} from './trackHandlers'
 
 const QueueRepeatMode = {
     OFF: 0,
@@ -161,6 +165,8 @@ function setupHandlers(
 describe('trackHandlers autoplay replenishment', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        lastPlayedTracks.clear()
+        recentlyPlayedTracks.clear()
         featureEnabledMock.mockResolvedValue(true)
         replenishQueueMock.mockResolvedValue(undefined)
         addTrackToHistoryMock.mockResolvedValue(undefined)
@@ -406,5 +412,46 @@ describe('trackHandlers autoplay replenishment', () => {
                 message: 'Error in playerSkip event:',
             }),
         )
+    })
+
+    it('evicts old track entries when playerStart runs beyond the per-guild cap', async () => {
+        for (let index = 0; index < 501; index += 1) {
+            lastPlayedTracks.set(
+                `guild-${index}`,
+                createTrack(`listener-${index}`),
+            )
+        }
+        recentlyPlayedTracks.set(
+            'guild-1',
+            Array.from({ length: 501 }, (_, index) => ({
+                url: `https://example.com/${index}`,
+                title: `Song ${index}`,
+                author: 'Artist',
+                timestamp: index,
+            })),
+        )
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+
+        await playerStart(queue, createTrack('listener-overflow'))
+
+        expect(lastPlayedTracks.size).toBe(500)
+        expect(lastPlayedTracks.has('guild-0')).toBe(false)
+        expect(recentlyPlayedTracks.get('guild-1')).toHaveLength(500)
+    })
+
+    it('logs the first added track when audio tracks are appended to the queue', async () => {
+        const handlers = setupHandlers()
+        const audioTracksAdd = handlers.audioTracksAdd
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const addedTrack = createTrack('listener-13')
+
+        await audioTracksAdd(queue, [addedTrack])
+
+        expect(infoLogMock).toHaveBeenCalledWith({
+            message: 'Added "Test Song" to queue in Guild One',
+        })
     })
 })
