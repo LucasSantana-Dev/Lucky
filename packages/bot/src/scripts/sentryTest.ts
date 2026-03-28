@@ -5,7 +5,7 @@ import {
     isSentryEnabled,
 } from '@lucky/shared/utils'
 
-async function main(): Promise<void> {
+export async function runSentryTest(): Promise<void> {
     initializeSentry({
         appName: process.env.SENTRY_APP_NAME ?? 'lucky',
         serviceName: process.env.SENTRY_SERVICE_NAME ?? 'bot',
@@ -43,8 +43,8 @@ async function main(): Promise<void> {
     console.log(`Sentry test event queued successfully at ${timestamp}.`)
 }
 
-await main().catch((error: unknown) => {
+export function handleSentryTestFailure(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error)
     console.error(`Sentry test failed: ${message}`)
     process.exit(1)
-})
+}
