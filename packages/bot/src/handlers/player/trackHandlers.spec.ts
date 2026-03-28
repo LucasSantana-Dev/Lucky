@@ -170,6 +170,10 @@ describe('trackHandlers autoplay replenishment', () => {
         saveSnapshotMock.mockResolvedValue(undefined)
     })
 
+    afterEach(() => {
+        jest.useRealTimers()
+    })
+
     it('replenishes queue on playerStart only when repeat mode is autoplay', async () => {
         const handlers = setupHandlers()
         const playerStart = handlers.playerStart
@@ -264,6 +268,49 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
     })
 
+    it('retries queue replenishment after a playerStart failure', async () => {
+        jest.useFakeTimers()
+        replenishQueueMock.mockRejectedValueOnce(new Error('replenish failed'))
+        replenishQueueMock.mockResolvedValueOnce(undefined)
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-7')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Replenish failed, retrying in 5s',
+            }),
+        )
+
+        jest.advanceTimersByTime(5000)
+        await Promise.resolve()
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(2)
+        expect(saveSnapshotMock).toHaveBeenCalledWith(autoplayQueue)
+        expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
+    })
+
+    it('logs and exits gracefully when playerStart fails before now-playing updates', async () => {
+        saveSnapshotMock.mockRejectedValue(new Error('snapshot failed'))
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-8')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in player start handler:',
+            }),
+        )
+    })
+
     it('clears voice status, presence, and watchdog when playerFinish empties the queue', async () => {
         const handlers = setupHandlers()
         const playerFinish = handlers.playerFinish
@@ -280,6 +327,23 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
         expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
         expect(watchdogArmMock).not.toHaveBeenCalled()
+    })
+
+    it('logs errors from playerFinish without crashing', async () => {
+        scrobbleCurrentTrackIfLastFmMock.mockRejectedValue(new Error('boom'))
+
+        const handlers = setupHandlers()
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const finishedTrack = createTrack('listener-10')
+
+        await playerFinish(queue, finishedTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in playerFinish event:',
+            }),
+        )
     })
 
     it('does not replenish on playerSkip when autoplay feature is disabled', async () => {
@@ -307,5 +371,40 @@ describe('trackHandlers autoplay replenishment', () => {
         })
         expect(replenishQueueMock).not.toHaveBeenCalled()
         expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('clears voice status, presence, and watchdog when playerSkip empties the queue', async () => {
+        const handlers = setupHandlers()
+        const playerSkip = handlers.playerSkip
+        const skippedTrack = createTrack('listener-11')
+        const queue = {
+            ...createQueue(QueueRepeatMode.OFF),
+            currentTrack: null,
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        await playerSkip(queue, skippedTrack)
+
+        expect(clearStatusMock).toHaveBeenCalledWith(queue)
+        expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogArmMock).not.toHaveBeenCalled()
+    })
+
+    it('logs errors from playerSkip without crashing', async () => {
+        scrobbleCurrentTrackIfLastFmMock.mockRejectedValue(new Error('boom'))
+
+        const handlers = setupHandlers()
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const skippedTrack = createTrack('listener-12')
+
+        await playerSkip(queue, skippedTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in playerSkip event:',
+            }),
+        )
     })
 })
