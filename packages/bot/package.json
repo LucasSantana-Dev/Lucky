@@ -18,7 +18,7 @@
         "@discordjs/builders": "^1.14.0",
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
-        "@sentry/node": "^10.45.0",
+        "@sentry/node": "^10.46.0",
         "chalk": "^5.6.2",
         "discord-player": "^7.1.0",
         "discord-player-youtubei": "^2.0.0-dev.2",
