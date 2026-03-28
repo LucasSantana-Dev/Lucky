@@ -4,11 +4,14 @@ import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX } from '../types/musicButtons'
 
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
-const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({ title, desc }))
+const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
+    title,
+    desc,
+}))
 const createMusicControlButtonsMock = jest.fn(() => ({ type: 1 }))
 const createQueueEmbedMock = jest.fn()
 const shuffleQueueMock = jest.fn()
-const useQueueMock = jest.fn()
+const resolveGuildQueueMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -32,20 +35,27 @@ jest.mock('../utils/music/queueManipulation', () => ({
     shuffleQueue: (...args: unknown[]) => shuffleQueueMock(...args),
 }))
 
+jest.mock('../utils/music/queueResolver', () => ({
+    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
 jest.mock('discord-player', () => ({
-    useQueue: (...args: unknown[]) => useQueueMock(...args),
     QueueRepeatMode: { OFF: 0, TRACK: 1, QUEUE: 2, AUTOPLAY: 3 },
 }))
 
-function createInteraction(customId: string, options: {
-    hasVoice?: boolean
-    replied?: boolean
-    deferred?: boolean
-} = {}) {
+function createInteraction(
+    customId: string,
+    options: {
+        hasVoice?: boolean
+        replied?: boolean
+        deferred?: boolean
+    } = {},
+) {
     const { hasVoice = true, replied = false, deferred = false } = options
     return {
         customId,
         guildId: 'guild-1',
+        client: { player: {} },
         replied,
         deferred,
         member: { voice: { channel: hasVoice ? { id: 'vc-1' } : null } },
@@ -55,11 +65,13 @@ function createInteraction(customId: string, options: {
     }
 }
 
-function createMockQueue(options: {
-    isPaused?: boolean
-    repeatMode?: number
-    historySize?: number
-} = {}) {
+function createMockQueue(
+    options: {
+        isPaused?: boolean
+        repeatMode?: number
+        historySize?: number
+    } = {},
+) {
     const { isPaused = false, repeatMode = 0, historySize = 0 } = options
     return {
         node: {
@@ -85,8 +97,10 @@ describe('handleMusicButtonInteraction', () => {
     })
 
     it('replies ephemeral error when member not in voice channel', async () => {
-        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP, { hasVoice: false })
-        useQueueMock.mockReturnValue(createMockQueue())
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP, {
+            hasVoice: false,
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue: createMockQueue() })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -97,7 +111,7 @@ describe('handleMusicButtonInteraction', () => {
 
     it('replies ephemeral error when no queue exists', async () => {
         const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
-        useQueueMock.mockReturnValue(null)
+        resolveGuildQueueMock.mockReturnValue({ queue: null, source: 'miss' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -109,7 +123,7 @@ describe('handleMusicButtonInteraction', () => {
     it('calls history.back() for PREVIOUS button', async () => {
         const queue = createMockQueue()
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PREVIOUS)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -120,7 +134,7 @@ describe('handleMusicButtonInteraction', () => {
     it('pauses when PAUSE_RESUME and queue is playing', async () => {
         const queue = createMockQueue({ isPaused: false })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -131,7 +145,7 @@ describe('handleMusicButtonInteraction', () => {
     it('resumes when PAUSE_RESUME and queue is paused', async () => {
         const queue = createMockQueue({ isPaused: true })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -141,7 +155,7 @@ describe('handleMusicButtonInteraction', () => {
     it('skips track for SKIP button', async () => {
         const queue = createMockQueue()
         const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -152,7 +166,7 @@ describe('handleMusicButtonInteraction', () => {
     it('shuffles queue for SHUFFLE button', async () => {
         const queue = createMockQueue()
         const interaction = createInteraction(MUSIC_BUTTON_IDS.SHUFFLE)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -163,7 +177,7 @@ describe('handleMusicButtonInteraction', () => {
     it('cycles loop mode for LOOP button', async () => {
         const queue = createMockQueue({ repeatMode: 0 })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.LOOP)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -176,7 +190,7 @@ describe('handleMusicButtonInteraction', () => {
     it('handles queue page button', async () => {
         const queue = createMockQueue()
         const interaction = createInteraction(`${QUEUE_BUTTON_PREFIX}_2`)
-        useQueueMock.mockReturnValue(queue)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -185,8 +199,12 @@ describe('handleMusicButtonInteraction', () => {
     })
 
     it('logs error and replies on unexpected exception', async () => {
-        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP, { replied: false })
-        useQueueMock.mockImplementation(() => { throw new Error('boom') })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP, {
+            replied: false,
+        })
+        resolveGuildQueueMock.mockImplementation(() => {
+            throw new Error('boom')
+        })
 
         await handleMusicButtonInteraction(interaction as never)
 
@@ -194,5 +212,28 @@ describe('handleMusicButtonInteraction', () => {
         expect(interaction.reply).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
+    })
+
+    it('uses resolver-backed queue lookup so music buttons still work after queue cache fallback', async () => {
+        const queue = createMockQueue({ isPaused: false })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'cache.guild',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['queue-1'],
+            },
+        })
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(resolveGuildQueueMock).toHaveBeenCalledWith(
+            interaction.client,
+            'guild-1',
+        )
+        expect(queue.node.pause).toHaveBeenCalled()
+        expect(interaction.update).toHaveBeenCalled()
     })
 })

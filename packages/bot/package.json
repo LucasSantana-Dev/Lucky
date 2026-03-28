@@ -8,6 +8,8 @@
         "preflight": "npm --prefix ../.. run db:generate && npm --prefix ../.. run build:shared",
         "build": "npm run preflight && tsc && node add-js-extensions.js",
         "dev": "tsx watch src/index.ts",
+        "sentry:test": "tsx src/scripts/sentryTest.ts",
+        "sentry:test:dist": "node dist/scripts/sentryTest.js",
         "start": "node dist/index.js",
         "type:check": "npm run preflight && tsc --noEmit",
         "test": "jest",
@@ -15,10 +17,10 @@
     },
     "dependencies": {
         "@discord-player/extractor": "^7.2.0",
-        "@discordjs/builders": "^1.14.0",
+        "@discordjs/builders": "^1.13.1",
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
-        "@sentry/node": "^10.45.0",
+        "@sentry/node": "^10.38.0",
         "chalk": "^5.6.2",
         "discord-player": "^7.1.0",
         "discord-player-youtubei": "^2.0.0-dev.2",
@@ -26,17 +28,17 @@
         "dotenv": "^17.2.3",
         "ffmpeg-static": "^5.3.0",
         "play-dl": "^1.9.7",
-        "ws": "^8.20.0",
-        "youtubei.js": "^17.0.1"
+        "ws": "^8.19.0",
+        "youtubei.js": "^16.0.1"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",
-        "@types/node": "^25.5.0",
+        "@types/node": "^25.1.0",
         "@types/ws": "^8.5.13",
         "jest": "^30.2.0",
         "ts-jest": "^29.4.6",
         "tsup": "^8.5.1",
         "tsx": "^4.21.0",
-        "typescript": "^6.0.2"
+        "typescript": "^5.9.3"
     }
 }

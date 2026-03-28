@@ -1,5 +1,5 @@
 import { type ButtonInteraction, type GuildMember } from 'discord.js'
-import { useQueue, QueueRepeatMode } from 'discord-player'
+import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
 import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX } from '../types/musicButtons'
@@ -7,8 +7,10 @@ import { createMusicControlButtons } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
 import { shuffleQueue } from '../utils/music/queueManipulation'
 import type { GuildQueue } from 'discord-player'
+import { resolveGuildQueue } from '../utils/music/queueResolver'
+import type { CustomClient } from '../types'
 
-type NonNullQueue = NonNullable<ReturnType<typeof useQueue>>
+type NonNullQueue = GuildQueue
 
 export async function handleMusicButtonInteraction(
     interaction: ButtonInteraction,
@@ -28,8 +30,20 @@ export async function handleMusicButtonInteraction(
             return
         }
 
-        const queue = useQueue(interaction.guildId!)
+        const { queue, source, diagnostics } = resolveGuildQueue(
+            interaction.client as unknown as Pick<CustomClient, 'player'>,
+            interaction.guildId!,
+        )
         if (!queue) {
+            debugLog({
+                message: 'Music button interaction could not resolve queue',
+                data: {
+                    customId: interaction.customId,
+                    guildId: interaction.guildId,
+                    source,
+                    diagnostics,
+                },
+            })
             await interaction.reply({
                 embeds: [
                     createErrorEmbed(

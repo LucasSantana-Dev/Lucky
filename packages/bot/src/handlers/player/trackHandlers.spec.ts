@@ -1,6 +1,12 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-import { QueueRepeatMode, type GuildQueue, type Track } from 'discord-player'
+import { type GuildQueue, type Track } from 'discord-player'
 import { setupTrackHandlers } from './trackHandlers'
+
+const QueueRepeatMode = {
+    OFF: 0,
+    QUEUE: 2,
+    AUTOPLAY: 3,
+} as const
 
 const featureEnabledMock = jest.fn()
 const replenishQueueMock = jest.fn()
@@ -15,6 +21,14 @@ const saveSnapshotMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+
+jest.mock('discord-player', () => ({
+    QueueRepeatMode: {
+        OFF: 0,
+        QUEUE: 2,
+        AUTOPLAY: 3,
+    },
+}))
 
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
@@ -76,6 +90,21 @@ function createTrack(requestedById = 'listener-1'): Track {
         url: 'https://example.com/track-1',
         source: 'youtube',
         requestedBy: { id: requestedById },
+    } as unknown as Track
+}
+
+function createAutoplayTrack(requestedById = 'listener-1'): Track {
+    return {
+        id: 'track-2',
+        title: 'Autoplay Song',
+        author: 'Autoplay Artist',
+        url: 'https://example.com/track-2',
+        source: 'youtube',
+        metadata: {
+            isAutoplay: true,
+            requestedById,
+            recommendationReason: 'Because you listened to Test Song',
+        },
     } as unknown as Track
 }
 
@@ -155,6 +184,26 @@ describe('trackHandlers autoplay replenishment', () => {
             userId: 'listener-1',
         })
         expect(replenishQueueMock).not.toHaveBeenCalled()
+    })
+
+    it('treats metadata-tagged autoplay tracks as autoplay on playerStart', async () => {
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-9')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(sendNowPlayingEmbedMock).toHaveBeenCalledWith(
+            autoplayQueue,
+            autoplayTrack,
+            true,
+        )
+        expect(featureEnabledMock).toHaveBeenCalledWith('AUTOPLAY', {
+            guildId: 'guild-1',
+            userId: 'listener-9',
+        })
+        expect(replenishQueueMock).toHaveBeenCalledWith(autoplayQueue)
     })
 
     it('replenishes and records track on playerFinish when autoplay is enabled', async () => {
