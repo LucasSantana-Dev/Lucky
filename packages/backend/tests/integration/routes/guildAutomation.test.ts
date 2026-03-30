@@ -5,11 +5,19 @@ import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { setupGuildAutomationRoutes } from '../../../src/routes/guildAutomation'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { sessionService } from '../../../src/services/SessionService'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -32,6 +40,16 @@ import {
     validateGuildAutomationManifest,
 } from '@lucky/shared/services'
 
+const MOCK_GUILD_CONTEXT = {
+    guildId: '111111111111111111',
+    owner: true,
+    isAdmin: true,
+    effectiveAccess: { settings: 'manage' as const },
+    roleIds: [],
+    nickname: null,
+    canManageRbac: true,
+}
+
 describe('Guild Automation Routes', () => {
     let app: express.Express
 
@@ -47,6 +65,14 @@ describe('Guild Automation Routes', () => {
             typeof sessionService
         >
         mockedSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockedGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockedGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT as any,
+        )
+        mockedGuildAccessService.hasAccess.mockReturnValue(true)
     })
 
     test('GET manifest returns 404 when not found', async () => {
@@ -200,7 +226,9 @@ describe('Guild Automation Routes', () => {
         } as any)
 
         const response = await request(app)
-            .post('/api/guilds/111111111111111111/automation/presets/criativaria/apply')
+            .post(
+                '/api/guilds/111111111111111111/automation/presets/criativaria/apply',
+            )
             .set('Cookie', ['sessionId=valid_session_id'])
             .expect(200)
 
@@ -228,5 +256,42 @@ describe('Guild Automation Routes', () => {
                 runType: 'reconcile',
             }),
         )
+    })
+
+    test('returns 403 for user without settings:manage on write routes', async () => {
+        const mockedGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockedGuildAccessService.hasAccess.mockReturnValue(false)
+
+        await request(app)
+            .put('/api/guilds/111111111111111111/automation/manifest')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({ version: 1, guild: { id: '111111111111111111' } })
+            .expect(403)
+    })
+
+    test('returns 403 for user without guild access on read routes', async () => {
+        const mockedGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockedGuildAccessService.resolveGuildContext.mockResolvedValue(null)
+
+        await request(app)
+            .get('/api/guilds/111111111111111111/automation/manifest')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .expect(403)
+    })
+
+    test('returns 401 for unauthenticated requests', async () => {
+        const mockedSessionService = sessionService as jest.Mocked<
+            typeof sessionService
+        >
+        mockedSessionService.getSession.mockResolvedValue(null)
+
+        await request(app)
+            .get('/api/guilds/111111111111111111/automation/manifest')
+            .set('Cookie', ['sessionId=invalid_session_id'])
+            .expect(401)
     })
 })
