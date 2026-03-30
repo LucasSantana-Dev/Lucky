@@ -198,7 +198,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(insertUserTrackWithPriorityMock).not.toHaveBeenCalled()
+        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
         expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
             expect.anything(),
             track,
