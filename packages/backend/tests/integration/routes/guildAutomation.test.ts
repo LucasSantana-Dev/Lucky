@@ -4,6 +4,7 @@ import express from 'express'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { setupGuildAutomationRoutes } from '../../../src/routes/guildAutomation'
 import { errorHandler } from '../../../src/middleware/errorHandler'
+import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
@@ -58,6 +59,15 @@ describe('Guild Automation Routes', () => {
         app.use(express.json())
         setupSessionMiddleware(app)
         setupGuildAutomationRoutes(app)
+
+        app.get(
+            '/api/test-route-without-guild-param',
+            requireGuildModuleAccess('settings', 'view'),
+            (_req, res) => {
+                res.json({ ok: true })
+            },
+        )
+
         app.use(errorHandler)
         jest.clearAllMocks()
 
@@ -293,5 +303,93 @@ describe('Guild Automation Routes', () => {
             .get('/api/guilds/111111111111111111/automation/manifest')
             .set('Cookie', ['sessionId=invalid_session_id'])
             .expect(401)
+    })
+
+    test('returns 401 when no session cookie provided', async () => {
+        await request(app)
+            .get('/api/guilds/111111111111111111/automation/manifest')
+            .expect(401)
+    })
+
+    test('returns 400 when guildId param is missing', async () => {
+        await request(app)
+            .get('/api/guilds//automation/manifest')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .expect(404)
+    })
+
+    test('attaches userId to request from session data', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+
+        mockedService.getManifest.mockResolvedValue({
+            guildId: '111111111111111111',
+            version: 1,
+            guild: { id: '111111111111111111' },
+            source: 'manual',
+        } as any)
+
+        await request(app)
+            .get('/api/guilds/111111111111111111/automation/manifest')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .expect(200)
+
+        expect(mockedService.getManifest).toHaveBeenCalledWith(
+            '111111111111111111',
+        )
+    })
+
+    test('returns 400 when route has no guildId or id parameter', async () => {
+        await request(app)
+            .get('/api/test-route-without-guild-param')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .expect(400)
+    })
+
+    test('auto mode resolves to manage access for POST requests', async () => {
+        const mockedGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockedGuildAccessService.hasAccess.mockReturnValue(false)
+
+        await request(app)
+            .post('/api/guilds/111111111111111111/automation/plan')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .send({})
+            .expect(403)
+
+        expect(mockedGuildAccessService.hasAccess).toHaveBeenCalledWith(
+            expect.any(Object),
+            'settings',
+            'manage',
+        )
+    })
+
+    test('auto mode resolves to view access for HEAD requests', async () => {
+        const mockedService = guildAutomationService as jest.Mocked<
+            typeof guildAutomationService
+        >
+
+        mockedService.getManifest.mockResolvedValue({
+            guildId: '111111111111111111',
+            version: 1,
+            guild: { id: '111111111111111111' },
+            source: 'manual',
+        } as any)
+
+        await request(app)
+            .head('/api/guilds/111111111111111111/automation/manifest')
+            .set('Cookie', ['sessionId=valid_session_id'])
+            .expect(200)
+
+        const mockedGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        expect(mockedGuildAccessService.hasAccess).toHaveBeenCalledWith(
+            expect.any(Object),
+            'settings',
+            'view',
+        )
     })
 })
