@@ -110,7 +110,9 @@ export default new Command({
                 interaction.guildId ?? '',
             )
             if (!isPlaylist && queue) {
-                moveUserTrackToPriority(queue, track)
+                if (!isTrackAlreadyQueued(queue, track)) {
+                    moveUserTrackToPriority(queue, track)
+                }
                 if (queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
                     await blendAutoplayTracks(queue, track)
                 }
