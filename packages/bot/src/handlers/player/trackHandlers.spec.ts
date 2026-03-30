@@ -1,6 +1,16 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-import { QueueRepeatMode, type GuildQueue, type Track } from 'discord-player'
-import { setupTrackHandlers } from './trackHandlers'
+import { type GuildQueue, type Track } from 'discord-player'
+import {
+    lastPlayedTracks,
+    recentlyPlayedTracks,
+    setupTrackHandlers,
+} from './trackHandlers'
+
+const QueueRepeatMode = {
+    OFF: 0,
+    QUEUE: 2,
+    AUTOPLAY: 3,
+} as const
 
 const featureEnabledMock = jest.fn()
 const replenishQueueMock = jest.fn()
@@ -12,9 +22,20 @@ const resetAutoplayCountMock = jest.fn()
 const watchdogArmMock = jest.fn()
 const watchdogClearMock = jest.fn()
 const saveSnapshotMock = jest.fn()
+const clearStatusMock = jest.fn()
+const setNowPlayingPresenceMock = jest.fn()
+const clearMusicPresenceMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+
+jest.mock('discord-player', () => ({
+    QueueRepeatMode: {
+        OFF: 0,
+        QUEUE: 2,
+        AUTOPLAY: 3,
+    },
+}))
 
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
@@ -56,6 +77,16 @@ jest.mock('../../utils/music/sessionSnapshots', () => ({
     },
 }))
 
+jest.mock('../../services/VoiceChannelStatusService', () => ({
+    clearStatus: (...args: unknown[]) => clearStatusMock(...args),
+    setTrackStatus: jest.fn(),
+}))
+
+jest.mock('../../services/MusicPresenceService', () => ({
+    setNowPlaying: (...args: unknown[]) => setNowPlayingPresenceMock(...args),
+    clearMusicPresence: (...args: unknown[]) => clearMusicPresenceMock(...args),
+}))
+
 jest.mock('@lucky/shared/config', () => ({
     constants: { VOLUME: 50 },
 }))
@@ -76,6 +107,21 @@ function createTrack(requestedById = 'listener-1'): Track {
         url: 'https://example.com/track-1',
         source: 'youtube',
         requestedBy: { id: requestedById },
+    } as unknown as Track
+}
+
+function createAutoplayTrack(requestedById = 'listener-1'): Track {
+    return {
+        id: 'track-2',
+        title: 'Autoplay Song',
+        author: 'Autoplay Artist',
+        url: 'https://example.com/track-2',
+        source: 'youtube',
+        metadata: {
+            isAutoplay: true,
+            requestedById,
+            recommendationReason: 'Because you listened to Test Song',
+        },
     } as unknown as Track
 }
 
@@ -119,6 +165,8 @@ function setupHandlers(
 describe('trackHandlers autoplay replenishment', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        lastPlayedTracks.clear()
+        recentlyPlayedTracks.clear()
         featureEnabledMock.mockResolvedValue(true)
         replenishQueueMock.mockResolvedValue(undefined)
         addTrackToHistoryMock.mockResolvedValue(undefined)
@@ -126,6 +174,10 @@ describe('trackHandlers autoplay replenishment', () => {
         updateLastFmNowPlayingMock.mockResolvedValue(undefined)
         scrobbleCurrentTrackIfLastFmMock.mockResolvedValue(undefined)
         saveSnapshotMock.mockResolvedValue(undefined)
+    })
+
+    afterEach(() => {
+        jest.useRealTimers()
     })
 
     it('replenishes queue on playerStart only when repeat mode is autoplay', async () => {
@@ -157,6 +209,26 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(replenishQueueMock).not.toHaveBeenCalled()
     })
 
+    it('treats metadata-tagged autoplay tracks as autoplay on playerStart', async () => {
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-9')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(sendNowPlayingEmbedMock).toHaveBeenCalledWith(
+            autoplayQueue,
+            autoplayTrack,
+            true,
+        )
+        expect(featureEnabledMock).toHaveBeenCalledWith('AUTOPLAY', {
+            guildId: 'guild-1',
+            userId: 'listener-9',
+        })
+        expect(replenishQueueMock).toHaveBeenCalledWith(autoplayQueue)
+    })
+
     it('replenishes and records track on playerFinish when autoplay is enabled', async () => {
         const handlers = setupHandlers()
         const playerFinish = handlers.playerFinish
@@ -181,6 +253,103 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
         expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('keeps running after now-playing updates fail and logs the error', async () => {
+        sendNowPlayingEmbedMock.mockRejectedValue(new Error('send failed'))
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-5')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error sending now playing message:',
+            }),
+        )
+        expect(saveSnapshotMock).toHaveBeenCalledWith(autoplayQueue)
+        expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
+    })
+
+    it('retries queue replenishment after a playerStart failure', async () => {
+        jest.useFakeTimers()
+        replenishQueueMock.mockRejectedValueOnce(new Error('replenish failed'))
+        replenishQueueMock.mockResolvedValueOnce(undefined)
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-7')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Replenish failed, retrying in 5s',
+            }),
+        )
+
+        jest.advanceTimersByTime(5000)
+        await Promise.resolve()
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(2)
+        expect(saveSnapshotMock).toHaveBeenCalledWith(autoplayQueue)
+        expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
+    })
+
+    it('logs and exits gracefully when playerStart fails before now-playing updates', async () => {
+        saveSnapshotMock.mockRejectedValue(new Error('snapshot failed'))
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const autoplayTrack = createAutoplayTrack('listener-8')
+
+        await playerStart(autoplayQueue, autoplayTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in player start handler:',
+            }),
+        )
+    })
+
+    it('clears voice status, presence, and watchdog when playerFinish empties the queue', async () => {
+        const handlers = setupHandlers()
+        const playerFinish = handlers.playerFinish
+        const finishedTrack = createTrack('listener-6')
+        const queue = {
+            ...createQueue(QueueRepeatMode.OFF),
+            currentTrack: null,
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        await playerFinish(queue, finishedTrack)
+
+        expect(clearStatusMock).toHaveBeenCalledWith(queue)
+        expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogArmMock).not.toHaveBeenCalled()
+    })
+
+    it('logs errors from playerFinish without crashing', async () => {
+        scrobbleCurrentTrackIfLastFmMock.mockRejectedValue(new Error('boom'))
+
+        const handlers = setupHandlers()
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const finishedTrack = createTrack('listener-10')
+
+        await playerFinish(queue, finishedTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in playerFinish event:',
+            }),
+        )
     })
 
     it('does not replenish on playerSkip when autoplay feature is disabled', async () => {
@@ -208,5 +377,81 @@ describe('trackHandlers autoplay replenishment', () => {
         })
         expect(replenishQueueMock).not.toHaveBeenCalled()
         expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('clears voice status, presence, and watchdog when playerSkip empties the queue', async () => {
+        const handlers = setupHandlers()
+        const playerSkip = handlers.playerSkip
+        const skippedTrack = createTrack('listener-11')
+        const queue = {
+            ...createQueue(QueueRepeatMode.OFF),
+            currentTrack: null,
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        await playerSkip(queue, skippedTrack)
+
+        expect(clearStatusMock).toHaveBeenCalledWith(queue)
+        expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
+        expect(watchdogArmMock).not.toHaveBeenCalled()
+    })
+
+    it('logs errors from playerSkip without crashing', async () => {
+        scrobbleCurrentTrackIfLastFmMock.mockRejectedValue(new Error('boom'))
+
+        const handlers = setupHandlers()
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const skippedTrack = createTrack('listener-12')
+
+        await playerSkip(queue, skippedTrack)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error in playerSkip event:',
+            }),
+        )
+    })
+
+    it('evicts old track entries when playerStart runs beyond the per-guild cap', async () => {
+        for (let index = 0; index < 501; index += 1) {
+            lastPlayedTracks.set(
+                `guild-${index}`,
+                createTrack(`listener-${index}`),
+            )
+        }
+        recentlyPlayedTracks.set(
+            'guild-1',
+            Array.from({ length: 501 }, (_, index) => ({
+                url: `https://example.com/${index}`,
+                title: `Song ${index}`,
+                author: 'Artist',
+                timestamp: index,
+            })),
+        )
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+
+        await playerStart(queue, createTrack('listener-overflow'))
+
+        expect(lastPlayedTracks.size).toBe(500)
+        expect(lastPlayedTracks.has('guild-0')).toBe(false)
+        expect(recentlyPlayedTracks.get('guild-1')).toHaveLength(500)
+    })
+
+    it('logs the first added track when audio tracks are appended to the queue', async () => {
+        const handlers = setupHandlers()
+        const audioTracksAdd = handlers.audioTracksAdd
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const addedTrack = createTrack('listener-13')
+
+        await audioTracksAdd(queue, [addedTrack])
+
+        expect(infoLogMock).toHaveBeenCalledWith({
+            message: 'Added "Test Song" to queue in Guild One',
+        })
     })
 })

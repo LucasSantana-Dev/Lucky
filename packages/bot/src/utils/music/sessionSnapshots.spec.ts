@@ -25,6 +25,10 @@ jest.mock('@lucky/shared/config', () => ({
     },
 }))
 
+jest.mock('discord-player', () => ({
+    QueryType: { AUTO: 'auto' },
+}))
+
 describe('MusicSessionSnapshotService', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -164,16 +168,18 @@ describe('MusicSessionSnapshotService', () => {
                 play: jest.fn().mockResolvedValue(undefined),
             },
             player: {
-                search: jest.fn().mockImplementation(async (query: unknown) => ({
-                    tracks: [
-                        {
-                            title: String(query).split(' ')[0],
-                            author: 'resolved',
-                            url: query,
-                            metadata: {},
-                        },
-                    ],
-                })),
+                search: jest
+                    .fn()
+                    .mockImplementation(async (query: unknown) => ({
+                        tracks: [
+                            {
+                                title: String(query).split(' ')[0],
+                                author: 'resolved',
+                                url: query,
+                                metadata: {},
+                            },
+                        ],
+                    })),
             },
         } as unknown as GuildQueue
 
@@ -257,7 +263,14 @@ describe('MusicSessionSnapshotService', () => {
             },
             player: {
                 search: jest.fn().mockResolvedValue({
-                    tracks: [{ title: 'Fresh Song', author: 'Fresh Artist', url: 'https://example.com/fresh', metadata: {} }],
+                    tracks: [
+                        {
+                            title: 'Fresh Song',
+                            author: 'Fresh Artist',
+                            url: 'https://example.com/fresh',
+                            metadata: {},
+                        },
+                    ],
                 }),
             },
         } as unknown as GuildQueue
@@ -268,6 +281,66 @@ describe('MusicSessionSnapshotService', () => {
 
         expect(result.restoredCount).toBe(1)
         expect(delMock).toHaveBeenCalledWith('music:session:guild-fresh')
+    })
+
+    it('preserves autoplay metadata when restoring snapshot tracks', async () => {
+        const service = new MusicSessionSnapshotService(300)
+        const snapshot = {
+            sessionSnapshotId: 'snap-autoplay',
+            guildId: 'guild-autoplay',
+            savedAt: Date.now(),
+            currentTrack: null,
+            upcomingTracks: [
+                {
+                    title: 'Recommended Song',
+                    author: 'Recommended Artist',
+                    url: 'https://example.com/recommended',
+                    duration: '3:00',
+                    source: 'youtube',
+                    recommendationReason: 'Because you listened to Test Song',
+                    isAutoplay: true,
+                    requestedById: 'user-1',
+                },
+            ],
+        }
+        getMock.mockResolvedValue(JSON.stringify(snapshot))
+        delMock.mockResolvedValue(1)
+
+        const addTrack = jest.fn()
+        const restoredTrack = {
+            title: 'Recommended Song',
+            author: 'Recommended Artist',
+            url: 'https://example.com/recommended',
+            metadata: {},
+        }
+
+        const queue = {
+            guild: { id: 'guild-autoplay' },
+            currentTrack: null,
+            tracks: { size: 0 },
+            addTrack,
+            node: {
+                isPlaying: () => false,
+                play: jest.fn().mockResolvedValue(undefined),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [restoredTrack],
+                }),
+            },
+        } as unknown as GuildQueue
+
+        await service.restoreSnapshot(queue)
+
+        expect(addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    requestedById: 'user-1',
+                    recommendationReason: 'Because you listened to Test Song',
+                }),
+            }),
+        )
     })
 
     it('returns early when queue already has tracks', async () => {

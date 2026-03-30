@@ -8,7 +8,6 @@ module.exports = {
         'src/**/*.ts',
         '!src/**/*.d.ts',
         '!src/**/*.test.ts',
-        '!src/index.ts',
     ],
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],

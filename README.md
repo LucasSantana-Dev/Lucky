@@ -65,10 +65,7 @@ packages/
 - Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
 ### Latest Release (`v2.6.38`)
-- Fixed Docker/CI image dependency installs by setting
-  `YOUTUBE_DL_SKIP_DOWNLOAD=1` during root image builds.
-- Fixed dashboard guild automation status rendering and normalized Auto Messages /
-  AutoMod payload handling.
+- Fixed dashboard automation access guards and stabilized several guild management flows.
 - Previous release (`v2.6.37`) fixed PostgreSQL persistence in Docker by setting
   `PGDATA=/var/lib/postgresql/data` for Postgres 18 compatibility.
 
@@ -80,6 +77,8 @@ packages/
 - Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Autoplay command recovers active guild queue from player cache fallback to avoid false queue-missing errors during active playback
 - Autoplay toggles now respond immediately while queue replenishment runs in the background, reducing interaction timeout risk
+- Autoplay-generated tracks preserve autoplay labeling and recommendation context even when requester identity is carried through track metadata instead of bot `requestedBy`
+- Sentry monitoring supports bot-specific service tags, release metadata, and fatal-event flushing before shutdown when `SENTRY_DSN` is configured
 - Player error/debug handlers are guarded and emit structured diagnostics for safer runtime recovery
 - Queue-miss replies now include restart-aware recovery guidance so users can
   resume playback with `/play` after a bot restart
