@@ -10,9 +10,7 @@ import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
-    sessionService: {
-        getSession: jest.fn(),
-    },
+    sessionService: { getSession: jest.fn() },
 }))
 
 jest.mock('../../../src/services/GuildAccessService', () => ({
@@ -43,6 +41,7 @@ import {
 
 const GUILD_ID = '111111111111111111'
 const SESSION_COOKIE = ['sessionId=valid_session_id']
+const AUTOMATION_BASE = `/api/guilds/${GUILD_ID}/automation`
 
 const MOCK_GUILD_CONTEXT = {
     guildId: GUILD_ID,
@@ -73,6 +72,17 @@ describe('Guild Automation Routes', () => {
     let mockedGuildAccessService: jest.Mocked<typeof guildAccessService>
     let mockedSessionService: jest.Mocked<typeof sessionService>
 
+    const authed = (app: express.Express) => ({
+        get: (path: string) =>
+            request(app).get(path).set('Cookie', SESSION_COOKIE),
+        put: (path: string) =>
+            request(app).put(path).set('Cookie', SESSION_COOKIE),
+        post: (path: string) =>
+            request(app).post(path).set('Cookie', SESSION_COOKIE),
+        head: (path: string) =>
+            request(app).head(path).set('Cookie', SESSION_COOKIE),
+    })
+
     beforeEach(() => {
         app = express()
         app.use(express.json())
@@ -82,9 +92,7 @@ describe('Guild Automation Routes', () => {
         app.get(
             '/api/test-route-without-guild-param',
             requireGuildModuleAccess('settings', 'view'),
-            (_req, res) => {
-                res.json({ ok: true })
-            },
+            (_req, res) => res.json({ ok: true }),
         )
 
         app.use(errorHandler)
@@ -109,11 +117,7 @@ describe('Guild Automation Routes', () => {
 
     test('GET manifest returns 404 when not found', async () => {
         mockedService.getManifest.mockResolvedValue(null)
-
-        await request(app)
-            .get(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .set('Cookie', SESSION_COOKIE)
-            .expect(404)
+        await authed(app).get(`${AUTOMATION_BASE}/manifest`).expect(404)
     })
 
     test('PUT manifest saves manifest', async () => {
@@ -123,9 +127,8 @@ describe('Guild Automation Routes', () => {
             updatedAt: new Date(),
         } as any)
 
-        await request(app)
-            .put(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .set('Cookie', SESSION_COOKIE)
+        await authed(app)
+            .put(`${AUTOMATION_BASE}/manifest`)
             .send({ version: 1, guild: { id: GUILD_ID }, source: 'manual' })
             .expect(200)
 
@@ -141,11 +144,7 @@ describe('Guild Automation Routes', () => {
             plan: MOCK_PLAN,
         } as any)
 
-        await request(app)
-            .post(`/api/guilds/${GUILD_ID}/automation/plan`)
-            .set('Cookie', SESSION_COOKIE)
-            .send({})
-            .expect(200)
+        await authed(app).post(`${AUTOMATION_BASE}/plan`).send({}).expect(200)
 
         expect(mockedService.createPlan).toHaveBeenCalledWith(GUILD_ID, {
             actualState: undefined,
@@ -162,9 +161,8 @@ describe('Guild Automation Routes', () => {
             plan: MOCK_PLAN,
         } as any)
 
-        await request(app)
-            .post(`/api/guilds/${GUILD_ID}/automation/apply`)
-            .set('Cookie', SESSION_COOKIE)
+        await authed(app)
+            .post(`${AUTOMATION_BASE}/apply`)
             .send({ allowProtected: true })
             .expect(200)
 
@@ -184,9 +182,8 @@ describe('Guild Automation Routes', () => {
         })
         mockedService.listRuns.mockResolvedValue([] as any)
 
-        const response = await request(app)
-            .get(`/api/guilds/${GUILD_ID}/automation/status`)
-            .set('Cookie', SESSION_COOKIE)
+        const response = await authed(app)
+            .get(`${AUTOMATION_BASE}/status`)
             .expect(200)
 
         expect(response.body).toEqual({
@@ -208,11 +205,8 @@ describe('Guild Automation Routes', () => {
             plan: MOCK_PLAN,
         } as any)
 
-        const response = await request(app)
-            .post(
-                `/api/guilds/${GUILD_ID}/automation/presets/criativaria/apply`,
-            )
-            .set('Cookie', SESSION_COOKIE)
+        const response = await authed(app)
+            .post(`${AUTOMATION_BASE}/presets/criativaria/apply`)
             .expect(200)
 
         expect(response.body).toEqual({
@@ -239,72 +233,46 @@ describe('Guild Automation Routes', () => {
 
     test('returns 403 for user without settings:manage on write routes', async () => {
         mockedGuildAccessService.hasAccess.mockReturnValue(false)
-
-        await request(app)
-            .put(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .set('Cookie', SESSION_COOKIE)
+        await authed(app)
+            .put(`${AUTOMATION_BASE}/manifest`)
             .send({ version: 1, guild: { id: GUILD_ID } })
             .expect(403)
     })
 
     test('returns 403 for user without guild access on read routes', async () => {
         mockedGuildAccessService.resolveGuildContext.mockResolvedValue(null)
-
-        await request(app)
-            .get(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .set('Cookie', SESSION_COOKIE)
-            .expect(403)
+        await authed(app).get(`${AUTOMATION_BASE}/manifest`).expect(403)
     })
 
     test('returns 401 for unauthenticated requests', async () => {
         mockedSessionService.getSession.mockResolvedValue(null)
-
         await request(app)
-            .get(`/api/guilds/${GUILD_ID}/automation/manifest`)
+            .get(`${AUTOMATION_BASE}/manifest`)
             .set('Cookie', ['sessionId=invalid_session_id'])
             .expect(401)
     })
 
     test('returns 401 when no session cookie provided', async () => {
-        await request(app)
-            .get(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .expect(401)
+        await request(app).get(`${AUTOMATION_BASE}/manifest`).expect(401)
     })
 
     test('returns 400 when guildId param is missing', async () => {
-        await request(app)
-            .get('/api/guilds//automation/manifest')
-            .set('Cookie', SESSION_COOKIE)
-            .expect(404)
+        await request(app).get('/api/guilds//automation/manifest').expect(404)
     })
 
     test('attaches userId to request from session data', async () => {
         mockedService.getManifest.mockResolvedValue(MOCK_MANIFEST as any)
-
-        await request(app)
-            .get(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .set('Cookie', SESSION_COOKIE)
-            .expect(200)
-
+        await authed(app).get(`${AUTOMATION_BASE}/manifest`).expect(200)
         expect(mockedService.getManifest).toHaveBeenCalledWith(GUILD_ID)
     })
 
     test('returns 400 when route has no guildId or id parameter', async () => {
-        await request(app)
-            .get('/api/test-route-without-guild-param')
-            .set('Cookie', SESSION_COOKIE)
-            .expect(400)
+        await authed(app).get('/api/test-route-without-guild-param').expect(400)
     })
 
     test('auto mode resolves to manage access for POST requests', async () => {
         mockedGuildAccessService.hasAccess.mockReturnValue(false)
-
-        await request(app)
-            .post(`/api/guilds/${GUILD_ID}/automation/plan`)
-            .set('Cookie', SESSION_COOKIE)
-            .send({})
-            .expect(403)
-
+        await authed(app).post(`${AUTOMATION_BASE}/plan`).send({}).expect(403)
         expect(mockedGuildAccessService.hasAccess).toHaveBeenCalledWith(
             expect.any(Object),
             'settings',
@@ -314,12 +282,7 @@ describe('Guild Automation Routes', () => {
 
     test('auto mode resolves to view access for HEAD requests', async () => {
         mockedService.getManifest.mockResolvedValue(MOCK_MANIFEST as any)
-
-        await request(app)
-            .head(`/api/guilds/${GUILD_ID}/automation/manifest`)
-            .set('Cookie', SESSION_COOKIE)
-            .expect(200)
-
+        await authed(app).head(`${AUTOMATION_BASE}/manifest`).expect(200)
         expect(mockedGuildAccessService.hasAccess).toHaveBeenCalledWith(
             expect.any(Object),
             'settings',
