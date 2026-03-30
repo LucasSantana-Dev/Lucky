@@ -39,11 +39,12 @@ export function requireGuildModuleAccess(
         next: NextFunction,
     ): Promise<void> => {
         try {
-            if (!req.sessionId) {
+            const sessionId = req.sessionId ?? req.sessionID
+            if (!sessionId) {
                 throw AppError.unauthorized()
             }
 
-            const sessionData = await sessionService.getSession(req.sessionId)
+            const sessionData = await sessionService.getSession(sessionId)
             if (!sessionData) {
                 throw AppError.unauthorized('Session expired')
             }
@@ -69,6 +70,8 @@ export function requireGuildModuleAccess(
             }
 
             req.guildContext = context
+            req.sessionId = req.sessionId ?? req.sessionID
+            req.userId = sessionData.userId
             next()
         } catch (error) {
             next(error)
