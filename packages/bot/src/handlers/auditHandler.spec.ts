@@ -787,7 +787,7 @@ describe('auditHandler', () => {
                 },
             )
             expect(debugLog).toHaveBeenCalledWith({
-                message: 'Logged role create in Test Guild',
+                message: 'Logged role created in Test Guild',
             })
         })
 
@@ -863,7 +863,7 @@ describe('auditHandler', () => {
             await triggerEvent(client, Events.GuildRoleCreate, role)
 
             expect(errorLog).toHaveBeenCalledWith({
-                message: 'Error logging role create:',
+                message: 'Error logging role created:',
                 error: expect.any(Error),
             })
         })
@@ -911,7 +911,7 @@ describe('auditHandler', () => {
                 },
             )
             expect(debugLog).toHaveBeenCalledWith({
-                message: 'Logged role delete in Test Guild',
+                message: 'Logged role deleted in Test Guild',
             })
         })
 
@@ -987,7 +987,7 @@ describe('auditHandler', () => {
             await triggerEvent(client, Events.GuildRoleDelete, role)
 
             expect(errorLog).toHaveBeenCalledWith({
-                message: 'Error logging role delete:',
+                message: 'Error logging role deleted:',
                 error: expect.any(Error),
             })
         })

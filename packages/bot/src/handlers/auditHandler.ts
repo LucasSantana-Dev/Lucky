@@ -234,18 +234,22 @@ async function handleChannelDelete(channel: GuildChannel): Promise<void> {
     }
 }
 
-async function handleRoleCreate(role: Role): Promise<void> {
+async function handleRoleEvent(
+    role: Role,
+    action: 'created' | 'deleted',
+    auditLogAction: AuditLogEvent,
+): Promise<void> {
     if (!(await isServerLogsEnabled(role.guild.id))) return
     try {
         const auditLogs = await role.guild
-            .fetchAuditLogs({ type: AuditLogEvent.RoleCreate, limit: 1 })
+            .fetchAuditLogs({ type: auditLogAction, limit: 1 })
             .catch(() => null)
         const roleEntry = auditLogs?.entries.first()
 
         await serverLogService.createLog(
             role.guild.id,
             'role_update',
-            'Role created',
+            `Role ${action}`,
             {
                 roleId: role.id,
                 roleName: role.name,
@@ -258,48 +262,22 @@ async function handleRoleCreate(role: Role): Promise<void> {
         )
 
         debugLog({
-            message: `Logged role create in ${role.guild.name}`,
+            message: `Logged role ${action} in ${role.guild.name}`,
         })
     } catch (error) {
         errorLog({
-            message: 'Error logging role create:',
+            message: `Error logging role ${action}:`,
             error,
         })
     }
 }
 
+async function handleRoleCreate(role: Role): Promise<void> {
+    await handleRoleEvent(role, 'created', AuditLogEvent.RoleCreate)
+}
+
 async function handleRoleDelete(role: Role): Promise<void> {
-    if (!(await isServerLogsEnabled(role.guild.id))) return
-    try {
-        const auditLogs = await role.guild
-            .fetchAuditLogs({ type: AuditLogEvent.RoleDelete, limit: 1 })
-            .catch(() => null)
-        const roleEntry = auditLogs?.entries.first()
-
-        await serverLogService.createLog(
-            role.guild.id,
-            'role_update',
-            'Role deleted',
-            {
-                roleId: role.id,
-                roleName: role.name,
-                color: role.color,
-                permissions: role.permissions.bitfield.toString(),
-            },
-            {
-                moderatorId: roleEntry?.executor?.id,
-            },
-        )
-
-        debugLog({
-            message: `Logged role delete in ${role.guild.name}`,
-        })
-    } catch (error) {
-        errorLog({
-            message: 'Error logging role delete:',
-            error,
-        })
-    }
+    await handleRoleEvent(role, 'deleted', AuditLogEvent.RoleDelete)
 }
 
 export function handleAuditEvents(client: Client): void {
