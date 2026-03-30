@@ -24,8 +24,26 @@ const mockGuild = {
 }
 
 const mockLeaderboard: MemberXP[] = [
-    { id: '1', userId: '111', username: 'Alice', xp: 1500, level: 5 },
-    { id: '2', userId: '222', username: 'Bob', xp: 800, level: 3 },
+    {
+        id: '1',
+        guildId: '123456',
+        userId: '111',
+        xp: 1500,
+        level: 5,
+        lastXpAt: new Date('2024-01-15').toISOString(),
+        createdAt: new Date('2024-01-01').toISOString(),
+        updatedAt: new Date('2024-01-15').toISOString(),
+    },
+    {
+        id: '2',
+        guildId: '123456',
+        userId: '222',
+        xp: 800,
+        level: 3,
+        lastXpAt: new Date('2024-01-14').toISOString(),
+        createdAt: new Date('2024-01-01').toISOString(),
+        updatedAt: new Date('2024-01-14').toISOString(),
+    },
 ]
 
 const mockRewards: LevelReward[] = [
@@ -34,19 +52,22 @@ const mockRewards: LevelReward[] = [
 ]
 
 const mockRoles: GuildRoleOption[] = [
-    { id: 'role-1', name: 'Veteran' },
-    { id: 'role-2', name: 'Legend' },
+    { id: 'role-1', name: 'Veteran', color: 0, position: 1 },
+    { id: 'role-2', name: 'Legend', color: 0, position: 2 },
 ]
 
 const mockConfig: LevelConfig = {
+    id: 'config-1',
     guildId: '123456',
     enabled: true,
     xpPerMessage: 15,
     xpCooldownMs: 60000,
     announceChannel: '999',
+    createdAt: new Date('2024-01-01').toISOString(),
+    updatedAt: new Date('2024-01-01').toISOString(),
 }
 
-function mockGuildStore(selectedGuild = mockGuild) {
+function mockGuildStore(selectedGuild: typeof mockGuild | null = mockGuild) {
     vi.mocked(useGuildStore).mockReturnValue({
         selectedGuild,
     } as ReturnType<typeof useGuildStore>)
@@ -65,7 +86,7 @@ describe('Levels', () => {
 
     test('renders empty state when no guild is selected', () => {
         mockGuildStore(null)
-        const { container } = render(<Levels />)
+        render(<Levels />)
         expect(screen.getByText('No server selected')).toBeInTheDocument()
         expect(
             screen.getByText('Select a server to view level settings'),
@@ -81,7 +102,7 @@ describe('Levels', () => {
 
     test('loads and displays leaderboard data', async () => {
         mockGuildStore()
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(api.levels.getLeaderboard).toHaveBeenCalledWith('123456', 20)
@@ -96,7 +117,7 @@ describe('Levels', () => {
     test('displays empty state when leaderboard is empty', async () => {
         mockGuildStore()
         vi.mocked(api.levels.getLeaderboard).mockResolvedValue([])
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         expect(await screen.findByText('No data yet')).toBeInTheDocument()
         expect(
@@ -158,7 +179,7 @@ describe('Levels', () => {
         vi.mocked(api.levels.updateConfig).mockResolvedValue(undefined as never)
         const { toast } = await import('sonner')
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(
@@ -190,7 +211,7 @@ describe('Levels', () => {
         )
         const { toast } = await import('sonner')
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(
@@ -210,7 +231,7 @@ describe('Levels', () => {
 
     test('toggles enable switch', async () => {
         mockGuildStore()
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(
@@ -265,7 +286,7 @@ describe('Levels', () => {
 
     test('updates announce channel input', async () => {
         mockGuildStore()
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(
@@ -292,7 +313,7 @@ describe('Levels', () => {
         vi.mocked(api.levels.addReward).mockResolvedValue(newReward)
         const { toast } = await import('sonner')
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(screen.getByPlaceholderText('e.g. 5')).toBeInTheDocument()
@@ -318,7 +339,7 @@ describe('Levels', () => {
 
     test('disables add reward button when inputs are empty', async () => {
         mockGuildStore()
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(
@@ -337,7 +358,7 @@ describe('Levels', () => {
         )
         const { toast } = await import('sonner')
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(screen.getByPlaceholderText('e.g. 5')).toBeInTheDocument()
@@ -421,11 +442,11 @@ describe('Levels', () => {
     test('handles API error when loading data', async () => {
         mockGuildStore()
         vi.mocked(api.levels.getConfig).mockRejectedValue(
-            new ApiError('Server error', 500),
+            new ApiError(500, 'Server error'),
         )
         const { toast } = await import('sonner')
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(toast.error).toHaveBeenCalledWith(
@@ -441,7 +462,7 @@ describe('Levels', () => {
         vi.mocked(api.levels.getRewards).mockResolvedValue([])
         const { toast } = await import('sonner')
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(api.levels.getConfig).toHaveBeenCalled()
@@ -454,7 +475,7 @@ describe('Levels', () => {
         mockGuildStore()
         vi.mocked(api.levels.getRewards).mockResolvedValue([])
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         expect(
             await screen.findByText('No rewards configured'),
@@ -465,7 +486,7 @@ describe('Levels', () => {
         mockGuildStore()
         vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('RBAC error'))
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(api.guilds.getRbac).toHaveBeenCalled()
@@ -496,7 +517,7 @@ describe('Levels', () => {
             () => new Promise(() => {}),
         )
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(
@@ -520,7 +541,7 @@ describe('Levels', () => {
             () => new Promise(() => {}),
         )
 
-        const { container } = render(<Levels />)
+        render(<Levels />)
 
         await waitFor(() => {
             expect(screen.getByPlaceholderText('e.g. 5')).toBeInTheDocument()

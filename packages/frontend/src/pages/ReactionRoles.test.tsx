@@ -25,7 +25,8 @@ const mockMessages: ReactionRoleMessage[] = [
         mappings: [
             {
                 id: 'map-1',
-                messageId: 'msg-123',
+                buttonId: '',
+                type: 'button',
                 emoji: '🎮',
                 label: 'Gamer',
                 style: 'Primary',
@@ -33,7 +34,8 @@ const mockMessages: ReactionRoleMessage[] = [
             },
             {
                 id: 'map-2',
-                messageId: 'msg-123',
+                buttonId: '',
+                type: 'button',
                 emoji: '🎵',
                 label: 'Music Lover',
                 style: 'Secondary',
@@ -50,7 +52,8 @@ const mockMessages: ReactionRoleMessage[] = [
         mappings: [
             {
                 id: 'map-3',
-                messageId: 'msg-789',
+                buttonId: '',
+                type: 'button',
                 emoji: null,
                 label: 'Developer',
                 style: 'Success',
@@ -60,7 +63,7 @@ const mockMessages: ReactionRoleMessage[] = [
     },
 ]
 
-function mockGuildStore(selectedGuild = mockGuild) {
+function mockGuildStore(selectedGuild: typeof mockGuild | null = mockGuild) {
     vi.mocked(useGuildStore).mockReturnValue({
         selectedGuild,
     } as ReturnType<typeof useGuildStore>)
@@ -74,7 +77,7 @@ describe('ReactionRoles', () => {
 
     test('renders empty state when no guild is selected', () => {
         mockGuildStore(null)
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
         expect(screen.getByText('No server selected')).toBeInTheDocument()
         expect(
             screen.getByText(
@@ -92,7 +95,7 @@ describe('ReactionRoles', () => {
 
     test('loads and displays reaction role messages', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalledWith('123456')
@@ -104,7 +107,7 @@ describe('ReactionRoles', () => {
 
     test('displays message with channel ID', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -116,7 +119,7 @@ describe('ReactionRoles', () => {
 
     test('displays role count badge', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -128,7 +131,7 @@ describe('ReactionRoles', () => {
 
     test('displays role mappings with emoji', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -142,7 +145,7 @@ describe('ReactionRoles', () => {
 
     test('displays role mapping without emoji', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -154,7 +157,7 @@ describe('ReactionRoles', () => {
 
     test('displays button style labels', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -167,7 +170,7 @@ describe('ReactionRoles', () => {
 
     test('displays role IDs', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -181,7 +184,7 @@ describe('ReactionRoles', () => {
     test('displays empty state when no messages exist', async () => {
         mockGuildStore()
         vi.mocked(api.reactionRoles.list).mockResolvedValue([])
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         expect(
             await screen.findByText('No reaction role messages'),
@@ -199,7 +202,7 @@ describe('ReactionRoles', () => {
             new Error('API error'),
         )
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         expect(
             await screen.findByText('Failed to load reaction role messages.'),
@@ -212,7 +215,7 @@ describe('ReactionRoles', () => {
             new Error('API error'),
         )
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(
@@ -227,7 +230,7 @@ describe('ReactionRoles', () => {
             .mockRejectedValueOnce(new Error('API error'))
             .mockResolvedValueOnce(mockMessages)
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(
@@ -247,7 +250,7 @@ describe('ReactionRoles', () => {
 
     test('formats dates correctly', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -273,7 +276,7 @@ describe('ReactionRoles', () => {
             messageWithNoMappings,
         )
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -296,7 +299,8 @@ describe('ReactionRoles', () => {
                 mappings: [
                     {
                         id: 'map-1',
-                        messageId: 'msg-numeric',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '🔥',
                         label: 'Hot',
                         style: '1',
@@ -304,7 +308,8 @@ describe('ReactionRoles', () => {
                     },
                     {
                         id: 'map-2',
-                        messageId: 'msg-numeric',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '❄️',
                         label: 'Cool',
                         style: '2',
@@ -317,7 +322,7 @@ describe('ReactionRoles', () => {
             messagesWithNumericStyles,
         )
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -339,7 +344,8 @@ describe('ReactionRoles', () => {
                 mappings: [
                     {
                         id: 'map-1',
-                        messageId: 'msg-unknown',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '❓',
                         label: 'Unknown',
                         style: 'UnknownStyle',
@@ -352,7 +358,7 @@ describe('ReactionRoles', () => {
             messagesWithUnknownStyle,
         )
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -373,7 +379,8 @@ describe('ReactionRoles', () => {
                 mappings: [
                     {
                         id: 'map-1',
-                        messageId: 'msg-all-styles',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '1️⃣',
                         label: 'Primary',
                         style: 'Primary',
@@ -381,7 +388,8 @@ describe('ReactionRoles', () => {
                     },
                     {
                         id: 'map-2',
-                        messageId: 'msg-all-styles',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '2️⃣',
                         label: 'Secondary',
                         style: 'Secondary',
@@ -389,7 +397,8 @@ describe('ReactionRoles', () => {
                     },
                     {
                         id: 'map-3',
-                        messageId: 'msg-all-styles',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '3️⃣',
                         label: 'Success',
                         style: 'Success',
@@ -397,7 +406,8 @@ describe('ReactionRoles', () => {
                     },
                     {
                         id: 'map-4',
-                        messageId: 'msg-all-styles',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '4️⃣',
                         label: 'Danger',
                         style: 'Danger',
@@ -405,7 +415,8 @@ describe('ReactionRoles', () => {
                     },
                     {
                         id: 'map-5',
-                        messageId: 'msg-all-styles',
+                        buttonId: '',
+                        type: 'button',
                         emoji: '5️⃣',
                         label: 'Link',
                         style: 'Link',
@@ -418,7 +429,7 @@ describe('ReactionRoles', () => {
             messagesWithAllStyles,
         )
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -434,7 +445,7 @@ describe('ReactionRoles', () => {
 
     test('renders section header with correct title and description', () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         expect(screen.getByText('Reaction Roles')).toBeInTheDocument()
         expect(
@@ -446,7 +457,7 @@ describe('ReactionRoles', () => {
 
     test('does not display error card when no error exists', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
@@ -463,7 +474,7 @@ describe('ReactionRoles', () => {
             .mockRejectedValueOnce(new Error('API error'))
             .mockResolvedValueOnce(mockMessages)
 
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(
@@ -485,7 +496,7 @@ describe('ReactionRoles', () => {
 
     test('animates message cards on render', async () => {
         mockGuildStore()
-        const { container } = render(<ReactionRoles />)
+        render(<ReactionRoles />)
 
         await waitFor(() => {
             expect(api.reactionRoles.list).toHaveBeenCalled()

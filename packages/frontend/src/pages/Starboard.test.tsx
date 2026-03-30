@@ -29,9 +29,11 @@ const mockEntries: StarboardEntry[] = [
         messageId: 'msg-1',
         channelId: 'channel-1',
         authorId: 'user-1',
+        starboardMsgId: null,
         content: 'This is a great message!',
         starCount: 15,
         createdAt: new Date('2024-01-15').toISOString(),
+        updatedAt: new Date('2024-01-15').toISOString(),
     },
     {
         id: '2',
@@ -39,21 +41,26 @@ const mockEntries: StarboardEntry[] = [
         messageId: 'msg-2',
         channelId: 'channel-2',
         authorId: 'user-2',
+        starboardMsgId: null,
         content: 'Another starred message',
         starCount: 8,
         createdAt: new Date('2024-01-20').toISOString(),
+        updatedAt: new Date('2024-01-20').toISOString(),
     },
 ]
 
 const mockConfig: StarboardConfig = {
+    id: 'config-1',
     guildId: '123456',
     channelId: '999',
     emoji: '⭐',
     threshold: 3,
     selfStar: false,
+    createdAt: new Date('2024-01-01').toISOString(),
+    updatedAt: new Date('2024-01-01').toISOString(),
 }
 
-function mockGuildStore(selectedGuild = mockGuild) {
+function mockGuildStore(selectedGuild: typeof mockGuild | null = mockGuild) {
     vi.mocked(useGuildStore).mockReturnValue({
         selectedGuild,
     } as ReturnType<typeof useGuildStore>)
@@ -351,7 +358,7 @@ describe('Starboard', () => {
     test('handles API error when loading data', async () => {
         mockGuildStore()
         vi.mocked(api.starboard.getConfig).mockRejectedValue(
-            new ApiError('Server error', 500),
+            new ApiError(500, 'Server error'),
         )
         const { toast } = await import('sonner')
 
@@ -388,9 +395,11 @@ describe('Starboard', () => {
                 messageId: 'msg-1',
                 channelId: 'channel-1',
                 authorId: 'user-1',
+                starboardMsgId: null,
                 content: null,
                 starCount: 10,
                 createdAt: new Date('2024-01-15').toISOString(),
+                updatedAt: new Date('2024-01-15').toISOString(),
             },
         ]
         vi.mocked(api.starboard.getTopEntries).mockResolvedValue(
