@@ -882,4 +882,34 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
 
         expect(removeMock).not.toHaveBeenCalled()
     })
+
+    it('calls addTrack when no autoplay tracks remain after removing the user track', () => {
+        const autoplayTrack = {
+            url: 'https://example.com/ap1',
+            title: 'Autoplay 1',
+            metadata: { isAutoplay: true },
+        }
+        const userTrack = {
+            url: 'https://example.com/user',
+            title: 'User Song',
+        }
+        const removeMock = jest.fn()
+        const addTrackMock = jest.fn()
+        const queue = {
+            tracks: {
+                toArray: jest
+                    .fn()
+                    .mockReturnValueOnce([autoplayTrack, userTrack])
+                    .mockReturnValueOnce([]),
+            },
+            node: { remove: removeMock },
+            addTrack: addTrackMock,
+            insertTrack: jest.fn(),
+        } as unknown as GuildQueue
+
+        moveUserTrackToPriority(queue, userTrack as Track)
+
+        expect(removeMock).toHaveBeenCalledWith(userTrack)
+        expect(addTrackMock).toHaveBeenCalledWith(userTrack)
+    })
 })
