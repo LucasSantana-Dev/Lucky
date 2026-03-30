@@ -235,6 +235,7 @@ async function handleChannelDelete(channel: GuildChannel): Promise<void> {
 }
 
 async function handleRoleCreate(role: Role): Promise<void> {
+    if (!(await isServerLogsEnabled(role.guild.id))) return
     try {
         const auditLogs = await role.guild
             .fetchAuditLogs({ type: AuditLogEvent.RoleCreate, limit: 1 })
@@ -268,6 +269,7 @@ async function handleRoleCreate(role: Role): Promise<void> {
 }
 
 async function handleRoleDelete(role: Role): Promise<void> {
+    if (!(await isServerLogsEnabled(role.guild.id))) return
     try {
         const auditLogs = await role.guild
             .fetchAuditLogs({ type: AuditLogEvent.RoleDelete, limit: 1 })
@@ -380,6 +382,25 @@ export function handleAuditEvents(client: Client): void {
         }
     })
 
-    // Note: RoleCreate and RoleDelete events are not in the Events enum in discord.js
-    // These would need to be handled through audit log polling or webhooks if needed
+    client.on(Events.GuildRoleCreate, async (role: Role) => {
+        try {
+            await handleRoleCreate(role)
+        } catch (error) {
+            errorLog({
+                message: 'Error in role create handler:',
+                error,
+            })
+        }
+    })
+
+    client.on(Events.GuildRoleDelete, async (role: Role) => {
+        try {
+            await handleRoleDelete(role)
+        } catch (error) {
+            errorLog({
+                message: 'Error in role delete handler:',
+                error,
+            })
+        }
+    })
 }
