@@ -615,6 +615,9 @@ function calculateRecommendationScore(
 
     if (candidateArtist === currentArtist) {
         score -= 0.35
+    } else if (!recentArtists.has(candidateArtist)) {
+        score += 0.15
+        reasons.push('session novelty')
     } else {
         reasons.push('fresh artist rotation')
     }
@@ -633,6 +636,17 @@ function calculateRecommendationScore(
     score += tokenScore
     if (tokenScore > 0) {
         reasons.push('similar title mood')
+    }
+    if (
+        currentTrack.durationMS &&
+        candidate.durationMS &&
+        currentTrack.durationMS > 0
+    ) {
+        const ratio = candidate.durationMS / currentTrack.durationMS
+        if (ratio >= 0.7 && ratio <= 1.3) {
+            score += 0.1
+            reasons.push('similar energy')
+        }
     }
 
     return {
