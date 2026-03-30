@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dashboard sidebar redesigned as a guild command center: persistent guild block at top (avatar, name, Management Console subtitle, switch-server action), navigation reorganized into 6 operational groups (Overview / Moderation / Automation / Community / Media / Integrations), sharper active-item indicator, and collapsible mobile drawer with spring animation. (#379)
 - Autoplay recommendation engine now emits `session novelty` reason tag (+0.15 score boost) for candidates whose artist has not appeared anywhere in the current session, and `similar energy` reason tag (+0.10) for tracks within ±30% duration of the current track. (#380)
+- Last.fm top tracks are now used as additional autoplay seeds: when a user has a linked Last.fm account, their 3-month top 20 tracks are fetched, cached for 1 hour, and randomly sampled to discover taste-aware candidates with a `last.fm taste` reason tag. (#382)
+- Last.fm artist and title normalizers strip YouTube `- Topic` suffix, split multi-artist strings to keep only the primary, and remove `(Official Video)`, `(Official Audio)`, `(feat. X)`, and similar noise patterns before scrobbling. (#382)
 
 ### Fixed
 
 - Guild automation API endpoints (`/manifest`, `/status`, `/capture`, `/plan`, `/apply`, `/reconcile`, `/cutover`, `/presets/criativaria/apply`) now require `settings` module access via RBAC instead of bare session authentication, closing a privilege escalation path. (#381)
+- Last.fm scrobble and nowPlaying duration was always NaN because `track.duration` in discord-player 7 is a formatted string (`"3:45"`), not a number. Fixed to use `track.durationMS / 1000`. (#382)
 
 ## [2.6.40] - 2026-03-30
 
