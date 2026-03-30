@@ -445,4 +445,33 @@ describe('Sidebar', () => {
             expect(mobileSidebar).not.toBeInTheDocument()
         })
     })
+
+    test('renders guild name in header when guild is selected', () => {
+        renderSidebar()
+
+        const guildNames = screen.getAllByText('Test Server')
+        expect(guildNames.length).toBeGreaterThan(0)
+    })
+
+    test('shows fallback initials when guild has no icon', () => {
+        mockGuildStoreState({
+            guilds: [mockGuild2],
+            selectedGuild: mockGuild2,
+            selectedGuildId: mockGuild2.id,
+        })
+
+        renderSidebar()
+
+        const fallbackInitials = screen.getAllByText('AN')
+        expect(fallbackInitials.length).toBeGreaterThan(0)
+    })
+
+    test('switch server button exists in guild header', () => {
+        renderSidebar()
+
+        const switchButtons = screen.getAllByRole('button', {
+            name: 'Switch server',
+        })
+        expect(switchButtons.length).toBeGreaterThan(0)
+    })
 })
