@@ -21,7 +21,7 @@ jest.mock('discord-player', () => ({
 }))
 
 jest.mock('../../../../utils/music/queueManipulation', () => ({
-    insertUserTrackWithPriority: jest.fn(),
+    moveUserTrackToPriority: jest.fn(),
     blendAutoplayTracks: jest.fn().mockResolvedValue(undefined),
 }))
 

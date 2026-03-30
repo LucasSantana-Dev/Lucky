@@ -1,4 +1,3 @@
-import { QueryType, type GuildQueue, type Track } from 'discord-player'
 import {
     replenishQueue,
     shuffleQueue,
@@ -6,7 +5,29 @@ import {
     removeTrackFromQueue,
     moveTrackInQueue,
     rescueQueue,
+    moveUserTrackToPriority,
 } from './queueManipulation'
+
+jest.mock('discord-player', () => ({
+    QueryType: {
+        AUTO: 'auto',
+        YOUTUBE_SEARCH: 'youtubeSearch',
+    },
+    QueueRepeatMode: {
+        OFF: 0,
+        TRACK: 1,
+        QUEUE: 2,
+        AUTOPLAY: 3,
+    },
+}))
+
+const QueryType = {
+    AUTO: 'auto',
+    YOUTUBE_SEARCH: 'youtubeSearch',
+} as const
+
+type GuildQueue = any
+type Track = any
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -754,5 +775,111 @@ describe('queueManipulation.queueOperations', () => {
         expect(result.removedTracks).toBe(1)
         expect(result.keptTracks).toBe(0)
         expect((queue as any).addTrack).not.toHaveBeenCalled()
+    })
+})
+
+describe('queueManipulation.moveUserTrackToPriority', () => {
+    it('moves user track from after autoplay tracks to before first autoplay track', () => {
+        const userTrack = {
+            url: 'https://example.com/user',
+            title: 'User Song',
+        }
+        const autoplayTrack1 = {
+            url: 'https://example.com/ap1',
+            title: 'Autoplay 1',
+            metadata: { isAutoplay: true },
+        }
+        const autoplayTrack2 = {
+            url: 'https://example.com/ap2',
+            title: 'Autoplay 2',
+            metadata: { isAutoplay: true },
+        }
+        const removeMock = jest.fn()
+        const insertTrackMock = jest.fn()
+
+        const queue = {
+            tracks: {
+                toArray: jest
+                    .fn()
+                    .mockReturnValueOnce([
+                        autoplayTrack1,
+                        autoplayTrack2,
+                        userTrack,
+                    ])
+                    .mockReturnValueOnce([autoplayTrack1, autoplayTrack2]),
+            },
+            node: { remove: removeMock },
+            addTrack: jest.fn(),
+            insertTrack: insertTrackMock,
+        } as unknown as GuildQueue
+
+        moveUserTrackToPriority(queue, userTrack as Track)
+
+        expect(removeMock).toHaveBeenCalledWith(userTrack)
+        expect(insertTrackMock).toHaveBeenCalledWith(userTrack, 0)
+    })
+
+    it('does nothing when track is not in queue (already playing)', () => {
+        const track = { url: 'https://example.com/playing', title: 'Playing' }
+        const removeMock = jest.fn()
+        const queue = {
+            tracks: { toArray: jest.fn().mockReturnValue([]) },
+            node: { remove: removeMock },
+            addTrack: jest.fn(),
+            insertTrack: jest.fn(),
+        } as unknown as GuildQueue
+
+        moveUserTrackToPriority(queue, track as Track)
+
+        expect(removeMock).not.toHaveBeenCalled()
+    })
+
+    it('does nothing when track is already before all autoplay tracks', () => {
+        const userTrack = {
+            url: 'https://example.com/user',
+            title: 'User Song',
+        }
+        const autoplayTrack = {
+            url: 'https://example.com/ap1',
+            title: 'Autoplay 1',
+            metadata: { isAutoplay: true },
+        }
+        const removeMock = jest.fn()
+        const queue = {
+            tracks: {
+                toArray: jest.fn().mockReturnValue([userTrack, autoplayTrack]),
+            },
+            node: { remove: removeMock },
+            addTrack: jest.fn(),
+            insertTrack: jest.fn(),
+        } as unknown as GuildQueue
+
+        moveUserTrackToPriority(queue, userTrack as Track)
+
+        expect(removeMock).not.toHaveBeenCalled()
+    })
+
+    it('adds track to end when no autoplay tracks remain after removal', () => {
+        const userTrack = {
+            url: 'https://example.com/user',
+            title: 'User Song',
+        }
+        const removeMock = jest.fn()
+        const addTrackMock = jest.fn()
+        const queue = {
+            tracks: {
+                toArray: jest
+                    .fn()
+                    .mockReturnValueOnce([userTrack])
+                    .mockReturnValueOnce([]),
+            },
+            node: { remove: removeMock },
+            addTrack: addTrackMock,
+            insertTrack: jest.fn(),
+        } as unknown as GuildQueue
+
+        moveUserTrackToPriority(queue, userTrack as Track)
+
+        expect(removeMock).not.toHaveBeenCalled()
     })
 })
