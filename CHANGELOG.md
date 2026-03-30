@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.42] - 2026-03-30
+
+### Added
+
+- Role audit event handlers: `GuildRoleCreate` and `GuildRoleDelete` now log to the audit trail via the existing audit handler infrastructure. (#388)
+
+### Tests
+
+- Added test coverage for guild automation execution service (`captureGuildAutomationState`, `executeApplyPlan`). (#389)
+- Added tests for bot client, player, and queue handlers. (#390)
+- Added tests for frontend embed builder, guild automation, levels, starboard, and reaction roles pages. (#391, #392)
+- Added tests for bot command and interaction handlers. (#393)
+
 ## [2.6.41] - 2026-03-30
 
 ### Added
