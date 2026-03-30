@@ -8,12 +8,15 @@ import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
+import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
+const LASTFM_SEED_COUNT = 3
+const LASTFM_SCORE_BOOST = 0.1
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
     process.env.QUEUE_RESCUE_PROBE_TIMEOUT_MS ?? '5000',
     10,
@@ -232,6 +235,19 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             currentTrack,
             recentArtists,
         )
+        if (requestedBy?.id) {
+            await collectLastFmCandidates(
+                queue,
+                requestedBy,
+                excludedUrls,
+                excludedKeys,
+                dislikedTrackKeys,
+                likedTrackKeys,
+                currentTrack,
+                recentArtists,
+                candidates,
+            )
+        }
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
         addSelectedTracks(
@@ -410,6 +426,67 @@ function upsertScoredCandidate(
             score: recommendation.score,
             reason: recommendation.reason,
         })
+    }
+}
+
+async function collectLastFmCandidates(
+    queue: GuildQueue,
+    requestedBy: User,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+    dislikedTrackKeys: Set<string>,
+    likedTrackKeys: Set<string>,
+    currentTrack: Track,
+    recentArtists: Set<string>,
+    candidates: Map<string, ScoredTrack>,
+): Promise<void> {
+    const lastFmTracks = await getLastFmSeedTracks(requestedBy.id)
+    if (lastFmTracks.length === 0) return
+
+    const pool = lastFmTracks.slice(0, 10)
+    const seeds: typeof lastFmTracks = []
+    while (seeds.length < LASTFM_SEED_COUNT && pool.length > 0) {
+        const idx = pool.length > 1 ? randomInt(pool.length) : 0
+        seeds.push(...pool.splice(idx, 1))
+    }
+
+    for (const seed of seeds) {
+        const query = `${seed.title} ${seed.artist}`.trim()
+        const tracks = await searchLastFmQuery(queue, query, requestedBy)
+        for (const track of tracks) {
+            if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                continue
+            const normalizedKey = normalizeTrackKey(track.title, track.author)
+            if (dislikedTrackKeys.has(normalizedKey)) continue
+            const rec = calculateRecommendationScore(
+                track,
+                currentTrack,
+                recentArtists,
+                likedTrackKeys,
+            )
+            upsertScoredCandidate(candidates, track, {
+                score: rec.score + LASTFM_SCORE_BOOST,
+                reason: rec.reason
+                    ? `${rec.reason} • last.fm taste`
+                    : 'last.fm taste',
+            })
+        }
+    }
+}
+
+async function searchLastFmQuery(
+    queue: GuildQueue,
+    query: string,
+    requestedBy: User,
+): Promise<Track[]> {
+    try {
+        const result = await queue.player.search(query, {
+            requestedBy,
+            searchEngine: QueryType.AUTO,
+        })
+        return result.tracks.slice(0, SEARCH_RESULTS_LIMIT)
+    } catch {
+        return []
     }
 }
 

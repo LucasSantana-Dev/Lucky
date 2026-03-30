@@ -42,6 +42,13 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
+const getLastFmSeedTracksMock = jest.fn()
+
+jest.mock('./autoplay/lastFmSeeds', () => ({
+    getLastFmSeedTracks: (...args: unknown[]) =>
+        getLastFmSeedTracksMock(...args),
+}))
+
 const dislikedTrackKeysMock = jest.fn()
 const likedTrackKeysMock = jest.fn()
 
@@ -93,6 +100,7 @@ describe('queueManipulation.replenishQueue', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getLastFmSeedTracksMock.mockResolvedValue([])
     })
 
     async function replenishWithSingleCandidate(options: {
@@ -640,6 +648,51 @@ describe('queueManipulation.replenishQueue', () => {
             (addedTrack?.metadata as Record<string, unknown>)
                 ?.recommendationReason,
         ).toContain('similar energy')
+    })
+
+    it('collects lastfm seed tracks and searches for recommendations', async () => {
+        getLastFmSeedTracksMock.mockResolvedValueOnce([
+            { artist: 'Radiohead', title: 'Paranoid Android' },
+            { artist: 'Muse', title: 'Hysteria' },
+        ])
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Karma Police',
+                            author: 'Radiohead',
+                            url: 'https://example.com/karma',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(getLastFmSeedTracksMock).toHaveBeenCalledWith('user-1')
+        expect(queue.player.search).toHaveBeenCalledWith(
+            expect.stringContaining('Paranoid Android'),
+            expect.objectContaining({ searchEngine: QueryType.AUTO }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/karma',
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    recommendationReason: expect.stringContaining('last.fm'),
+                }),
+            }),
+        )
     })
 })
 

@@ -1,5 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { getSessionKeyForUser, updateNowPlaying } from './lastFmApi'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
+import {
+    getSessionKeyForUser,
+    updateNowPlaying,
+    normalizeLastFmArtist,
+    normalizeLastFmTitle,
+    getTopTracks,
+} from './lastFmApi'
 
 const getSessionKeyMock = jest.fn()
 const fetchMock = jest.fn()
@@ -50,11 +63,118 @@ describe('lastFmApi', () => {
     it('sends signed updateNowPlaying payload', async () => {
         await updateNowPlaying('Artist Name', 'Track Name', 187, 'session-123')
 
-        const [, request] = fetchMock.mock.calls.at(-1) as [string, { body: string }]
+        const [, request] = fetchMock.mock.calls.at(-1) as [
+            string,
+            { body: string },
+        ]
         expect(request.body).toContain('method=track.updateNowPlaying')
         expect(request.body).toContain('artist=Artist+Name')
         expect(request.body).toContain('track=Track+Name')
         expect(request.body).toContain('duration=187')
         expect(request.body).toContain('api_sig=')
+    })
+
+    describe('normalizeLastFmArtist', () => {
+        it('strips " - Topic" suffix', () => {
+            expect(normalizeLastFmArtist('Doja Cat - Topic')).toBe('Doja Cat')
+        })
+
+        it('takes first artist when multiple are separated by comma', () => {
+            expect(normalizeLastFmArtist('Artist A, Artist B')).toBe('Artist A')
+        })
+
+        it('takes first artist when separated by slash', () => {
+            expect(normalizeLastFmArtist('Artist A / Artist B')).toBe(
+                'Artist A',
+            )
+        })
+
+        it('returns unchanged when no separators', () => {
+            expect(normalizeLastFmArtist('Kendrick Lamar')).toBe(
+                'Kendrick Lamar',
+            )
+        })
+    })
+
+    describe('normalizeLastFmTitle', () => {
+        it('removes (Official Video) suffix', () => {
+            expect(normalizeLastFmTitle('Track Name (Official Video)')).toBe(
+                'Track Name',
+            )
+        })
+
+        it('removes [Official Music Video] suffix', () => {
+            expect(
+                normalizeLastFmTitle('Track Name [Official Music Video]'),
+            ).toBe('Track Name')
+        })
+
+        it('removes feat. clause', () => {
+            expect(
+                normalizeLastFmTitle('Track Name (feat. Other Artist)'),
+            ).toBe('Track Name')
+        })
+
+        it('removes (ft. Other Artist) bracketed clause', () => {
+            expect(normalizeLastFmTitle('Track Name (ft. Other Artist)')).toBe(
+                'Track Name',
+            )
+        })
+
+        it('returns unchanged for clean titles', () => {
+            expect(normalizeLastFmTitle('HUMBLE.')).toBe('HUMBLE.')
+        })
+    })
+
+    describe('getTopTracks', () => {
+        it('returns mapped tracks on success', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptracks: {
+                        track: [
+                            {
+                                name: 'Song A',
+                                artist: { name: 'Artist X' },
+                                playcount: '42',
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getTopTracks('username', '3month', 5)
+
+            expect(tracks).toHaveLength(1)
+            expect(tracks[0]).toEqual({
+                artist: 'Artist X',
+                title: 'Song A',
+                playCount: 42,
+            })
+        })
+
+        it('returns empty array when fetch fails', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network'))
+
+            const tracks = await getTopTracks('username')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array when api_key is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+
+            const tracks = await getTopTracks('username')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array on non-ok response', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+
+            const tracks = await getTopTracks('username')
+
+            expect(tracks).toEqual([])
+        })
     })
 })

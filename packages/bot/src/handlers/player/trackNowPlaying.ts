@@ -153,9 +153,7 @@ export async function updateLastFmNowPlaying(
     const sessionKey = await getSessionKeyForUser(requesterId)
     if (!sessionKey) return
     const durationSec =
-        typeof track.duration === 'number'
-            ? Math.round(track.duration / 1000)
-            : undefined
+        track.durationMS > 0 ? Math.round(track.durationMS / 1000) : undefined
     try {
         await lastFmUpdateNowPlaying(
             track.author,
@@ -182,8 +180,8 @@ export async function scrobbleCurrentTrackIfLastFm(
     lastFmTrackStartTime.delete(queue.guild.id)
     const timestamp = startedAt ?? Math.floor(Date.now() / 1000)
     const durationSec =
-        typeof trackToScrobble.duration === 'number'
-            ? Math.round(trackToScrobble.duration / 1000)
+        trackToScrobble.durationMS > 0
+            ? Math.round(trackToScrobble.durationMS / 1000)
             : undefined
     try {
         await lastFmScrobble(

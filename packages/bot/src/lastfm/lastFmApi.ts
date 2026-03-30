@@ -81,6 +81,64 @@ async function signedPost(
     }
 }
 
+const TOPIC_SUFFIX = / - topic$/i
+const ARTIST_SEPARATORS = /\s*[,/]\s*/
+const TITLE_NOISE_PARENS =
+    /\s*[([](official\s*(music\s*)?video|official\s*audio|audio|lyric\s*video|lyrics?|live|hd|4k|ft\.?[^)\]]*|feat\.?[^)\]]*)[)\]]/gi
+const FEAT_CLAUSE = /\s*[\[(]?feat\.?\s+[^\])[]+[\])]?/gi
+
+export function normalizeLastFmArtist(raw: string): string {
+    return raw.replace(TOPIC_SUFFIX, '').split(ARTIST_SEPARATORS)[0].trim()
+}
+
+export function normalizeLastFmTitle(raw: string): string {
+    return raw.replace(TITLE_NOISE_PARENS, '').replace(FEAT_CLAUSE, '').trim()
+}
+
+export type LastFmTopTrack = {
+    artist: string
+    title: string
+    playCount: number
+}
+export type LastFmPeriod = '7day' | '1month' | '3month' | '6month' | '12month'
+
+export async function getTopTracks(
+    lastFmUsername: string,
+    period: LastFmPeriod = '3month',
+    limit = 20,
+): Promise<LastFmTopTrack[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    const params = new URLSearchParams({
+        method: 'user.getTopTracks',
+        user: lastFmUsername,
+        period,
+        limit: String(limit),
+        api_key: config.apiKey,
+        format: 'json',
+    })
+    try {
+        const res = await fetch(`${API_BASE}?${params.toString()}`)
+        if (!res.ok) return []
+        const data = (await res.json()) as {
+            toptracks?: {
+                track?: Array<{
+                    name: string
+                    artist: { name: string }
+                    playcount: string
+                }>
+            }
+        }
+        return (data.toptracks?.track ?? []).map((t) => ({
+            artist: t.artist.name,
+            title: t.name,
+            playCount: parseInt(t.playcount, 10) || 0,
+        }))
+    } catch {
+        return []
+    }
+}
+
 export async function updateNowPlaying(
     artist: string,
     track: string,
@@ -89,8 +147,8 @@ export async function updateNowPlaying(
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
     const params: Record<string, string> = {
-        artist: artist.trim(),
-        track: track.trim(),
+        artist: normalizeLastFmArtist(artist),
+        track: normalizeLastFmTitle(track),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
@@ -107,8 +165,8 @@ export async function scrobble(
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
     const params: Record<string, string> = {
-        artist: artist.trim(),
-        track: track.trim(),
+        artist: normalizeLastFmArtist(artist),
+        track: normalizeLastFmTitle(track),
         timestamp: String(Math.floor(timestamp)),
     }
     if (durationSec != null && durationSec > 0) {
