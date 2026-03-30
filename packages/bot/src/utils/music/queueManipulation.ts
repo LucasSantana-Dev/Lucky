@@ -471,16 +471,22 @@ async function probeTrackResolvable(
     timeoutMs: number,
 ): Promise<boolean> {
     const query = track.url || `${track.title} ${track.author}`.trim()
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
     try {
         const result = await Promise.race([
             queue.player.search(query, { searchEngine: QueryType.AUTO }),
-            new Promise<null>((resolve) =>
-                setTimeout(() => resolve(null), timeoutMs),
+            new Promise<null>(
+                (resolve) =>
+                    (timeoutId = setTimeout(() => resolve(null), timeoutMs)),
             ),
         ])
         return result !== null && result.tracks.length > 0
     } catch {
         return false
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId)
+        }
     }
 }
 
@@ -678,28 +684,51 @@ function markAsAutoplayTrack(
     }
 }
 
-export function insertUserTrackWithPriority(
-    queue: GuildQueue,
-    track: Track,
-): void {
+export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     const tracks = queue.tracks.toArray()
+    const trackIndex = tracks.findIndex((t) => t.url === track.url)
+
+    if (trackIndex === -1) {
+        debugLog({
+            message: 'User track not in queue (already playing)',
+            data: { title: track.title },
+        })
+        return
+    }
+
     const firstAutoplayIndex = tracks.findIndex((t) => {
         const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
         return meta.isAutoplay === true
     })
 
-    if (firstAutoplayIndex === -1) {
+    if (firstAutoplayIndex === -1 || trackIndex < firstAutoplayIndex) {
+        return
+    }
+
+    try {
+        queue.node.remove(track)
+    } catch {
+        return
+    }
+
+    const remaining = queue.tracks.toArray()
+    const newFirstAutoplayIndex = remaining.findIndex((t) => {
+        const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
+        return meta.isAutoplay === true
+    })
+
+    if (newFirstAutoplayIndex === -1) {
         queue.addTrack(track)
     } else {
-        queue.insertTrack(track, firstAutoplayIndex)
+        queue.insertTrack(track, newFirstAutoplayIndex)
     }
 
     debugLog({
-        message: 'User track inserted with priority',
+        message: 'User track moved to priority position',
         data: {
             title: track.title,
-            position:
-                firstAutoplayIndex === -1 ? tracks.length : firstAutoplayIndex,
+            insertAt:
+                newFirstAutoplayIndex === -1 ? 'end' : newFirstAutoplayIndex,
         },
     })
 }

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `/autoplay` queue resolution now falls back to queue metadata channel guild IDs, so autoplay can be enabled while a single current track is playing even when the queue cache key is non-standard.
 - Watchdog orphan-session recovery now clears non-restorable snapshots and marks recovery as failed when zero tracks are restored, preventing repeated rejoin loops and VoiceConnection listener leaks.
+- Manually added single tracks are now moved to play before any autoplay-tagged tracks in the queue, regardless of whether autoplay mode is active — previously priority insertion only ran in AUTOPLAY repeat mode.
+- Eliminated duplicate track entries when adding a song while autoplay is running: `player.play()` already appends the track, so the follow-up priority step now moves the existing entry rather than inserting a second copy, preventing audio resource conflicts (yellow warning icon).
 
 ## [2.6.39] - 2026-03-24
 
