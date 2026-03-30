@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dashboard sidebar redesigned as a guild command center: persistent guild block at top (avatar, name, Management Console subtitle, switch-server action), navigation reorganized into 6 operational groups (Overview / Moderation / Automation / Community / Media / Integrations), sharper active-item indicator, and collapsible mobile drawer with spring animation. (#379)
+- Autoplay recommendation engine now emits `session novelty` reason tag (+0.15 score boost) for candidates whose artist has not appeared anywhere in the current session, and `similar energy` reason tag (+0.10) for tracks within ±30% duration of the current track. (#380)
+
+### Fixed
+
+- Guild automation API endpoints (`/manifest`, `/status`, `/capture`, `/plan`, `/apply`, `/reconcile`, `/cutover`, `/presets/criativaria/apply`) now require `settings` module access via RBAC instead of bare session authentication, closing a privilege escalation path. (#381)
+
 ## [2.6.40] - 2026-03-30
 
 ### Fixed
