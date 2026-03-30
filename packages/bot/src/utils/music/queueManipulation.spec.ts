@@ -573,6 +573,74 @@ describe('queueManipulation.replenishQueue', () => {
             }),
         )
     })
+
+    it('tags session novelty when candidate artist is not in recent history', async () => {
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://example.com/current',
+                source: 'youtube',
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Brand New Song',
+                            author: 'Never Heard Before Artist',
+                            url: 'https://example.com/new1',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
+        expect(addedTrack).toBeDefined()
+        expect(
+            (addedTrack?.metadata as Record<string, unknown>)
+                ?.recommendationReason,
+        ).toContain('session novelty')
+    })
+
+    it('tags similar energy when candidate duration is within 30% of current track', async () => {
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://example.com/current',
+                source: 'youtube',
+                durationMS: 200000,
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Similar Energy Song',
+                            author: 'New Artist',
+                            url: 'https://example.com/similar',
+                            source: 'spotify',
+                            durationMS: 210000,
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
+        expect(addedTrack).toBeDefined()
+        expect(
+            (addedTrack?.metadata as Record<string, unknown>)
+                ?.recommendationReason,
+        ).toContain('similar energy')
+    })
 })
 
 describe('queueManipulation.queueOperations', () => {
