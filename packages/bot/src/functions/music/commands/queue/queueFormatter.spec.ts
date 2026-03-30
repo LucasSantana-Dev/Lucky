@@ -25,7 +25,9 @@ describe('queueFormatter', () => {
     })
 
     it('returns fallback now-playing field when no current track exists', () => {
-        const field = formatCurrentTrackEmbed(null, { user: { id: 'bot' } } as any)
+        const field = formatCurrentTrackEmbed(null, {
+            user: { id: 'bot' },
+        } as any)
 
         expect(field).toEqual({
             name: '▶️ Now Playing',
@@ -63,6 +65,39 @@ describe('queueFormatter', () => {
         expect(field.value).toContain('🤖 Autoplay')
         expect(field.value).toContain('Why this track: fresh artist rotation')
         expect(field.value).toContain('Why this track: similar title mood')
+    })
+
+    it('keeps metadata-tagged autoplay tracks labeled as autoplay without bot requester', () => {
+        getTrackInfoMock
+            .mockReturnValueOnce({
+                title: 'Current',
+                duration: '3:00',
+                requester: 'Autoplay',
+                recommendationReason: 'fresh artist rotation',
+                isAutoplay: true,
+            })
+            .mockReturnValueOnce({
+                title: 'Next',
+                duration: '4:00',
+                requester: 'Autoplay',
+                recommendationReason: 'similar title mood',
+                isAutoplay: true,
+            })
+
+        const queue = {
+            currentTrack: {
+                metadata: { isAutoplay: true },
+            },
+            tracks: {
+                at: jest.fn(() => ({ metadata: { isAutoplay: true } })),
+            },
+        }
+        const client = { user: { id: 'bot-user' } }
+
+        const field = formatCurrentTrackEmbed(queue as any, client as any)
+
+        expect(field.value).toContain('🤖 Autoplay')
+        expect(field.value).not.toContain('👤 Manual')
     })
 
     it('formats manual and autoplay track lists with requester tags', () => {

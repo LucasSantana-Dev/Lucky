@@ -2,7 +2,9 @@
     "compilerOptions": {
         "target": "ES2022",
         "module": "ESNext",
-        "lib": ["ES2022"],
+        "lib": [
+            "ES2022"
+        ],
         "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "allowSyntheticDefaultImports": true,
@@ -13,13 +15,26 @@
         "rootDir": "./src",
         "outDir": "./dist",
         "baseUrl": ".",
-        "ignoreDeprecations": "6.0",
         "paths": {
-            "@/*": ["./src/*"],
-            "@lucky/shared": ["../shared/dist/index.d.ts"],
-            "@lucky/shared/*": ["../shared/dist/*"]
-        }
+            "@/*": [
+                "./src/*"
+            ],
+            "@lucky/shared": [
+                "../shared/dist/index.d.ts"
+            ],
+            "@lucky/shared/*": [
+                "../shared/dist/*"
+            ]
+        },
+        "ignoreDeprecations": "6.0"
     },
-    "include": ["src/**/*"],
-    "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.spec.ts",
+        "**/*.test.ts"
+    ]
 }

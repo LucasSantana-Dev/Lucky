@@ -13,6 +13,8 @@ export type SnapshotTrack = {
     duration: string
     source: string
     recommendationReason?: string
+    isAutoplay?: boolean
+    requestedById?: string
 }
 
 export type QueueSessionSnapshot = {
@@ -48,6 +50,8 @@ function toDurationString(duration: unknown): string {
 function toSnapshotTrack(track: Track): SnapshotTrack {
     const metadata = (track.metadata ?? {}) as {
         recommendationReason?: string
+        isAutoplay?: boolean
+        requestedById?: string
     }
 
     return {
@@ -57,6 +61,8 @@ function toSnapshotTrack(track: Track): SnapshotTrack {
         duration: toDurationString(track.duration),
         source: track.source ?? 'unknown',
         recommendationReason: metadata.recommendationReason,
+        isAutoplay: metadata.isAutoplay,
+        requestedById: metadata.requestedById,
     }
 }
 
@@ -64,6 +70,8 @@ function applySnapshotMetadata(
     track: Track,
     snapshotId: string,
     recommendationReason?: string,
+    isAutoplay?: boolean,
+    requestedById?: string,
 ): void {
     const mutableTrack = track as unknown as {
         metadata?: Record<string, unknown>
@@ -74,12 +82,15 @@ function applySnapshotMetadata(
         sessionSnapshotId: snapshotId,
         recommendationReason:
             recommendationReason ?? metadata.recommendationReason,
+        isAutoplay: isAutoplay ?? metadata.isAutoplay,
+        requestedById: requestedById ?? metadata.requestedById,
     }
 }
 
 export class MusicSessionSnapshotService {
     constructor(
-        private readonly ttlSeconds = ENVIRONMENT_CONFIG.SESSIONS.QUEUE_SESSION_TTL,
+        private readonly ttlSeconds = ENVIRONMENT_CONFIG.SESSIONS
+            .QUEUE_SESSION_TTL,
         private readonly maxSnapshotAgeMs = DEFAULT_MAX_SNAPSHOT_AGE_MS,
     ) {}
 
@@ -179,7 +190,8 @@ export class MusicSessionSnapshotService {
             const maxAge = options.maxAgeMs ?? this.maxSnapshotAgeMs
             if (Date.now() - snapshot.savedAt > maxAge) {
                 debugLog({
-                    message: 'Music session snapshot is too old; skipping restore',
+                    message:
+                        'Music session snapshot is too old; skipping restore',
                     data: {
                         guildId: queue.guild.id,
                         savedAt: snapshot.savedAt,
@@ -213,6 +225,8 @@ export class MusicSessionSnapshotService {
                     track as Track,
                     snapshot.sessionSnapshotId,
                     entry.recommendationReason,
+                    entry.isAutoplay,
+                    entry.requestedById,
                 )
                 queue.addTrack(track)
                 restoredCount += 1

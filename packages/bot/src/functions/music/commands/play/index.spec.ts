@@ -15,14 +15,18 @@ const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
 const canAddTracksMock = jest.fn()
 const recordContributionMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
+const moveUserTrackToPriorityMock = jest.fn()
+const blendAutoplayTracksMock = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: { AUTOPLAY: 3 },
 }))
 
 jest.mock('../../../../utils/music/queueManipulation', () => ({
-    moveUserTrackToPriority: jest.fn(),
-    blendAutoplayTracks: jest.fn().mockResolvedValue(undefined),
+    moveUserTrackToPriority: (...args: unknown[]) =>
+        moveUserTrackToPriorityMock(...args),
+    blendAutoplayTracks: (...args: unknown[]) =>
+        blendAutoplayTracksMock(...args),
 }))
 
 jest.mock('../../../../utils/music/queueResolver', () => ({
@@ -93,6 +97,7 @@ describe('play command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
+        blendAutoplayTracksMock.mockResolvedValue(undefined)
         canAddTracksMock.mockReturnValue({
             allowed: true,
             limit: 3,
@@ -155,6 +160,49 @@ describe('play command', () => {
         )
         expect(interaction.editReply).toHaveBeenCalled()
         expect(createSuccessEmbedMock).toHaveBeenCalled()
+    })
+
+    it('does not reinsert a manual track already queued by player.play in autoplay mode', async () => {
+        const interaction = createInteraction('guild-1')
+        const track = {
+            id: 'track-1',
+            url: 'https://example.com/track-1',
+            title: 'Song A',
+            author: 'Artist A',
+        }
+
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 3,
+                tracks: {
+                    size: 2,
+                    toArray: () => [
+                        track,
+                        {
+                            id: 'track-2',
+                            url: 'https://example.com/track-2',
+                            title: 'Song B',
+                            author: 'Artist B',
+                            metadata: { isAutoplay: true },
+                        },
+                    ],
+                },
+            },
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track,
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+        expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
+            expect.anything(),
+            track,
+        )
     })
 
     it('handles play failures', async () => {

@@ -23,7 +23,8 @@ export function formatCurrentTrackEmbed(
     }
 
     const trackInfo = getTrackInfo(currentTrack)
-    const isAutoplay = currentTrack.requestedBy?.id === client.user?.id
+    const isAutoplay =
+        trackInfo.isAutoplay || currentTrack.requestedBy?.id === client.user?.id
     const tag = isAutoplay ? '🤖 Autoplay' : '👤 Manual'
     const reasonLine =
         isAutoplay && trackInfo.recommendationReason
@@ -34,7 +35,9 @@ export function formatCurrentTrackEmbed(
     const nextTrack = queue?.tracks.at(0)
     if (nextTrack) {
         const nextTrackData = getTrackInfo(nextTrack)
-        const isNextAutoplay = nextTrack.requestedBy?.id === client.user?.id
+        const isNextAutoplay =
+            nextTrackData.isAutoplay ||
+            nextTrack.requestedBy?.id === client.user?.id
         const nextTag = isNextAutoplay ? '🤖 Autoplay' : '👤 Manual'
         const nextReason =
             isNextAutoplay && nextTrackData.recommendationReason

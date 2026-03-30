@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { QueueRepeatMode } from 'discord-player'
 import autoplayCommand from './autoplay'
+
+const QueueRepeatMode = {
+    OFF: 0,
+    AUTOPLAY: 3,
+} as const
 
 const requireGuildMock = jest.fn()
 const requireQueueMock = jest.fn()
@@ -17,12 +21,19 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
 
+jest.mock('discord-player', () => ({
+    QueueRepeatMode: {
+        OFF: 0,
+        AUTOPLAY: 3,
+    },
+}))
+
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createEmbed: (...args: unknown[]) => createEmbedMock(...args),
+    createEmbed: (payload: unknown) => createEmbedMock(payload),
     EMBED_COLORS: {
         AUTOPLAY: '#00BFFF',
         ERROR: '#FF0000',

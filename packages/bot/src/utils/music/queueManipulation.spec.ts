@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import {
     replenishQueue,
     shuffleQueue,
@@ -24,6 +25,13 @@ jest.mock('discord-player', () => ({
 const QueryType = {
     AUTO: 'auto',
     YOUTUBE_SEARCH: 'youtubeSearch',
+} as const
+
+const QueueRepeatMode = {
+    OFF: 0,
+    TRACK: 1,
+    QUEUE: 2,
+    AUTOPLAY: 3,
 } as const
 
 type GuildQueue = any
@@ -533,11 +541,16 @@ describe('queueManipulation.replenishQueue', () => {
                 size: 0,
                 toArray: jest.fn().mockReturnValue([]),
             },
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
             player: {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            id: 'autoplay-track-1',
                             title: 'Fresh Song',
                             author: 'Fresh Artist',
                         },
@@ -550,11 +563,12 @@ describe('queueManipulation.replenishQueue', () => {
 
         expect(queue.addTrack).toHaveBeenCalledWith(
             expect.objectContaining({
-                id: 'autoplay-track-1',
                 title: 'Fresh Song',
                 author: 'Fresh Artist',
                 metadata: expect.objectContaining({
                     isAutoplay: true,
+                    recommendationReason: expect.any(String),
+                    requestedById: 'user-1',
                 }),
             }),
         )

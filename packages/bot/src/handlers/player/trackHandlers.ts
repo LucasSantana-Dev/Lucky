@@ -30,6 +30,18 @@ export type TrackHistoryEntry = {
 
 export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()
 
+function getTrackRequesterId(track: Track): string | undefined {
+    const metadata = track.metadata as { requestedById?: string } | undefined
+    return track.requestedBy?.id ?? metadata?.requestedById
+}
+
+function isAutoplayTrack(track: Track, clientUserId?: string): boolean {
+    const metadata = track.metadata as { isAutoplay?: boolean } | undefined
+    return (
+        metadata?.isAutoplay === true || track.requestedBy?.id === clientUserId
+    )
+}
+
 function evictOldEntries(): void {
     if (lastPlayedTracks.size > MAX_GUILD_ENTRIES) {
         const oldest = lastPlayedTracks.keys().next().value
@@ -98,7 +110,7 @@ async function handleQueueReplenishment(
 ): Promise<void> {
     const autoplayEnabled = await isAutoplayReplenishmentEnabled(
         queue,
-        track.requestedBy?.id,
+        getTrackRequesterId(track),
     )
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
         try {
@@ -141,7 +153,7 @@ const handlePlayerStart = async (
         if (queue.node.volume !== constants.VOLUME)
             queue.node.setVolume(constants.VOLUME)
 
-        const isAutoplay = track.requestedBy?.id === client.user?.id
+        const isAutoplay = isAutoplayTrack(track, client.user?.id)
         const isAutoplayEnabled = queue.repeatMode === QueueRepeatMode.AUTOPLAY
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)
