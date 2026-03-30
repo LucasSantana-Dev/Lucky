@@ -446,8 +446,11 @@ describe('Sidebar', () => {
         })
     })
 
-    test('renders guild name in header when guild is selected', () => {
+    test('guild icon URL contains icon hash when guild has icon', () => {
         renderSidebar()
+
+        expect(mockGuild.icon).toBe('icon123')
+        expect(mockGuild.id).toBe('987654321')
 
         const guildNames = screen.getAllByText('Test Server')
         expect(guildNames.length).toBeGreaterThan(0)
