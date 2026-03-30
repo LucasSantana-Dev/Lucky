@@ -90,7 +90,9 @@ describe('handleMessageCreate — XP handling', () => {
 
     it('does nothing when message is from a bot', async () => {
         getConfigMock.mockResolvedValue(ACTIVE_CONFIG)
-        const message = makeMessage({ author: { id: 'bot-1', bot: true, toString: () => '<@bot-1>' } })
+        const message = makeMessage({
+            author: { id: 'bot-1', bot: true, toString: () => '<@bot-1>' },
+        })
         await client._handlers['messageCreate'](message)
         expect(getConfigMock).not.toHaveBeenCalled()
     })
@@ -119,7 +121,9 @@ describe('handleMessageCreate — XP handling', () => {
 
     it('does nothing when user is on cooldown', async () => {
         getConfigMock.mockResolvedValue(ACTIVE_CONFIG)
-        getMemberXPMock.mockResolvedValue({ lastXpAt: new Date(Date.now() - 100) })
+        getMemberXPMock.mockResolvedValue({
+            lastXpAt: new Date(Date.now() - 100),
+        })
         const message = makeMessage()
         await client._handlers['messageCreate'](message)
         expect(addXPMock).not.toHaveBeenCalled()
@@ -127,7 +131,9 @@ describe('handleMessageCreate — XP handling', () => {
 
     it('adds XP when cooldown has elapsed', async () => {
         getConfigMock.mockResolvedValue(ACTIVE_CONFIG)
-        getMemberXPMock.mockResolvedValue({ lastXpAt: new Date(Date.now() - 10000) })
+        getMemberXPMock.mockResolvedValue({
+            lastXpAt: new Date(Date.now() - 10000),
+        })
         addXPMock.mockResolvedValue({ leveledUp: false, newLevel: 1 })
         const message = makeMessage()
         await client._handlers['messageCreate'](message)
@@ -148,17 +154,31 @@ describe('handleMessageCreate — XP handling', () => {
         const fetchedChannel = { isTextBased: () => true, send: sendMock }
         client = makeClient(fetchedChannel)
         handleMessageCreate(client as any)
-        getConfigMock.mockResolvedValue({ ...ACTIVE_CONFIG, announceChannel: 'announce-ch' })
+        getConfigMock.mockResolvedValue({
+            ...ACTIVE_CONFIG,
+            announceChannel: 'announce-ch',
+        })
         getMemberXPMock.mockResolvedValue(null)
         addXPMock.mockResolvedValue({ leveledUp: true, newLevel: 5 })
         getRewardsMock.mockResolvedValue([])
-        const message = makeMessage({ client: { channels: { fetch: jest.fn().mockResolvedValue(fetchedChannel) } } })
+        const message = makeMessage({
+            client: {
+                channels: {
+                    fetch: jest.fn().mockResolvedValue(fetchedChannel),
+                },
+            },
+        })
         await client._handlers['messageCreate'](message)
-        expect(sendMock).toHaveBeenCalledWith(expect.stringContaining('level **5**'))
+        expect(sendMock).toHaveBeenCalledWith(
+            expect.stringContaining('level **5**'),
+        )
     })
 
     it('assigns role reward when available for the reached level', async () => {
-        getConfigMock.mockResolvedValue({ ...ACTIVE_CONFIG, announceChannel: 'announce-ch' })
+        getConfigMock.mockResolvedValue({
+            ...ACTIVE_CONFIG,
+            announceChannel: 'announce-ch',
+        })
         getMemberXPMock.mockResolvedValue(null)
         addXPMock.mockResolvedValue({ leveledUp: true, newLevel: 5 })
         getRewardsMock.mockResolvedValue([{ level: 5, roleId: 'role-5' }])
@@ -166,7 +186,16 @@ describe('handleMessageCreate — XP handling', () => {
         const sendMock = jest.fn().mockResolvedValue(undefined)
         const message = makeMessage({
             member: { roles: { add: addRoleMock } },
-            client: { channels: { fetch: jest.fn().mockResolvedValue({ isTextBased: () => true, send: sendMock }) } },
+            client: {
+                channels: {
+                    fetch: jest
+                        .fn()
+                        .mockResolvedValue({
+                            isTextBased: () => true,
+                            send: sendMock,
+                        }),
+                },
+            },
         })
         await client._handlers['messageCreate'](message)
         expect(addRoleMock).toHaveBeenCalledWith('role-5')
@@ -177,5 +206,31 @@ describe('handleMessageCreate — XP handling', () => {
         const message = makeMessage()
         await client._handlers['messageCreate'](message)
         expect(errorLogMock).toHaveBeenCalled()
+    })
+
+    it('logs error when addXP throws', async () => {
+        getConfigMock.mockResolvedValue(ACTIVE_CONFIG)
+        getMemberXPMock.mockResolvedValue(null)
+        addXPMock.mockRejectedValue(new Error('addXP failed'))
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error handling XP:' }),
+        )
+    })
+
+    it('logs error when getRewards throws after level-up', async () => {
+        getConfigMock.mockResolvedValue({
+            ...ACTIVE_CONFIG,
+            announceChannel: 'ch',
+        })
+        getMemberXPMock.mockResolvedValue(null)
+        addXPMock.mockResolvedValue({ leveledUp: true, newLevel: 3 })
+        getRewardsMock.mockRejectedValue(new Error('rewards db error'))
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error handling XP:' }),
+        )
     })
 })

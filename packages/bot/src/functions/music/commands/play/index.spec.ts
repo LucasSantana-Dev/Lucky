@@ -205,6 +205,19 @@ describe('play command', () => {
         )
     })
 
+    it('stops when voice channel validation fails', async () => {
+        requireVoiceChannelMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
+
+        await playCommand.execute({
+            client: createClient(async () => ({})),
+            interaction,
+        } as any)
+
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(interaction.editReply).not.toHaveBeenCalled()
+    })
+
     it('handles play failures', async () => {
         const interaction = createInteraction('guild-1')
 
@@ -215,8 +228,16 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(errorLogMock).toHaveBeenCalled()
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Play command error:',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
+            }),
+        )
         expect(interaction.editReply).toHaveBeenCalled()
-        expect(createErrorEmbedMock).toHaveBeenCalled()
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Play Error',
+            expect.stringContaining('Could not find'),
+        )
     })
 })

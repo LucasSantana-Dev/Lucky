@@ -43,7 +43,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
-    requireVoiceChannel: (...args: unknown[]) => requireVoiceChannelMock(...args),
+    requireVoiceChannel: (...args: unknown[]) =>
+        requireVoiceChannelMock(...args),
 }))
 
 jest.mock('../../../utils/music/sessionSnapshots', () => ({
@@ -69,7 +70,10 @@ jest.mock('../../../utils/general/embeds', () => ({
     errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
 }))
 
-function createInteraction(subcommand: 'save' | 'restore', guildId = 'guild-1') {
+function createInteraction(
+    subcommand: 'save' | 'restore',
+    guildId = 'guild-1',
+) {
     return {
         guildId,
         user: { id: 'user-1' },
@@ -124,6 +128,30 @@ describe('session command', () => {
             sessionSnapshotId: 'snap-1',
         })
         resolveGuildQueueMock.mockReturnValue(createQueueResolution())
+        warningEmbedMock.mockImplementation(
+            (title: string, message: string) => ({
+                type: 'warning',
+                title,
+                message,
+            }),
+        )
+        successEmbedMock.mockImplementation(
+            (title: string, message: string) => ({
+                type: 'success',
+                title,
+                message,
+            }),
+        )
+        infoEmbedMock.mockImplementation((title: string, message: string) => ({
+            type: 'info',
+            title,
+            message,
+        }))
+        errorEmbedMock.mockImplementation((title: string, message: string) => ({
+            type: 'error',
+            title,
+            message,
+        }))
     })
 
     it('returns when guild validation fails', async () => {
@@ -144,12 +172,14 @@ describe('session command', () => {
     it('warns when snapshot save has no tracks', async () => {
         const queue = { tracks: { size: 1 } }
         saveSnapshotMock.mockResolvedValue(null)
-        resolveGuildQueueMock.mockReturnValue(createQueueResolution({
-            queue,
-            source: 'nodes.get',
-            cacheSize: 1,
-            cacheSampleKeys: ['guild-1'],
-        }))
+        resolveGuildQueueMock.mockReturnValue(
+            createQueueResolution({
+                queue,
+                source: 'nodes.get',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            }),
+        )
 
         await sessionCommand.execute(createExecuteParams('save'))
 
@@ -166,12 +196,14 @@ describe('session command', () => {
             sessionSnapshotId: 'snap-2',
             upcomingTracks: [{}, {}],
         })
-        resolveGuildQueueMock.mockReturnValue(createQueueResolution({
-            queue,
-            source: 'cache.guild',
-            cacheSize: 1,
-            cacheSampleKeys: ['guild-1'],
-        }))
+        resolveGuildQueueMock.mockReturnValue(
+            createQueueResolution({
+                queue,
+                source: 'cache.guild',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            }),
+        )
 
         await sessionCommand.execute(createExecuteParams('save'))
 
@@ -200,6 +232,16 @@ describe('session command', () => {
         expect(errorEmbedMock).toHaveBeenCalledWith(
             'Connection error',
             'Could not connect to your voice channel.',
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    ephemeral: true,
+                    embeds: expect.arrayContaining([
+                        expect.objectContaining({ type: 'error' }),
+                    ]),
+                }),
+            }),
         )
     })
 
@@ -234,5 +276,4 @@ describe('session command', () => {
             expect.stringContaining('Restored 3 tracks'),
         )
     })
-
 })

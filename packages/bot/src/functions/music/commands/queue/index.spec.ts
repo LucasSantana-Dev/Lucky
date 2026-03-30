@@ -140,7 +140,9 @@ describe('queue command', () => {
             interaction: createInteraction('rescue'),
         } as any)
 
-        expect(rescueQueueMock).toHaveBeenCalledWith(queue, { probeResolvable: true })
+        expect(rescueQueueMock).toHaveBeenCalledWith(queue, {
+            probeResolvable: true,
+        })
         expect(successEmbedMock).toHaveBeenCalledWith(
             'Queue rescue complete',
             expect.stringContaining('Removed 1 broken track(s)'),
@@ -169,6 +171,48 @@ describe('queue command', () => {
         } as any)
 
         expect(errorLogMock).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: [expect.objectContaining({ id: 'queue-error' })],
+                }),
+            }),
+        )
+    })
+
+    it('logs error and replies with error embed when smartShuffle throws', async () => {
+        const queue = { tracks: { size: 3 } }
+        smartShuffleQueueMock.mockRejectedValue(new Error('shuffle failed'))
+
+        await queueCommand.execute({
+            client: createClient(queue),
+            interaction: createInteraction('smartshuffle'),
+        } as any)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error in queue command' }),
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: [expect.objectContaining({ id: 'queue-error' })],
+                }),
+            }),
+        )
+    })
+
+    it('logs error and replies with error embed when rescueQueue throws', async () => {
+        const queue = { tracks: { size: 3 } }
+        rescueQueueMock.mockRejectedValue(new Error('rescue failed'))
+
+        await queueCommand.execute({
+            client: createClient(queue),
+            interaction: createInteraction('rescue'),
+        } as any)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error in queue command' }),
+        )
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.objectContaining({

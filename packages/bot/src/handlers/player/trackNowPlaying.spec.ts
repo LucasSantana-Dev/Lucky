@@ -100,6 +100,8 @@ describe('trackNowPlaying', () => {
             requestedBy: { username: 'bot' },
             metadata: { recommendationReason: 'fresh artist rotation' },
         }
+        const buttons = { type: 1, components: [] }
+        createMusicControlButtonsMock.mockReturnValue(buttons)
 
         await sendNowPlayingEmbed(queue as any, track as any, true)
 
@@ -115,7 +117,10 @@ describe('trackNowPlaying', () => {
                 footer: 'Autoplay • 7/50 songs',
             }),
         )
-        expect(channel.send).toHaveBeenCalled()
+        expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
+        expect(channel.send).toHaveBeenCalledWith(
+            expect.objectContaining({ components: [buttons] }),
+        )
     })
 
     it('updates existing now playing message in the same channel', async () => {
