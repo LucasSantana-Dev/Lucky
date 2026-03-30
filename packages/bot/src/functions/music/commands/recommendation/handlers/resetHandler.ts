@@ -1,6 +1,7 @@
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import { errorEmbed, successEmbed } from '../../../../../utils/general/embeds'
+import { errorLog } from '@lucky/shared/utils'
 
 const recommendationConfigService = {
     resetSettings: async (_guildId: string): Promise<void> => {},
@@ -15,7 +16,12 @@ export async function handleResetSettings(
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'This command can only be used in a server!')],
+                    embeds: [
+                        errorEmbed(
+                            'Error',
+                            'This command can only be used in a server!',
+                        ),
+                    ],
                 },
             })
             return
@@ -26,7 +32,12 @@ export async function handleResetSettings(
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'Reset cancelled. You must confirm the reset.')],
+                    embeds: [
+                        errorEmbed(
+                            'Error',
+                            'Reset cancelled. You must confirm the reset.',
+                        ),
+                    ],
                 },
             })
             return
@@ -45,7 +56,8 @@ export async function handleResetSettings(
                 ],
             },
         })
-    } catch (_error) {
+    } catch (error) {
+        errorLog({ message: 'Failed to reset recommendation settings', error })
         await interactionReply({
             interaction,
             content: {

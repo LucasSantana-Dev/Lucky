@@ -132,7 +132,8 @@ export const downloadAudio = async ({
 
         const audioStream = await downloadAudioStream(url)
         const finalOutputPath =
-            outputPath || path.resolve(__dirname, `../../content/${outputFileName}`)
+            outputPath ||
+            path.resolve(__dirname, `../../content/${outputFileName}`)
 
         const tempAudioPath = await saveStreamToTempFile(
             audioStream,
@@ -164,8 +165,11 @@ export const downloadAudio = async ({
             ) {
                 try {
                     streamObj.stream.destroy()
-                } catch (_destroyError) {
-                    // Ignore destroy errors
+                } catch (error) {
+                    errorLog({
+                        message: 'Stream destroy failed during cleanup',
+                        error,
+                    })
                 }
             }
         }

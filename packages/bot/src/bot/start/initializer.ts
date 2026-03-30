@@ -43,7 +43,8 @@ export class BotInitializer {
     private async createDiscordClient(): Promise<void> {
         try {
             this.client = await createClient()
-        } catch (_error) {
+        } catch (error) {
+            errorLog({ message: 'Failed to create Discord client', error })
             throw new ConfigurationError('Failed to create Discord client')
         }
     }

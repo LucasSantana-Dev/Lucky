@@ -1,7 +1,13 @@
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
-import { errorEmbed, createEmbed, EMBED_COLORS, EMOJIS } from '../../../../../utils/general/embeds'
+import {
+    errorEmbed,
+    createEmbed,
+    EMBED_COLORS,
+    EMOJIS,
+} from '../../../../../utils/general/embeds'
 import { getAutoplayStats } from '../../../../../utils/music/autoplayManager'
+import { errorLog } from '@lucky/shared/utils'
 
 const recommendationConfigService = {
     getSettings: async (_guildId: string) => ({
@@ -24,7 +30,12 @@ export async function handleShowSettings(
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'This command can only be used in a server!')],
+                    embeds: [
+                        errorEmbed(
+                            'Error',
+                            'This command can only be used in a server!',
+                        ),
+                    ],
                 },
             })
             return
@@ -35,7 +46,8 @@ export async function handleShowSettings(
 
         const embed = createEmbed({
             title: `${EMOJIS.SETTINGS} Recommendation Settings`,
-            description: 'Current recommendation configuration for this server.',
+            description:
+                'Current recommendation configuration for this server.',
             color: EMBED_COLORS.INFO,
             fields: [
                 {
@@ -60,7 +72,11 @@ export async function handleShowSettings(
             interaction,
             content: { embeds: [embed] },
         })
-    } catch (_error) {
+    } catch (error) {
+        errorLog({
+            message: 'Failed to retrieve recommendation settings',
+            error,
+        })
         await interactionReply({
             interaction,
             content: {

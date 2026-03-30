@@ -1,9 +1,18 @@
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
-import { errorEmbed, createEmbed, EMBED_COLORS, EMOJIS } from '../../../../../utils/general/embeds'
+import {
+    errorEmbed,
+    createEmbed,
+    EMBED_COLORS,
+    EMOJIS,
+} from '../../../../../utils/general/embeds'
+import { errorLog } from '@lucky/shared/utils'
 
 const recommendationConfigService = {
-    updateSettings: async (_guildId: string, _settings: unknown): Promise<void> => {},
+    updateSettings: async (
+        _guildId: string,
+        _settings: unknown,
+    ): Promise<void> => {},
 }
 
 export async function handleApplyPreset(
@@ -15,7 +24,12 @@ export async function handleApplyPreset(
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'This command can only be used in a server!')],
+                    embeds: [
+                        errorEmbed(
+                            'Error',
+                            'This command can only be used in a server!',
+                        ),
+                    ],
                 },
             })
             return
@@ -73,7 +87,10 @@ export async function handleApplyPreset(
             return
         }
 
-        await recommendationConfigService.updateSettings(guildId, selectedPreset)
+        await recommendationConfigService.updateSettings(
+            guildId,
+            selectedPreset,
+        )
 
         const embed = createEmbed({
             title: `${EMOJIS.SUCCESS} Preset Applied`,
@@ -94,7 +111,8 @@ export async function handleApplyPreset(
             interaction,
             content: { embeds: [embed] },
         })
-    } catch (_error) {
+    } catch (error) {
+        errorLog({ message: 'Failed to apply preset', error })
         await interactionReply({
             interaction,
             content: {
