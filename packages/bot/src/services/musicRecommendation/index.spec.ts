@@ -90,4 +90,62 @@ describe('MusicRecommendationService', () => {
         expect(result).toEqual([])
         expect(errorLogMock).toHaveBeenCalled()
     })
+
+    describe('getRecommendationsBasedOnHistory', () => {
+        it('fetches track history with correct guildId and limit', async () => {
+            const service = new MusicRecommendationService()
+            trackHistoryGetMock.mockResolvedValue([
+                {
+                    trackId: 'track-1',
+                    title: 'Song A',
+                    author: 'Artist A',
+                    duration: 180,
+                },
+                {
+                    trackId: 'track-2',
+                    title: 'Song B',
+                    author: 'Artist B',
+                    duration: 200,
+                },
+            ])
+            generateUserPreferenceRecommendationsMock.mockResolvedValue([])
+
+            await service.getRecommendationsBasedOnHistory('guild-5', [], 5)
+
+            expect(trackHistoryGetMock).toHaveBeenCalledWith('guild-5', 20)
+        })
+
+        it('returns empty array and logs when no history found', async () => {
+            const service = new MusicRecommendationService()
+            trackHistoryGetMock.mockResolvedValue([])
+
+            const result = await service.getRecommendationsBasedOnHistory(
+                'guild-6',
+                [],
+                5,
+            )
+
+            expect(result).toEqual([])
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'No history found for recommendations',
+                    data: expect.objectContaining({ guildId: 'guild-6' }),
+                }),
+            )
+        })
+
+        it('returns empty array and logs error when history fetch fails', async () => {
+            const service = new MusicRecommendationService()
+            trackHistoryGetMock.mockRejectedValue(new Error('db error'))
+
+            const result = await service.getRecommendationsBasedOnHistory(
+                'guild-7',
+                [],
+                5,
+            )
+
+            expect(result).toEqual([])
+            expect(errorLogMock).toHaveBeenCalled()
+        })
+    })
 })
