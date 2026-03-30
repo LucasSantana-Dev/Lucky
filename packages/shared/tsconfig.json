@@ -2,7 +2,9 @@
     "compilerOptions": {
         "target": "ES2022",
         "module": "ESNext",
-        "lib": ["ES2022"],
+        "lib": [
+            "ES2022"
+        ],
         "moduleResolution": "node",
         "resolveJsonModule": true,
         "allowSyntheticDefaultImports": true,
@@ -17,10 +19,15 @@
         "rootDir": "./src",
         "baseUrl": ".",
         "paths": {
-            "@/*": ["./src/*"]
-        }
+            "@/*": [
+                "./src/*"
+            ]
+        },
+        "ignoreDeprecations": "6.0"
     },
-    "include": ["src/**/*"],
+    "include": [
+        "src/**/*"
+    ],
     "exclude": [
         "node_modules",
         "dist",
