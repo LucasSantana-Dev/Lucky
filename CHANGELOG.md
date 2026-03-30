@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.43] - 2026-03-30
+
+### Tests
+
+- Added test coverage for moderation commands: ban, cases, and case handler interactions (39 tests). (#394)
+- Added test coverage for automessage commands and handlers (28 tests). (#395)
+
 ## [2.6.42] - 2026-03-30
 
 ### Added
