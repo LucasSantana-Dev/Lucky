@@ -106,7 +106,20 @@ export async function handleInteraction(
             await reactionRolesService.handleButtonInteraction(interaction)
         }
     } catch (error) {
-        errorLog({ message: 'Error handling interaction:', error })
+        const commandName = interaction.isChatInputCommand()
+            ? interaction.commandName
+            : interaction.isButton()
+              ? interaction.customId
+              : 'unknown'
+        errorLog({
+            message: 'Error handling interaction:',
+            error,
+            data: {
+                commandName,
+                userId: interaction.user.id,
+                guildId: interaction.guild?.id,
+            },
+        })
 
         try {
             if (
@@ -123,8 +136,11 @@ export async function handleInteraction(
                     },
                 })
             }
-        } catch (error) {
-            errorLog({ message: 'Error sending error message:', error })
+        } catch (replyError) {
+            errorLog({
+                message: 'Error sending error message:',
+                error: replyError,
+            })
         }
     }
 }

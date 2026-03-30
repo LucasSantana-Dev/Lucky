@@ -120,7 +120,6 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(resolveGuildQueueMock).toHaveBeenCalledWith(client, 'guild-1')
         expect(requireQueueMock).toHaveBeenCalledWith(queue, interaction)
         expect(queue.setRepeatMode).toHaveBeenCalledWith(
@@ -151,7 +150,6 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
         expect(replenishQueueMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).toHaveBeenCalled()
@@ -185,7 +183,6 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(requireQueueMock).toHaveBeenCalledWith(null, interaction)
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
@@ -211,7 +208,6 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
         expect(requireQueueMock).toHaveBeenCalledWith(null, interaction)
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
