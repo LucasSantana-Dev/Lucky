@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
-import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import type { AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
@@ -26,7 +27,7 @@ function requireUserId(req: AuthenticatedRequest): string {
 export function setupGuildAutomationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automation/manifest',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -43,7 +44,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.put(
         '/api/guilds/:guildId/automation/manifest',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.guildAutomationManifestBody),
@@ -67,7 +68,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.post(
         '/api/guilds/:guildId/automation/capture',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.guildAutomationManifestBody),
@@ -87,7 +88,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.post(
         '/api/guilds/:guildId/automation/plan',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.guildAutomationRunBody),
@@ -110,7 +111,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.post(
         '/api/guilds/:guildId/automation/apply',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.guildAutomationRunBody),
@@ -121,12 +122,15 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
                 : undefined
-            const result = await guildAutomationService.createApplyRun(guildId, {
-                actualState,
-                initiatedBy: userId,
-                allowProtected: body.allowProtected === true,
-                runType: 'apply',
-            })
+            const result = await guildAutomationService.createApplyRun(
+                guildId,
+                {
+                    actualState,
+                    initiatedBy: userId,
+                    allowProtected: body.allowProtected === true,
+                    runType: 'apply',
+                },
+            )
 
             res.json(result)
         }),
@@ -134,7 +138,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.post(
         '/api/guilds/:guildId/automation/reconcile',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.guildAutomationRunBody),
@@ -145,12 +149,15 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
                 : undefined
-            const result = await guildAutomationService.createApplyRun(guildId, {
-                actualState,
-                initiatedBy: userId,
-                allowProtected: body.allowProtected === true,
-                runType: 'reconcile',
-            })
+            const result = await guildAutomationService.createApplyRun(
+                guildId,
+                {
+                    actualState,
+                    initiatedBy: userId,
+                    allowProtected: body.allowProtected === true,
+                    runType: 'reconcile',
+                },
+            )
 
             res.json(result)
         }),
@@ -158,7 +165,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.get(
         '/api/guilds/:guildId/automation/status',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -173,7 +180,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.post(
         '/api/guilds/:guildId/automation/cutover',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.guildAutomationRunBody),
@@ -192,7 +199,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
 
     app.post(
         '/api/guilds/:guildId/automation/presets/criativaria/apply',
-        requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
