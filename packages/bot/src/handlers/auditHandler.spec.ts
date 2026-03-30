@@ -99,6 +99,14 @@ describe('auditHandler', () => {
                 Events.ChannelDelete,
                 expect.any(Function),
             )
+            expect(client.on).toHaveBeenCalledWith(
+                Events.GuildRoleCreate,
+                expect.any(Function),
+            )
+            expect(client.on).toHaveBeenCalledWith(
+                Events.GuildRoleDelete,
+                expect.any(Function),
+            )
         })
     })
 
@@ -694,6 +702,292 @@ describe('auditHandler', () => {
 
             expect(errorLog).toHaveBeenCalledWith({
                 message: 'Error in channel delete handler:',
+                error: expect.any(Error),
+            })
+        })
+
+        it('should catch and log errors from GuildRoleCreate handler', async () => {
+            const role = {
+                id: 'role-1',
+                guild: { id: 'guild-1' },
+            } as any
+
+            ;(featureToggleService.isEnabled as jest.Mock).mockRejectedValue(
+                new Error('Service error'),
+            )
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleCreate, role)
+
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Error in role create handler:',
+                error: expect.any(Error),
+            })
+        })
+
+        it('should catch and log errors from GuildRoleDelete handler', async () => {
+            const role = {
+                id: 'role-1',
+                guild: { id: 'guild-1' },
+            } as any
+
+            ;(featureToggleService.isEnabled as jest.Mock).mockRejectedValue(
+                new Error('Service error'),
+            )
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleDelete, role)
+
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Error in role delete handler:',
+                error: expect.any(Error),
+            })
+        })
+    })
+
+    describe('GuildRoleCreate event', () => {
+        it('should log role creation with audit log data', async () => {
+            const firstEntry = {
+                executor: { id: 'mod-1' },
+            } as unknown as GuildAuditLogsEntry
+
+            const mockAuditLog = {
+                entries: {
+                    first: jest.fn().mockReturnValue(firstEntry),
+                },
+            }
+
+            const role = {
+                id: 'role-1',
+                name: 'Moderator',
+                color: 0x00ff00,
+                permissions: { bitfield: BigInt(8) },
+                guild: {
+                    id: 'guild-1',
+                    name: 'Test Guild',
+                    fetchAuditLogs: jest.fn().mockResolvedValue(mockAuditLog),
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleCreate, role)
+
+            expect(serverLogService.createLog).toHaveBeenCalledWith(
+                'guild-1',
+                'role_update',
+                'Role created',
+                {
+                    roleId: 'role-1',
+                    roleName: 'Moderator',
+                    color: 0x00ff00,
+                    permissions: '8',
+                },
+                {
+                    moderatorId: 'mod-1',
+                },
+            )
+            expect(debugLog).toHaveBeenCalledWith({
+                message: 'Logged role created in Test Guild',
+            })
+        })
+
+        it('should not log when feature is disabled', async () => {
+            ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
+                false,
+            )
+
+            const role = {
+                id: 'role-1',
+                name: 'Test Role',
+                guild: {
+                    id: 'guild-1',
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleCreate, role)
+
+            expect(serverLogService.createLog).not.toHaveBeenCalled()
+        })
+
+        it('should handle missing audit log gracefully', async () => {
+            const role = {
+                id: 'role-1',
+                name: 'Test Role',
+                color: 0xff0000,
+                permissions: { bitfield: BigInt(0) },
+                guild: {
+                    id: 'guild-1',
+                    name: 'Test Guild',
+                    fetchAuditLogs: jest.fn().mockRejectedValue(new Error()),
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleCreate, role)
+
+            expect(serverLogService.createLog).toHaveBeenCalledWith(
+                'guild-1',
+                'role_update',
+                'Role created',
+                expect.objectContaining({
+                    roleId: 'role-1',
+                    roleName: 'Test Role',
+                }),
+                expect.objectContaining({
+                    moderatorId: undefined,
+                }),
+            )
+        })
+
+        it('should handle errors during logging', async () => {
+            ;(serverLogService.createLog as jest.Mock).mockRejectedValue(
+                new Error('DB error'),
+            )
+
+            const role = {
+                id: 'role-1',
+                name: 'Test Role',
+                color: 0,
+                permissions: { bitfield: BigInt(0) },
+                guild: {
+                    id: 'guild-1',
+                    name: 'Test Guild',
+                    fetchAuditLogs: jest.fn().mockResolvedValue({
+                        entries: { first: jest.fn().mockReturnValue(null) },
+                    }),
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleCreate, role)
+
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Error logging role created:',
+                error: expect.any(Error),
+            })
+        })
+    })
+
+    describe('GuildRoleDelete event', () => {
+        it('should log role deletion with audit log data', async () => {
+            const firstEntry = {
+                executor: { id: 'mod-1' },
+            } as unknown as GuildAuditLogsEntry
+
+            const mockAuditLog = {
+                entries: {
+                    first: jest.fn().mockReturnValue(firstEntry),
+                },
+            }
+
+            const role = {
+                id: 'role-1',
+                name: 'Spammer',
+                color: 0xff0000,
+                permissions: { bitfield: BigInt(0) },
+                guild: {
+                    id: 'guild-1',
+                    name: 'Test Guild',
+                    fetchAuditLogs: jest.fn().mockResolvedValue(mockAuditLog),
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleDelete, role)
+
+            expect(serverLogService.createLog).toHaveBeenCalledWith(
+                'guild-1',
+                'role_update',
+                'Role deleted',
+                {
+                    roleId: 'role-1',
+                    roleName: 'Spammer',
+                    color: 0xff0000,
+                    permissions: '0',
+                },
+                {
+                    moderatorId: 'mod-1',
+                },
+            )
+            expect(debugLog).toHaveBeenCalledWith({
+                message: 'Logged role deleted in Test Guild',
+            })
+        })
+
+        it('should not log when feature is disabled', async () => {
+            ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
+                false,
+            )
+
+            const role = {
+                id: 'role-1',
+                name: 'Test Role',
+                guild: {
+                    id: 'guild-1',
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleDelete, role)
+
+            expect(serverLogService.createLog).not.toHaveBeenCalled()
+        })
+
+        it('should handle missing audit log gracefully', async () => {
+            const role = {
+                id: 'role-1',
+                name: 'Old Role',
+                color: 0x0000ff,
+                permissions: { bitfield: BigInt(16) },
+                guild: {
+                    id: 'guild-1',
+                    name: 'Test Guild',
+                    fetchAuditLogs: jest.fn().mockRejectedValue(new Error()),
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleDelete, role)
+
+            expect(serverLogService.createLog).toHaveBeenCalledWith(
+                'guild-1',
+                'role_update',
+                'Role deleted',
+                expect.objectContaining({
+                    roleId: 'role-1',
+                    roleName: 'Old Role',
+                }),
+                expect.objectContaining({
+                    moderatorId: undefined,
+                }),
+            )
+        })
+
+        it('should handle errors during logging', async () => {
+            ;(serverLogService.createLog as jest.Mock).mockRejectedValue(
+                new Error('DB error'),
+            )
+
+            const role = {
+                id: 'role-1',
+                name: 'Test Role',
+                color: 0,
+                permissions: { bitfield: BigInt(0) },
+                guild: {
+                    id: 'guild-1',
+                    name: 'Test Guild',
+                    fetchAuditLogs: jest.fn().mockResolvedValue({
+                        entries: { first: jest.fn().mockReturnValue(null) },
+                    }),
+                },
+            } as unknown as Role
+
+            handleAuditEvents(client as any)
+            await triggerEvent(client, Events.GuildRoleDelete, role)
+
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Error logging role deleted:',
                 error: expect.any(Error),
             })
         })
