@@ -144,10 +144,6 @@ export default new Command({
         const guildId = interaction.guildId
         if (!guildId) return
 
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply()
-        }
-
         const { queue, source, diagnostics } = resolveGuildQueue(
             client,
             guildId,

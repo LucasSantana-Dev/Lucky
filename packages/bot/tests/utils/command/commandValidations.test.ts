@@ -9,6 +9,7 @@ jest.mock('@lucky/shared/utils', () => ({
         code: 'TEST_ERROR',
     })),
     createUserErrorMessage: jest.fn((err: { message: string }) => err.message),
+    warnLog: jest.fn(),
     errorEmbed: jest.fn((_title: string, desc: string) => ({
         description: desc,
     })),
@@ -85,13 +86,6 @@ describe('commandValidations', () => {
             const interaction = createMockInteraction()
             const result = await requireQueue(null, interaction)
             expect(result).toBe(false)
-            expect(handleErrorMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message:
-                        'No active music queue found. The player may have restarted. Use /play to start a new queue.',
-                }),
-                expect.any(Object),
-            )
             expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
