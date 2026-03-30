@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Autoplay-generated tracks now keep their autoplay classification and queue labels when the requester context is carried through track metadata instead of a bot `requestedBy` value.
+- Queue rescue probes now clear their timeout guard once search resolution completes, preventing leaked timers during music test runs.
+- Manually added single tracks are now moved to play before any autoplay-tagged tracks in the queue, regardless of whether autoplay mode is active — previously priority insertion only ran in AUTOPLAY repeat mode.
+- Eliminated duplicate track entries when adding a song while autoplay is running: `player.play()` already appends the track, so the follow-up priority step now moves the existing entry rather than inserting a second copy, preventing audio resource conflicts (yellow warning icon).
+
 ## [2.6.38] - 2026-03-19
 
 ### Fixed
