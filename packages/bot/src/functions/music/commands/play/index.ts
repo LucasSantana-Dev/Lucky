@@ -11,7 +11,7 @@ import { collaborativePlaylistService } from '../../../../utils/music/collaborat
 import { QueueRepeatMode } from 'discord-player'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 import {
-    insertUserTrackWithPriority,
+    moveUserTrackToPriority,
     blendAutoplayTracks,
 } from '../../../../utils/music/queueManipulation'
 
@@ -91,17 +91,16 @@ export default new Command({
 
             const track = result.track
 
+            const isPlaylist = !!result.searchResult.playlist
             const { queue } = resolveGuildQueue(
                 client,
                 interaction.guildId ?? '',
             )
-            if (
-                queue &&
-                queue.repeatMode === QueueRepeatMode.AUTOPLAY &&
-                queue.tracks.size > 1
-            ) {
-                insertUserTrackWithPriority(queue, track)
-                await blendAutoplayTracks(queue, track)
+            if (!isPlaylist && queue) {
+                moveUserTrackToPriority(queue, track)
+                if (queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
+                    await blendAutoplayTracks(queue, track)
+                }
             }
 
             const embed = result.searchResult.playlist
