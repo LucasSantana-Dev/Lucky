@@ -134,22 +134,33 @@ describe('handleMusicButtonInteraction', () => {
     it('pauses when PAUSE_RESUME and queue is playing', async () => {
         const queue = createMockQueue({ isPaused: false })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+        const buttons = { type: 1 }
+        createMusicControlButtonsMock.mockReturnValue(buttons)
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
         expect(queue.node.pause).toHaveBeenCalled()
-        expect(interaction.update).toHaveBeenCalled()
+        expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
+        expect(interaction.update).toHaveBeenCalledWith(
+            expect.objectContaining({ components: [buttons] }),
+        )
     })
 
     it('resumes when PAUSE_RESUME and queue is paused', async () => {
         const queue = createMockQueue({ isPaused: true })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+        const buttons = { type: 1 }
+        createMusicControlButtonsMock.mockReturnValue(buttons)
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
         expect(queue.node.resume).toHaveBeenCalled()
+        expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
+        expect(interaction.update).toHaveBeenCalledWith(
+            expect.objectContaining({ components: [buttons] }),
+        )
     })
 
     it('skips track for SKIP button', async () => {
@@ -190,12 +201,17 @@ describe('handleMusicButtonInteraction', () => {
     it('handles queue page button', async () => {
         const queue = createMockQueue()
         const interaction = createInteraction(`${QUEUE_BUTTON_PREFIX}_2`)
+        const embed = { title: 'Queue' }
+        const components = [{ type: 1 }]
+        createQueueEmbedMock.mockResolvedValue({ embed, components })
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
 
         expect(createQueueEmbedMock).toHaveBeenCalledWith(queue, undefined, 2)
-        expect(interaction.update).toHaveBeenCalled()
+        expect(interaction.update).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: [embed], components }),
+        )
     })
 
     it('logs error and replies on unexpected exception', async () => {

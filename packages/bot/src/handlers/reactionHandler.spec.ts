@@ -20,7 +20,9 @@ import { handleReactionEvents } from './reactionHandler'
 function makeClient() {
     const handlers: Record<string, Function> = {}
     return {
-        on: jest.fn((event: string, fn: Function) => { handlers[event] = fn }),
+        on: jest.fn((event: string, fn: Function) => {
+            handlers[event] = fn
+        }),
         channels: { fetch: jest.fn() },
         _handlers: handlers,
     }
@@ -38,7 +40,12 @@ function makeReaction(overrides: any = {}) {
             guild: { id: 'guild-1' },
             id: 'msg-1',
             channelId: 'ch-1',
-            author: { id: 'author-1', username: 'Author', tag: 'Author#0001', displayAvatarURL: () => 'http://x' },
+            author: {
+                id: 'author-1',
+                username: 'Author',
+                tag: 'Author#0001',
+                displayAvatarURL: () => 'http://x',
+            },
             content: 'hello',
             channel: { name: 'general' },
             url: 'https://discord.com/msg',
@@ -68,7 +75,10 @@ describe('handleReactionEvents', () => {
     })
 
     it('registers MessageReactionAdd event handler', () => {
-        expect(client.on).toHaveBeenCalledWith('messageReactionAdd', expect.any(Function))
+        expect(client.on).toHaveBeenCalledWith(
+            'messageReactionAdd',
+            expect.any(Function),
+        )
     })
 
     it('does nothing when reaction is from a bot', async () => {
@@ -80,7 +90,9 @@ describe('handleReactionEvents', () => {
     })
 
     it('does nothing when message has no guild', async () => {
-        const reaction = makeReaction({ message: { ...makeReaction().message, guild: null } })
+        const reaction = makeReaction({
+            message: { ...makeReaction().message, guild: null },
+        })
         await client._handlers['messageReactionAdd'](reaction, makeUser())
         expect(getConfigMock).not.toHaveBeenCalled()
     })
@@ -126,7 +138,9 @@ describe('handleReactionEvents', () => {
         }
         client.channels.fetch = jest.fn().mockResolvedValue(mockChannel)
         await client._handlers['messageReactionAdd'](makeReaction(), makeUser())
-        expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({ embeds: expect.any(Array) }))
+        expect(mockChannel.send).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: expect.any(Array) }),
+        )
         expect(upsertEntryMock).toHaveBeenCalledTimes(2)
     })
 
@@ -137,11 +151,15 @@ describe('handleReactionEvents', () => {
         const mockChannel = {
             isTextBased: () => true,
             send: jest.fn(),
-            messages: { fetch: jest.fn().mockResolvedValue({ edit: editMock }) },
+            messages: {
+                fetch: jest.fn().mockResolvedValue({ edit: editMock }),
+            },
         }
         client.channels.fetch = jest.fn().mockResolvedValue(mockChannel)
         await client._handlers['messageReactionAdd'](makeReaction(), makeUser())
-        expect(editMock).toHaveBeenCalledWith(expect.objectContaining({ embeds: expect.any(Array) }))
+        expect(editMock).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: expect.any(Array) }),
+        )
         expect(mockChannel.send).not.toHaveBeenCalled()
     })
 
@@ -149,5 +167,34 @@ describe('handleReactionEvents', () => {
         getConfigMock.mockRejectedValue(new Error('DB fail'))
         await client._handlers['messageReactionAdd'](makeReaction(), makeUser())
         expect(errorLogMock).toHaveBeenCalled()
+    })
+
+    it('does not send when starboard channel is not text-based', async () => {
+        getConfigMock.mockResolvedValue(DEFAULT_CONFIG)
+        upsertEntryMock.mockResolvedValue({ starboardMsgId: null })
+        const notTextChannel = { isTextBased: () => false, send: jest.fn() }
+        client.channels.fetch = jest.fn().mockResolvedValue(notTextChannel)
+        await client._handlers['messageReactionAdd'](makeReaction(), makeUser())
+        expect(notTextChannel.send).not.toHaveBeenCalled()
+    })
+
+    it('logs error when upsertEntry throws after posting to starboard', async () => {
+        getConfigMock.mockResolvedValue(DEFAULT_CONFIG)
+        upsertEntryMock.mockResolvedValue({ starboardMsgId: null })
+        const postMock = jest.fn().mockResolvedValue({ id: 'star-msg-1' })
+        const mockChannel = {
+            isTextBased: () => true,
+            send: postMock,
+            messages: { fetch: jest.fn() },
+        }
+        client.channels.fetch = jest.fn().mockResolvedValue(mockChannel)
+        upsertEntryMock
+            .mockResolvedValueOnce({ starboardMsgId: null })
+            .mockRejectedValueOnce(new Error('upsert failed'))
+        await client._handlers['messageReactionAdd'](makeReaction(), makeUser())
+        expect(postMock).toHaveBeenCalled()
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error handling reaction:' }),
+        )
     })
 })
