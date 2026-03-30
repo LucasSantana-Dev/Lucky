@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
+    ChevronsUpDown,
     GitBranch,
     History,
     LayoutDashboard,
@@ -49,7 +50,7 @@ interface NavSection {
 
 const navSections: NavSection[] = [
     {
-        title: 'Main',
+        title: 'Overview',
         items: [
             {
                 path: '/',
@@ -89,7 +90,7 @@ const navSections: NavSection[] = [
         ],
     },
     {
-        title: 'Management',
+        title: 'Automation',
         items: [
             {
                 path: '/commands',
@@ -122,6 +123,11 @@ const navSections: NavSection[] = [
                 module: 'settings',
                 requiredMode: 'manage',
             },
+        ],
+    },
+    {
+        title: 'Community',
+        items: [
             {
                 path: '/levels',
                 label: 'Level System',
@@ -137,7 +143,7 @@ const navSections: NavSection[] = [
         ],
     },
     {
-        title: 'Extras',
+        title: 'Media',
         items: [
             {
                 path: '/music',
@@ -157,6 +163,11 @@ const navSections: NavSection[] = [
                 icon: MicVocal,
                 module: 'music',
             },
+        ],
+    },
+    {
+        title: 'Integrations',
+        items: [
             {
                 path: '/lastfm',
                 label: 'Last.fm',
@@ -197,33 +208,67 @@ function Sidebar() {
         return location.pathname.startsWith(path)
     }
 
-    const effectiveAccess = memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
+    const effectiveAccess =
+        memberContext?.effectiveAccess ?? selectedGuild?.effectiveAccess
 
-    const canViewModule = (module: ModuleKey, requiredMode: AccessMode = 'view') => {
+    const canViewModule = (
+        module: ModuleKey,
+        requiredMode: AccessMode = 'view',
+    ) => {
         if (!selectedGuild || !effectiveAccess) return true
         return hasModuleAccess(effectiveAccess, module, requiredMode)
     }
 
-    const profileName = memberContext?.nickname || user?.globalName || user?.username || 'User'
+    const profileName =
+        memberContext?.nickname || user?.globalName || user?.username || 'User'
     const profileSubtitle = user?.username ? `@${user.username}` : 'Online'
+
+    const guildIconSrc = selectedGuild?.icon
+        ? `https://cdn.discordapp.com/icons/${selectedGuild.id}/${selectedGuild.icon}.png?size=64`
+        : undefined
+
+    const guildFallback = selectedGuild?.name
+        ? selectedGuild.name.substring(0, 2).toUpperCase()
+        : 'NS'
 
     const sidebarContent = (
         <div className='flex h-full flex-col'>
             <div className='border-b border-lucky-border px-4 py-3.5'>
-                <div className='flex items-center gap-2.5'>
-                    <img
-                        src='/lucky-logo.png'
-                        alt='Lucky'
-                        className='h-8 w-8 rounded-lg object-cover border border-lucky-border'
-                    />
-                    <div className='min-w-0'>
+                <div className='flex items-center gap-2.5 mb-2'>
+                    <Avatar className='h-8 w-8 shrink-0'>
+                        <AvatarImage
+                            src={guildIconSrc}
+                            alt={selectedGuild?.name || 'No server selected'}
+                        />
+                        <AvatarFallback className='bg-lucky-bg-active text-[11px] font-semibold text-lucky-text-primary'>
+                            {guildFallback}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className='min-w-0 flex-1'>
                         <p className='type-title truncate text-lucky-text-primary'>
-                            Lucky
+                            {selectedGuild?.name || 'Lucky'}
+                        </p>
+                        <p className='text-[11px] truncate text-lucky-text-subtle leading-tight'>
+                            {selectedGuild
+                                ? 'Management Console'
+                                : 'Select a server'}
                         </p>
                     </div>
                     <button
                         type='button'
-                        className='lucky-focus-visible ml-auto flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-tertiary transition-colors hover:text-lucky-text-primary lg:hidden'
+                        className='lucky-focus-visible flex min-h-[32px] min-w-[32px] items-center justify-center rounded-md text-lucky-text-subtle transition-colors hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
+                        onClick={() => setSwitcherOpen(true)}
+                        aria-label='Switch server'
+                        title='Switch server'
+                    >
+                        <ChevronsUpDown
+                            className='h-4 w-4'
+                            aria-hidden='true'
+                        />
+                    </button>
+                    <button
+                        type='button'
+                        className='lucky-focus-visible flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-tertiary transition-colors hover:text-lucky-text-primary lg:hidden'
                         onClick={() => setMobileOpen(false)}
                         aria-label='Close sidebar'
                     >
@@ -239,7 +284,7 @@ function Sidebar() {
                     {navSections.map((section) => (
                         <div key={section.title}>
                             <p
-                                className='type-meta mb-1 px-2 text-lucky-text-subtle'
+                                className='type-meta mb-1 px-2 text-lucky-text-subtle uppercase tracking-widest text-[10px] font-semibold'
                                 aria-hidden='true'
                             >
                                 {section.title}
@@ -247,7 +292,10 @@ function Sidebar() {
                             <ul className='space-y-0.5' role='list'>
                                 {section.items
                                     .filter((item) =>
-                                        canViewModule(item.module, item.requiredMode),
+                                        canViewModule(
+                                            item.module,
+                                            item.requiredMode,
+                                        ),
                                     )
                                     .map((item) => {
                                         const active = isActive(item.path)
@@ -255,7 +303,11 @@ function Sidebar() {
                                             <li key={item.path}>
                                                 <Link
                                                     to={item.path}
-                                                    aria-current={active ? 'page' : undefined}
+                                                    aria-current={
+                                                        active
+                                                            ? 'page'
+                                                            : undefined
+                                                    }
                                                     className={cn(
                                                         'lucky-focus-visible group relative flex min-h-[36px] items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors duration-120',
                                                         active
@@ -265,8 +317,10 @@ function Sidebar() {
                                                 >
                                                     <span
                                                         className={cn(
-                                                            'absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r transition-all duration-120',
-                                                            active ? 'bg-lucky-brand' : 'bg-transparent',
+                                                            'absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r transition-all duration-120',
+                                                            active
+                                                                ? 'bg-lucky-brand'
+                                                                : 'bg-transparent',
                                                         )}
                                                         aria-hidden='true'
                                                     />
@@ -282,14 +336,17 @@ function Sidebar() {
                                                     <span className='type-body-sm truncate'>
                                                         {item.label}
                                                     </span>
-                                                    {item.badge !== undefined && item.badge > 0 && (
-                                                        <span
-                                                            className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-brand px-1 text-[11px] font-semibold text-white'
-                                                            aria-label={`${item.badge} notifications`}
-                                                        >
-                                                            {item.badge > 99 ? '99+' : item.badge}
-                                                        </span>
-                                                    )}
+                                                    {item.badge !== undefined &&
+                                                        item.badge > 0 && (
+                                                            <span
+                                                                className='ml-auto inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-lucky-brand px-1 text-[11px] font-semibold text-white'
+                                                                aria-label={`${item.badge} notifications`}
+                                                            >
+                                                                {item.badge > 99
+                                                                    ? '99+'
+                                                                    : item.badge}
+                                                            </span>
+                                                        )}
                                                 </Link>
                                             </li>
                                         )
@@ -312,7 +369,9 @@ function Sidebar() {
                             alt={profileName}
                         />
                         <AvatarFallback className='bg-lucky-bg-active text-[11px] font-semibold text-lucky-text-primary'>
-                            {(user?.username || 'U').substring(0, 2).toUpperCase()}
+                            {(user?.username || 'U')
+                                .substring(0, 2)
+                                .toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div className='min-w-0 flex-1'>
@@ -356,7 +415,9 @@ function Sidebar() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
+                        transition={{
+                            duration: prefersReducedMotion ? 0 : 0.15,
+                        }}
                         className='fixed inset-0 z-40 bg-black/50 lg:hidden'
                         onClick={() => setMobileOpen(false)}
                         aria-hidden='true'
@@ -368,13 +429,27 @@ function Sidebar() {
                 {mobileOpen && (
                     <motion.aside
                         id='mobile-sidebar'
-                        initial={prefersReducedMotion ? { opacity: 0 } : { x: '-100%' }}
-                        animate={prefersReducedMotion ? { opacity: 1 } : { x: 0 }}
-                        exit={prefersReducedMotion ? { opacity: 0 } : { x: '-100%' }}
+                        initial={
+                            prefersReducedMotion
+                                ? { opacity: 0 }
+                                : { x: '-100%' }
+                        }
+                        animate={
+                            prefersReducedMotion ? { opacity: 1 } : { x: 0 }
+                        }
+                        exit={
+                            prefersReducedMotion
+                                ? { opacity: 0 }
+                                : { x: '-100%' }
+                        }
                         transition={
                             prefersReducedMotion
                                 ? { duration: 0.15 }
-                                : { type: 'spring', stiffness: 300, damping: 30 }
+                                : {
+                                      type: 'spring',
+                                      stiffness: 300,
+                                      damping: 30,
+                                  }
                         }
                         className='fixed inset-y-0 left-0 z-50 w-64 bg-lucky-bg-secondary border-r border-lucky-border lg:hidden'
                         aria-label='Navigation sidebar'

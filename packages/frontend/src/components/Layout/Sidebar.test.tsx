@@ -122,10 +122,11 @@ describe('Sidebar', () => {
         const user = userEvent.setup()
         renderSidebar()
 
-        expect(screen.getByText('Test Server')).toBeInTheDocument()
+        expect(screen.getAllByText('Test Server')).toHaveLength(2)
+        expect(screen.getByText('Management Console')).toBeInTheDocument()
 
         const dropdownButton = screen.getByRole('button', {
-            name: /test server/i,
+            name: /switch server, currently/i,
         })
         await user.click(dropdownButton)
 
@@ -138,7 +139,9 @@ describe('Sidebar', () => {
         const user = userEvent.setup()
         renderSidebar()
 
-        const dropdownButton = screen.getByText('Test Server').closest('button')
+        const dropdownButton = screen.getByRole('button', {
+            name: /switch server, currently/i,
+        })
         await user.click(dropdownButton!)
 
         await waitFor(() => {
@@ -177,7 +180,8 @@ describe('Sidebar', () => {
 
         renderSidebar()
 
-        expect(screen.getByText('Select a server')).toBeInTheDocument()
+        expect(screen.getAllByText('Select a server')).toHaveLength(2)
+        expect(screen.getByText('Lucky')).toBeInTheDocument()
     })
 
     test('shows authorized guilds even when bot is not added', async () => {
@@ -195,7 +199,9 @@ describe('Sidebar', () => {
         const user = userEvent.setup()
         renderSidebar()
 
-        const dropdownButton = screen.getByText('Test Server').closest('button')
+        const dropdownButton = screen.getByRole('button', {
+            name: /switch server, currently/i,
+        })
         await user.click(dropdownButton!)
 
         await waitFor(() => {
@@ -277,8 +283,12 @@ describe('Sidebar', () => {
         )
 
         await waitFor(() => {
-            expect(screen.getByText('Could not load servers')).toBeInTheDocument()
-            expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+            expect(
+                screen.getByText('Could not load servers'),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByRole('button', { name: 'Retry' }),
+            ).toBeInTheDocument()
             expect(
                 screen.getByRole('link', { name: 'Re-authenticate' }),
             ).toBeInTheDocument()
