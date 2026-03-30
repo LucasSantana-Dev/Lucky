@@ -1,12 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
 import { errorLog } from '../general/log'
 import { MusicError, type MusicErrorCode } from '../../types/errors/music'
-import { VALIDATION_ERROR_CODES } from '../../types/errors/validation'
 import { captureException } from '../monitoring'
 import type { ErrorContext } from './types'
-
-type ErrorCode =
-    (typeof VALIDATION_ERROR_CODES)[keyof typeof VALIDATION_ERROR_CODES]
 
 /**
  * Creates a correlation ID for error tracking
@@ -20,7 +16,7 @@ export function createCorrelationId(): string {
  */
 export function wrapError(
     error: unknown,
-    code: ErrorCode = VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT,
+    code?: MusicErrorCode,
     context?: ErrorContext,
 ): MusicError {
     const correlationId = context?.correlationId ?? createCorrelationId()
@@ -31,7 +27,7 @@ export function wrapError(
 
     const message = error instanceof Error ? error.message : String(error)
 
-    return new MusicError(message, code as MusicErrorCode, {
+    return new MusicError(message, code, {
         correlationId,
         userId: context?.userId,
         guildId: context?.guildId,
