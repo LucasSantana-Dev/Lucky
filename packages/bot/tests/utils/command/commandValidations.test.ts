@@ -21,6 +21,7 @@ jest.mock('../../../src/utils/general/interactionReply', () => ({
 
 jest.mock('../../../src/utils/general/embeds', () => ({
     errorEmbed: jest.fn((_title: string, description: string) => ({
+        title: _title,
         description,
     })),
 }))
@@ -33,108 +34,244 @@ import {
     requireIsPlaying,
 } from '../../../src/utils/command/commandValidations'
 import { interactionReply } from '../../../src/utils/general/interactionReply'
-import { handleError } from '@lucky/shared/utils'
+import { handleError, warnLog } from '@lucky/shared/utils'
+import { errorEmbed } from '../../../src/utils/general/embeds'
 
 const interactionReplyMock = jest.mocked(interactionReply)
 const handleErrorMock = jest.mocked(handleError)
+const warnLogMock = jest.mocked(warnLog)
+const errorEmbedMock = jest.mocked(errorEmbed)
+
+function createInteraction(overrides: Record<string, unknown> = {}) {
+    return createMockInteraction({
+        commandName: 'test-command',
+        ...overrides,
+    })
+}
 
 describe('commandValidations', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        errorEmbedMock.mockImplementation(
+            (_title: string, description: string) => ({
+                title: _title,
+                description,
+            }),
+        )
+        interactionReplyMock.mockResolvedValue(undefined)
+        handleErrorMock.mockImplementation((err: Error) => ({
+            message: err.message,
+            code: 'TEST_ERROR',
+        }))
+    })
+
     describe('requireGuild', () => {
-        it('returns true when guildId exists', async () => {
-            const interaction = createMockInteraction()
+        it('returns true and does not reply when guildId exists', async () => {
+            const interaction = createInteraction()
             const result = await requireGuild(interaction)
             expect(result).toBe(true)
+            expect(interactionReplyMock).not.toHaveBeenCalled()
         })
 
-        it('returns false and replies when no guildId', async () => {
-            const interaction = createMockInteraction({
-                guildId: null,
-            })
+        it('returns false, calls handleError and replies with error embed when no guildId', async () => {
+            const interaction = createInteraction({ guildId: null })
             const result = await requireGuild(interaction)
+
             expect(result).toBe(false)
+            expect(handleErrorMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Command can only be used in a guild/server',
+                }),
+                expect.objectContaining({ userId: '123456789' }),
+            )
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: expect.objectContaining({
+                        embeds: expect.arrayContaining([
+                            expect.objectContaining({ title: 'Error' }),
+                        ]),
+                    }),
+                }),
+            )
         })
     })
 
     describe('requireVoiceChannel', () => {
-        it('returns true when member is in voice channel', async () => {
-            const interaction = createMockInteraction()
+        it('returns true and does not warn or reply when member is in voice channel', async () => {
+            const interaction = createInteraction()
             const result = await requireVoiceChannel(interaction)
+
             expect(result).toBe(true)
+            expect(warnLogMock).not.toHaveBeenCalled()
+            expect(interactionReplyMock).not.toHaveBeenCalled()
         })
 
-        it('returns false when member has no voice channel', async () => {
+        it('returns false, logs warning with context, and replies ephemerally when not in voice channel', async () => {
             const member = createMockMember({
                 voice: { channel: null, channelId: null },
             } as any)
-            const interaction = createMockInteraction({
-                member,
-            })
+            const interaction = createInteraction({ member })
             const result = await requireVoiceChannel(interaction)
+
             expect(result).toBe(false)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'requireVoiceChannel: user not in voice channel',
+                    data: expect.objectContaining({
+                        commandName: 'test-command',
+                        userId: '123456789',
+                        guildId: '987654321',
+                    }),
+                }),
+            )
+            expect(errorEmbedMock).toHaveBeenCalledWith(
+                'Not in Voice',
+                'Join a voice channel first.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: expect.objectContaining({
+                        ephemeral: true,
+                        embeds: expect.arrayContaining([
+                            expect.objectContaining({ title: 'Not in Voice' }),
+                        ]),
+                    }),
+                }),
+            )
         })
     })
 
     describe('requireQueue', () => {
-        it('returns true when queue exists', async () => {
-            const interaction = createMockInteraction()
+        it('returns true and does not warn or reply when queue exists', async () => {
+            const interaction = createInteraction()
             const mockQueue = { guild: { id: '123' } } as any
             const result = await requireQueue(mockQueue, interaction)
+
             expect(result).toBe(true)
+            expect(warnLogMock).not.toHaveBeenCalled()
+            expect(interactionReplyMock).not.toHaveBeenCalled()
         })
 
-        it('returns false when queue is null', async () => {
-            const interaction = createMockInteraction()
+        it('returns false, logs warning with context, and replies when queue is null', async () => {
+            const interaction = createInteraction()
             const result = await requireQueue(null, interaction)
+
             expect(result).toBe(false)
-            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'requireQueue: no active queue',
+                    data: expect.objectContaining({
+                        commandName: 'test-command',
+                        userId: '123456789',
+                        guildId: '987654321',
+                    }),
+                }),
+            )
+            expect(errorEmbedMock).toHaveBeenCalledWith(
+                'No Queue',
+                'No music is playing. Use /play to start.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: expect.not.objectContaining({ ephemeral: true }),
+                }),
+            )
         })
     })
 
     describe('requireCurrentTrack', () => {
-        it('returns true when current track exists', async () => {
-            const interaction = createMockInteraction()
+        it('returns true and does not warn or reply when current track exists', async () => {
+            const interaction = createInteraction()
             const queue = { currentTrack: { title: 'Test' } } as any
             const result = await requireCurrentTrack(queue, interaction)
+
             expect(result).toBe(true)
+            expect(warnLogMock).not.toHaveBeenCalled()
+            expect(interactionReplyMock).not.toHaveBeenCalled()
         })
 
-        it('returns false when no current track', async () => {
-            const interaction = createMockInteraction()
+        it('returns false, logs warning with context, and replies ephemerally when no current track', async () => {
+            const interaction = createInteraction()
             const queue = { currentTrack: null } as any
             const result = await requireCurrentTrack(queue, interaction)
+
             expect(result).toBe(false)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'requireCurrentTrack: no current track',
+                    data: expect.objectContaining({
+                        commandName: 'test-command',
+                        userId: '123456789',
+                    }),
+                }),
+            )
+            expect(errorEmbedMock).toHaveBeenCalledWith(
+                'Not Playing',
+                'No track is currently playing.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: expect.objectContaining({ ephemeral: true }),
+                }),
+            )
         })
 
-        it('returns false when queue is null', async () => {
-            const interaction = createMockInteraction()
+        it('returns false when queue is null (treats as no current track)', async () => {
+            const interaction = createInteraction()
             const result = await requireCurrentTrack(null, interaction)
+
             expect(result).toBe(false)
+            expect(warnLogMock).toHaveBeenCalled()
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
 
     describe('requireIsPlaying', () => {
-        it('returns true when music is playing', async () => {
-            const interaction = createMockInteraction()
-            const queue = {
-                isPlaying: jest.fn().mockReturnValue(true),
-            } as any
+        it('returns true and does not warn or reply when music is playing', async () => {
+            const interaction = createInteraction()
+            const queue = { isPlaying: jest.fn().mockReturnValue(true) } as any
             const result = await requireIsPlaying(queue, interaction)
+
             expect(result).toBe(true)
+            expect(warnLogMock).not.toHaveBeenCalled()
+            expect(interactionReplyMock).not.toHaveBeenCalled()
         })
 
-        it('returns false when music is not playing', async () => {
-            const interaction = createMockInteraction()
+        it('returns false, logs warning with context, and replies ephemerally when not playing', async () => {
+            const interaction = createInteraction()
             const queue = {
                 isPlaying: jest.fn().mockReturnValue(false),
             } as any
             const result = await requireIsPlaying(queue, interaction)
+
             expect(result).toBe(false)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'requireIsPlaying: not playing',
+                    data: expect.objectContaining({
+                        commandName: 'test-command',
+                        userId: '123456789',
+                    }),
+                }),
+            )
+            expect(errorEmbedMock).toHaveBeenCalledWith(
+                'Not Playing',
+                'No music is currently playing.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: expect.objectContaining({ ephemeral: true }),
+                }),
+            )
         })
 
-        it('returns false when queue is null', async () => {
-            const interaction = createMockInteraction()
+        it('returns false when queue is null (treats as not playing)', async () => {
+            const interaction = createInteraction()
             const result = await requireIsPlaying(null, interaction)
+
             expect(result).toBe(false)
+            expect(warnLogMock).toHaveBeenCalled()
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
 })
