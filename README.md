@@ -64,10 +64,9 @@ packages/
 - **Verified announcement**: `assets/lucky-verified-announcement.png` (1280x640)
 - Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
-### Latest Release (`v2.6.38`)
-- Fixed dashboard automation access guards and stabilized several guild management flows.
-- Previous release (`v2.6.37`) fixed PostgreSQL persistence in Docker by setting
-  `PGDATA=/var/lib/postgresql/data` for Postgres 18 compatibility.
+### Latest Release (`v2.6.54`)
+- Routed YouTube audio via SoundCloud bridge (`createStream` override) to bypass extraction failures; fixed `Track.setMetadata` TypeError in session snapshots.
+- Previous release (`v2.6.53`) added `generateWithPoToken` to `YoutubeiExtractor` and introduced the `/version` command.
 
 ## Features
 

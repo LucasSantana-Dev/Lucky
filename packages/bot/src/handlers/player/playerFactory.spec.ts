@@ -94,11 +94,13 @@ describe('playerFactory', () => {
     })
 
     describe('streamViaSoundCloud validation logic', () => {
-        const norm = (s: string) =>
-            s
+        const norm = (s: string) => {
+            const cleaned = s
                 .toLowerCase()
                 .replace(/[^a-z0-9\s]/g, '')
                 .trim()
+            return cleaned || s.toLowerCase().trim()
+        }
 
         const parseDurationString = (duration?: string): number | null => {
             if (!duration) return null
@@ -179,6 +181,16 @@ describe('playerFactory', () => {
                 { name: 'Song', durationInSec: 180 },
             ]
             expect(findMatch(track, results)?.name).toBe('Song')
+        })
+
+        it('does not false-match on non-ASCII titles that strip to empty string', () => {
+            const track = {
+                title: '夜に駆ける',
+                author: 'YOASOBI',
+                duration: '4:07',
+            }
+            const results = [{ name: 'Bohemian Rhapsody', durationInSec: 247 }]
+            expect(findMatch(track, results)).toBeUndefined()
         })
     })
 

@@ -86,11 +86,13 @@ async function streamViaSoundCloud(track: {
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
-    const norm = (s: string) =>
-        s
+    const norm = (s: string) => {
+        const cleaned = s
             .toLowerCase()
             .replace(/[^a-z0-9\s]/g, '')
             .trim()
+        return cleaned || s.toLowerCase().trim()
+    }
     const titleNorm = norm(track.title)
     const trackSec = parseDurationString(track.duration)
 
