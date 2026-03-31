@@ -29,7 +29,7 @@ const PATTERN_DISPLAY: Record<string, string> = {
     'session-management': 'Session Management',
     'memory-systems': 'Memory Systems',
     'code-review': 'Code Review',
-    'testing': 'Testing with AI',
+    testing: 'Testing with AI',
     'git-worktrees': 'Git Worktrees',
     'agent-gotchas': 'Agent Gotchas',
     'multi-repo': 'Multi-Repo Workflows',
@@ -75,31 +75,46 @@ class AiDevToolkitService {
 
     private async fetchRepoSnapshot(): Promise<RepoSnapshot | null> {
         try {
-            const [commitRes, treeRes] = await Promise.all([
-                fetch(
-                    `https://api.github.com/repos/${GITHUB_REPO}/commits/main`,
-                    { headers: this.githubHeaders() },
-                ),
-                fetch(
-                    `https://api.github.com/repos/${GITHUB_REPO}/git/trees/main?recursive=1`,
-                    { headers: this.githubHeaders() },
-                ),
-            ])
+            const timeout = AbortSignal.timeout(10_000)
+            const commitRes = await fetch(
+                `https://api.github.com/repos/${GITHUB_REPO}/commits/main`,
+                { headers: this.githubHeaders(), signal: timeout },
+            )
 
-            if (!commitRes.ok || !treeRes.ok) {
+            if (!commitRes.ok) {
                 debugLog({
-                    message: `AiDevToolkitService: GitHub API error ${commitRes.status}/${treeRes.status}`,
+                    message: `AiDevToolkitService: GitHub commit API error ${commitRes.status}`,
                 })
                 return null
             }
 
-            const [commitData, treeData] = await Promise.all([
-                commitRes.json() as Promise<{
-                    sha: string
-                    commit: { committer: { date: string } }
-                }>,
-                treeRes.json() as Promise<{ tree: { path: string }[] }>,
-            ])
+            const commitData = (await commitRes.json()) as {
+                sha: string
+                commit: {
+                    tree: { sha: string }
+                    committer: { date: string }
+                }
+            }
+
+            const treeSha = commitData.commit.tree.sha
+            const treeRes = await fetch(
+                `https://api.github.com/repos/${GITHUB_REPO}/git/trees/${treeSha}?recursive=1`,
+                {
+                    headers: this.githubHeaders(),
+                    signal: AbortSignal.timeout(10_000),
+                },
+            )
+
+            if (!treeRes.ok) {
+                debugLog({
+                    message: `AiDevToolkitService: GitHub tree API error ${treeRes.status}`,
+                })
+                return null
+            }
+
+            const treeData = (await treeRes.json()) as {
+                tree: { path: string }[]
+            }
 
             const patterns = treeData.tree
                 .map((f) => f.path)
@@ -382,25 +397,31 @@ class AiDevToolkitService {
                 return
             }
 
-            let existingMessages: Message[] = []
+            const existingMessages: Message[] = []
+            let foundAllMessages = true
             if (stored?.messageIds.length) {
                 for (const id of stored.messageIds) {
                     try {
                         const msg = await channel.messages.fetch(id)
                         existingMessages.push(msg)
                     } catch {
-                        existingMessages = []
+                        foundAllMessages = false
                         break
                     }
                 }
             }
 
             if (
+                foundAllMessages &&
                 existingMessages.length > 0 &&
                 existingMessages.length === messages.length
             ) {
                 for (let i = 0; i < messages.length; i++) {
-                    await existingMessages[i].edit({ content: messages[i], embeds: [] })
+                    await existingMessages[i].edit({
+                        content: messages[i],
+                        embeds: [],
+                        allowedMentions: { parse: [] },
+                    })
                 }
                 infoLog({
                     message: `AiDevToolkitService: updated guide (${snapshot.commitSha})`,
@@ -411,7 +432,10 @@ class AiDevToolkitService {
                 }
                 const postedIds: string[] = []
                 for (const content of messages) {
-                    const posted = await channel.send({ content })
+                    const posted = await channel.send({
+                        content,
+                        allowedMentions: { parse: [] },
+                    })
                     postedIds.push(posted.id)
                 }
                 await this.storeGuide(CHANNEL_ID, postedIds)
