@@ -57,73 +57,33 @@ describe('playerFactory', () => {
         })
     })
 
-    describe('yt-dlp --get-url command arguments', () => {
-        it('should use --get-url for direct stream URL resolution', () => {
+    describe('yt-dlp pipe command arguments', () => {
+        it('should pipe audio to stdout with bestaudio/best format', () => {
             const ytDlpArgs = [
                 '-f',
-                'bestaudio',
-                '--get-url',
+                'bestaudio/best',
+                '-o',
+                '-',
                 '--no-warnings',
-                '--no-check-certificates',
+                '--quiet',
             ]
 
-            expect(ytDlpArgs).toContain('bestaudio')
-            expect(ytDlpArgs).toContain('--get-url')
-            expect(ytDlpArgs).toContain('--no-check-certificates')
+            expect(ytDlpArgs).toContain('bestaudio/best')
+            expect(ytDlpArgs).toContain('-o')
+            expect(ytDlpArgs).toContain('-')
             expect(ytDlpArgs).toContain('--no-warnings')
         })
 
-        it('should use 30s timeout for URL resolution', () => {
-            const execOptions = { timeout: 30000 }
-            expect(execOptions.timeout).toBe(30000)
+        it('should use pipe stdio for stream output', () => {
+            const spawnOptions = { stdio: ['ignore', 'pipe', 'pipe'] as const }
+            expect(spawnOptions.stdio[0]).toBe('ignore')
+            expect(spawnOptions.stdio[1]).toBe('pipe')
+            expect(spawnOptions.stdio[2]).toBe('pipe')
         })
     })
 
-    describe('getYtDlpUrl fallback logic', () => {
-        it('should fall back to original URL when yt-dlp returns null', async () => {
-            const getYtDlpUrl = async (_url: string): Promise<null> => null
-
-            const createStream = async (track: {
-                url: string
-            }): Promise<string> => {
-                const url = track.url
-                const isYt =
-                    url.includes('youtube.com') || url.includes('youtu.be')
-                if (isYt) {
-                    const streamUrl = await getYtDlpUrl(url)
-                    if (streamUrl) return streamUrl
-                }
-                return url
-            }
-
-            const youtubeUrl = 'https://youtube.com/watch?v=abc'
-            const result = await createStream({ url: youtubeUrl })
-            expect(result).toBe(youtubeUrl)
-        })
-
-        it('should return direct googlevideo URL when yt-dlp succeeds', async () => {
-            const googlevideoUrl =
-                'https://rr3---sn.googlevideo.com/videoplayback?test=1'
-            const getYtDlpUrl = async (_url: string) => googlevideoUrl
-
-            const createStream = async (track: { url: string }) => {
-                const url = track.url
-                if (url.includes('youtube.com')) {
-                    const streamUrl = await getYtDlpUrl(url)
-                    if (streamUrl) return streamUrl
-                }
-                return url
-            }
-
-            const result = await createStream({
-                url: 'https://youtube.com/watch?v=abc',
-            })
-            expect(result).toBe(googlevideoUrl)
-        })
-
+    describe('createStream pipe logic', () => {
         it('should return URL directly for non-YouTube tracks', async () => {
-            const getYtDlpUrl = async (_url: string): Promise<null> => null
-
             const createStream = async (track: {
                 url: string
             }): Promise<string> => {
@@ -131,8 +91,7 @@ describe('playerFactory', () => {
                 const isYt =
                     url.includes('youtube.com') || url.includes('youtu.be')
                 if (isYt) {
-                    const streamUrl = await getYtDlpUrl(url)
-                    if (streamUrl) return streamUrl
+                    return 'pipe-stream' // would be proc.stdout
                 }
                 return url
             }
@@ -142,6 +101,21 @@ describe('playerFactory', () => {
             expect(
                 await createStream({ url: 'https://soundcloud.com/track' }),
             ).toBe('https://soundcloud.com/track')
+        })
+
+        it('should pipe YouTube URLs through yt-dlp', async () => {
+            const pipedUrls: string[] = []
+            const createStream = async (track: { url: string }) => {
+                const url = track.url
+                if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                    pipedUrls.push(url)
+                    return {} // mock proc.stdout
+                }
+                return url
+            }
+
+            await createStream({ url: 'https://youtube.com/watch?v=abc' })
+            expect(pipedUrls).toContain('https://youtube.com/watch?v=abc')
         })
     })
 
