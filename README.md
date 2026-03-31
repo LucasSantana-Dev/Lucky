@@ -64,10 +64,9 @@ packages/
 - **Verified announcement**: `assets/lucky-verified-announcement.png` (1280x640)
 - Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
-### Latest Release (`v2.6.38`)
-- Fixed dashboard automation access guards and stabilized several guild management flows.
-- Previous release (`v2.6.37`) fixed PostgreSQL persistence in Docker by setting
-  `PGDATA=/var/lib/postgresql/data` for Postgres 18 compatibility.
+### Latest Release (`v2.6.54`)
+- Routed YouTube audio via SoundCloud bridge (`createStream` override) to bypass extraction failures; fixed `Track.setMetadata` TypeError in session snapshots.
+- Previous release (`v2.6.53`) added `generateWithPoToken` to `YoutubeiExtractor` and introduced the `/version` command.
 
 ## Features
 
@@ -497,11 +496,15 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 source/cache signals, provider cooldown/score status, watchdog recovery state
 and detail, snapshot availability, and actionable recovery next steps.
 
+YouTube audio is resolved via `YoutubeiExtractor` with `generateWithPoToken: true` (BotGuard `po_token` for metadata/search). Actual audio is streamed through SoundCloud (`createStream` bridge — title+author search with duration validation) to bypass YouTube CDN IP blocks that affect self-hosted deployments.
+
 ### Download
 `/download` `/download-audio` `/download-video`
 
 ### General
-`/ping` `/help` `/exit`
+`/ping` `/help` `/exit` `/version`
+
+`/version` replies ephemerally with the running bot version read from `package.json`. Use it to verify that the deployed instance matches the expected release.
 
 ### Twitch
 `/twitch add` `/twitch remove` `/twitch list`

@@ -28,7 +28,12 @@ export default new Command({
         .setDescription('Shows the current bot version'),
     category: 'general',
     execute: async ({ interaction }) => {
-        const version = await readVersion()
+        let version = 'unknown'
+        try {
+            version = await readVersion()
+        } catch {
+            // package.json unreadable — fall back to 'unknown'
+        }
         await interaction.reply({
             embeds: [createInfoEmbed('Bot Version', `v${version}`)],
             ephemeral: true,

@@ -75,7 +75,7 @@ describe('playerFactory', () => {
             expect(options.generateWithPoToken).toBe(true)
         })
 
-        it('does not set a custom createStream override', async () => {
+        it('sets a createStream override to route audio via SoundCloud', async () => {
             const { createPlayer } =
                 await import('../../../src/handlers/player/playerFactory')
 
@@ -89,7 +89,7 @@ describe('playerFactory', () => {
             }
 
             const [, options] = player.extractors.register.mock.calls[0]
-            expect(options.createStream).toBeUndefined()
+            expect(typeof options.createStream).toBe('function')
         })
     })
 })

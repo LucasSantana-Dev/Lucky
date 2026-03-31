@@ -151,15 +151,20 @@ describe('twitch/index', () => {
         })
 
         it('should wait for refresh to complete', async () => {
+            let resolved = false
             twitchEventSubClientRefreshMock.mockImplementation(
-                () => new Promise((resolve) => setTimeout(resolve, 10)),
+                () =>
+                    new Promise<void>((resolve) =>
+                        setTimeout(() => {
+                            resolved = true
+                            resolve()
+                        }, 10),
+                    ),
             )
 
-            const startTime = Date.now()
             await refreshTwitchSubscriptions()
-            const elapsed = Date.now() - startTime
 
-            expect(elapsed).toBeGreaterThanOrEqual(10)
+            expect(resolved).toBe(true)
         })
 
         it('should handle refresh errors', async () => {

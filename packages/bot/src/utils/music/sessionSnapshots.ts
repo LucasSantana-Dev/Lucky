@@ -73,18 +73,15 @@ function applySnapshotMetadata(
     isAutoplay?: boolean,
     requestedById?: string,
 ): void {
-    const mutableTrack = track as unknown as {
-        metadata?: Record<string, unknown>
-    }
-    const metadata = mutableTrack.metadata ?? {}
-    mutableTrack.metadata = {
-        ...metadata,
+    const existing = (track.metadata ?? {}) as Record<string, unknown>
+    track.setMetadata({
+        ...existing,
         sessionSnapshotId: snapshotId,
         recommendationReason:
-            recommendationReason ?? metadata.recommendationReason,
-        isAutoplay: isAutoplay ?? metadata.isAutoplay,
-        requestedById: requestedById ?? metadata.requestedById,
-    }
+            recommendationReason ?? existing.recommendationReason,
+        isAutoplay: isAutoplay ?? existing.isAutoplay,
+        requestedById: requestedById ?? existing.requestedById,
+    })
 }
 
 export class MusicSessionSnapshotService {
