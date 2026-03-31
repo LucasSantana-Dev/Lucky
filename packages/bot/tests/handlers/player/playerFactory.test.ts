@@ -51,19 +51,51 @@ jest.mock('util', () => ({
 
 const mockExecFile = execFile as unknown as jest.MockedFunction<typeof execFile>
 
-function createSpawnProcessMock() {
-    return {
-        stdout: { on: jest.fn() },
+function createSpawnProcessMock(
+    opts: { fireClose?: number; fireData?: boolean } = {},
+) {
+    const listeners: Record<string, ((...args: unknown[]) => void)[]> = {}
+    const stdoutListeners: Record<string, ((...args: unknown[]) => void)[]> = {}
+
+    const proc = {
+        stdout: {
+            on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+                stdoutListeners[event] = stdoutListeners[event] ?? []
+                stdoutListeners[event].push(cb)
+            }),
+            once: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+                stdoutListeners[event] = stdoutListeners[event] ?? []
+                stdoutListeners[event].push(cb)
+                if (opts.fireData && event === 'data') {
+                    Promise.resolve().then(() => cb(Buffer.from('audio')))
+                }
+            }),
+            destroy: jest.fn(),
+        },
         stderr: { on: jest.fn() },
-        on: jest.fn(),
+        on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+            listeners[event] = listeners[event] ?? []
+            listeners[event].push(cb)
+            if (opts.fireClose !== undefined && event === 'close') {
+                Promise.resolve().then(() => cb(opts.fireClose))
+            }
+        }),
+        kill: jest.fn(),
     }
+
+    return proc
 }
 
 describe('playerFactory', () => {
     beforeEach(() => {
         jest.resetModules()
         mockSpawn.mockReset()
-        mockSpawn.mockReturnValue(createSpawnProcessMock())
+        mockSpawn.mockImplementation((_cmd: unknown, args: string[]) => {
+            if (Array.isArray(args) && args[0] === '--version') {
+                return createSpawnProcessMock({ fireClose: 0 })
+            }
+            return createSpawnProcessMock({ fireData: true })
+        })
     })
 
     describe('module exports', () => {
@@ -128,9 +160,9 @@ describe('playerFactory', () => {
                 extractors: { register: jest.Mock }
             }
 
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 50; i++) {
                 if (player.extractors.register.mock.calls.length > 0) break
-                await new Promise((resolve) => setTimeout(resolve, 0))
+                await new Promise((resolve) => setTimeout(resolve, 10))
             }
 
             expect(player.extractors.register).toHaveBeenCalled()

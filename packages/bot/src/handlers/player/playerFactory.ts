@@ -113,13 +113,21 @@ const tryYtDlpStream = (url: string): Promise<Readable | null> => {
 const checkYtDlpAvailability = (): Promise<boolean> => {
     return new Promise((resolve) => {
         const proc = spawn('yt-dlp', ['--version'], { stdio: 'pipe' })
+        let done = false
 
-        proc.on('close', (code) => resolve(code === 0))
-        proc.on('error', () => resolve(false))
+        const finish = (result: boolean): void => {
+            if (done) return
+            done = true
+            clearTimeout(timer)
+            resolve(result)
+        }
 
-        setTimeout(() => {
+        proc.on('close', (code) => finish(code === 0))
+        proc.on('error', () => finish(false))
+
+        const timer = setTimeout(() => {
             proc.kill()
-            resolve(false)
+            finish(false)
         }, 3000)
     })
 }
@@ -170,7 +178,10 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
                   },
               }
 
-        await player.extractors.register(mod.YoutubeiExtractor, extractorOptions)
+        await player.extractors.register(
+            mod.YoutubeiExtractor,
+            extractorOptions,
+        )
 
         infoLog({
             message: ytDlpAvailable
