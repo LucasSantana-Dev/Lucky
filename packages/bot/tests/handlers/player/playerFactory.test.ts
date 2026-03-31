@@ -72,6 +72,7 @@ describe('playerFactory', () => {
             const [, options] = player.extractors.register.mock.calls[0]
             expect(options.streamOptions.useClient).toBe('IOS')
             expect(options.streamOptions.highWaterMark).toBe(1 << 25)
+            expect(options.generateWithPoToken).toBe(true)
         })
 
         it('does not set a custom createStream override', async () => {

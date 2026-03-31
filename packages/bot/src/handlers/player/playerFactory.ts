@@ -45,6 +45,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
                 useClient: 'IOS' as const,
                 highWaterMark: 1 << 25,
             },
+            generateWithPoToken: true,
         })
 
         infoLog({
