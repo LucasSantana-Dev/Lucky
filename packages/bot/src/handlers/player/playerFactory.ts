@@ -1,12 +1,9 @@
-import { execFile } from 'child_process'
-import { promisify } from 'util'
 import { spawn } from 'child_process'
+import type { Readable } from 'stream'
 import { Player } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
-
-const execFileAsync = promisify(execFile)
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -43,31 +40,23 @@ const registerExtractors = (player: Player): void => {
 const isYouTubeUrl = (url: string): boolean =>
     url.includes('youtube.com') || url.includes('youtu.be')
 
-const getYtDlpUrl = async (url: string): Promise<string | null> => {
-    try {
-        debugLog({ message: `yt-dlp resolving stream URL: ${url}` })
-        const { stdout } = await execFileAsync(
-            'yt-dlp',
-            [
-                '-f',
-                'bestaudio',
-                '--get-url',
-                '--no-warnings',
-                '--no-check-certificates',
-                url,
-            ],
-            { timeout: 30000 },
-        )
-        const streamUrl = stdout.trim().split('\n')[0] ?? ''
-        if (!streamUrl) return null
-        debugLog({ message: `yt-dlp resolved stream URL for: ${url}` })
-        return streamUrl
-    } catch {
-        warnLog({
-            message: `yt-dlp --get-url failed for ${url}, falling back to native IOS`,
-        })
-        return null
-    }
+const getYtDlpStream = (url: string): Readable => {
+    debugLog({ message: `yt-dlp piping audio stream: ${url}` })
+    const proc = spawn(
+        'yt-dlp',
+        ['-f', 'bestaudio/best', '-o', '-', '--no-warnings', '--quiet', url],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+    )
+
+    proc.stderr?.on('data', (data: Buffer) => {
+        warnLog({ message: `yt-dlp stderr: ${data.toString().trim()}` })
+    })
+
+    proc.on('error', (err) => {
+        errorLog({ message: 'yt-dlp process error:', error: err })
+    })
+
+    return proc.stdout as Readable
 }
 
 const checkYtDlpAvailability = (): Promise<boolean> => {
@@ -115,19 +104,12 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
                   createStream: async (
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       track: any,
-                  ): Promise<string> => {
+                  ): Promise<Readable | string> => {
                       const url = track?.url ?? String(track)
                       debugLog({ message: `createStream for: ${url}` })
-
                       if (isYouTubeUrl(url)) {
-                          const streamUrl = await getYtDlpUrl(url)
-                          if (streamUrl) return streamUrl
-
-                          warnLog({
-                              message: `yt-dlp failed for ${url}, falling back to native IOS streaming`,
-                          })
+                          return getYtDlpStream(url)
                       }
-
                       return url
                   },
               }
@@ -145,7 +127,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
 
         infoLog({
             message: ytDlpAvailable
-                ? 'Registered YoutubeiExtractor (yt-dlp primary, native IOS fallback)'
+                ? 'Registered YoutubeiExtractor (yt-dlp pipe primary, native IOS fallback)'
                 : 'Registered YoutubeiExtractor (native IOS client)',
         })
     } catch {
