@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.50] - 2026-03-31
+
+### Fixed
+
+- Play command still unreliable after v2.6.47: `stream.once('data')` was putting the yt-dlp `Readable` into flowing mode before discord-player attached a consumer, causing dropped audio chunks. Replaced yt-dlp pipe (`spawn -o -`) with `execFile --get-url` to resolve the direct googlevideo URL and return it as a string — discord-player streams it via its own HTTP client. Updated tests to use closure-pattern mock. (#416)
+
 ## [2.6.49] - 2026-03-31
 
 ### Fixed
