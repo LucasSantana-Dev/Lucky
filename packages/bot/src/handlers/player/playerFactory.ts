@@ -1,9 +1,12 @@
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { spawn } from 'child_process'
-import type { Readable } from 'stream'
 import { Player } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
+
+const execFileAsync = promisify(execFile)
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -40,74 +43,31 @@ const registerExtractors = (player: Player): void => {
 const isYouTubeUrl = (url: string): boolean =>
     url.includes('youtube.com') || url.includes('youtu.be')
 
-const getYtDlpStream = (url: string): Readable => {
-    debugLog({ message: `yt-dlp piping audio stream: ${url}` })
-    const proc = spawn(
-        'yt-dlp',
-        [
-            '-f',
-            'bestaudio/best',
-            '-o',
-            '-',
-            '--no-warnings',
-            '--quiet',
-            '--no-check-certificates',
-            url,
-        ],
-        { stdio: ['ignore', 'pipe', 'pipe'] },
-    )
-
-    proc.stderr?.on('data', (data: Buffer) => {
-        warnLog({ message: `yt-dlp stderr: ${data.toString().trim()}` })
-    })
-
-    proc.on('error', (err) => {
-        errorLog({ message: 'yt-dlp process error:', error: err })
-    })
-
-    return proc.stdout as Readable
-}
-
-const tryYtDlpStream = (url: string): Promise<Readable | null> => {
-    return new Promise((resolve) => {
-        try {
-            const stream = getYtDlpStream(url)
-            let hasData = false
-
-            const timeout = setTimeout(() => {
-                if (!hasData) {
-                    warnLog({
-                        message: `yt-dlp timed out for ${url}, falling back to native streaming`,
-                    })
-                    stream.destroy()
-                    resolve(null)
-                }
-            }, 8000)
-
-            stream.once('data', () => {
-                hasData = true
-                clearTimeout(timeout)
-                resolve(stream)
-            })
-
-            stream.once('error', (err) => {
-                clearTimeout(timeout)
-                warnLog({
-                    message: `yt-dlp stream error for ${url}: ${String(err)}`,
-                })
-                resolve(null)
-            })
-
-            stream.once('end', () => {
-                if (!hasData) {
-                    clearTimeout(timeout)
-                    resolve(null)
-                }
-            })
-        } catch {
-            resolve(null)
-        }
-    })
+const getYtDlpUrl = async (url: string): Promise<string | null> => {
+    try {
+        debugLog({ message: `yt-dlp resolving stream URL: ${url}` })
+        const { stdout } = await execFileAsync(
+            'yt-dlp',
+            [
+                '-f',
+                'bestaudio',
+                '--get-url',
+                '--no-warnings',
+                '--no-check-certificates',
+                url,
+            ],
+            { timeout: 30000 },
+        )
+        const streamUrl = stdout.trim().split('\n')[0] ?? ''
+        if (!streamUrl) return null
+        debugLog({ message: `yt-dlp resolved stream URL for: ${url}` })
+        return streamUrl
+    } catch {
+        warnLog({
+            message: `yt-dlp --get-url failed for ${url}, falling back to native IOS`,
+        })
+        return null
+    }
 }
 
 const checkYtDlpAvailability = (): Promise<boolean> => {
@@ -155,13 +115,13 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
                   createStream: async (
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       track: any,
-                  ): Promise<Readable | string> => {
+                  ): Promise<string> => {
                       const url = track?.url ?? String(track)
                       debugLog({ message: `createStream for: ${url}` })
 
                       if (isYouTubeUrl(url)) {
-                          const stream = await tryYtDlpStream(url)
-                          if (stream) return stream
+                          const streamUrl = await getYtDlpUrl(url)
+                          if (streamUrl) return streamUrl
 
                           warnLog({
                               message: `yt-dlp failed for ${url}, falling back to native IOS streaming`,

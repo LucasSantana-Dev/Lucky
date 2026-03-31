@@ -1,6 +1,5 @@
-import { execFile } from 'child_process'
-
 const mockSpawn = jest.fn()
+const mockExecFile = jest.fn()
 
 jest.mock('discord-player', () => {
     const loadMulti = jest.fn().mockResolvedValue(undefined)
@@ -32,7 +31,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('child_process', () => ({
-    execFile: jest.fn(),
+    execFile: (...args: unknown[]) => mockExecFile(...args),
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
 
@@ -49,29 +48,11 @@ jest.mock('util', () => ({
     }),
 }))
 
-const mockExecFile = execFile as unknown as jest.MockedFunction<typeof execFile>
-
-function createSpawnProcessMock(
-    opts: { fireClose?: number; fireData?: boolean } = {},
-) {
+function createSpawnProcessMock(opts: { fireClose?: number } = {}) {
     const listeners: Record<string, ((...args: unknown[]) => void)[]> = {}
-    const stdoutListeners: Record<string, ((...args: unknown[]) => void)[]> = {}
 
     const proc = {
-        stdout: {
-            on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
-                stdoutListeners[event] = stdoutListeners[event] ?? []
-                stdoutListeners[event].push(cb)
-            }),
-            once: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
-                stdoutListeners[event] = stdoutListeners[event] ?? []
-                stdoutListeners[event].push(cb)
-                if (opts.fireData && event === 'data') {
-                    Promise.resolve().then(() => cb(Buffer.from('audio')))
-                }
-            }),
-            destroy: jest.fn(),
-        },
+        stdout: { on: jest.fn(), destroy: jest.fn() },
         stderr: { on: jest.fn() },
         on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
             listeners[event] = listeners[event] ?? []
@@ -90,11 +71,12 @@ describe('playerFactory', () => {
     beforeEach(() => {
         jest.resetModules()
         mockSpawn.mockReset()
+        mockExecFile.mockReset()
         mockSpawn.mockImplementation((_cmd: unknown, args: string[]) => {
             if (Array.isArray(args) && args[0] === '--version') {
                 return createSpawnProcessMock({ fireClose: 0 })
             }
-            return createSpawnProcessMock({ fireData: true })
+            return createSpawnProcessMock()
         })
     })
 
@@ -120,7 +102,7 @@ describe('playerFactory', () => {
     })
 
     describe('yt-dlp URL resolution', () => {
-        it('uses execFile with --get-url for YouTube URLs', () => {
+        it('uses execFile with --get-url for YouTube URLs', async () => {
             const url = 'https://youtube.com/watch?v=abc123'
             const streamUrl =
                 'https://rr3---sn.googlevideo.com/videoplayback?...'
@@ -132,33 +114,12 @@ describe('playerFactory', () => {
                 },
             )
 
-            execFile(
-                'yt-dlp',
-                ['-f', 'bestaudio', '--get-url', '--no-warnings', url],
-                { timeout: 30000 },
-                (err, result) => {
-                    expect(err).toBeNull()
-                    expect((result as any).stdout.trim()).toBe(streamUrl)
-                },
-            )
-
-            expect(mockExecFile).toHaveBeenCalledWith(
-                'yt-dlp',
-                expect.arrayContaining(['-f', 'bestaudio', '--get-url', url]),
-                expect.objectContaining({ timeout: 30000 }),
-                expect.any(Function),
-            )
-        })
-
-        it('uses resilient yt-dlp format fallback for YouTube streams', async () => {
             const { createPlayer } =
                 await import('../../../src/handlers/player/playerFactory')
 
             const player = createPlayer({
                 client: { user: { id: '123' } } as any,
-            }) as unknown as {
-                extractors: { register: jest.Mock }
-            }
+            }) as unknown as { extractors: { register: jest.Mock } }
 
             for (let i = 0; i < 50; i++) {
                 if (player.extractors.register.mock.calls.length > 0) break
@@ -169,28 +130,78 @@ describe('playerFactory', () => {
 
             const extractorOptions = player.extractors.register.mock
                 .calls[0][1] as {
-                createStream: (_track: unknown) => Promise<unknown>
+                createStream: (_track: unknown) => Promise<string>
             }
 
-            await extractorOptions.createStream({
-                url: 'https://youtube.com/watch?v=abc123',
+            const result = await extractorOptions.createStream({ url })
+
+            expect(result).toBe(streamUrl)
+            expect(mockExecFile).toHaveBeenCalledWith(
+                'yt-dlp',
+                expect.arrayContaining(['-f', 'bestaudio', '--get-url', url]),
+                expect.objectContaining({ timeout: 30000 }),
+                expect.any(Function),
+            )
+        })
+
+        it('falls back to original URL when yt-dlp --get-url fails', async () => {
+            mockExecFile.mockImplementation(
+                (_cmd: any, _args: any, _opts: any, cb: any) => {
+                    cb(new Error('yt-dlp failed'), null)
+                    return {} as any
+                },
+            )
+
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+
+            const player = createPlayer({
+                client: { user: { id: '123' } } as any,
+            }) as unknown as { extractors: { register: jest.Mock } }
+
+            for (let i = 0; i < 50; i++) {
+                if (player.extractors.register.mock.calls.length > 0) break
+                await new Promise((resolve) => setTimeout(resolve, 10))
+            }
+
+            const extractorOptions = player.extractors.register.mock
+                .calls[0][1] as {
+                createStream: (_track: unknown) => Promise<string>
+            }
+
+            const youtubeUrl = 'https://youtube.com/watch?v=abc123'
+            const result = await extractorOptions.createStream({
+                url: youtubeUrl,
             })
 
-            expect(mockSpawn).toHaveBeenCalledWith(
-                'yt-dlp',
-                expect.arrayContaining([
-                    '-f',
-                    'bestaudio/best',
-                    '-o',
-                    '-',
-                    '--no-warnings',
-                    '--quiet',
-                    'https://youtube.com/watch?v=abc123',
-                ]),
-                expect.objectContaining({
-                    stdio: ['ignore', 'pipe', 'pipe'],
-                }),
-            )
+            expect(result).toBe(youtubeUrl)
+        })
+
+        it('returns non-YouTube URLs without calling yt-dlp', async () => {
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+
+            const player = createPlayer({
+                client: { user: { id: '123' } } as any,
+            }) as unknown as { extractors: { register: jest.Mock } }
+
+            for (let i = 0; i < 50; i++) {
+                if (player.extractors.register.mock.calls.length > 0) break
+                await new Promise((resolve) => setTimeout(resolve, 10))
+            }
+
+            const extractorOptions = player.extractors.register.mock
+                .calls[0][1] as {
+                createStream: (_track: unknown) => Promise<string>
+            }
+
+            const spotifyUrl = 'https://open.spotify.com/track/abc'
+            const result = await extractorOptions.createStream({
+                url: spotifyUrl,
+            })
+
+            expect(result).toBe(spotifyUrl)
+            expect(mockExecFile).not.toHaveBeenCalled()
         })
     })
 })

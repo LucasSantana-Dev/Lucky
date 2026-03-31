@@ -6,11 +6,17 @@ describe('playerFactory', () => {
             const isYouTubeUrl = (url: string): boolean =>
                 url.includes('youtube.com') || url.includes('youtu.be')
 
-            expect(isYouTubeUrl('https://www.youtube.com/watch?v=test')).toBe(true)
+            expect(isYouTubeUrl('https://www.youtube.com/watch?v=test')).toBe(
+                true,
+            )
             expect(isYouTubeUrl('https://youtu.be/test')).toBe(true)
             expect(isYouTubeUrl('https://soundcloud.com/track')).toBe(false)
-            expect(isYouTubeUrl('https://open.spotify.com/track/abc')).toBe(false)
-            expect(isYouTubeUrl('https://music.youtube.com/watch?v=test')).toBe(true)
+            expect(isYouTubeUrl('https://open.spotify.com/track/abc')).toBe(
+                false,
+            )
+            expect(isYouTubeUrl('https://music.youtube.com/watch?v=test')).toBe(
+                true,
+            )
         })
 
         it('should validate player creation parameters', () => {
@@ -40,7 +46,10 @@ describe('playerFactory', () => {
         it('should omit createStream when yt-dlp is unavailable', () => {
             const buildOptions = (ytDlpAvailable: boolean) =>
                 ytDlpAvailable
-                    ? { streamOptions: { useClient: 'IOS' as const }, createStream: () => {} }
+                    ? {
+                          streamOptions: { useClient: 'IOS' as const },
+                          createStream: () => {},
+                      }
                     : { streamOptions: { useClient: 'IOS' as const } }
 
             expect(buildOptions(true)).toHaveProperty('createStream')
@@ -48,83 +57,91 @@ describe('playerFactory', () => {
         })
     })
 
-    describe('yt-dlp command arguments', () => {
-        it('should include --no-check-certificates for robustness', () => {
+    describe('yt-dlp --get-url command arguments', () => {
+        it('should use --get-url for direct stream URL resolution', () => {
             const ytDlpArgs = [
-                '-f', 'bestaudio/best',
-                '-o', '-',
+                '-f',
+                'bestaudio',
+                '--get-url',
                 '--no-warnings',
-                '--quiet',
                 '--no-check-certificates',
             ]
 
-            expect(ytDlpArgs).toContain('bestaudio/best')
+            expect(ytDlpArgs).toContain('bestaudio')
+            expect(ytDlpArgs).toContain('--get-url')
             expect(ytDlpArgs).toContain('--no-check-certificates')
             expect(ytDlpArgs).toContain('--no-warnings')
-            expect(ytDlpArgs).toContain('--quiet')
-            expect(ytDlpArgs).toHaveLength(7)
         })
 
-        it('should pipe stdout and ignore stdin', () => {
-            const spawnOptions = { stdio: ['ignore', 'pipe', 'pipe'] as const }
-
-            expect(spawnOptions.stdio[0]).toBe('ignore')
-            expect(spawnOptions.stdio[1]).toBe('pipe')
-            expect(spawnOptions.stdio[2]).toBe('pipe')
+        it('should use 30s timeout for URL resolution', () => {
+            const execOptions = { timeout: 30000 }
+            expect(execOptions.timeout).toBe(30000)
         })
     })
 
-    describe('tryYtDlpStream fallback logic', () => {
-        it('should fall back to native IOS streaming when yt-dlp returns null', async () => {
-            const tryYtDlpStream = async (_url: string): Promise<null> => null
+    describe('getYtDlpUrl fallback logic', () => {
+        it('should fall back to original URL when yt-dlp returns null', async () => {
+            const getYtDlpUrl = async (_url: string): Promise<null> => null
 
-            const createStream = async (track: { url: string }): Promise<string> => {
+            const createStream = async (track: {
+                url: string
+            }): Promise<string> => {
                 const url = track.url
-                const isYt = url.includes('youtube.com') || url.includes('youtu.be')
+                const isYt =
+                    url.includes('youtube.com') || url.includes('youtu.be')
                 if (isYt) {
-                    const stream = await tryYtDlpStream(url)
-                    if (stream) return 'yt-dlp'
+                    const streamUrl = await getYtDlpUrl(url)
+                    if (streamUrl) return streamUrl
                 }
                 return url
             }
 
-            const result = await createStream({ url: 'https://youtube.com/watch?v=abc' })
-            expect(result).toBe('https://youtube.com/watch?v=abc')
+            const youtubeUrl = 'https://youtube.com/watch?v=abc'
+            const result = await createStream({ url: youtubeUrl })
+            expect(result).toBe(youtubeUrl)
         })
 
-        it('should return yt-dlp stream when it succeeds', async () => {
-            const mockStream = { pipe: () => {} }
-            const tryYtDlpStream = async (_url: string) => mockStream
+        it('should return direct googlevideo URL when yt-dlp succeeds', async () => {
+            const googlevideoUrl =
+                'https://rr3---sn.googlevideo.com/videoplayback?test=1'
+            const getYtDlpUrl = async (_url: string) => googlevideoUrl
 
             const createStream = async (track: { url: string }) => {
                 const url = track.url
                 if (url.includes('youtube.com')) {
-                    const stream = await tryYtDlpStream(url)
-                    if (stream) return stream
+                    const streamUrl = await getYtDlpUrl(url)
+                    if (streamUrl) return streamUrl
                 }
                 return url
             }
 
-            const result = await createStream({ url: 'https://youtube.com/watch?v=abc' })
-            expect(result).toBe(mockStream)
+            const result = await createStream({
+                url: 'https://youtube.com/watch?v=abc',
+            })
+            expect(result).toBe(googlevideoUrl)
         })
 
         it('should return URL directly for non-YouTube tracks', async () => {
-            const tryYtDlpStream = async (_url: string): Promise<null> => null
+            const getYtDlpUrl = async (_url: string): Promise<null> => null
 
-            const createStream = async (track: { url: string }): Promise<string> => {
+            const createStream = async (track: {
+                url: string
+            }): Promise<string> => {
                 const url = track.url
-                const isYt = url.includes('youtube.com') || url.includes('youtu.be')
+                const isYt =
+                    url.includes('youtube.com') || url.includes('youtu.be')
                 if (isYt) {
-                    const stream = await tryYtDlpStream(url)
-                    if (stream) return 'yt-dlp-stream'
+                    const streamUrl = await getYtDlpUrl(url)
+                    if (streamUrl) return streamUrl
                 }
                 return url
             }
 
             const spotifyUrl = 'https://open.spotify.com/track/abc'
             expect(await createStream({ url: spotifyUrl })).toBe(spotifyUrl)
-            expect(await createStream({ url: 'https://soundcloud.com/track' })).toBe('https://soundcloud.com/track')
+            expect(
+                await createStream({ url: 'https://soundcloud.com/track' }),
+            ).toBe('https://soundcloud.com/track')
         })
     })
 
@@ -157,7 +174,11 @@ describe('playerFactory', () => {
                 }
             }
 
-            expect(registerSafely(() => { throw new Error('extractor not found') })).toBe(false)
+            expect(
+                registerSafely(() => {
+                    throw new Error('extractor not found')
+                }),
+            ).toBe(false)
             expect(registerSafely(() => {})).toBe(true)
         })
 
