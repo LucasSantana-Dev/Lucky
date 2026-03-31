@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.53] - 2026-03-31
+
+### Fixed
+
+- YouTube audio playback on server IPs: `generateWithPoToken: true` added to `YoutubeiExtractor` registration so the extractor uses BotGuard challenge-response (`bgutils-js`) to generate a valid `po_token` on startup. Without it, YouTube's bot-detection silently returns empty audio streams for hosting provider IPs — the track would queue and "Now Playing" would show, but no audio played and the bot left after ~30 seconds.
+
+### Added
+
+- `/version` command: replies (ephemeral) with the current bot version read from `package.json`, so production deployments can be verified without checking logs.
+
 ## [2.6.50] - 2026-03-31
 
 ### Fixed
