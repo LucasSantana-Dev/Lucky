@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.49] - 2026-03-31
+
+### Fixed
+
+- `playerFactory.test.ts`: update spawn mock to fire close/data events immediately so tests don't hang on 3s availability timeout. Clear timeout on early resolve in `checkYtDlpAvailability` to prevent open timer leaks. Fixes CI Quality Gates (1 failing test). (#414)
+
 ## [2.6.48] - 2026-03-31
 
 ### Tests
