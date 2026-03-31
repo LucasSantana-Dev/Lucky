@@ -614,3 +614,15 @@ model LevelReward {
   @@index([guildId])
   @@map("level_rewards")
 }
+
+model LiveBoard {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  channelId String
+  messageId String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("live_boards")
+}
