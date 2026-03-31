@@ -36,6 +36,18 @@ describe('autoplay/recommendations', () => {
         jest.clearAllMocks()
         const { trackHistoryService } = require('@lucky/shared/services')
         mockGetTrackHistory = trackHistoryService.getTrackHistory as jest.Mock
+
+        // Reset recommendation config to defaults
+        updateRecommendationConfig({
+            maxRecommendations: 8,
+            similarityThreshold: 0.4,
+            genreWeight: 0.4,
+            tagWeight: 0.3,
+            artistWeight: 0.2,
+            durationWeight: 0.05,
+            popularityWeight: 0.05,
+            diversityFactor: 0.1,
+        })
     })
 
     afterEach(() => {
