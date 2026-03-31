@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.55] - 2026-03-31
+
+### Changed
+
+- **AI Dev Toolkit board**: Replaced GitHub releases embed with a living Portuguese-language educational article. Polls the repo tree on every sync cycle so the patterns list stays up-to-date without a new release. Stores all message IDs so partial fetches are cleaned up cleanly before a repost.
+
+### Fixed
+
+- **AiDevToolkitService race condition**: Parallel `Promise.all([commit, tree])` could cache a stale tree if the two GitHub API calls resolved on different revisions. Fetch is now sequential: commit first → extract `commit.commit.tree.sha` → fetch tree with that SHA. Both fetches are bounded by `AbortSignal.timeout(10_000)`.
+- **Orphaned messages on partial fetch**: Replaced the reset-on-error pattern with a `foundAllMessages` flag so messages fetched before a failure are deleted before reposting.
+- **`@mention` injection**: Added `allowedMentions: { parse: [] }` to `channel.send()` and `message.edit()` to prevent pattern slugs derived from repo content from triggering Discord @mentions.
+
+### Added
+
+- `AI_DEV_TOOLKIT_CHANNEL_ID` and `AI_DEV_TOOLKIT_CHECK_INTERVAL` env vars documented in `docker-compose.yml`.
+
 ## [2.6.54] - 2026-03-31
 
 ### Fixed

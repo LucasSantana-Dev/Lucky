@@ -87,6 +87,9 @@ services:
             - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
             - TWITCH_ACCESS_TOKEN=${TWITCH_ACCESS_TOKEN:-}
             - TWITCH_REFRESH_TOKEN=${TWITCH_REFRESH_TOKEN:-}
+            - AI_DEV_TOOLKIT_BOARD_ENABLED=${AI_DEV_TOOLKIT_BOARD_ENABLED:-false}
+            - AI_DEV_TOOLKIT_CHANNEL_ID=${AI_DEV_TOOLKIT_CHANNEL_ID:-}
+            - GITHUB_TOKEN=${GITHUB_TOKEN:-}
         volumes:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
