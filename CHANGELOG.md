@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.46] - 2026-03-31
+
+### Tests
+
+- Added test coverage for general commands: help, reactionrole, roleconfig and their handlers (62 tests). (#404)
+- Added test coverage for music queue utilities: asyncQueueManager, queueStrategy, LRU cacheManager, and trackUtils (109 tests). (#405)
+
 ## [2.6.45] - 2026-03-31
 
 ### Tests
