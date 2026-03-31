@@ -5,6 +5,7 @@ import type { CustomClient } from '../types'
 import { restoreSessionsOnStartup } from '../utils/music/sessionStartupRestore'
 import { musicWatchdogService } from '../utils/music/watchdog'
 import { resolveGuildQueue } from '../utils/music/queueResolver'
+import { aiDevToolkitService } from '../services/AiDevToolkitService'
 
 export const name = 'clientReady'
 export const once = true
@@ -24,4 +25,8 @@ export async function execute(client: Client): Promise<void> {
         const { queue } = resolveGuildQueue(client as CustomClient, guildId)
         return queue ?? null
     })
+
+    if (process.env.AI_DEV_TOOLKIT_BOARD_ENABLED === 'true') {
+        await aiDevToolkitService.start(client)
+    }
 }
