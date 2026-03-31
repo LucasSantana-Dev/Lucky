@@ -110,7 +110,7 @@ async function streamViaSoundCloud(track: {
         )
     }
 
-    const scStream = await playdl.stream(match)
+    const scStream = await playdl.stream(match.url)
     return scStream.stream
 }
 
