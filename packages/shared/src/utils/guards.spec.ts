@@ -177,7 +177,7 @@ describe('Type Guards', () => {
         it('should return true for valid YouTube URLs', () => {
             expect(isYouTubeUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true)
             expect(isYouTubeUrl('https://youtu.be/dQw4w9WgXcQ')).toBe(true)
-            expect(isYouTubeUrl('http://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true)
+            expect(isYouTubeUrl('http://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(true) // NOSONAR: testing HTTP scheme support intentionally
         })
 
         it('should return false for invalid YouTube URLs', () => {

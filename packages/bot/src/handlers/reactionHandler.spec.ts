@@ -44,7 +44,7 @@ function makeReaction(overrides: any = {}) {
                 id: 'author-1',
                 username: 'Author',
                 tag: 'Author#0001',
-                displayAvatarURL: () => 'http://x',
+                displayAvatarURL: () => 'https://x',
             },
             content: 'hello',
             channel: { name: 'general' },

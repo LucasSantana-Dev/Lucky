@@ -1,4 +1,5 @@
 import RedisClientClass, { type Redis } from 'ioredis'
+import { randomUUID } from 'crypto'
 import { createRedisConfig } from '../redis/config.js'
 import { debugLog, errorLog, infoLog } from '../../utils/general/log.js'
 import {
@@ -168,7 +169,7 @@ export class MusicControlService {
     }
 
     static createCommandId(): string {
-        return `cmd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+        return `cmd_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 7)}`
     }
 
     private failResult(cmd: MusicCommand, error: string): MusicCommandResult {
