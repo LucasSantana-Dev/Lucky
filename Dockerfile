@@ -99,7 +99,7 @@ USER bot
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node -e "console.log('Service is running')" || exit 1
 
-CMD ["node", "packages/bot/dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node packages/bot/dist/index.js"]
 
 # Production stage — backend (slim runtime, no media tools)
 FROM base-runtime-backend AS production-backend

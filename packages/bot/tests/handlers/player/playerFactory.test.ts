@@ -20,6 +20,13 @@ jest.mock('discord-player-youtubei', () => ({
     YoutubeiExtractor: class MockYoutubeiExtractor {},
 }))
 
+jest.mock('play-dl', () => ({
+    getFreeClientID: jest.fn().mockResolvedValue('mock-client-id'),
+    setToken: jest.fn().mockResolvedValue(undefined),
+    search: jest.fn().mockResolvedValue([]),
+    stream: jest.fn().mockResolvedValue({ stream: null }),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     infoLog: jest.fn(),

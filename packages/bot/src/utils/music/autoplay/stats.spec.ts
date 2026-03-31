@@ -172,14 +172,13 @@ describe('autoplay/stats', () => {
         test('correctly handles timestamp greater than comparison', async () => {
             mockGetAutoplayCounter.mockResolvedValue({ count: 0 })
             const now = Date.now()
-            const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000
-            const oneMonthAgo = now - 30 * 24 * 60 * 60 * 1000
+            const DAY = 24 * 60 * 60 * 1000
 
             const history = [
-                { timestamp: oneWeekAgo - 1, trackId: '1' },
-                { timestamp: oneWeekAgo + 1, trackId: '2' },
-                { timestamp: oneMonthAgo - 1, trackId: '3' },
-                { timestamp: oneMonthAgo + 1, trackId: '4' },
+                { timestamp: now - 8 * DAY, trackId: '1' },
+                { timestamp: now - 6 * DAY, trackId: '2' },
+                { timestamp: now - 31 * DAY, trackId: '3' },
+                { timestamp: now - 29 * DAY, trackId: '4' },
             ]
             mockGetTrackHistory.mockResolvedValue(history)
 

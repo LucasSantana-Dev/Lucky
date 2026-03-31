@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.56] - 2026-03-31
+
+### Fixed
+
+- **play-dl SoundCloud auth**: `streamViaSoundCloud` threw on every track because `getFreeClientID()` + `setToken()` was never called at startup. Added `initPlayDlSoundCloud()` running before `YoutubeiExtractor` registration so the SoundCloud bridge actually streams (LUCKY-26).
+- **`/version` command timeout**: Replaced `interaction.reply()` with `deferReply()` + `editReply()` so file I/O reading `package.json` no longer races Discord's 3-second interaction window (LUCKY-25).
+- **Missing `live_boards` migration**: Added `npx prisma migrate deploy` to bot container `CMD` so the `channelId` column is created in production before the bot initialises (LUCKY-22).
+
 ## [2.6.55] - 2026-03-31
 
 ### Changed
