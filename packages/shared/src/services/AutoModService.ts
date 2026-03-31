@@ -17,6 +17,7 @@ export interface AutoModSettings {
     capsThreshold: number
     linksEnabled: boolean
     allowedDomains: string[]
+    linkExemptChannels: string[]
     invitesEnabled: boolean
     wordsEnabled: boolean
     bannedWords: string[]
@@ -61,7 +62,17 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
             capsEnabled: true,
             capsThreshold: 75,
             linksEnabled: true,
-            allowedDomains: ['youtube.com', 'youtu.be', 'twitch.tv', 'discord.com'],
+            allowedDomains: [
+                'youtube.com',
+                'youtu.be',
+                'twitch.tv',
+                'discord.com',
+                'github.com',
+                'github.io',
+                'vercel.app',
+                'netlify.app',
+                'render.com',
+            ],
             invitesEnabled: true,
             wordsEnabled: true,
             bannedWords: [
@@ -118,7 +129,17 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
             spamTimeWindow: 10,
             capsEnabled: false,
             linksEnabled: true,
-            allowedDomains: ['youtube.com', 'youtu.be', 'twitch.tv', 'discord.com'],
+            allowedDomains: [
+                'youtube.com',
+                'youtu.be',
+                'twitch.tv',
+                'discord.com',
+                'github.com',
+                'github.io',
+                'vercel.app',
+                'netlify.app',
+                'render.com',
+            ],
             invitesEnabled: true,
             wordsEnabled: false,
             bannedWords: [],
@@ -148,9 +169,7 @@ const normalizeAllowedDomains = (domains: string[]): string[] =>
                 return domain.split(/[/:?#]/, 1)[0]?.toLowerCase() ?? ''
             }
         })
-        .map((domain) =>
-            domain.startsWith('www.') ? domain.slice(4) : domain,
-        )
+        .map((domain) => (domain.startsWith('www.') ? domain.slice(4) : domain))
         .filter((domain) => domain.length > 0)
 
 const trimTrailingUrlPunctuation = (value: string): string => {
@@ -240,12 +259,16 @@ export class AutoModService {
         guildId: string,
         templateId: string,
     ): Promise<{ settings: AutoModSettings; template: AutoModTemplate }> {
-        const template = AUTO_MOD_TEMPLATES.find((item) => item.id === templateId)
+        const template = AUTO_MOD_TEMPLATES.find(
+            (item) => item.id === templateId,
+        )
         if (!template) {
             throw new AutoModTemplateNotFoundError(templateId)
         }
 
-        const current = (await this.getSettings(guildId)) ?? (await this.createSettings(guildId))
+        const current =
+            (await this.getSettings(guildId)) ??
+            (await this.createSettings(guildId))
         const mergedAllowedDomains = [
             ...new Set([
                 ...current.allowedDomains,
@@ -253,7 +276,10 @@ export class AutoModService {
             ]),
         ]
         const mergedBannedWords = [
-            ...new Set([...current.bannedWords, ...(template.settings.bannedWords ?? [])]),
+            ...new Set([
+                ...current.bannedWords,
+                ...(template.settings.bannedWords ?? []),
+            ]),
         ]
 
         const settings = await this.updateSettings(guildId, {
@@ -267,9 +293,34 @@ export class AutoModService {
         return { settings, template }
     }
 
+    async trackMessageAndCheckSpam(
+        guildId: string,
+        userId: string,
+    ): Promise<boolean> {
+        const settings = await this.getSettings(guildId)
+        if (!settings?.spamEnabled) return false
+
+        if (!redisClient.isHealthy()) return false
+
+        const now = Date.now()
+        const windowMs = settings.spamTimeWindow * 1000
+        const key = `spam:${guildId}:${userId}`
+
+        await redisClient.lpush(key, String(now))
+        await redisClient.ltrim(key, 0, settings.spamThreshold)
+        await redisClient.expire(key, settings.spamTimeWindow + 1)
+
+        const timestamps = await redisClient.lrange(key, 0, -1)
+        const recentCount = timestamps.filter(
+            (ts) => now - Number(ts) < windowMs,
+        ).length
+
+        return recentCount >= settings.spamThreshold
+    }
+
     async checkSpam(
         guildId: string,
-        _userId: string,
+        userId: string,
         messageTimestamps: number[],
     ): Promise<boolean> {
         const settings = await this.getSettings(guildId)
@@ -298,9 +349,17 @@ export class AutoModService {
         return capsPercentage >= settings.capsThreshold
     }
 
-    async checkLinks(guildId: string, content: string): Promise<boolean> {
+    async checkLinks(
+        guildId: string,
+        content: string,
+        channelId?: string,
+    ): Promise<boolean> {
         const settings = await this.getSettings(guildId)
         if (!settings?.linksEnabled) return false
+
+        if (channelId && settings.linkExemptChannels.includes(channelId)) {
+            return false
+        }
 
         const allowedDomains = normalizeAllowedDomains(settings.allowedDomains)
         if (allowedDomains.length === 0) return false

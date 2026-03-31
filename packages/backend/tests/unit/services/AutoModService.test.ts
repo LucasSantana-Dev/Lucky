@@ -12,13 +12,19 @@ jest.mock('@lucky/shared/utils/database/prismaClient', () => {
     return { getPrismaClient: () => mockPrisma }
 })
 
+const mockRedis = {
+    isHealthy: jest.fn<() => boolean>(() => false),
+    get: jest.fn<any>().mockResolvedValue(null),
+    setex: jest.fn<any>().mockResolvedValue(true),
+    del: jest.fn<any>().mockResolvedValue(true),
+    lpush: jest.fn<any>().mockResolvedValue(1),
+    ltrim: jest.fn<any>().mockResolvedValue(true),
+    expire: jest.fn<any>().mockResolvedValue(true),
+    lrange: jest.fn<any>().mockResolvedValue([]),
+}
+
 jest.mock('@lucky/shared/services/redis', () => ({
-    redisClient: {
-        isHealthy: jest.fn(() => false),
-        get: jest.fn(),
-        setex: jest.fn(),
-        del: jest.fn(),
-    },
+    redisClient: mockRedis,
 }))
 
 jest.mock('@lucky/shared/utils/general/log', () => ({
@@ -41,6 +47,7 @@ const DEFAULT_SETTINGS = {
     capsThreshold: 70,
     linksEnabled: false,
     allowedDomains: [] as string[],
+    linkExemptChannels: [] as string[],
     invitesEnabled: false,
     wordsEnabled: false,
     bannedWords: [] as string[],
@@ -60,6 +67,14 @@ describe('AutoModService', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        mockRedis.isHealthy.mockReturnValue(false)
+        mockRedis.get.mockResolvedValue(null)
+        mockRedis.setex.mockResolvedValue(true)
+        mockRedis.del.mockResolvedValue(true)
+        mockRedis.lpush.mockResolvedValue(1)
+        mockRedis.ltrim.mockResolvedValue(true)
+        mockRedis.expire.mockResolvedValue(true)
+        mockRedis.lrange.mockResolvedValue([])
         service = new AutoModService()
     })
 
@@ -197,6 +212,105 @@ describe('AutoModService', () => {
         })
     })
 
+    describe('trackMessageAndCheckSpam', () => {
+        test('should return false when spam detection is disabled', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: false,
+            })
+
+            const result = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false when settings do not exist', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue(null)
+
+            const result = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false when Redis is not healthy', async () => {
+            mockRedis.isHealthy.mockReturnValue(false)
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: true,
+                spamThreshold: 3,
+                spamTimeWindow: 5,
+            })
+
+            const result = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return true when threshold exceeded in Redis', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            mockRedis.lpush.mockResolvedValue(3)
+            mockRedis.ltrim.mockResolvedValue(true)
+            mockRedis.expire.mockResolvedValue(true)
+            const now = Date.now()
+            mockRedis.lrange.mockResolvedValue([
+                String(now - 100),
+                String(now - 200),
+                String(now - 300),
+            ])
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: true,
+                spamThreshold: 3,
+                spamTimeWindow: 5,
+            })
+
+            const result = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            expect(result).toBe(true)
+            expect(mockRedis.lpush).toHaveBeenCalledWith(
+                `spam:${GUILD_A}:${USER_A}`,
+                expect.any(String),
+            )
+        })
+
+        test('should return false when below threshold in Redis', async () => {
+            mockRedis.isHealthy.mockReturnValue(true)
+            mockRedis.lpush.mockResolvedValue(2)
+            mockRedis.ltrim.mockResolvedValue(true)
+            mockRedis.expire.mockResolvedValue(true)
+            const now = Date.now()
+            mockRedis.lrange.mockResolvedValue([
+                String(now - 100),
+                String(now - 200),
+            ])
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                spamEnabled: true,
+                spamThreshold: 5,
+                spamTimeWindow: 5,
+            })
+
+            const result = await service.trackMessageAndCheckSpam(
+                GUILD_A,
+                USER_A,
+            )
+
+            expect(result).toBe(false)
+        })
+    })
+
     describe('checkCaps', () => {
         test('should return false when caps detection is disabled', async () => {
             mockPrisma.autoModSettings.findUnique.mockResolvedValue({
@@ -325,6 +439,55 @@ describe('AutoModService', () => {
             const result = await service.checkLinks(GUILD_A, 'No links here')
 
             expect(result).toBe(false)
+        })
+
+        test('should return false for vercel.app links when in allowedDomains', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                linksEnabled: true,
+                allowedDomains: ['vercel.app'],
+            })
+
+            const result = await service.checkLinks(
+                GUILD_A,
+                'Check my project at https://my-project.vercel.app',
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should return false when channel is in linkExemptChannels', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                linksEnabled: true,
+                allowedDomains: ['youtube.com'],
+                linkExemptChannels: [CHANNEL_1],
+            })
+
+            const result = await service.checkLinks(
+                GUILD_A,
+                'Visit https://my-project.vercel.app',
+                CHANNEL_1,
+            )
+
+            expect(result).toBe(false)
+        })
+
+        test('should still block links in non-exempt channels', async () => {
+            mockPrisma.autoModSettings.findUnique.mockResolvedValue({
+                ...DEFAULT_SETTINGS,
+                linksEnabled: true,
+                allowedDomains: ['youtube.com'],
+                linkExemptChannels: [CHANNEL_1],
+            })
+
+            const result = await service.checkLinks(
+                GUILD_A,
+                'Visit https://malicious-site.com',
+                '999999999999999999',
+            )
+
+            expect(result).toBe(true)
         })
     })
 
