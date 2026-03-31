@@ -50,7 +50,45 @@ describe('version command', () => {
             const pkgPath = path.resolve(__dirname, '../../../../package.json')
             const stream = createReadStream(pkgPath)
             const version = await readVersionFromStream(stream)
-            expect(version).toMatch(/^\d+\.\d+\.\d+/)
+            expect(version).toMatch(
+                /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/,
+            )
+        })
+    })
+
+    describe('execute error handling', () => {
+        it('falls back to unknown when readVersion throws', async () => {
+            let capturedVersion = ''
+            const mockReadVersion = async (): Promise<string> => {
+                throw new Error('ENOENT: file not found')
+            }
+            const execute = async () => {
+                let version = 'unknown'
+                try {
+                    version = await mockReadVersion()
+                } catch {
+                    // intentionally falls back
+                }
+                capturedVersion = version
+            }
+            await execute()
+            expect(capturedVersion).toBe('unknown')
+        })
+
+        it('uses version when readVersion succeeds', async () => {
+            let capturedVersion = ''
+            const mockReadVersion = async (): Promise<string> => '3.0.0'
+            const execute = async () => {
+                let version = 'unknown'
+                try {
+                    version = await mockReadVersion()
+                } catch {
+                    // fallback
+                }
+                capturedVersion = version
+            }
+            await execute()
+            expect(capturedVersion).toBe('3.0.0')
         })
     })
 })

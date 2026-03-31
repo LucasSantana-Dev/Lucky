@@ -116,7 +116,13 @@ describe('MusicSessionSnapshotService', () => {
                             title: 'Recovered Song',
                             author: 'Recovered Artist',
                             url: 'https://example.com/recovered',
-                            metadata: {},
+                            metadata: null,
+                            setMetadata: jest.fn(function (
+                                this: { metadata: unknown },
+                                m: unknown,
+                            ) {
+                                this.metadata = m
+                            }),
                         },
                     ],
                 }),
@@ -168,18 +174,24 @@ describe('MusicSessionSnapshotService', () => {
                 play: jest.fn().mockResolvedValue(undefined),
             },
             player: {
-                search: jest
-                    .fn()
-                    .mockImplementation(async (query: unknown) => ({
-                        tracks: [
-                            {
-                                title: String(query).split(' ')[0],
-                                author: 'resolved',
-                                url: query,
-                                metadata: {},
-                            },
-                        ],
-                    })),
+                search: jest.fn().mockImplementation(async (query: unknown) => {
+                    const t: {
+                        title: string
+                        author: string
+                        url: unknown
+                        metadata: unknown
+                        setMetadata: (m: unknown) => void
+                    } = {
+                        title: String(query).split(' ')[0],
+                        author: 'resolved',
+                        url: query,
+                        metadata: null,
+                        setMetadata(m) {
+                            this.metadata = m
+                        },
+                    }
+                    return { tracks: [t] }
+                }),
             },
         } as unknown as GuildQueue
 
@@ -268,7 +280,13 @@ describe('MusicSessionSnapshotService', () => {
                             title: 'Fresh Song',
                             author: 'Fresh Artist',
                             url: 'https://example.com/fresh',
-                            metadata: {},
+                            metadata: null,
+                            setMetadata: jest.fn(function (
+                                this: { metadata: unknown },
+                                m: unknown,
+                            ) {
+                                this.metadata = m
+                            }),
                         },
                     ],
                 }),
@@ -307,11 +325,20 @@ describe('MusicSessionSnapshotService', () => {
         delMock.mockResolvedValue(1)
 
         const addTrack = jest.fn()
-        const restoredTrack = {
+        const restoredTrack: {
+            title: string
+            author: string
+            url: string
+            metadata: unknown
+            setMetadata: (m: unknown) => void
+        } = {
             title: 'Recommended Song',
             author: 'Recommended Artist',
             url: 'https://example.com/recommended',
-            metadata: {},
+            metadata: null,
+            setMetadata(m) {
+                this.metadata = m
+            },
         }
 
         const queue = {

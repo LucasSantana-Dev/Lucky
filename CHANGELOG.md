@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.54] - 2026-03-31
+
+### Fixed
+
+- **Audio playback (SoundCloud bridge)**: YouTube CDN (`googlevideo.com`) blocks hosting provider IPs even when a valid `po_token` is present — the CDN returns a 403 body that `discord-player-youtubei` silently treated as audio, causing every track to play for ~1 second and immediately skip. Fixed by injecting a `createStream` override into `YoutubeiExtractor` that routes actual audio through SoundCloud (title+author search), bypassing CDN blocking while keeping YouTube metadata/search via `generateWithPoToken`.
+- **`applySnapshotMetadata` TypeError**: `Track.metadata` is a getter-only property in `discord-player`. Direct assignment (`mutableTrack.metadata = {...}`) was throwing `TypeError: Cannot set property metadata`. Replaced with `track.setMetadata({...})`, the correct API.
+- **`YoutubeiExtractor` silent registration failure**: `player.extractors.register()` returns `null` without throwing when `activate()` fails internally. Added a null-check with a `warnLog` so failed registrations are now surfaced in logs.
+
 ## [2.6.53] - 2026-03-31
 
 ### Fixed
