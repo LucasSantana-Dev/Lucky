@@ -13,6 +13,7 @@ import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
+import { aiDevToolkitService } from '../services/AiDevToolkitService'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -20,6 +21,14 @@ function handleClientReady(client: Client): void {
         debugLog({
             message: `Bot is ready with ${(client as CustomClient).commands.size} commands loaded`,
         })
+        if (process.env.AI_DEV_TOOLKIT_BOARD_ENABLED === 'true') {
+            aiDevToolkitService.start(client).catch((error) => {
+                errorLog({
+                    message: 'AiDevToolkitService: failed to start',
+                    error,
+                })
+            })
+        }
     })
 }
 
