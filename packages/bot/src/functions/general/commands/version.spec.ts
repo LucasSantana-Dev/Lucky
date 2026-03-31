@@ -50,7 +50,9 @@ describe('version command', () => {
             const pkgPath = path.resolve(__dirname, '../../../../package.json')
             const stream = createReadStream(pkgPath)
             const version = await readVersionFromStream(stream)
-            expect(version).toMatch(/^\d+\.\d+\.\d+/)
+            expect(version).toMatch(
+                /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/,
+            )
         })
     })
 })

@@ -74,17 +74,49 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
 async function streamViaSoundCloud(track: {
     title: string
     author: string
+    duration?: string
 }): Promise<import('stream').Readable> {
     const query = `${track.title} ${track.author}`.trim()
     const results = await playdl.search(query, {
         source: { soundcloud: 'tracks' },
-        limit: 1,
+        limit: 5,
     })
 
     if (!results.length) {
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
-    const scStream = await playdl.stream(results[0])
+    const norm = (s: string) =>
+        s
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .trim()
+    const titleNorm = norm(track.title)
+    const trackSec = parseDurationString(track.duration)
+
+    const match = results.find((r) => {
+        const titleMatch =
+            norm(r.name).includes(titleNorm) || titleNorm.includes(norm(r.name))
+        if (!titleMatch) return false
+        if (trackSec === null || !r.durationInSec) return true
+        return Math.abs(r.durationInSec - trackSec) <= 15
+    })
+
+    if (!match) {
+        throw new Error(
+            `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
+        )
+    }
+
+    const scStream = await playdl.stream(match)
     return scStream.stream
+}
+
+function parseDurationString(duration?: string): number | null {
+    if (!duration) return null
+    const parts = duration.split(':').map(Number)
+    if (parts.some(isNaN)) return null
+    if (parts.length === 2) return parts[0] * 60 + parts[1]
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    return null
 }

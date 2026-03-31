@@ -497,11 +497,15 @@ Set `UNLEASH_URL` and `UNLEASH_API_TOKEN` for Unleash, or use `FEATURE_DOWNLOAD_
 source/cache signals, provider cooldown/score status, watchdog recovery state
 and detail, snapshot availability, and actionable recovery next steps.
 
+YouTube audio is resolved via `YoutubeiExtractor` with `generateWithPoToken: true` (BotGuard `po_token` for metadata/search). Actual audio is streamed through SoundCloud (`createStream` bridge — title+author search with duration validation) to bypass YouTube CDN IP blocks that affect self-hosted deployments.
+
 ### Download
 `/download` `/download-audio` `/download-video`
 
 ### General
-`/ping` `/help` `/exit`
+`/ping` `/help` `/exit` `/version`
+
+`/version` replies ephemerally with the running bot version read from `package.json`. Use it to verify that the deployed instance matches the expected release.
 
 ### Twitch
 `/twitch add` `/twitch remove` `/twitch list`
