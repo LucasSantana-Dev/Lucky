@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.48] - 2026-03-31
+
+### Tests
+
+- Added test coverage for Twitch integration: TwitchService, twitchHandlers, twitchApi, EventSub client/subscriptions, index bootstrap, token refresh (74 tests). (#410)
+- Added test coverage for music recommendation/autoplay: RecommendationEngine, helpers, counters, stats, autoplay recommendations (93 tests). (#410)
+
 ## [2.6.47] - 2026-03-31
 
 ### Fixed
