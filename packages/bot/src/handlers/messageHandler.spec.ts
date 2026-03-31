@@ -5,6 +5,17 @@ const getMemberXPMock = jest.fn()
 const addXPMock = jest.fn()
 const getRewardsMock = jest.fn()
 const errorLogMock = jest.fn()
+const debugLogMock = jest.fn()
+const getSettingsMock = jest.fn()
+const trackMessageAndCheckSpamMock = jest.fn()
+const checkCapsMock = jest.fn()
+const checkLinksMock = jest.fn()
+const checkInvitesMock = jest.fn()
+const checkWordsMock = jest.fn()
+const listCommandsMock = jest.fn()
+const incrementUsageMock = jest.fn()
+const createCaseMock = jest.fn()
+const isEnabledMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     levelService: {
@@ -14,21 +25,29 @@ jest.mock('@lucky/shared/services', () => ({
         getRewards: (...args: unknown[]) => getRewardsMock(...args),
     },
     autoModService: {
-        getSettings: jest.fn().mockResolvedValue(null),
+        getSettings: (...args: unknown[]) => getSettingsMock(...args),
+        trackMessageAndCheckSpam: (...args: unknown[]) =>
+            trackMessageAndCheckSpamMock(...args),
+        checkCaps: (...args: unknown[]) => checkCapsMock(...args),
+        checkLinks: (...args: unknown[]) => checkLinksMock(...args),
+        checkInvites: (...args: unknown[]) => checkInvitesMock(...args),
+        checkWords: (...args: unknown[]) => checkWordsMock(...args),
     },
     customCommandService: {
-        findMatchingResponder: jest.fn().mockResolvedValue(null),
-        getCommand: jest.fn().mockResolvedValue(null),
+        listCommands: (...args: unknown[]) => listCommandsMock(...args),
+        incrementUsage: (...args: unknown[]) => incrementUsageMock(...args),
     },
     featureToggleService: {
-        isEnabled: jest.fn().mockResolvedValue(false),
+        isEnabled: (...args: unknown[]) => isEnabledMock(...args),
     },
-    moderationService: {},
+    moderationService: {
+        createCase: (...args: unknown[]) => createCaseMock(...args),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
-    debugLog: jest.fn(),
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
     infoLog: jest.fn(),
 }))
 
@@ -48,6 +67,10 @@ function makeClient(channelOverrides: any = {}) {
         channels: {
             fetch: jest.fn().mockResolvedValue(fetchedChannel),
         },
+        user: {
+            id: 'bot-id',
+            tag: 'BotName#0001',
+        },
         _handlers: handlers,
         _channel: fetchedChannel,
     }
@@ -59,15 +82,22 @@ function makeMessage(overrides: any = {}) {
         author: {
             id: 'user-1',
             bot: false,
+            tag: 'TestUser#1234',
             toString: () => '<@user-1>',
         },
         member: {
             roles: {
+                cache: new Map(),
                 add: jest.fn().mockResolvedValue(undefined),
             },
+            timeout: jest.fn().mockResolvedValue(undefined),
+            kick: jest.fn().mockResolvedValue(undefined),
         },
         client: makeClient(),
         channelId: 'ch-1',
+        content: 'test message',
+        delete: jest.fn().mockResolvedValue(undefined),
+        reply: jest.fn().mockResolvedValue(undefined),
         ...overrides,
     }
 }
@@ -84,6 +114,7 @@ describe('handleMessageCreate — XP handling', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        isEnabledMock.mockResolvedValue(false)
         client = makeClient()
         handleMessageCreate(client as any)
     })
@@ -166,6 +197,7 @@ describe('handleMessageCreate — XP handling', () => {
                 channels: {
                     fetch: jest.fn().mockResolvedValue(fetchedChannel),
                 },
+                user: { id: 'bot-id', tag: 'Bot#0001' },
             },
         })
         await client._handlers['messageCreate'](message)
@@ -185,16 +217,15 @@ describe('handleMessageCreate — XP handling', () => {
         const addRoleMock = jest.fn().mockResolvedValue(undefined)
         const sendMock = jest.fn().mockResolvedValue(undefined)
         const message = makeMessage({
-            member: { roles: { add: addRoleMock } },
+            member: { roles: { cache: new Map(), add: addRoleMock } },
             client: {
                 channels: {
-                    fetch: jest
-                        .fn()
-                        .mockResolvedValue({
-                            isTextBased: () => true,
-                            send: sendMock,
-                        }),
+                    fetch: jest.fn().mockResolvedValue({
+                        isTextBased: () => true,
+                        send: sendMock,
+                    }),
                 },
+                user: { id: 'bot-id', tag: 'Bot#0001' },
             },
         })
         await client._handlers['messageCreate'](message)
@@ -231,6 +262,198 @@ describe('handleMessageCreate — XP handling', () => {
         await client._handlers['messageCreate'](message)
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Error handling XP:' }),
+        )
+    })
+})
+
+describe('handleMessageCreate — AutoMod handling', () => {
+    let client: ReturnType<typeof makeClient>
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        client = makeClient()
+        handleMessageCreate(client as any)
+    })
+
+    it('skips automod when feature toggle is disabled', async () => {
+        isEnabledMock.mockResolvedValue(false)
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(getSettingsMock).not.toHaveBeenCalled()
+    })
+
+    it('skips automod when message is from bot', async () => {
+        isEnabledMock.mockResolvedValue(true)
+        const message = makeMessage({
+            author: { id: 'bot-1', bot: true, tag: 'Bot#0001' },
+        })
+        await client._handlers['messageCreate'](message)
+        expect(getSettingsMock).not.toHaveBeenCalled()
+    })
+
+    it('skips automod when settings is null', async () => {
+        isEnabledMock.mockResolvedValue(true)
+        getSettingsMock.mockResolvedValue(null)
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(trackMessageAndCheckSpamMock).not.toHaveBeenCalled()
+    })
+
+    it('skips automod when message author is in exempt role', async () => {
+        isEnabledMock.mockResolvedValue(true)
+        getSettingsMock.mockResolvedValue({
+            exemptChannels: [],
+            exemptRoles: ['role-exempt'],
+            spamEnabled: true,
+        })
+        const roleMap = new Map()
+        roleMap.set('role-exempt', { id: 'role-exempt' })
+        const message = makeMessage({
+            member: {
+                roles: { cache: roleMap, add: jest.fn() },
+            },
+        })
+        await client._handlers['messageCreate'](message)
+        expect(trackMessageAndCheckSpamMock).not.toHaveBeenCalled()
+    })
+
+    it('skips automod when message is in exempt channel', async () => {
+        isEnabledMock.mockResolvedValue(true)
+        getSettingsMock.mockResolvedValue({
+            exemptChannels: ['ch-1'],
+            exemptRoles: [],
+            spamEnabled: true,
+        })
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(trackMessageAndCheckSpamMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('handleMessageCreate — Custom Commands handling', () => {
+    let client: ReturnType<typeof makeClient>
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isEnabledMock.mockResolvedValue(false)
+        client = makeClient()
+        handleMessageCreate(client as any)
+    })
+
+    it('skips custom commands when feature toggle is disabled', async () => {
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(listCommandsMock).not.toHaveBeenCalled()
+    })
+
+    it('skips custom commands when message is from bot', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        const message = makeMessage({
+            author: { id: 'bot-1', bot: true, tag: 'Bot#0001' },
+        })
+        await client._handlers['messageCreate'](message)
+        expect(listCommandsMock).not.toHaveBeenCalled()
+    })
+
+    it('skips when no guild present', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        const message = makeMessage({ guild: null })
+        await client._handlers['messageCreate'](message)
+        expect(listCommandsMock).not.toHaveBeenCalled()
+    })
+
+    it('skips when no commands exist', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        listCommandsMock.mockResolvedValue(null)
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(incrementUsageMock).not.toHaveBeenCalled()
+    })
+
+    it('skips when no matching command found', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        listCommandsMock.mockResolvedValue([
+            { trigger: '!help', response: 'Help text', name: 'help' },
+        ])
+        const message = makeMessage({ content: 'random message' })
+        await client._handlers['messageCreate'](message)
+        expect(incrementUsageMock).not.toHaveBeenCalled()
+    })
+
+    it('sends reply when command trigger matches exactly', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        listCommandsMock.mockResolvedValue([
+            { trigger: '!help', response: 'Help text', name: 'help' },
+        ])
+        const replyMock = jest.fn().mockResolvedValue(undefined)
+        const message = makeMessage({
+            content: '!help',
+            reply: replyMock,
+        })
+        await client._handlers['messageCreate'](message)
+        expect(replyMock).toHaveBeenCalledWith({
+            content: 'Help text',
+            allowedMentions: { repliedUser: false },
+        })
+    })
+
+    it('sends reply when command trigger matches with space prefix', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        listCommandsMock.mockResolvedValue([
+            { trigger: '!hello', response: 'Hi there!', name: 'hello' },
+        ])
+        const replyMock = jest.fn().mockResolvedValue(undefined)
+        const message = makeMessage({
+            content: '!hello @user',
+            reply: replyMock,
+        })
+        await client._handlers['messageCreate'](message)
+        expect(replyMock).toHaveBeenCalledWith({
+            content: 'Hi there!',
+            allowedMentions: { repliedUser: false },
+        })
+    })
+
+    it('increments usage when command matched', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        listCommandsMock.mockResolvedValue([
+            { trigger: '!help', response: 'Help text', name: 'help' },
+        ])
+        incrementUsageMock.mockResolvedValue(undefined)
+        const replyMock = jest.fn().mockResolvedValue(undefined)
+        const message = makeMessage({
+            content: '!help',
+            reply: replyMock,
+        })
+        await client._handlers['messageCreate'](message)
+        expect(incrementUsageMock).toHaveBeenCalledWith('guild-1', 'help')
+    })
+
+    it('handles error when custom command processing fails', async () => {
+        isEnabledMock.mockImplementation((feature) =>
+            Promise.resolve(feature === 'CUSTOM_COMMANDS'),
+        )
+        listCommandsMock.mockRejectedValue(new Error('db error'))
+        const message = makeMessage()
+        await client._handlers['messageCreate'](message)
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error handling custom command:',
+            }),
         )
     })
 })
