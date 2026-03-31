@@ -45,7 +45,8 @@ describe('playerFactory', () => {
             expect(extractorOptions.generateWithPoToken).toBe(true)
         })
 
-        it('should not override createStream — rely on native IOS client', () => {
+        it('should set a createStream override to route audio via SoundCloud', () => {
+            const streamFn = () => Promise.resolve(null)
             const extractorOptions: {
                 streamOptions: { useClient: 'IOS'; highWaterMark: number }
                 createStream?: unknown
@@ -54,9 +55,10 @@ describe('playerFactory', () => {
                     useClient: 'IOS' as const,
                     highWaterMark: 1 << 25,
                 },
+                createStream: streamFn,
             }
 
-            expect(extractorOptions.createStream).toBeUndefined()
+            expect(typeof extractorOptions.createStream).toBe('function')
         })
     })
 
