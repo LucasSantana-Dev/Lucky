@@ -31,16 +31,18 @@ describe('playerFactory', () => {
     })
 
     describe('YouTube extractor configuration', () => {
-        it('should use IOS client with 32MB high water mark', () => {
+        it('should use IOS client with 32MB high water mark and po_token generation', () => {
             const extractorOptions = {
                 streamOptions: {
                     useClient: 'IOS' as const,
                     highWaterMark: 1 << 25,
                 },
+                generateWithPoToken: true,
             }
 
             expect(extractorOptions.streamOptions.useClient).toBe('IOS')
             expect(extractorOptions.streamOptions.highWaterMark).toBe(33554432)
+            expect(extractorOptions.generateWithPoToken).toBe(true)
         })
 
         it('should not override createStream — rely on native IOS client', () => {
