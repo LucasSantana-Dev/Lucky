@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.47] - 2026-03-31
+
+### Fixed
+
+- Play command completely broken in production — yt-dlp installed at Docker build time became stale as YouTube updated their extraction API. Replaced hard dependency on yt-dlp with a resilient fallback: `tryYtDlpStream` probes yt-dlp with an 8-second data-arrival timeout and falls back to the native `YoutubeiExtractor` IOS client (via `youtubei.js` v16) when yt-dlp fails or is unavailable. Added `--no-check-certificates` to yt-dlp args for SSL resilience. (#411)
+
 ## [2.6.46] - 2026-03-31
 
 ### Tests
