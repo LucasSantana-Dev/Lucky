@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.44] - 2026-03-30
+
+### Fixed
+
+- AutoMod spam detection was non-functional — `messageHandler` always passed `[Date.now()]` (single timestamp) so the count check never reached any threshold. Spam tracking now uses a Redis sliding window via `trackMessageAndCheckSpam`. (#399)
+- AutoMod link filter produced false positives on legitimate project showcases — `vercel.app`, `netlify.app`, `github.com`, `github.io`, and `render.com` added to balanced and light template allowed domains. (#399)
+- Added `linkExemptChannels` field to `AutoModSettings` — channels can now be excluded from the link filter specifically without bypassing all other automod checks. (#399)
+
 ## [2.6.43] - 2026-03-30
 
 ### Tests

@@ -45,9 +45,10 @@ async function handleAutoMod(message: Message): Promise<void> {
         }> = []
 
         if (settings.spamEnabled) {
-            const isSpam = await autoModService.checkSpam(guildId, userId, [
-                Date.now(),
-            ])
+            const isSpam = await autoModService.trackMessageAndCheckSpam(
+                guildId,
+                userId,
+            )
             if (isSpam) {
                 violations.push({
                     type: 'spam',
@@ -75,6 +76,7 @@ async function handleAutoMod(message: Message): Promise<void> {
             const hasLinks = await autoModService.checkLinks(
                 guildId,
                 message.content,
+                message.channelId,
             )
             if (hasLinks) {
                 violations.push({
@@ -273,17 +275,28 @@ async function handleXP(message: Message): Promise<void> {
         const current = await levelService.getMemberXP(guildId, userId)
         const now = Date.now()
 
-        if (current && now - current.lastXpAt.getTime() < config.xpCooldownMs) return
+        if (current && now - current.lastXpAt.getTime() < config.xpCooldownMs)
+            return
 
-        const result = await levelService.addXP(guildId, userId, config.xpPerMessage)
+        const result = await levelService.addXP(
+            guildId,
+            userId,
+            config.xpPerMessage,
+        )
 
         if (result.leveledUp && config.announceChannel) {
-            const rawChannel = await message.client.channels.fetch(config.announceChannel).catch(() => null)
+            const rawChannel = await message.client.channels
+                .fetch(config.announceChannel)
+                .catch(() => null)
             if (rawChannel?.isTextBased()) {
-                await (rawChannel as TextChannel).send(`🎉 ${message.author} reached level **${result.newLevel}**!`)
+                await (rawChannel as TextChannel).send(
+                    `🎉 ${message.author} reached level **${result.newLevel}**!`,
+                )
             }
             const rewards = await levelService.getRewards(guildId)
-            const reward = rewards.find((r: { level: number }) => r.level === result.newLevel)
+            const reward = rewards.find(
+                (r: { level: number }) => r.level === result.newLevel,
+            )
             if (reward && message.member) {
                 await message.member.roles.add(reward.roleId).catch(() => {})
             }
