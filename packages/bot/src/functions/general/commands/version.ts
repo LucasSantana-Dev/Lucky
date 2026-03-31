@@ -11,15 +11,15 @@ async function readVersion(): Promise<string> {
     const pkgPath = path.resolve(dirName, '../../../../package.json')
     const rl = createInterface({ input: createReadStream(pkgPath) })
 
-    for await (const line of rl) {
-        const match = line.match(/"version"\s*:\s*"([^"]+)"/)
-        if (match) {
-            rl.close()
-            return match[1]
+    try {
+        for await (const line of rl) {
+            const match = line.match(/"version"\s*:\s*"([^"]+)"/)
+            if (match) return match[1]
         }
+        return 'unknown'
+    } finally {
+        rl.close()
     }
-
-    return 'unknown'
 }
 
 export default new Command({
