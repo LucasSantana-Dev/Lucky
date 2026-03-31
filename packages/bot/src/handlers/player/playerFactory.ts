@@ -28,12 +28,31 @@ export const createPlayer = ({ client }: CreatePlayerParams): Player => {
 const registerExtractors = (player: Player): void => {
     void player.extractors.loadMulti(DefaultExtractors)
 
-    void loadYoutubeExtractor(player)
+    void initPlayDlAndRegisterYoutubei(player)
 
     infoLog({
         message:
             'Extractors: SoundCloud, Spotify, Apple Music, Vimeo, Attachments',
     })
+}
+
+const initPlayDlAndRegisterYoutubei = async (player: Player): Promise<void> => {
+    await initPlayDlSoundCloud()
+    await loadYoutubeExtractor(player)
+}
+
+const initPlayDlSoundCloud = async (): Promise<void> => {
+    try {
+        const clientId = await playdl.getFreeClientID()
+        await playdl.setToken({ soundcloud: { client_id: clientId } })
+        infoLog({ message: 'play-dl: SoundCloud client ID initialized' })
+    } catch (error) {
+        warnLog({
+            message:
+                'play-dl: SoundCloud client ID init failed — bridge may not stream',
+            error,
+        })
+    }
 }
 
 const loadYoutubeExtractor = async (player: Player): Promise<void> => {

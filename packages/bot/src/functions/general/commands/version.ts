@@ -28,15 +28,15 @@ export default new Command({
         .setDescription('Shows the current bot version'),
     category: 'general',
     execute: async ({ interaction }) => {
+        await interaction.deferReply({ ephemeral: true })
         let version = 'unknown'
         try {
             version = await readVersion()
         } catch {
             // package.json unreadable — fall back to 'unknown'
         }
-        await interaction.reply({
+        await interaction.editReply({
             embeds: [createInfoEmbed('Bot Version', `v${version}`)],
-            ephemeral: true,
         })
     },
 })
