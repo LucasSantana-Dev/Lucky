@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.45] - 2026-03-31
+
+### Tests
+
+- Added test coverage for `messageHandler` — automod feature flag, exempt channels/roles, all violation types, all actions, custom commands handler, XP handler (86 tests). (#401)
+- Added test coverage for moderation commands: warn, unban, unmute, history (86 tests total with #401). (#401)
+- Added test coverage for music commands: skip, clear, move, remove, repeat (51 tests). (#402)
+
 ## [2.6.44] - 2026-03-30
 
 ### Fixed
