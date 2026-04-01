@@ -87,6 +87,11 @@ describe('eventHandler', () => {
         createUserFriendlyErrorMock.mockReturnValue('Friendly error')
     })
 
+    // Drain all pending microtasks so fire-and-forget async handlers
+    // (the .catch() wrapper in handleEvents) fully settle before assertions.
+    const flushAsyncHandlers = () =>
+        new Promise<void>((resolve) => setImmediate(resolve))
+
     it('replies with command-not-found message when command is missing', async () => {
         const { client, onMock } = createMockClient()
         handleEvents(client as unknown as never)
@@ -101,8 +106,7 @@ describe('eventHandler', () => {
             deferred: false,
         } as unknown as Interaction)
 
-        await Promise.resolve()
-        await Promise.resolve()
+        await flushAsyncHandlers()
 
         expect(interactionReplyMock).toHaveBeenCalledWith({
             interaction: expect.objectContaining({ commandName: 'unknown' }),
@@ -130,8 +134,7 @@ describe('eventHandler', () => {
             deferred: false,
         } as unknown as ChatInputCommandInteraction)
 
-        await Promise.resolve()
-        await Promise.resolve()
+        await flushAsyncHandlers()
 
         expect(createUserFriendlyErrorMock).toHaveBeenCalledWith(
             expect.any(Error),
