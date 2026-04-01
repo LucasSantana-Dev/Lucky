@@ -83,14 +83,22 @@ async function handleChatInputCommand(
     const processedContent = convertTextToEmbed(content)
 
     if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({
-            flags: processedContent.ephemeral ? 64 : undefined, // 64 is the ephemeral flag
-        })
+        try {
+            await interaction.deferReply({
+                flags: processedContent.ephemeral ? 64 : undefined,
+            })
+        } catch {
+            return
+        }
     }
-    if (interaction.replied) {
-        await interaction.followUp(stripFlags(processedContent))
-    } else {
-        await interaction.editReply(stripFlags(processedContent))
+    try {
+        if (interaction.replied) {
+            await interaction.followUp(stripFlags(processedContent))
+        } else {
+            await interaction.editReply(stripFlags(processedContent))
+        }
+    } catch {
+        // interaction expired or already cleaned up
     }
 }
 
@@ -108,14 +116,22 @@ async function handleOtherInteraction(
     const processedContent = convertTextToEmbed(content)
 
     if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({
-            flags: processedContent.ephemeral ? 64 : undefined,
-        })
+        try {
+            await interaction.deferReply({
+                flags: processedContent.ephemeral ? 64 : undefined,
+            })
+        } catch {
+            return
+        }
     }
-    if (interaction.replied) {
-        await interaction.followUp(stripFlags(processedContent))
-    } else {
-        await interaction.editReply(stripFlags(processedContent))
+    try {
+        if (interaction.replied) {
+            await interaction.followUp(stripFlags(processedContent))
+        } else {
+            await interaction.editReply(stripFlags(processedContent))
+        }
+    } catch {
+        // interaction expired or already cleaned up
     }
 }
 

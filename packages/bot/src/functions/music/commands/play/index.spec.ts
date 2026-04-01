@@ -113,8 +113,9 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(interaction.reply).toHaveBeenCalledWith(
-            expect.objectContaining({ ephemeral: true }),
+        expect(interaction.deferReply).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: expect.any(Array) }),
         )
         expect(requireVoiceChannelMock).not.toHaveBeenCalled()
     })
@@ -131,10 +132,10 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(interaction.reply).toHaveBeenCalledWith(
-            expect.objectContaining({ ephemeral: true }),
+        expect(interaction.deferReply).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: expect.any(Array) }),
         )
-        expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     it('plays track and records contribution', async () => {
@@ -214,7 +215,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(interaction.deferReply).toHaveBeenCalled()
         expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
