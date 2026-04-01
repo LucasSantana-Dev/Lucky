@@ -1,7 +1,0 @@
-[build]
-  base = "."
-  command = "npm ci --legacy-peer-deps --ignore-scripts && npm run db:generate && npm run build --workspace=packages/frontend"
-  publish = "packages/frontend/dist"
-
-[build.environment]
-  NODE_VERSION = "22"
