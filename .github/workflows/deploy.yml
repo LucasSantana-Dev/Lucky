@@ -64,8 +64,12 @@ jobs:
                   done
 
                   if [ -z "$run_info" ]; then
-                    echo "==> No docker-publish run for this commit after ${detect_max}s — proceeding immediately."
-                    exit 0
+                    if [ "${FORCE_UNVERIFIED_DEPLOY:-}" = "true" ]; then
+                      echo "::warning::No docker-publish run found for this commit — proceeding anyway (FORCE_UNVERIFIED_DEPLOY=true)"
+                      exit 0
+                    fi
+                    echo "::error::No docker-publish run found for commit ${commit_sha} after ${detect_max}s — aborting deploy"
+                    exit 1
                   fi
 
                   run_id=$(echo "$run_info" | awk '{print $1}')
