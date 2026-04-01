@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.57] - 2026-04-01
+
+### Fixed
+
+- **play command interaction timeout**: Moved `deferReply()` to the top of the play command's `execute` before any validation checks, and converted early-exit `reply()` calls to `editReply()`. Prevents `DiscordAPIError[10062]` when pre-checks run after the 3-second window (LUCKY-1Y).
+- **Interaction already acknowledged race condition**: Wrapped `deferReply()` in `handleChatInputCommand` and `handleOtherInteraction` (`interactionReply.ts`) in a try-catch so concurrent or duplicate acknowledgement attempts (40060) are silently discarded instead of throwing (LUCKY-23).
+
 ## [2.6.56] - 2026-03-31
 
 ### Fixed
