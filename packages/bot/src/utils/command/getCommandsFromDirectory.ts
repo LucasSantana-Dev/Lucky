@@ -31,8 +31,11 @@ export function getCommandFiles(
     absolutePath: string,
     excludePatterns: RegExp[] = DEFAULT_EXCLUDE_PATTERNS,
 ): string[] {
-    const files = fs
-        .readdirSync(absolutePath)
+    const entries = fs.readdirSync(absolutePath, { withFileTypes: true })
+
+    const flatFiles = entries
+        .filter((e) => e.isFile())
+        .map((e) => e.name)
         .filter(
             (file) =>
                 (file.endsWith('.js') || file.endsWith('.ts')) &&
@@ -41,10 +44,23 @@ export function getCommandFiles(
                 !file.startsWith('index.'),
         )
 
-    const jsFiles = files.filter((file) => file.endsWith('.js'))
-    if (jsFiles.length > 0) return jsFiles
+    const resolvedFlat =
+        flatFiles.filter((f) => f.endsWith('.js')).length > 0
+            ? flatFiles.filter((f) => f.endsWith('.js'))
+            : flatFiles.filter((f) => f.endsWith('.ts'))
 
-    return files.filter((file) => file.endsWith('.ts'))
+    const subdirFiles: string[] = []
+    for (const entry of entries.filter((e) => e.isDirectory())) {
+        const jsIndex = path.join(entry.name, 'index.js')
+        const tsIndex = path.join(entry.name, 'index.ts')
+        if (fs.existsSync(path.join(absolutePath, jsIndex))) {
+            subdirFiles.push(jsIndex)
+        } else if (fs.existsSync(path.join(absolutePath, tsIndex))) {
+            subdirFiles.push(tsIndex)
+        }
+    }
+
+    return [...resolvedFlat, ...subdirFiles]
 }
 
 function isValidCommand(command: unknown): command is Command {
