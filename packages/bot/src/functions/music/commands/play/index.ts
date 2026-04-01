@@ -47,16 +47,15 @@ export default new Command({
         client,
         interaction,
     }: CommandExecuteParams): Promise<void> => {
-        await interaction.deferReply()
-
         if (!interaction.guildId) {
-            await interaction.editReply({
+            await interaction.reply({
                 embeds: [
                     createErrorEmbed(
                         'Error',
                         'This command can only be used in a server',
                     ),
                 ],
+                ephemeral: true,
             })
             return
         }
@@ -64,8 +63,9 @@ export default new Command({
         const member = interaction.member as GuildMember
         if (!(await requireVoiceChannel(interaction))) return
 
-        const voiceChannel = member.voice.channel
-        if (!voiceChannel) return
+        const voiceChannel = member.voice.channel!
+
+        await interaction.deferReply()
 
         const query = interaction.options.getString('query', true)
         const collaborativeCheck = collaborativePlaylistService.canAddTracks(
