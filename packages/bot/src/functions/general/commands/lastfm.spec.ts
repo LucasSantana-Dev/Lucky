@@ -103,7 +103,7 @@ describe('lastfm command link generation', () => {
     })
 
     it('ignores non-http WEBAPP_BACKEND_URL and falls back to WEBAPP_REDIRECT_URI origin', async () => {
-        process.env.WEBAPP_BACKEND_URL = 'ftp://lucky-api.lucassantana.tech'
+        process.env.WEBAPP_BACKEND_URL = 'ftp://lucky-api.lucassantana.tech' // NOSONAR: intentionally testing FTP rejection
         process.env.WEBAPP_REDIRECT_URI =
             'https://lucky.lucassantana.tech/api/auth/callback'
 

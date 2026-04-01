@@ -113,8 +113,8 @@ export class LyricsService {
         return (
             query
                 // Remove common suffixes
-                .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
-                .replace(/\s*\[.*?\]\s*/g, '') // Remove brackets content
+                .replace(/\s*\([^)]*\)\s*/g, '') // Remove parentheses content
+                .replace(/\s*\[[^\]]*\]\s*/g, '') // Remove brackets content
                 .replace(
                     /\s*-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
                     '',

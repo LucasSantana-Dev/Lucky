@@ -1,6 +1,6 @@
 FROM almir/webhook:latest
 
-USER root
+USER root # NOSONAR: privileged operations required for apk and docker socket
 RUN apk add --no-cache git docker-cli docker-cli-compose bash
 
 # Copy hooks config to /hooks/ — a path NOT declared as VOLUME by the
