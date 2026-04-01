@@ -154,7 +154,7 @@ packages/
   drift failures
 - Guild automation execution locking is Redis-backed and fail-closed when lock
   infrastructure is unavailable
-- 421 tests (361 backend + 60 frontend), 96% statement coverage
+- 2496 tests (672 backend + 1373 bot + 451 frontend), 96% statement coverage
 
 ## Quick Start
 
