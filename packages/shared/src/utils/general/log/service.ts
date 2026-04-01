@@ -1,7 +1,27 @@
 /* eslint-disable no-console */
 import chalk from 'chalk'
-import { addBreadcrumb, captureException } from '../../monitoring'
+import {
+    addBreadcrumb,
+    captureException,
+    captureMessage,
+} from '../../monitoring'
 import type { LogLevelType, LogParams, LogConfig } from './types'
+
+function serializeError(err: unknown): string {
+    if (err instanceof Error) {
+        return `${err.name}: ${err.message}\n${err.stack ?? ''}`
+    }
+    try {
+        return JSON.stringify(err, null, 2)
+    } catch {
+        return String(err)
+    }
+}
+
+function toError(err: unknown): Error {
+    if (err instanceof Error) return err
+    return new Error(typeof err === 'string' ? err : JSON.stringify(err))
+}
 
 /**
  * Log service
@@ -73,15 +93,20 @@ export class LogService {
         }
 
         if (params.error) {
-            console.error(color(JSON.stringify(params.error, null, 2)))
+            console.error(color(serializeError(params.error)))
         }
     }
 
     error(params: LogParams): void {
         this.log(0, params)
 
+        const extras: Record<string, unknown> = { message: params.message }
+        if (params.data) extras.data = params.data
+
         if (params.error) {
-            captureException(params.error as Error)
+            captureException(toError(params.error), extras)
+        } else {
+            captureMessage(params.message, 'error', extras)
         }
 
         addBreadcrumb('error', params.message, 'error')

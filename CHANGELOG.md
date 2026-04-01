@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.58] - 2026-04-01
+
+### Fixed
+
+- **Sentry error logging**: `errorLog({ message })` without an `error` object now calls `captureMessage` so all error-level logs reach Sentry. Previously only calls with an attached `Error` object were captured.
+- **Sentry exception context**: `params.message` and `params.data` are now passed as `extras` on every `captureException` call so Sentry events include the log message alongside the stack trace.
+- **Error serialization in console**: Replaced `JSON.stringify(error)` (which returns `{}` for native `Error` objects) with a `serializeError` helper that extracts `name`, `message`, and `stack`.
+
 ## [2.6.57] - 2026-04-01
 
 ### Fixed
