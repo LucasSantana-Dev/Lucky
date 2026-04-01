@@ -49,8 +49,13 @@ export function getCommandFiles(
             ? flatFiles.filter((f) => f.endsWith('.js'))
             : flatFiles.filter((f) => f.endsWith('.ts'))
 
+    const flatBaseNames = new Set(
+        resolvedFlat.map((f) => path.basename(f, path.extname(f))),
+    )
+
     const subdirFiles: string[] = []
     for (const entry of entries.filter((e) => e.isDirectory())) {
+        if (flatBaseNames.has(entry.name)) continue
         const jsIndex = path.join(entry.name, 'index.js')
         const tsIndex = path.join(entry.name, 'index.ts')
         if (fs.existsSync(path.join(absolutePath, jsIndex))) {
