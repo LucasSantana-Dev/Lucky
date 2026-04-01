@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const interactionReplyMock = jest.fn()
 const followUpMock = jest.fn()
+const deferReplyMock = jest.fn()
+const editReplyMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const searchLyricsMock = jest.fn()
@@ -22,6 +24,10 @@ jest.mock('../../../utils/command/commandValidations', () => ({
 
 jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
+jest.mock('@lucky/shared/utils', () => ({
+    errorLog: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -55,6 +61,8 @@ function createInteraction({
         options: {
             getString: jest.fn(() => song),
         },
+        deferReply: deferReplyMock,
+        editReply: editReplyMock,
         followUp: followUpMock,
     }
     return interaction as any
@@ -73,6 +81,8 @@ describe('lyrics command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         interactionReplyMock.mockResolvedValue(undefined)
+        deferReplyMock.mockResolvedValue(undefined)
+        editReplyMock.mockResolvedValue(undefined)
         followUpMock.mockResolvedValue(undefined)
         featureToggleIsEnabledMock.mockResolvedValue(true)
         requireCurrentTrackMock.mockResolvedValue(true)
@@ -126,7 +136,8 @@ describe('lyrics command', () => {
             expect.stringContaining('Test Song'),
             'Line 1\nLine 2',
         )
-        expect(interactionReplyMock).toHaveBeenCalled()
+        expect(deferReplyMock).toHaveBeenCalled()
+        expect(editReplyMock).toHaveBeenCalled()
         expect(followUpMock).not.toHaveBeenCalled()
     })
 
@@ -160,7 +171,7 @@ describe('lyrics command', () => {
         const interaction = createInteraction({ song: 'Long Song' })
         const client = {} as any
         await lyricsCommand.execute({ client, interaction } as any)
-        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(editReplyMock).toHaveBeenCalledTimes(1)
         expect(followUpMock).toHaveBeenCalledTimes(2)
     })
 
@@ -172,6 +183,8 @@ describe('lyrics command', () => {
         const interaction = createInteraction({ song: 'Unknown Song' })
         const client = {} as any
         await lyricsCommand.execute({ client, interaction } as any)
+        expect(deferReplyMock).toHaveBeenCalled()
+        expect(editReplyMock).toHaveBeenCalled()
         expect(errorEmbedMock).toHaveBeenCalledWith(
             'Lyrics not found',
             'Lyrics not found',
@@ -183,6 +196,8 @@ describe('lyrics command', () => {
         const interaction = createInteraction({ song: 'Any Song' })
         const client = {} as any
         await lyricsCommand.execute({ client, interaction } as any)
+        expect(deferReplyMock).toHaveBeenCalled()
+        expect(editReplyMock).toHaveBeenCalled()
         expect(errorEmbedMock).toHaveBeenCalledWith(
             'Lyrics error',
             expect.any(String),

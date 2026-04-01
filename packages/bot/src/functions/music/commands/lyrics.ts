@@ -5,6 +5,7 @@ import { errorEmbed, musicEmbed, warningEmbed } from '../../../utils/general/emb
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
 import { featureToggleService, lyricsService } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 export default new Command({
@@ -14,7 +15,11 @@ export default new Command({
             '📄 Show the lyrics of the current song or a specified song.',
         )
         .addStringOption((option) =>
-            option.setName('song').setDescription('Song name (optional)'),
+            option
+                .setName('song')
+                .setDescription(
+                    'Song name, or "Artist - Title" for best results (optional)',
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
@@ -74,15 +79,14 @@ export default new Command({
             artist = track?.author
         }
 
+        await interaction.deferReply()
+
         try {
             const result = await lyricsService.searchLyrics(title, artist)
 
             if ('error' in result) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [errorEmbed('Lyrics not found', result.message)],
-                    },
+                await interaction.editReply({
+                    embeds: [errorEmbed('Lyrics not found', result.message)],
                 })
                 return
             }
@@ -95,10 +99,7 @@ export default new Command({
                 text: `Source: ${result.source} • Page 1/${pages.length}`,
             })
 
-            await interactionReply({
-                interaction,
-                content: { embeds: [firstEmbed] },
-            })
+            await interaction.editReply({ embeds: [firstEmbed] })
 
             for (let i = 1; i < pages.length; i++) {
                 const pageEmbed = musicEmbed(
@@ -113,17 +114,20 @@ export default new Command({
                     ephemeral: false,
                 })
             }
-        } catch {
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        errorEmbed(
-                            'Lyrics error',
-                            'An unexpected error occurred while fetching lyrics. Please try again later.',
-                        ),
-                    ],
-                },
+        } catch (error) {
+            errorLog({
+                message: 'Failed to fetch lyrics',
+                error,
+                guildId: interaction.guildId ?? undefined,
+                userId: interaction.user.id,
+            })
+            await interaction.editReply({
+                embeds: [
+                    errorEmbed(
+                        'Lyrics error',
+                        'An unexpected error occurred while fetching lyrics. Please try again later.',
+                    ),
+                ],
             })
         }
     },
