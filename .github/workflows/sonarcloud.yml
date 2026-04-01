@@ -64,6 +64,5 @@ jobs:
             - name: SonarCloud Scan
               if: env.SONAR_TOKEN_PRESENT == 'true'
               uses: SonarSource/sonarqube-scan-action@v7
-              continue-on-error: true
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
