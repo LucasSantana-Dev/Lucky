@@ -118,8 +118,10 @@ export default new Command({
             errorLog({
                 message: 'Failed to fetch lyrics',
                 error,
-                guildId: interaction.guildId ?? undefined,
-                userId: interaction.user.id,
+                data: {
+                    guildId: interaction.guildId ?? undefined,
+                    userId: interaction.user.id,
+                },
             })
             await interaction.editReply({
                 embeds: [
