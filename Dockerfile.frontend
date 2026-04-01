@@ -20,7 +20,8 @@ COPY packages/shared ./packages/shared
 
 RUN npm run build --workspace=packages/frontend
 
-FROM nginx:alpine # NOSONAR: nginx requires root to bind port 80
+# NOSONAR: nginx requires root to bind port 80
+FROM nginx:alpine
 
 COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
 COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
