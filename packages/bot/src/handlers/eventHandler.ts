@@ -81,7 +81,7 @@ async function handleInteractionError(
         captureException(error, {
             command: interaction.commandName,
             guildId: interaction.guildId ?? undefined,
-            userId: interaction.user.id,
+            userId: interaction.user?.id,
         })
     }
     try {
