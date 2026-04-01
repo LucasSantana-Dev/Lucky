@@ -44,6 +44,13 @@ export function setupHealthRoutes(app: Express): void {
         })
     })
 
+    app.get('/api/health/version', (_req: Request, res: Response) => {
+        res.json({
+            commitSha: process.env.COMMIT_SHA ?? null,
+            version: process.env.npm_package_version ?? null,
+        })
+    })
+
     app.get('/api/health/cache', (_req: Request, res: Response) => {
         const metrics = redisClient.getMetrics()
         res.json({
