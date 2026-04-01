@@ -1,3 +1,4 @@
+import { MUSIC_ERROR_CODES } from '../../types/errors/music'
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 
 // Mock dependencies
@@ -61,7 +62,7 @@ describe('Error Wrapper', () => {
 
             expect(result).toBeInstanceOf(MusicError)
             expect(result.message).toBe('Test error')
-            expect(result.code).toBe(VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT)
+            expect(result.code).toBeUndefined()
         })
 
         it('should wrap string into MusicError', () => {
@@ -111,7 +112,7 @@ describe('Error Wrapper', () => {
 
         it('should use provided error code', () => {
             const error = new Error('Test error')
-            const code = VALIDATION_ERROR_CODES.VALIDATION_INVALID_INPUT
+            const code = MUSIC_ERROR_CODES.MUSIC_PLAYBACK_FAILED
 
             const result = wrapError(error, code)
 

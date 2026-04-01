@@ -25,7 +25,7 @@
         "test:bot": "npm run test --workspace=packages/bot -- --ci",
         "test:frontend": "npm run test --workspace=packages/frontend",
         "test:music:incident": "jest --config packages/bot/jest.config.cjs --testPathPatterns=\"engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec\" --runInBand",
-        "test:all": "npm run test:backend && npm run test:bot && npm run test:frontend",
+        "test:all": "npm run test:shared && npm run test:backend && npm run test:bot && npm run test:frontend",
         "test:ci": "npm run test --workspace=packages/backend -- --ci",
         "test:coverage": "npm run test --workspace=packages/backend -- --coverage",
         "test:e2e": "npm run test:e2e --workspace=packages/frontend",
@@ -43,7 +43,8 @@
         "db:status": "prisma migrate status --config prisma/prisma.config.ts",
         "db:studio": "prisma studio --config prisma/prisma.config.ts",
         "deploy:remote": "./scripts/deploy-remote.sh",
-        "deploy:homelab": "./scripts/deploy-remote.sh main"
+        "deploy:homelab": "./scripts/deploy-remote.sh main",
+        "test:shared": "npm run test:ci --workspace=packages/shared"
     },
     "lint-staged": {
         "*.{ts,tsx}": [

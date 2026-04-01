@@ -34,7 +34,9 @@
     "scripts": {
         "build": "tsc -b --force && node add-js-extensions.js",
         "dev": "tsc --watch",
-        "type:check": "tsc --noEmit"
+        "type:check": "tsc --noEmit",
+        "test": "jest",
+        "test:ci": "jest --ci"
     },
     "dependencies": {
         "@gar/promise-retry": "^1.0.3",
