@@ -73,8 +73,10 @@ RUN --mount=type=cache,id=npm-deps-production,target=/root/.npm,sharing=locked \
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot
 
+ARG COMMIT_SHA
 ENV NODE_ENV=production \
-    NPM_CONFIG_LOGLEVEL=silent
+    NPM_CONFIG_LOGLEVEL=silent \
+    COMMIT_SHA=$COMMIT_SHA
 
 WORKDIR /app
 

@@ -5,7 +5,12 @@ import {
     type ChatInputCommandInteraction,
 } from 'discord.js'
 import type { CustomClient } from '../types'
-import { errorLog, infoLog, debugLog } from '@lucky/shared/utils'
+import {
+    errorLog,
+    infoLog,
+    debugLog,
+    captureException,
+} from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '../utils/general/errorSanitizer'
 import { handleMessageCreate } from './messageHandler'
@@ -72,6 +77,13 @@ async function handleInteractionError(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     errorLog({ message: 'Error handling interaction:', error })
+    if (error instanceof Error) {
+        captureException(error, {
+            command: interaction.commandName,
+            guildId: interaction.guildId ?? undefined,
+            userId: interaction.user.id,
+        })
+    }
     try {
         const userFriendlyError = createUserFriendlyError(error)
         await interactionReply({
