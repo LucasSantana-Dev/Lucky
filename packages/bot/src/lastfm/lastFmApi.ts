@@ -84,8 +84,8 @@ async function signedPost(
 const TOPIC_SUFFIX = / - topic$/i
 const ARTIST_SEPARATORS = /\s*[,/]\s*/
 const TITLE_NOISE_PARENS =
-    /\s*[([](official\s*(music\s*)?video|official\s*audio|audio|lyric\s*video|lyrics?|live|hd|4k|ft\.?[^)\]]*|feat\.?[^)\]]*)[)\]]/gi
-const FEAT_CLAUSE = /\s*[\[(]?feat\.?\s+[^\])[]+[\])]?/gi
+    /\s*[([](official(?:\s+music)?\s+video|official\s+audio|audio|lyric\s+video|lyrics?|live|hd|4k|ft\.?[^)\]]*|feat\.?[^)\]]*)[)\]]/gi
+const FEAT_CLAUSE = /(?:[\[(]feat\.?\s+[^\])[]+[\])]|\bfeat\.?\s+[^\s,([]+)/gi
 
 export function normalizeLastFmArtist(raw: string): string {
     return raw.replace(TOPIC_SUFFIX, '').split(ARTIST_SEPARATORS)[0].trim()

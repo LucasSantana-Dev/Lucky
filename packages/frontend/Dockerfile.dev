@@ -9,7 +9,9 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund && \
     npm cache clean --force
 
-COPY . .
+USER node
+
+COPY --chown=node:node . .
 
 EXPOSE 5173
 

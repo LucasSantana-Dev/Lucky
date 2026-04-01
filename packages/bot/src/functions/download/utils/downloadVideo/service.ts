@@ -1,4 +1,5 @@
 import path from 'path'
+import { randomUUID } from 'crypto'
 import play from 'play-dl'
 import fs from 'fs'
 import { errorLog, infoLog } from '@lucky/shared/utils'
@@ -57,7 +58,7 @@ export class DownloadVideoService {
                     error: 'Could not get video information',
                 }
 
-            const videoFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}`
+            const videoFileName = `${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`
             const outputPath = process.env.DOWNLOAD_DIR ?? './downloads'
             const outputFileName = `${videoFileName}.${format === 'audio' ? 'mp3' : 'mp4'}`
             const audioPath = path.join(

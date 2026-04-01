@@ -37,7 +37,7 @@ export function sanitizeMessage(message: string): string {
         .replace(/Cannot read properties of undefined/g, 'Configuration error')
         .replace(/spawn\([^)]*\)/g, 'External process')
         .replace(/require\([^)]*\)/g, 'Module loading')
-        .replace(/Require stack:[^]*?(?=\n|$)/g, '')
+        .replace(/Require stack:[^\n]*/g, '')
 
     // Remove any remaining file paths
     sanitized = sanitized
