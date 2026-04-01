@@ -1,26 +1,8 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { createReadStream } from 'fs'
-import { createInterface } from 'readline'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import Command from '../../../models/Command'
 import { createInfoEmbed } from '../../../utils/general/embeds'
 
-async function readVersion(): Promise<string> {
-    const dirName = path.dirname(fileURLToPath(import.meta.url))
-    const pkgPath = path.resolve(dirName, '../../../../package.json')
-    const rl = createInterface({ input: createReadStream(pkgPath) })
-
-    try {
-        for await (const line of rl) {
-            const match = line.match(/"version"\s*:\s*"([^"]+)"/)
-            if (match) return match[1]
-        }
-        return 'unknown'
-    } finally {
-        rl.close()
-    }
-}
+const BOT_VERSION = process.env.npm_package_version ?? 'unknown'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -29,14 +11,8 @@ export default new Command({
     category: 'general',
     execute: async ({ interaction }) => {
         await interaction.deferReply({ ephemeral: true })
-        let version = 'unknown'
-        try {
-            version = await readVersion()
-        } catch {
-            // package.json unreadable — fall back to 'unknown'
-        }
         await interaction.editReply({
-            embeds: [createInfoEmbed('Bot Version', `v${version}`)],
+            embeds: [createInfoEmbed('Bot Version', `v${BOT_VERSION}`)],
         })
     },
 })
