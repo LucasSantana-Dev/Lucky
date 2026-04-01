@@ -1,11 +1,21 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 import fs from 'node:fs/promises'
 import Module from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { errorLog } from '@lucky/shared/utils'
-import { getCommandFiles, getCommandsFromDirectory } from './getCommandsFromDirectory'
+import {
+    getCommandFiles,
+    getCommandsFromDirectory,
+} from './getCommandsFromDirectory'
 
 const mockConfig = {
     COMMAND_CATEGORIES_DISABLED: [] as string[],
@@ -30,13 +40,15 @@ beforeEach(() => {
     mockConfig.COMMANDS_DISABLED = []
     mockErrorLog.mockClear()
     const originalRequire = Module.prototype.require
-    jest.spyOn(Module.prototype, 'require').mockImplementation(function (id: string) {
+    jest.spyOn(Module.prototype, 'require').mockImplementation(function (
+        id: string,
+    ) {
         if (id.startsWith('file://')) {
             return originalRequire.call(this, fileURLToPath(id))
         }
         return originalRequire.call(this, id)
     })
-}
+})
 
 afterEach(async () => {
     jest.restoreAllMocks()
@@ -52,9 +64,7 @@ afterEach(async () => {
 })
 
 describe('getCommandsFromDirectory', () => {
-    it(
-        'ignores test/spec files when listing command modules',
-        async () => {
+    it('ignores test/spec files when listing command modules', async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
 
         await fs.writeFile(
@@ -77,15 +87,21 @@ describe('getCommandsFromDirectory', () => {
 
         const files = getCommandFiles(tempDir)
         expect(files).toEqual(['valid.js'])
-        },
-        30_000,
-    )
+    }, 30_000)
 
     it('only excludes spec files with correctly escaped patterns', async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
 
-        await fs.writeFile(path.join(tempDir, 'valid.js'), 'export default {}\n', 'utf8')
-        await fs.writeFile(path.join(tempDir, 'example.spec.js'), 'export default {}\n', 'utf8')
+        await fs.writeFile(
+            path.join(tempDir, 'valid.js'),
+            'export default {}\n',
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(tempDir, 'example.spec.js'),
+            'export default {}\n',
+            'utf8',
+        )
 
         const wronglyEscaped = getCommandFiles(tempDir, [/\\.spec\\./])
         expect(wronglyEscaped).toEqual(['example.spec.js', 'valid.js'])
@@ -96,10 +112,26 @@ describe('getCommandsFromDirectory', () => {
 
     it('prefers JavaScript files when both JS and TS command files exist', async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
-        await fs.writeFile(path.join(tempDir, 'alpha.ts'), 'export default {}\n', 'utf8')
-        await fs.writeFile(path.join(tempDir, 'alpha.js'), 'export default {}\n', 'utf8')
-        await fs.writeFile(path.join(tempDir, 'index.ts'), 'export default {}\n', 'utf8')
-        await fs.writeFile(path.join(tempDir, 'types.d.ts'), 'export type X = string\n', 'utf8')
+        await fs.writeFile(
+            path.join(tempDir, 'alpha.ts'),
+            'export default {}\n',
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(tempDir, 'alpha.js'),
+            'export default {}\n',
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(tempDir, 'index.ts'),
+            'export default {}\n',
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(tempDir, 'types.d.ts'),
+            'export type X = string\n',
+            'utf8',
+        )
 
         expect(getCommandFiles(tempDir)).toEqual(['alpha.js'])
     })
@@ -134,7 +166,9 @@ describe('getCommandsFromDirectory', () => {
         mockConfig.COMMANDS_DISABLED = ['blocked']
 
         const commands = await getCommandsFromDirectory({ url: tempDir })
-        expect(commands.map((command) => command.data.name)).toEqual(['allowed'])
+        expect(commands.map((command) => command.data.name)).toEqual([
+            'allowed',
+        ])
     })
 
     it('skips invalid command modules and modules that throw during import', async () => {
@@ -150,11 +184,100 @@ describe('getCommandsFromDirectory', () => {
             "module.exports = { data: { name: 'invalid' } }\n",
             'utf8',
         )
-        await fs.writeFile(path.join(tempDir, 'broken.js'), "throw new Error('boom')\n", 'utf8')
+        await fs.writeFile(
+            path.join(tempDir, 'broken.js'),
+            "throw new Error('boom')\n",
+            'utf8',
+        )
 
         const commands = await getCommandsFromDirectory({ url: tempDir })
         expect(commands.map((command) => command.data.name)).toEqual(['valid'])
         expect(mockErrorLog).toHaveBeenCalled()
+    })
+
+    it('discovers commands in subdirectory index files', async () => {
+        tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
+
+        const subDir = path.join(tempDir, 'play')
+        await fs.mkdir(subDir)
+        await fs.writeFile(
+            path.join(subDir, 'index.js'),
+            "module.exports = { data: { name: 'play' }, execute: async () => {} }\n",
+            'utf8',
+        )
+
+        await fs.writeFile(
+            path.join(tempDir, 'pause.js'),
+            "module.exports = { data: { name: 'pause' }, execute: async () => {} }\n",
+            'utf8',
+        )
+
+        const commands = await getCommandsFromDirectory({ url: tempDir })
+        expect(commands.map((c) => c.data.name).sort()).toEqual([
+            'pause',
+            'play',
+        ])
+    })
+
+    it('prefers subdirectory index.js over index.ts', async () => {
+        tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
+        const subDir = path.join(tempDir, 'queue')
+        await fs.mkdir(subDir)
+        await fs.writeFile(
+            path.join(subDir, 'index.js'),
+            "module.exports = { data: { name: 'queue-js' }, execute: async () => {} }\n",
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(subDir, 'index.ts'),
+            "module.exports = { data: { name: 'queue-ts' }, execute: async () => {} }\n",
+            'utf8',
+        )
+        const files = getCommandFiles(tempDir)
+        expect(files).toContain(path.join('queue', 'index.js'))
+        expect(files).not.toContain(path.join('queue', 'index.ts'))
+    })
+
+    it('discovers commands in subdirectory index files', async () => {
+        tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
+
+        const subDir = path.join(tempDir, 'play')
+        await fs.mkdir(subDir)
+        await fs.writeFile(
+            path.join(subDir, 'index.js'),
+            "module.exports = { data: { name: 'play' }, execute: async () => {} }\n",
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(tempDir, 'pause.js'),
+            "module.exports = { data: { name: 'pause' }, execute: async () => {} }\n",
+            'utf8',
+        )
+
+        const commands = await getCommandsFromDirectory({ url: tempDir })
+        expect(commands.map((c) => c.data.name).sort()).toEqual([
+            'pause',
+            'play',
+        ])
+    })
+
+    it('prefers subdirectory index.js over index.ts', async () => {
+        tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
+        const subDir = path.join(tempDir, 'queue')
+        await fs.mkdir(subDir)
+        await fs.writeFile(
+            path.join(subDir, 'index.js'),
+            "module.exports = { data: { name: 'queue-js' }, execute: async () => {} }\n",
+            'utf8',
+        )
+        await fs.writeFile(
+            path.join(subDir, 'index.ts'),
+            "module.exports = { data: { name: 'queue-ts' }, execute: async () => {} }\n",
+            'utf8',
+        )
+        const files = getCommandFiles(tempDir)
+        expect(files).toContain(path.join('queue', 'index.js'))
+        expect(files).not.toContain(path.join('queue', 'index.ts'))
     })
 
     it('returns empty list and logs when directory does not exist', async () => {

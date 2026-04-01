@@ -42,7 +42,10 @@ jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
-function createInteraction(subcommand: string, options: Record<string, unknown> = {}) {
+function createInteraction(
+    subcommand: string,
+    options: Record<string, unknown> = {},
+) {
     return {
         guild: {
             id: '123456789012345678',
@@ -61,6 +64,7 @@ function createInteraction(subcommand: string, options: Record<string, unknown> 
             getSubcommand: jest.fn(() => subcommand),
             getBoolean: jest.fn((name: string) => options[name] ?? null),
         },
+        reply: jest.fn().mockResolvedValue(undefined),
         deferReply: jest.fn().mockResolvedValue(undefined),
         editReply: jest.fn().mockResolvedValue(undefined),
         replied: false,
@@ -124,7 +128,9 @@ describe('guildconfig command', () => {
     })
 
     it('exposes required subcommands', () => {
-        const names = guildconfigCommand.data.options.map((option: any) => option.name)
+        const names = guildconfigCommand.data.options.map(
+            (option: any) => option.name,
+        )
 
         expect(names).toEqual(
             expect.arrayContaining([
@@ -158,8 +164,10 @@ describe('guildconfig command', () => {
 
         await guildconfigCommand.execute({ interaction } as any)
 
-        expect(interaction.editReply).toHaveBeenCalledWith({
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith({
             content: '❌ This command can only be used in a server.',
+            ephemeral: true,
         })
     })
 
@@ -176,7 +184,9 @@ describe('guildconfig command', () => {
     })
 
     it('applies modules for apply subcommand when no protected ops', async () => {
-        const interaction = createInteraction('apply', { allow_protected: false })
+        const interaction = createInteraction('apply', {
+            allow_protected: false,
+        })
 
         await guildconfigCommand.execute({ interaction } as any)
 
@@ -190,7 +200,9 @@ describe('guildconfig command', () => {
     })
 
     it('blocks apply when protected operations exist and allow_protected is false', async () => {
-        const interaction = createInteraction('apply', { allow_protected: false })
+        const interaction = createInteraction('apply', {
+            allow_protected: false,
+        })
         createPlanMock.mockResolvedValue({
             runId: 'run-protected',
             desired: {
@@ -254,7 +266,10 @@ describe('guildconfig command', () => {
                     {
                         roles: {
                             cache: new Map([
-                                ['123456789012345678', { id: '123456789012345678' }],
+                                [
+                                    '123456789012345678',
+                                    { id: '123456789012345678' },
+                                ],
                                 ['legacy-role', { id: 'legacy-role' }],
                             ]),
                             remove: removeRolesMock,
@@ -297,7 +312,10 @@ describe('guildconfig command', () => {
                     {
                         roles: {
                             cache: new Map([
-                                ['123456789012345678', { id: '123456789012345678' }],
+                                [
+                                    '123456789012345678',
+                                    { id: '123456789012345678' },
+                                ],
                             ]),
                             remove: removeRolesMock,
                         },

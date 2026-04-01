@@ -4,9 +4,7 @@ import {
     EmbedBuilder,
 } from 'discord.js'
 import Command from '../../../models/Command'
-import {
-    guildAutomationService,
-} from '@lucky/shared/services'
+import { guildAutomationService } from '@lucky/shared/services'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { captureGuildAutomationState } from '../../../utils/guildAutomation/captureGuildState'
 import { applyAutomationModules } from '../../../utils/guildAutomation/applyPlan'
@@ -47,21 +45,29 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('capture')
-                .setDescription('Capture current guild state into automation snapshot'),
+                .setDescription(
+                    'Capture current guild state into automation snapshot',
+                ),
         )
         .addSubcommand((sub) =>
             sub
                 .setName('plan')
-                .setDescription('Generate drift plan from manifest against current guild state'),
+                .setDescription(
+                    'Generate drift plan from manifest against current guild state',
+                ),
         )
         .addSubcommand((sub) =>
             sub
                 .setName('apply')
-                .setDescription('Apply safe drift operations to current guild state')
+                .setDescription(
+                    'Apply safe drift operations to current guild state',
+                )
                 .addBooleanOption((opt) =>
                     opt
                         .setName('allow_protected')
-                        .setDescription('Allow protected deletes/permission-tightening operations')
+                        .setDescription(
+                            'Allow protected deletes/permission-tightening operations',
+                        )
                         .setRequired(false),
                 ),
         )
@@ -72,7 +78,9 @@ export default new Command({
                 .addBooleanOption((opt) =>
                     opt
                         .setName('allow_protected')
-                        .setDescription('Allow protected deletes/permission-tightening operations')
+                        .setDescription(
+                            'Allow protected deletes/permission-tightening operations',
+                        )
                         .setRequired(false),
                 ),
         )
@@ -84,24 +92,29 @@ export default new Command({
         .addSubcommand((sub) =>
             sub
                 .setName('cutover')
-                .setDescription('Finalize parity checklist and mark legacy-bot cutover')
+                .setDescription(
+                    'Finalize parity checklist and mark legacy-bot cutover',
+                )
                 .addBooleanOption((opt) =>
                     opt
                         .setName('complete_checklist')
-                        .setDescription('Force-complete checklist and mark cutover ready')
+                        .setDescription(
+                            'Force-complete checklist and mark cutover ready',
+                        )
                         .setRequired(false),
                 ),
         ),
     category: 'management',
     execute: async ({ interaction }) => {
-        await interaction.deferReply({ ephemeral: true })
-
         if (!interaction.guild) {
-            await interaction.editReply({
+            await interaction.reply({
                 content: '❌ This command can only be used in a server.',
+                ephemeral: true,
             })
             return
         }
+
+        await interaction.deferReply({ ephemeral: true })
 
         const guild = interaction.guild
         const subcommand = interaction.options.getSubcommand(true)
@@ -144,11 +157,14 @@ export default new Command({
                     guild,
                     interaction.client.user?.id,
                 )
-                const result = await guildAutomationService.createPlan(guild.id, {
-                    actualState: current,
-                    initiatedBy: interaction.user.id,
-                    runType: 'plan',
-                })
+                const result = await guildAutomationService.createPlan(
+                    guild.id,
+                    {
+                        actualState: current,
+                        initiatedBy: interaction.user.id,
+                        runType: 'plan',
+                    },
+                )
 
                 await interaction.editReply({
                     embeds: [
@@ -184,11 +200,14 @@ export default new Command({
                     interaction.client.user?.id,
                 )
 
-                const planResult = await guildAutomationService.createPlan(guild.id, {
-                    actualState: current,
-                    initiatedBy: interaction.user.id,
-                    runType: subcommand,
-                })
+                const planResult = await guildAutomationService.createPlan(
+                    guild.id,
+                    {
+                        actualState: current,
+                        initiatedBy: interaction.user.id,
+                        runType: subcommand,
+                    },
+                )
 
                 const blockedByProtected =
                     !allowProtected &&
@@ -266,10 +285,9 @@ export default new Command({
                         summaryEmbed({
                             title: '📊 Guild Automation Status',
                             guildName: guild.name,
-                            description:
-                                status.manifest
-                                    ? `Manifest v${status.manifest.version} available.`
-                                    : 'No manifest found yet.',
+                            description: status.manifest
+                                ? `Manifest v${status.manifest.version} available.`
+                                : 'No manifest found yet.',
                             fields: [
                                 {
                                     name: 'Latest Run',
@@ -311,15 +329,21 @@ export default new Command({
 
             if (subcommand === 'cutover') {
                 const completeChecklist =
-                    interaction.options.getBoolean('complete_checklist') ?? false
-                const result = await guildAutomationService.runCutover(guild.id, {
-                    initiatedBy: interaction.user.id,
-                    completeChecklist,
-                })
+                    interaction.options.getBoolean('complete_checklist') ??
+                    false
+                const result = await guildAutomationService.runCutover(
+                    guild.id,
+                    {
+                        initiatedBy: interaction.user.id,
+                        completeChecklist,
+                    },
+                )
 
                 let cleanedBots = 0
                 if (result.status === 'completed') {
-                    const manifest = await guildAutomationService.getManifest(guild.id)
+                    const manifest = await guildAutomationService.getManifest(
+                        guild.id,
+                    )
                     const externalBots =
                         manifest?.manifest.parity?.externalBots ?? []
 
@@ -329,7 +353,9 @@ export default new Command({
                             continue
                         }
 
-                        const removableRoleIds = [...member.roles.cache.values()]
+                        const removableRoleIds = [
+                            ...member.roles.cache.values(),
+                        ]
                             .filter((role) => role.id !== guild.id)
                             .map((role) => role.id)
 
