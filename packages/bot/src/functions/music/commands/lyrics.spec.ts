@@ -48,6 +48,11 @@ jest.mock('../../../utils/general/embeds', () => ({
 
 import lyricsCommand from './lyrics'
 
+type TExecuteArgs = Parameters<typeof lyricsCommand.execute>[0]
+type TInteraction = TExecuteArgs['interaction']
+type TClient = TExecuteArgs['client']
+
+
 function createInteraction({
     guildId = 'guild-1',
     song = null,
@@ -65,7 +70,7 @@ function createInteraction({
         editReply: editReplyMock,
         followUp: followUpMock,
     }
-    return interaction as any
+    return interaction as unknown as TInteraction
 }
 
 function createEmbed(data: object = {}) {
@@ -99,8 +104,8 @@ describe('lyrics command', () => {
     it('replies with warning when LYRICS feature is disabled', async () => {
         featureToggleIsEnabledMock.mockResolvedValue(false)
         const interaction = createInteraction({})
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(warningEmbedMock).toHaveBeenCalledWith(
             'Feature unavailable',
             expect.any(String),
@@ -114,8 +119,8 @@ describe('lyrics command', () => {
 
     it('replies with error when no guild', async () => {
         const interaction = createInteraction({ guildId: null })
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(errorEmbedMock).toHaveBeenCalled()
     })
 
@@ -129,8 +134,8 @@ describe('lyrics command', () => {
         searchLyricsMock.mockResolvedValue(lyricResult)
         splitLyricsMock.mockReturnValue(['Line 1\nLine 2'])
         const interaction = createInteraction({ song: 'Test Song' })
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(searchLyricsMock).toHaveBeenCalledWith('Test Song', undefined)
         expect(musicEmbedMock).toHaveBeenCalledWith(
             expect.stringContaining('Test Song'),
@@ -151,8 +156,8 @@ describe('lyrics command', () => {
         searchLyricsMock.mockResolvedValue(lyricResult)
         splitLyricsMock.mockReturnValue(['Verse'])
         const interaction = createInteraction({ song: null })
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(searchLyricsMock).toHaveBeenCalledWith(
             'Test Song',
             'Test Artist',
@@ -169,8 +174,8 @@ describe('lyrics command', () => {
         searchLyricsMock.mockResolvedValue(lyricResult)
         splitLyricsMock.mockReturnValue(['page1', 'page2', 'page3'])
         const interaction = createInteraction({ song: 'Long Song' })
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(editReplyMock).toHaveBeenCalledTimes(1)
         expect(followUpMock).toHaveBeenCalledTimes(2)
     })
@@ -181,8 +186,8 @@ describe('lyrics command', () => {
             message: 'Lyrics not found',
         })
         const interaction = createInteraction({ song: 'Unknown Song' })
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(deferReplyMock).toHaveBeenCalled()
         expect(editReplyMock).toHaveBeenCalled()
         expect(errorEmbedMock).toHaveBeenCalledWith(
@@ -194,8 +199,8 @@ describe('lyrics command', () => {
     it('replies with error on unexpected exception', async () => {
         searchLyricsMock.mockRejectedValue(new Error('Network error'))
         const interaction = createInteraction({ song: 'Any Song' })
-        const client = {} as any
-        await lyricsCommand.execute({ client, interaction } as any)
+        const client = {} as unknown as TClient
+        await lyricsCommand.execute({ client, interaction })
         expect(deferReplyMock).toHaveBeenCalled()
         expect(editReplyMock).toHaveBeenCalled()
         expect(errorEmbedMock).toHaveBeenCalledWith(
