@@ -47,15 +47,16 @@ export default new Command({
         client,
         interaction,
     }: CommandExecuteParams): Promise<void> => {
+        await interaction.deferReply()
+
         if (!interaction.guildId) {
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [
                     createErrorEmbed(
                         'Error',
                         'This command can only be used in a server',
                     ),
                 ],
-                ephemeral: true,
             })
             return
         }
@@ -73,19 +74,16 @@ export default new Command({
             1,
         )
         if (!collaborativeCheck.allowed) {
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [
                     createErrorEmbed(
                         'Contribution limit reached',
                         `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
                     ),
                 ],
-                ephemeral: true,
             })
             return
         }
-
-        await interaction.deferReply()
 
         try {
             const result = await client.player.play(voiceChannel, query, {
