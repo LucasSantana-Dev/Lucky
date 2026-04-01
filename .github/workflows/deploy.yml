@@ -8,6 +8,8 @@ on:
 jobs:
     deploy:
         runs-on: ubuntu-latest
+        permissions:
+            actions: read
         if: >
             github.event_name == 'workflow_dispatch' ||
             github.event_name == 'push'
@@ -27,6 +29,88 @@ jobs:
                     echo "::error::Missing secrets: $missing"
                     exit 1
                   fi
+
+            - name: Wait for Docker images
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_PAGER: cat
+              run: |
+                  set -euo pipefail
+                  commit_sha="${{ github.sha }}"
+                  max_wait=600
+                  interval=15
+                  elapsed=0
+
+                  echo "==> Checking if docker-publish is running for ${commit_sha}..."
+
+                  # Poll up to 60s for docker-publish to appear (it may not be queued yet)
+                  detect_elapsed=0
+                  detect_max=60
+                  detect_interval=5
+                  run_info=""
+                  while [ $detect_elapsed -lt $detect_max ]; do
+                    run_info=$(gh run list \
+                      --repo "${{ github.repository }}" \
+                      --workflow=docker-publish.yml \
+                      --json headSha,status,conclusion,databaseId \
+                      --limit 10 \
+                      | jq -r --arg sha "$commit_sha" \
+                        '.[] | select(.headSha == $sha) | "\(.databaseId) \(.status) \(.conclusion)"' \
+                      | head -1)
+                    [ -n "$run_info" ] && break
+                    echo "  No docker-publish run yet, waiting ${detect_interval}s... (${detect_elapsed}s elapsed)"
+                    sleep $detect_interval
+                    detect_elapsed=$((detect_elapsed + detect_interval))
+                  done
+
+                  if [ -z "$run_info" ]; then
+                    echo "==> No docker-publish run for this commit after ${detect_max}s — proceeding immediately."
+                    exit 0
+                  fi
+
+                  run_id=$(echo "$run_info" | awk '{print $1}')
+                  status=$(echo "$run_info" | awk '{print $2}')
+                  conclusion=$(echo "$run_info" | awk '{print $3}')
+
+                  if [ "$status" = "completed" ]; then
+                    if [ "$conclusion" = "success" ]; then
+                      echo "==> Docker images already built successfully."
+                      exit 0
+                    else
+                      echo "::error::docker-publish failed (conclusion=$conclusion) — aborting deploy"
+                      exit 1
+                    fi
+                  fi
+
+                  echo "==> Docker build in progress (run $run_id), waiting up to ${max_wait}s..."
+
+                  while [ $elapsed -lt $max_wait ]; do
+                    sleep $interval
+                    elapsed=$((elapsed + interval))
+
+                    run_info=$(gh run view "$run_id" \
+                      --repo "${{ github.repository }}" \
+                      --json status,conclusion \
+                      --jq '"\(.status) \(.conclusion)"')
+
+                    status=$(echo "$run_info" | awk '{print $1}')
+                    conclusion=$(echo "$run_info" | awk '{print $2}')
+
+                    echo "  Docker build: $status (${elapsed}s elapsed)"
+
+                    if [ "$status" = "completed" ]; then
+                      if [ "$conclusion" = "success" ]; then
+                        echo "==> Docker images ready!"
+                        exit 0
+                      else
+                        echo "::error::docker-publish failed (conclusion=$conclusion) — aborting deploy"
+                        exit 1
+                      fi
+                    fi
+                  done
+
+                  echo "::error::Timed out waiting for Docker images after ${max_wait}s"
+                  exit 1
 
             - name: Trigger deploy webhook
               env:
