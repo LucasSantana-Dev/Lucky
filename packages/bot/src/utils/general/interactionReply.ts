@@ -53,9 +53,9 @@ function convertTextToEmbed(content: {
         (content.embeds === undefined || content.embeds.length === 0)
     ) {
         // Create appropriate embed based on content
-        const embed = content.content.toLowerCase().includes('erro')
-            ? errorEmbed('Erro', content.content)
-            : infoEmbed('Informação', content.content)
+        const embed = content.content.toLowerCase().includes('error')
+            ? errorEmbed('Error', content.content)
+            : infoEmbed('Info', content.content)
 
         return {
             ...content,
