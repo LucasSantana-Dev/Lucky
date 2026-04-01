@@ -238,46 +238,25 @@ describe('getCommandsFromDirectory', () => {
         expect(files).not.toContain(path.join('queue', 'index.ts'))
     })
 
-    it('discovers commands in subdirectory index files', async () => {
+    it('skips subdirectory when a flat file with the same base name exists', async () => {
         tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
+
+        await fs.writeFile(
+            path.join(tempDir, 'play.js'),
+            "module.exports = { data: { name: 'play-flat' }, execute: async () => {} }\n",
+            'utf8',
+        )
 
         const subDir = path.join(tempDir, 'play')
         await fs.mkdir(subDir)
         await fs.writeFile(
             path.join(subDir, 'index.js'),
-            "module.exports = { data: { name: 'play' }, execute: async () => {} }\n",
-            'utf8',
-        )
-        await fs.writeFile(
-            path.join(tempDir, 'pause.js'),
-            "module.exports = { data: { name: 'pause' }, execute: async () => {} }\n",
+            "module.exports = { data: { name: 'play-subdir' }, execute: async () => {} }\n",
             'utf8',
         )
 
         const commands = await getCommandsFromDirectory({ url: tempDir })
-        expect(commands.map((c) => c.data.name).sort()).toEqual([
-            'pause',
-            'play',
-        ])
-    })
-
-    it('prefers subdirectory index.js over index.ts', async () => {
-        tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lucky-cmd-loader-'))
-        const subDir = path.join(tempDir, 'queue')
-        await fs.mkdir(subDir)
-        await fs.writeFile(
-            path.join(subDir, 'index.js'),
-            "module.exports = { data: { name: 'queue-js' }, execute: async () => {} }\n",
-            'utf8',
-        )
-        await fs.writeFile(
-            path.join(subDir, 'index.ts'),
-            "module.exports = { data: { name: 'queue-ts' }, execute: async () => {} }\n",
-            'utf8',
-        )
-        const files = getCommandFiles(tempDir)
-        expect(files).toContain(path.join('queue', 'index.js'))
-        expect(files).not.toContain(path.join('queue', 'index.ts'))
+        expect(commands.map((c) => c.data.name)).toEqual(['play-flat'])
     })
 
     it('returns empty list and logs when directory does not exist', async () => {
