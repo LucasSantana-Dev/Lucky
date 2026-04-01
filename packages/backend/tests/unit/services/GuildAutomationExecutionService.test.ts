@@ -1299,6 +1299,176 @@ describe('GuildAutomationExecutionService', () => {
             )
         })
 
+        test('should apply onboarding module with prompts containing options', async () => {
+            const desired = createMinimalManifest({
+                onboarding: {
+                    enabled: true,
+                    mode: 0,
+                    defaultChannelIds: [CHANNEL_ID_1],
+                    prompts: [
+                        {
+                            id: 'prompt-1',
+                            title: 'Pick a channel',
+                            singleSelect: true,
+                            required: false,
+                            inOnboarding: true,
+                            type: 0,
+                            options: [
+                                {
+                                    id: 'opt-1',
+                                    title: 'General',
+                                    description: null,
+                                    channelIds: [CHANNEL_ID_1],
+                                    roleIds: [ROLE_ID_1],
+                                    emoji: null,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            })
+            const actual = createMinimalManifest()
+            const plan = createMinimalPlan([
+                { module: 'onboarding', action: 'update', protected: false, description: 'Update' },
+            ])
+            mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) })
+            const result = await guildAutomationExecutionService.executeApplyPlan({
+                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
+            })
+            expect(result.diagnostics.appliedModules).toContain('onboarding')
+            const body = JSON.parse((mockFetch.mock.calls[0] as any[])[1].body as string)
+            expect(body.prompts[0].options[0].channel_ids).toEqual([CHANNEL_ID_1])
+            expect(body.prompts[0].options[0].role_ids).toEqual([ROLE_ID_1])
+        })
+
+        test('should apply command access grants', async () => {
+            const desired = createMinimalManifest({
+                commandaccess: {
+                    grants: [
+                        { roleId: ROLE_ID_1, module: 'music', mode: 'allow' as any },
+                    ],
+                },
+            })
+            const actual = createMinimalManifest()
+            const plan = createMinimalPlan([
+                { module: 'commandaccess', action: 'update', protected: false, description: 'Update' },
+            ])
+            const { guildRoleAccessService } = await import('@lucky/shared/services')
+            ;(guildRoleAccessService.replaceRoleGrants as jest.Mock).mockResolvedValue(undefined)
+            const result = await guildAutomationExecutionService.executeApplyPlan({
+                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
+            })
+            expect(result.diagnostics.appliedModules).toContain('commandaccess')
+            expect(guildRoleAccessService.replaceRoleGrants as jest.Mock).toHaveBeenCalledWith(
+                GUILD_ID,
+                [{ roleId: ROLE_ID_1, module: 'music', mode: 'allow' }],
+            )
+        })
+
+        test('should update existing channel by ID', async () => {
+            const desired = createMinimalManifest({
+                roles: {
+                    roles: [],
+                    channels: [
+                        { id: CHANNEL_ID_1, name: 'updated-name', type: 'GuildText', parentId: null, topic: null, readonly: false },
+                    ],
+                },
+            })
+            const actual = createMinimalManifest({
+                roles: {
+                    roles: [],
+                    channels: [
+                        { id: CHANNEL_ID_1, name: 'old-name', type: 'GuildText', parentId: null, topic: null, readonly: false },
+                    ],
+                },
+            })
+            const plan = createMinimalPlan([
+                { module: 'roles', action: 'update', protected: false, description: 'Update channel' },
+            ])
+            mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) })
+            const result = await guildAutomationExecutionService.executeApplyPlan({
+                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
+            })
+            expect(result.diagnostics.appliedModules).toContain('roles')
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining(`/channels/${CHANNEL_ID_1}`),
+                expect.objectContaining({ method: 'PATCH' }),
+            )
+        })
+
+        test('should delete stale channels when allowProtected is true', async () => {
+            const desired = createMinimalManifest({
+                roles: {
+                    roles: [],
+                    channels: [
+                        { id: CHANNEL_ID_1, name: 'keep', type: 'GuildText', parentId: null, topic: null, readonly: false },
+                    ],
+                },
+            })
+            const actual = createMinimalManifest({
+                roles: { roles: [], channels: [] },
+            })
+            const plan = createMinimalPlan([
+                { module: 'roles', action: 'delete', protected: true, description: 'Delete stale' },
+            ])
+            mockFetch
+                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: CHANNEL_ID_1, name: 'keep' }) })  // POST create channel
+                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] })  // GET roles for prune
+                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [  // GET channels for prune
+                    { id: CHANNEL_ID_2, name: 'stale' },
+                ] })
+                .mockResolvedValueOnce({ ok: true, status: 204, json: async () => undefined })  // DELETE stale channel
+            const result = await guildAutomationExecutionService.executeApplyPlan({
+                guildId: GUILD_ID, plan, desired, actual, allowProtected: true,
+            })
+            expect(result.diagnostics.appliedModules).toContain('roles')
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining(`/channels/${CHANNEL_ID_2}`),
+                expect.objectContaining({ method: 'DELETE' }),
+            )
+        })
+
+        test('should apply remapping through all manifest sections when roles/channels are remapped', async () => {
+            const OLD_ROLE = 'old-role-111'
+            const NEW_ROLE = 'new-role-222'
+            const OLD_CHANNEL = 'old-ch-111'
+            const NEW_CHANNEL = 'new-ch-222'
+
+            const desired = createMinimalManifest({
+                roles: {
+                    roles: [{ id: OLD_ROLE, name: 'Member', color: 0, hoist: false, mentionable: false }],
+                    channels: [{ id: OLD_CHANNEL, name: 'general', type: 'GuildText', parentId: null, topic: null, readonly: false }],
+                },
+                onboarding: { enabled: true, mode: 0, defaultChannelIds: [OLD_CHANNEL], prompts: [] },
+                moderation: {
+                    automod: { exemptRoles: [OLD_ROLE], exemptChannels: [OLD_CHANNEL] } as any,
+                    moderationSettings: { muteRoleId: OLD_ROLE, modRoleIds: [OLD_ROLE], adminRoleIds: [] } as any,
+                },
+                automessages: {
+                    welcome: { enabled: true, channelId: OLD_CHANNEL, message: 'hi' },
+                    leave: { enabled: true, channelId: OLD_CHANNEL, message: 'bye' },
+                },
+                reactionroles: {
+                    messages: [{ id: 'm1', messageId: 'dm1', channelId: OLD_CHANNEL, mappings: [{ roleId: OLD_ROLE, label: 'x', emoji: undefined, style: undefined }] }],
+                    exclusiveRoles: [{ roleId: OLD_ROLE, excludedRoleId: OLD_ROLE }],
+                },
+                commandaccess: { grants: [{ roleId: OLD_ROLE, module: 'music', mode: 'allow' as any }] },
+            })
+            const actual = createMinimalManifest({ roles: { roles: [], channels: [] } })
+            const plan = createMinimalPlan([
+                { module: 'roles', action: 'create', protected: false, description: 'Create' },
+            ])
+            mockFetch
+                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: NEW_ROLE, name: 'Member' }) })
+                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: NEW_CHANNEL, name: 'general' }) })
+            const result = await guildAutomationExecutionService.executeApplyPlan({
+                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
+            })
+            expect(result.remappedManifest).toBeDefined()
+            expect(result.diagnostics.roleIdRemaps).toEqual({ [OLD_ROLE]: NEW_ROLE })
+            expect(result.diagnostics.channelIdRemaps).toEqual({ [OLD_CHANNEL]: NEW_CHANNEL })
+        })
+
         test('should note when reactionroles messages require manual setup', async () => {
             const desired = createMinimalManifest({
                 reactionroles: {
