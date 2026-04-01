@@ -3,7 +3,7 @@
  * Following quality rules: test behavior, not implementation
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals'
 import {
     LogLevel,
     errorLog,

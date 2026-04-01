@@ -106,4 +106,4 @@ describe('sentry monitoring', () => {
         await expect(flushSentry(1234)).resolves.toBe(true)
         expect(flushMock).toHaveBeenCalledWith(1234)
     })
-}
+})
