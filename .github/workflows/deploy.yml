@@ -73,13 +73,18 @@ jobs:
                     # docker-publish.yml only triggers on: packages/**, prisma/**, Dockerfile*,
                     # nginx/**, package*.json — if none of those changed, no rebuild is needed
                     # and deploying with the existing latest images is safe.
-                    changed_files=$(gh api \
-                      "repos/${{ github.repository }}/commits/${commit_sha}" \
-                      --jq '[.files[].filename] | join("\n")' 2>/dev/null || echo "")
+                    # Mirrors the exact path triggers from docker-publish.yml.
+                    docker_path_pattern='^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json)'
 
-                    docker_relevant=$(echo "$changed_files" | grep -E \
-                      '^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json)' \
-                      | head -1 || true)
+                    if ! changed_files=$(gh api \
+                      "repos/${{ github.repository }}/commits/${commit_sha}" \
+                      --jq '[.files[].filename] | join("\n")'); then
+                      echo "::warning::Failed to query commit file list — cannot determine if Docker rebuild is needed, proceeding with abort."
+                      echo "::error::No docker-publish run found for commit ${commit_sha} after ${detect_max}s — aborting deploy"
+                      exit 1
+                    fi
+
+                    docker_relevant=$(echo "$changed_files" | grep -E "$docker_path_pattern" | head -1 || true)
 
                     if [ -z "$docker_relevant" ]; then
                       echo "::notice::No Docker-relevant files changed in this commit — skipping image wait, deploying with existing images."
@@ -88,7 +93,7 @@ jobs:
 
                     echo "::error::No docker-publish run found for commit ${commit_sha} after ${detect_max}s — aborting deploy"
                     echo "Docker-relevant files changed:"
-                    echo "$changed_files" | grep -E '^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json)' || true
+                    echo "$changed_files" | grep -E "$docker_path_pattern" || true
                     exit 1
                   fi
 
