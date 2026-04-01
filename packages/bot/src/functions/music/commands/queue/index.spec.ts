@@ -25,6 +25,7 @@ const warningEmbedMock = jest.fn((title: string, message: string) => ({
 const interactionReplyMock = jest.fn()
 const smartShuffleQueueMock = jest.fn()
 const rescueQueueMock = jest.fn()
+const resolveGuildQueueMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -57,23 +58,23 @@ jest.mock('../../../../utils/music/queueManipulation', () => ({
     rescueQueue: (...args: unknown[]) => rescueQueueMock(...args),
 }))
 
+jest.mock('../../../../utils/music/queueResolver', () => ({
+    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
 function createInteraction(action: string | null) {
     return {
         guildId: 'guild-1',
         options: {
             getString: jest.fn(() => action),
         },
+        deferReply: jest.fn().mockResolvedValue(undefined),
+        editReply: jest.fn().mockResolvedValue(undefined),
     } as any
 }
 
-function createClient(queue: unknown) {
-    return {
-        player: {
-            nodes: {
-                get: jest.fn(() => queue),
-            },
-        },
-    } as any
+function createClient() {
+    return {} as any
 }
 
 describe('queue command', () => {
@@ -87,16 +88,20 @@ describe('queue command', () => {
             keptTracks: 4,
             addedTracks: 2,
         })
-        createQueueEmbedMock.mockResolvedValue({ id: 'queue-embed' })
+        createQueueEmbedMock.mockResolvedValue({
+            embed: { id: 'queue-embed' },
+            components: [],
+        })
         createQueueErrorEmbedMock.mockReturnValue({ id: 'queue-error' })
     })
 
     it('returns when guild validation fails', async () => {
         requireGuildMock.mockResolvedValue(false)
         const queue = { tracks: { size: 0 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
 
         await queueCommand.execute({
-            client: createClient(queue),
+            client: createClient(),
             interaction: createInteraction('show'),
         } as any)
 
@@ -105,9 +110,10 @@ describe('queue command', () => {
 
     it('warns when smartshuffle is requested with short queue', async () => {
         const queue = { tracks: { size: 1 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
 
         await queueCommand.execute({
-            client: createClient(queue),
+            client: createClient(),
             interaction: createInteraction('smartshuffle'),
         } as any)
 
@@ -119,9 +125,10 @@ describe('queue command', () => {
 
     it('runs smartshuffle and returns success response', async () => {
         const queue = { tracks: { size: 3 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
 
         await queueCommand.execute({
-            client: createClient(queue),
+            client: createClient(),
             interaction: createInteraction('smartshuffle'),
         } as any)
 
@@ -134,9 +141,10 @@ describe('queue command', () => {
 
     it('runs rescue and returns counts', async () => {
         const queue = { tracks: { size: 3 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
 
         await queueCommand.execute({
-            client: createClient(queue),
+            client: createClient(),
             interaction: createInteraction('rescue'),
         } as any)
 
@@ -151,73 +159,78 @@ describe('queue command', () => {
 
     it('shows queue embed for default action', async () => {
         const queue = { tracks: { size: 3 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction('show')
 
         await queueCommand.execute({
-            client: createClient(queue),
-            interaction: createInteraction('show'),
+            client: createClient(),
+            interaction,
         } as any)
 
         expect(createQueueEmbedMock).toHaveBeenCalledWith(queue)
         expect(debugLogMock).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: [{ id: 'queue-embed' }] }),
+        )
     })
 
     it('returns queue error embed when execution throws', async () => {
         const queue = { tracks: { size: 3 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
         createQueueEmbedMock.mockRejectedValue(new Error('boom'))
+        const interaction = createInteraction('show')
 
         await queueCommand.execute({
-            client: createClient(queue),
-            interaction: createInteraction('show'),
+            client: createClient(),
+            interaction,
         } as any)
 
         expect(errorLogMock).toHaveBeenCalled()
-        expect(interactionReplyMock).toHaveBeenCalledWith(
+        expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
-                content: expect.objectContaining({
-                    embeds: [expect.objectContaining({ id: 'queue-error' })],
-                }),
+                embeds: [expect.objectContaining({ id: 'queue-error' })],
             }),
         )
     })
 
     it('logs error and replies with error embed when smartShuffle throws', async () => {
         const queue = { tracks: { size: 3 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
         smartShuffleQueueMock.mockRejectedValue(new Error('shuffle failed'))
+        const interaction = createInteraction('smartshuffle')
 
         await queueCommand.execute({
-            client: createClient(queue),
-            interaction: createInteraction('smartshuffle'),
+            client: createClient(),
+            interaction,
         } as any)
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Error in queue command' }),
         )
-        expect(interactionReplyMock).toHaveBeenCalledWith(
+        expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
-                content: expect.objectContaining({
-                    embeds: [expect.objectContaining({ id: 'queue-error' })],
-                }),
+                embeds: [expect.objectContaining({ id: 'queue-error' })],
             }),
         )
     })
 
     it('logs error and replies with error embed when rescueQueue throws', async () => {
         const queue = { tracks: { size: 3 } }
+        resolveGuildQueueMock.mockReturnValue({ queue })
         rescueQueueMock.mockRejectedValue(new Error('rescue failed'))
+        const interaction = createInteraction('rescue')
 
         await queueCommand.execute({
-            client: createClient(queue),
-            interaction: createInteraction('rescue'),
+            client: createClient(),
+            interaction,
         } as any)
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Error in queue command' }),
         )
-        expect(interactionReplyMock).toHaveBeenCalledWith(
+        expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
-                content: expect.objectContaining({
-                    embeds: [expect.objectContaining({ id: 'queue-error' })],
-                }),
+                embeds: [expect.objectContaining({ id: 'queue-error' })],
             }),
         )
     })

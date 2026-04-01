@@ -52,17 +52,16 @@ export default new Command({
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireQueue(queue, interaction))) return
 
+        await interaction.deferReply()
+
         try {
             const action = resolveAction(
                 interaction.options.getString('action'),
             )
 
             if (!queue) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [createErrorEmbed('Error', 'No queue found')],
-                    },
+                await interaction.editReply({
+                    embeds: [createErrorEmbed('Error', 'No queue found')],
                 })
                 return
             }
@@ -129,12 +128,9 @@ export default new Command({
 
             const { embed, components } = await createQueueEmbed(queue)
 
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [embed],
-                    components,
-                },
+            await interaction.editReply({
+                embeds: [embed],
+                components,
             })
         } catch (error) {
             errorLog({
@@ -146,11 +142,8 @@ export default new Command({
                 'Failed to retrieve queue information. Please try again.',
             )
 
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [errorEmbed],
-                },
+            await interaction.editReply({
+                embeds: [errorEmbed],
             })
         }
     },

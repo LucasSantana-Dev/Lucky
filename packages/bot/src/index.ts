@@ -12,7 +12,7 @@ async function main(): Promise<void> {
     initializeSentry({
         appName: 'lucky',
         serviceName: 'bot',
-        release: process.env.SENTRY_RELEASE,
+        release: process.env.SENTRY_RELEASE ?? process.env.COMMIT_SHA,
         serverName: process.env.SENTRY_SERVER_NAME ?? process.env.HOSTNAME,
         environment: process.env.SENTRY_ENVIRONMENT,
         tags: {
