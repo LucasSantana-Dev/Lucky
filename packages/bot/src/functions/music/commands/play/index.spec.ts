@@ -113,9 +113,12 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalled()
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ embeds: expect.any(Array) }),
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(interaction.reply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embeds: expect.any(Array),
+                ephemeral: true,
+            }),
         )
         expect(requireVoiceChannelMock).not.toHaveBeenCalled()
     })
@@ -215,7 +218,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalled()
+        expect(interaction.deferReply).not.toHaveBeenCalled()
         expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
