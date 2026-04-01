@@ -68,7 +68,27 @@ jobs:
                       echo "::warning::No docker-publish run found for this commit — proceeding anyway (FORCE_UNVERIFIED_DEPLOY=true)"
                       exit 0
                     fi
+
+                    # Check if this commit touched Docker-relevant paths.
+                    # docker-publish.yml only triggers on: packages/**, prisma/**, Dockerfile*,
+                    # nginx/**, package*.json — if none of those changed, no rebuild is needed
+                    # and deploying with the existing latest images is safe.
+                    changed_files=$(gh api \
+                      "repos/${{ github.repository }}/commits/${commit_sha}" \
+                      --jq '[.files[].filename] | join("\n")' 2>/dev/null || echo "")
+
+                    docker_relevant=$(echo "$changed_files" | grep -E \
+                      '^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json)' \
+                      | head -1 || true)
+
+                    if [ -z "$docker_relevant" ]; then
+                      echo "::notice::No Docker-relevant files changed in this commit — skipping image wait, deploying with existing images."
+                      exit 0
+                    fi
+
                     echo "::error::No docker-publish run found for commit ${commit_sha} after ${detect_max}s — aborting deploy"
+                    echo "Docker-relevant files changed:"
+                    echo "$changed_files" | grep -E '^(packages/|prisma/|Dockerfile|Dockerfile\.|nginx/|package\.json|package-lock\.json)' || true
                     exit 1
                   fi
 
