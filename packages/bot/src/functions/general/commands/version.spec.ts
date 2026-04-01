@@ -22,8 +22,16 @@ function createInteraction() {
 }
 
 describe('version command', () => {
+    const originalNpmVersion = process.env.npm_package_version
+    const originalCommitSha = process.env.COMMIT_SHA
+
     beforeEach(() => {
         jest.clearAllMocks()
+    })
+
+    afterEach(() => {
+        process.env.npm_package_version = originalNpmVersion
+        process.env.COMMIT_SHA = originalCommitSha
     })
 
     it('defers reply as ephemeral', async () => {
@@ -32,15 +40,36 @@ describe('version command', () => {
         expect(deferReplyMock).toHaveBeenCalledWith({ ephemeral: true })
     })
 
-    it('replies with a versioned embed', async () => {
+    it('replies with semver when npm_package_version is set', async () => {
+        process.env.npm_package_version = '2.6.60'
+        delete process.env.COMMIT_SHA
         const interaction = createInteraction()
         await versionCommand.execute({ interaction } as any)
         expect(createInfoEmbedMock).toHaveBeenCalledWith(
             'Bot Version',
-            expect.stringMatching(/^v/),
+            'v2.6.60',
         )
-        expect(editReplyMock).toHaveBeenCalledWith(
-            expect.objectContaining({ embeds: expect.any(Array) }),
+    })
+
+    it('replies with commit sha when npm_package_version is unset', async () => {
+        delete process.env.npm_package_version
+        process.env.COMMIT_SHA = 'abc1234567890'
+        const interaction = createInteraction()
+        await versionCommand.execute({ interaction } as any)
+        expect(createInfoEmbedMock).toHaveBeenCalledWith(
+            'Bot Version',
+            'commit abc1234',
+        )
+    })
+
+    it('replies with unknown when neither env var is set', async () => {
+        delete process.env.npm_package_version
+        delete process.env.COMMIT_SHA
+        const interaction = createInteraction()
+        await versionCommand.execute({ interaction } as any)
+        expect(createInfoEmbedMock).toHaveBeenCalledWith(
+            'Bot Version',
+            'unknown',
         )
     })
 })

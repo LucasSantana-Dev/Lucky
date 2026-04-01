@@ -2,7 +2,13 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { createInfoEmbed } from '../../../utils/general/embeds'
 
-const BOT_VERSION = process.env.npm_package_version ?? 'unknown'
+function resolveVersion(): string {
+    const semver = process.env.npm_package_version
+    if (semver) return `v${semver}`
+    const sha = process.env.COMMIT_SHA
+    if (sha) return `commit ${sha.slice(0, 7)}`
+    return 'unknown'
+}
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -12,7 +18,7 @@ export default new Command({
     execute: async ({ interaction }) => {
         await interaction.deferReply({ ephemeral: true })
         await interaction.editReply({
-            embeds: [createInfoEmbed('Bot Version', `v${BOT_VERSION}`)],
+            embeds: [createInfoEmbed('Bot Version', resolveVersion())],
         })
     },
 })

@@ -11,7 +11,13 @@ import { verifyRequiredDatabaseState } from './startup/verifyRequiredDatabaseSta
 export async function bootstrapBackend(): Promise<void> {
     await ensureEnvironment()
     setupErrorHandlers()
-    initializeSentry()
+    initializeSentry({
+        appName: 'lucky',
+        serviceName: 'backend',
+        release: process.env.SENTRY_RELEASE ?? process.env.COMMIT_SHA,
+        serverName: process.env.HOSTNAME,
+        tags: { runtime: 'express' },
+    })
     await verifyRequiredDatabaseState()
 
     try {

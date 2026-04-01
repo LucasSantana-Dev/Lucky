@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { Events, type ChatInputCommandInteraction, type Interaction } from 'discord.js'
+import {
+    Events,
+    type ChatInputCommandInteraction,
+    type Interaction,
+} from 'discord.js'
 import handleEvents from './eventHandler'
 
 const interactionReplyMock = jest.fn()
@@ -12,6 +16,7 @@ const handleReactionEventsMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
+const captureExceptionMock = jest.fn()
 
 jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -23,7 +28,8 @@ jest.mock('../utils/general/errorSanitizer', () => ({
 }))
 
 jest.mock('./messageHandler', () => ({
-    handleMessageCreate: (...args: unknown[]) => handleMessageCreateMock(...args),
+    handleMessageCreate: (...args: unknown[]) =>
+        handleMessageCreateMock(...args),
 }))
 
 jest.mock('./memberHandler', () => ({
@@ -48,6 +54,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
+    captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
 function createMockClient() {
@@ -56,7 +63,10 @@ function createMockClient() {
     const client = {
         on: onMock,
         once: onceMock,
-        commands: new Map<string, { execute: (...args: unknown[]) => Promise<void> }>(),
+        commands: new Map<
+            string,
+            { execute: (...args: unknown[]) => Promise<void> }
+        >(),
     }
 
     return { client, onMock, onceMock }
@@ -65,7 +75,9 @@ function createMockClient() {
 function getInteractionCreateHandler(
     onMock: jest.Mock,
 ): ((interaction: Interaction) => void) | undefined {
-    const call = onMock.mock.calls.find((args) => args[0] === Events.InteractionCreate)
+    const call = onMock.mock.calls.find(
+        (args) => args[0] === Events.InteractionCreate,
+    )
     return call?.[1] as ((interaction: Interaction) => void) | undefined
 }
 

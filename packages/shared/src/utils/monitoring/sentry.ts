@@ -167,12 +167,12 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
     const tracesSampleRate = resolveSampleRate(
         options.tracesSampleRate,
         process.env.SENTRY_TRACES_SAMPLE_RATE,
-        environment === 'production' ? 0.1 : 1.0,
+        1.0,
     )
     const profilesSampleRate = resolveSampleRate(
         options.profilesSampleRate,
         process.env.SENTRY_PROFILES_SAMPLE_RATE,
-        environment === 'production' ? 0.1 : 1.0,
+        1.0,
     )
     const { appName, serviceName, release, serverName } =
         getSentryMetadata(options)
