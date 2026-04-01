@@ -8,9 +8,10 @@ This document describes the testing strategy and how to run tests locally.
 | ----------- | ------------------------------------- | ---------------- | -------------------------------- |
 | Unit        | `packages/backend/tests/unit/`        | Jest             | Services, middleware, pure logic |
 | Integration | `packages/backend/tests/integration/` | Jest + supertest | API routes, DB/Redis (when used) |
+| Unit        | `packages/frontend/src/**/*.test.{ts,tsx}` | Vitest      | Components, hooks, stores        |
 | E2E         | `packages/frontend/tests/e2e/`        | Playwright       | Frontend flows in browser        |
 
-Backend tests use Jest; frontend uses Playwright for E2E only (no Jest/Vitest unit tests in frontend at this time). Bot and shared packages do not have dedicated test suites yet; coverage is reported from the backend.
+Backend tests use Jest; frontend has Vitest unit tests and Playwright for E2E. Bot and shared packages do not have dedicated test suites yet; coverage is reported from the backend.
 
 ## Backend (Jest)
 
@@ -32,6 +33,26 @@ From `packages/backend`:
 npm test
 npm run test:coverage
 npm run test:watch
+```
+
+## Frontend Unit (Vitest)
+
+- **Location**: `packages/frontend/src/**/*.test.{ts,tsx}`.
+- **Config**: `packages/frontend/vitest.config.ts` (jsdom environment, coverage thresholds).
+- **Coverage output**: `packages/frontend/coverage/` (lcov, HTML, text).
+
+**Commands** (from repo root):
+
+```bash
+npm run test:frontend           # Frontend unit tests (watch-friendly locally)
+```
+
+From `packages/frontend`:
+
+```bash
+npm test                        # Run tests once
+npm run test:watch              # Watch mode
+npm run test:coverage           # With coverage report
 ```
 
 ## Frontend E2E (Playwright)
@@ -62,15 +83,16 @@ cd packages/frontend && npx playwright install --with-deps chromium
 
 ## Naming and layout
 
-- **Unit**: `*.test.ts` under `tests/unit/` (e.g. `services/SessionService.test.ts`).
-- **Integration**: `*.test.ts` under `tests/integration/` (e.g. `routes/auth.test.ts`).
+- **Unit**: `*.test.ts` under `tests/unit/` (backend) or `src/**/*.test.{ts,tsx}` (frontend).
+- **Integration**: `*.test.ts` under `tests/integration/` (backend).
 - **E2E**: `*.spec.ts` under `tests/e2e/` (e.g. `auth-flow.spec.ts`).
 
 Tests should focus on behavior and contracts, not implementation details.
 
 ## CI
 
-- **Quality Gates**: lint → type-check → build → backend `test:ci` → backend `test:coverage` → npm audit (high) → upload backend coverage to Codecov.
+- **Quality Gates**: lint → type-check → build → backend `test:ci` → frontend `test` → backend `test:coverage` → npm audit (high) → upload backend coverage to Codecov.
 - **E2E**: Runs after Quality Gates; installs Playwright Chromium and runs `npm run test:e2e`.
 
 See [CI_CD.md](CI_CD.md) for the full pipeline and pre-commit hooks.
+
