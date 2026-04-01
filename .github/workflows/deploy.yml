@@ -8,6 +8,8 @@ on:
 jobs:
     deploy:
         runs-on: ubuntu-latest
+        permissions:
+            actions: read
         if: >
             github.event_name == 'workflow_dispatch' ||
             github.event_name == 'push'
@@ -31,6 +33,7 @@ jobs:
             - name: Wait for Docker images
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_PAGER: cat
               run: |
                   set -euo pipefail
                   commit_sha="${{ github.sha }}"
@@ -40,17 +43,28 @@ jobs:
 
                   echo "==> Checking if docker-publish is running for ${commit_sha}..."
 
-                  run_info=$(gh run list \
-                    --repo "${{ github.repository }}" \
-                    --workflow=docker-publish.yml \
-                    --json headSha,status,conclusion,databaseId \
-                    --limit 10 \
-                    | jq -r --arg sha "$commit_sha" \
-                      '.[] | select(.headSha == $sha) | "\(.databaseId) \(.status) \(.conclusion)"' \
-                    | head -1)
+                  # Poll up to 60s for docker-publish to appear (it may not be queued yet)
+                  detect_elapsed=0
+                  detect_max=60
+                  detect_interval=5
+                  run_info=""
+                  while [ $detect_elapsed -lt $detect_max ]; do
+                    run_info=$(gh run list \
+                      --repo "${{ github.repository }}" \
+                      --workflow=docker-publish.yml \
+                      --json headSha,status,conclusion,databaseId \
+                      --limit 10 \
+                      | jq -r --arg sha "$commit_sha" \
+                        '.[] | select(.headSha == $sha) | "\(.databaseId) \(.status) \(.conclusion)"' \
+                      | head -1)
+                    [ -n "$run_info" ] && break
+                    echo "  No docker-publish run yet, waiting ${detect_interval}s... (${detect_elapsed}s elapsed)"
+                    sleep $detect_interval
+                    detect_elapsed=$((detect_elapsed + detect_interval))
+                  done
 
                   if [ -z "$run_info" ]; then
-                    echo "==> No docker-publish run for this commit — proceeding immediately."
+                    echo "==> No docker-publish run for this commit after ${detect_max}s — proceeding immediately."
                     exit 0
                   fi
 
