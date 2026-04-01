@@ -215,6 +215,123 @@ function defaultParityChecklist() {
     ]
 }
 
+
+type RemapFn = (id: string | undefined | null) => string | undefined | null
+
+function remapRolesSection(
+    next: GuildAutomationManifestDocument,
+    remapRole: RemapFn,
+    remapChannel: RemapFn,
+): void {
+    if (!next.roles) return
+    next.roles.roles = next.roles.roles.map((role) => ({
+        ...role,
+        id: remapRole(role.id) ?? role.id,
+    }))
+    next.roles.channels = next.roles.channels.map((channel) => ({
+        ...channel,
+        id: remapChannel(channel.id) ?? channel.id,
+        parentId: remapChannel(channel.parentId) ?? null,
+    }))
+}
+
+function remapOnboardingSection(
+    next: GuildAutomationManifestDocument,
+    remapRole: RemapFn,
+    remapChannel: RemapFn,
+): void {
+    if (!next.onboarding) return
+    next.onboarding.defaultChannelIds = next.onboarding.defaultChannelIds
+        .map((id) => remapChannel(id))
+        .filter((id): id is string => Boolean(id))
+    next.onboarding.prompts = next.onboarding.prompts.map((prompt) => ({
+        ...prompt,
+        options: prompt.options.map((option) => ({
+            ...option,
+            channelIds: option.channelIds
+                ?.map((id) => remapChannel(id))
+                .filter((id): id is string => Boolean(id)),
+            roleIds: option.roleIds
+                ?.map((id) => remapRole(id))
+                .filter((id): id is string => Boolean(id)),
+        })),
+    }))
+}
+
+function remapModerationSection(
+    next: GuildAutomationManifestDocument,
+    remapRole: RemapFn,
+    remapChannel: RemapFn,
+): void {
+    if (next.moderation?.automod) {
+        next.moderation.automod.exemptRoles = next.moderation.automod.exemptRoles
+            ?.map((id) => remapRole(id))
+            .filter((id): id is string => Boolean(id))
+        next.moderation.automod.exemptChannels =
+            next.moderation.automod.exemptChannels
+                ?.map((id) => remapChannel(id))
+                .filter((id): id is string => Boolean(id))
+    }
+    if (next.moderation?.moderationSettings) {
+        const ms = next.moderation.moderationSettings
+        ms.muteRoleId = remapRole(ms.muteRoleId) ?? null
+        ms.modRoleIds = ms.modRoleIds
+            ?.map((id) => remapRole(id))
+            .filter((id): id is string => Boolean(id))
+        ms.adminRoleIds = ms.adminRoleIds
+            ?.map((id) => remapRole(id))
+            .filter((id): id is string => Boolean(id))
+    }
+}
+
+function remapAutoMessagesSection(
+    next: GuildAutomationManifestDocument,
+    remapChannel: RemapFn,
+): void {
+    if (next.automessages?.welcome) {
+        next.automessages.welcome.channelId =
+            remapChannel(next.automessages.welcome.channelId) ?? undefined
+    }
+    if (next.automessages?.leave) {
+        next.automessages.leave.channelId =
+            remapChannel(next.automessages.leave.channelId) ?? undefined
+    }
+}
+
+function remapReactionRolesSection(
+    next: GuildAutomationManifestDocument,
+    remapRole: RemapFn,
+    remapChannel: RemapFn,
+): void {
+    if (!next.reactionroles) return
+    next.reactionroles.messages = next.reactionroles.messages?.map(
+        (message) => ({
+            ...message,
+            channelId: remapChannel(message.channelId) ?? undefined,
+            mappings: message.mappings?.map((mapping) => ({
+                ...mapping,
+                roleId: remapRole(mapping.roleId) ?? mapping.roleId,
+            })),
+        }),
+    )
+    next.reactionroles.exclusiveRoles =
+        next.reactionroles.exclusiveRoles?.map((item) => ({
+            roleId: remapRole(item.roleId) ?? item.roleId,
+            excludedRoleId: remapRole(item.excludedRoleId) ?? item.excludedRoleId,
+        }))
+}
+
+function remapCommandAccessSection(
+    next: GuildAutomationManifestDocument,
+    remapRole: RemapFn,
+): void {
+    if (!next.commandaccess) return
+    next.commandaccess.grants = next.commandaccess.grants.map((grant) => ({
+        ...grant,
+        roleId: remapRole(grant.roleId) ?? grant.roleId,
+    }))
+}
+
 class GuildAutomationExecutionService {
     private getBotToken(): string {
         const token = process.env.DISCORD_TOKEN?.trim()
@@ -412,129 +529,17 @@ class GuildAutomationExecutionService {
         channelRemap: ChannelRemap
     }): GuildAutomationManifestDocument {
         const next = structuredClone(params.manifest)
-        const remapRole = (
-            roleId: string | undefined | null,
-        ): string | undefined | null => {
-            if (!roleId) {
-                return roleId
-            }
+        const remapRole: RemapFn = (id) =>
+            id ? (params.roleRemap.get(id) ?? id) : id
+        const remapChannel: RemapFn = (id) =>
+            id ? (params.channelRemap.get(id) ?? id) : id
 
-            return params.roleRemap.get(roleId) ?? roleId
-        }
-        const remapChannel = (
-            channelId: string | undefined | null,
-        ): string | undefined | null => {
-            if (!channelId) {
-                return channelId
-            }
-
-            return params.channelRemap.get(channelId) ?? channelId
-        }
-
-        if (next.roles) {
-            next.roles.roles = next.roles.roles.map((role) => ({
-                ...role,
-                id: params.roleRemap.get(role.id) ?? role.id,
-            }))
-
-            next.roles.channels = next.roles.channels.map((channel) => ({
-                ...channel,
-                id: params.channelRemap.get(channel.id) ?? channel.id,
-                parentId: remapChannel(channel.parentId) ?? null,
-            }))
-        }
-
-        if (next.onboarding) {
-            next.onboarding.defaultChannelIds =
-                next.onboarding.defaultChannelIds
-                    .map((channelId) => remapChannel(channelId))
-                    .filter((channelId): channelId is string =>
-                        Boolean(channelId),
-                    )
-
-            next.onboarding.prompts = next.onboarding.prompts.map((prompt) => ({
-                ...prompt,
-                options: prompt.options.map((option) => ({
-                    ...option,
-                    channelIds: option.channelIds
-                        ?.map((channelId) => remapChannel(channelId))
-                        .filter((channelId): channelId is string =>
-                            Boolean(channelId),
-                        ),
-                    roleIds: option.roleIds
-                        ?.map((roleId) => remapRole(roleId))
-                        .filter((roleId): roleId is string => Boolean(roleId)),
-                })),
-            }))
-        }
-
-        if (next.moderation?.automod) {
-            next.moderation.automod.exemptRoles =
-                next.moderation.automod.exemptRoles
-                    ?.map((roleId) => remapRole(roleId))
-                    .filter((roleId): roleId is string => Boolean(roleId))
-
-            next.moderation.automod.exemptChannels =
-                next.moderation.automod.exemptChannels
-                    ?.map((channelId) => remapChannel(channelId))
-                    .filter((channelId): channelId is string =>
-                        Boolean(channelId),
-                    )
-        }
-
-        if (next.moderation?.moderationSettings) {
-            next.moderation.moderationSettings.muteRoleId =
-                remapRole(next.moderation.moderationSettings.muteRoleId) ?? null
-
-            next.moderation.moderationSettings.modRoleIds =
-                next.moderation.moderationSettings.modRoleIds
-                    ?.map((roleId) => remapRole(roleId))
-                    .filter((roleId): roleId is string => Boolean(roleId))
-
-            next.moderation.moderationSettings.adminRoleIds =
-                next.moderation.moderationSettings.adminRoleIds
-                    ?.map((roleId) => remapRole(roleId))
-                    .filter((roleId): roleId is string => Boolean(roleId))
-        }
-
-        if (next.automessages?.welcome) {
-            next.automessages.welcome.channelId =
-                remapChannel(next.automessages.welcome.channelId) ?? undefined
-        }
-
-        if (next.automessages?.leave) {
-            next.automessages.leave.channelId =
-                remapChannel(next.automessages.leave.channelId) ?? undefined
-        }
-
-        if (next.reactionroles) {
-            next.reactionroles.messages = next.reactionroles.messages?.map(
-                (message) => ({
-                    ...message,
-                    channelId: remapChannel(message.channelId) ?? undefined,
-                    mappings: message.mappings?.map((mapping) => ({
-                        ...mapping,
-                        roleId: remapRole(mapping.roleId) ?? mapping.roleId,
-                    })),
-                }),
-            )
-
-            next.reactionroles.exclusiveRoles =
-                next.reactionroles.exclusiveRoles?.map((item) => ({
-                    roleId: remapRole(item.roleId) ?? item.roleId,
-                    excludedRoleId:
-                        remapRole(item.excludedRoleId) ?? item.excludedRoleId,
-                }))
-        }
-
-        if (next.commandaccess) {
-            next.commandaccess.grants = next.commandaccess.grants.map(
-                (grant) => ({
-                    ...grant,
-                    roleId: remapRole(grant.roleId) ?? grant.roleId,
-                }),
-            )
-        }
+        remapRolesSection(next, remapRole, remapChannel)
+        remapOnboardingSection(next, remapRole, remapChannel)
+        remapModerationSection(next, remapRole, remapChannel)
+        remapAutoMessagesSection(next, remapChannel)
+        remapReactionRolesSection(next, remapRole, remapChannel)
+        remapCommandAccessSection(next, remapRole)
 
         return next
     }
@@ -574,6 +579,162 @@ class GuildAutomationExecutionService {
         })
     }
 
+    private async applyOneRole(params: {
+        token: string
+        guildId: string
+        role: ManifestRole
+        actualRoles: ManifestRole[]
+        usedActualRoleIds: Set<string>
+        roleRemap: RoleRemap
+    }): Promise<void> {
+        const { token, guildId, role, actualRoles, usedActualRoleIds, roleRemap } = params
+        const targetRoleId = this.resolveRoleTargetId({
+            desiredRoleId: role.id,
+            desiredRoleName: role.name,
+            actualRoles,
+            usedActualRoleIds,
+        })
+        const payload = {
+            name: role.name,
+            color: role.color,
+            hoist: role.hoist,
+            mentionable: role.mentionable,
+            permissions: role.permissions,
+        }
+        let resolvedRoleId = targetRoleId
+        if (targetRoleId) {
+            await this.discordRequest({
+                token,
+                endpoint: `/guilds/${guildId}/roles/${targetRoleId}`,
+                method: 'PATCH',
+                body: payload,
+            })
+        } else {
+            const created = await this.discordRequest<DiscordRoleResponse>({
+                token,
+                endpoint: `/guilds/${guildId}/roles`,
+                method: 'POST',
+                body: payload,
+            })
+            resolvedRoleId = created.id
+        }
+        if (!resolvedRoleId) return
+        usedActualRoleIds.add(resolvedRoleId)
+        if (resolvedRoleId !== role.id) {
+            roleRemap.set(role.id, resolvedRoleId)
+        }
+    }
+
+    private async applyOneChannel(params: {
+        token: string
+        guildId: string
+        channel: ManifestChannel
+        channelRemap: ChannelRemap
+        actualChannels: ManifestChannel[]
+        usedActualChannelIds: Set<string>
+    }): Promise<void> {
+        const { token, guildId, channel, channelRemap, actualChannels, usedActualChannelIds } = params
+        const remappedParentId =
+            (channel.parentId
+                ? channelRemap.get(channel.parentId)
+                : undefined) ?? channel.parentId
+        const targetChannelId = this.resolveChannelTargetId({
+            desiredChannelId: channel.id,
+            desiredChannelName: channel.name,
+            desiredChannelType: channel.type,
+            desiredParentId: remappedParentId,
+            actualChannels,
+            usedActualChannelIds,
+        })
+        const payload = {
+            name: channel.name,
+            type: toDiscordChannelType(channel.type),
+            parent_id: remappedParentId ?? null,
+            topic: channel.topic ?? null,
+        }
+        let resolvedChannelId = targetChannelId
+        if (targetChannelId) {
+            await this.discordRequest({
+                token,
+                endpoint: `/channels/${targetChannelId}`,
+                method: 'PATCH',
+                body: payload,
+            })
+        } else {
+            const created = await this.discordRequest<DiscordChannelResponse>({
+                token,
+                endpoint: `/guilds/${guildId}/channels`,
+                method: 'POST',
+                body: payload,
+            })
+            resolvedChannelId = created.id
+        }
+        if (!resolvedChannelId) return
+        usedActualChannelIds.add(resolvedChannelId)
+        if (resolvedChannelId !== channel.id) {
+            channelRemap.set(channel.id, resolvedChannelId)
+        }
+    }
+
+    private async pruneStaleRoles(
+        token: string,
+        guildId: string,
+        desiredRoles: ManifestRole[],
+        roleRemap: RoleRemap,
+    ): Promise<void> {
+        const latestRoles = await this.discordRequest<DiscordRoleResponse[]>({
+            token,
+            endpoint: `/guilds/${guildId}/roles`,
+        })
+        const desiredRoleIds = new Set(
+            desiredRoles.map((role) => roleRemap.get(role.id) ?? role.id),
+        )
+        for (const role of latestRoles) {
+            if (role.id === guildId || role.managed) continue
+            if (desiredRoleIds.has(role.id)) continue
+            try {
+                await this.discordRequest({
+                    token,
+                    endpoint: `/guilds/${guildId}/roles/${role.id}`,
+                    method: 'DELETE',
+                })
+            } catch (error) {
+                if (!isExpectedDeleteError(error)) throw error
+            }
+        }
+    }
+
+    private async pruneStaleChannels(
+        token: string,
+        guildId: string,
+        desiredChannels: ManifestChannel[],
+        channelRemap: ChannelRemap,
+    ): Promise<void> {
+        const latestChannels = await this.discordRequest<DiscordChannelResponse[]>(
+            {
+                token,
+                endpoint: `/guilds/${guildId}/channels`,
+            },
+        )
+        const desiredChannelIds = new Set(
+            desiredChannels.map(
+                (channel) => channelRemap.get(channel.id) ?? channel.id,
+            ),
+        )
+        for (const channel of latestChannels) {
+            if (desiredChannelIds.has(channel.id)) continue
+            try {
+                await this.discordRequest({
+                    token,
+                    endpoint: `/channels/${channel.id}`,
+                    method: 'DELETE',
+                })
+            } catch (error) {
+                if (!isExpectedDeleteError(error)) throw error
+            }
+        }
+    }
+
     private async applyRolesAndChannels(params: {
         token: string
         guildId: string
@@ -591,177 +752,49 @@ class GuildAutomationExecutionService {
         const usedActualChannelIds = new Set<string>()
 
         for (const role of desiredRoles) {
-            const targetRoleId = this.resolveRoleTargetId({
-                desiredRoleId: role.id,
-                desiredRoleName: role.name,
+            await this.applyOneRole({
+                token: params.token,
+                guildId: params.guildId,
+                role,
                 actualRoles,
                 usedActualRoleIds,
+                roleRemap: params.roleRemap,
             })
-
-            const payload = {
-                name: role.name,
-                color: role.color,
-                hoist: role.hoist,
-                mentionable: role.mentionable,
-                permissions: role.permissions,
-            }
-
-            let resolvedRoleId = targetRoleId
-            if (targetRoleId) {
-                await this.discordRequest({
-                    token: params.token,
-                    endpoint: `/guilds/${params.guildId}/roles/${targetRoleId}`,
-                    method: 'PATCH',
-                    body: payload,
-                })
-            } else {
-                const created = await this.discordRequest<DiscordRoleResponse>({
-                    token: params.token,
-                    endpoint: `/guilds/${params.guildId}/roles`,
-                    method: 'POST',
-                    body: payload,
-                })
-                resolvedRoleId = created.id
-            }
-
-            if (!resolvedRoleId) {
-                continue
-            }
-
-            usedActualRoleIds.add(resolvedRoleId)
-            if (resolvedRoleId !== role.id) {
-                params.roleRemap.set(role.id, resolvedRoleId)
-            }
         }
 
         const sortedChannels = [...desiredChannels].sort((a, b) => {
             const aPriority = a.type === 'GuildCategory' ? 0 : 1
             const bPriority = b.type === 'GuildCategory' ? 0 : 1
-            if (aPriority !== bPriority) {
-                return aPriority - bPriority
-            }
-
+            if (aPriority !== bPriority) return aPriority - bPriority
             return a.id.localeCompare(b.id)
         })
 
         for (const channel of sortedChannels) {
-            const remappedParentId =
-                (channel.parentId
-                    ? params.channelRemap.get(channel.parentId)
-                    : undefined) ?? channel.parentId
-
-            const targetChannelId = this.resolveChannelTargetId({
-                desiredChannelId: channel.id,
-                desiredChannelName: channel.name,
-                desiredChannelType: channel.type,
-                desiredParentId: remappedParentId,
+            await this.applyOneChannel({
+                token: params.token,
+                guildId: params.guildId,
+                channel,
+                channelRemap: params.channelRemap,
                 actualChannels,
                 usedActualChannelIds,
             })
-
-            const payload = {
-                name: channel.name,
-                type: toDiscordChannelType(channel.type),
-                parent_id: remappedParentId ?? null,
-                topic: channel.topic ?? null,
-            }
-
-            let resolvedChannelId = targetChannelId
-            if (targetChannelId) {
-                await this.discordRequest({
-                    token: params.token,
-                    endpoint: `/channels/${targetChannelId}`,
-                    method: 'PATCH',
-                    body: payload,
-                })
-            } else {
-                const created =
-                    await this.discordRequest<DiscordChannelResponse>({
-                        token: params.token,
-                        endpoint: `/guilds/${params.guildId}/channels`,
-                        method: 'POST',
-                        body: payload,
-                    })
-                resolvedChannelId = created.id
-            }
-
-            if (!resolvedChannelId) {
-                continue
-            }
-
-            usedActualChannelIds.add(resolvedChannelId)
-            if (resolvedChannelId !== channel.id) {
-                params.channelRemap.set(channel.id, resolvedChannelId)
-            }
         }
 
-        if (!params.allowProtected) {
-            return
-        }
+        if (!params.allowProtected) return
 
-        const latestRoles = await this.discordRequest<DiscordRoleResponse[]>({
-            token: params.token,
-            endpoint: `/guilds/${params.guildId}/roles`,
-        })
-        const desiredRoleIds = new Set(
-            desiredRoles.map(
-                (role) => params.roleRemap.get(role.id) ?? role.id,
-            ),
+        await this.pruneStaleRoles(
+            params.token,
+            params.guildId,
+            desiredRoles,
+            params.roleRemap,
         )
-
-        for (const role of latestRoles) {
-            if (role.id === params.guildId || role.managed) {
-                continue
-            }
-
-            if (desiredRoleIds.has(role.id)) {
-                continue
-            }
-
-            try {
-                await this.discordRequest({
-                    token: params.token,
-                    endpoint: `/guilds/${params.guildId}/roles/${role.id}`,
-                    method: 'DELETE',
-                })
-            } catch (error) {
-                if (!isExpectedDeleteError(error)) {
-                    throw error
-                }
-            }
-        }
-
-        const latestChannels = await this.discordRequest<
-            DiscordChannelResponse[]
-        >({
-            token: params.token,
-            endpoint: `/guilds/${params.guildId}/channels`,
-        })
-        const desiredChannelIds = new Set(
-            desiredChannels.map(
-                (channel) => params.channelRemap.get(channel.id) ?? channel.id,
-            ),
+        await this.pruneStaleChannels(
+            params.token,
+            params.guildId,
+            desiredChannels,
+            params.channelRemap,
         )
-
-        for (const channel of latestChannels) {
-            if (desiredChannelIds.has(channel.id)) {
-                continue
-            }
-
-            try {
-                await this.discordRequest({
-                    token: params.token,
-                    endpoint: `/channels/${channel.id}`,
-                    method: 'DELETE',
-                })
-            } catch (error) {
-                if (!isExpectedDeleteError(error)) {
-                    throw error
-                }
-            }
-        }
     }
-
     private async applyReactionRoleRules(
         guildId: string,
         desired: GuildAutomationManifestDocument,
@@ -936,6 +969,98 @@ class GuildAutomationExecutionService {
         }
     }
 
+    private async applyOnboardingModule(
+        token: string,
+        guildId: string,
+        desired: GuildAutomationManifestDocument,
+        appliedModules: string[],
+    ): Promise<void> {
+        const onboarding = desired.onboarding
+        if (!onboarding) return
+        await this.discordRequest({
+            token,
+            endpoint: `/guilds/${guildId}/onboarding`,
+            method: 'PUT',
+            body: {
+                enabled: onboarding.enabled,
+                mode: onboarding.mode,
+                default_channel_ids: onboarding.defaultChannelIds,
+                prompts: onboarding.prompts.map((prompt) => ({
+                    id: prompt.id,
+                    title: prompt.title,
+                    single_select: prompt.singleSelect,
+                    required: prompt.required,
+                    in_onboarding: prompt.inOnboarding,
+                    type: prompt.type,
+                    options: prompt.options.map((option) => ({
+                        id: option.id ?? null,
+                        title: option.title,
+                        description: option.description ?? null,
+                        channel_ids: option.channelIds,
+                        role_ids: option.roleIds,
+                        emoji: option.emoji ?? null,
+                    })),
+                })),
+            },
+        })
+        appliedModules.push('onboarding')
+    }
+
+    private async applyModerationModule(
+        guildId: string,
+        desired: GuildAutomationManifestDocument,
+        appliedModules: string[],
+    ): Promise<void> {
+        const automodPayload = toAutoModPayload(desired.moderation?.automod)
+        if (automodPayload) {
+            await autoModService.updateSettings(guildId, automodPayload)
+        }
+        const moderationPayload = toModerationPayload(
+            desired.moderation?.moderationSettings,
+        )
+        if (moderationPayload) {
+            await updateModerationSettings(guildId, moderationPayload)
+        }
+        appliedModules.push('moderation')
+    }
+
+    private async applyAutoMessagesModule(
+        guildId: string,
+        desired: GuildAutomationManifestDocument,
+        appliedModules: string[],
+    ): Promise<void> {
+        await this.upsertAutoMessage(guildId, 'welcome', desired.automessages?.welcome)
+        await this.upsertAutoMessage(guildId, 'leave', desired.automessages?.leave)
+        appliedModules.push('automessages')
+    }
+
+    private async applyReactionRolesModule(
+        guildId: string,
+        desired: GuildAutomationManifestDocument,
+        appliedModules: string[],
+        skippedModules: string[],
+    ): Promise<void> {
+        await this.applyReactionRoleRules(guildId, desired)
+        if ((desired.reactionroles?.messages?.length ?? 0) > 0) {
+            skippedModules.push(
+                'reactionroles.messages requires manual message-template publish',
+            )
+        }
+        appliedModules.push('reactionroles')
+    }
+
+    private async applyCommandAccessModule(
+        guildId: string,
+        desired: GuildAutomationManifestDocument,
+        appliedModules: string[],
+    ): Promise<void> {
+        await guildRoleAccessService.replaceRoleGrants(
+            guildId,
+            desired.commandaccess?.grants ?? [],
+        )
+        appliedModules.push('commandaccess')
+    }
+
     async executeApplyPlan(params: {
         guildId: string
         plan: GuildAutomationPlan
@@ -953,39 +1078,8 @@ class GuildAutomationExecutionService {
         const channelRemap: ChannelRemap = new Map()
         let effectiveDesired = params.desired
 
-        if (
-            shouldApplyModule(params.plan, 'onboarding', params.allowProtected)
-        ) {
-            const onboarding = effectiveDesired.onboarding
-            if (onboarding) {
-                await this.discordRequest({
-                    token,
-                    endpoint: `/guilds/${params.guildId}/onboarding`,
-                    method: 'PUT',
-                    body: {
-                        enabled: onboarding.enabled,
-                        mode: onboarding.mode,
-                        default_channel_ids: onboarding.defaultChannelIds,
-                        prompts: onboarding.prompts.map((prompt) => ({
-                            id: prompt.id,
-                            title: prompt.title,
-                            single_select: prompt.singleSelect,
-                            required: prompt.required,
-                            in_onboarding: prompt.inOnboarding,
-                            type: prompt.type,
-                            options: prompt.options.map((option) => ({
-                                id: option.id ?? null,
-                                title: option.title,
-                                description: option.description ?? null,
-                                channel_ids: option.channelIds,
-                                role_ids: option.roleIds,
-                                emoji: option.emoji ?? null,
-                            })),
-                        })),
-                    },
-                })
-                appliedModules.push('onboarding')
-            }
+        if (shouldApplyModule(params.plan, 'onboarding', params.allowProtected)) {
+            await this.applyOnboardingModule(token, params.guildId, effectiveDesired, appliedModules)
         }
 
         if (shouldApplyModule(params.plan, 'roles', params.allowProtected)) {
@@ -998,7 +1092,6 @@ class GuildAutomationExecutionService {
                 roleRemap,
                 channelRemap,
             })
-
             if (roleRemap.size > 0 || channelRemap.size > 0) {
                 effectiveDesired = this.remapManifestEntityIds({
                     manifest: effectiveDesired,
@@ -1006,86 +1099,23 @@ class GuildAutomationExecutionService {
                     channelRemap,
                 })
             }
-
             appliedModules.push('roles')
         }
 
-        if (
-            shouldApplyModule(params.plan, 'moderation', params.allowProtected)
-        ) {
-            const automodPayload = toAutoModPayload(
-                effectiveDesired.moderation?.automod,
-            )
-            if (automodPayload) {
-                await autoModService.updateSettings(
-                    params.guildId,
-                    automodPayload,
-                )
-            }
-
-            const moderationPayload = toModerationPayload(
-                effectiveDesired.moderation?.moderationSettings,
-            )
-            if (moderationPayload) {
-                await updateModerationSettings(
-                    params.guildId,
-                    moderationPayload,
-                )
-            }
-
-            appliedModules.push('moderation')
+        if (shouldApplyModule(params.plan, 'moderation', params.allowProtected)) {
+            await this.applyModerationModule(params.guildId, effectiveDesired, appliedModules)
         }
 
-        if (
-            shouldApplyModule(
-                params.plan,
-                'automessages',
-                params.allowProtected,
-            )
-        ) {
-            await this.upsertAutoMessage(
-                params.guildId,
-                'welcome',
-                effectiveDesired.automessages?.welcome,
-            )
-            await this.upsertAutoMessage(
-                params.guildId,
-                'leave',
-                effectiveDesired.automessages?.leave,
-            )
-            appliedModules.push('automessages')
+        if (shouldApplyModule(params.plan, 'automessages', params.allowProtected)) {
+            await this.applyAutoMessagesModule(params.guildId, effectiveDesired, appliedModules)
         }
 
-        if (
-            shouldApplyModule(
-                params.plan,
-                'reactionroles',
-                params.allowProtected,
-            )
-        ) {
-            await this.applyReactionRoleRules(params.guildId, effectiveDesired)
-
-            if ((effectiveDesired.reactionroles?.messages?.length ?? 0) > 0) {
-                skippedModules.push(
-                    'reactionroles.messages requires manual message-template publish',
-                )
-            }
-
-            appliedModules.push('reactionroles')
+        if (shouldApplyModule(params.plan, 'reactionroles', params.allowProtected)) {
+            await this.applyReactionRolesModule(params.guildId, effectiveDesired, appliedModules, skippedModules)
         }
 
-        if (
-            shouldApplyModule(
-                params.plan,
-                'commandaccess',
-                params.allowProtected,
-            )
-        ) {
-            await guildRoleAccessService.replaceRoleGrants(
-                params.guildId,
-                effectiveDesired.commandaccess?.grants ?? [],
-            )
-            appliedModules.push('commandaccess')
+        if (shouldApplyModule(params.plan, 'commandaccess', params.allowProtected)) {
+            await this.applyCommandAccessModule(params.guildId, effectiveDesired, appliedModules)
         }
 
         if (shouldApplyModule(params.plan, 'parity', params.allowProtected)) {
