@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.59] - 2026-04-01
+
+### Fixed
+
+- **Twitch user lookup**: replaced silent failure on credential misconfiguration with `503 Service Unavailable`. When `TWITCH_CLIENT_ID` is absent or an app access token cannot be obtained, the API now returns `503` with a descriptive message. User-not-found still returns `404`.
+- **Twitch token refresh**: on a `401` from the Helix API the route now clears the cached app token, fetches a fresh one via client_credentials grant, and retries once — preventing stale-token failures.
+
 ## [2.6.58] - 2026-04-01
 
 ### Fixed
