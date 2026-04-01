@@ -156,4 +156,29 @@ describe('GET /api/twitch/users', () => {
         expect(res.status).toBe(200)
         expect(res.body.login).toBe(MOCK_USER.login)
     })
+
+    test('returns 404 when token is expired and no client secret to refresh', async () => {
+        process.env.TWITCH_CLIENT_ID = 'test-client-id'
+        delete process.env.TWITCH_CLIENT_SECRET
+        process.env.TWITCH_ACCESS_TOKEN = 'expired-token'
+        ;(global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
+            ok: false,
+            status: 401,
+        } as Response)
+        const app = createApp()
+        const res = await request(app).get('/api/twitch/users?login=testuser')
+        expect(res.status).toBe(404)
+    })
+
+    test('returns 503 when app token fetch throws', async () => {
+        process.env.TWITCH_CLIENT_ID = 'test-client-id'
+        process.env.TWITCH_CLIENT_SECRET = 'test-secret'
+        delete process.env.TWITCH_ACCESS_TOKEN
+        ;(global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
+            new Error('network error'),
+        )
+        const app = createApp()
+        const res = await request(app).get('/api/twitch/users?login=testuser')
+        expect(res.status).toBe(503)
+    })
 })
