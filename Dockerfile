@@ -104,8 +104,10 @@ CMD ["sh", "-c", "npx prisma migrate deploy && node packages/bot/dist/index.js"]
 # Production stage — backend (slim runtime, no media tools)
 FROM base-runtime-backend AS production-backend
 
+ARG COMMIT_SHA
 ENV NODE_ENV=production \
-    NPM_CONFIG_LOGLEVEL=silent
+    NPM_CONFIG_LOGLEVEL=silent \
+    COMMIT_SHA=$COMMIT_SHA
 
 WORKDIR /app
 

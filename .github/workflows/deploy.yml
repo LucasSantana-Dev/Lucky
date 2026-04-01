@@ -214,6 +214,44 @@ jobs:
                   echo "::error::Response body: $failure_body_compact"
                   exit 1
 
+            - name: Validate deployed version
+              env:
+                  WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+              run: |
+                  set -euo pipefail
+                  base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
+                  version_url="${base_url}/api/health/version"
+                  expected="${{ github.sha }}"
+
+                  echo "==> Validating deployed SHA at $version_url (expected: $expected)..."
+
+                  for attempt in $(seq 1 20); do
+                    echo "Attempt ${attempt}/20..."
+                    response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$version_url" || true)
+                    http_code=$(echo "$response" | tail -1)
+                    body=$(echo "$response" | sed '$d')
+
+                    if [ "$http_code" = "200" ]; then
+                      actual=$(echo "$body" | node -e '
+                        let d=""; process.stdin.on("data",c=>d+=c);
+                        process.stdin.on("end",()=>{
+                          try { const p=JSON.parse(d); console.log(p.commitSha ?? ""); }
+                          catch { process.exit(1); }
+                        })')
+                      if [ "$actual" = "$expected" ]; then
+                        echo "==> Deployed SHA matches: $actual"
+                        exit 0
+                      fi
+                      echo "SHA mismatch (expected=$expected, actual=$actual). Waiting 15s..."
+                    else
+                      echo "Not ready (HTTP $http_code). Waiting 15s..."
+                    fi
+                    sleep 15
+                  done
+
+                  echo "::error::Deployed version SHA did not match expected after all attempts"
+                  exit 1
+
             - name: Auth config smoke check
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
