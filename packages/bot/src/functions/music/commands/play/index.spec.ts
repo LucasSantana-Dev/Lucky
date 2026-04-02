@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const requireVoiceChannelMock = jest.fn()
 const errorLogMock = jest.fn()
+const debugLogMock = jest.fn()
+const getGuildSettingsMock = jest.fn()
 const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'error',
     title,
@@ -40,6 +42,13 @@ jest.mock('../../../../utils/command/commandValidations', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    guildSettingsService: {
+        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
+    },
 }))
 
 jest.mock('../../../../utils/general/embeds', () => ({
@@ -102,6 +111,7 @@ describe('play command', () => {
             allowed: true,
             limit: 3,
         })
+        getGuildSettingsMock.mockResolvedValue(null)
         resolveGuildQueueMock.mockReturnValue({ queue: null })
     })
 
@@ -164,6 +174,33 @@ describe('play command', () => {
         )
         expect(interaction.editReply).toHaveBeenCalled()
         expect(createSuccessEmbedMock).toHaveBeenCalled()
+    })
+
+    it('applies stored autoplay preference to a new queue', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 0,
+            tracks: { size: 0 },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: true })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Applied stored autoplay preference to new queue',
+            }),
+        )
     })
 
     it('does not reinsert a manual track already queued by player.play in autoplay mode', async () => {
