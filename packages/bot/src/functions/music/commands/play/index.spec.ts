@@ -225,10 +225,11 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(queue.setRepeatMode).not.toHaveBeenCalled()
-        expect(debugLogMock).not.toHaveBeenCalledWith(
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
+        expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Applied stored autoplay preference to queue',
+                data: expect.objectContaining({ autoPlayEnabled: false }),
             }),
         )
     })
