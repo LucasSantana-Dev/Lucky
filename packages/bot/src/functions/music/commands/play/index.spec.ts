@@ -262,6 +262,31 @@ describe('play command', () => {
         )
     })
 
+    it('does not overwrite repeat mode on an already active queue', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 3,
+            tracks: {
+                size: 1,
+                toArray: () => [],
+            },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+    })
+
     it('does not reinsert a manual track already queued by player.play in autoplay mode', async () => {
         const interaction = createInteraction('guild-1')
         const track = {

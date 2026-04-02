@@ -172,7 +172,7 @@ describe('autoplay command', () => {
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 
-    it('disables autoplay when no queue exists and settings are missing', async () => {
+    it('enables autoplay when no queue exists and settings are missing', async () => {
         const client = createClient({ directQueue: null })
         const interaction = createInteraction()
 
@@ -182,15 +182,18 @@ describe('autoplay command', () => {
         } as any)
 
         expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: false,
+            autoPlayEnabled: true,
         })
         expect(interactionReplyMock).toHaveBeenCalled()
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Autoplay disabled' }),
+        const embedPayload = createEmbedMock.mock.calls[0]?.[0] as {
+            description: string
+        }
+        expect(embedPayload.description).toContain(
+            'Next time you use /play',
         )
     })
 
-    it('shows an error when disabling autoplay without a queue fails to persist', async () => {
+    it('shows an error when enabling autoplay without a queue fails to persist', async () => {
         const client = createClient({ directQueue: null })
         const interaction = createInteraction()
         setGuildSettingsMock.mockResolvedValue(false)
@@ -202,7 +205,7 @@ describe('autoplay command', () => {
 
         expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Failed to persist autoplay disabled preference',
+                message: 'Failed to persist autoplay enabled preference',
             }),
         )
         expect(createEmbedMock).toHaveBeenCalledWith(
@@ -287,7 +290,7 @@ describe('autoplay command', () => {
                 title: 'Autoplay enabled for current queue only',
             }),
         )
-        expect(replenishQueueMock).not.toHaveBeenCalled()
+        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
     })
 
     it('disables stored preference when no queue and was enabled', async () => {

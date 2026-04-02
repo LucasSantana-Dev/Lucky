@@ -101,6 +101,9 @@ async function handleEnableAutoplay(
             message: 'Failed to persist autoplay enabled preference',
             data: { guildId, hasQueue: Boolean(queue) },
         })
+        if (queue?.currentTrack) {
+            void populateQueueWithRelatedTracks(queue, interaction)
+        }
         await replyAutoplayPersistenceFailure(interaction, queue, true)
         return
     }
@@ -186,7 +189,7 @@ async function resolveCurrentAutoplayState(
         return queue.repeatMode === QueueRepeatMode.AUTOPLAY
     }
     const settings = await guildSettingsService.getGuildSettings(guildId)
-    return settings?.autoPlayEnabled ?? true
+    return settings?.autoPlayEnabled ?? false
 }
 
 export default new Command({

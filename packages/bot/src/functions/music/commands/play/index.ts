@@ -89,6 +89,10 @@ export default new Command({
         }
 
         try {
+            const hadQueueBeforePlay = Boolean(
+                resolveGuildQueue(client, interaction.guildId ?? '').queue,
+            )
+
             const result = await client.player.play(voiceChannel, query, {
                 nodeOptions: {
                     metadata: {
@@ -111,7 +115,7 @@ export default new Command({
                 interaction.guildId ?? '',
             )
 
-            if (queue) {
+            if (!hadQueueBeforePlay && queue) {
                 await applyStoredAutoplayPreference(
                     queue,
                     interaction.guildId,
