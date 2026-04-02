@@ -35,6 +35,20 @@ export const resolveRequestOrigin = (req: Request): string | undefined => {
     }
 }
 
+const resolveRuntimeVersion = (): string | null => {
+    const semver = process.env.npm_package_version?.trim()
+    if (semver) {
+        return semver
+    }
+
+    const sha = process.env.COMMIT_SHA?.trim()
+    if (sha) {
+        return `commit ${sha.slice(0, 7)}`
+    }
+
+    return null
+}
+
 export function setupHealthRoutes(app: Express): void {
     app.get('/api/health', (_req: Request, res: Response) => {
         res.json({
@@ -47,7 +61,7 @@ export function setupHealthRoutes(app: Express): void {
     app.get('/api/health/version', (_req: Request, res: Response) => {
         res.json({
             commitSha: process.env.COMMIT_SHA ?? null,
-            version: process.env.npm_package_version ?? null,
+            version: resolveRuntimeVersion(),
         })
     })
 
