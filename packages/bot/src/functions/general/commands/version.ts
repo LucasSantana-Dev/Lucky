@@ -1,13 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { createInfoEmbed } from '../../../utils/general/embeds'
+import { version } from '../../../../package.json'
 
 function resolveVersion(): string {
-    const semver = process.env.npm_package_version
-    if (semver) return `v${semver}`
-    const sha = process.env.COMMIT_SHA
-    if (sha) return `commit ${sha.slice(0, 7)}`
-    return 'unknown'
+    return `v${version}`
 }
 
 export default new Command({

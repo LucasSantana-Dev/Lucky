@@ -17,8 +17,8 @@ import {
     twitchNotificationService,
 } from '@lucky/shared/services'
 import { getPrismaClient } from '@lucky/shared/utils'
-import { getTwitchUserByLogin } from '../../../twitch/twitchApi'
-import { refreshTwitchSubscriptions } from '../../../twitch'
+import { getTwitchUserByLogin } from '../../../../twitch/twitchApi'
+import { refreshTwitchSubscriptions } from '../../../../twitch'
 
 export type SetupMode = 'dry-run' | 'apply'
 

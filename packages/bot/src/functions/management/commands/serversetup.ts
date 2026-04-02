@@ -16,7 +16,7 @@ import {
     formatCriativariaSummary,
     resolveSetupMode,
     runCriativariaSetup,
-} from './serversetupCriativaria.js'
+} from './helpers/serversetupCriativaria.js'
 
 interface ChannelDef {
     name: string
