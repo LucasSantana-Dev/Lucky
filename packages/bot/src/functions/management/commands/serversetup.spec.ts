@@ -5,7 +5,7 @@ import {
     formatCriativariaSummary,
     resolveSetupMode,
     runCriativariaSetup,
-} from './serversetupCriativaria'
+} from './helpers/serversetupCriativaria'
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
@@ -16,7 +16,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-jest.mock('./serversetupCriativaria', () => ({
+jest.mock('./helpers/serversetupCriativaria', () => ({
     resolveSetupMode: jest.fn(),
     runCriativariaSetup: jest.fn(),
     formatCriativariaSummary: jest.fn(),

@@ -15,6 +15,8 @@ import {
     blendAutoplayTracks,
 } from '../../../../utils/music/queueManipulation'
 
+const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
+
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
     track: { id?: string; url?: string },
@@ -140,14 +142,23 @@ export default new Command({
                 data: { query, guildId: interaction.guildId },
             })
 
-            await interaction.editReply({
-                embeds: [
-                    createErrorEmbed(
-                        'Play Error',
-                        'Could not find or play the requested track',
-                    ),
-                ],
-            })
+            // DiscordAPIError[10062] = Unknown Interaction — token expired or bot
+            // restarted between deferReply and editReply. No reply is possible.
+            const code = (error as { code?: number })?.code
+            if (code === DISCORD_UNKNOWN_INTERACTION_CODE) return
+
+            try {
+                await interaction.editReply({
+                    embeds: [
+                        createErrorEmbed(
+                            'Play Error',
+                            'Could not find or play the requested track',
+                        ),
+                    ],
+                })
+            } catch {
+                // interaction already dead — nothing to do
+            }
         }
     },
 })
