@@ -60,10 +60,8 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
-        getGuildSettings: (...args: unknown[]) =>
-            getGuildSettingsMock(...args),
-        setGuildSettings: (...args: unknown[]) =>
-            setGuildSettingsMock(...args),
+        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
+        setGuildSettings: (...args: unknown[]) => setGuildSettingsMock(...args),
     },
 }))
 
@@ -381,6 +379,34 @@ describe('autoplay command', () => {
 
         resolveReplenish()
         await executePromise
+    })
+
+    it('logs replenish failures after enabling autoplay', async () => {
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const client = createClient({ directQueue: queue })
+        const interaction = createInteraction()
+        replenishQueueMock.mockRejectedValue(new Error('replenish failed'))
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        await Promise.resolve()
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error replenishing queue after enabling autoplay:',
+            }),
+        )
     })
 
     it('uses autoplay error response when execution throws', async () => {

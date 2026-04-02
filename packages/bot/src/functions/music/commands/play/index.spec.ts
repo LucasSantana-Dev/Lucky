@@ -305,6 +305,68 @@ describe('play command', () => {
         )
     })
 
+    it('does not reinsert a manual track already queued by matching url', async () => {
+        const interaction = createInteraction('guild-1')
+        const track = {
+            url: 'https://example.com/url-match',
+            title: 'Song A',
+            author: 'Artist A',
+        }
+
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 3,
+                tracks: {
+                    size: 1,
+                    toArray: () => [
+                        {
+                            url: 'https://example.com/url-match',
+                            title: 'Queued',
+                        },
+                    ],
+                },
+            },
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track,
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+    })
+
+    it('does not reinsert the same track object already queued', async () => {
+        const interaction = createInteraction('guild-1')
+        const track = {
+            title: 'Song A',
+            author: 'Artist A',
+        }
+
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 3,
+                tracks: {
+                    size: 1,
+                    toArray: () => [track],
+                },
+            },
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track,
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+    })
+
     it('stops when voice channel validation fails', async () => {
         requireVoiceChannelMock.mockResolvedValue(false)
         const interaction = createInteraction('guild-1')
@@ -338,6 +400,25 @@ describe('play command', () => {
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
             expect.stringContaining('Could not find'),
+        )
+    })
+
+    it('logs a warning when sending the play error reply also fails', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.editReply.mockRejectedValue(new Error('reply failed'))
+
+        await playCommand.execute({
+            client: createClient(async () => {
+                throw Object.assign(new Error('Search failed'), { code: 123 })
+            }),
+            interaction,
+        } as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to send play command error reply',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
+            }),
         )
     })
 })
