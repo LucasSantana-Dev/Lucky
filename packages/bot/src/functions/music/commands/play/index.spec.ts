@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const requireVoiceChannelMock = jest.fn()
 const errorLogMock = jest.fn()
+const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
+const getGuildSettingsMock = jest.fn()
 const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'error',
     title,
@@ -19,7 +22,7 @@ const moveUserTrackToPriorityMock = jest.fn()
 const blendAutoplayTracksMock = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('discord-player', () => ({
-    QueueRepeatMode: { AUTOPLAY: 3 },
+    QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
 }))
 
 jest.mock('../../../../utils/music/queueManipulation', () => ({
@@ -40,6 +43,14 @@ jest.mock('../../../../utils/command/commandValidations', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    guildSettingsService: {
+        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
+    },
 }))
 
 jest.mock('../../../../utils/general/embeds', () => ({
@@ -102,6 +113,7 @@ describe('play command', () => {
             allowed: true,
             limit: 3,
         })
+        getGuildSettingsMock.mockResolvedValue(null)
         resolveGuildQueueMock.mockReturnValue({ queue: null })
     })
 
@@ -166,6 +178,120 @@ describe('play command', () => {
         expect(createSuccessEmbedMock).toHaveBeenCalled()
     })
 
+    it('applies stored autoplay preference to a queue', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 0,
+            tracks: { size: 0 },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: true })
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValueOnce({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Applied stored autoplay preference to queue',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
+            }),
+        )
+    })
+
+    it('does not override an active autoplay queue when stored preference is disabled', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 3,
+            tracks: { size: 0 },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue })
+            .mockReturnValueOnce({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+        expect(debugLogMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Applied stored autoplay preference to queue',
+            }),
+        )
+    })
+
+    it('logs a warning when stored autoplay preference lookup fails', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 0,
+            tracks: { size: 0 },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockRejectedValue(new Error('redis unavailable'))
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValueOnce({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to apply stored autoplay preference',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
+            }),
+        )
+    })
+
+    it('does not overwrite repeat mode on an already active queue', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 3,
+            tracks: {
+                size: 1,
+                toArray: () => [],
+            },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+    })
+
     it('does not reinsert a manual track already queued by player.play in autoplay mode', async () => {
         const interaction = createInteraction('guild-1')
         const track = {
@@ -209,6 +335,68 @@ describe('play command', () => {
         )
     })
 
+    it('does not reinsert a manual track already queued by matching url', async () => {
+        const interaction = createInteraction('guild-1')
+        const track = {
+            url: 'https://example.com/url-match',
+            title: 'Song A',
+            author: 'Artist A',
+        }
+
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 3,
+                tracks: {
+                    size: 1,
+                    toArray: () => [
+                        {
+                            url: 'https://example.com/url-match',
+                            title: 'Queued',
+                        },
+                    ],
+                },
+            },
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track,
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+    })
+
+    it('does not reinsert the same track object already queued', async () => {
+        const interaction = createInteraction('guild-1')
+        const track = {
+            title: 'Song A',
+            author: 'Artist A',
+        }
+
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 3,
+                tracks: {
+                    size: 1,
+                    toArray: () => [track],
+                },
+            },
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track,
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+    })
+
     it('stops when voice channel validation fails', async () => {
         requireVoiceChannelMock.mockResolvedValue(false)
         const interaction = createInteraction('guild-1')
@@ -242,6 +430,25 @@ describe('play command', () => {
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
             expect.stringContaining('Could not find'),
+        )
+    })
+
+    it('logs a warning when sending the play error reply also fails', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.editReply.mockRejectedValue(new Error('reply failed'))
+
+        await playCommand.execute({
+            client: createClient(async () => {
+                throw Object.assign(new Error('Search failed'), { code: 123 })
+            }),
+            interaction,
+        } as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to send play command error reply',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
+            }),
         )
     })
 })
