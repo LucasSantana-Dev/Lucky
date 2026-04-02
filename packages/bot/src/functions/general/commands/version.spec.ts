@@ -1,13 +1,23 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 
-const deferReplyMock = jest.fn().mockResolvedValue(undefined)
-const editReplyMock = jest.fn().mockResolvedValue(undefined)
+const readFileSyncMock = jest.fn<(...args: unknown[]) => string>(() =>
+    JSON.stringify({ version: '9.9.9' }),
+)
+
+const deferReplyMock = jest.fn<(arg?: unknown) => Promise<void>>(
+    async (_arg?: unknown) => undefined,
+)
+const editReplyMock = jest.fn<(arg?: unknown) => Promise<void>>(
+    async (_arg?: unknown) => undefined,
+)
 const createInfoEmbedMock = jest.fn((title: string, message: string) => ({
     title,
     message,
 }))
 
-jest.mock('../../../../package.json', () => ({ version: '9.9.9' }))
+jest.mock('node:fs', () => ({
+    readFileSync: (...args: unknown[]) => readFileSyncMock(...args),
+}))
 
 jest.mock('../../../utils/general/embeds', () => ({
     createInfoEmbed: (...args: unknown[]) =>
@@ -26,6 +36,8 @@ function createInteraction() {
 describe('version command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        readFileSyncMock.mockReturnValue(JSON.stringify({ version: '9.9.9' }))
+        delete process.env.COMMIT_SHA
     })
 
     it('defers reply as ephemeral', async () => {
@@ -40,6 +52,21 @@ describe('version command', () => {
         expect(createInfoEmbedMock).toHaveBeenCalledWith(
             'Bot Version',
             'v9.9.9',
+        )
+    })
+
+    it('falls back to commit sha when package.json cannot be read', async () => {
+        readFileSyncMock.mockImplementation(() => {
+            throw new Error('missing package.json')
+        })
+        process.env.COMMIT_SHA = 'abc123def456'
+
+        const interaction = createInteraction()
+        await versionCommand.execute({ interaction } as any)
+
+        expect(createInfoEmbedMock).toHaveBeenCalledWith(
+            'Bot Version',
+            'commit abc123d',
         )
     })
 })
