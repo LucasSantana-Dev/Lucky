@@ -178,7 +178,7 @@ describe('play command', () => {
         expect(createSuccessEmbedMock).toHaveBeenCalled()
     })
 
-    it('applies stored autoplay preference to a new queue', async () => {
+    it('applies stored autoplay preference to a queue', async () => {
         const interaction = createInteraction('guild-1')
         const queue = {
             repeatMode: 0,
@@ -200,7 +200,36 @@ describe('play command', () => {
         expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Applied stored autoplay preference to new queue',
+                message: 'Applied stored autoplay preference to queue',
+                data: expect.objectContaining({ autoPlayEnabled: true }),
+            }),
+        )
+    })
+
+    it('applies stored autoplay disabled preference to a fresh autoplay queue', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 3,
+            tracks: { size: 0 },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Applied stored autoplay preference to queue',
+                data: expect.objectContaining({ autoPlayEnabled: false }),
             }),
         )
     })

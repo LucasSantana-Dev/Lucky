@@ -174,7 +174,7 @@ describe('autoplay command', () => {
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 
-    it('saves preference and replies when no queue exists', async () => {
+    it('disables autoplay when no queue exists and settings are missing', async () => {
         const client = createClient({ directQueue: null })
         const interaction = createInteraction()
 
@@ -184,18 +184,15 @@ describe('autoplay command', () => {
         } as any)
 
         expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: true,
+            autoPlayEnabled: false,
         })
         expect(interactionReplyMock).toHaveBeenCalled()
-        const embedPayload = createEmbedMock.mock.calls[0]?.[0] as {
-            description: string
-        }
-        expect(embedPayload.description).toContain(
-            'Next time you use /play',
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'Autoplay disabled' }),
         )
     })
 
-    it('shows an error when enabling autoplay without a queue fails to persist', async () => {
+    it('shows an error when disabling autoplay without a queue fails to persist', async () => {
         const client = createClient({ directQueue: null })
         const interaction = createInteraction()
         setGuildSettingsMock.mockResolvedValue(false)
@@ -207,7 +204,7 @@ describe('autoplay command', () => {
 
         expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Failed to persist autoplay enabled preference',
+                message: 'Failed to persist autoplay disabled preference',
             }),
         )
         expect(createEmbedMock).toHaveBeenCalledWith(
