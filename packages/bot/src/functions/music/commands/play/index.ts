@@ -4,7 +4,7 @@ import { requireVoiceChannel } from '../../../../utils/command/commandValidation
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
@@ -163,8 +163,12 @@ export default new Command({
                         ),
                     ],
                 })
-            } catch {
-                // interaction already dead — nothing to do
+            } catch (replyError) {
+                warnLog({
+                    message: 'Failed to send play command error reply',
+                    error: replyError,
+                    data: { guildId: interaction.guildId },
+                })
             }
         }
     },
@@ -177,20 +181,27 @@ async function applyStoredAutoplayPreference(
     },
     guildId: string,
 ): Promise<void> {
-    if (queue.repeatMode === QueueRepeatMode.AUTOPLAY) return
-
     try {
-        const settings =
-            await guildSettingsService.getGuildSettings(guildId)
-        if (settings?.autoPlayEnabled) {
-            queue.setRepeatMode(QueueRepeatMode.AUTOPLAY)
+        const settings = await guildSettingsService.getGuildSettings(guildId)
+        if (typeof settings?.autoPlayEnabled === 'boolean') {
+            const repeatMode = settings.autoPlayEnabled
+                ? QueueRepeatMode.AUTOPLAY
+                : QueueRepeatMode.OFF
+
+            if (queue.repeatMode !== repeatMode) {
+                queue.setRepeatMode(repeatMode)
+            }
+
             debugLog({
-                message:
-                    'Applied stored autoplay preference to new queue',
-                data: { guildId },
+                message: 'Applied stored autoplay preference to queue',
+                data: { guildId, autoPlayEnabled: settings.autoPlayEnabled },
             })
         }
-    } catch {
-        // non-critical — autoplay preference is best-effort
+    } catch (error) {
+        warnLog({
+            message: 'Failed to apply stored autoplay preference',
+            error,
+            data: { guildId },
+        })
     }
 }

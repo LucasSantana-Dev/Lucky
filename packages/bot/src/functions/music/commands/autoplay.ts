@@ -16,15 +16,58 @@ import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
 import { replenishQueue } from '../../../utils/music/trackManagement/queueOperations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
+async function replyAutoplayPersistenceFailure(
+    interaction: ChatInputCommandInteraction,
+    queue: GuildQueue | null,
+    enabled: boolean,
+): Promise<void> {
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: enabled
+                        ? queue
+                            ? 'Autoplay enabled for current queue only'
+                            : 'Autoplay preference not saved'
+                        : queue
+                          ? 'Autoplay disabled for current queue only'
+                          : 'Autoplay preference not saved',
+                    description: enabled
+                        ? queue
+                            ? 'Autoplay was enabled on the active queue, but the preference could not be saved for future sessions.'
+                            : 'Could not save autoplay preference. Please try again.'
+                        : queue
+                          ? 'Autoplay was disabled on the active queue, but the preference could not be saved for future sessions.'
+                          : 'Could not update autoplay preference. Please try again.',
+                    color: EMBED_COLORS.ERROR as ColorResolvable,
+                    emoji: EMOJIS.ERROR,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
 async function handleDisableAutoplay(
     queue: GuildQueue | null,
     interaction: ChatInputCommandInteraction,
     guildId: string,
 ): Promise<void> {
     queue?.setRepeatMode(QueueRepeatMode.OFF)
-    await guildSettingsService.setGuildSettings(guildId, {
+    const persisted = await guildSettingsService.setGuildSettings(guildId, {
         autoPlayEnabled: false,
     })
+
+    if (!persisted) {
+        warnLog({
+            message: 'Failed to persist autoplay disabled preference',
+            data: { guildId, hasQueue: Boolean(queue) },
+        })
+        await replyAutoplayPersistenceFailure(interaction, queue, false)
+        return
+    }
 
     await interactionReply({
         interaction,
@@ -49,9 +92,18 @@ async function handleEnableAutoplay(
     guildId: string,
 ): Promise<void> {
     queue?.setRepeatMode(QueueRepeatMode.AUTOPLAY)
-    await guildSettingsService.setGuildSettings(guildId, {
+    const persisted = await guildSettingsService.setGuildSettings(guildId, {
         autoPlayEnabled: true,
     })
+
+    if (!persisted) {
+        warnLog({
+            message: 'Failed to persist autoplay enabled preference',
+            data: { guildId, hasQueue: Boolean(queue) },
+        })
+        await replyAutoplayPersistenceFailure(interaction, queue, true)
+        return
+    }
 
     await interactionReply({
         interaction,
@@ -134,7 +186,7 @@ async function resolveCurrentAutoplayState(
         return queue.repeatMode === QueueRepeatMode.AUTOPLAY
     }
     const settings = await guildSettingsService.getGuildSettings(guildId)
-    return settings?.autoPlayEnabled ?? false
+    return settings?.autoPlayEnabled ?? true
 }
 
 export default new Command({

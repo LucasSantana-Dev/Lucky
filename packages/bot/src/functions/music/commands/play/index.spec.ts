@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 const requireVoiceChannelMock = jest.fn()
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const getGuildSettingsMock = jest.fn()
 const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'error',
@@ -43,6 +44,7 @@ jest.mock('../../../../utils/command/commandValidations', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -199,6 +201,34 @@ describe('play command', () => {
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Applied stored autoplay preference to new queue',
+            }),
+        )
+    })
+
+    it('logs a warning when stored autoplay preference lookup fails', async () => {
+        const interaction = createInteraction('guild-1')
+        const queue = {
+            repeatMode: 0,
+            tracks: { size: 0 },
+            setRepeatMode: jest.fn(),
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        getGuildSettingsMock.mockRejectedValue(new Error('redis unavailable'))
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to apply stored autoplay preference',
+                data: expect.objectContaining({ guildId: 'guild-1' }),
             }),
         )
     })

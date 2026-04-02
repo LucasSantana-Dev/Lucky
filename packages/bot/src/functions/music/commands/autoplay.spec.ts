@@ -195,6 +195,70 @@ describe('autoplay command', () => {
         )
     })
 
+    it('shows an error when enabling autoplay without a queue fails to persist', async () => {
+        const client = createClient({ directQueue: null })
+        const interaction = createInteraction()
+        setGuildSettingsMock.mockResolvedValue(false)
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to persist autoplay enabled preference',
+            }),
+        )
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Autoplay preference not saved',
+            }),
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    ephemeral: true,
+                }),
+            }),
+        )
+        expect(replenishQueueMock).not.toHaveBeenCalled()
+    })
+
+    it('shows a queue-only warning when disabling autoplay cannot persist', async () => {
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const client = createClient({ directQueue: queue })
+        const interaction = createInteraction()
+        setGuildSettingsMock.mockResolvedValue(false)
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to persist autoplay disabled preference',
+            }),
+        )
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Autoplay disabled for current queue only',
+            }),
+        )
+        expect(replenishQueueMock).not.toHaveBeenCalled()
+    })
+
     it('disables stored preference when no queue and was enabled', async () => {
         const client = createClient({ directQueue: null })
         const interaction = createInteraction()
