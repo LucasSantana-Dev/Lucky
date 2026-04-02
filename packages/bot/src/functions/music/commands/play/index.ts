@@ -4,7 +4,8 @@ import { requireVoiceChannel } from '../../../../utils/command/commandValidation
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, debugLog } from '@lucky/shared/utils'
+import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
@@ -109,6 +110,14 @@ export default new Command({
                 client,
                 interaction.guildId ?? '',
             )
+
+            if (queue) {
+                await applyStoredAutoplayPreference(
+                    queue,
+                    interaction.guildId,
+                )
+            }
+
             if (!isPlaylist && queue) {
                 if (!isTrackAlreadyQueued(queue, track)) {
                     moveUserTrackToPriority(queue, track)
@@ -142,8 +151,6 @@ export default new Command({
                 data: { query, guildId: interaction.guildId },
             })
 
-            // DiscordAPIError[10062] = Unknown Interaction — token expired or bot
-            // restarted between deferReply and editReply. No reply is possible.
             const code = (error as { code?: number })?.code
             if (code === DISCORD_UNKNOWN_INTERACTION_CODE) return
 
@@ -162,3 +169,25 @@ export default new Command({
         }
     },
 })
+
+async function applyStoredAutoplayPreference(
+    queue: { repeatMode: number; setRepeatMode: (mode: number) => void },
+    guildId: string,
+): Promise<void> {
+    if (queue.repeatMode === QueueRepeatMode.AUTOPLAY) return
+
+    try {
+        const settings =
+            await guildSettingsService.getGuildSettings(guildId)
+        if (settings?.autoPlayEnabled) {
+            queue.setRepeatMode(QueueRepeatMode.AUTOPLAY)
+            debugLog({
+                message:
+                    'Applied stored autoplay preference to new queue',
+                data: { guildId },
+            })
+        }
+    } catch {
+        // non-critical — autoplay preference is best-effort
+    }
+}

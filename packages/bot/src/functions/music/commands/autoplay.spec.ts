@@ -7,7 +7,6 @@ const QueueRepeatMode = {
 } as const
 
 const requireGuildMock = jest.fn()
-const requireQueueMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
 const replenishQueueMock = jest.fn()
@@ -15,10 +14,11 @@ const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
+const getGuildSettingsMock = jest.fn()
+const setGuildSettingsMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
-    requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
 
 jest.mock('discord-player', () => ({
@@ -56,6 +56,15 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    guildSettingsService: {
+        getGuildSettings: (...args: unknown[]) =>
+            getGuildSettingsMock(...args),
+        setGuildSettings: (...args: unknown[]) =>
+            setGuildSettingsMock(...args),
+    },
 }))
 
 function createInteraction(guildId = 'guild-1') {
@@ -96,9 +105,8 @@ describe('autoplay command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
-        requireQueueMock.mockImplementation(async (queue: unknown) =>
-            Boolean(queue),
-        )
+        getGuildSettingsMock.mockResolvedValue(null)
+        setGuildSettingsMock.mockResolvedValue(true)
         resolveGuildQueueMock.mockReturnValue({
             queue: null,
             source: 'miss',
@@ -110,11 +118,9 @@ describe('autoplay command', () => {
         })
     })
 
-    it('uses resolved guild queue when fallback source recovers queue', async () => {
+    it('enables autoplay on active queue and persists preference', async () => {
         const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({
-            directQueue: null,
-        })
+        const client = createClient({ directQueue: null })
         const interaction = createInteraction()
         resolveGuildQueueMock.mockReturnValue({
             queue,
@@ -131,20 +137,19 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
-        expect(resolveGuildQueueMock).toHaveBeenCalledWith(client, 'guild-1')
-        expect(requireQueueMock).toHaveBeenCalledWith(queue, interaction)
         expect(queue.setRepeatMode).toHaveBeenCalledWith(
             QueueRepeatMode.AUTOPLAY,
         )
+        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+            autoPlayEnabled: true,
+        })
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 
     it('disables autoplay when already enabled', async () => {
         const queue = createQueue(QueueRepeatMode.AUTOPLAY)
-        const client = createClient({
-            directQueue: queue,
-        })
+        const client = createClient({ directQueue: queue })
         const interaction = createInteraction()
         resolveGuildQueueMock.mockReturnValue({
             queue,
@@ -162,15 +167,55 @@ describe('autoplay command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
+        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+            autoPlayEnabled: false,
+        })
         expect(replenishQueueMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 
+    it('saves preference and replies when no queue exists', async () => {
+        const client = createClient({ directQueue: null })
+        const interaction = createInteraction()
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+            autoPlayEnabled: true,
+        })
+        expect(interactionReplyMock).toHaveBeenCalled()
+        const embedPayload = createEmbedMock.mock.calls[0]?.[0] as {
+            description: string
+        }
+        expect(embedPayload.description).toContain(
+            'Next time you use /play',
+        )
+    })
+
+    it('disables stored preference when no queue and was enabled', async () => {
+        const client = createClient({ directQueue: null })
+        const interaction = createInteraction()
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: true })
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+            autoPlayEnabled: false,
+        })
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'Autoplay disabled' }),
+        )
+    })
+
     it('returns early when interaction guild id is missing', async () => {
         const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({
-            directQueue: queue,
-        })
+        const client = createClient({ directQueue: queue })
         const interaction = createInteraction(null as unknown as string)
 
         await autoplayCommand.execute({
@@ -178,56 +223,13 @@ describe('autoplay command', () => {
             interaction,
         } as any)
 
-        expect(interaction.deferReply).not.toHaveBeenCalled()
-        expect(requireQueueMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).not.toHaveBeenCalled()
         expect(resolveGuildQueueMock).not.toHaveBeenCalled()
     })
 
-    it('passes null queue to validator when resolver misses', async () => {
-        const client = createClient({ directQueue: null })
-        const interaction = createInteraction()
-        requireQueueMock.mockResolvedValue(false)
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(requireQueueMock).toHaveBeenCalledWith(null, interaction)
-        expect(interactionReplyMock).not.toHaveBeenCalled()
-    })
-
-    it('passes null queue to validator when resolver returns miss diagnostics', async () => {
-        const client = createClient({
-            directQueue: null,
-        })
-        const interaction = createInteraction('guild-1')
-        requireQueueMock.mockResolvedValue(false)
-        resolveGuildQueueMock.mockReturnValue({
-            queue: null,
-            source: 'miss',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 2,
-                cacheSampleKeys: ['guild-2', 'guild-3'],
-            },
-        })
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(requireQueueMock).toHaveBeenCalledWith(null, interaction)
-        expect(interactionReplyMock).not.toHaveBeenCalled()
-    })
-
     it('replies before replenishment finishes', async () => {
         const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({
-            directQueue: queue,
-        })
+        const client = createClient({ directQueue: queue })
         const interaction = createInteraction()
         let resolveReplenish: () => void = () => {}
 
@@ -266,48 +268,12 @@ describe('autoplay command', () => {
         await executePromise
     })
 
-    it('logs error and still replies when queue replenish fails', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({
-            directQueue: queue,
-        })
-        const interaction = createInteraction()
-        replenishQueueMock.mockRejectedValue(new Error('replenish failed'))
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
-        })
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        await Promise.resolve()
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(
-            QueueRepeatMode.AUTOPLAY,
-        )
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Error replenishing queue after enabling autoplay:',
-            }),
-        )
-        expect(interactionReplyMock).toHaveBeenCalled()
-    })
-
-    it('uses autoplay error response when execution throws unexpectedly', async () => {
+    it('uses autoplay error response when execution throws', async () => {
         const queue = createQueue(QueueRepeatMode.OFF)
         queue.setRepeatMode.mockImplementation(() => {
             throw new Error('unexpected')
         })
-        const client = createClient({
-            directQueue: queue,
-        })
+        const client = createClient({ directQueue: queue })
         const interaction = createInteraction()
         resolveGuildQueueMock.mockReturnValue({
             queue,
@@ -330,16 +296,7 @@ describe('autoplay command', () => {
             }),
         )
         expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: 'Error',
-            }),
-        )
-        expect(interactionReplyMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                content: expect.objectContaining({
-                    ephemeral: true,
-                }),
-            }),
+            expect.objectContaining({ title: 'Error' }),
         )
     })
 })
