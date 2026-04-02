@@ -59,11 +59,11 @@ jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient: getPrismaClientMock,
 }))
 
-jest.mock('../../../twitch/twitchApi', () => ({
+jest.mock('../../../../twitch/twitchApi', () => ({
     getTwitchUserByLogin: getTwitchUserByLoginMock,
 }))
 
-jest.mock('../../../twitch', () => ({
+jest.mock('../../../../twitch', () => ({
     refreshTwitchSubscriptions: refreshTwitchSubscriptionsMock,
 }))
 
