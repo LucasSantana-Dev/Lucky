@@ -7,7 +7,7 @@ const createInfoEmbedMock = jest.fn((title: string, message: string) => ({
     message,
 }))
 
-jest.mock('../../../../../package.json', () => ({ version: '9.9.9' }))
+jest.mock('../../../../package.json', () => ({ version: '9.9.9' }))
 
 jest.mock('../../../utils/general/embeds', () => ({
     createInfoEmbed: (...args: unknown[]) =>

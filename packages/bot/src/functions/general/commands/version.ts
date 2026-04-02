@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { createInfoEmbed } from '../../../utils/general/embeds'
-import { version } from '../../../../../package.json'
+import { version } from '../../../../package.json'
 
 function resolveVersion(): string {
     return `v${version}`
