@@ -77,4 +77,17 @@ describe('GET /api/health/version', () => {
         expect(res.body.commitSha).toBeNull()
         expect(res.body.version).toBe('1.0.0')
     })
+
+    test('falls back to short commit label when npm_package_version is unset', async () => {
+        process.env.COMMIT_SHA = 'abc123def456'
+        delete process.env.npm_package_version
+
+        const res = await request(buildApp()).get('/api/health/version')
+
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({
+            commitSha: 'abc123def456',
+            version: 'commit abc123d',
+        })
+    })
 })

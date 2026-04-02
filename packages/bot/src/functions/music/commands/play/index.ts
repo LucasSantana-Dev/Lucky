@@ -4,7 +4,8 @@ import { requireVoiceChannel } from '../../../../utils/command/commandValidation
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
@@ -88,6 +89,10 @@ export default new Command({
         }
 
         try {
+            const hadQueueBeforePlay = Boolean(
+                resolveGuildQueue(client, interaction.guildId ?? '').queue,
+            )
+
             const result = await client.player.play(voiceChannel, query, {
                 nodeOptions: {
                     metadata: {
@@ -109,6 +114,14 @@ export default new Command({
                 client,
                 interaction.guildId ?? '',
             )
+
+            if (!hadQueueBeforePlay && queue) {
+                await applyStoredAutoplayPreference(
+                    queue,
+                    interaction.guildId,
+                )
+            }
+
             if (!isPlaylist && queue) {
                 if (!isTrackAlreadyQueued(queue, track)) {
                     moveUserTrackToPriority(queue, track)
@@ -142,8 +155,6 @@ export default new Command({
                 data: { query, guildId: interaction.guildId },
             })
 
-            // DiscordAPIError[10062] = Unknown Interaction — token expired or bot
-            // restarted between deferReply and editReply. No reply is possible.
             const code = (error as { code?: number })?.code
             if (code === DISCORD_UNKNOWN_INTERACTION_CODE) return
 
@@ -156,9 +167,45 @@ export default new Command({
                         ),
                     ],
                 })
-            } catch {
-                // interaction already dead — nothing to do
+            } catch (replyError) {
+                warnLog({
+                    message: 'Failed to send play command error reply',
+                    error: replyError,
+                    data: { guildId: interaction.guildId },
+                })
             }
         }
     },
 })
+
+async function applyStoredAutoplayPreference(
+    queue: {
+        repeatMode: QueueRepeatMode
+        setRepeatMode: (mode: QueueRepeatMode) => void
+    },
+    guildId: string,
+): Promise<void> {
+    try {
+        const settings = await guildSettingsService.getGuildSettings(guildId)
+        if (typeof settings?.autoPlayEnabled === 'boolean') {
+            const repeatMode = settings.autoPlayEnabled
+                ? QueueRepeatMode.AUTOPLAY
+                : QueueRepeatMode.OFF
+
+            if (queue.repeatMode !== repeatMode) {
+                queue.setRepeatMode(repeatMode)
+            }
+
+            debugLog({
+                message: 'Applied stored autoplay preference to queue',
+                data: { guildId, autoPlayEnabled: settings.autoPlayEnabled },
+            })
+        }
+    } catch (error) {
+        warnLog({
+            message: 'Failed to apply stored autoplay preference',
+            error,
+            data: { guildId },
+        })
+    }
+}
