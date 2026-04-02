@@ -190,7 +190,9 @@ describe('play command', () => {
             searchResult: { playlist: null, tracks: [] },
         }
         getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: true })
-        resolveGuildQueueMock.mockReturnValue({ queue })
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValueOnce({ queue })
 
         await playCommand.execute({
             client: createClient(async () => result),
@@ -218,18 +220,19 @@ describe('play command', () => {
             searchResult: { playlist: null, tracks: [] },
         }
         getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
-        resolveGuildQueueMock.mockReturnValue({ queue })
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue })
+            .mockReturnValueOnce({ queue })
 
         await playCommand.execute({
             client: createClient(async () => result),
             interaction,
         } as any)
 
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
-        expect(debugLogMock).toHaveBeenCalledWith(
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+        expect(debugLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Applied stored autoplay preference to queue',
-                data: expect.objectContaining({ autoPlayEnabled: false }),
             }),
         )
     })
@@ -246,7 +249,9 @@ describe('play command', () => {
             searchResult: { playlist: null, tracks: [] },
         }
         getGuildSettingsMock.mockRejectedValue(new Error('redis unavailable'))
-        resolveGuildQueueMock.mockReturnValue({ queue })
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValueOnce({ queue })
 
         await playCommand.execute({
             client: createClient(async () => result),
