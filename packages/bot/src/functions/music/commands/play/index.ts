@@ -15,6 +15,8 @@ import {
     blendAutoplayTracks,
 } from '../../../../utils/music/queueManipulation'
 
+const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
+
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
     track: { id?: string; url?: string },
@@ -143,7 +145,7 @@ export default new Command({
             // DiscordAPIError[10062] = Unknown Interaction — token expired or bot
             // restarted between deferReply and editReply. No reply is possible.
             const code = (error as { code?: number })?.code
-            if (code === 10062) return
+            if (code === DISCORD_UNKNOWN_INTERACTION_CODE) return
 
             try {
                 await interaction.editReply({
