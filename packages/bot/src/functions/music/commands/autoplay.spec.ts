@@ -256,6 +256,42 @@ describe('autoplay command', () => {
         expect(replenishQueueMock).not.toHaveBeenCalled()
     })
 
+    it('shows a queue-only warning when enabling autoplay cannot persist', async () => {
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const client = createClient({ directQueue: queue })
+        const interaction = createInteraction()
+        setGuildSettingsMock.mockResolvedValue(false)
+        resolveGuildQueueMock.mockReturnValue({
+            queue,
+            source: 'nodes.get',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: ['guild-1'],
+            },
+        })
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(
+            QueueRepeatMode.AUTOPLAY,
+        )
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to persist autoplay enabled preference',
+            }),
+        )
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Autoplay enabled for current queue only',
+            }),
+        )
+        expect(replenishQueueMock).not.toHaveBeenCalled()
+    })
+
     it('disables stored preference when no queue and was enabled', async () => {
         const client = createClient({ directQueue: null })
         const interaction = createInteraction()
@@ -271,6 +307,24 @@ describe('autoplay command', () => {
         })
         expect(createEmbedMock).toHaveBeenCalledWith(
             expect.objectContaining({ title: 'Autoplay disabled' }),
+        )
+    })
+
+    it('enables stored preference when no queue and autoplay was disabled', async () => {
+        const client = createClient({ directQueue: null })
+        const interaction = createInteraction()
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
+
+        await autoplayCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+            autoPlayEnabled: true,
+        })
+        expect(createEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'Autoplay enabled' }),
         )
     })
 
