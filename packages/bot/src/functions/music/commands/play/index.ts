@@ -171,7 +171,10 @@ export default new Command({
 })
 
 async function applyStoredAutoplayPreference(
-    queue: { repeatMode: number; setRepeatMode: (mode: number) => void },
+    queue: {
+        repeatMode: QueueRepeatMode
+        setRepeatMode: (mode: QueueRepeatMode) => void
+    },
     guildId: string,
 ): Promise<void> {
     if (queue.repeatMode === QueueRepeatMode.AUTOPLAY) return
