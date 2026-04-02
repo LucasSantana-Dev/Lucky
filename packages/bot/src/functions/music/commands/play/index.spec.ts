@@ -22,7 +22,7 @@ const moveUserTrackToPriorityMock = jest.fn()
 const blendAutoplayTracksMock = jest.fn().mockResolvedValue(undefined)
 
 jest.mock('discord-player', () => ({
-    QueueRepeatMode: { AUTOPLAY: 3 },
+    QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
 }))
 
 jest.mock('../../../../utils/music/queueManipulation', () => ({
@@ -201,12 +201,12 @@ describe('play command', () => {
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Applied stored autoplay preference to queue',
-                data: expect.objectContaining({ autoPlayEnabled: true }),
+                data: expect.objectContaining({ guildId: 'guild-1' }),
             }),
         )
     })
 
-    it('applies stored autoplay disabled preference to a fresh autoplay queue', async () => {
+    it('does not override an active autoplay queue when stored preference is disabled', async () => {
         const interaction = createInteraction('guild-1')
         const queue = {
             repeatMode: 3,
@@ -225,11 +225,10 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
-        expect(debugLogMock).toHaveBeenCalledWith(
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
+        expect(debugLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Applied stored autoplay preference to queue',
-                data: expect.objectContaining({ autoPlayEnabled: false }),
             }),
         )
     })
