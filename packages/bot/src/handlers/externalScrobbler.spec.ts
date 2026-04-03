@@ -1,26 +1,73 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 import { Events, type Message } from 'discord.js'
 import { handleExternalScrobbler } from './externalScrobbler'
 
-const isLastFmConfiguredMock = jest.fn()
-const getSessionKeyForUserMock = jest.fn()
-const updateNowPlayingMock = jest.fn()
-const scrobbleMock = jest.fn()
-const infoLogMock = jest.fn()
-const errorLogMock = jest.fn()
-const debugLogMock = jest.fn()
+const isLastFmConfiguredMock = jest.fn<() => boolean>()
+const getSessionKeyForUserMock =
+    jest.fn<(discordId: string) => Promise<string | null>>()
+const isLastFmInvalidSessionErrorMock = jest.fn<(error: unknown) => boolean>()
+const updateNowPlayingMock =
+    jest.fn<
+        (
+            artist: string,
+            track: string,
+            durationSec?: number,
+            sessionKey?: string | null,
+        ) => Promise<void>
+    >()
+const scrobbleMock =
+    jest.fn<
+        (
+            artist: string,
+            track: string,
+            timestamp: number,
+            durationSec?: number,
+            sessionKey?: string | null,
+        ) => Promise<void>
+    >()
+const lastFmUnlinkMock = jest.fn<(discordId: string) => Promise<boolean>>()
+const infoLogMock = jest.fn<(payload: unknown) => void>()
+const errorLogMock = jest.fn<(payload: unknown) => void>()
+const debugLogMock = jest.fn<(payload: unknown) => void>()
 
 jest.mock('../lastfm', () => ({
-    isLastFmConfigured: (...args: unknown[]) => isLastFmConfiguredMock(...args),
-    getSessionKeyForUser: (...args: unknown[]) => getSessionKeyForUserMock(...args),
-    updateNowPlaying: (...args: unknown[]) => updateNowPlayingMock(...args),
-    scrobble: (...args: unknown[]) => scrobbleMock(...args),
+    isLastFmConfigured: () => isLastFmConfiguredMock(),
+    getSessionKeyForUser: (discordId: string) =>
+        getSessionKeyForUserMock(discordId),
+    isLastFmInvalidSessionError: (error: unknown) =>
+        isLastFmInvalidSessionErrorMock(error),
+    updateNowPlaying: (
+        artist: string,
+        track: string,
+        durationSec?: number,
+        sessionKey?: string | null,
+    ) => updateNowPlayingMock(artist, track, durationSec, sessionKey),
+    scrobble: (
+        artist: string,
+        track: string,
+        timestamp: number,
+        durationSec?: number,
+        sessionKey?: string | null,
+    ) => scrobbleMock(artist, track, timestamp, durationSec, sessionKey),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    lastFmLinkService: {
+        unlink: (discordId: string) => lastFmUnlinkMock(discordId),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
-    infoLog: (...args: unknown[]) => infoLogMock(...args),
-    errorLog: (...args: unknown[]) => errorLogMock(...args),
-    debugLog: (...args: unknown[]) => debugLogMock(...args),
+    infoLog: (payload: unknown) => infoLogMock(payload),
+    errorLog: (payload: unknown) => errorLogMock(payload),
+    debugLog: (payload: unknown) => debugLogMock(payload),
 }))
 
 function createVoiceChannel() {
@@ -63,7 +110,9 @@ function createHarness(guildId: string): {
     const guild = {
         id: guildId,
         members: {
-            cache: new Map([['music-bot', { voice: { channel: voiceChannel } }]]),
+            cache: new Map([
+                ['music-bot', { voice: { channel: voiceChannel } }],
+            ]),
         },
         channels: {
             cache: {
@@ -91,22 +140,27 @@ function createHarness(guildId: string): {
 }
 
 describe('externalScrobbler', () => {
-    const originalDateNow = Date.now
+    let dateNowSpy: jest.SpiedFunction<typeof Date.now> | null = null
 
     beforeEach(() => {
         jest.clearAllMocks()
         isLastFmConfiguredMock.mockReturnValue(true)
         getSessionKeyForUserMock.mockResolvedValue('session-1')
+        isLastFmInvalidSessionErrorMock.mockReturnValue(false)
+        lastFmUnlinkMock.mockResolvedValue(true)
     })
 
     afterEach(() => {
-        Date.now = originalDateNow
+        dateNowSpy?.mockRestore()
+        dateNowSpy = null
     })
 
     it('parses now-playing line and updates Last.fm for voice members', async () => {
         const { guild, handler } = createHarness('guild-1')
 
-        await handler(createMessage('**Now playing: My Artist – My Song**', guild))
+        await handler(
+            createMessage('**Now playing: My Artist – My Song**', guild),
+        )
 
         expect(updateNowPlayingMock).toHaveBeenCalledWith(
             'My Artist',
@@ -118,16 +172,20 @@ describe('externalScrobbler', () => {
     })
 
     it('scrobbles previous track on next now-playing event after 30 seconds', async () => {
-        Date.now = jest
-            .fn()
+        dateNowSpy = jest.spyOn(Date, 'now')
+        dateNowSpy
             .mockReturnValueOnce(100000)
             .mockReturnValueOnce(140000)
             .mockReturnValueOnce(140000)
 
         const { guild, handler } = createHarness('guild-2')
 
-        await handler(createMessage('Now playing: First Artist — First Song', guild))
-        await handler(createMessage('Now playing: Second Artist - Second Song', guild))
+        await handler(
+            createMessage('Now playing: First Artist — First Song', guild),
+        )
+        await handler(
+            createMessage('Now playing: Second Artist - Second Song', guild),
+        )
 
         expect(scrobbleMock).toHaveBeenCalledWith(
             'First Artist',
@@ -141,6 +199,58 @@ describe('externalScrobbler', () => {
             'Second Song',
             undefined,
             'session-1',
+        )
+    })
+
+    it('unlinks user when updateNowPlaying fails with invalid Last.fm session', async () => {
+        const { guild, handler } = createHarness('guild-3')
+        const invalidSessionError = new Error(
+            'Last.fm track.updateNowPlaying: 403 {"message":"Invalid session key - Please re-authenticate","error":9}',
+        )
+
+        updateNowPlayingMock.mockRejectedValue(invalidSessionError)
+        isLastFmInvalidSessionErrorMock.mockReturnValue(true)
+
+        await handler(createMessage('Now playing: Artist – Song', guild))
+
+        expect(lastFmUnlinkMock).toHaveBeenCalledWith('user-1')
+        expect(errorLogMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'External updateNowPlaying failed',
+            }),
+        )
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Removed invalid Last.fm session for User One',
+            }),
+        )
+    })
+
+    it('unlinks user when scrobble fails with invalid Last.fm session', async () => {
+        dateNowSpy = jest.spyOn(Date, 'now')
+        dateNowSpy
+            .mockReturnValueOnce(100000)
+            .mockReturnValueOnce(140000)
+            .mockReturnValueOnce(140000)
+
+        const { guild, handler } = createHarness('guild-4')
+        const invalidSessionError = new Error(
+            'Last.fm track.scrobble: 403 {"message":"Invalid session key - Please re-authenticate","error":9}',
+        )
+
+        scrobbleMock.mockRejectedValue(invalidSessionError)
+        isLastFmInvalidSessionErrorMock.mockReturnValue(true)
+
+        await handler(
+            createMessage('Now playing: First Artist — First Song', guild),
+        )
+        await handler(
+            createMessage('Now playing: Second Artist - Second Song', guild),
+        )
+
+        expect(lastFmUnlinkMock).toHaveBeenCalledWith('user-1')
+        expect(errorLogMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'External scrobble failed' }),
         )
     })
 })

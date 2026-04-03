@@ -8,18 +8,33 @@ import {
 } from '@jest/globals'
 import {
     getSessionKeyForUser,
+    isLastFmInvalidSessionError,
     updateNowPlaying,
     normalizeLastFmArtist,
     normalizeLastFmTitle,
     getTopTracks,
 } from './lastFmApi'
 
-const getSessionKeyMock = jest.fn()
-const fetchMock = jest.fn()
+const getSessionKeyMock =
+    jest.fn<(discordId: string) => Promise<string | null>>()
+
+type MockFetchResponse = {
+    ok: boolean
+    json?: () => Promise<unknown>
+    text?: () => Promise<string>
+}
+
+const fetchMock =
+    jest.fn<
+        (
+            input: RequestInfo | URL,
+            init?: RequestInit,
+        ) => Promise<MockFetchResponse>
+    >()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
-        getSessionKey: (...args: unknown[]) => getSessionKeyMock(...args),
+        getSessionKey: (discordId: string) => getSessionKeyMock(discordId),
     },
 }))
 
@@ -34,7 +49,7 @@ describe('lastFmApi', () => {
         fetchMock.mockResolvedValue({
             ok: true,
             json: async () => ({}),
-        })
+        } as MockFetchResponse)
     })
 
     afterEach(() => {
@@ -63,10 +78,8 @@ describe('lastFmApi', () => {
     it('sends signed updateNowPlaying payload', async () => {
         await updateNowPlaying('Artist Name', 'Track Name', 187, 'session-123')
 
-        const [, request] = fetchMock.mock.calls.at(-1) as [
-            string,
-            { body: string },
-        ]
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
         expect(request.body).toContain('method=track.updateNowPlaying')
         expect(request.body).toContain('artist=Artist+Name')
         expect(request.body).toContain('track=Track+Name')
@@ -175,6 +188,23 @@ describe('lastFmApi', () => {
             const tracks = await getTopTracks('username')
 
             expect(tracks).toEqual([])
+        })
+    })
+
+    describe('isLastFmInvalidSessionError', () => {
+        it('detects invalid-session payload errors', () => {
+            const error = new Error(
+                'Last.fm track.scrobble: 403 {"message":"Invalid session key - Please re-authenticate","error":9}',
+            )
+
+            expect(isLastFmInvalidSessionError(error)).toBe(true)
+        })
+
+        it('returns false for non-session errors', () => {
+            expect(
+                isLastFmInvalidSessionError(new Error('network timeout')),
+            ).toBe(false)
+            expect(isLastFmInvalidSessionError('bad')).toBe(false)
         })
     })
 })

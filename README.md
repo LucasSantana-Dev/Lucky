@@ -99,6 +99,7 @@ packages/
   repeated create/delete drift loops
 - Twitch stream notifications (EventSub WebSocket)
 - Last.fm scrobbling integration
+- External Last.fm scrobbler auto-unlinks stale user sessions when Last.fm returns `Invalid session key` (error `9`), reducing repeated runtime error spam
 
 ### Dashboard
 - Discord OAuth authentication
@@ -464,6 +465,8 @@ See `.env.example` for all available options. Key variables:
 | `WEBAPP_EXPECTED_CLIENT_ID` | No | Expected Discord app client id for `/api/health/auth-config` mismatch detection when explicitly set (recommended via deployment secret) |
 | `WEBAPP_BACKEND_URL` | No | Public backend/API origin used for backend links and bot Last.fm connect links (must be an absolute HTTP(S) URL; recommended: `https://lucky-api.lucassantana.tech`) |
 | `CLIENT_SECRET` | No | Discord OAuth secret (for dashboard) |
+| `PLAYER_CONNECTION_TIMEOUT` | No | Voice connection timeout (ms) used by `/play` node options (default: `15000`) |
+| `MUSIC_WATCHDOG_RECOVERY_WAIT_MS` | No | Wait window (ms) between watchdog rejoin checks before recovery fails (default: `5000`) |
 | `SENTRY_DSN` | No | Error tracking |
 
 Local Vercel export files (`.env.vercel.*`) are treated as machine-local

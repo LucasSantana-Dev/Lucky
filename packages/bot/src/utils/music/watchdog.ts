@@ -48,7 +48,7 @@ export class MusicWatchdogService {
             parseInt(process.env.MUSIC_WATCHDOG_TIMEOUT_MS ?? '25000', 10)
         this.recoveryWaitTimeoutMs =
             options.recoveryWaitTimeoutMs ??
-            parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_WAIT_MS ?? '1500', 10)
+            parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_WAIT_MS ?? '5000', 10)
         this.recoveryPollIntervalMs =
             options.recoveryPollIntervalMs ??
             parseInt(process.env.MUSIC_WATCHDOG_RECOVERY_POLL_MS ?? '100', 10)
@@ -137,8 +137,25 @@ export class MusicWatchdogService {
             if (queue.connection?.state?.status !== 'ready') {
                 queue.connection?.rejoin?.()
                 didRejoin = true
-                const ready = await this.waitForConnectionReady(queue.connection)
-                if (!ready) {
+                const firstRejoinReady = await this.waitForConnectionReady(
+                    queue.connection,
+                )
+                if (!firstRejoinReady) {
+                    queue.connection?.rejoin?.()
+                    const secondRejoinReady = await this.waitForConnectionReady(
+                        queue.connection,
+                    )
+                    if (!secondRejoinReady) {
+                        action = 'failed'
+                        detail = 'connection_not_ready_after_rejoin_retry'
+                        state.lastRecoveryAction = action
+                        state.lastRecoveryDetail = detail
+                        state.lastRecoveryAt = Date.now()
+                        return action
+                    }
+                }
+
+                if (!this.isConnectionReady(queue.connection)) {
                     action = 'failed'
                     detail = 'connection_not_ready_after_rejoin'
                     state.lastRecoveryAction = action
@@ -184,10 +201,7 @@ export class MusicWatchdogService {
         return action
     }
 
-    startOrphanSessionMonitor(
-        player: Player,
-        intervalMs = 60_000,
-    ): void {
+    startOrphanSessionMonitor(player: Player, intervalMs = 60_000): void {
         if (this.orphanMonitorInterval) return
 
         this.orphanMonitorInterval = setInterval(() => {
@@ -266,9 +280,8 @@ export class MusicWatchdogService {
             await queue.connect(voiceChannel)
         }
 
-        const restoreResult = await musicSessionSnapshotService.restoreSnapshot(
-            queue,
-        )
+        const restoreResult =
+            await musicSessionSnapshotService.restoreSnapshot(queue)
         if (!restoreResult || restoreResult.restoredCount <= 0) {
             await musicSessionSnapshotService.deleteSnapshot(guildId)
 
@@ -278,7 +291,8 @@ export class MusicWatchdogService {
             state.lastRecoveryDetail = 'snapshot_restore_empty'
 
             infoLog({
-                message: 'Watchdog orphan session restore produced no tracks; snapshot cleared',
+                message:
+                    'Watchdog orphan session restore produced no tracks; snapshot cleared',
                 data: { guildId, voiceChannelId },
             })
             return
@@ -331,9 +345,7 @@ export class MusicWatchdogService {
         return recovered
     }
 
-    startPeriodicScan(
-        getQueue: (guildId: string) => GuildQueue | null,
-    ): void {
+    startPeriodicScan(getQueue: (guildId: string) => GuildQueue | null): void {
         if (this.scanTimer) return
 
         infoLog({
