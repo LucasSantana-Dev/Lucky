@@ -19,6 +19,15 @@ import {
 
 const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
+function isUnknownInteractionError(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
+    )
+}
+
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
     track: { id?: string; url?: string },
@@ -69,7 +78,12 @@ export default new Command({
 
         const voiceChannel = member.voice.channel!
 
-        await interaction.deferReply()
+        try {
+            await interaction.deferReply()
+        } catch (error) {
+            if (isUnknownInteractionError(error)) return
+            throw error
+        }
 
         const query = interaction.options.getString('query', true)
         const collaborativeCheck = collaborativePlaylistService.canAddTracks(
@@ -149,14 +163,19 @@ export default new Command({
 
             await interaction.editReply({ embeds: [embed] })
         } catch (error) {
+            if (isUnknownInteractionError(error)) {
+                debugLog({
+                    message: 'Play command interaction expired before reply',
+                    data: { query, guildId: interaction.guildId },
+                })
+                return
+            }
+
             errorLog({
                 message: 'Play command error:',
                 error,
                 data: { query, guildId: interaction.guildId },
             })
-
-            const code = (error as { code?: number })?.code
-            if (code === DISCORD_UNKNOWN_INTERACTION_CODE) return
 
             try {
                 await interaction.editReply({

@@ -480,6 +480,40 @@ describe('play command', () => {
         )
     })
 
+    it('ignores unknown interaction errors thrown during deferReply', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.deferReply.mockRejectedValue(
+            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
+        )
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track: { title: 'Song A', author: 'Artist A' },
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(interaction.editReply).not.toHaveBeenCalled()
+    })
+
+    it('ignores unknown interaction errors thrown during play flow', async () => {
+        const interaction = createInteraction('guild-1')
+
+        await playCommand.execute({
+            client: createClient(async () => {
+                throw Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                })
+            }),
+            interaction,
+        } as any)
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(interaction.editReply).not.toHaveBeenCalled()
+    })
+
     it('logs a warning when sending the play error reply also fails', async () => {
         const interaction = createInteraction('guild-1')
         interaction.editReply.mockRejectedValue(new Error('reply failed'))
