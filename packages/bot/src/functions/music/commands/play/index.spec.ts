@@ -190,6 +190,33 @@ describe('play command', () => {
         )
     })
 
+    it('silently exits when collaborative-limit reply hits unknown interaction', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.editReply.mockRejectedValue(
+            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
+        )
+        canAddTracksMock.mockReturnValue({
+            allowed: false,
+            limit: 1,
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({})),
+            interaction,
+        } as any)
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Play command interaction expired before editReply',
+                data: expect.objectContaining({
+                    stage: 'collaborative-limit',
+                    guildId: 'guild-1',
+                }),
+            }),
+        )
+    })
+
     it('plays track and records contribution', async () => {
         const interaction = createInteraction('guild-1')
         const result = {

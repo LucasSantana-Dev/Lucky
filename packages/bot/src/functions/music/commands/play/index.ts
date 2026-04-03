@@ -28,6 +28,29 @@ function isUnknownInteractionError(error: unknown): boolean {
     )
 }
 
+async function safeEditReply(
+    interaction: ChatInputCommandInteraction,
+    payload: {
+        embeds: unknown[]
+    },
+    context: { stage: string; guildId: string | null; query?: string },
+): Promise<boolean> {
+    try {
+        await interaction.editReply(payload)
+        return true
+    } catch (error) {
+        if (isUnknownInteractionError(error)) {
+            debugLog({
+                message: 'Play command interaction expired before editReply',
+                data: context,
+            })
+            return false
+        }
+
+        throw error
+    }
+}
+
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
     track: { id?: string; url?: string },
@@ -92,14 +115,22 @@ export default new Command({
             1,
         )
         if (!collaborativeCheck.allowed) {
-            await interaction.editReply({
-                embeds: [
-                    createErrorEmbed(
-                        'Contribution limit reached',
-                        `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
-                    ),
-                ],
-            })
+            await safeEditReply(
+                interaction,
+                {
+                    embeds: [
+                        createErrorEmbed(
+                            'Contribution limit reached',
+                            `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
+                        ),
+                    ],
+                },
+                {
+                    stage: 'collaborative-limit',
+                    guildId: interaction.guildId,
+                    query,
+                },
+            )
             return
         }
 
@@ -161,7 +192,15 @@ export default new Command({
                 1,
             )
 
-            await interaction.editReply({ embeds: [embed] })
+            await safeEditReply(
+                interaction,
+                { embeds: [embed] },
+                {
+                    stage: 'success',
+                    guildId: interaction.guildId,
+                    query,
+                },
+            )
         } catch (error) {
             if (isUnknownInteractionError(error)) {
                 debugLog({
@@ -178,14 +217,22 @@ export default new Command({
             })
 
             try {
-                await interaction.editReply({
-                    embeds: [
-                        createErrorEmbed(
-                            'Play Error',
-                            'Could not find or play the requested track',
-                        ),
-                    ],
-                })
+                await safeEditReply(
+                    interaction,
+                    {
+                        embeds: [
+                            createErrorEmbed(
+                                'Play Error',
+                                'Could not find or play the requested track',
+                            ),
+                        ],
+                    },
+                    {
+                        stage: 'error-reply',
+                        guildId: interaction.guildId,
+                        query,
+                    },
+                )
             } catch (replyError) {
                 warnLog({
                     message: 'Failed to send play command error reply',
