@@ -253,4 +253,25 @@ describe('externalScrobbler', () => {
             expect.objectContaining({ message: 'External scrobble failed' }),
         )
     })
+
+    it('logs unlink failure when invalid Last.fm session cannot be removed', async () => {
+        const { guild, handler } = createHarness('guild-5')
+        const invalidSessionError = new Error(
+            'Last.fm track.updateNowPlaying: 403 {"message":"Invalid session key - Please re-authenticate","error": 9}',
+        )
+
+        updateNowPlayingMock.mockRejectedValue(invalidSessionError)
+        isLastFmInvalidSessionErrorMock.mockReturnValue(true)
+        lastFmUnlinkMock.mockResolvedValue(false)
+
+        await handler(createMessage('Now playing: Artist – Song', guild))
+
+        expect(lastFmUnlinkMock).toHaveBeenCalledWith('user-1')
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to remove invalid Last.fm session',
+                data: expect.objectContaining({ discordId: 'user-1' }),
+            }),
+        )
+    })
 })

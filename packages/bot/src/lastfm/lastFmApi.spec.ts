@@ -206,5 +206,13 @@ describe('lastFmApi', () => {
             ).toBe(false)
             expect(isLastFmInvalidSessionError('bad')).toBe(false)
         })
+
+        it('detects payload errors when error code has spacing', () => {
+            const error = new Error(
+                'Last.fm track.scrobble: 403 {"message":"Session expired","error": 9}',
+            )
+
+            expect(isLastFmInvalidSessionError(error)).toBe(true)
+        })
     })
 })

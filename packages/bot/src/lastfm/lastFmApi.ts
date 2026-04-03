@@ -179,9 +179,10 @@ export function isLastFmInvalidSessionError(error: unknown): boolean {
     if (!(error instanceof Error)) return false
 
     const message = error.message.toLowerCase()
+    const hasErrorCodeNine = /"error"\s*:\s*9/.test(message)
     return (
         message.includes('invalid session key') ||
-        message.includes('error":9') ||
+        hasErrorCodeNine ||
         message.includes(' 9 - ')
     )
 }
