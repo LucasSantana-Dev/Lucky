@@ -46,6 +46,7 @@ const moveUserTrackToPriorityMock =
     jest.fn<(queue: unknown, track: unknown) => void>()
 const blendAutoplayTracksMock =
     jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
+const interactionReplyMock = jest.fn<(payload: unknown) => Promise<void>>()
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
@@ -101,6 +102,10 @@ jest.mock('../../../../utils/music/collaborativePlaylist', () => ({
         recordContribution: (guildId: string, userId: string, amount: number) =>
             recordContributionMock(guildId, userId, amount),
     },
+}))
+
+jest.mock('../../../../utils/general/interactionReply', () => ({
+    interactionReply: (payload: unknown) => interactionReplyMock(payload),
 }))
 
 import playCommand from './index'
@@ -185,16 +190,17 @@ describe('play command', () => {
         } as any)
 
         expect(interaction.deferReply).toHaveBeenCalled()
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ embeds: expect.any(Array) }),
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ embeds: expect.any(Array) }),
+            }),
         )
+        expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
-    it('silently exits when collaborative-limit reply hits unknown interaction', async () => {
+    it('uses interactionReply for collaborative-limit replies', async () => {
         const interaction = createInteraction('guild-1')
-        interaction.editReply.mockRejectedValue(
-            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
-        )
         canAddTracksMock.mockReturnValue({
             allowed: false,
             limit: 1,
@@ -206,13 +212,17 @@ describe('play command', () => {
         } as any)
 
         expect(errorLogMock).not.toHaveBeenCalled()
-        expect(debugLogMock).toHaveBeenCalledWith(
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    embeds: expect.any(Array),
+                }),
+            }),
+        )
+        expect(debugLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Play command interaction expired before editReply',
-                data: expect.objectContaining({
-                    stage: 'collaborative-limit',
-                    guildId: 'guild-1',
-                }),
             }),
         )
     })
@@ -239,7 +249,13 @@ describe('play command', () => {
             'user-1',
             1,
         )
-        expect(interaction.editReply).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ embeds: expect.any(Array) }),
+            }),
+        )
+        expect(interaction.editReply).not.toHaveBeenCalled()
         expect(createSuccessEmbedMock).toHaveBeenCalled()
         expect(client.player.play).toHaveBeenCalledWith(
             expect.anything(),
@@ -500,7 +516,15 @@ describe('play command', () => {
                 data: expect.objectContaining({ guildId: 'guild-1' }),
             }),
         )
-        expect(interaction.editReply).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({
+                    embeds: expect.any(Array),
+                }),
+            }),
+        )
+        expect(interaction.editReply).not.toHaveBeenCalled()
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
             expect.stringContaining('Could not find'),
@@ -541,9 +565,8 @@ describe('play command', () => {
         expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
-    it('logs a warning when sending the play error reply also fails', async () => {
+    it('uses interactionReply for play error replies', async () => {
         const interaction = createInteraction('guild-1')
-        interaction.editReply.mockRejectedValue(new Error('reply failed'))
 
         await playCommand.execute({
             client: createClient(async () => {
@@ -552,10 +575,15 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(warnLogMock).toHaveBeenCalledWith(
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ embeds: expect.any(Array) }),
+            }),
+        )
+        expect(warnLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Failed to send play command error reply',
-                data: expect.objectContaining({ guildId: 'guild-1' }),
             }),
         )
     })

@@ -9,6 +9,7 @@ import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
 import { QueueRepeatMode } from 'discord-player'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
@@ -26,29 +27,6 @@ function isUnknownInteractionError(error: unknown): boolean {
         'code' in error &&
         (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
     )
-}
-
-async function safeEditReply(
-    interaction: ChatInputCommandInteraction,
-    payload: {
-        embeds: unknown[]
-    },
-    context: { stage: string; guildId: string | null; query?: string },
-): Promise<boolean> {
-    try {
-        await interaction.editReply(payload)
-        return true
-    } catch (error) {
-        if (isUnknownInteractionError(error)) {
-            debugLog({
-                message: 'Play command interaction expired before editReply',
-                data: context,
-            })
-            return false
-        }
-
-        throw error
-    }
 }
 
 function isTrackAlreadyQueued(
@@ -115,9 +93,9 @@ export default new Command({
             1,
         )
         if (!collaborativeCheck.allowed) {
-            await safeEditReply(
+            await interactionReply({
                 interaction,
-                {
+                content: {
                     embeds: [
                         createErrorEmbed(
                             'Contribution limit reached',
@@ -125,12 +103,7 @@ export default new Command({
                         ),
                     ],
                 },
-                {
-                    stage: 'collaborative-limit',
-                    guildId: interaction.guildId,
-                    query,
-                },
-            )
+            })
             return
         }
 
@@ -192,15 +165,10 @@ export default new Command({
                 1,
             )
 
-            await safeEditReply(
+            await interactionReply({
                 interaction,
-                { embeds: [embed] },
-                {
-                    stage: 'success',
-                    guildId: interaction.guildId,
-                    query,
-                },
-            )
+                content: { embeds: [embed] },
+            })
         } catch (error) {
             if (isUnknownInteractionError(error)) {
                 debugLog({
@@ -217,9 +185,9 @@ export default new Command({
             })
 
             try {
-                await safeEditReply(
+                await interactionReply({
                     interaction,
-                    {
+                    content: {
                         embeds: [
                             createErrorEmbed(
                                 'Play Error',
@@ -227,12 +195,7 @@ export default new Command({
                             ),
                         ],
                     },
-                    {
-                        stage: 'error-reply',
-                        guildId: interaction.guildId,
-                        query,
-                    },
-                )
+                })
             } catch (replyError) {
                 warnLog({
                     message: 'Failed to send play command error reply',
