@@ -174,3 +174,15 @@ export async function scrobble(
     }
     await signedPost('track.scrobble', params, sessionKey)
 }
+
+export function isLastFmInvalidSessionError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false
+
+    const message = error.message.toLowerCase()
+    const hasErrorCodeNine = /"error"\s*:\s*9/.test(message)
+    return (
+        message.includes('invalid session key') ||
+        hasErrorCodeNine ||
+        message.includes(' 9 - ')
+    )
+}

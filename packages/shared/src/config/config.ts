@@ -205,7 +205,7 @@ export const ENVIRONMENT_CONFIG = {
             process.env.PLAYER_LEAVE_ON_END_COOLDOWN ?? '300000',
         ),
         CONNECTION_TIMEOUT: parseInt(
-            process.env.PLAYER_CONNECTION_TIMEOUT ?? '5000',
+            process.env.PLAYER_CONNECTION_TIMEOUT ?? '15000',
         ),
     },
     SEARCH: {

@@ -2,6 +2,7 @@ export {
     isLastFmConfigured,
     getSessionKeyForUser,
     getTopTracks,
+    isLastFmInvalidSessionError,
     normalizeLastFmArtist,
     normalizeLastFmTitle,
     updateNowPlaying,

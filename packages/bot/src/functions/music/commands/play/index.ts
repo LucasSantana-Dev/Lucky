@@ -4,6 +4,7 @@ import { requireVoiceChannel } from '../../../../utils/command/commandValidation
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
+import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
@@ -99,6 +100,8 @@ export default new Command({
                         channel: interaction.channel,
                         requestedBy: interaction.user,
                     },
+                    connectionTimeout:
+                        ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
                     leaveOnEmpty: true,
                     leaveOnEmptyCooldown: 30_000,
                     leaveOnEnd: true,
@@ -116,10 +119,7 @@ export default new Command({
             )
 
             if (!hadQueueBeforePlay && queue) {
-                await applyStoredAutoplayPreference(
-                    queue,
-                    interaction.guildId,
-                )
+                await applyStoredAutoplayPreference(queue, interaction.guildId)
             }
 
             if (!isPlaylist && queue) {
