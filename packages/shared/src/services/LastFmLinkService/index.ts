@@ -91,6 +91,9 @@ export class LastFmLinkService {
                     : null
 
             if (code === 'P2025') {
+                // Prisma P2025 = record not found:
+                // https://www.prisma.io/docs/orm/reference/error-reference
+                // Treat delete of a missing link as idempotent success.
                 debugLog({
                     message: 'Last.fm link already absent',
                     data: { discordId },
