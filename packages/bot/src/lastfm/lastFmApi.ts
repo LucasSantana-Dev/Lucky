@@ -22,13 +22,19 @@ export function isLastFmConfigured(): boolean {
 
 export async function getSessionKeyForUser(
     discordId: string | undefined,
+    options?: { allowEnvFallback?: boolean },
 ): Promise<string | null> {
     const config = getApiConfig()
     if (!config) return null
+    const allowEnvFallback = options?.allowEnvFallback ?? true
+
     if (discordId) {
         const fromDb = await lastFmLinkService.getSessionKey(discordId)
         if (fromDb) return fromDb
+        if (!allowEnvFallback) return null
     }
+
+    if (!allowEnvFallback) return null
     const fromEnv = process.env.LASTFM_SESSION_KEY
     return fromEnv ?? null
 }

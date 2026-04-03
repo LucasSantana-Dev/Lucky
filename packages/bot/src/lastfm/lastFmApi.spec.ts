@@ -75,6 +75,16 @@ describe('lastFmApi', () => {
         expect(sessionKey).toBe('env-session')
     })
 
+    it('does not fallback to env key when allowEnvFallback is false', async () => {
+        getSessionKeyMock.mockResolvedValue(null)
+
+        const sessionKey = await getSessionKeyForUser('user-3', {
+            allowEnvFallback: false,
+        })
+
+        expect(sessionKey).toBeNull()
+    })
+
     it('sends signed updateNowPlaying payload', async () => {
         await updateNowPlaying('Artist Name', 'Track Name', 187, 'session-123')
 

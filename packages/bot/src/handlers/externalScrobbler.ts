@@ -113,7 +113,9 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
         if (!channel.isVoiceBased()) continue
         for (const [memberId, member] of channel.members) {
             if (member.user.bot) continue
-            const sessionKey = await getSessionKeyForUser(memberId)
+            const sessionKey = await getSessionKeyForUser(memberId, {
+                allowEnvFallback: false,
+            })
             if (!sessionKey) continue
             try {
                 await scrobble(
@@ -173,7 +175,9 @@ async function handleExternalNowPlaying(message: Message): Promise<void> {
 
     for (const [memberId, member] of voiceChannel.members) {
         if (member.user.bot) continue
-        const sessionKey = await getSessionKeyForUser(memberId)
+        const sessionKey = await getSessionKeyForUser(memberId, {
+            allowEnvFallback: false,
+        })
         if (!sessionKey) continue
         try {
             await updateNowPlaying(
