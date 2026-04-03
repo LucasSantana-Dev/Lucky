@@ -1,68 +1,105 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
-const requireVoiceChannelMock = jest.fn()
-const errorLogMock = jest.fn()
-const debugLogMock = jest.fn()
-const warnLogMock = jest.fn()
-const getGuildSettingsMock = jest.fn()
-const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
+const requireVoiceChannelMock =
+    jest.fn<(interaction: unknown) => Promise<boolean>>()
+const errorLogMock = jest.fn<(payload: unknown) => void>()
+const debugLogMock = jest.fn<(payload: unknown) => void>()
+const warnLogMock = jest.fn<(payload: unknown) => void>()
+const getGuildSettingsMock =
+    jest.fn<
+        (guildId: string) => Promise<{ autoPlayEnabled?: boolean } | null>
+    >()
+const createErrorEmbedMock = jest.fn<
+    (
+        title: string,
+        message: string,
+    ) => {
+        type: 'error'
+        title: string
+        message: string
+    }
+>((title: string, message: string) => ({
     type: 'error',
     title,
     message,
 }))
-const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
+const createSuccessEmbedMock = jest.fn<
+    (
+        title: string,
+        message: string,
+    ) => {
+        type: 'success'
+        title: string
+        message: string
+    }
+>((title: string, message: string) => ({
     type: 'success',
     title,
     message,
 }))
-const canAddTracksMock = jest.fn()
-const recordContributionMock = jest.fn()
-const resolveGuildQueueMock = jest.fn()
-const moveUserTrackToPriorityMock = jest.fn()
-const blendAutoplayTracksMock = jest.fn().mockResolvedValue(undefined)
+const canAddTracksMock = jest.fn<() => { allowed: boolean; limit: number }>()
+const recordContributionMock =
+    jest.fn<(guildId: string, userId: string, amount: number) => void>()
+const resolveGuildQueueMock =
+    jest.fn<(client: unknown, guildId: string) => { queue: unknown }>()
+const moveUserTrackToPriorityMock =
+    jest.fn<(queue: unknown, track: unknown) => void>()
+const blendAutoplayTracksMock =
+    jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
 }))
 
 jest.mock('../../../../utils/music/queueManipulation', () => ({
-    moveUserTrackToPriority: (...args: unknown[]) =>
-        moveUserTrackToPriorityMock(...args),
-    blendAutoplayTracks: (...args: unknown[]) =>
-        blendAutoplayTracksMock(...args),
+    moveUserTrackToPriority: (queue: unknown, track: unknown) =>
+        moveUserTrackToPriorityMock(queue, track),
+    blendAutoplayTracks: (queue: unknown, track: unknown) =>
+        blendAutoplayTracksMock(queue, track),
 }))
 
 jest.mock('../../../../utils/music/queueResolver', () => ({
-    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+    resolveGuildQueue: (client: unknown, guildId: string) =>
+        resolveGuildQueueMock(client, guildId),
 }))
 
 jest.mock('../../../../utils/command/commandValidations', () => ({
-    requireVoiceChannel: (...args: unknown[]) =>
-        requireVoiceChannelMock(...args),
+    requireVoiceChannel: (interaction: unknown) =>
+        requireVoiceChannelMock(interaction),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
-    errorLog: (...args: unknown[]) => errorLogMock(...args),
-    debugLog: (...args: unknown[]) => debugLogMock(...args),
-    warnLog: (...args: unknown[]) => warnLogMock(...args),
+    errorLog: (payload: unknown) => errorLogMock(payload),
+    debugLog: (payload: unknown) => debugLogMock(payload),
+    warnLog: (payload: unknown) => warnLogMock(payload),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
-        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
+        getGuildSettings: (guildId: string) => getGuildSettingsMock(guildId),
+    },
+}))
+
+jest.mock('@lucky/shared/config', () => ({
+    ENVIRONMENT_CONFIG: {
+        PLAYER: {
+            CONNECTION_TIMEOUT: 15000,
+        },
     },
 }))
 
 jest.mock('../../../../utils/general/embeds', () => ({
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (title: string, message: string) =>
+        createErrorEmbedMock(title, message),
+    createSuccessEmbed: (title: string, message: string) =>
+        createSuccessEmbedMock(title, message),
 }))
 
 jest.mock('../../../../utils/music/collaborativePlaylist', () => ({
     collaborativePlaylistService: {
-        canAddTracks: (...args: unknown[]) => canAddTracksMock(...args),
-        recordContribution: (...args: unknown[]) =>
-            recordContributionMock(...args),
+        canAddTracks: () => canAddTracksMock(),
+        recordContribution: (guildId: string, userId: string, amount: number) =>
+            recordContributionMock(guildId, userId, amount),
     },
 }))
 
@@ -159,12 +196,13 @@ describe('play command', () => {
             track: { title: 'Song A', author: 'Artist A' },
             searchResult: { playlist: null, tracks: [] },
         }
+        const client = createClient(async () => result, {
+            repeatMode: 3,
+            tracksSize: 2,
+        })
 
         await playCommand.execute({
-            client: createClient(async () => result, {
-                repeatMode: 3,
-                tracksSize: 2,
-            }),
+            client,
             interaction,
         } as any)
 
@@ -176,6 +214,15 @@ describe('play command', () => {
         )
         expect(interaction.editReply).toHaveBeenCalled()
         expect(createSuccessEmbedMock).toHaveBeenCalled()
+        expect(client.player.play).toHaveBeenCalledWith(
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                nodeOptions: expect.objectContaining({
+                    connectionTimeout: 15000,
+                }),
+            }),
+        )
     })
 
     it('applies stored autoplay preference to a queue', async () => {

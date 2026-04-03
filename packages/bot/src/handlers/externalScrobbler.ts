@@ -5,9 +5,11 @@ import {
     type VoiceChannel,
 } from 'discord.js'
 import { infoLog, errorLog, debugLog } from '@lucky/shared/utils'
+import { lastFmLinkService } from '@lucky/shared/services'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
+    isLastFmInvalidSessionError,
     updateNowPlaying,
     scrobble,
 } from '../lastfm'
@@ -66,6 +68,32 @@ function getMusicBotVoiceChannel(message: Message): VoiceChannel | null {
     return (botMember?.voice.channel as VoiceChannel) ?? null
 }
 
+let globalClient: Client | null = null
+
+async function handleInvalidLastFmSession(
+    discordId: string,
+    username: string,
+    error: unknown,
+): Promise<boolean> {
+    if (!isLastFmInvalidSessionError(error)) return false
+
+    const removed = await lastFmLinkService.unlink(discordId)
+    if (removed) {
+        infoLog({
+            message: `Removed invalid Last.fm session for ${username}`,
+            data: { discordId },
+        })
+        return true
+    }
+
+    errorLog({
+        message: 'Failed to remove invalid Last.fm session',
+        error,
+        data: { discordId },
+    })
+    return false
+}
+
 async function scrobblePreviousTrack(guildId: string): Promise<void> {
     const prev = lastExternalTrack.get(guildId)
     if (!prev) return
@@ -99,6 +127,13 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
                     message: `Scrobbled (external): ${prev.artist} – ${prev.title} for ${member.user.username}`,
                 })
             } catch (err) {
+                const handledInvalidSession = await handleInvalidLastFmSession(
+                    memberId,
+                    member.user.username,
+                    err,
+                )
+                if (handledInvalidSession) continue
+
                 errorLog({
                     message: 'External scrobble failed',
                     error: err,
@@ -107,8 +142,6 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
         }
     }
 }
-
-let globalClient: Client | null = null
 
 async function handleExternalNowPlaying(message: Message): Promise<void> {
     if (!isLastFmConfigured()) return
@@ -153,6 +186,13 @@ async function handleExternalNowPlaying(message: Message): Promise<void> {
                 message: `Last.fm now playing: ${parsed.artist} – ${parsed.title} for ${member.user.username}`,
             })
         } catch (err) {
+            const handledInvalidSession = await handleInvalidLastFmSession(
+                memberId,
+                member.user.username,
+                err,
+            )
+            if (handledInvalidSession) continue
+
             errorLog({
                 message: 'External updateNowPlaying failed',
                 error: err,
