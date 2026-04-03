@@ -82,6 +82,25 @@ export class LastFmLinkService {
             })
             return true
         } catch (error) {
+            const code =
+                typeof error === 'object' &&
+                error !== null &&
+                'code' in error &&
+                typeof (error as { code?: unknown }).code === 'string'
+                    ? (error as { code: string }).code
+                    : null
+
+            if (code === 'P2025') {
+                // Prisma P2025 = record not found:
+                // https://www.prisma.io/docs/orm/reference/error-reference
+                // Treat delete of a missing link as idempotent success.
+                debugLog({
+                    message: 'Last.fm link already absent',
+                    data: { discordId },
+                })
+                return true
+            }
+
             errorLog({
                 message: 'Failed to unlink Last.fm',
                 error,
