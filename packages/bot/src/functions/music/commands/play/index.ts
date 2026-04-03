@@ -9,6 +9,7 @@ import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
 import { QueueRepeatMode } from 'discord-player'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
@@ -18,6 +19,15 @@ import {
 } from '../../../../utils/music/queueManipulation'
 
 const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
+
+function isUnknownInteractionError(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
+    )
+}
 
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
@@ -69,7 +79,12 @@ export default new Command({
 
         const voiceChannel = member.voice.channel!
 
-        await interaction.deferReply()
+        try {
+            await interaction.deferReply()
+        } catch (error) {
+            if (isUnknownInteractionError(error)) return
+            throw error
+        }
 
         const query = interaction.options.getString('query', true)
         const collaborativeCheck = collaborativePlaylistService.canAddTracks(
@@ -78,13 +93,16 @@ export default new Command({
             1,
         )
         if (!collaborativeCheck.allowed) {
-            await interaction.editReply({
-                embeds: [
-                    createErrorEmbed(
-                        'Contribution limit reached',
-                        `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
-                    ),
-                ],
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Contribution limit reached',
+                            `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
+                        ),
+                    ],
+                },
             })
             return
         }
@@ -147,25 +165,36 @@ export default new Command({
                 1,
             )
 
-            await interaction.editReply({ embeds: [embed] })
+            await interactionReply({
+                interaction,
+                content: { embeds: [embed] },
+            })
         } catch (error) {
+            if (isUnknownInteractionError(error)) {
+                debugLog({
+                    message: 'Play command interaction expired before reply',
+                    data: { query, guildId: interaction.guildId },
+                })
+                return
+            }
+
             errorLog({
                 message: 'Play command error:',
                 error,
                 data: { query, guildId: interaction.guildId },
             })
 
-            const code = (error as { code?: number })?.code
-            if (code === DISCORD_UNKNOWN_INTERACTION_CODE) return
-
             try {
-                await interaction.editReply({
-                    embeds: [
-                        createErrorEmbed(
-                            'Play Error',
-                            'Could not find or play the requested track',
-                        ),
-                    ],
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'Play Error',
+                                'Could not find or play the requested track',
+                            ),
+                        ],
+                    },
                 })
             } catch (replyError) {
                 warnLog({
