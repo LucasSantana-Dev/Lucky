@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 
 const autoMessageService = {
     createMessage: jest.fn(),
@@ -122,7 +129,9 @@ function createMockGuild(options: MockGuildOptions = {}) {
         edit: jest.fn().mockResolvedValue(undefined),
         channels: {
             cache: {
-                get: jest.fn((channelId: string) => channelMap.get(channelId) ?? null),
+                get: jest.fn(
+                    (channelId: string) => channelMap.get(channelId) ?? null,
+                ),
             },
         },
         roles: {
@@ -160,7 +169,10 @@ function createBaseChannelMap(options?: {
         ],
         [
             CRIATIVARIA_CHANNEL_IDS.modLog,
-            options?.modLog ?? { id: CRIATIVARIA_CHANNEL_IDS.modLog, name: 'mod-log' },
+            options?.modLog ?? {
+                id: CRIATIVARIA_CHANNEL_IDS.modLog,
+                name: 'mod-log',
+            },
         ],
         [
             CRIATIVARIA_CHANNEL_IDS.staffAssets,
@@ -172,11 +184,10 @@ function createBaseChannelMap(options?: {
     ])
 }
 
-function createPrismaMock(options?: {
-    guildUpsert?: jest.Mock
-}) {
-    const guildUpsert = options?.guildUpsert
-        ?? jest.fn().mockResolvedValue({ id: 'guild-record' })
+function createPrismaMock(options?: { guildUpsert?: jest.Mock }) {
+    const guildUpsert =
+        options?.guildUpsert ??
+        jest.fn().mockResolvedValue({ id: 'guild-record' })
 
     getPrismaClientMock.mockReturnValue({
         guild: {
@@ -354,7 +365,9 @@ describe('serversetupCriativaria helpers', () => {
     it('uploads static criativaria banner asset for templates', async () => {
         const sendMock = jest.fn().mockResolvedValue({
             attachments: {
-                first: () => ({ url: 'https://cdn.discordapp.com/attachments/banner.png' }),
+                first: () => ({
+                    url: 'https://cdn.discordapp.com/attachments/banner.png',
+                }),
             },
         })
 
@@ -445,17 +458,23 @@ describe('serversetupCriativaria helpers', () => {
         const payload = autoModService.updateSettings.mock.calls[0]?.[1]
         expect(payload?.bannedWords).toContain('discord-gift')
         expect(
-            payload?.bannedWords.some((word: string) => word.includes('://discord-gift')),
+            payload?.bannedWords.some((word: string) =>
+                word.includes('://discord-gift'),
+            ),
         ).toBe(false)
     })
 
     it('captures step failures and continues subsequent setup actions', async () => {
-        moderationService.updateSettings.mockRejectedValueOnce(new Error('moderation-down'))
+        moderationService.updateSettings.mockRejectedValueOnce(
+            new Error('moderation-down'),
+        )
 
         const modSend = jest.fn().mockResolvedValue(undefined)
         const staffSend = jest.fn().mockResolvedValue({
             attachments: {
-                first: () => ({ url: 'https://cdn.discordapp.com/attachments/banner.png' }),
+                first: () => ({
+                    url: 'https://cdn.discordapp.com/attachments/banner.png',
+                }),
             },
         })
 
@@ -517,16 +536,25 @@ describe('serversetupCriativaria helpers', () => {
             .mockResolvedValueOnce('created')
             .mockResolvedValueOnce('updated')
 
-        getTwitchUserByLoginMock.mockResolvedValue({ id: 'tw-id', login: 'criativaria' })
+        getTwitchUserByLoginMock.mockResolvedValue({
+            id: 'tw-id',
+            login: 'criativaria',
+        })
         twitchNotificationService.add.mockResolvedValue(true)
-        refreshTwitchSubscriptionsMock.mockRejectedValue(new Error('refresh-failed'))
+        refreshTwitchSubscriptionsMock.mockRejectedValue(
+            new Error('refresh-failed'),
+        )
 
         const guild = createMockGuild({ channelMap, roleIds: ALL_ROLE_IDS })
         const result = await runCriativariaSetup(guild, 'apply')
 
         expect(staffSend).not.toHaveBeenCalled()
-        expect(result.unchanged).toContain('Imagem CDN existente reutilizada para templates.')
-        expect(autoMessageService.upsertGuildTypeMessage).toHaveBeenCalledTimes(2)
+        expect(result.unchanged).toContain(
+            'Imagem CDN existente reutilizada para templates.',
+        )
+        expect(autoMessageService.upsertGuildTypeMessage).toHaveBeenCalledTimes(
+            2,
+        )
         expect(guildUpsert).toHaveBeenCalledTimes(1)
         expect(twitchNotificationService.add).toHaveBeenCalledWith(
             'guild-db-id',
@@ -538,7 +566,9 @@ describe('serversetupCriativaria helpers', () => {
         expect(result.warnings).toContain(
             'Twitch seed aplicado, mas refresh de subscriptions falhou.',
         )
-        expect(result.applied).toContain('Notificação Twitch para criativaria configurada.')
+        expect(result.applied).toContain(
+            'Notificação Twitch para criativaria configurada.',
+        )
         expect(modSend).toHaveBeenCalledWith(
             expect.objectContaining({
                 embeds: expect.any(Array),
@@ -599,7 +629,9 @@ describe('serversetupCriativaria helpers', () => {
     })
 
     it('warns when static asset upload throws an exception', async () => {
-        const staffSend = jest.fn().mockRejectedValue(new Error('upload-failed'))
+        const staffSend = jest
+            .fn()
+            .mockRejectedValue(new Error('upload-failed'))
 
         const channelMap = createBaseChannelMap({
             modLog: {
@@ -618,8 +650,8 @@ describe('serversetupCriativaria helpers', () => {
         const result = await runCriativariaSetup(guild, 'apply')
 
         expect(result.warnings).toContain(
-            'Falha no upload da imagem estática da Criativaria '
-            + '(continuando sem imagem CDN): upload-failed',
+            'Falha no upload da imagem estática da Criativaria ' +
+                '(continuando sem imagem CDN): upload-failed',
         )
     })
 
@@ -676,7 +708,10 @@ describe('serversetupCriativaria helpers', () => {
 
         const guildUpsert = jest.fn().mockResolvedValue({ id: 'guild-db-id' })
         createPrismaMock({ guildUpsert })
-        getTwitchUserByLoginMock.mockResolvedValue({ id: 'tw-id', login: 'criativaria' })
+        getTwitchUserByLoginMock.mockResolvedValue({
+            id: 'tw-id',
+            login: 'criativaria',
+        })
         twitchNotificationService.add.mockResolvedValue(false)
 
         const guild = createMockGuild({ channelMap, roleIds: ALL_ROLE_IDS })

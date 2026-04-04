@@ -64,9 +64,10 @@ packages/
 - **Verified announcement**: `assets/lucky-verified-announcement.png` (1280x640)
 - Legacy v1 images kept at `assets/discord-discovery-media/2026-03/final/`
 
-### Latest Release (`v2.6.54`)
-- Routed YouTube audio via SoundCloud bridge (`createStream` override) to bypass extraction failures; fixed `Track.setMetadata` TypeError in session snapshots.
-- Previous release (`v2.6.53`) added `generateWithPoToken` to `YoutubeiExtractor` and introduced the `/version` command.
+### Latest Release (`v2.6.60`)
+- Interaction timeout hardening for `/play` and `/guildconfig`: validation runs before defer and early validation failures now reply ephemerally without public "thinking" noise.
+- Added `GET /api/health/version` and deploy-side commit-SHA validation so homelab rollout marks success only after the expected build is live.
+- Previous release (`v2.6.59`) hardened Twitch API reliability with token-refresh retry and explicit `503` responses on credential misconfiguration.
 
 ## Features
 
