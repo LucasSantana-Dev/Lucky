@@ -115,7 +115,9 @@ describe('Sidebar', () => {
         const dashboardLink = screen.getByText('Dashboard').closest('a')
 
         expect(featuresLink).toHaveAttribute('aria-current', 'page')
+        expect(featuresLink).toHaveAttribute('data-active', 'true')
         expect(dashboardLink).not.toHaveAttribute('aria-current')
+        expect(dashboardLink).toHaveAttribute('data-active', 'false')
     })
 
     test('shows server selector dropdown with guilds', async () => {
@@ -123,10 +125,13 @@ describe('Sidebar', () => {
         renderSidebar()
 
         expect(screen.getAllByText('Test Server')).toHaveLength(2)
-        expect(screen.getByText('Management Console')).toBeInTheDocument()
+        expect(screen.getByText('Ready')).toBeInTheDocument()
+        expect(
+            screen.getByText('Guild command center is ready for operations.'),
+        ).toBeInTheDocument()
 
         const dropdownButton = screen.getByRole('button', {
-            name: /switch server, currently/i,
+            name: 'Switch server',
         })
         await user.click(dropdownButton)
 
@@ -182,6 +187,26 @@ describe('Sidebar', () => {
 
         expect(screen.getAllByText('Select a server')).toHaveLength(2)
         expect(screen.getByText('Lucky')).toBeInTheDocument()
+        expect(
+            screen.getByText('Choose a community to unlock guild tools.'),
+        ).toBeInTheDocument()
+    })
+
+    test('shows needs setup status when selected guild is missing the bot', () => {
+        mockGuildStoreState({
+            selectedGuild: {
+                ...mockGuild,
+                botAdded: false,
+            },
+            selectedGuildId: mockGuild.id,
+        })
+
+        renderSidebar()
+
+        expect(screen.getByText('Needs setup')).toBeInTheDocument()
+        expect(
+            screen.getByText('Lucky is not installed in this server yet.'),
+        ).toBeInTheDocument()
     })
 
     test('shows authorized guilds even when bot is not added', async () => {
