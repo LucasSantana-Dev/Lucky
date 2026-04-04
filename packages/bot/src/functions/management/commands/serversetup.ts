@@ -257,26 +257,32 @@ export default new Command({
                 .setName('template')
                 .setDescription('Server template to apply')
                 .setRequired(true)
-                .addChoices({
-                    name: 'forge-space',
-                    value: 'forge-space',
-                }, {
-                    name: 'criativaria',
-                    value: 'criativaria',
-                }),
+                .addChoices(
+                    {
+                        name: 'forge-space',
+                        value: 'forge-space',
+                    },
+                    {
+                        name: 'criativaria',
+                        value: 'criativaria',
+                    },
+                ),
         )
         .addStringOption((option) =>
             option
                 .setName('mode')
                 .setDescription('Execution mode')
                 .setRequired(false)
-                .addChoices({
-                    name: 'apply',
-                    value: 'apply',
-                }, {
-                    name: 'dry-run',
-                    value: 'dry-run',
-                }),
+                .addChoices(
+                    {
+                        name: 'apply',
+                        value: 'apply',
+                    },
+                    {
+                        name: 'dry-run',
+                        value: 'dry-run',
+                    },
+                ),
         ),
     category: 'management',
     execute: async ({ interaction }) => {
@@ -296,14 +302,20 @@ export default new Command({
         if (template === 'criativaria') {
             await interaction.deferReply({ ephemeral: true })
             try {
-                const result = await runCriativariaSetup(interaction.guild, mode)
-                await interaction.editReply(formatCriativariaSummary(result, mode))
+                const result = await runCriativariaSetup(
+                    interaction.guild,
+                    mode,
+                )
+                await interaction.editReply(
+                    formatCriativariaSummary(result, mode),
+                )
                 infoLog({
                     message: `serversetup: Criativaria template executed in ${mode} mode for ${interaction.guild.name}`,
                 })
             } catch (error) {
                 errorLog({
-                    message: 'serversetup: Failed to execute Criativaria template',
+                    message:
+                        'serversetup: Failed to execute Criativaria template',
                     error,
                 })
                 await interaction.editReply(

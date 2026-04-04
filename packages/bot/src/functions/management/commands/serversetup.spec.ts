@@ -28,12 +28,13 @@ function createInteraction(options: {
     withGuild?: boolean
 }) {
     return {
-        guild: options.withGuild === false
-            ? null
-            : {
-                id: '895505900016631839',
-                name: 'Criativaria',
-            },
+        guild:
+            options.withGuild === false
+                ? null
+                : {
+                      id: '895505900016631839',
+                      name: 'Criativaria',
+                  },
         options: {
             getString: jest.fn((name: string, required?: boolean) => {
                 if (name === 'template') {
@@ -63,16 +64,21 @@ describe('serversetup command', () => {
         const templateOption = json.options?.find(
             (option) => option.name === 'template',
         )
-        const modeOption = json.options?.find((option) => option.name === 'mode')
+        const modeOption = json.options?.find(
+            (option) => option.name === 'mode',
+        )
 
         const templateChoices =
             templateOption?.choices?.map((choice) => choice.value) ?? []
-        const modeChoices = modeOption?.choices?.map((choice) => choice.value) ?? []
+        const modeChoices =
+            modeOption?.choices?.map((choice) => choice.value) ?? []
 
         expect(templateChoices).toEqual(
             expect.arrayContaining(['forge-space', 'criativaria']),
         )
-        expect(modeChoices).toEqual(expect.arrayContaining(['apply', 'dry-run']))
+        expect(modeChoices).toEqual(
+            expect.arrayContaining(['apply', 'dry-run']),
+        )
     })
 
     it('runs criativaria template using resolved mode and summary output', async () => {
@@ -82,7 +88,9 @@ describe('serversetup command', () => {
             unchanged: [],
             warnings: [],
         })
-        ;(formatCriativariaSummary as jest.Mock).mockReturnValue('summary output')
+        ;(formatCriativariaSummary as jest.Mock).mockReturnValue(
+            'summary output',
+        )
 
         const interaction = createInteraction({
             template: 'criativaria',
@@ -93,7 +101,10 @@ describe('serversetup command', () => {
 
         expect(resolveSetupMode).toHaveBeenCalledWith('dry-run')
         expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true })
-        expect(runCriativariaSetup).toHaveBeenCalledWith(interaction.guild, 'dry-run')
+        expect(runCriativariaSetup).toHaveBeenCalledWith(
+            interaction.guild,
+            'dry-run',
+        )
         expect(formatCriativariaSummary).toHaveBeenCalled()
         expect(interaction.editReply).toHaveBeenCalledWith('summary output')
         expect(interactionReply).not.toHaveBeenCalled()
@@ -175,7 +186,9 @@ describe('serversetup command', () => {
             expect.objectContaining({
                 interaction,
                 content: expect.objectContaining({
-                    content: expect.stringContaining('only be used in a server'),
+                    content: expect.stringContaining(
+                        'only be used in a server',
+                    ),
                 }),
             }),
         )
