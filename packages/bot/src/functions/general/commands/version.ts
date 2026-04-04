@@ -5,9 +5,12 @@ import Command from '../../../models/Command'
 import { createInfoEmbed } from '../../../utils/general/embeds'
 
 function resolveVersion(): string {
+    const runtimeVersion = process.env.npm_package_version
+    if (runtimeVersion) return `v${runtimeVersion}`
+
     try {
         const packageJson = JSON.parse(
-            readFileSync(join(process.cwd(), 'packages/bot/package.json'), 'utf8'),
+            readFileSync(join(process.cwd(), 'package.json'), 'utf8'),
         ) as {
             version?: string
         }

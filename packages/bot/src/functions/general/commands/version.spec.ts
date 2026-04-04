@@ -1,4 +1,6 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals'
+
+const ORIGINAL_NPM_PACKAGE_VERSION = process.env.npm_package_version
 
 const readFileSyncMock = jest.fn<(...args: unknown[]) => string>(() =>
     JSON.stringify({ version: '9.9.9' }),
@@ -38,6 +40,7 @@ describe('version command', () => {
         jest.clearAllMocks()
         readFileSyncMock.mockReturnValue(JSON.stringify({ version: '9.9.9' }))
         delete process.env.COMMIT_SHA
+        delete process.env.npm_package_version
     })
 
     it('defers reply as ephemeral', async () => {
@@ -69,4 +72,25 @@ describe('version command', () => {
             'commit abc123d',
         )
     })
+
+    it('prefers npm_package_version when available', async () => {
+        process.env.npm_package_version = '2.6.62'
+
+        const interaction = createInteraction()
+        await versionCommand.execute({ interaction } as any)
+
+        expect(readFileSyncMock).not.toHaveBeenCalled()
+        expect(createInfoEmbedMock).toHaveBeenCalledWith(
+            'Bot Version',
+            'v2.6.62',
+        )
+    })
+})
+
+afterAll(() => {
+    if (ORIGINAL_NPM_PACKAGE_VERSION === undefined) {
+        delete process.env.npm_package_version
+        return
+    }
+    process.env.npm_package_version = ORIGINAL_NPM_PACKAGE_VERSION
 })
