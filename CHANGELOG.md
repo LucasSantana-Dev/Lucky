@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **command availability hardening**: command bootstrap no longer depends on eager Prisma initialization from `moderationSettings`, so slash commands such as `/version` and `/autoplay` stay available even when unrelated shared service modules would otherwise fail during import.
+- **version command accuracy**: `/version` now prefers the runtime package version (`npm_package_version`) and falls back to the root `package.json`, avoiding stale `packages/bot/package.json` version output after releases.
+
 ## [2.6.62] - 2026-04-04
 
 ### Fixed
@@ -52,49 +57,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deploy pipeline**: Wait for `docker-publish` to complete before firing the homelab webhook. Fail closed when no docker-publish run is found for the commit SHA (opt-out via `FORCE_UNVERIFIED_DEPLOY=true`).
 - **deploy pipeline**: New *Validate deployed version* step polls `/api/health/version` until the deployed `commitSha` matches `github.sha` before proceeding to OAuth smoke checks — eliminates false-positive green deploys against stale images.
 - **docker build**: `COMMIT_SHA` build arg injected in `docker-publish.yml` and set as `ENV` in the backend stage of the Dockerfile.
-
-## [2.6.59] - 2026-04-01
-
-### Fixed
-
-- **Twitch user lookup**: replaced silent failure on credential misconfiguration with `503 Service Unavailable`. When `TWITCH_CLIENT_ID` is absent or an app access token cannot be obtained, the API now returns `503` with a descriptive message. User-not-found still returns `404`.
-- **Twitch token refresh**: on a `401` from the Helix API the route now clears the cached app token, fetches a fresh one via client_credentials grant, and retries once — preventing stale-token failures.
-
-## [2.6.58] - 2026-04-01
-
-### Fixed
-
-- **Sentry error logging**: `errorLog({ message })` without an `error` object now calls `captureMessage` so all error-level logs reach Sentry. Previously only calls with an attached `Error` object were captured.
-- **Sentry exception context**: `params.message` and `params.data` are now passed as `extras` on every `captureException` call so Sentry events include the log message alongside the stack trace.
-- **Error serialization in console**: Replaced `JSON.stringify(error)` (which returns `{}` for native `Error` objects) with a `serializeError` helper that extracts `name`, `message`, and `stack`.
-
-## [2.6.57] - 2026-04-01
-
-### Fixed
-
-- **play command interaction timeout**: Moved `deferReply()` to the top of the play command's `execute` before any validation checks, and converted early-exit `reply()` calls to `editReply()`. Prevents `DiscordAPIError[10062]` when pre-checks run after the 3-second window (LUCKY-1Y).
-- **Interaction already acknowledged race condition**: Wrapped `deferReply()` in `handleChatInputCommand` and `handleOtherInteraction` (`interactionReply.ts`) in a try-catch so concurrent or duplicate acknowledgement attempts (40060) are silently discarded instead of throwing (LUCKY-23).
-
-## [2.6.56] - 2026-03-31
-
-### Fixed
-
-- **play-dl SoundCloud auth**: `streamViaSoundCloud` threw on every track because `getFreeClientID()` + `setToken()` was never called at startup. Added `initPlayDlSoundCloud()` running before `YoutubeiExtractor` registration so the SoundCloud bridge actually streams (LUCKY-26).
-- **`/version` command timeout**: Replaced `interaction.reply()` with `deferReply()` + `editReply()` so file I/O reading `package.json` no longer races Discord's 3-second interaction window (LUCKY-25).
-- **Missing `live_boards` migration**: Added `npx prisma migrate deploy` to bot container `CMD` so the `channelId` column is created in production before the bot initialises (LUCKY-22).
-
-## [2.6.55] - 2026-03-31
-
-### Changed
-
-- **AI Dev Toolkit board**: Replaced GitHub releases embed with a living Portuguese-language educational article. Polls the repo tree on every sync cycle so the patterns list stays up-to-date without a new release. Stores all message IDs so partial fetches are cleaned up cleanly before a repost.
-
-### Fixed
-
-- **AiDevToolkitService race condition**: Parallel `Promise.all([commit, tree])` could cache a stale tree if the two GitHub API calls resolved on different revisions. Fetch is now sequential: commit first → extract `commit.commit.tree.sha` → fetch tree with that SHA. Both fetches are bounded by `AbortSignal.timeout(10_000)`.
-- **Orphaned messages on partial fetch**: Replaced the reset-on-error pattern with a `foundAllMessages` flag so messages fetched before a failure are deleted before reposting.
-- **`@mention` injection**: Added `allowedMentions: { parse: [] }` to `channel.send()` and `message.edit()` to prevent pattern slugs derived from repo content from triggering Discord @mentions.
-
-### Added
-
-- `AI_DEV_TOOLKIT_CHANNEL_ID` and `AI_DEV_TOOLKIT_CHECK_INTERVAL` env vars documented in `docker-compose.yml`.

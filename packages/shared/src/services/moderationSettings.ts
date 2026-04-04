@@ -1,11 +1,20 @@
 import { getPrismaClient } from '../utils/database/prismaClient.js'
+import type { PrismaClient } from '../generated/prisma/client.js'
 import { redisClient } from './redis/index.js'
 import { errorLog } from '../utils/general/log.js'
 import type { ModerationSettings } from './ModerationService.js'
 
-const prisma = getPrismaClient()
 const CACHE_TTL = 300
 const CACHE_PREFIX = 'modsettings:'
+
+let prismaInstance: PrismaClient | null = null
+
+function prisma(): PrismaClient {
+    if (!prismaInstance) {
+        prismaInstance = getPrismaClient()
+    }
+    return prismaInstance
+}
 
 export async function getModerationSettings(
     guildId: string,
@@ -19,11 +28,13 @@ export async function getModerationSettings(
         }
     }
 
-    let settings = await prisma.moderationSettings.findUnique({
+    let settings = await prisma().moderationSettings.findUnique({
         where: { guildId },
     })
     if (!settings) {
-        settings = await prisma.moderationSettings.create({ data: { guildId } })
+        settings = await prisma().moderationSettings.create({
+            data: { guildId },
+        })
     }
 
     if (redisClient.isHealthy()) {
@@ -45,7 +56,7 @@ export async function updateModerationSettings(
         Omit<ModerationSettings, 'id' | 'guildId' | 'createdAt' | 'updatedAt'>
     >,
 ): Promise<ModerationSettings> {
-    const result = await prisma.moderationSettings.upsert({
+    const result = await prisma().moderationSettings.upsert({
         where: { guildId },
         create: { guildId, ...data },
         update: data,
@@ -72,9 +83,9 @@ export async function hasModPermissions(
 
 export async function getModerationStats(guildId: string) {
     const [totalCases, activeCases, casesByType] = await Promise.all([
-        prisma.moderationCase.count({ where: { guildId } }),
-        prisma.moderationCase.count({ where: { guildId, active: true } }),
-        prisma.moderationCase.groupBy({
+        prisma().moderationCase.count({ where: { guildId } }),
+        prisma().moderationCase.count({ where: { guildId, active: true } }),
+        prisma().moderationCase.groupBy({
             by: ['type'],
             where: { guildId },
             _count: true,
