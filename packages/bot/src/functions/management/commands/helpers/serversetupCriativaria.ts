@@ -1,11 +1,7 @@
 import path from 'node:path'
 import { access } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import {
-    EmbedBuilder,
-    type Guild,
-    type GuildBasedChannel,
-} from 'discord.js'
+import { EmbedBuilder, type Guild, type GuildBasedChannel } from 'discord.js'
 import {
     autoMessageService,
     autoModService,
@@ -218,15 +214,24 @@ function projectRootAsset(relativePath: string): string {
     return path.resolve(process.cwd(), '..', '..', relativePath)
 }
 
-function toSendableChannel(channel: GuildBasedChannel | null): SendableChannel | null {
-    if (!channel || !('send' in channel) || typeof channel.send !== 'function') {
+function toSendableChannel(
+    channel: GuildBasedChannel | null,
+): SendableChannel | null {
+    if (
+        !channel ||
+        !('send' in channel) ||
+        typeof channel.send !== 'function'
+    ) {
         return null
     }
     const sendable = channel as unknown as SendableChannel
     return sendable
 }
 
-function hasGuildChannel(guild: Guild, channelId: string): GuildBasedChannel | null {
+function hasGuildChannel(
+    guild: Guild,
+    channelId: string,
+): GuildBasedChannel | null {
     const channel = guild.channels.cache.get(channelId)
     if (!channel) {
         return null
@@ -238,29 +243,48 @@ function hasGuildRole(guild: Guild, roleId: string): boolean {
     return guild.roles.cache.has(roleId)
 }
 
-function buildChannelMapping(guild: Guild, result: SetupResult): ChannelMapping {
+function buildChannelMapping(
+    guild: Guild,
+    result: SetupResult,
+): ChannelMapping {
     const welcome = hasGuildChannel(guild, CRIATIVARIA_CHANNEL_IDS.welcome)
     const leaveLog = hasGuildChannel(guild, CRIATIVARIA_CHANNEL_IDS.leaveLog)
-    const twitchLive = hasGuildChannel(guild, CRIATIVARIA_CHANNEL_IDS.twitchLive)
-    const botCommands = hasGuildChannel(guild, CRIATIVARIA_CHANNEL_IDS.botCommands)
+    const twitchLive = hasGuildChannel(
+        guild,
+        CRIATIVARIA_CHANNEL_IDS.twitchLive,
+    )
+    const botCommands = hasGuildChannel(
+        guild,
+        CRIATIVARIA_CHANNEL_IDS.botCommands,
+    )
     const modLog = hasGuildChannel(guild, CRIATIVARIA_CHANNEL_IDS.modLog)
-    const staffAssets = hasGuildChannel(guild, CRIATIVARIA_CHANNEL_IDS.staffAssets)
+    const staffAssets = hasGuildChannel(
+        guild,
+        CRIATIVARIA_CHANNEL_IDS.staffAssets,
+    )
 
     if (!welcome) result.warnings.push('Canal de boas-vindas não encontrado.')
     if (!leaveLog) result.warnings.push('Canal de saída/log não encontrado.')
     if (!twitchLive) result.warnings.push('Canal de lives não encontrado.')
-    if (!botCommands) result.warnings.push('Canal de comandos do bot não encontrado.')
-    if (!modLog) result.warnings.push('Canal de log da moderação não encontrado.')
-    if (!staffAssets) result.warnings.push('Canal de assets da equipe não encontrado.')
+    if (!botCommands)
+        result.warnings.push('Canal de comandos do bot não encontrado.')
+    if (!modLog)
+        result.warnings.push('Canal de log da moderação não encontrado.')
+    if (!staffAssets)
+        result.warnings.push('Canal de assets da equipe não encontrado.')
 
     const modLogSendable = toSendableChannel(modLog)
     const staffAssetsSendable = toSendableChannel(staffAssets)
 
     if (modLog && !modLogSendable) {
-        result.warnings.push('Canal de log da moderação não permite envio de mensagem.')
+        result.warnings.push(
+            'Canal de log da moderação não permite envio de mensagem.',
+        )
     }
     if (staffAssets && !staffAssetsSendable) {
-        result.warnings.push('Canal de assets da equipe não permite envio de mensagem.')
+        result.warnings.push(
+            'Canal de assets da equipe não permite envio de mensagem.',
+        )
     }
 
     return {
@@ -276,8 +300,12 @@ function buildChannelMapping(guild: Guild, result: SetupResult): ChannelMapping 
 }
 
 function buildRoleMapping(guild: Guild, result: SetupResult): RoleMapping {
-    const adminRoleIds = CRIATIVARIA_ROLE_IDS.admin.filter((id) => hasGuildRole(guild, id))
-    const modRoleIds = CRIATIVARIA_ROLE_IDS.mod.filter((id) => hasGuildRole(guild, id))
+    const adminRoleIds = CRIATIVARIA_ROLE_IDS.admin.filter((id) =>
+        hasGuildRole(guild, id),
+    )
+    const modRoleIds = CRIATIVARIA_ROLE_IDS.mod.filter((id) =>
+        hasGuildRole(guild, id),
+    )
 
     for (const roleId of CRIATIVARIA_ROLE_IDS.admin) {
         if (!hasGuildRole(guild, roleId)) {
@@ -301,9 +329,12 @@ function buildRoleMapping(guild: Guild, result: SetupResult): RoleMapping {
         ? CRIATIVARIA_ROLE_IDS.junior
         : null
 
-    if (!seniorRoleId) result.warnings.push('Cargo Senior não encontrado para exclusividade.')
-    if (!plenoRoleId) result.warnings.push('Cargo Pleno não encontrado para exclusividade.')
-    if (!juniorRoleId) result.warnings.push('Cargo Junior não encontrado para exclusividade.')
+    if (!seniorRoleId)
+        result.warnings.push('Cargo Senior não encontrado para exclusividade.')
+    if (!plenoRoleId)
+        result.warnings.push('Cargo Pleno não encontrado para exclusividade.')
+    if (!juniorRoleId)
+        result.warnings.push('Cargo Junior não encontrado para exclusividade.')
 
     return {
         adminRoleIds,
@@ -343,10 +374,15 @@ async function applyBrandingAssets(
         'Perfil visual do servidor preservado (sem mudanças de ícone/splash/banner).',
     )
 
-    const cachedTemplate = await embedBuilderService.getTemplate(guild.id, 'boas-vindas')
+    const cachedTemplate = await embedBuilderService.getTemplate(
+        guild.id,
+        'boas-vindas',
+    )
     const cachedImage = cachedTemplate?.image
     if (cachedImage?.startsWith('https://cdn.discordapp.com/')) {
-        result.unchanged.push('Imagem CDN existente reutilizada para templates.')
+        result.unchanged.push(
+            'Imagem CDN existente reutilizada para templates.',
+        )
         return cachedImage
     }
 
@@ -360,7 +396,9 @@ async function applyBrandingAssets(
     }
 
     if (!staffAssetsChannel) {
-        result.warnings.push('Sem canal de assets disponível para upload da imagem estática da Criativaria.')
+        result.warnings.push(
+            'Sem canal de assets disponível para upload da imagem estática da Criativaria.',
+        )
         return null
     }
 
@@ -368,16 +406,26 @@ async function applyBrandingAssets(
         const message = (await staffAssetsChannel.send({
             content: 'Lucky setup asset cache: criativaria static banner',
             files: [welcomeImagePath],
-        })) as { attachments?: Map<string, { url: string }> | { first?: () => { url: string } | undefined } }
+        })) as {
+            attachments?:
+                | Map<string, { url: string }>
+                | { first?: () => { url: string } | undefined }
+        }
 
         let imageUrl: string | null = null
-        const attachments = (message as { attachments?: { first?: () => { url: string } | undefined } }).attachments
+        const attachments = (
+            message as {
+                attachments?: { first?: () => { url: string } | undefined }
+            }
+        ).attachments
         if (attachments?.first) {
             imageUrl = attachments.first()?.url ?? null
         }
 
         if (!imageUrl) {
-            result.warnings.push('Upload da imagem estática da Criativaria não retornou URL válida.')
+            result.warnings.push(
+                'Upload da imagem estática da Criativaria não retornou URL válida.',
+            )
             return null
         }
 
@@ -455,10 +503,14 @@ async function applyAutoMod(
         channels.botCommands?.id,
     ].filter((id): id is string => Boolean(id))
 
-    const exemptRoles = [...new Set([...roles.adminRoleIds, ...roles.modRoleIds])]
+    const exemptRoles = [
+        ...new Set([...roles.adminRoleIds, ...roles.modRoleIds]),
+    ]
 
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: aplicar automod balanceado (spam/caps/links/invites/words).')
+        result.applied.push(
+            'Planejado: aplicar automod balanceado (spam/caps/links/invites/words).',
+        )
         return
     }
 
@@ -487,7 +539,9 @@ async function applyGuildSettings(
     result: SetupResult,
 ): Promise<void> {
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: aplicar baseline de configurações de guilda.')
+        result.applied.push(
+            'Planejado: aplicar baseline de configurações de guilda.',
+        )
         return
     }
 
@@ -529,12 +583,16 @@ async function applyAutoMessages(
     result: SetupResult,
 ): Promise<void> {
     if (!channels.welcome || !channels.leaveLog) {
-        result.warnings.push('Auto-mensagens não aplicadas por canais obrigatórios ausentes.')
+        result.warnings.push(
+            'Auto-mensagens não aplicadas por canais obrigatórios ausentes.',
+        )
         return
     }
 
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: configurar auto-mensagens de entrada e saída em PT-BR.')
+        result.applied.push(
+            'Planejado: configurar auto-mensagens de entrada e saída em PT-BR.',
+        )
         return
     }
 
@@ -584,7 +642,9 @@ async function applyEmbedTemplates(
     result: SetupResult,
 ): Promise<void> {
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: upsert de templates de embed (boas-vindas/regras/suporte).')
+        result.applied.push(
+            'Planejado: upsert de templates de embed (boas-vindas/regras/suporte).',
+        )
         return
     }
 
@@ -615,7 +675,9 @@ async function applyCustomCommands(
     result: SetupResult,
 ): Promise<void> {
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: upsert de custom commands (regras/cargos/links/suporte).')
+        result.applied.push(
+            'Planejado: upsert de custom commands (regras/cargos/links/suporte).',
+        )
         return
     }
 
@@ -636,12 +698,16 @@ async function applyRoleExclusions(
     const junior = roles.juniorRoleId
 
     if (!senior || !pleno || !junior) {
-        result.warnings.push('Regras de exclusividade de cargos parcialmente ignoradas por cargos ausentes.')
+        result.warnings.push(
+            'Regras de exclusividade de cargos parcialmente ignoradas por cargos ausentes.',
+        )
         return
     }
 
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: aplicar exclusividade Senior/Pleno/Junior.')
+        result.applied.push(
+            'Planejado: aplicar exclusividade Senior/Pleno/Junior.',
+        )
         return
     }
 
@@ -655,10 +721,14 @@ async function applyRoleExclusions(
 function getLastFmIssues(): string[] {
     const issues: string[] = []
     if (!process.env.LASTFM_API_KEY || !process.env.LASTFM_API_SECRET) {
-        issues.push('Last.fm incompleto: faltam LASTFM_API_KEY/LASTFM_API_SECRET.')
+        issues.push(
+            'Last.fm incompleto: faltam LASTFM_API_KEY/LASTFM_API_SECRET.',
+        )
     }
     if (!process.env.LASTFM_LINK_SECRET && !process.env.WEBAPP_SESSION_SECRET) {
-        issues.push('Last.fm link secret ausente: configure LASTFM_LINK_SECRET ou WEBAPP_SESSION_SECRET.')
+        issues.push(
+            'Last.fm link secret ausente: configure LASTFM_LINK_SECRET ou WEBAPP_SESSION_SECRET.',
+        )
     }
     return issues
 }
@@ -675,13 +745,17 @@ async function applyTwitchSeed(
     }
 
     if (mode === 'dry-run') {
-        result.applied.push('Planejado: seed Twitch para login criativaria no canal de live.')
+        result.applied.push(
+            'Planejado: seed Twitch para login criativaria no canal de live.',
+        )
         return
     }
 
     const twitchUser = await getTwitchUserByLogin('criativaria')
     if (!twitchUser) {
-        result.warnings.push('Twitch seed falhou: usuário criativaria não encontrado na API Twitch.')
+        result.warnings.push(
+            'Twitch seed falhou: usuário criativaria não encontrado na API Twitch.',
+        )
         return
     }
 
@@ -694,14 +768,18 @@ async function applyTwitchSeed(
     )
 
     if (!added) {
-        result.warnings.push('Twitch seed falhou: não foi possível salvar notificação.')
+        result.warnings.push(
+            'Twitch seed falhou: não foi possível salvar notificação.',
+        )
         return
     }
 
     try {
         await refreshTwitchSubscriptions()
     } catch {
-        result.warnings.push('Twitch seed aplicado, mas refresh de subscriptions falhou.')
+        result.warnings.push(
+            'Twitch seed aplicado, mas refresh de subscriptions falhou.',
+        )
     }
 
     result.applied.push('Notificação Twitch para criativaria configurada.')
@@ -721,10 +799,14 @@ export function resolveSetupMode(modeValue: string | null): SetupMode {
     return 'apply'
 }
 
-export function formatCriativariaSummary(result: SetupResult, mode: SetupMode): string {
-    const header = mode === 'dry-run'
-        ? '🧪 **Criativaria setup (dry-run)**'
-        : '✅ **Criativaria setup aplicado**'
+export function formatCriativariaSummary(
+    result: SetupResult,
+    mode: SetupMode,
+): string {
+    const header =
+        mode === 'dry-run'
+            ? '🧪 **Criativaria setup (dry-run)**'
+            : '✅ **Criativaria setup aplicado**'
 
     return [
         header,
@@ -775,7 +857,8 @@ export async function runCriativariaSetup(
         try {
             await operation()
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
+            const message =
+                error instanceof Error ? error.message : String(error)
             result.warnings.push(`${label}: ${message}`)
         }
     }
