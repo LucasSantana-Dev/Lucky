@@ -3,9 +3,27 @@ import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
 
 const mockGetBotPresenceStatus = jest.fn().mockReturnValue('online')
+const mockGetBotPresenceActivities = jest.fn()
+
+const mockDefaultPresenceActivityTemplates = [
+    { type: ActivityType.Listening, template: '/play • High-fidelity music' },
+    { type: ActivityType.Watching, template: '{guildCount} servers managed' },
+    {
+        type: ActivityType.Watching,
+        template: '{memberCount} members protected',
+    },
+    {
+        type: ActivityType.Competing,
+        template: '{activeMusicSessions} active music sessions',
+        fallback: 'Fast and safe moderation',
+    },
+    { type: ActivityType.Playing, template: '/help • {commandCount} commands' },
+]
 
 jest.mock('../../utils/presenceStatus', () => ({
     getBotPresenceStatus: mockGetBotPresenceStatus,
+    getBotPresenceActivities: mockGetBotPresenceActivities,
+    DEFAULT_PRESENCE_ACTIVITY_TEMPLATES: mockDefaultPresenceActivityTemplates,
 }))
 
 import {
@@ -48,6 +66,10 @@ function createMockClient(overrides?: Partial<CustomClient>): CustomClient {
 describe('presence', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        mockGetBotPresenceActivities.mockReset()
+        mockGetBotPresenceActivities.mockReturnValue(
+            mockDefaultPresenceActivityTemplates,
+        )
     })
 
     describe('PRESENCE_ROTATION_INTERVAL_MS', () => {
@@ -177,6 +199,31 @@ describe('presence', () => {
             })
 
             expect(activities).toHaveLength(5)
+        })
+
+        it('should use configured templates instead of defaults', () => {
+            mockGetBotPresenceActivities.mockReturnValue([
+                {
+                    type: ActivityType.Watching,
+                    template: '{guildCount} guilds online',
+                },
+                {
+                    type: ActivityType.Playing,
+                    template: '/help • custom',
+                },
+            ])
+
+            const activities = buildPresenceActivities({
+                guildCount: 42,
+                memberCount: 500,
+                commandCount: 50,
+                activeMusicSessions: 0,
+            })
+
+            expect(activities).toEqual([
+                { type: ActivityType.Watching, name: '42 guilds online' },
+                { type: ActivityType.Playing, name: '/help • custom' },
+            ])
         })
 
         it('should include guild count in activities', () => {

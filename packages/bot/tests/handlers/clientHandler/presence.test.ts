@@ -11,18 +11,25 @@ import {
 
 describe('bot presence', () => {
     const originalPresenceStatus = process.env.BOT_PRESENCE_STATUS
+    const originalPresenceActivities = process.env.BOT_PRESENCE_ACTIVITIES
 
     beforeEach(() => {
         delete process.env.BOT_PRESENCE_STATUS
+        delete process.env.BOT_PRESENCE_ACTIVITIES
     })
 
     afterAll(() => {
         if (originalPresenceStatus) {
             process.env.BOT_PRESENCE_STATUS = originalPresenceStatus
-            return
+        } else {
+            delete process.env.BOT_PRESENCE_STATUS
         }
 
-        delete process.env.BOT_PRESENCE_STATUS
+        if (originalPresenceActivities) {
+            process.env.BOT_PRESENCE_ACTIVITIES = originalPresenceActivities
+        } else {
+            delete process.env.BOT_PRESENCE_ACTIVITIES
+        }
     })
 
     it('builds premium rotation with runtime stats', () => {
@@ -57,6 +64,82 @@ describe('bot presence', () => {
             type: ActivityType.Competing,
             name: 'Fast and safe moderation',
         })
+    })
+
+    it('uses configured presence templates', () => {
+        process.env.BOT_PRESENCE_ACTIVITIES =
+            'WATCHING:{guildCount} guilds online|PLAYING:/help • custom'
+
+        const activities = buildPresenceActivities({
+            guildCount: 12,
+            memberCount: 430,
+            commandCount: 24,
+            activeMusicSessions: 3,
+        })
+
+        expect(activities).toEqual([
+            { type: ActivityType.Watching, name: '12 guilds online' },
+            { type: ActivityType.Playing, name: '/help • custom' },
+        ])
+    })
+
+    it('falls back to defaults for malformed presence templates', () => {
+        process.env.BOT_PRESENCE_ACTIVITIES = 'invalid|UNKNOWN:ignored'
+
+        const activities = buildPresenceActivities({
+            guildCount: 12,
+            memberCount: 430,
+            commandCount: 24,
+            activeMusicSessions: 3,
+        })
+
+        expect(activities).toEqual([
+            {
+                type: ActivityType.Listening,
+                name: '/play • High-fidelity music',
+            },
+            { type: ActivityType.Watching, name: '12 servers managed' },
+            { type: ActivityType.Watching, name: '430 members protected' },
+            { type: ActivityType.Competing, name: '3 active music sessions' },
+            { type: ActivityType.Playing, name: '/help • 24 commands' },
+        ])
+    })
+
+    it('uses ?? fallback when active music sessions are zero', () => {
+        process.env.BOT_PRESENCE_ACTIVITIES =
+            'COMPETING:{activeMusicSessions} active music sessions??Fast and safe moderation'
+
+        const activities = buildPresenceActivities({
+            guildCount: 12,
+            memberCount: 430,
+            commandCount: 24,
+            activeMusicSessions: 0,
+        })
+
+        expect(activities).toEqual([
+            {
+                type: ActivityType.Competing,
+                name: 'Fast and safe moderation',
+            },
+        ])
+    })
+
+    it('truncates configured activity names to Discord limits', () => {
+        process.env.BOT_PRESENCE_ACTIVITIES = `PLAYING:${'X'.repeat(140)}`
+
+        const activities = buildPresenceActivities({
+            guildCount: 12,
+            memberCount: 430,
+            commandCount: 24,
+            activeMusicSessions: 0,
+        })
+
+        expect(activities).toEqual([
+            {
+                type: ActivityType.Playing,
+                name: `${'X'.repeat(127)}…`,
+            },
+        ])
     })
 
     it('calculates total member count defensively', () => {

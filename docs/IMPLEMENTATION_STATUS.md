@@ -104,21 +104,22 @@ This document reflects what is currently shipped and running in production.
 
 ## Known Gaps / Future Work
 
-| Area               | Description                                          | Complexity |
-| ------------------ | ---------------------------------------------------- | ---------- |
-| Autoplay diversity | Additional tuning of diversity heuristics            | S          |
-| Presence/activity  | Activity template customization                      | S          |
+| Area               | Description                                     | Complexity |
+| ------------------ | ----------------------------------------------- | ---------- |
+| Autoplay diversity | Additional tuning of diversity heuristics       | S          |
+| Presence/activity  | Dashboard/editor surface for activity templates | S          |
 
 ---
 
 ## Env Vars Reference
 
-| Var                                | Default  | Purpose                                                   |
-| ---------------------------------- | -------- | --------------------------------------------------------- |
-| `SMART_SHUFFLE_STREAK_LIMIT`       | `2`      | Max consecutive tracks from one requester in smartshuffle |
-| `AUTOPLAY_FEEDBACK_TTL_DAYS`       | `30`     | Feedback Redis entry TTL in days                          |
-| `MUSIC_PROVIDER_FAILURE_THRESHOLD` | `2`      | Failures before provider enters cooldown                  |
-| `MUSIC_PROVIDER_COOLDOWN_MS`       | `240000` | Provider cooldown duration in ms                          |
-| `MUSIC_WATCHDOG_SCAN_INTERVAL_MS`  | `60000`  | Periodic orphan session scan interval                     |
-| `QUEUE_RESCUE_PROBE_TIMEOUT_MS`    | `5000`   | Probe timeout for /queue rescue                           |
-| `BOT_PRESENCE_STATUS`              | `online` | Bot presence status for rotation and now-playing updates  |
+| Var                                | Default   | Purpose                                                       |
+| ---------------------------------- | --------- | ------------------------------------------------------------- |
+| `SMART_SHUFFLE_STREAK_LIMIT`       | `2`       | Max consecutive tracks from one requester in smartshuffle     |
+| `AUTOPLAY_FEEDBACK_TTL_DAYS`       | `30`      | Feedback Redis entry TTL in days                              |
+| `MUSIC_PROVIDER_FAILURE_THRESHOLD` | `2`       | Failures before provider enters cooldown                      |
+| `MUSIC_PROVIDER_COOLDOWN_MS`       | `240000`  | Provider cooldown duration in ms                              |
+| `MUSIC_WATCHDOG_SCAN_INTERVAL_MS`  | `60000`   | Periodic orphan session scan interval                         |
+| `QUEUE_RESCUE_PROBE_TIMEOUT_MS`    | `5000`    | Probe timeout for /queue rescue                               |
+| `BOT_PRESENCE_STATUS`              | `online`  | Bot presence status for rotation and now-playing updates      |
+| `BOT_PRESENCE_ACTIVITIES`          | `_unset_` | Optional env-driven templates for non-music presence rotation |

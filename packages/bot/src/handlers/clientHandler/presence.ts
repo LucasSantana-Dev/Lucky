@@ -1,11 +1,23 @@
 import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
-import { getBotPresenceStatus } from '../../utils/presenceStatus'
+import {
+    getBotPresenceActivities,
+    getBotPresenceStatus,
+} from '../../utils/presenceStatus'
 
 type PresenceActivity = {
     type: ActivityType
     name: string
 }
+
+type PresenceRenderStats = {
+    guildCount: number
+    memberCount: number
+    commandCount: number
+    activeMusicSessions: number
+}
+
+const MAX_ACTIVITY_NAME_LENGTH = 128
 
 export const PRESENCE_ROTATION_INTERVAL_MS = 45_000
 
@@ -46,6 +58,24 @@ export const getActiveMusicSessions = (client: CustomClient): number => {
     return count
 }
 
+const renderPresenceActivityName = (
+    template: string,
+    stats: PresenceRenderStats,
+): string =>
+    template
+        .replaceAll('{guildCount}', String(stats.guildCount))
+        .replaceAll('{memberCount}', String(stats.memberCount))
+        .replaceAll('{commandCount}', String(stats.commandCount))
+        .replaceAll('{activeMusicSessions}', String(stats.activeMusicSessions))
+
+const truncatePresenceActivityName = (text: string): string => {
+    if (text.length <= MAX_ACTIVITY_NAME_LENGTH) {
+        return text
+    }
+
+    return text.slice(0, MAX_ACTIVITY_NAME_LENGTH - 1) + '…'
+}
+
 export const buildPresenceActivities = ({
     guildCount,
     memberCount,
@@ -56,19 +86,27 @@ export const buildPresenceActivities = ({
     memberCount: number
     commandCount: number
     activeMusicSessions: number
-}): PresenceActivity[] => [
-    { type: ActivityType.Listening, name: '/play • High-fidelity music' },
-    { type: ActivityType.Watching, name: `${guildCount} servers managed` },
-    { type: ActivityType.Watching, name: `${memberCount} members protected` },
-    {
-        type: ActivityType.Competing,
-        name:
-            activeMusicSessions > 0
-                ? `${activeMusicSessions} active music sessions`
-                : 'Fast and safe moderation',
-    },
-    { type: ActivityType.Playing, name: `/help • ${commandCount} commands` },
-]
+}): PresenceActivity[] =>
+    getBotPresenceActivities().map((activity) => ({
+        type: activity.type,
+        name: truncatePresenceActivityName(
+            activity.template.includes('{activeMusicSessions}') &&
+                activity.fallback &&
+                activeMusicSessions === 0
+                ? renderPresenceActivityName(activity.fallback, {
+                      guildCount,
+                      memberCount,
+                      commandCount,
+                      activeMusicSessions,
+                  })
+                : renderPresenceActivityName(activity.template, {
+                      guildCount,
+                      memberCount,
+                      commandCount,
+                      activeMusicSessions,
+                  }),
+        ),
+    }))
 
 export const setPresenceActivity = (
     client: CustomClient,

@@ -74,6 +74,7 @@ packages/
 ### Bot
 - Multi-platform music (YouTube, Spotify) with queue, shuffle, repeat, lyrics, autoplay
 - Dynamic Discord presence rotation with live guild/member/session stats and command CTA
+- Presence rotation is configurable through `BOT_PRESENCE_ACTIVITIES`, while now-playing still overrides rotation
 - Autoplay recommendations use anti-repeat filtering with queue buffering so shuffle stays useful during autoplay
 - Autoplay command recovers active guild queue from player cache fallback to avoid false queue-missing errors during active playback
 - Autoplay toggles now respond immediately while queue replenishment runs in the background, reducing interaction timeout risk
