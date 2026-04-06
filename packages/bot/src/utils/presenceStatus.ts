@@ -1,6 +1,8 @@
 import type { PresenceStatusData } from 'discord.js'
 
 const DEFAULT_PRESENCE_STATUS: PresenceStatusData = 'online'
+const DEFAULT_PRESENCE_ROTATION_INTERVAL_MS = 45_000
+const MIN_PRESENCE_ROTATION_INTERVAL_MS = 15_000
 
 const ALLOWED_PRESENCE_STATUSES = new Set<PresenceStatusData>([
     'online',
@@ -13,7 +15,8 @@ const isPresenceStatusData = (status: string): status is PresenceStatusData =>
     ALLOWED_PRESENCE_STATUSES.has(status as PresenceStatusData)
 
 export const getBotPresenceStatus = (): PresenceStatusData => {
-    const configuredStatus = process.env.BOT_PRESENCE_STATUS?.trim().toLowerCase()
+    const configuredStatus =
+        process.env.BOT_PRESENCE_STATUS?.trim().toLowerCase()
 
     if (!configuredStatus) {
         return DEFAULT_PRESENCE_STATUS
@@ -24,4 +27,21 @@ export const getBotPresenceStatus = (): PresenceStatusData => {
     }
 
     return DEFAULT_PRESENCE_STATUS
+}
+
+export const getBotPresenceRotationIntervalMs = (): number => {
+    const configuredInterval =
+        process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS?.trim()
+
+    if (!configuredInterval) {
+        return DEFAULT_PRESENCE_ROTATION_INTERVAL_MS
+    }
+
+    const parsedInterval = Number.parseInt(configuredInterval, 10)
+
+    if (!Number.isInteger(parsedInterval) || parsedInterval <= 0) {
+        return DEFAULT_PRESENCE_ROTATION_INTERVAL_MS
+    }
+
+    return Math.max(parsedInterval, MIN_PRESENCE_ROTATION_INTERVAL_MS)
 }

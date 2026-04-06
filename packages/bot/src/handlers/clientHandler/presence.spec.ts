@@ -3,9 +3,11 @@ import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
 
 const mockGetBotPresenceStatus = jest.fn().mockReturnValue('online')
+const mockGetBotPresenceRotationIntervalMs = jest.fn().mockReturnValue(45_000)
 
 jest.mock('../../utils/presenceStatus', () => ({
     getBotPresenceStatus: mockGetBotPresenceStatus,
+    getBotPresenceRotationIntervalMs: mockGetBotPresenceRotationIntervalMs,
 }))
 
 import {
@@ -48,6 +50,7 @@ function createMockClient(overrides?: Partial<CustomClient>): CustomClient {
 describe('presence', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        mockGetBotPresenceRotationIntervalMs.mockReturnValue(45_000)
     })
 
     describe('PRESENCE_ROTATION_INTERVAL_MS', () => {
@@ -432,6 +435,28 @@ describe('presence', () => {
 
             jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS * 3)
             expect(setPresence).not.toHaveBeenCalled()
+        })
+
+        it('should use configured rotation interval from helper', () => {
+            const setIntervalSpy = jest.spyOn(global, 'setInterval')
+            const client = createMockClient({
+                user: { setPresence: jest.fn() },
+                guilds: { cache: { size: 5, values: () => [] } },
+                commands: { size: 30 },
+            } as any)
+
+            mockGetBotPresenceRotationIntervalMs.mockReturnValue(20_000)
+
+            const controls = startPresenceRotation(client)
+
+            expect(mockGetBotPresenceRotationIntervalMs).toHaveBeenCalled()
+            expect(setIntervalSpy).toHaveBeenCalledWith(
+                expect.any(Function),
+                20_000,
+            )
+
+            controls.stop()
+            setIntervalSpy.mockRestore()
         })
     })
 })
