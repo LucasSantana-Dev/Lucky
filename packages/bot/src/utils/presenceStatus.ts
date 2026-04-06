@@ -64,12 +64,12 @@ export const getBotPresenceActivities = (): PresenceActivityTemplate[] => {
 
     const activities = configuredActivities
         .split('|')
-        .map((entry) => {
+        .flatMap((entry): PresenceActivityTemplate[] => {
             const trimmedEntry = entry.trim()
-            if (!trimmedEntry) return null
+            if (!trimmedEntry) return []
 
             const separatorIndex = trimmedEntry.indexOf(':')
-            if (separatorIndex === -1) return null
+            if (separatorIndex === -1) return []
 
             const type = trimmedEntry
                 .slice(0, separatorIndex)
@@ -78,7 +78,7 @@ export const getBotPresenceActivities = (): PresenceActivityTemplate[] => {
             const templateAndFallback = trimmedEntry
                 .slice(separatorIndex + 1)
                 .trim()
-            if (!type || !templateAndFallback) return null
+            if (!type || !templateAndFallback) return []
 
             const fallbackIndex = templateAndFallback.indexOf('??')
             const template =
@@ -90,21 +90,19 @@ export const getBotPresenceActivities = (): PresenceActivityTemplate[] => {
                     ? undefined
                     : templateAndFallback.slice(fallbackIndex + 2).trim()
 
-            if (!template) return null
+            if (!template) return []
 
             const activityType = ACTIVITY_TYPE_MAP[type]
-            if (activityType === undefined) return null
+            if (activityType === undefined) return []
 
-            return {
-                type: activityType,
-                template,
-                fallback: fallback || undefined,
-            }
+            return [
+                {
+                    type: activityType,
+                    template,
+                    fallback: fallback || undefined,
+                },
+            ]
         })
-        .filter(
-            (activity): activity is PresenceActivityTemplate =>
-                activity !== null,
-        )
 
     return activities.length > 0
         ? activities
