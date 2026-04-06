@@ -65,6 +65,7 @@ type QueueMock = Partial<GuildQueue> & {
     addTrack: jest.Mock
     tracks: { size: number; toArray: jest.Mock }
     guild: { id: string }
+    history?: { tracks: { toArray: jest.Mock } }
 }
 
 function createQueueMock(overrides: Partial<QueueMock> = {}): QueueMock {
@@ -648,6 +649,145 @@ describe('queueManipulation.replenishQueue', () => {
             (addedTrack?.metadata as Record<string, unknown>)
                 ?.recommendationReason,
         ).toContain('similar energy')
+    })
+
+    it('prefers a different-source candidate when scores are otherwise close', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            history: {
+                tracks: {
+                    toArray: jest.fn().mockReturnValue([
+                        {
+                            title: 'History Song 1',
+                            author: 'Same Artist',
+                            url: 'https://example.com/history-1',
+                        },
+                        {
+                            title: 'History Song 2',
+                            author: 'Different Artist',
+                            url: 'https://example.com/history-2',
+                        },
+                    ]),
+                },
+            },
+            currentTrack: {
+                title: 'Alpha Beta Gamma Delta',
+                author: 'Current Artist',
+                url: 'https://example.com/current-diversity',
+                source: 'youtube',
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Alpha Beta Gamma Delta Remix',
+                            author: 'Same Artist',
+                            url: 'https://example.com/same-source',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Unrelated Fresh Cut',
+                            author: 'Different Artist',
+                            url: 'https://example.com/different-source',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstAdded = queue.addTrack.mock.calls[0]?.[0] as Track
+
+        expect(firstAdded).toEqual(
+            expect.objectContaining({
+                url: 'https://example.com/different-source',
+                source: 'spotify',
+                metadata: expect.objectContaining({
+                    recommendationReason:
+                        expect.stringContaining('source variety'),
+                }),
+            }),
+        )
+    })
+
+    it('still selects three tracks when only one source is viable', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 5,
+                toArray: jest.fn().mockReturnValue([
+                    {
+                        title: 'Queued Song 1',
+                        author: 'Queued Artist 1',
+                        url: 'https://example.com/queued-1',
+                    },
+                    {
+                        title: 'Queued Song 2',
+                        author: 'Queued Artist 2',
+                        url: 'https://example.com/queued-2',
+                    },
+                    {
+                        title: 'Queued Song 3',
+                        author: 'Queued Artist 3',
+                        url: 'https://example.com/queued-3',
+                    },
+                    {
+                        title: 'Queued Song 4',
+                        author: 'Queued Artist 4',
+                        url: 'https://example.com/queued-4',
+                    },
+                    {
+                        title: 'Queued Song 5',
+                        author: 'Queued Artist 5',
+                        url: 'https://example.com/queued-5',
+                    },
+                ]),
+            },
+            currentTrack: {
+                title: 'Current Track',
+                author: 'Current Artist',
+                url: 'https://example.com/current-cap',
+                source: 'youtube',
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Viable One',
+                            author: 'Artist 1',
+                            url: 'https://example.com/viable-1',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Viable Two',
+                            author: 'Artist 2',
+                            url: 'https://example.com/viable-2',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Viable Three',
+                            author: 'Artist 3',
+                            url: 'https://example.com/viable-3',
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Viable Four',
+                            author: 'Artist 4',
+                            url: 'https://example.com/viable-4',
+                            source: 'youtube',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.addTrack).toHaveBeenCalledTimes(3)
     })
 
     it('collects lastfm seed tracks and searches for recommendations', async () => {
