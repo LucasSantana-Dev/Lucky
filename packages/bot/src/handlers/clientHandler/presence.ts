@@ -1,6 +1,7 @@
 import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
 import {
+    getBotPresenceActivities,
     getBotPresenceRotationIntervalMs,
     getBotPresenceStatus,
 } from '../../utils/presenceStatus'
@@ -8,6 +9,13 @@ import {
 type PresenceActivity = {
     type: ActivityType
     name: string
+}
+
+type PresenceActivityContext = {
+    guildCount: number
+    memberCount: number
+    commandCount: number
+    activeMusicSessions: number
 }
 
 export const PRESENCE_ROTATION_INTERVAL_MS = 45_000
@@ -54,24 +62,51 @@ export const buildPresenceActivities = ({
     memberCount,
     commandCount,
     activeMusicSessions,
-}: {
-    guildCount: number
-    memberCount: number
-    commandCount: number
-    activeMusicSessions: number
-}): PresenceActivity[] => [
-    { type: ActivityType.Listening, name: '/play • High-fidelity music' },
-    { type: ActivityType.Watching, name: `${guildCount} servers managed` },
-    { type: ActivityType.Watching, name: `${memberCount} members protected` },
-    {
-        type: ActivityType.Competing,
-        name:
-            activeMusicSessions > 0
-                ? `${activeMusicSessions} active music sessions`
-                : 'Fast and safe moderation',
-    },
-    { type: ActivityType.Playing, name: `/help • ${commandCount} commands` },
-]
+}: PresenceActivityContext): PresenceActivity[] =>
+    getBotPresenceActivities().map((activity) => ({
+        type: activity.type,
+        name: renderPresenceActivityName(activity, {
+            guildCount,
+            memberCount,
+            commandCount,
+            activeMusicSessions,
+        }),
+    }))
+
+const renderPresenceActivityName = (
+    activity: { template: string; fallback?: string },
+    context: PresenceActivityContext,
+): string => {
+    const templateText =
+        context.activeMusicSessions === 0 && activity.fallback
+            ? activity.fallback
+            : activity.template
+
+    return truncateActivityName(renderPresenceTokens(templateText, context))
+}
+
+const renderPresenceTokens = (
+    text: string,
+    context: PresenceActivityContext,
+): string =>
+    text
+        .replaceAll('{guildCount}', String(context.guildCount))
+        .replaceAll('{memberCount}', String(context.memberCount))
+        .replaceAll('{commandCount}', String(context.commandCount))
+        .replaceAll(
+            '{activeMusicSessions}',
+            String(context.activeMusicSessions),
+        )
+
+const truncateActivityName = (text: string): string => {
+    const MAX_LENGTH = 128
+
+    if (text.length <= MAX_LENGTH) {
+        return text
+    }
+
+    return text.slice(0, MAX_LENGTH - 1) + '…'
+}
 
 export const setPresenceActivity = (
     client: CustomClient,

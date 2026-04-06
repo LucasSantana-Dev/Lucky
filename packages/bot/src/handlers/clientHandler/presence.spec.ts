@@ -4,10 +4,27 @@ import type { CustomClient } from '../../types'
 
 const mockGetBotPresenceStatus = jest.fn().mockReturnValue('online')
 const mockGetBotPresenceRotationIntervalMs = jest.fn().mockReturnValue(45_000)
+const mockGetBotPresenceActivities = jest.fn()
+
+mockGetBotPresenceActivities.mockReturnValue([
+    { type: ActivityType.Listening, template: '/play • High-fidelity music' },
+    { type: ActivityType.Watching, template: '{guildCount} servers managed' },
+    {
+        type: ActivityType.Watching,
+        template: '{memberCount} members protected',
+    },
+    {
+        type: ActivityType.Competing,
+        template: '{activeMusicSessions} active music sessions',
+        fallback: 'Fast and safe moderation',
+    },
+    { type: ActivityType.Playing, template: '/help • {commandCount} commands' },
+])
 
 jest.mock('../../utils/presenceStatus', () => ({
     getBotPresenceStatus: mockGetBotPresenceStatus,
     getBotPresenceRotationIntervalMs: mockGetBotPresenceRotationIntervalMs,
+    getBotPresenceActivities: mockGetBotPresenceActivities,
 }))
 
 import {
@@ -51,6 +68,29 @@ describe('presence', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         mockGetBotPresenceRotationIntervalMs.mockReturnValue(45_000)
+        mockGetBotPresenceActivities.mockReturnValue([
+            {
+                type: ActivityType.Listening,
+                template: '/play • High-fidelity music',
+            },
+            {
+                type: ActivityType.Watching,
+                template: '{guildCount} servers managed',
+            },
+            {
+                type: ActivityType.Watching,
+                template: '{memberCount} members protected',
+            },
+            {
+                type: ActivityType.Competing,
+                template: '{activeMusicSessions} active music sessions',
+                fallback: 'Fast and safe moderation',
+            },
+            {
+                type: ActivityType.Playing,
+                template: '/help • {commandCount} commands',
+            },
+        ])
     })
 
     describe('PRESENCE_ROTATION_INTERVAL_MS', () => {
@@ -250,6 +290,51 @@ describe('presence', () => {
             expect(activities[2].type).toBe(ActivityType.Watching)
             expect(activities[3].type).toBe(ActivityType.Competing)
             expect(activities[4].type).toBe(ActivityType.Playing)
+        })
+
+        it('should render custom templates with tokens and fallback', () => {
+            mockGetBotPresenceActivities.mockReturnValue([
+                {
+                    type: ActivityType.Playing,
+                    template: 'Servers {guildCount}',
+                },
+                {
+                    type: ActivityType.Competing,
+                    template: 'Music {activeMusicSessions}',
+                    fallback: 'No music',
+                },
+            ])
+
+            const activities = buildPresenceActivities({
+                guildCount: 14,
+                memberCount: 900,
+                commandCount: 20,
+                activeMusicSessions: 0,
+            })
+
+            expect(activities).toEqual([
+                { type: ActivityType.Playing, name: 'Servers 14' },
+                { type: ActivityType.Competing, name: 'No music' },
+            ])
+        })
+
+        it('should truncate rendered names to Discord limits', () => {
+            mockGetBotPresenceActivities.mockReturnValue([
+                {
+                    type: ActivityType.Playing,
+                    template: 'A'.repeat(200),
+                },
+            ])
+
+            const activities = buildPresenceActivities({
+                guildCount: 1,
+                memberCount: 2,
+                commandCount: 3,
+                activeMusicSessions: 4,
+            })
+
+            expect(activities[0].name.length).toBe(128)
+            expect(activities[0].name.endsWith('…')).toBe(true)
         })
     })
 

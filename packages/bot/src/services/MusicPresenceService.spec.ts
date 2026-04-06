@@ -18,20 +18,27 @@ const makeClient = () => ({
 })
 
 const originalPresenceStatus = process.env.BOT_PRESENCE_STATUS
+const originalPresenceActivities = process.env.BOT_PRESENCE_ACTIVITIES
 
 beforeEach(() => {
     debugLogMock.mockReset()
     jest.resetModules()
     delete process.env.BOT_PRESENCE_STATUS
+    delete process.env.BOT_PRESENCE_ACTIVITIES
 })
 
 afterAll(() => {
     if (originalPresenceStatus) {
         process.env.BOT_PRESENCE_STATUS = originalPresenceStatus
-        return
+    } else {
+        delete process.env.BOT_PRESENCE_STATUS
     }
 
-    delete process.env.BOT_PRESENCE_STATUS
+    if (originalPresenceActivities) {
+        process.env.BOT_PRESENCE_ACTIVITIES = originalPresenceActivities
+    } else {
+        delete process.env.BOT_PRESENCE_ACTIVITIES
+    }
 })
 
 describe('MusicPresenceService', () => {
@@ -42,7 +49,10 @@ describe('MusicPresenceService', () => {
             const resume = jest.fn()
             initMusicPresence(client as never, pause, resume)
 
-            setNowPlaying('guild-1', { title: 'Song', author: 'Artist' } as never)
+            setNowPlaying('guild-1', {
+                title: 'Song',
+                author: 'Artist',
+            } as never)
 
             expect(pause).toHaveBeenCalledTimes(1)
             expect(client.user.setPresence).toHaveBeenCalledWith({
@@ -61,7 +71,10 @@ describe('MusicPresenceService', () => {
             const resume = jest.fn()
             initMusicPresence(client as never, pause, resume)
 
-            setNowPlaying('guild-1', { title: 'Song', author: 'Artist' } as never)
+            setNowPlaying('guild-1', {
+                title: 'Song',
+                author: 'Artist',
+            } as never)
 
             expect(client.user.setPresence).toHaveBeenCalledWith({
                 status: 'idle',
@@ -79,7 +92,10 @@ describe('MusicPresenceService', () => {
             const resume = jest.fn()
             initMusicPresence(client as never, pause, resume)
 
-            setNowPlaying('guild-1', { title: 'Song', author: 'Artist' } as never)
+            setNowPlaying('guild-1', {
+                title: 'Song',
+                author: 'Artist',
+            } as never)
 
             expect(client.user.setPresence).toHaveBeenCalledWith({
                 status: 'online',
@@ -97,12 +113,38 @@ describe('MusicPresenceService', () => {
 
             const longTitle = 'T'.repeat(100)
             const longAuthor = 'A'.repeat(100)
-            setNowPlaying('guild-1', { title: longTitle, author: longAuthor } as never)
+            setNowPlaying('guild-1', {
+                title: longTitle,
+                author: longAuthor,
+            } as never)
 
-            const call = client.user.setPresence.mock.calls[0] as Array<{ activities: Array<{ name: string }> }>
+            const call = client.user.setPresence.mock.calls[0] as Array<{
+                activities: Array<{ name: string }>
+            }>
             const name: string = call[0].activities[0].name
             expect(name.length).toBeLessThanOrEqual(128)
             expect(name.endsWith('…')).toBe(true)
+        })
+
+        it('ignores BOT_PRESENCE_ACTIVITIES when setting now playing', () => {
+            process.env.BOT_PRESENCE_ACTIVITIES = 'PLAYING:Ignored template'
+
+            const client = makeClient()
+            const pause = jest.fn()
+            const resume = jest.fn()
+            initMusicPresence(client as never, pause, resume)
+
+            setNowPlaying('guild-1', {
+                title: 'Song',
+                author: 'Artist',
+            } as never)
+
+            expect(client.user.setPresence).toHaveBeenCalledWith({
+                status: 'online',
+                activities: [
+                    { type: ActivityType.Listening, name: 'Song — Artist' },
+                ],
+            })
         })
 
         it('does nothing when client is not initialised', () => {
