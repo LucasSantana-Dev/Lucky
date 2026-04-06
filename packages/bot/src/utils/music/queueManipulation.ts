@@ -702,7 +702,7 @@ function calculateRecommendationScore(
         score -= 0.25
     }
     if (candidate.source === currentTrack.source) {
-        score -= 0.15
+        score -= 0.25
     } else if (candidate.source) {
         reasons.push('source variety')
     }
