@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
 **Last Updated:** 2026-04-06  
-**Current Version:** v2.6.38
+**Current Version:** v2.6.62 (+ unreleased commits)
 
 This document reflects what is currently shipped and running in production.
 
@@ -26,8 +26,9 @@ This document reflects what is currently shipped and running in production.
 - `/queue shuffle` — standard Fisher-Yates shuffle
 - `/queue smartshuffle` — energy-aware shuffle ordered by source/duration energy score, interleaved high/low buckets, per-requester streak limit (v2.6.24)
 - `/queue rescue` — probe-based detection and removal of unresolvable tracks (v2.6.20)
-- `/lyrics` — paginated lyrics via lyrics.ovh with smart query cleaning
-- `/repeat`, `/autoplay` — repeat mode and autoplay toggle
+- `/lyrics` — paginated lyrics via lyrics.ovh with smart query cleaning (v2.6.60)
+- `/repeat`, `/autoplay` — repeat mode and autoplay toggle; autoplay preference persists across sessions (v2.6.61)
+- `/session save` / `/session restore` — manual queue session snapshot save/restore (v2.6.60)
 
 #### Music Intelligence
 
@@ -81,33 +82,49 @@ This document reflects what is currently shipped and running in production.
 - **Event wiring** — reaction handler updates starboard entries; message handler awards XP with cooldown, level-up announcement, and role reward assignment
 - **Presence rotation** — configurable activity templates with runtime guild/member/command/music tokens, fallback text, and interval control
 
-### Playback Stability (v2.6.38)
+### Playback Stability
 
-- **Play reliability** — yt-dlp extraction now uses resilient format fallback `-f bestaudio/best`
-- **Autoplay reliability** — search fallback retries with `YOUTUBE_SEARCH` when `AUTO` parser/search fails
-- **Docker build stability** — root image builds skip yt-dlp binary download via
-  `YOUTUBE_DL_SKIP_DOWNLOAD=1`, preventing GitHub API rate-limit install failures
+- **Play reliability** — yt-dlp extraction now uses resilient format fallback `-f bestaudio/best` (v2.6.38)
+- **Autoplay reliability** — search fallback retries with `YOUTUBE_SEARCH` when `AUTO` parser/search fails (v2.6.38)
+- **Docker build stability** — root image builds skip yt-dlp binary download via `YOUTUBE_DL_SKIP_DOWNLOAD=1` (v2.6.38)
+- **Play command hardening** — validation before deferReply, ephemeral error replies, Sentry noise reduction for expired interactions (v2.6.60–v2.6.62)
+- **Voice connection hardening** — configurable connection timeout, watchdog recovery rejoin wait cycle (v2.6.61)
+- **Last.fm session resilience** — auto-unlink invalid sessions, P2025 cleanup tolerance, no env fallback retry loop (v2.6.61)
+- **Autoplay source diversity** — stronger same-source penalty in scoring to favor varied sources (v2.6.62+)
 
 ### Backend API (`packages/backend`)
 
 - Express REST API for the web dashboard
 - Routes: guilds, users, settings, moderation cases, server logs, auth (Discord OAuth2)
 - Session-based auth with Redis store
-- Health endpoints: `/api/health`, `/api/health/auth-config`
+- Health endpoints: `/api/health`, `/api/health/auth-config`, `/api/health/version` (commit SHA verification, v2.6.60), `/api/health/cache` (Redis metrics)
 
 ### Frontend (`packages/frontend`)
 
-- React + Vite + Tailwind dashboard
-- Pages: Home, Login, Dashboard, Guild settings, Moderation log, Privacy Policy, Terms of Service
-- Discord OAuth2 login flow integrated
+- React 19 + Vite 8 + Tailwind 4 + shadcn/ui dashboard
+- Pages: Login, Servers, Dashboard Overview, Features, Config, Server Settings, Moderation, AutoMod, Server Logs, Music, Track History, Lyrics, Custom Commands, Auto Messages, Embed Builder, Reaction Roles, Guild Automation, Levels, Starboard, Twitch Notifications, Last.fm, Terms of Service, Privacy Policy
+- Discord OAuth2 login flow with RBAC module guards
+- Shell/sidebar redesign: persistent guild block, 6-group nav, strong active-item treatment (v2.6.62+)
+- Dashboard Overview: moderation stats, recent cases, quick actions, cases-by-type breakdown
+
+### CI/CD & Deploy (v2.6.60+)
+
+- **Deploy pipeline**: docker-publish → version validation (polls `/api/health/version` for commit SHA match) → OAuth smoke checks → homelab webhook
+- **Docker build**: multi-stage (base-runtime → build → production stages), `COMMIT_SHA` build arg injected
+- **SonarCloud**: quality gates with CPD exclusion for test files
+- **Bundle size tracking**: `compressed-size` workflow
+- **Sentry**: active in production with `tracesSampleRate=1.0`, release tagged with `COMMIT_SHA`
 
 ---
 
 ## Known Gaps / Future Work
 
-| Area               | Description                               | Complexity |
-| ------------------ | ----------------------------------------- | ---------- |
-| Autoplay diversity | Additional tuning of diversity heuristics | S          |
+| Area                | Description                                           | Complexity |
+| ------------------- | ----------------------------------------------------- | ---------- |
+| Named sessions      | Multiple named save/restore sessions per guild        | M          |
+| Collaborative playlists | Shared curation with contribution limits          | L          |
+| Scheduled mod digest | Automated weekly moderation summary to channel       | S          |
+| Overview enhancement | Add music + community stats to dashboard overview    | M          |
 
 ---
 
