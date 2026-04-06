@@ -1,6 +1,6 @@
 # Lucky Implementation Status
 
-**Last Updated:** 2026-03-24  
+**Last Updated:** 2026-04-06  
 **Current Version:** v2.6.38
 
 This document reflects what is currently shipped and running in production.
@@ -79,6 +79,7 @@ This document reflects what is currently shipped and running in production.
 - **StarboardService** — per-guild starboard config + tracked entries with star counts and source message mapping
 - **LevelService** — XP accrual, level progression (`level^2 * 100`), rank/leaderboard queries, and level-based role rewards
 - **Event wiring** — reaction handler updates starboard entries; message handler awards XP with cooldown, level-up announcement, and role reward assignment
+- **Presence rotation** — configurable activity templates with runtime guild/member/command/music tokens, fallback text, and interval control
 
 ### Playback Stability (v2.6.38)
 
@@ -104,21 +105,22 @@ This document reflects what is currently shipped and running in production.
 
 ## Known Gaps / Future Work
 
-| Area               | Description                                          | Complexity |
-| ------------------ | ---------------------------------------------------- | ---------- |
-| Autoplay diversity | Additional tuning of diversity heuristics            | S          |
-| Presence/activity  | Activity template customization                      | S          |
+| Area               | Description                               | Complexity |
+| ------------------ | ----------------------------------------- | ---------- |
+| Autoplay diversity | Additional tuning of diversity heuristics | S          |
 
 ---
 
 ## Env Vars Reference
 
-| Var                                | Default  | Purpose                                                   |
-| ---------------------------------- | -------- | --------------------------------------------------------- |
-| `SMART_SHUFFLE_STREAK_LIMIT`       | `2`      | Max consecutive tracks from one requester in smartshuffle |
-| `AUTOPLAY_FEEDBACK_TTL_DAYS`       | `30`     | Feedback Redis entry TTL in days                          |
-| `MUSIC_PROVIDER_FAILURE_THRESHOLD` | `2`      | Failures before provider enters cooldown                  |
-| `MUSIC_PROVIDER_COOLDOWN_MS`       | `240000` | Provider cooldown duration in ms                          |
-| `MUSIC_WATCHDOG_SCAN_INTERVAL_MS`  | `60000`  | Periodic orphan session scan interval                     |
-| `QUEUE_RESCUE_PROBE_TIMEOUT_MS`    | `5000`   | Probe timeout for /queue rescue                           |
-| `BOT_PRESENCE_STATUS`              | `online` | Bot presence status for rotation and now-playing updates  |
+| Var                                 | Default  | Purpose                                                                               |
+| ----------------------------------- | -------- | ------------------------------------------------------------------------------------- |
+| `SMART_SHUFFLE_STREAK_LIMIT`        | `2`      | Max consecutive tracks from one requester in smartshuffle                             |
+| `AUTOPLAY_FEEDBACK_TTL_DAYS`        | `30`     | Feedback Redis entry TTL in days                                                      |
+| `MUSIC_PROVIDER_FAILURE_THRESHOLD`  | `2`      | Failures before provider enters cooldown                                              |
+| `MUSIC_PROVIDER_COOLDOWN_MS`        | `240000` | Provider cooldown duration in ms                                                      |
+| `MUSIC_WATCHDOG_SCAN_INTERVAL_MS`   | `60000`  | Periodic orphan session scan interval                                                 |
+| `QUEUE_RESCUE_PROBE_TIMEOUT_MS`     | `5000`   | Probe timeout for /queue rescue                                                       |
+| `BOT_PRESENCE_ACTIVITIES`           | `—`      | Optional presence activity rotation templates with `TYPE:template??fallback` syntax   |
+| `BOT_PRESENCE_ROTATION_INTERVAL_MS` | `45000`  | Milliseconds between non-music presence rotation updates (clamped to `15000` minimum) |
+| `BOT_PRESENCE_STATUS`               | `online` | Bot presence status for rotation and now-playing updates                              |
