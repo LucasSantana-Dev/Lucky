@@ -1,6 +1,9 @@
 import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
-import { getBotPresenceStatus } from '../../utils/presenceStatus'
+import {
+    getBotPresenceRotationIntervalMs,
+    getBotPresenceStatus,
+} from '../../utils/presenceStatus'
 
 type PresenceActivity = {
     type: ActivityType
@@ -108,7 +111,7 @@ export const startPresenceRotation = (
 
     rotate()
 
-    const timer = setInterval(rotate, PRESENCE_ROTATION_INTERVAL_MS)
+    const timer = setInterval(rotate, getBotPresenceRotationIntervalMs())
     return {
         stop: () => clearInterval(timer),
         pause: () => {
