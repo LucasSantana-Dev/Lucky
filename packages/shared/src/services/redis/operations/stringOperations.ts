@@ -71,6 +71,18 @@ export class StringOperations extends BaseRedisOperations {
         )
     }
 
+    async srem(key: string, ...members: string[]): Promise<number> {
+        return this.executeOperation(
+            async () => {
+                if (!this.client) return 0
+                return this.client.srem(key, ...members)
+            },
+            0,
+            'SREM',
+            key,
+        )
+    }
+
     async smembers(key: string): Promise<string[]> {
         return this.executeOperation(
             async () => {

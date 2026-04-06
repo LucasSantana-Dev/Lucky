@@ -127,6 +127,10 @@ export class RedisClient implements IRedisClient {
         return this.operations?.sadd(key, ...members) ?? 0
     }
 
+    async srem(key: string, ...members: string[]): Promise<number> {
+        return this.operations?.srem(key, ...members) ?? 0
+    }
+
     async smembers(key: string): Promise<string[]> {
         return this.operations?.smembers(key) ?? []
     }

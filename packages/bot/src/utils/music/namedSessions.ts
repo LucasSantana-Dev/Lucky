@@ -80,9 +80,9 @@ export class NamedSessionService {
 
             const guildId = queue.guild.id
             const indexKey = this.getIndexKey(guildId)
-            const sessionCount = await redisClient.scard(indexKey)
+            const existingNames = await redisClient.smembers(indexKey)
 
-            if (sessionCount >= MAX_NAMED_SESSIONS) {
+            if (existingNames.length >= MAX_NAMED_SESSIONS) {
                 errorLog({
                     message: 'Max named sessions reached',
                     data: { guildId, maxCount: MAX_NAMED_SESSIONS },
@@ -248,7 +248,7 @@ export class NamedSessionService {
             const deleted = await redisClient.del(sessionKey)
             await redisClient.srem(indexKey, name)
 
-            return deleted > 0
+            return deleted
         } catch (error) {
             errorLog({
                 message: 'Failed to delete named session',

@@ -59,6 +59,10 @@ export class RedisOperations {
         return this.stringOps.sadd(key, ...members)
     }
 
+    async srem(key: string, ...members: string[]): Promise<number> {
+        return this.stringOps.srem(key, ...members)
+    }
+
     async smembers(key: string): Promise<string[]> {
         return this.stringOps.smembers(key)
     }

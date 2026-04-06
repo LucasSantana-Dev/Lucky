@@ -50,6 +50,12 @@ jest.mock('./reactionHandler', () => ({
         handleReactionEventsMock(...args),
 }))
 
+jest.mock('../utils/music/namedSessions', () => ({
+    namedSessionService: {
+        list: jest.fn().mockResolvedValue([]),
+    },
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
@@ -100,6 +106,7 @@ describe('eventHandler', () => {
         expect(interactionHandler).toBeDefined()
 
         interactionHandler?.({
+            isAutocomplete: () => false,
             isChatInputCommand: () => true,
             commandName: 'unknown',
             replied: false,
@@ -128,6 +135,7 @@ describe('eventHandler', () => {
         expect(interactionHandler).toBeDefined()
 
         interactionHandler?.({
+            isAutocomplete: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             replied: true,

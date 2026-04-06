@@ -1,29 +1,29 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
 import { NamedSessionService } from './namedSessions'
-
-const redisClientMock = {
-    scard: jest.fn(),
-    sadd: jest.fn(),
-    srem: jest.fn(),
-    setex: jest.fn(),
-    get: jest.fn(),
-    del: jest.fn(),
-    exists: jest.fn(),
-    smembers: jest.fn(),
-}
+import { redisClient } from '@lucky/shared/services'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
-    redisClient: redisClientMock,
+    redisClient: {
+        sadd: jest.fn(),
+        srem: jest.fn(),
+        setex: jest.fn(),
+        get: jest.fn(),
+        del: jest.fn(),
+        exists: jest.fn(),
+        smembers: jest.fn(),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
+
+const redisClientMock = redisClient as unknown as Record<string, jest.Mock>
 
 jest.mock('./sessionSnapshots', () => ({
     toSnapshotTrack: (track: unknown) => {
@@ -85,11 +85,11 @@ describe('NamedSessionService', () => {
         jest.clearAllMocks()
         service = new NamedSessionService()
         queue = createQueue()
-        redisClientMock.scard.mockResolvedValue(0)
-        redisClientMock.exists.mockResolvedValue(0)
+        redisClientMock.smembers.mockResolvedValue([])
+        redisClientMock.exists.mockResolvedValue(false)
         redisClientMock.setex.mockResolvedValue('OK')
         redisClientMock.sadd.mockResolvedValue(1)
-        redisClientMock.del.mockResolvedValue(1)
+        redisClientMock.del.mockResolvedValue(true)
         redisClientMock.srem.mockResolvedValue(1)
     })
 
@@ -110,13 +110,13 @@ describe('NamedSessionService', () => {
         })
 
         it('rejects if session already exists', async () => {
-            redisClientMock.exists.mockResolvedValueOnce(1)
+            redisClientMock.exists.mockResolvedValueOnce(true)
             const session = await service.save(queue, 'party-mix', 'user-1')
             expect(session).toBeNull()
         })
 
         it('rejects if max sessions reached', async () => {
-            redisClientMock.scard.mockResolvedValueOnce(10)
+            redisClientMock.smembers.mockResolvedValueOnce(Array.from({ length: 10 }, (_, i) => `session-${i}`))
             const session = await service.save(queue, 'party-mix', 'user-1')
             expect(session).toBeNull()
         })
@@ -259,7 +259,7 @@ describe('NamedSessionService', () => {
         })
 
         it('returns false if session not found', async () => {
-            redisClientMock.del.mockResolvedValueOnce(0)
+            redisClientMock.del.mockResolvedValueOnce(false)
             const result = await service.delete('guild-1', 'nonexistent')
             expect(result).toBe(false)
         })
@@ -308,7 +308,7 @@ describe('NamedSessionService', () => {
 
         validNames.forEach((name) => {
             it(`accepts valid name: ${name}`, async () => {
-                redisClientMock.exists.mockResolvedValueOnce(0)
+                redisClientMock.exists.mockResolvedValueOnce(false)
                 const session = await service.save(queue, name, 'user-1')
                 expect(session).not.toBeNull()
             })
