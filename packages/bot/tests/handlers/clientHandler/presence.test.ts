@@ -11,18 +11,27 @@ import {
 
 describe('bot presence', () => {
     const originalPresenceStatus = process.env.BOT_PRESENCE_STATUS
+    const originalPresenceRotationInterval =
+        process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS
 
     beforeEach(() => {
         delete process.env.BOT_PRESENCE_STATUS
+        delete process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS
     })
 
     afterAll(() => {
         if (originalPresenceStatus) {
             process.env.BOT_PRESENCE_STATUS = originalPresenceStatus
-            return
+        } else {
+            delete process.env.BOT_PRESENCE_STATUS
         }
 
-        delete process.env.BOT_PRESENCE_STATUS
+        if (originalPresenceRotationInterval) {
+            process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS =
+                originalPresenceRotationInterval
+        } else {
+            delete process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS
+        }
     })
 
     it('builds premium rotation with runtime stats', () => {
@@ -211,6 +220,111 @@ describe('bot presence', () => {
         controls.stop()
         jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
         expect(setPresence).toHaveBeenCalledTimes(2)
+        jest.useRealTimers()
+    })
+
+    it('uses configured rotation interval when provided', () => {
+        jest.useFakeTimers()
+        process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS = '20000'
+
+        const setPresence = jest.fn()
+        const client = {
+            user: { setPresence },
+            commands: { size: 10 },
+            guilds: {
+                cache: {
+                    size: 1,
+                    values: () => [{ memberCount: 4 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [],
+                    },
+                },
+            },
+        }
+
+        const controls = startPresenceRotation(client as never)
+
+        expect(setPresence).toHaveBeenCalledTimes(1)
+        jest.advanceTimersByTime(19_999)
+        expect(setPresence).toHaveBeenCalledTimes(1)
+        jest.advanceTimersByTime(1)
+        expect(setPresence).toHaveBeenCalledTimes(2)
+
+        controls.stop()
+        jest.useRealTimers()
+    })
+
+    it('falls back to the default interval when configured value is invalid', () => {
+        jest.useFakeTimers()
+        process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS = 'invalid'
+
+        const setPresence = jest.fn()
+        const client = {
+            user: { setPresence },
+            commands: { size: 10 },
+            guilds: {
+                cache: {
+                    size: 1,
+                    values: () => [{ memberCount: 4 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [],
+                    },
+                },
+            },
+        }
+
+        const controls = startPresenceRotation(client as never)
+
+        expect(setPresence).toHaveBeenCalledTimes(1)
+        jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS - 1)
+        expect(setPresence).toHaveBeenCalledTimes(1)
+        jest.advanceTimersByTime(1)
+        expect(setPresence).toHaveBeenCalledTimes(2)
+
+        controls.stop()
+        jest.useRealTimers()
+    })
+
+    it('clamps too-small configured intervals to a safe minimum', () => {
+        jest.useFakeTimers()
+        process.env.BOT_PRESENCE_ROTATION_INTERVAL_MS = '1000'
+
+        const setPresence = jest.fn()
+        const client = {
+            user: { setPresence },
+            commands: { size: 10 },
+            guilds: {
+                cache: {
+                    size: 1,
+                    values: () => [{ memberCount: 4 }],
+                },
+            },
+            player: {
+                nodes: {
+                    cache: {
+                        values: () => [],
+                    },
+                },
+            },
+        }
+
+        const controls = startPresenceRotation(client as never)
+
+        expect(setPresence).toHaveBeenCalledTimes(1)
+        jest.advanceTimersByTime(14_999)
+        expect(setPresence).toHaveBeenCalledTimes(1)
+        jest.advanceTimersByTime(1)
+        expect(setPresence).toHaveBeenCalledTimes(2)
+
+        controls.stop()
         jest.useRealTimers()
     })
 })
