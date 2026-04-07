@@ -389,10 +389,29 @@ async function collectRecommendationCandidates(
     return candidates
 }
 
+const NOISE_PATTERNS: readonly RegExp[] = [
+    /\(official music video\)/gi,
+    /\(official video\)/gi,
+    /\(lyrics?\)/gi,
+    /\(audio\)/gi,
+    /\[official music video\]/gi,
+    /\[official video\]/gi,
+    /\[lyrics?\]/gi,
+    /\[audio\]/gi,
+    /\bofficial music video\b/gi,
+    /\bofficial video\b/gi,
+    /\blyrics? video\b/gi,
+    /\bft\.?\s/gi,
+    /\bfeat\.?\s/gi,
+    /- topic\b/gi,
+]
+
 function cleanSearchQuery(title: string, author: string): string {
-    const noise =
-        /\s*(\(official\s*(music\s*)?video\)|\(lyrics?\)|\(audio\)|\[official\s*(music\s*)?video\]|\[lyrics?\]|\[audio\]|\bofficial\s*(music\s*)?video\b|\blyrics?\s*video\b|\bft\.?\s|\bfeat\.?\s|- topic\b)/gi
-    const cleaned = title.replaceAll(noise, ' ').replaceAll(/\s{2,}/g, ' ').trim()
+    let cleaned = title
+    for (const pattern of NOISE_PATTERNS) {
+        cleaned = cleaned.replaceAll(pattern, ' ')
+    }
+    cleaned = cleaned.replaceAll(/\s{2,}/g, ' ').trim()
     return `${cleaned} ${author}`.trim()
 }
 
