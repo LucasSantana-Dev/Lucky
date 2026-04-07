@@ -13,6 +13,7 @@ jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'auto',
         YOUTUBE_SEARCH: 'youtubeSearch',
+        SPOTIFY_SEARCH: 'spotifySearch',
     },
     QueueRepeatMode: {
         OFF: 0,
@@ -25,6 +26,7 @@ jest.mock('discord-player', () => ({
 const QueryType = {
     AUTO: 'auto',
     YOUTUBE_SEARCH: 'youtubeSearch',
+    SPOTIFY_SEARCH: 'spotifySearch',
 } as const
 
 const QueueRepeatMode = {
@@ -249,7 +251,7 @@ describe('queueManipulation.replenishQueue', () => {
         expect(queue.player.search).toHaveBeenCalledWith(
             'Song A Artist A',
             expect.objectContaining({
-                searchEngine: QueryType.AUTO,
+                searchEngine: QueryType.SPOTIFY_SEARCH,
             }),
         )
         expect(queue.addTrack).toHaveBeenCalledTimes(1)
@@ -266,18 +268,22 @@ describe('queueManipulation.replenishQueue', () => {
 
     it.each([
         {
-            name: 'when AUTO search throws',
-            firstSearch: () => Promise.reject(new Error('AUTO parser failed')),
+            name: 'when Spotify and AUTO search throw',
+            spotifySearch: () =>
+                Promise.reject(new Error('Spotify unavailable')),
+            autoSearch: () =>
+                Promise.reject(new Error('AUTO parser failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
-            name: 'when AUTO search returns no tracks',
-            firstSearch: () => Promise.resolve({ tracks: [] }),
+            name: 'when Spotify and AUTO search return no tracks',
+            spotifySearch: () => Promise.resolve({ tracks: [] }),
+            autoSearch: () => Promise.resolve({ tracks: [] }),
             fallbackUrl: 'https://example.com/recovered',
         },
     ])(
         'falls back to YouTube search $name',
-        async ({ firstSearch, fallbackUrl }) => {
+        async ({ spotifySearch, autoSearch, fallbackUrl }) => {
             const queue = createQueueMock({
                 tracks: {
                     size: 0,
@@ -286,7 +292,8 @@ describe('queueManipulation.replenishQueue', () => {
                 player: {
                     search: jest
                         .fn()
-                        .mockImplementationOnce(firstSearch)
+                        .mockImplementationOnce(spotifySearch)
+                        .mockImplementationOnce(autoSearch)
                         .mockResolvedValueOnce({
                             tracks: [
                                 {
@@ -304,10 +311,12 @@ describe('queueManipulation.replenishQueue', () => {
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 1,
                 'Song A Artist A',
-                expect.objectContaining({ searchEngine: QueryType.AUTO }),
+                expect.objectContaining({
+                    searchEngine: QueryType.SPOTIFY_SEARCH,
+                }),
             )
             expect(queue.player.search).toHaveBeenNthCalledWith(
-                2,
+                3,
                 'Song A Artist A',
                 expect.objectContaining({
                     searchEngine: QueryType.YOUTUBE_SEARCH,
@@ -822,7 +831,7 @@ describe('queueManipulation.replenishQueue', () => {
         expect(getLastFmSeedTracksMock).toHaveBeenCalledWith('user-1')
         expect(queue.player.search).toHaveBeenCalledWith(
             expect.stringContaining('Paranoid Android'),
-            expect.objectContaining({ searchEngine: QueryType.AUTO }),
+            expect.objectContaining({ searchEngine: QueryType.SPOTIFY_SEARCH }),
         )
         expect(queue.addTrack).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -833,6 +842,210 @@ describe('queueManipulation.replenishQueue', () => {
                 }),
             }),
         )
+    })
+
+    it('uses broad artist fallback when seed search returns no candidates', async () => {
+        const searchMock = jest
+            .fn()
+            // Seed search tries 3 engines (SPOTIFY → AUTO → YOUTUBE) — all empty
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValueOnce({ tracks: [] })
+            // Broad fallback by author — returns a candidate
+            .mockResolvedValueOnce({
+                tracks: [
+                    {
+                        title: 'Broad Match',
+                        author: 'Artist A',
+                        url: 'https://example.com/broad',
+                        source: 'spotify',
+                    },
+                ],
+            })
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        // Broad fallback call was made with author as query
+        expect(searchMock).toHaveBeenCalledWith(
+            'Artist A',
+            expect.objectContaining({
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+            }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/broad',
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    recommendationReason: expect.stringContaining(
+                        'artist fallback',
+                    ),
+                }),
+            }),
+        )
+    })
+
+    it('swallows broad fallback search errors and tries the next query', async () => {
+        const searchMock = jest
+            .fn()
+            // Seed search: all 3 engines empty
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValueOnce({ tracks: [] })
+            // Broad fallback: first query ("Artist A") throws
+            .mockRejectedValueOnce(new Error('Network blip'))
+            // Second query ("Artist A popular") succeeds
+            .mockResolvedValueOnce({
+                tracks: [
+                    {
+                        title: 'Popular Pick',
+                        author: 'Artist A',
+                        url: 'https://example.com/popular',
+                    },
+                ],
+            })
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(searchMock).toHaveBeenCalledWith(
+            'Artist A popular',
+            expect.objectContaining({
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+            }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/popular',
+            }),
+        )
+    })
+
+    it('falls back to AUTO engine for last.fm search when Spotify fails', async () => {
+        getLastFmSeedTracksMock.mockResolvedValueOnce([
+            { artist: 'Radiohead', title: 'Creep' },
+        ])
+
+        const searchMock = jest
+            .fn()
+            // Seed search (3 engines) — return a simple track so broad fallback is not triggered
+            .mockResolvedValueOnce({
+                tracks: [
+                    {
+                        title: 'Placeholder',
+                        author: 'Some Artist',
+                        url: 'https://example.com/placeholder',
+                    },
+                ],
+            })
+            // Last.fm seed: Spotify rejects, AUTO returns tracks
+            .mockRejectedValueOnce(new Error('Spotify down'))
+            .mockResolvedValueOnce({
+                tracks: [
+                    {
+                        title: 'Creep',
+                        author: 'Radiohead',
+                        url: 'https://example.com/creep',
+                    },
+                ],
+            })
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(searchMock).toHaveBeenCalledWith(
+            expect.stringContaining('Creep'),
+            expect.objectContaining({
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+            }),
+        )
+        expect(searchMock).toHaveBeenCalledWith(
+            expect.stringContaining('Creep'),
+            expect.objectContaining({
+                searchEngine: QueryType.AUTO,
+            }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/creep',
+                metadata: expect.objectContaining({
+                    recommendationReason: expect.stringContaining('last.fm'),
+                }),
+            }),
+        )
+    })
+
+    it('returns empty last.fm results when all engines fail', async () => {
+        getLastFmSeedTracksMock.mockResolvedValueOnce([
+            { artist: 'Muse', title: 'Uprising' },
+        ])
+
+        const searchMock = jest
+            .fn()
+            // Seed search returns one candidate so broad fallback does not run
+            .mockResolvedValueOnce({
+                tracks: [
+                    {
+                        title: 'Seed Result',
+                        author: 'Seed Artist',
+                        url: 'https://example.com/seed',
+                    },
+                ],
+            })
+            // Last.fm seed: both engines reject → returns []
+            .mockRejectedValueOnce(new Error('Spotify down'))
+            .mockRejectedValueOnce(new Error('AUTO down'))
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Song A',
+                author: 'Artist A',
+                url: 'https://example.com/a',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        // Only the seed candidate should be added — last.fm produced nothing
+        const addedUrls = queue.addTrack.mock.calls.map(
+            (c) => (c[0] as Track).url,
+        )
+        expect(addedUrls).toContain('https://example.com/seed')
+        expect(addedUrls).not.toContain('https://example.com/uprising')
     })
 })
 

@@ -248,6 +248,20 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
                 candidates,
             )
         }
+        if (candidates.size === 0 && currentTrack) {
+            await collectBroadFallbackCandidates(
+                queue,
+                currentTrack,
+                requestedBy,
+                excludedUrls,
+                excludedKeys,
+                dislikedTrackKeys,
+                likedTrackKeys,
+                recentArtists,
+                candidates,
+            )
+        }
+
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
         addSelectedTracks(
@@ -375,13 +389,45 @@ async function collectRecommendationCandidates(
     return candidates
 }
 
+const NOISE_PATTERNS: readonly RegExp[] = [
+    /\(official music video\)/gi,
+    /\(official video\)/gi,
+    /\(lyrics?\)/gi,
+    /\(audio\)/gi,
+    /\[official music video\]/gi,
+    /\[official video\]/gi,
+    /\[lyrics?\]/gi,
+    /\[audio\]/gi,
+    /\bofficial music video\b/gi,
+    /\bofficial video\b/gi,
+    /\blyrics? video\b/gi,
+    /\bft\.?\s/gi,
+    /\bfeat\.?\s/gi,
+    /- topic\b/gi,
+]
+
+function cleanSearchQuery(title: string, author: string): string {
+    let cleaned = title
+    for (const pattern of NOISE_PATTERNS) {
+        cleaned = cleaned.replaceAll(pattern, ' ')
+    }
+    cleaned = cleaned.replaceAll(/\s{2,}/g, ' ').trim()
+    return `${cleaned} ${author}`.trim()
+}
+
+const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
+
 async function searchSeedCandidates(
     queue: GuildQueue,
     seed: Track,
     requestedBy: User | null,
 ): Promise<Track[]> {
-    const query = `${seed.title} ${seed.author}`.trim()
-    const engines: QueryType[] = [QueryType.AUTO, QueryType.YOUTUBE_SEARCH]
+    const query = cleanSearchQuery(seed.title, seed.author)
+    const engines: QueryType[] = [
+        QueryType.SPOTIFY_SEARCH,
+        QueryType.AUTO,
+        QueryType.YOUTUBE_SEARCH,
+    ]
 
     for (const engine of engines) {
         try {
@@ -390,9 +436,14 @@ async function searchSeedCandidates(
                 searchEngine: engine,
             })
 
-            if (searchResult.tracks.length > 0) {
-                return searchResult.tracks.slice(0, SEARCH_RESULTS_LIMIT)
-            }
+            const tracks = searchResult.tracks
+                .filter(
+                    (t) =>
+                        !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                )
+                .slice(0, SEARCH_RESULTS_LIMIT)
+
+            if (tracks.length > 0) return tracks
         } catch (error) {
             debugLog({
                 message: 'Search failed for seed, trying next engine',
@@ -402,6 +453,62 @@ async function searchSeedCandidates(
     }
 
     return []
+}
+
+async function collectBroadFallbackCandidates(
+    queue: GuildQueue,
+    currentTrack: Track,
+    requestedBy: User | null,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+    dislikedTrackKeys: Set<string>,
+    likedTrackKeys: Set<string>,
+    recentArtists: Set<string>,
+    candidates: Map<string, ScoredTrack>,
+): Promise<void> {
+    const fallbackQueries = [
+        currentTrack.author,
+        `${currentTrack.author} popular`,
+    ].filter(Boolean)
+
+    for (const query of fallbackQueries) {
+        try {
+            const result = await queue.player.search(query, {
+                requestedBy: requestedBy ?? undefined,
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+            })
+
+            const tracks = result.tracks
+                .filter(
+                    (t) =>
+                        !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                )
+                .slice(0, SEARCH_RESULTS_LIMIT)
+
+            for (const track of tracks) {
+                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                    continue
+                const key = normalizeTrackKey(track.title, track.author)
+                if (dislikedTrackKeys.has(key)) continue
+                const rec = calculateRecommendationScore(
+                    track,
+                    currentTrack,
+                    recentArtists,
+                    likedTrackKeys,
+                )
+                upsertScoredCandidate(candidates, track, {
+                    score: rec.score - 0.1,
+                    reason: rec.reason
+                        ? `${rec.reason} • artist fallback`
+                        : 'artist fallback',
+                })
+            }
+
+            if (candidates.size > 0) return
+        } catch {
+            continue
+        }
+    }
 }
 
 function shouldIncludeCandidate(
@@ -479,15 +586,25 @@ async function searchLastFmQuery(
     query: string,
     requestedBy: User,
 ): Promise<Track[]> {
-    try {
-        const result = await queue.player.search(query, {
-            requestedBy,
-            searchEngine: QueryType.AUTO,
-        })
-        return result.tracks.slice(0, SEARCH_RESULTS_LIMIT)
-    } catch {
-        return []
+    const engines: QueryType[] = [QueryType.SPOTIFY_SEARCH, QueryType.AUTO]
+    for (const engine of engines) {
+        try {
+            const result = await queue.player.search(query, {
+                requestedBy,
+                searchEngine: engine,
+            })
+            const tracks = result.tracks
+                .filter(
+                    (t) =>
+                        !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                )
+                .slice(0, SEARCH_RESULTS_LIMIT)
+            if (tracks.length > 0) return tracks
+        } catch {
+            continue
+        }
     }
+    return []
 }
 
 function selectDiverseCandidates(
@@ -720,10 +837,17 @@ function calculateRecommendationScore(
         currentTrack.durationMS > 0
     ) {
         const ratio = candidate.durationMS / currentTrack.durationMS
-        if (ratio >= 0.7 && ratio <= 1.3) {
-            score += 0.1
+        if (ratio >= 0.8 && ratio <= 1.2) {
+            score += 0.15
             reasons.push('similar energy')
+        } else if (ratio >= 0.7 && ratio <= 1.3) {
+            score += 0.05
         }
+    }
+
+    if (candidate.durationMS && candidate.durationMS > 7 * 60 * 1000) {
+        score -= 0.2
+        reasons.push('long track penalty')
     }
 
     return {
