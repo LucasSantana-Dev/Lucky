@@ -6,6 +6,7 @@ import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
 import { startPresenceRotation } from './presence'
 import { initMusicPresence } from '../../services/MusicPresenceService'
+import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 
 let presenceControls: { stop: () => void; pause: () => void; resume: () => void } | null = null
 
@@ -79,6 +80,8 @@ export async function startClient({
                 const { startTwitchService } =
                     await import('../../twitch/index.js')
                 await startTwitchService(client)
+
+                modDigestSchedulerService.start(client)
             } catch (error) {
                 errorLog({
                     message: 'Error in ready handler:',

@@ -27,6 +27,13 @@ jest.mock('../../services/MusicPresenceService', () => ({
     initMusicPresence: jest.fn(),
 }))
 
+jest.mock('../../utils/moderation/modDigestScheduler', () => ({
+    modDigestSchedulerService: {
+        start: jest.fn(),
+        stop: jest.fn(),
+    },
+}))
+
 jest.mock('discord.js', () => {
     const originalModule =
         jest.requireActual<typeof import('discord.js')>('discord.js')
