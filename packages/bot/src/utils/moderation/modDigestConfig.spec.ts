@@ -34,7 +34,10 @@ describe('ModDigestConfigService.enable', () => {
 
     it('writes the config and adds the guild to the index', async () => {
         const service = createService()
-        const config = await service.enable('guild-1', 'channel-1')
+        const config = await service.enable({
+            guildId: 'guild-1',
+            channelId: 'channel-1',
+        })
 
         expect(config.guildId).toBe('guild-1')
         expect(config.channelId).toBe('channel-1')
@@ -50,22 +53,18 @@ describe('ModDigestConfigService.enable', () => {
         )
     })
 
-    it('preserves existing lastSentAt and createdAt when re-enabling', async () => {
+    it('persists the supplied lastSentAt and createdAt without read-back', async () => {
         const service = createService()
-        redisMock.get.mockResolvedValue(
-            JSON.stringify({
-                guildId: 'guild-1',
-                channelId: 'old-channel',
-                enabled: true,
-                lastSentAt: 1700000000000,
-                createdAt: 1690000000000,
-            }),
-        )
-
-        const config = await service.enable('guild-1', 'new-channel')
-        expect(config.channelId).toBe('new-channel')
-        expect(config.lastSentAt).toBe(1700000000000)
-        expect(config.createdAt).toBe(1690000000000)
+        const config = await service.enable({
+            guildId: 'guild-1',
+            channelId: 'channel-1',
+            lastSentAt: 1234,
+            createdAt: 5678,
+        })
+        expect(config.lastSentAt).toBe(1234)
+        expect(config.createdAt).toBe(5678)
+        // No read of the existing config — enable now writes atomically.
+        expect(redisMock.get).not.toHaveBeenCalled()
     })
 })
 
@@ -138,6 +137,30 @@ describe('ModDigestConfigService.get', () => {
     it('returns null and logs on parse error', async () => {
         const service = createService()
         redisMock.get.mockResolvedValue('not-json')
+        const config = await service.get('g')
+        expect(config).toBeNull()
+    })
+
+    it('rejects payloads with missing fields', async () => {
+        const service = createService()
+        redisMock.get.mockResolvedValue(
+            JSON.stringify({ guildId: 'g', channelId: 'c' }),
+        )
+        const config = await service.get('g')
+        expect(config).toBeNull()
+    })
+
+    it('rejects payloads with wrong field types', async () => {
+        const service = createService()
+        redisMock.get.mockResolvedValue(
+            JSON.stringify({
+                guildId: 'g',
+                channelId: 'c',
+                enabled: 'yes',
+                lastSentAt: null,
+                createdAt: 1,
+            }),
+        )
         const config = await service.get('g')
         expect(config).toBeNull()
     })

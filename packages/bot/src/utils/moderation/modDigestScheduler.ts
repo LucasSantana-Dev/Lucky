@@ -10,20 +10,17 @@ import { buildDigestEmbed } from './digestEmbed'
 
 const DEFAULT_TICK_INTERVAL_MS = 60 * 60 * 1000
 const DEFAULT_PERIOD_DAYS = 7
-const DEFAULT_RECENT_CASE_LIMIT = 500
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 type ModDigestSchedulerOptions = {
     tickIntervalMs?: number
     periodDays?: number
-    recentCaseLimit?: number
     clock?: () => number
 }
 
 export class ModDigestSchedulerService {
     private readonly tickIntervalMs: number
     private readonly periodDays: number
-    private readonly recentCaseLimit: number
     private readonly clock: () => number
     private timer: ReturnType<typeof setInterval> | null = null
     private client: Client | null = null
@@ -42,7 +39,6 @@ export class ModDigestSchedulerService {
                 process.env.MOD_DIGEST_PERIOD_DAYS ?? `${DEFAULT_PERIOD_DAYS}`,
                 10,
             )
-        this.recentCaseLimit = options.recentCaseLimit ?? DEFAULT_RECENT_CASE_LIMIT
         this.clock = options.clock ?? (() => Date.now())
     }
 
@@ -75,14 +71,25 @@ export class ModDigestSchedulerService {
 
         let sent = 0
         for (const guildId of guildIds) {
-            const config = await modDigestConfigService.get(guildId)
-            if (!config?.enabled) continue
-            if (!this.isDue(config)) continue
+            try {
+                const config = await modDigestConfigService.get(guildId)
+                if (!config?.enabled) continue
+                if (!this.isDue(config)) continue
 
-            const delivered = await this.sendDigestForGuild(guildId, config.channelId)
-            if (delivered) {
-                await modDigestConfigService.markSent(guildId, this.clock())
-                sent += 1
+                const delivered = await this.sendDigestForGuild(
+                    guildId,
+                    config.channelId,
+                )
+                if (delivered) {
+                    await modDigestConfigService.markSent(guildId, this.clock())
+                    sent += 1
+                }
+            } catch (error) {
+                errorLog({
+                    message: 'Mod digest tick failed for guild',
+                    error,
+                    data: { guildId },
+                })
             }
         }
         return sent
@@ -110,14 +117,17 @@ export class ModDigestSchedulerService {
                 return false
             }
 
-            const [stats, recentCases] = await Promise.all([
+            const since = new Date(
+                this.clock() - this.periodDays * MS_PER_DAY,
+            )
+            const [stats, periodCases] = await Promise.all([
                 moderationService.getStats(guildId),
-                moderationService.getRecentCases(guildId, this.recentCaseLimit),
+                moderationService.getCasesSince(guildId, since),
             ])
 
             const embed = buildDigestEmbed({
                 stats,
-                cases: recentCases,
+                cases: periodCases,
                 days: this.periodDays,
             })
 

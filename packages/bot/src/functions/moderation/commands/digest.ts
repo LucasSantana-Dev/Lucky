@@ -9,12 +9,15 @@ import Command from '../../../models/Command.js'
 import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
+import { createUserFriendlyError } from '../../../utils/general/errorSanitizer.js'
 import {
     buildDigestEmbed,
     resolveDigestPeriodDays,
 } from '../../../utils/moderation/digestEmbed.js'
 import { modDigestConfigService } from '../../../utils/moderation/modDigestConfig.js'
 import { modDigestSchedulerService } from '../../../utils/moderation/modDigestScheduler.js'
+
+const VIEW_RECENT_CASE_LIMIT = 500
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -92,7 +95,7 @@ async function handleView(
         const guildId = interaction.guild!.id
         const [stats, recentCases] = await Promise.all([
             moderationService.getStats(guildId),
-            moderationService.getRecentCases(guildId, 500),
+            moderationService.getRecentCases(guildId, VIEW_RECENT_CASE_LIMIT),
         ])
 
         const embed = buildDigestEmbed({ stats, cases: recentCases, days })
@@ -106,7 +109,7 @@ async function handleView(
         errorLog({ message: 'Failed to generate mod digest', error: error as Error })
         await interactionReply({
             interaction,
-            content: { content: '❌ Failed to generate digest. Please try again.' },
+            content: { content: createUserFriendlyError(error) },
         })
     }
 }
@@ -127,14 +130,19 @@ async function handleSchedule(
     const channelId = (channel as TextChannel).id
 
     try {
-        await modDigestConfigService.enable(guildId, channelId)
+        // Send the sample digest BEFORE persisting the schedule. This guarantees
+        // that the scheduler tick can never see the guild as enabled+due-now
+        // until we've already accounted for the sample post by writing
+        // lastSentAt atomically with enable() below.
         const sent = await modDigestSchedulerService.sendDigestForGuild(
             guildId,
             channelId,
         )
-        if (sent) {
-            await modDigestConfigService.markSent(guildId)
-        }
+        await modDigestConfigService.enable({
+            guildId,
+            channelId,
+            lastSentAt: sent ? Date.now() : null,
+        })
 
         await interactionReply({
             interaction,
@@ -154,9 +162,7 @@ async function handleSchedule(
         errorLog({ message: 'Failed to schedule mod digest', error: error as Error })
         await interactionReply({
             interaction,
-            content: {
-                content: '❌ Failed to schedule the digest. Please try again.',
-            },
+            content: { content: createUserFriendlyError(error) },
         })
     }
 }
@@ -185,9 +191,7 @@ async function handleUnschedule(
         errorLog({ message: 'Failed to unschedule mod digest', error: error as Error })
         await interactionReply({
             interaction,
-            content: {
-                content: '❌ Failed to disable the digest. Please try again.',
-            },
+            content: { content: createUserFriendlyError(error) },
         })
     }
 }

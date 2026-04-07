@@ -9,26 +9,55 @@ export type ModDigestConfig = {
     createdAt: number
 }
 
+export type EnableModDigestInput = {
+    guildId: string
+    channelId: string
+    lastSentAt?: number | null
+    createdAt?: number
+}
+
 const CONFIG_KEY_PREFIX = 'mod-digest:config:'
 const INDEX_KEY = 'mod-digest:enabled-guilds'
+
+function isModDigestConfig(value: unknown): value is ModDigestConfig {
+    if (!value || typeof value !== 'object') return false
+
+    const candidate = value as Record<string, unknown>
+    return (
+        typeof candidate.guildId === 'string' &&
+        typeof candidate.channelId === 'string' &&
+        typeof candidate.enabled === 'boolean' &&
+        (candidate.lastSentAt === null ||
+            typeof candidate.lastSentAt === 'number') &&
+        typeof candidate.createdAt === 'number'
+    )
+}
 
 export class ModDigestConfigService {
     private getConfigKey(guildId: string): string {
         return `${CONFIG_KEY_PREFIX}${guildId}`
     }
 
-    async enable(guildId: string, channelId: string): Promise<ModDigestConfig> {
-        const existing = await this.get(guildId)
+    /**
+     * Persist a guild's digest config and add it to the enabled-guilds index.
+     * Callers can pre-populate `lastSentAt` (used by /digest schedule to write
+     * the post-sample timestamp atomically with enabling, eliminating the
+     * scheduler-tick race window).
+     */
+    async enable(input: EnableModDigestInput): Promise<ModDigestConfig> {
         const config: ModDigestConfig = {
-            guildId,
-            channelId,
+            guildId: input.guildId,
+            channelId: input.channelId,
             enabled: true,
-            lastSentAt: existing?.lastSentAt ?? null,
-            createdAt: existing?.createdAt ?? Date.now(),
+            lastSentAt: input.lastSentAt ?? null,
+            createdAt: input.createdAt ?? Date.now(),
         }
 
-        await redisClient.set(this.getConfigKey(guildId), JSON.stringify(config))
-        await redisClient.sadd(INDEX_KEY, guildId)
+        await redisClient.set(
+            this.getConfigKey(input.guildId),
+            JSON.stringify(config),
+        )
+        await redisClient.sadd(INDEX_KEY, input.guildId)
         return config
     }
 
@@ -45,7 +74,16 @@ export class ModDigestConfigService {
         try {
             const raw = await redisClient.get(this.getConfigKey(guildId))
             if (!raw) return null
-            return JSON.parse(raw) as ModDigestConfig
+
+            const parsed: unknown = JSON.parse(raw)
+            if (!isModDigestConfig(parsed)) {
+                errorLog({
+                    message: 'Mod digest config payload failed validation',
+                    data: { guildId },
+                })
+                return null
+            }
+            return parsed
         } catch (error) {
             errorLog({
                 message: 'Failed to read mod digest config',

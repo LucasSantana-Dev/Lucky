@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const moderationServiceMock = {
     getStats: jest.fn(),
-    getRecentCases: jest.fn(),
+    getCasesSince: jest.fn(),
 }
 
 const modDigestConfigServiceMock = {
@@ -119,7 +119,7 @@ describe('ModDigestSchedulerService.tick', () => {
             totalCases: 5,
             activeCases: 1,
         })
-        moderationServiceMock.getRecentCases.mockResolvedValue([
+        moderationServiceMock.getCasesSince.mockResolvedValue([
             {
                 type: 'warn',
                 moderatorName: 'Alice',
@@ -234,6 +234,112 @@ describe('ModDigestSchedulerService.tick', () => {
         const service = new ModDigestSchedulerService()
         await expect(service.tick()).resolves.toBe(0)
     })
+
+    it('continues processing remaining guilds when one fails', async () => {
+        const channels = new Map<string, any>()
+        const goodChannel = createTextChannelMock()
+        channels.set('channel-good', goodChannel)
+
+        const client = {
+            guilds: {
+                cache: {
+                    get: jest.fn((id: string) => {
+                        if (id === 'guild-bad') {
+                            return {
+                                channels: {
+                                    fetch: jest.fn(async () => null),
+                                },
+                            }
+                        }
+                        if (id === 'guild-good') {
+                            return {
+                                channels: {
+                                    fetch: jest.fn(async () => goodChannel),
+                                },
+                            }
+                        }
+                        return null
+                    }),
+                },
+            },
+        }
+
+        modDigestConfigServiceMock.listEnabledGuildIds.mockResolvedValue([
+            'guild-bad',
+            'guild-good',
+        ])
+        modDigestConfigServiceMock.get.mockImplementation(async (id: string) => ({
+            guildId: id,
+            channelId: id === 'guild-good' ? 'channel-good' : 'channel-bad',
+            enabled: true,
+            lastSentAt: null,
+            createdAt: 0,
+        }))
+        modDigestConfigServiceMock.markSent.mockResolvedValue(undefined)
+
+        const service = new ModDigestSchedulerService({
+            periodDays: 7,
+            clock: () => 1000,
+        })
+        service.start(client as any)
+        try {
+            const sent = await service.tick()
+            expect(sent).toBe(1)
+            expect(goodChannel.send).toHaveBeenCalledTimes(1)
+            expect(modDigestConfigServiceMock.markSent).toHaveBeenCalledWith(
+                'guild-good',
+                1000,
+            )
+        } finally {
+            service.stop()
+        }
+    })
+
+    it('isolates per-guild errors so the loop keeps running', async () => {
+        const channels = new Map<string, any>()
+        const goodChannel = createTextChannelMock()
+        channels.set('channel-good', goodChannel)
+
+        const client = {
+            guilds: {
+                cache: {
+                    get: () => ({
+                        channels: {
+                            fetch: jest.fn(async () => goodChannel),
+                        },
+                    }),
+                },
+            },
+        }
+
+        modDigestConfigServiceMock.listEnabledGuildIds.mockResolvedValue([
+            'guild-throw',
+            'guild-ok',
+        ])
+        modDigestConfigServiceMock.get.mockImplementation(async (id: string) => {
+            if (id === 'guild-throw') throw new Error('lookup boom')
+            return {
+                guildId: id,
+                channelId: 'channel-good',
+                enabled: true,
+                lastSentAt: null,
+                createdAt: 0,
+            }
+        })
+        modDigestConfigServiceMock.markSent.mockResolvedValue(undefined)
+
+        const service = new ModDigestSchedulerService({
+            periodDays: 7,
+            clock: () => 1000,
+        })
+        service.start(client as any)
+        try {
+            const sent = await service.tick()
+            expect(sent).toBe(1)
+        } finally {
+            service.stop()
+        }
+    })
 })
 
 describe('ModDigestSchedulerService.sendDigestForGuild', () => {
@@ -243,7 +349,7 @@ describe('ModDigestSchedulerService.sendDigestForGuild', () => {
             totalCases: 5,
             activeCases: 1,
         })
-        moderationServiceMock.getRecentCases.mockResolvedValue([])
+        moderationServiceMock.getCasesSince.mockResolvedValue([])
     })
 
     it('returns false when client is not started', async () => {
