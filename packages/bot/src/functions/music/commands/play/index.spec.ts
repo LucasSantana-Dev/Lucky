@@ -50,6 +50,10 @@ const interactionReplyMock = jest.fn<(payload: unknown) => Promise<void>>()
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
+    QueryType: {
+        AUTO: 'auto',
+        SPOTIFY_SEARCH: 'spotifySearch',
+    },
 }))
 
 jest.mock('../../../../utils/music/queueManipulation', () => ({
