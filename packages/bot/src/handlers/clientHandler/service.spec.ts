@@ -27,6 +27,13 @@ jest.mock('../../services/MusicPresenceService', () => ({
     initMusicPresence: jest.fn(),
 }))
 
+jest.mock('../../utils/moderation/modDigestScheduler', () => ({
+    modDigestSchedulerService: {
+        start: jest.fn(),
+        stop: jest.fn(),
+    },
+}))
+
 jest.mock('discord.js', () => {
     const originalModule =
         jest.requireActual<typeof import('discord.js')>('discord.js')
@@ -266,6 +273,74 @@ describe('service', () => {
                 message: 'Error in ready handler:',
                 error: expect.any(Error),
             })
+        })
+
+        it('starts the mod digest scheduler in the ready handler', async () => {
+            const { modDigestSchedulerService } = await import(
+                '../../utils/moderation/modDigestScheduler'
+            )
+            ;(modDigestSchedulerService.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: {
+                    map: jest.fn().mockReturnValue([]),
+                },
+                guilds: {
+                    cache: {
+                        values: jest.fn().mockReturnValue([]),
+                    },
+                },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(modDigestSchedulerService.start).toHaveBeenCalledWith(
+                mockClient,
+            )
+        })
+
+        it('still starts the scheduler when an upstream ready step fails', async () => {
+            const { modDigestSchedulerService } = await import(
+                '../../utils/moderation/modDigestScheduler'
+            )
+            ;(modDigestSchedulerService.start as jest.Mock).mockClear()
+
+            const mockClient = {
+                login: jest.fn().mockResolvedValue('client'),
+                once: jest.fn((event, handler) => {
+                    if (event === 'ready') {
+                        Promise.resolve().then(() => handler())
+                    }
+                }),
+                user: null,
+                commands: {
+                    map: jest.fn().mockImplementation(() => {
+                        throw new Error('upstream boom')
+                    }),
+                },
+                guilds: {
+                    cache: {
+                        values: jest.fn().mockReturnValue([]),
+                    },
+                },
+            }
+
+            const startPromise = startClient({ client: mockClient as any })
+            await new Promise((resolve) => setImmediate(resolve))
+            await startPromise
+
+            expect(modDigestSchedulerService.start).toHaveBeenCalledWith(
+                mockClient,
+            )
         })
     })
 })

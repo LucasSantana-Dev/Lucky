@@ -125,6 +125,16 @@ export class ModerationService {
         })
     }
 
+    async getCasesSince(
+        guildId: string,
+        since: Date,
+    ): Promise<ModerationCase[]> {
+        return await prisma.moderationCase.findMany({
+            where: { guildId, createdAt: { gte: since } },
+            orderBy: { createdAt: 'desc' },
+        })
+    }
+
     async getActiveWarningsCount(
         guildId: string,
         userId: string,

@@ -6,6 +6,7 @@ import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
 import { startPresenceRotation } from './presence'
 import { initMusicPresence } from '../../services/MusicPresenceService'
+import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 
 let presenceControls: { stop: () => void; pause: () => void; resume: () => void } | null = null
 
@@ -85,6 +86,19 @@ export async function startClient({
                     error,
                 })
             }
+
+            // Run the digest scheduler startup independently so an upstream
+            // failure (command registration, twitch service) cannot suppress
+            // weekly digests for the entire process.
+            try {
+                modDigestSchedulerService.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start mod digest scheduler',
+                    error,
+                })
+            }
+
             resolve()
         })
     })
