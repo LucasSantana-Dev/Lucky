@@ -17,7 +17,21 @@ vi.mock('@/hooks/useTrackHistoryQueries')
 vi.mock('@/hooks/useLevelQueries')
 vi.mock('@/hooks/useStarboardQueries')
 
-const mockGuild = { id: '123', name: 'Test Guild', memberCount: 150 }
+const fullAccess = {
+    overview: 'manage',
+    settings: 'manage',
+    moderation: 'manage',
+    automation: 'manage',
+    music: 'manage',
+    integrations: 'manage',
+} as const
+
+const mockGuild = {
+    id: '123',
+    name: 'Test Guild',
+    memberCount: 150,
+    effectiveAccess: fullAccess,
+}
 
 const mockStats = {
     totalCases: 25,
@@ -42,10 +56,17 @@ const mockCases = [
 
 const mockTracks = [
     {
-        id: 't1',
+        trackId: 't1',
         title: 'Test Track',
         author: 'Test Artist',
         playedBy: 'u1',
+        timestamp: new Date().toISOString(),
+    },
+    {
+        trackId: 't2',
+        title: 'Another Track',
+        author: 'Another Artist',
+        playedBy: '',
         timestamp: new Date().toISOString(),
     },
 ]
@@ -267,5 +288,194 @@ describe('DashboardOverview', () => {
         )
         renderPage()
         expect(screen.getByText('Cases by Type')).toBeInTheDocument()
+    })
+
+    describe('Recent Music section', () => {
+        test('renders recent tracks when music access is granted and data is present', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.getByText('Recent Music')).toBeInTheDocument()
+            expect(screen.getByText('Test Track')).toBeInTheDocument()
+            expect(screen.getByText('Another Track')).toBeInTheDocument()
+        })
+
+        test('renders placeholder dash when playedBy is missing', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.getByText('—')).toBeInTheDocument()
+        })
+
+        test('renders empty music state when no tracks are returned', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                [],
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.getByText('No tracks played yet')).toBeInTheDocument()
+        })
+
+        test('renders loading skeletons for recent music while tracks are loading', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                null,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            vi.mocked(useRecentTracks).mockReturnValue({
+                data: null,
+                isLoading: true,
+            } as any)
+            renderPage()
+            expect(screen.getByText('Recent Music')).toBeInTheDocument()
+        })
+
+        test('hides Recent Music section when music access is not granted', () => {
+            mockGuildStoreFn({
+                ...mockGuild,
+                effectiveAccess: { ...fullAccess, music: 'none' },
+            })
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.queryByText('Recent Music')).not.toBeInTheDocument()
+        })
+    })
+
+    describe('Community section', () => {
+        test('renders leaderboard members when settings access is granted', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.getByText('Level Leaderboard')).toBeInTheDocument()
+            expect(screen.getByText('Lv5')).toBeInTheDocument()
+            expect(screen.getByText('Lv4')).toBeInTheDocument()
+        })
+
+        test('renders empty leaderboard state when no members are returned', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                [],
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.getByText('No leaderboard data')).toBeInTheDocument()
+        })
+
+        test('renders starboard highlights when entries are present', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(screen.getByText('Starboard Highlights')).toBeInTheDocument()
+        })
+
+        test('renders empty starboard state when no entries are returned', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                [],
+            )
+            renderPage()
+            expect(
+                screen.getByText('No starred messages'),
+            ).toBeInTheDocument()
+        })
+
+        test('renders loading skeletons for leaderboard while loading', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                null,
+                mockStarboardEntries,
+            )
+            vi.mocked(useLevelLeaderboard).mockReturnValue({
+                data: null,
+                isLoading: true,
+            } as any)
+            renderPage()
+            expect(screen.getByText('Level Leaderboard')).toBeInTheDocument()
+        })
+
+        test('renders loading skeletons for starboard while loading', () => {
+            mockGuildStoreFn(mockGuild)
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                null,
+            )
+            vi.mocked(useStarboardTop).mockReturnValue({
+                data: null,
+                isLoading: true,
+            } as any)
+            renderPage()
+            expect(screen.getByText('Starboard Highlights')).toBeInTheDocument()
+        })
+
+        test('hides Community section when settings access is not granted', () => {
+            mockGuildStoreFn({
+                ...mockGuild,
+                effectiveAccess: { ...fullAccess, settings: 'none' },
+            })
+            setupQueryHookMocks(
+                mockStats,
+                { cases: mockCases },
+                mockTracks,
+                mockLeaderboard,
+                mockStarboardEntries,
+            )
+            renderPage()
+            expect(
+                screen.queryByText('Level Leaderboard'),
+            ).not.toBeInTheDocument()
+            expect(
+                screen.queryByText('Starboard Highlights'),
+            ).not.toBeInTheDocument()
+        })
     })
 })
