@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
-**Last Updated:** 2026-04-06  
-**Current Version:** v2.6.62 (+ unreleased commits)
+**Last Updated:** 2026-04-07  
+**Current Version:** v2.6.63
 
 This document reflects what is currently shipped and running in production.
 
@@ -28,7 +28,7 @@ This document reflects what is currently shipped and running in production.
 - `/queue rescue` — probe-based detection and removal of unresolvable tracks (v2.6.20)
 - `/lyrics` — paginated lyrics via lyrics.ovh with smart query cleaning (v2.6.60)
 - `/repeat`, `/autoplay` — repeat mode and autoplay toggle; autoplay preference persists across sessions (v2.6.61)
-- `/session save` / `/session restore` — manual queue session snapshot save/restore (v2.6.60)
+- `/session save|restore|list|delete <name>` — named queue snapshots, up to 10 per guild, 30-day TTL, autocomplete on restore/delete (v2.6.63)
 
 #### Music Intelligence
 
