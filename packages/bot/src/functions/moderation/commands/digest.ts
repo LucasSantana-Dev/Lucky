@@ -17,7 +17,7 @@ import {
 import { modDigestConfigService } from '../../../utils/moderation/modDigestConfig.js'
 import { modDigestSchedulerService } from '../../../utils/moderation/modDigestScheduler.js'
 
-const VIEW_RECENT_CASE_LIMIT = 500
+const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -93,12 +93,13 @@ async function handleView(
 
     try {
         const guildId = interaction.guild!.id
-        const [stats, recentCases] = await Promise.all([
+        const since = new Date(Date.now() - days * MS_PER_DAY)
+        const [stats, periodCases] = await Promise.all([
             moderationService.getStats(guildId),
-            moderationService.getRecentCases(guildId, VIEW_RECENT_CASE_LIMIT),
+            moderationService.getCasesSince(guildId, since),
         ])
 
-        const embed = buildDigestEmbed({ stats, cases: recentCases, days })
+        const embed = buildDigestEmbed({ stats, cases: periodCases, days })
 
         await interactionReply({ interaction, content: { embeds: [embed] } })
 

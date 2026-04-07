@@ -18,26 +18,45 @@ type ModDigestSchedulerOptions = {
     clock?: () => number
 }
 
+function parsePositiveIntEnv(
+    raw: string | undefined,
+    fallback: number,
+    name: string,
+): number {
+    if (raw === undefined) return fallback
+    const parsed = Number.parseInt(raw, 10)
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        errorLog({
+            message: `Invalid ${name} env value, falling back to default`,
+            data: { raw, fallback },
+        })
+        return fallback
+    }
+    return parsed
+}
+
 export class ModDigestSchedulerService {
     private readonly tickIntervalMs: number
     private readonly periodDays: number
     private readonly clock: () => number
     private timer: ReturnType<typeof setInterval> | null = null
     private client: Client | null = null
+    private tickInProgress = false
 
     constructor(options: ModDigestSchedulerOptions = {}) {
         this.tickIntervalMs =
             options.tickIntervalMs ??
-            parseInt(
-                process.env.MOD_DIGEST_TICK_INTERVAL_MS ??
-                    `${DEFAULT_TICK_INTERVAL_MS}`,
-                10,
+            parsePositiveIntEnv(
+                process.env.MOD_DIGEST_TICK_INTERVAL_MS,
+                DEFAULT_TICK_INTERVAL_MS,
+                'MOD_DIGEST_TICK_INTERVAL_MS',
             )
         this.periodDays =
             options.periodDays ??
-            parseInt(
-                process.env.MOD_DIGEST_PERIOD_DAYS ?? `${DEFAULT_PERIOD_DAYS}`,
-                10,
+            parsePositiveIntEnv(
+                process.env.MOD_DIGEST_PERIOD_DAYS,
+                DEFAULT_PERIOD_DAYS,
+                'MOD_DIGEST_PERIOD_DAYS',
             )
         this.clock = options.clock ?? (() => Date.now())
     }
@@ -65,34 +84,46 @@ export class ModDigestSchedulerService {
 
     async tick(): Promise<number> {
         if (!this.client) return 0
+        // Single-flight: a slow tick must not overlap a fresh interval fire,
+        // otherwise two ticks could both pass the isDue check and both deliver
+        // the digest before either calls markSent().
+        if (this.tickInProgress) return 0
+        this.tickInProgress = true
 
-        const guildIds = await modDigestConfigService.listEnabledGuildIds()
-        if (guildIds.length === 0) return 0
+        try {
+            const guildIds = await modDigestConfigService.listEnabledGuildIds()
+            if (guildIds.length === 0) return 0
 
-        let sent = 0
-        for (const guildId of guildIds) {
-            try {
-                const config = await modDigestConfigService.get(guildId)
-                if (!config?.enabled) continue
-                if (!this.isDue(config)) continue
+            let sent = 0
+            for (const guildId of guildIds) {
+                try {
+                    const config = await modDigestConfigService.get(guildId)
+                    if (!config?.enabled) continue
+                    if (!this.isDue(config)) continue
 
-                const delivered = await this.sendDigestForGuild(
-                    guildId,
-                    config.channelId,
-                )
-                if (delivered) {
-                    await modDigestConfigService.markSent(guildId, this.clock())
-                    sent += 1
+                    const delivered = await this.sendDigestForGuild(
+                        guildId,
+                        config.channelId,
+                    )
+                    if (delivered) {
+                        await modDigestConfigService.markSent(
+                            guildId,
+                            this.clock(),
+                        )
+                        sent += 1
+                    }
+                } catch (error) {
+                    errorLog({
+                        message: 'Mod digest tick failed for guild',
+                        error,
+                        data: { guildId },
+                    })
                 }
-            } catch (error) {
-                errorLog({
-                    message: 'Mod digest tick failed for guild',
-                    error,
-                    data: { guildId },
-                })
             }
+            return sent
+        } finally {
+            this.tickInProgress = false
         }
-        return sent
     }
 
     isDue(config: ModDigestConfig): boolean {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import digestCommand from './digest'
 
 const getStatsMock = jest.fn()
-const getRecentCasesMock = jest.fn()
+const getCasesSinceMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const infoLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -15,7 +15,7 @@ const createUserFriendlyErrorMock = jest.fn()
 jest.mock('@lucky/shared/services', () => ({
     moderationService: {
         getStats: (...args: unknown[]) => getStatsMock(...args),
-        getRecentCases: (...args: unknown[]) => getRecentCasesMock(...args),
+        getCasesSince: (...args: unknown[]) => getCasesSinceMock(...args),
     },
 }))
 
@@ -61,7 +61,14 @@ type InteractionOverrides = {
 }
 
 function createInteraction(overrides: InteractionOverrides = {}) {
-    const subcommand = overrides.subcommand ?? 'view'
+    // Preserve explicit `null` so the missing-subcommand fallback (which the
+    // command resolves with `getSubcommand(false) ?? 'view'`) is exercised.
+    const subcommand = Object.prototype.hasOwnProperty.call(
+        overrides,
+        'subcommand',
+    )
+        ? overrides.subcommand
+        : 'view'
     return {
         guild:
             overrides.guild === undefined
@@ -104,7 +111,7 @@ describe('digest command', () => {
     describe('view subcommand', () => {
         it('replies with embed when cases exist in period', async () => {
             getStatsMock.mockResolvedValue({ totalCases: 10, activeCases: 2 })
-            getRecentCasesMock.mockResolvedValue([
+            getCasesSinceMock.mockResolvedValue([
                 makeCase('WARN', 'Mod1', 3),
                 makeCase('BAN', 'Mod2', 5),
             ])
@@ -113,21 +120,49 @@ describe('digest command', () => {
             await digestCommand.execute({ interaction, client: {} as any })
 
             expect(getStatsMock).toHaveBeenCalledWith('123456789012345678')
-            expect(getRecentCasesMock).toHaveBeenCalledWith(
-                '123456789012345678',
-                500,
-            )
+            // getCasesSince is called with a Date cutoff derived from `days`,
+            // not a hard-coded limit. Verify guildId + that arg 2 is a Date.
+            expect(getCasesSinceMock).toHaveBeenCalledTimes(1)
+            const [guildArg, sinceArg] = getCasesSinceMock.mock.calls[0]
+            expect(guildArg).toBe('123456789012345678')
+            expect(sinceArg).toBeInstanceOf(Date)
             expect(interactionReplyMock).toHaveBeenCalledTimes(1)
             const replyArg = interactionReplyMock.mock.calls[0][0] as any
             expect(replyArg.content.embeds).toHaveLength(1)
             expect(infoLogMock).toHaveBeenCalledTimes(1)
         })
 
+        it('uses a 7-day cutoff when period is 7d', async () => {
+            // The view path now bounds the query by date, not by row count.
+            // This test pins the behaviour: cutoff ≈ now - 7 days.
+            getStatsMock.mockResolvedValue({ totalCases: 0, activeCases: 0 })
+            getCasesSinceMock.mockResolvedValue([])
+
+            const before = Date.now()
+            const interaction = createInteraction({
+                subcommand: 'view',
+                period: '7d',
+            })
+            await digestCommand.execute({ interaction, client: {} as any })
+            const after = Date.now()
+
+            const sinceArg = getCasesSinceMock.mock.calls[0][1] as Date
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
+            expect(sinceArg.getTime()).toBeGreaterThanOrEqual(
+                before - sevenDaysMs,
+            )
+            expect(sinceArg.getTime()).toBeLessThanOrEqual(
+                after - sevenDaysMs,
+            )
+        })
+
         it('defaults to 7d period when no option provided', async () => {
             // Two cases straddle the 7-day boundary: one inside (3d) and one outside (10d).
-            // A 7d default should count exactly 1; 30d/90d would count 2.
+            // The DB query is mocked to return both; buildDigestEmbed re-filters
+            // by days, so a 7d default should count exactly 1 (the 3d case).
+            // 30d/90d would count 2 — this test pins the default at 7.
             getStatsMock.mockResolvedValue({ totalCases: 5, activeCases: 0 })
-            getRecentCasesMock.mockResolvedValue([
+            getCasesSinceMock.mockResolvedValue([
                 makeCase('KICK', 'Mod1', 3),
                 makeCase('BAN', 'Mod2', 10),
             ])
@@ -146,7 +181,7 @@ describe('digest command', () => {
 
         it('falls back to view when no subcommand is supplied', async () => {
             getStatsMock.mockResolvedValue({ totalCases: 0, activeCases: 0 })
-            getRecentCasesMock.mockResolvedValue([])
+            getCasesSinceMock.mockResolvedValue([])
 
             const interaction = createInteraction({ subcommand: null })
             await digestCommand.execute({ interaction, client: {} as any })
@@ -157,7 +192,7 @@ describe('digest command', () => {
 
         it('replies with friendly error when service throws', async () => {
             getStatsMock.mockRejectedValue(new Error('DB error'))
-            getRecentCasesMock.mockResolvedValue([])
+            getCasesSinceMock.mockResolvedValue([])
 
             const interaction = createInteraction({ subcommand: 'view', period: '7d' })
             await digestCommand.execute({ interaction, client: {} as any })

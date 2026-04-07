@@ -419,6 +419,7 @@ model ModerationCase {
 
   @@unique([guildId, caseNumber])
   @@index([guildId])
+  @@index([guildId, createdAt])
   @@index([userId])
   @@index([moderatorId])
   @@map("moderation_cases")

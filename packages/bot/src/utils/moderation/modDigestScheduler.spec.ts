@@ -340,6 +340,45 @@ describe('ModDigestSchedulerService.tick', () => {
             service.stop()
         }
     })
+
+    it('serializes overlapping ticks so a guild is not double-sent', async () => {
+        const channels = new Map<string, any>()
+        const channel = createTextChannelMock()
+        channels.set('channel-1', channel)
+        const client = createClientMock(channels)
+
+        modDigestConfigServiceMock.listEnabledGuildIds.mockResolvedValue([
+            'guild-1',
+        ])
+        modDigestConfigServiceMock.get.mockResolvedValue({
+            guildId: 'guild-1',
+            channelId: 'channel-1',
+            enabled: true,
+            lastSentAt: null,
+            createdAt: 0,
+        })
+        modDigestConfigServiceMock.markSent.mockResolvedValue(undefined)
+
+        const service = new ModDigestSchedulerService({
+            periodDays: 7,
+            clock: () => 1000,
+        })
+        service.start(client as any)
+        try {
+            // Fire two ticks back-to-back without awaiting the first.
+            // The second one must short-circuit (return 0) because the
+            // first is still in flight, otherwise both would deliver.
+            const [first, second] = await Promise.all([
+                service.tick(),
+                service.tick(),
+            ])
+            expect(first + second).toBe(1)
+            expect(channel.send).toHaveBeenCalledTimes(1)
+            expect(modDigestConfigServiceMock.markSent).toHaveBeenCalledTimes(1)
+        } finally {
+            service.stop()
+        }
+    })
 })
 
 describe('ModDigestSchedulerService.sendDigestForGuild', () => {
