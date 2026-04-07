@@ -17,6 +17,7 @@ const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
+const namedSessionListMock = jest.fn()
 
 jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -52,7 +53,7 @@ jest.mock('./reactionHandler', () => ({
 
 jest.mock('../utils/music/namedSessions', () => ({
     namedSessionService: {
-        list: jest.fn().mockResolvedValue([]),
+        list: (...args: unknown[]) => namedSessionListMock(...args),
     },
 }))
 
@@ -87,10 +88,38 @@ function getInteractionCreateHandler(
     return call?.[1] as ((interaction: Interaction) => void) | undefined
 }
 
+type AutocompleteMockOptions = {
+    guildId?: string | null
+    commandName?: string
+    subcommand?: string | null
+    focusedName?: string
+    respondMock?: jest.Mock
+}
+
+function createAutocompleteInteraction(
+    options: AutocompleteMockOptions = {},
+): Interaction {
+    const respondMock = options.respondMock ?? jest.fn()
+    return {
+        isAutocomplete: () => true,
+        isChatInputCommand: () => false,
+        guildId: options.guildId === undefined ? 'guild-1' : options.guildId,
+        commandName: options.commandName ?? 'session',
+        options: {
+            getSubcommand: jest.fn().mockReturnValue(options.subcommand ?? 'restore'),
+            getFocused: jest
+                .fn()
+                .mockReturnValue({ name: options.focusedName ?? 'name', value: '' }),
+        },
+        respond: respondMock,
+    } as unknown as Interaction
+}
+
 describe('eventHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         createUserFriendlyErrorMock.mockReturnValue('Friendly error')
+        namedSessionListMock.mockResolvedValue([])
     })
 
     // Drain all pending microtasks so fire-and-forget async handlers
@@ -153,6 +182,112 @@ describe('eventHandler', () => {
                 content: 'Friendly error',
                 ephemeral: true,
             },
+        })
+    })
+
+    describe('handleAutocomplete', () => {
+        async function dispatchAutocomplete(
+            interaction: Interaction,
+        ): Promise<void> {
+            const { client, onMock } = createMockClient()
+            handleEvents(client as unknown as never)
+            const handler = getInteractionCreateHandler(onMock)
+            handler?.(interaction)
+            await flushAsyncHandlers()
+        }
+
+        it('responds with session name choices for restore subcommand', async () => {
+            namedSessionListMock.mockResolvedValue([
+                { name: 'chill-vibes' },
+                { name: 'workout-mix' },
+            ])
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                subcommand: 'restore',
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            expect(namedSessionListMock).toHaveBeenCalledWith('guild-1')
+            expect(respondMock).toHaveBeenCalledWith([
+                { name: 'chill-vibes', value: 'chill-vibes' },
+                { name: 'workout-mix', value: 'workout-mix' },
+            ])
+        })
+
+        it('responds with session name choices for delete subcommand', async () => {
+            namedSessionListMock.mockResolvedValue([{ name: 'party' }])
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                subcommand: 'delete',
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            expect(respondMock).toHaveBeenCalledWith([
+                { name: 'party', value: 'party' },
+            ])
+        })
+
+        it('caps autocomplete response to the Discord limit of 25', async () => {
+            namedSessionListMock.mockResolvedValue(
+                Array.from({ length: 40 }, (_, i) => ({ name: `session-${i}` })),
+            )
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            const choices = respondMock.mock.calls[0]?.[0] as unknown[]
+            expect(choices).toHaveLength(25)
+        })
+
+        it('responds with an empty list when guildId is missing', async () => {
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                guildId: null,
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            expect(respondMock).toHaveBeenCalledWith([])
+            expect(namedSessionListMock).not.toHaveBeenCalled()
+        })
+
+        it('responds with an empty list for unrelated commands', async () => {
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                commandName: 'play',
+                subcommand: null,
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            expect(respondMock).toHaveBeenCalledWith([])
+            expect(namedSessionListMock).not.toHaveBeenCalled()
+        })
+
+        it('logs and swallows errors raised by the session service', async () => {
+            namedSessionListMock.mockRejectedValue(new Error('redis down'))
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Error handling autocomplete:',
+                    error: expect.any(Error),
+                }),
+            )
         })
     })
 })
