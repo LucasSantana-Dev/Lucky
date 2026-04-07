@@ -13,6 +13,7 @@ jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'auto',
         YOUTUBE_SEARCH: 'youtubeSearch',
+        SPOTIFY_SEARCH: 'spotifySearch',
     },
     QueueRepeatMode: {
         OFF: 0,
@@ -25,6 +26,7 @@ jest.mock('discord-player', () => ({
 const QueryType = {
     AUTO: 'auto',
     YOUTUBE_SEARCH: 'youtubeSearch',
+    SPOTIFY_SEARCH: 'spotifySearch',
 } as const
 
 const QueueRepeatMode = {
@@ -249,7 +251,7 @@ describe('queueManipulation.replenishQueue', () => {
         expect(queue.player.search).toHaveBeenCalledWith(
             'Song A Artist A',
             expect.objectContaining({
-                searchEngine: QueryType.AUTO,
+                searchEngine: QueryType.SPOTIFY_SEARCH,
             }),
         )
         expect(queue.addTrack).toHaveBeenCalledTimes(1)
@@ -266,18 +268,22 @@ describe('queueManipulation.replenishQueue', () => {
 
     it.each([
         {
-            name: 'when AUTO search throws',
-            firstSearch: () => Promise.reject(new Error('AUTO parser failed')),
+            name: 'when Spotify and AUTO search throw',
+            spotifySearch: () =>
+                Promise.reject(new Error('Spotify unavailable')),
+            autoSearch: () =>
+                Promise.reject(new Error('AUTO parser failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
-            name: 'when AUTO search returns no tracks',
-            firstSearch: () => Promise.resolve({ tracks: [] }),
+            name: 'when Spotify and AUTO search return no tracks',
+            spotifySearch: () => Promise.resolve({ tracks: [] }),
+            autoSearch: () => Promise.resolve({ tracks: [] }),
             fallbackUrl: 'https://example.com/recovered',
         },
     ])(
         'falls back to YouTube search $name',
-        async ({ firstSearch, fallbackUrl }) => {
+        async ({ spotifySearch, autoSearch, fallbackUrl }) => {
             const queue = createQueueMock({
                 tracks: {
                     size: 0,
@@ -286,7 +292,8 @@ describe('queueManipulation.replenishQueue', () => {
                 player: {
                     search: jest
                         .fn()
-                        .mockImplementationOnce(firstSearch)
+                        .mockImplementationOnce(spotifySearch)
+                        .mockImplementationOnce(autoSearch)
                         .mockResolvedValueOnce({
                             tracks: [
                                 {
@@ -304,10 +311,12 @@ describe('queueManipulation.replenishQueue', () => {
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 1,
                 'Song A Artist A',
-                expect.objectContaining({ searchEngine: QueryType.AUTO }),
+                expect.objectContaining({
+                    searchEngine: QueryType.SPOTIFY_SEARCH,
+                }),
             )
             expect(queue.player.search).toHaveBeenNthCalledWith(
-                2,
+                3,
                 'Song A Artist A',
                 expect.objectContaining({
                     searchEngine: QueryType.YOUTUBE_SEARCH,
@@ -822,7 +831,7 @@ describe('queueManipulation.replenishQueue', () => {
         expect(getLastFmSeedTracksMock).toHaveBeenCalledWith('user-1')
         expect(queue.player.search).toHaveBeenCalledWith(
             expect.stringContaining('Paranoid Android'),
-            expect.objectContaining({ searchEngine: QueryType.AUTO }),
+            expect.objectContaining({ searchEngine: QueryType.SPOTIFY_SEARCH }),
         )
         expect(queue.addTrack).toHaveBeenCalledWith(
             expect.objectContaining({
