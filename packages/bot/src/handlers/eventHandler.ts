@@ -19,6 +19,7 @@ import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
+import { namedSessionService } from '../utils/music/namedSessions'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -101,21 +102,64 @@ async function handleInteractionError(
     }
 }
 
+async function handleAutocomplete(
+    interaction: Interaction,
+): Promise<void> {
+    try {
+        if (!interaction.isAutocomplete()) return
+        if (!interaction.guildId) {
+            await interaction.respond([])
+            return
+        }
+
+        const command = interaction.commandName
+        const subcommand = interaction.options.getSubcommand(false)
+        const focusedOption = interaction.options.getFocused(true)
+
+        if (
+            command === 'session' &&
+            (subcommand === 'restore' || subcommand === 'delete') &&
+            focusedOption.name === 'name'
+        ) {
+            const sessions = await namedSessionService.list(
+                interaction.guildId,
+            )
+            const choices = sessions
+                .map((s) => ({ name: s.name, value: s.name }))
+                .slice(0, 25)
+
+            await interaction.respond(choices)
+            return
+        }
+
+        await interaction.respond([])
+    } catch (error) {
+        errorLog({ message: 'Error handling autocomplete:', error })
+    }
+}
+
 async function handleInteractionCreate(
     client: Client,
     interaction: Interaction,
 ): Promise<void> {
     try {
+        if (interaction.isAutocomplete()) {
+            await handleAutocomplete(interaction)
+            return
+        }
+
         if (!interaction.isChatInputCommand()) return
         await handleCommandExecution(
             client,
             interaction as ChatInputCommandInteraction,
         )
     } catch (error) {
-        await handleInteractionError(
-            error,
-            interaction as ChatInputCommandInteraction,
-        )
+        if (!interaction.isAutocomplete()) {
+            await handleInteractionError(
+                error,
+                interaction as ChatInputCommandInteraction,
+            )
+        }
     }
 }
 

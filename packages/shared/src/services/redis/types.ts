@@ -32,6 +32,7 @@ export interface IRedisClient {
     setex(key: string, seconds: number, value: string): Promise<boolean>
     lpush(key: string, ...values: string[]): Promise<number>
     sadd(key: string, ...members: string[]): Promise<number>
+    srem(key: string, ...members: string[]): Promise<number>
     smembers(key: string): Promise<string[]>
     lrange(key: string, start: number, stop: number): Promise<string[]>
     llen(key: string): Promise<number>
