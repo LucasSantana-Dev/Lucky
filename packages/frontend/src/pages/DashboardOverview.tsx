@@ -7,9 +7,12 @@ import {
     Ban,
     Clock,
     MessageSquare,
+    Music,
     ScrollText,
     Shield,
     ShieldAlert,
+    Star,
+    TrendingUp,
     Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -26,6 +29,9 @@ import {
     useModerationCases,
     useModerationStats,
 } from '@/hooks/useModerationQueries'
+import { useRecentTracks } from '@/hooks/useTrackHistoryQueries'
+import { useLevelLeaderboard } from '@/hooks/useLevelQueries'
+import { useStarboardTop } from '@/hooks/useStarboardQueries'
 import type { ModerationCase, ModuleKey } from '@/types'
 
 const ACTION_COLORS: Record<string, string> = {
@@ -116,6 +122,16 @@ export default function DashboardOverview() {
         selectedGuild?.id,
         { limit: 8 },
     )
+    const { data: recentTracksData, isLoading: tracksLoading } = useRecentTracks(
+        selectedGuild?.id,
+        5,
+    )
+    const { data: leaderboardData, isLoading: leaderboardLoading } =
+        useLevelLeaderboard(selectedGuild?.id, 5)
+    const { data: starboardData, isLoading: starboardLoading } = useStarboardTop(
+        selectedGuild?.id,
+        3,
+    )
 
     const recentCases = casesData?.cases ?? []
     const loading = statsLoading || casesLoading
@@ -155,6 +171,27 @@ export default function DashboardOverview() {
             icon: <MessageSquare className='h-4 w-4' />,
             href: '/commands',
             module: 'automation',
+        },
+        {
+            title: 'Music Player',
+            description: 'View queue, playback, and track history.',
+            icon: <Music className='h-4 w-4' />,
+            href: '/music',
+            module: 'music',
+        },
+        {
+            title: 'Levels & XP',
+            description: 'Configure XP, level rewards, and leaderboards.',
+            icon: <TrendingUp className='h-4 w-4' />,
+            href: '/levels',
+            module: 'settings',
+        },
+        {
+            title: 'Starboard',
+            description: 'Manage community highlights.',
+            icon: <Star className='h-4 w-4' />,
+            href: '/starboard',
+            module: 'settings',
         },
     ]
     const visibleQuickActions = quickActions.filter((action) => {
@@ -312,6 +349,243 @@ export default function DashboardOverview() {
                     ))}
                 </motion.section>
             </div>
+
+            {hasModuleAccess(effectiveAccess, 'music', 'view') && (
+                <motion.section
+                    className='surface-panel overflow-hidden'
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.4 }}
+                >
+                    <div className='flex items-center justify-between border-b border-lucky-border px-4 py-3'>
+                        <div>
+                            <h2 className='type-title text-lucky-text-primary'>
+                                Recent Music
+                            </h2>
+                            <p className='type-body-sm text-lucky-text-tertiary'>
+                                Latest tracks played
+                            </p>
+                        </div>
+                        <Link
+                            to='/music/history'
+                            className='type-body-sm inline-flex items-center gap-1 text-lucky-brand transition-colors hover:text-lucky-brand-strong'
+                        >
+                            View all
+                            <ArrowRight className='h-3.5 w-3.5' />
+                        </Link>
+                    </div>
+
+                    <div className='divide-y divide-lucky-border/50'>
+                        {tracksLoading ? (
+                            Array.from({ length: 4 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className='grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-2'
+                                >
+                                    <Skeleton className='h-4 w-32' />
+                                    <Skeleton className='h-4 w-24' />
+                                </div>
+                            ))
+                        ) : recentTracksData && recentTracksData.length > 0 ? (
+                            recentTracksData.map((track, index) => (
+                                <motion.div
+                                    key={track.trackId}
+                                    initial={
+                                        prefersReducedMotion
+                                            ? false
+                                            : { opacity: 0, x: -8 }
+                                    }
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{
+                                        duration: 0.2,
+                                        delay: prefersReducedMotion
+                                            ? 0
+                                            : index * 0.05,
+                                    }}
+                                    className='grid grid-cols-1 gap-2 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50 sm:grid-cols-3'
+                                >
+                                    <div className='min-w-0'>
+                                        <p className='type-body-sm truncate text-lucky-text-primary'>
+                                            {track.title}
+                                        </p>
+                                        <p className='type-body-sm truncate text-lucky-text-tertiary'>
+                                            {track.author}
+                                        </p>
+                                    </div>
+                                    <p className='type-body-sm text-lucky-text-secondary'>
+                                        {track.playedBy || '—'}
+                                    </p>
+                                    <p className='text-xs text-lucky-text-tertiary text-right'>
+                                        {timeAgo(
+                                            new Date(
+                                                track.timestamp,
+                                            ).toISOString(),
+                                        )}
+                                    </p>
+                                </motion.div>
+                            ))
+                        ) : (
+                            <div className='px-4 py-10 text-center'>
+                                <Music className='mx-auto mb-3 h-10 w-10 text-lucky-text-tertiary' />
+                                <p className='type-body text-lucky-text-secondary'>
+                                    No tracks played yet
+                                </p>
+                                <p className='type-body-sm text-lucky-text-tertiary'>
+                                    Track history will appear here when music is
+                                    played
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </motion.section>
+            )}
+
+            {hasModuleAccess(effectiveAccess, 'settings', 'view') && (
+                <motion.section
+                    className='space-y-4'
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.5 }}
+                >
+                    <h2 className='type-title text-lucky-text-primary'>
+                        Community
+                    </h2>
+                    <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
+                        <div className='surface-panel overflow-hidden'>
+                            <div className='border-b border-lucky-border px-4 py-3'>
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                    Level Leaderboard
+                                </h3>
+                                <p className='type-body-sm text-lucky-text-tertiary'>
+                                    Top members by XP
+                                </p>
+                            </div>
+
+                            <div className='divide-y divide-lucky-border/50'>
+                                {leaderboardLoading ? (
+                                    Array.from({ length: 4 }).map(
+                                        (_, index) => (
+                                            <div
+                                                key={index}
+                                                className='grid grid-cols-3 gap-2 px-4 py-3'
+                                            >
+                                                <Skeleton className='h-4 w-24' />
+                                                <Skeleton className='h-4 w-16' />
+                                                <Skeleton className='h-4 w-12 justify-self-end' />
+                                            </div>
+                                        ),
+                                    )
+                                ) : leaderboardData &&
+                                  leaderboardData.length > 0 ? (
+                                    leaderboardData.map((member, index) => (
+                                        <motion.div
+                                            key={member.userId}
+                                            initial={
+                                                prefersReducedMotion
+                                                    ? false
+                                                    : { opacity: 0, x: -8 }
+                                            }
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.2,
+                                                delay: prefersReducedMotion
+                                                    ? 0
+                                                    : index * 0.05,
+                                            }}
+                                            className='grid grid-cols-3 items-center gap-2 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
+                                        >
+                                            <p className='type-body-sm text-lucky-text-primary'>
+                                                Lv{member.level}
+                                            </p>
+                                            <p className='type-body-sm truncate text-lucky-text-secondary'>
+                                                {member.userId}
+                                            </p>
+                                            <p className='text-xs text-lucky-text-tertiary text-right'>
+                                                {member.xp.toLocaleString()}
+                                                 XP
+                                            </p>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <div className='px-4 py-8 text-center'>
+                                        <TrendingUp className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
+                                        <p className='type-body-sm text-lucky-text-secondary'>
+                                            No leaderboard data
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className='surface-panel overflow-hidden'>
+                            <div className='border-b border-lucky-border px-4 py-3'>
+                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                    Starboard Highlights
+                                </h3>
+                                <p className='type-body-sm text-lucky-text-tertiary'>
+                                    Top starred messages
+                                </p>
+                            </div>
+
+                            <div className='divide-y divide-lucky-border/50'>
+                                {starboardLoading ? (
+                                    Array.from({ length: 3 }).map(
+                                        (_, index) => (
+                                            <div
+                                                key={index}
+                                                className='grid grid-cols-2 gap-2 px-4 py-3'
+                                            >
+                                                <Skeleton className='h-4 w-20' />
+                                                <Skeleton className='h-4 w-12 justify-self-end' />
+                                            </div>
+                                        ),
+                                    )
+                                ) : starboardData &&
+                                  starboardData.length > 0 ? (
+                                    starboardData.map((entry, index) => (
+                                        <motion.div
+                                            key={entry.id}
+                                            initial={
+                                                prefersReducedMotion
+                                                    ? false
+                                                    : { opacity: 0, x: -8 }
+                                            }
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{
+                                                duration: 0.2,
+                                                delay: prefersReducedMotion
+                                                    ? 0
+                                                    : index * 0.05,
+                                            }}
+                                            className='grid grid-cols-2 items-center gap-2 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
+                                        >
+                                            <p className='type-body-sm truncate text-lucky-text-primary'>
+                                                {entry.content
+                                                    ? entry.content.substring(
+                                                          0,
+                                                          30,
+                                                      ) + '...'
+                                                    : 'Message'}
+                                            </p>
+                                            <div className='flex items-center justify-end gap-1 text-xs text-lucky-text-tertiary'>
+                                                <Star className='h-3 w-3' />
+                                                {entry.starCount}
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <div className='px-4 py-8 text-center'>
+                                        <Star className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
+                                        <p className='type-body-sm text-lucky-text-secondary'>
+                                            No starred messages
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </motion.section>
+            )}
 
             {Object.keys(stats?.casesByType ?? {}).length > 0 && (
                 <section className='space-y-4'>
