@@ -11,7 +11,7 @@ import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { createSuccessEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
-import { QueueRepeatMode } from 'discord-player'
+import { QueueRepeatMode, QueryType } from 'discord-player'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 import {
     moveUserTrackToPriority,
@@ -27,6 +27,15 @@ function isUnknownInteractionError(error: unknown): boolean {
         'code' in error &&
         (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
     )
+}
+
+function isUrl(query: string): boolean {
+    return query.startsWith('http://') || query.startsWith('https://')
+}
+
+function resolveSearchEngine(query: string): QueryType {
+    if (isUrl(query)) return QueryType.AUTO
+    return QueryType.SPOTIFY_SEARCH
 }
 
 function isTrackAlreadyQueued(
@@ -112,7 +121,8 @@ export default new Command({
                 resolveGuildQueue(client, interaction.guildId ?? '').queue,
             )
 
-            const result = await client.player.play(voiceChannel, query, {
+            const searchEngine = resolveSearchEngine(query)
+            const playOptions = {
                 nodeOptions: {
                     metadata: {
                         channel: interaction.channel,
@@ -126,7 +136,30 @@ export default new Command({
                     leaveOnEndCooldown: 300_000,
                 },
                 requestedBy: interaction.user,
-            })
+                searchEngine,
+            }
+
+            let result
+            try {
+                result = await client.player.play(
+                    voiceChannel,
+                    query,
+                    playOptions,
+                )
+            } catch (spotifyError) {
+                if (searchEngine !== QueryType.AUTO) {
+                    debugLog({
+                        message: 'Spotify search failed, falling back to auto',
+                        data: { query },
+                    })
+                    result = await client.player.play(voiceChannel, query, {
+                        ...playOptions,
+                        searchEngine: QueryType.AUTO,
+                    })
+                } else {
+                    throw spotifyError
+                }
+            }
 
             const track = result.track
 
