@@ -13,22 +13,54 @@ import {
     requireVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
+import { namedSessionService } from '../../../utils/music/namedSessions'
 import { createQueue, queueConnect } from '../../../handlers/queueHandler'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('session')
-        .setDescription('💾 Save or restore the current music session')
+        .setDescription('💾 Save or restore music sessions')
         .addSubcommand((subcommand) =>
             subcommand
                 .setName('save')
-                .setDescription('Save current queue session snapshot'),
+                .setDescription('Save current queue as a named session')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('name')
+                        .setDescription('Session name (e.g., party-mix)')
+                        .setRequired(true)
+                        .setMaxLength(32),
+                ),
         )
         .addSubcommand((subcommand) =>
             subcommand
                 .setName('restore')
-                .setDescription('Restore last saved queue session'),
+                .setDescription('Restore a previously saved session')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('name')
+                        .setDescription('Session name to restore')
+                        .setRequired(true)
+                        .setAutocomplete(true),
+                ),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('list')
+                .setDescription('Show all saved sessions for this server'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('delete')
+                .setDescription('Delete a saved session')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('name')
+                        .setDescription('Session name to delete')
+                        .setRequired(true)
+                        .setAutocomplete(true),
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
@@ -40,6 +72,8 @@ export default new Command({
         const subcommand = interaction.options.getSubcommand()
 
         if (subcommand === 'save') {
+            const name = interaction.options.getString('name', true).toLowerCase()
+
             const { queue } = resolveGuildQueue(client, guildId)
             if (!queue) {
                 await interactionReply({
@@ -48,7 +82,7 @@ export default new Command({
                         embeds: [
                             warningEmbed(
                                 'No active queue',
-                                'Start playing music before saving a session snapshot.',
+                                'Start playing music before saving a session.',
                             ),
                         ],
                         ephemeral: true,
@@ -57,16 +91,20 @@ export default new Command({
                 return
             }
 
-            const snapshot =
-                await musicSessionSnapshotService.saveSnapshot(queue)
-            if (!snapshot) {
+            const session = await namedSessionService.save(
+                queue,
+                name,
+                interaction.user.id,
+            )
+
+            if (!session) {
                 await interactionReply({
                     interaction,
                     content: {
                         embeds: [
                             warningEmbed(
-                                'Nothing to save',
-                                'Queue snapshot was not saved because there are no tracks.',
+                                'Could not save session',
+                                'Session name already exists, is invalid, or max sessions reached (10 per server).',
                             ),
                         ],
                         ephemeral: true,
@@ -81,7 +119,7 @@ export default new Command({
                     embeds: [
                         successEmbed(
                             'Session saved',
-                            `Snapshot ID: ${snapshot.sessionSnapshotId}\nTracks saved: ${snapshot.upcomingTracks.length}`,
+                            `**${session.name}** — ${session.trackCount} tracks`,
                         ),
                     ],
                     ephemeral: true,
@@ -90,44 +128,37 @@ export default new Command({
             return
         }
 
-        if (!(await requireVoiceChannel(interaction))) return
+        if (subcommand === 'list') {
+            const sessions = await namedSessionService.list(guildId)
 
-        let queue = resolveGuildQueue(client, guildId).queue
-        if (!queue) {
-            queue = await createQueue({ client, interaction })
-        }
+            if (sessions.length === 0) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            infoEmbed(
+                                'No saved sessions',
+                                'Use `/session save` to create one.',
+                            ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
 
-        try {
-            await queueConnect({ queue, interaction })
-        } catch {
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        errorEmbed(
-                            'Connection error',
-                            'Could not connect to your voice channel.',
-                        ),
-                    ],
-                    ephemeral: true,
-                },
+            const descriptions = sessions.map((s) => {
+                const age = Math.round((Date.now() - s.savedAt) / 1000 / 60)
+                return `**${s.name}** — ${s.trackCount} tracks, saved by <@${s.savedBy}> ${age}m ago`
             })
-            return
-        }
 
-        const restored = await musicSessionSnapshotService.restoreSnapshot(
-            queue,
-            interaction.user,
-        )
-
-        if (restored.restoredCount === 0) {
             await interactionReply({
                 interaction,
                 content: {
                     embeds: [
                         infoEmbed(
-                            'No snapshot restored',
-                            'No saved session was found or queue is already populated.',
+                            'Saved Sessions',
+                            descriptions.join('\n'),
                         ),
                     ],
                     ephemeral: true,
@@ -136,16 +167,89 @@ export default new Command({
             return
         }
 
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    successEmbed(
-                        'Session restored',
-                        `Restored ${restored.restoredCount} tracks from snapshot ${restored.sessionSnapshotId}.`,
-                    ),
-                ],
-            },
-        })
+        if (subcommand === 'restore' || subcommand === 'delete') {
+            const name = interaction.options.getString('name', true).toLowerCase()
+
+            if (subcommand === 'delete') {
+                const deleted = await namedSessionService.delete(guildId, name)
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            deleted
+                                ? successEmbed(
+                                      'Session deleted',
+                                      `**${name}** has been removed.`,
+                                  )
+                                : warningEmbed(
+                                      'Session not found',
+                                      `Could not find **${name}**.`,
+                                  ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
+            if (!(await requireVoiceChannel(interaction))) return
+
+            let queue = resolveGuildQueue(client, guildId).queue
+            if (!queue) {
+                queue = await createQueue({ client, interaction })
+            }
+
+            try {
+                await queueConnect({ queue, interaction })
+            } catch {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            errorEmbed(
+                                'Connection error',
+                                'Could not connect to your voice channel.',
+                            ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
+            const result = await namedSessionService.restore(
+                queue,
+                name,
+                interaction.user,
+            )
+
+            if (result.restoredCount === 0) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            warningEmbed(
+                                'Session not found',
+                                `Could not find **${name}**.`,
+                            ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        successEmbed(
+                            'Session restored',
+                            `Restored ${result.restoredCount} tracks from **${name}**.`,
+                        ),
+                    ],
+                },
+            })
+        }
     },
 })

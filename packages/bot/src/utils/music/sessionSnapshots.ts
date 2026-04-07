@@ -47,7 +47,7 @@ function toDurationString(duration: unknown): string {
     return '0:00'
 }
 
-function toSnapshotTrack(track: Track): SnapshotTrack {
+export function toSnapshotTrack(track: Track): SnapshotTrack {
     const metadata = (track.metadata ?? {}) as {
         recommendationReason?: string
         isAutoplay?: boolean
