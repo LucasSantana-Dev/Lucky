@@ -83,9 +83,10 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
         infoLog({
             message: 'Registered YoutubeiExtractor (SoundCloud stream bridge)',
         })
-    } catch {
+    } catch (error) {
         warnLog({
             message: 'YouTube extractor unavailable. Using SoundCloud/Spotify.',
+            error,
         })
     }
 }
