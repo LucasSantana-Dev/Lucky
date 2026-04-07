@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
 **Last Updated:** 2026-04-07  
-**Current Version:** v2.6.63
+**Current Version:** v2.6.64
 
 This document reflects what is currently shipped and running in production.
 
@@ -50,7 +50,8 @@ This document reflects what is currently shipped and running in production.
 #### Moderation (`/warn`, `/mute`, `/unmute`, `/kick`, `/ban`, `/unban`, `/case`, `/cases`, `/history`)
 
 - Full case management with case number tracking, DM notifications, evidence logging
-- **`/digest`** — moderation activity digest with period-filtered stats and top 5 moderators (7d/30d/90d) (v2.6.24)
+- **`/digest view`** — moderation activity digest with period-filtered stats and top 5 moderators (7d/30d/90d); date-bounded `getCasesSince` query backed by a composite index (v2.6.24, accuracy fix v2.6.64)
+- **`/digest schedule|unschedule`** — weekly automated digest posts to a chosen text channel; Redis-backed config, hourly in-process scheduler with single-flight guard, per-guild error isolation, env-validated interval/period, startup decoupled from the ready handler (v2.6.64)
 
 #### Auto-Moderation (`/automod`)
 
@@ -119,10 +120,9 @@ This document reflects what is currently shipped and running in production.
 
 ## Known Gaps / Future Work
 
-| Area                    | Description                                                  | Complexity |
-| ----------------------- | ------------------------------------------------------------ | ---------- |
+| Area                    | Description                                                                                      | Complexity |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | ---------- |
 | Collaborative playlists | Shared curation surface (`/playlist`) on top of the existing per-user contribution limit service | L          |
-| Scheduled mod digest    | Automated weekly moderation summary to a configurable channel (on-demand `/digest` already shipped) | S          |
 
 ---
 
