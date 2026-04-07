@@ -105,7 +105,7 @@ This document reflects what is currently shipped and running in production.
 - Pages: Login, Servers, Dashboard Overview, Features, Config, Server Settings, Moderation, AutoMod, Server Logs, Music, Track History, Lyrics, Custom Commands, Auto Messages, Embed Builder, Reaction Roles, Guild Automation, Levels, Starboard, Twitch Notifications, Last.fm, Terms of Service, Privacy Policy
 - Discord OAuth2 login flow with RBAC module guards
 - Shell/sidebar redesign: persistent guild block, 6-group nav, strong active-item treatment (v2.6.62+)
-- Dashboard Overview: moderation stats, recent cases, quick actions, cases-by-type breakdown
+- Dashboard Overview: moderation stats, recent cases, quick actions, cases-by-type breakdown, plus RBAC-gated **Recent Music** section and **Community** section (Level Leaderboard + Starboard Highlights) introduced in v2.6.63
 
 ### CI/CD & Deploy (v2.6.60+)
 
@@ -119,12 +119,10 @@ This document reflects what is currently shipped and running in production.
 
 ## Known Gaps / Future Work
 
-| Area                | Description                                           | Complexity |
-| ------------------- | ----------------------------------------------------- | ---------- |
-| Named sessions      | Multiple named save/restore sessions per guild        | M          |
-| Collaborative playlists | Shared curation with contribution limits          | L          |
-| Scheduled mod digest | Automated weekly moderation summary to channel       | S          |
-| Overview enhancement | Add music + community stats to dashboard overview    | M          |
+| Area                    | Description                                                  | Complexity |
+| ----------------------- | ------------------------------------------------------------ | ---------- |
+| Collaborative playlists | Shared curation surface (`/playlist`) on top of the existing per-user contribution limit service | L          |
+| Scheduled mod digest    | Automated weekly moderation summary to a configurable channel (on-demand `/digest` already shipped) | S          |
 
 ---
 
