@@ -17,14 +17,20 @@ vi.mock('@/hooks/useTrackHistoryQueries')
 vi.mock('@/hooks/useLevelQueries')
 vi.mock('@/hooks/useStarboardQueries')
 
-const fullAccess = {
+type AccessValue = 'none' | 'view' | 'manage'
+type AccessMap = Record<
+    'overview' | 'settings' | 'moderation' | 'automation' | 'music' | 'integrations',
+    AccessValue
+>
+
+const fullAccess: AccessMap = {
     overview: 'manage',
     settings: 'manage',
     moderation: 'manage',
     automation: 'manage',
     music: 'manage',
     integrations: 'manage',
-} as const
+}
 
 const mockGuild = {
     id: '123',
