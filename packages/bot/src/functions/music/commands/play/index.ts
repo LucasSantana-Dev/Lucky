@@ -8,7 +8,6 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
-import { createSuccessEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
 import { QueueRepeatMode, QueryType } from 'discord-player'
@@ -17,6 +16,7 @@ import {
     moveUserTrackToPriority,
     blendAutoplayTracks,
 } from '../../../../utils/music/queueManipulation'
+import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 
 const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
@@ -182,15 +182,30 @@ export default new Command({
                 }
             }
 
+            // Determine whether this will start playing immediately (empty
+            // queue pre-play) or be appended to an existing queue. Position is
+            // 0 for immediate playback, or the current queue size otherwise.
+            const queuePosition =
+                hadQueueBeforePlay && queue
+                    ? (queue.tracks.toArray?.() ?? []).length
+                    : 0
+
             const embed = result.searchResult.playlist
-                ? createSuccessEmbed(
-                      'Playlist Enqueued',
-                      `**${result.searchResult.playlist.title}** — ${result.searchResult.tracks.length} tracks`,
-                  )
-                : createSuccessEmbed(
-                      'Now Playing',
-                      `**${track.title}** by ${track.author}`,
-                  )
+                ? buildPlayResponseEmbed({
+                      kind: 'playlistQueued',
+                      track,
+                      requestedBy: interaction.user,
+                      playlist: {
+                          title: result.searchResult.playlist.title,
+                          trackCount: result.searchResult.tracks.length,
+                      },
+                  })
+                : buildPlayResponseEmbed({
+                      kind: queuePosition === 0 ? 'nowPlaying' : 'addedToQueue',
+                      track,
+                      requestedBy: interaction.user,
+                      queuePosition,
+                  })
 
             collaborativePlaylistService.recordContribution(
                 interaction.guildId,

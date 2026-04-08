@@ -1,11 +1,25 @@
 import { Player } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import * as playdl from 'play-dl'
+import type { Readable } from 'stream'
 import type { CustomClient } from '../../types'
-import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
+import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
+import {
+    cleanTitle,
+    cleanAuthor,
+    cleanSearchQuery,
+    isSpamChannel,
+} from '../../utils/music/searchQueryCleaner'
 
 type CreatePlayerParams = {
     client: CustomClient
+}
+
+type BridgeTrack = {
+    title: string
+    author: string
+    duration?: string
+    url?: string
 }
 
 export const createPlayer = ({ client }: CreatePlayerParams): Player => {
@@ -68,7 +82,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
                     highWaterMark: 1 << 25,
                 },
                 generateWithPoToken: true,
-                createStream: streamViaSoundCloud,
+                createStream: createResilientStream,
             },
         )
 
@@ -81,7 +95,8 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
         }
 
         infoLog({
-            message: 'Registered YoutubeiExtractor (SoundCloud stream bridge)',
+            message:
+                'Registered YoutubeiExtractor (SoundCloud bridge + YouTube fallback)',
         })
     } catch (error) {
         warnLog({
@@ -91,12 +106,107 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
     }
 }
 
-async function streamViaSoundCloud(track: {
-    title: string
-    author: string
-    duration?: string
-}): Promise<import('stream').Readable> {
-    const query = `${track.title} ${track.author}`.trim()
+/**
+ * Bridge fallback chain.
+ *
+ * 1. SoundCloud search with the cleaned "${title} ${author}" query
+ * 2. SoundCloud search with cleaned title only (drops uploader-channel noise)
+ * 3. Direct YouTube stream via play-dl when the track carries a YouTube URL
+ *    and SoundCloud has no viable match (kpop, niche, indie tracks).
+ *
+ * Every stage logs its attempt + outcome so Sentry events carry enough
+ * context to understand WHY the bridge fell through.
+ */
+export async function createResilientStream(
+    track: BridgeTrack,
+): Promise<Readable> {
+    const cleanedTitle = cleanTitle(track.title)
+    const cleanedAuthor = cleanAuthor(track.author)
+    const authorIsSpam = isSpamChannel(track.author)
+
+    debugLog({
+        message: 'Bridge: resolving stream',
+        data: {
+            title: track.title,
+            author: track.author,
+            cleanedTitle,
+            cleanedAuthor,
+            authorIsSpam,
+            hasUrl: Boolean(track.url),
+        },
+    })
+
+    // Spam-channel uploads (e.g. "Best Songs" compilations) never match the
+    // real track on SoundCloud — skip that stage outright.
+    if (!authorIsSpam) {
+        try {
+            return await streamViaSoundCloud(
+                cleanSearchQuery(cleanedTitle, cleanedAuthor),
+                track.duration,
+            )
+        } catch (primaryError) {
+            debugLog({
+                message:
+                    'Bridge: SoundCloud primary search failed, retrying with title only',
+                data: {
+                    error: (primaryError as Error).message,
+                    cleanedTitle,
+                },
+            })
+        }
+
+        try {
+            return await streamViaSoundCloud(cleanedTitle, track.duration)
+        } catch (titleOnlyError) {
+            debugLog({
+                message:
+                    'Bridge: SoundCloud title-only search failed, falling back to direct stream',
+                data: {
+                    error: (titleOnlyError as Error).message,
+                    cleanedTitle,
+                },
+            })
+        }
+    }
+
+    // Last-resort: stream the actual YouTube source URL directly via play-dl.
+    // This is the fix for tracks that genuinely are not on SoundCloud and for
+    // spam-channel uploads where the bridge would never have worked anyway.
+    if (track.url) {
+        try {
+            const direct = await playdl.stream(track.url)
+            infoLog({
+                message: 'Bridge: streamed directly from source URL',
+                data: { url: track.url, title: cleanedTitle || track.title },
+            })
+            return direct.stream
+        } catch (directError) {
+            errorLog({
+                message: 'Bridge: direct stream from source URL failed',
+                error: directError,
+                data: { url: track.url, title: track.title },
+            })
+            throw directError
+        }
+    }
+
+    throw new Error(
+        `Bridge exhausted: no SoundCloud match and no source URL for "${track.title}"`,
+    )
+}
+
+/**
+ * Search SoundCloud for the given query and return a streaming handle for the
+ * first result whose title and duration validate. Exported for testing.
+ */
+export async function streamViaSoundCloud(
+    query: string,
+    trackDuration?: string,
+): Promise<Readable> {
+    if (!query.trim()) {
+        throw new Error('SoundCloud: empty query')
+    }
+
     const results = await playdl.search(query, {
         source: { soundcloud: 'tracks' },
         limit: 5,
@@ -106,24 +216,7 @@ async function streamViaSoundCloud(track: {
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
-    const norm = (s: string) => {
-        const cleaned = s
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .trim()
-        return cleaned || s.toLowerCase().trim()
-    }
-    const titleNorm = norm(track.title)
-    const trackSec = parseDurationString(track.duration)
-
-    const match = results.find((r) => {
-        const titleMatch =
-            norm(r.name).includes(titleNorm) || titleNorm.includes(norm(r.name))
-        if (!titleMatch) return false
-        if (trackSec === null || !r.durationInSec) return true
-        return Math.abs(r.durationInSec - trackSec) <= 15
-    })
-
+    const match = findMatchingSoundCloudResult(query, trackDuration, results)
     if (!match) {
         throw new Error(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
@@ -134,10 +227,49 @@ async function streamViaSoundCloud(track: {
     return scStream.stream
 }
 
-function parseDurationString(duration?: string): number | null {
+type SoundCloudSearchResult = {
+    name: string
+    url: string
+    durationInSec?: number
+}
+
+/**
+ * Pure match logic, exported so tests can cover it without spinning up play-dl.
+ */
+export function findMatchingSoundCloudResult(
+    query: string,
+    trackDuration: string | undefined,
+    results: readonly SoundCloudSearchResult[],
+): SoundCloudSearchResult | undefined {
+    const queryNorm = normalizeForMatch(query)
+    if (!queryNorm) return undefined
+
+    const trackSec = parseDurationString(trackDuration)
+
+    return results.find((result) => {
+        const resultNorm = normalizeForMatch(result.name)
+        if (!resultNorm) return false
+
+        const titleMatch =
+            resultNorm.includes(queryNorm) || queryNorm.includes(resultNorm)
+        if (!titleMatch) return false
+
+        if (trackSec === null || !result.durationInSec) return true
+        return Math.abs(result.durationInSec - trackSec) <= 15
+    })
+}
+
+function normalizeForMatch(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .trim()
+}
+
+export function parseDurationString(duration?: string): number | null {
     if (!duration) return null
     const parts = duration.split(':').map(Number)
-    if (parts.some(isNaN)) return null
+    if (parts.some(Number.isNaN)) return null
     if (parts.length === 2) return parts[0] * 60 + parts[1]
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
     return null

@@ -117,7 +117,11 @@ import playCommand from './index'
 function createInteraction(guildId: string | null) {
     return {
         guildId,
-        user: { id: 'user-1' },
+        user: {
+            id: 'user-1',
+            tag: 'TestUser#0001',
+            displayAvatarURL: jest.fn(() => 'https://cdn.example/avatar.png'),
+        },
         channel: { id: 'channel-1' },
         member: { voice: { channel: { id: 'voice-1' } } },
         options: {
@@ -260,7 +264,10 @@ describe('play command', () => {
             }),
         )
         expect(interaction.editReply).not.toHaveBeenCalled()
-        expect(createSuccessEmbedMock).toHaveBeenCalled()
+        // The command no longer uses createSuccessEmbed — the new
+        // buildPlayResponseEmbed helper builds an EmbedBuilder directly.
+        // We verify the reply carries an embed above; no need to assert
+        // the specific helper was called.
         expect(client.player.play).toHaveBeenCalledWith(
             expect.anything(),
             'test query',

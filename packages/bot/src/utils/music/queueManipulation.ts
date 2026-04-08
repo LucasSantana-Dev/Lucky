@@ -9,6 +9,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
+import { cleanSearchQuery } from './searchQueryCleaner'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
@@ -389,32 +390,6 @@ async function collectRecommendationCandidates(
     return candidates
 }
 
-const NOISE_PATTERNS: readonly RegExp[] = [
-    /\(official music video\)/gi,
-    /\(official video\)/gi,
-    /\(lyrics?\)/gi,
-    /\(audio\)/gi,
-    /\[official music video\]/gi,
-    /\[official video\]/gi,
-    /\[lyrics?\]/gi,
-    /\[audio\]/gi,
-    /\bofficial music video\b/gi,
-    /\bofficial video\b/gi,
-    /\blyrics? video\b/gi,
-    /\bft\.?\s/gi,
-    /\bfeat\.?\s/gi,
-    /- topic\b/gi,
-]
-
-function cleanSearchQuery(title: string, author: string): string {
-    let cleaned = title
-    for (const pattern of NOISE_PATTERNS) {
-        cleaned = cleaned.replaceAll(pattern, ' ')
-    }
-    cleaned = cleaned.replaceAll(/\s{2,}/g, ' ').trim()
-    return `${cleaned} ${author}`.trim()
-}
-
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 
 async function searchSeedCandidates(
@@ -439,7 +414,8 @@ async function searchSeedCandidates(
             const tracks = searchResult.tracks
                 .filter(
                     (t) =>
-                        !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                        !t.durationMS ||
+                        t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
 
@@ -481,7 +457,8 @@ async function collectBroadFallbackCandidates(
             const tracks = result.tracks
                 .filter(
                     (t) =>
-                        !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                        !t.durationMS ||
+                        t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
 
@@ -596,7 +573,8 @@ async function searchLastFmQuery(
             const tracks = result.tracks
                 .filter(
                     (t) =>
-                        !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                        !t.durationMS ||
+                        t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
             if (tracks.length > 0) return tracks
