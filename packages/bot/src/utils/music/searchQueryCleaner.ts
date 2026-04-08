@@ -15,45 +15,45 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     // Parenthetical / bracketed decorators. Order matters: longer phrases
     // like "(Official Music Video)" must be tried before the bare "(Official)"
     // fallback so they're stripped atomically rather than leaving "(Music Video)".
-    /\(official\s*music\s*video\)/gi,
-    /\(official\s*video\)/gi,
-    /\(official\s*audio\)/gi,
-    /\(official\s*lyric[s]?\s*video\)/gi,
+    /\(official\s{0,3}music\s{0,3}video\)/gi,
+    /\(official\s{0,3}video\)/gi,
+    /\(official\s{0,3}audio\)/gi,
+    /\(official\s{0,3}lyric[s]?\s{0,3}video\)/gi,
     /\(official\)/gi,
-    /\(lyrics?\s*video\)/gi,
+    /\(lyrics?\s{0,3}video\)/gi,
     /\(lyrics?\)/gi,
     /\(audio\)/gi,
-    /\(music\s*video\)/gi,
+    /\(music\s{0,3}video\)/gi,
     /\(visualizer\)/gi,
     /\(hd\)/gi,
     /\(4k\)/gi,
-    /\(remaster(?:ed)?\s*\d{0,4}\)/gi,
+    /\(remaster(?:ed)?\s{0,3}\d{0,4}\)/gi,
     /\(remaster(?:ed)?\)/gi,
-    /\(extended(?:\s*mix)?\)/gi,
-    /\(radio\s*edit\)/gi,
-    /\[official\s*music\s*video\]/gi,
-    /\[official\s*video\]/gi,
-    /\[official\s*audio\]/gi,
+    /\(extended(?:\s{0,3}mix)?\)/gi,
+    /\(radio\s{0,3}edit\)/gi,
+    /\[official\s{0,3}music\s{0,3}video\]/gi,
+    /\[official\s{0,3}video\]/gi,
+    /\[official\s{0,3}audio\]/gi,
     /\[official\]/gi,
-    /\[lyrics?\s*video\]/gi,
+    /\[lyrics?\s{0,3}video\]/gi,
     /\[lyrics?\]/gi,
     /\[audio\]/gi,
-    /\[music\s*video\]/gi,
+    /\[music\s{0,3}video\]/gi,
     /\[visualizer\]/gi,
     /\[hd\]/gi,
     /\[4k\]/gi,
-    /\[remaster(?:ed)?\s*\d{0,4}\]/gi,
+    /\[remaster(?:ed)?\s{0,3}\d{0,4}\]/gi,
     /\[remaster(?:ed)?\]/gi,
     /\[download\]/gi,
-    /\[free\s*download\]/gi,
+    /\[free\s{0,3}download\]/gi,
 
     // Bare decorators that weren't wrapped in brackets
-    /\bofficial\s*music\s*video\b/gi,
-    /\bofficial\s*video\b/gi,
-    /\bofficial\s*audio\b/gi,
-    /\bofficial\s*lyric[s]?\s*video\b/gi,
-    /\blyrics?\s*video\b/gi,
-    /\bmusic\s*video\b/gi,
+    /\bofficial\s{0,3}music\s{0,3}video\b/gi,
+    /\bofficial\s{0,3}video\b/gi,
+    /\bofficial\s{0,3}audio\b/gi,
+    /\bofficial\s{0,3}lyric[s]?\s{0,3}video\b/gi,
+    /\blyrics?\s{0,3}video\b/gi,
+    /\bmusic\s{0,3}video\b/gi,
     /\bvisualizer\b/gi,
 
     // Featuring prefixes (leave the featured artist name in place; only strip the noise word)
@@ -61,7 +61,7 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\bfeat\.?\s+/gi,
 
     // YouTube auto-generated "Topic" channel suffix
-    /\s*-\s*topic\b/gi,
+    /\s{0,3}-\s{0,3}topic\b/gi,
 ]
 
 /**
@@ -89,13 +89,13 @@ export function cleanTitle(title: string): string {
     }
     // Drop empty parenthesis/bracket pairs left behind by the strips above.
     cleaned = cleaned
-        .replaceAll(/\(\s*\)/g, ' ')
-        .replaceAll(/\[\s*\]/g, ' ')
+        .replaceAll(/\(\s{0,3}\)/g, ' ')
+        .replaceAll(/\[\s{0,3}\]/g, ' ')
         // Collapse bar/pipe separators — they rarely hold meaningful info
         // post-cleanup ("Song | Movie OST" → "Song OST").
-        .replaceAll(/\s*\|\s*/g, ' ')
+        .replaceAll(/\s{0,3}\|\s{0,3}/g, ' ')
         // Collapse repeated dashes introduced by earlier strips.
-        .replaceAll(/\s*-\s*-\s*/g, ' - ')
+        .replaceAll(/\s{0,3}-\s{0,3}-\s{0,3}/g, ' - ')
         .replaceAll(/\s{2,}/g, ' ')
         .trim()
     return cleaned
@@ -108,10 +108,10 @@ export function cleanTitle(title: string): string {
 export function cleanAuthor(author: string): string {
     return (
         author
-            .replaceAll(/\s*-\s*topic\b/gi, '')
+            .replaceAll(/\s{0,3}-\s{0,3}topic\b/gi, '')
             // Strip VEVO suffix whether or not it's separated by whitespace.
             // "QueenVEVO" → "Queen", "Queen VEVO" → "Queen", "VEVO Queen" → "Queen".
-            .replaceAll(/\s*vevo\b/gi, '')
+            .replaceAll(/\s{0,3}vevo\b/gi, '')
             .replaceAll(/\s{2,}/g, ' ')
             .trim()
     )

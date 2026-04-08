@@ -17,6 +17,7 @@ import {
     blendAutoplayTracks,
 } from '../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
+import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
 
 const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
@@ -213,9 +214,15 @@ export default new Command({
                 1,
             )
 
+            // Attach the music control button row so the user can
+            // pause/skip/shuffle/loop/previous directly from the /play
+            // response. The row is queue-state-aware (disables Previous
+            // when there's no history, disables Shuffle on small queues).
+            const components = queue ? [createMusicControlButtons(queue)] : []
+
             await interactionReply({
                 interaction,
-                content: { embeds: [embed] },
+                content: { embeds: [embed], components },
             })
         } catch (error) {
             if (isUnknownInteractionError(error)) {
