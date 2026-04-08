@@ -173,9 +173,12 @@ describe('createResilientStream', () => {
     })
 
     it('succeeds on SoundCloud primary search (title+author)', async () => {
+        // Primary search uses the cleaned title+author query, so the result
+        // name must contain every token ("Bohemian", "Rhapsody", "Queen") for
+        // the tokenized match to accept it on the first try.
         playdlSearchMock.mockResolvedValueOnce([
             {
-                name: 'Bohemian Rhapsody',
+                name: 'Bohemian Rhapsody - Queen',
                 url: 'sc://primary',
                 durationInSec: 354,
             },

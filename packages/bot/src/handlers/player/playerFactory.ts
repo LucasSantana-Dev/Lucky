@@ -235,6 +235,12 @@ type SoundCloudSearchResult = {
 
 /**
  * Pure match logic, exported so tests can cover it without spinning up play-dl.
+ *
+ * Matches a candidate result iff every non-empty token in the cleaned query
+ * appears in the normalized result name. This is tighter than the previous
+ * symmetric substring check, which allowed short candidate names (e.g. a
+ * 4-character remix title) to match a long query because
+ * `queryNorm.includes(resultNorm)` was true.
  */
 export function findMatchingSoundCloudResult(
     query: string,
@@ -244,14 +250,16 @@ export function findMatchingSoundCloudResult(
     const queryNorm = normalizeForMatch(query)
     if (!queryNorm) return undefined
 
+    const tokens = queryNorm.split(/\s+/).filter(Boolean)
+    if (tokens.length === 0) return undefined
+
     const trackSec = parseDurationString(trackDuration)
 
     return results.find((result) => {
         const resultNorm = normalizeForMatch(result.name)
         if (!resultNorm) return false
 
-        const titleMatch =
-            resultNorm.includes(queryNorm) || queryNorm.includes(resultNorm)
+        const titleMatch = tokens.every((token) => resultNorm.includes(token))
         if (!titleMatch) return false
 
         if (trackSec === null || !result.durationInSec) return true

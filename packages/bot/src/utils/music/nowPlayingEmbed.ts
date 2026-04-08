@@ -18,6 +18,7 @@ export type PlayResponseContext = {
     playlist?: {
         title: string
         trackCount: number
+        url?: string
     }
 }
 
@@ -132,7 +133,9 @@ export function buildPlayResponseEmbed(
     if (kind === 'playlistQueued' && playlist) {
         embed.setTitle(playlist.title)
         embed.setDescription(`**${playlist.trackCount}** tracks queued`)
-        if (track.url) embed.setURL(track.url)
+        // Link the title to the playlist itself — never the first track's
+        // URL, which would mislead the user about where the click lands.
+        if (playlist.url) embed.setURL(playlist.url)
         return embed
     }
 

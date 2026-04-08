@@ -183,12 +183,21 @@ export default new Command({
                 }
             }
 
-            // Determine whether this will start playing immediately (empty
-            // queue pre-play) or be appended to an existing queue. Position is
-            // 0 for immediate playback, or the current queue size otherwise.
+            // Find the track's actual index in the current queue. The queue
+            // may have been re-ordered by moveUserTrackToPriority or
+            // blendAutoplayTracks after the search result resolved, so the
+            // raw queue length is not the user-facing position. Falls back to
+            // the queue length if the track can't be located (defensive —
+            // should not happen in practice).
+            const queuedTracks = queue ? (queue.tracks.toArray?.() ?? []) : []
+            const trackIndex = queuedTracks.findIndex(
+                (t) => t === track || (track.id && t.id === track.id),
+            )
             const queuePosition =
                 hadQueueBeforePlay && queue
-                    ? (queue.tracks.toArray?.() ?? []).length
+                    ? trackIndex >= 0
+                        ? trackIndex + 1
+                        : queuedTracks.length
                     : 0
 
             const embed = result.searchResult.playlist
@@ -199,6 +208,7 @@ export default new Command({
                       playlist: {
                           title: result.searchResult.playlist.title,
                           trackCount: result.searchResult.tracks.length,
+                          url: result.searchResult.playlist.url,
                       },
                   })
                 : buildPlayResponseEmbed({
