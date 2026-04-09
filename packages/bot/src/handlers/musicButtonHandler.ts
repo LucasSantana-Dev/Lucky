@@ -2,13 +2,15 @@ import { type ButtonInteraction, type GuildMember } from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
-import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX } from '../types/musicButtons'
-import { createMusicControlButtons } from '../utils/music/buttonComponents'
+import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX, LEADERBOARD_BUTTON_PREFIX } from '../types/musicButtons'
+import { createMusicControlButtons, createLeaderboardPaginationButtons } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
 import { shuffleQueue } from '../utils/music/queueManipulation'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../utils/music/queueResolver'
 import type { CustomClient } from '../types'
+import { buildListPageEmbed } from '../utils/general/responseEmbeds'
+import { levelService } from '@lucky/shared/services'
 
 type NonNullQueue = GuildQueue
 
@@ -93,6 +95,9 @@ async function routeButtonAction(
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
+            }
+            if (customId.startsWith(LEADERBOARD_BUTTON_PREFIX)) {
+                return handleLeaderboardPage(interaction)
             }
     }
 }
@@ -184,4 +189,64 @@ async function handleQueuePage(
         components,
     })
     debugLog({ message: `Queue page: ${page}` })
+}
+
+async function handleLeaderboardPage(
+    interaction: ButtonInteraction,
+): Promise<void> {
+    try {
+        const pageMatch = interaction.customId.match(/leaderboard_page_(\d+)/)
+        if (!pageMatch?.[1] || !interaction.guildId) return
+
+        const page = parseInt(pageMatch[1], 10)
+        const entries = await levelService.getLeaderboard(interaction.guildId, 50)
+
+        if (entries.length === 0) {
+            await interaction.update({
+                embeds: [createErrorEmbed('Leaderboard', 'No XP recorded yet.')],
+                components: [],
+            })
+            return
+        }
+
+        const listItems = entries.map(
+            (e: { userId: string; level: number; xp: number }, i: number) => ({
+                name: `#${i + 1}`,
+                value: `<@${e.userId}> — Level ${e.level} (${e.xp} XP)`,
+            }),
+        )
+
+        const itemsPerPage = 5
+        const totalPages = Math.ceil(listItems.length / itemsPerPage)
+
+        const embed = buildListPageEmbed(listItems, page + 1, {
+            title: 'XP Leaderboard',
+            itemsPerPage,
+        })
+
+        const components = []
+        const paginationRow = createLeaderboardPaginationButtons(page, totalPages)
+        if (paginationRow) {
+            components.push(paginationRow)
+        }
+
+        await interaction.update({
+            embeds: [embed],
+            components,
+        })
+        debugLog({ message: `Leaderboard page: ${page}` })
+    } catch (error) {
+        errorLog({
+            message: 'Error handling leaderboard page interaction',
+            error,
+        })
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction
+                .reply({
+                    embeds: [createErrorEmbed('Error', 'Something went wrong')],
+                    ephemeral: true,
+                })
+                .catch(() => {})
+        }
+    }
 }

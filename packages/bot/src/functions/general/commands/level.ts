@@ -4,10 +4,11 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { createSuccessEmbed, createErrorEmbed, createInfoEmbed } from '../../../utils/general/embeds'
-import { buildUserProfileEmbed } from '../../../utils/general/responseEmbeds'
+import { buildUserProfileEmbed, buildListPageEmbed } from '../../../utils/general/responseEmbeds'
 import { errorLog } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '../../../utils/general/errorSanitizer'
 import { levelService, xpNeededForLevel } from '@lucky/shared/services'
+import { createLeaderboardPaginationButtons } from '../../../utils/music/buttonComponents'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -137,7 +138,7 @@ export default new Command({
                     },
                 })
             } else if (subcommand === 'leaderboard') {
-                const entries = await levelService.getLeaderboard(interaction.guild.id, 10)
+                const entries = await levelService.getLeaderboard(interaction.guild.id, 50)
 
                 if (entries.length === 0) {
                     await interactionReply({
@@ -149,14 +150,33 @@ export default new Command({
                     return
                 }
 
-                const lines = entries.map(
-                    (e: { userId: string; level: number; xp: number }, i: number) => `**${i + 1}.** <@${e.userId}> — Level ${e.level} (${e.xp} XP)`,
+                const listItems = entries.map(
+                    (e: { userId: string; level: number; xp: number }, i: number) => ({
+                        name: `#${i + 1}`,
+                        value: `<@${e.userId}> — Level ${e.level} (${e.xp} XP)`,
+                    }),
                 )
+
+                const itemsPerPage = 5
+                const totalPages = Math.ceil(listItems.length / itemsPerPage)
+                const currentPage = 0
+
+                const embed = buildListPageEmbed(listItems, currentPage + 1, {
+                    title: 'XP Leaderboard',
+                    itemsPerPage,
+                })
+
+                const components = []
+                const paginationRow = createLeaderboardPaginationButtons(currentPage, totalPages)
+                if (paginationRow) {
+                    components.push(paginationRow)
+                }
 
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [createInfoEmbed('XP Leaderboard', lines.join('\n'))],
+                        embeds: [embed],
+                        components,
                     },
                 })
             } else if (subcommand === 'setup') {

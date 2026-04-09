@@ -6,6 +6,8 @@ const createSuccessEmbedMock = jest.fn((title: string, description: string) => (
 const createErrorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
 const createInfoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
 const buildUserProfileEmbedMock = jest.fn((user: unknown, stats: unknown) => ({ type: 'userprofile', user, stats }))
+const buildListPageEmbedMock = jest.fn((items: unknown[], page: unknown, config: unknown) => ({ type: 'list', items, page, config }))
+const createLeaderboardPaginationButtonsMock = jest.fn()
 const requireGuildMock = jest.fn()
 const getMemberXPMock = jest.fn()
 const getRankMock = jest.fn()
@@ -26,6 +28,11 @@ jest.mock('../../../utils/general/embeds', () => ({
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
     buildUserProfileEmbed: (...args: unknown[]) => buildUserProfileEmbedMock(...args),
+    buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
+}))
+
+jest.mock('../../../utils/music/buttonComponents', () => ({
+    createLeaderboardPaginationButtons: (...args: unknown[]) => createLeaderboardPaginationButtonsMock(...args),
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -78,6 +85,7 @@ describe('level command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
+        createLeaderboardPaginationButtonsMock.mockReturnValue(null)
     })
 
     it('rank shows own XP and level', async () => {
@@ -100,13 +108,25 @@ describe('level command', () => {
         )
     })
 
-    it('leaderboard lists top users', async () => {
+    it('leaderboard uses pagination with 5 items per page', async () => {
         getLeaderboardMock.mockResolvedValue([
             { userId: 'u1', level: 5, xp: 2500 },
             { userId: 'u2', level: 3, xp: 900 },
+            { userId: 'u3', level: 2, xp: 400 },
+            { userId: 'u4', level: 1, xp: 100 },
+            { userId: 'u5', level: 1, xp: 50 },
+            { userId: 'u6', level: 1, xp: 25 },
         ])
         await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
-        expect(createInfoEmbedMock).toHaveBeenCalledWith('XP Leaderboard', expect.stringContaining('2500'))
+        expect(buildListPageEmbedMock).toHaveBeenCalled()
+        const callArgs = buildListPageEmbedMock.mock.calls[0]
+        expect(callArgs[2]?.itemsPerPage).toBe(5)
+        expect(interactionReplyMock).toHaveBeenCalledWith({
+            interaction: expect.any(Object),
+            content: expect.objectContaining({
+                components: expect.any(Array),
+            }),
+        })
     })
 
     it('leaderboard shows empty state when no data', async () => {
@@ -160,5 +180,65 @@ describe('level command', () => {
         getRankMock.mockRejectedValue(new Error('DB error'))
         await levelCommand.execute({ interaction: createInteraction('rank') } as any)
         expect(createErrorEmbedMock).toHaveBeenCalled()
+    })
+
+    it('leaderboard with >5 users creates pagination buttons', async () => {
+        const users = Array.from({ length: 12 }, (_, i) => ({
+            userId: `u${i + 1}`,
+            level: 5 - Math.floor(i / 3),
+            xp: 2500 - i * 100,
+        }))
+        getLeaderboardMock.mockResolvedValue(users)
+        createLeaderboardPaginationButtonsMock.mockReturnValue({ mock: 'button' })
+
+        await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
+
+        expect(createLeaderboardPaginationButtonsMock).toHaveBeenCalled()
+        const callArgs = createLeaderboardPaginationButtonsMock.mock.calls[0]
+        expect(callArgs[0]).toBe(0) // current page
+        expect(callArgs[1]).toBe(3) // total pages (12 / 5 = 2.4, ceil = 3)
+    })
+
+    it('leaderboard with <=5 users does not create pagination buttons', async () => {
+        getLeaderboardMock.mockResolvedValue([
+            { userId: 'u1', level: 5, xp: 2500 },
+            { userId: 'u2', level: 4, xp: 1500 },
+            { userId: 'u3', level: 3, xp: 900 },
+        ])
+        createLeaderboardPaginationButtonsMock.mockReturnValue(null)
+
+        await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
+
+        expect(createLeaderboardPaginationButtonsMock).toHaveBeenCalledWith(0, 1)
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    components: [],
+                }),
+            }),
+        )
+    })
+
+    it('leaderboard field values do not exceed 1024 chars', async () => {
+        const users = Array.from({ length: 50 }, (_, i) => ({
+            userId: `u${i + 1}`,
+            level: 10 - Math.floor(i / 10),
+            xp: 5000 - i * 50,
+        }))
+        getLeaderboardMock.mockResolvedValue(users)
+
+        await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
+
+        expect(buildListPageEmbedMock).toHaveBeenCalled()
+        const listItems = buildListPageEmbedMock.mock.calls[0][0]
+        listItems.forEach((item: { value: string }) => {
+            expect(item.value.length).toBeLessThanOrEqual(1024)
+        })
+    })
+
+    it('getLeaderboard fetches 50 entries for pagination', async () => {
+        getLeaderboardMock.mockResolvedValue([])
+        await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
+        expect(getLeaderboardMock).toHaveBeenCalledWith('guild-1', 50)
     })
 })
