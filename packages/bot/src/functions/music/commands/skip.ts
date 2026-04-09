@@ -3,6 +3,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { buildTrackEmbed, trackToData } from '../../../utils/general/responseEmbeds'
 import {
     requireGuild,
     requireQueue,
@@ -51,16 +52,38 @@ async function skipCurrentSong(
 
 async function sendSkipSuccess(
     interaction: ChatInputCommandInteraction,
+    queue: GuildQueue,
 ): Promise<void> {
+    const nextTrack = queue.currentTrack
+
+    if (!nextTrack) {
+        // No track after skip, just send simple success
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    successEmbed(
+                        '⏭️ Song skipped',
+                        'The current song has been skipped.',
+                    ),
+                ],
+            },
+        })
+        return
+    }
+
+    // Build a rich embed for the next track
+    const trackData = trackToData(nextTrack)
+    const trackEmbed = buildTrackEmbed(trackData, 'playing', {
+        tag: interaction.user.username,
+        displayAvatarURL: interaction.user.displayAvatarURL,
+    })
+    trackEmbed.setAuthor({ name: '⏭️ Song skipped - Now playing' })
+
     await interactionReply({
         interaction,
         content: {
-            embeds: [
-                successEmbed(
-                    '⏭️ Song skipped',
-                    'The current song has been skipped.',
-                ),
-            ],
+            embeds: [trackEmbed],
         },
     })
 }
@@ -104,7 +127,7 @@ export default new Command({
 
         try {
             await skipCurrentSong(queue, interaction.guildId ?? '')
-            await sendSkipSuccess(interaction)
+            await sendSkipSuccess(interaction, queue)
         } catch (error) {
             await handleSkipError(error, interaction)
         }

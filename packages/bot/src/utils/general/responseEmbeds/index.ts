@@ -1,4 +1,9 @@
-export { buildTrackEmbed, type TrackEmbedKind } from './buildTrackEmbed'
+export {
+    buildTrackEmbed,
+    trackToData,
+    type TrackEmbedKind,
+    type TrackData,
+} from './buildTrackEmbed'
 export {
     buildUserProfileEmbed,
     type UserStats,

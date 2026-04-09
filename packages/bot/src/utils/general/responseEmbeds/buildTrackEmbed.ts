@@ -1,10 +1,11 @@
 import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
+import type { Track } from 'discord-player'
 import { detectSource } from '../../music/nowPlayingEmbed'
 
 export type TrackEmbedKind = 'queued' | 'playing' | 'recommended' | 'history'
 
-type TrackData = {
+export type TrackData = {
     title?: string
     author?: string
     url?: string
@@ -54,4 +55,25 @@ export function buildTrackEmbed(
 
     embed.addFields(fields)
     return embed
+}
+
+/**
+ * Convert a discord-player Track to TrackData for use with buildTrackEmbed
+ */
+export function trackToData(track: Track): TrackData {
+    return {
+        title: track.title,
+        author: track.author,
+        url: track.url,
+        thumbnail: track.thumbnail,
+        duration: track.durationMS ? formatDuration(track.durationMS) : undefined,
+        source: track.source ?? null,
+    }
+}
+
+function formatDuration(ms: number): string {
+    const totalSeconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }

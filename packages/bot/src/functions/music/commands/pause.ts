@@ -8,6 +8,7 @@ import {
 } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { successEmbed, warningEmbed } from '../../../utils/general/embeds'
+import { buildTrackEmbed, trackToData } from '../../../utils/general/responseEmbeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -39,15 +40,34 @@ export default new Command({
 
         queue?.node.pause()
 
+        const currentTrack = queue?.currentTrack
+        if (!currentTrack) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        successEmbed(
+                            '⏸️ Paused',
+                            'Music has been paused.',
+                        ),
+                    ],
+                },
+            })
+            return
+        }
+
+        // Build a rich embed showing the paused track
+        const trackData = trackToData(currentTrack)
+        const trackEmbed = buildTrackEmbed(trackData, 'playing', {
+            tag: interaction.user.username,
+            displayAvatarURL: interaction.user.displayAvatarURL,
+        })
+        trackEmbed.setAuthor({ name: '⏸️ Paused' })
+
         await interactionReply({
             interaction,
             content: {
-                embeds: [
-                    successEmbed(
-                        'Paused',
-                        '⏸️ Music has been paused.',
-                    ),
-                ],
+                embeds: [trackEmbed],
             },
         })
     },
