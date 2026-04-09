@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
+import { createErrorEmbed, createSuccessEmbed } from "../../../utils/general/embeds"
 import {
     requireGuild,
     requireQueue,
@@ -64,7 +64,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', validationError)],
+                    embeds: [createErrorEmbed('Error', validationError)],
                 },
             })
             return
@@ -74,7 +74,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'No queue found!')],
+                    embeds: [createErrorEmbed('Error', 'No queue found!')],
                 },
             })
             return
@@ -84,7 +84,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'Song not found!')],
+                    embeds: [createErrorEmbed('Error', 'Song not found!')],
                 },
             })
             return
@@ -94,7 +94,7 @@ export default new Command({
             interaction,
             content: {
                 embeds: [
-                    successEmbed(
+                    createSuccessEmbed(
                         'Song removed',
                         `Removed: **${(removed as { title: string; author: string }).title}** by ${(removed as { title: string; author: string }).author}`,
                     ),

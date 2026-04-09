@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import { QueueRepeatMode } from 'discord-player'
 import Command from '../../../models/Command'
 import { interactionReply } from "../../../utils/general/interactionReply"
-import { successEmbed } from "../../../utils/general/embeds"
+import { createSuccessEmbed } from "../../../utils/general/embeds"
 import type { CommandExecuteParams } from "../../../types/CommandData"
 import { requireQueue } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
@@ -148,7 +148,7 @@ export default new Command({
         await interactionReply({
             interaction,
             content: {
-                embeds: [successEmbed('🔁 Repeat mode', description)],
+                embeds: [createSuccessEmbed('🔁 Repeat mode', description)],
             },
         })
     },

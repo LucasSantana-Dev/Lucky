@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import {
-    errorEmbed,
+    createErrorEmbed,
     createEmbed,
     EMBED_COLORS,
     EMOJIS,
@@ -25,7 +25,7 @@ export async function handleApplyPreset(
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
                             'This command can only be used in a server!',
                         ),
@@ -81,7 +81,7 @@ export async function handleApplyPreset(
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'Invalid preset selected.')],
+                    embeds: [createErrorEmbed('Error', 'Invalid preset selected.')],
                 },
             })
             return
@@ -116,7 +116,7 @@ export async function handleApplyPreset(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed('Error', 'Failed to apply preset.')],
+                embeds: [createErrorEmbed('Error', 'Failed to apply preset.')],
             },
         })
     }

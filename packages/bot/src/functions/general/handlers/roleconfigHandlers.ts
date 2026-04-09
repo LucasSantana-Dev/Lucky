@@ -1,7 +1,7 @@
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { roleManagementService } from '@lucky/shared/services'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 
 async function replyError(
     interaction: ChatInputCommandInteraction,
@@ -10,7 +10,7 @@ async function replyError(
 ) {
     await interactionReply({
         interaction,
-        content: { embeds: [errorEmbed(title, desc)], ephemeral: true },
+        content: { embeds: [createErrorEmbed(title, desc)], ephemeral: true },
     })
 }
 
@@ -21,7 +21,7 @@ async function replySuccess(
 ) {
     await interactionReply({
         interaction,
-        content: { embeds: [successEmbed(title, desc)], ephemeral: true },
+        content: { embeds: [createSuccessEmbed(title, desc)], ephemeral: true },
     })
 }
 

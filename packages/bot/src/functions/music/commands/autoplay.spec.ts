@@ -9,6 +9,7 @@ const QueueRepeatMode = {
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
+const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({ title, description: desc }))
 const replenishQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -34,6 +35,7 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 
 jest.mock('../../../utils/general/embeds', () => ({
     createEmbed: (payload: unknown) => createEmbedMock(payload),
+    createErrorEmbed: (title: string, desc: string) => createErrorEmbedMock(title, desc),
     EMBED_COLORS: {
         AUTOPLAY: '#00BFFF',
         ERROR: '#FF0000',
@@ -439,8 +441,9 @@ describe('autoplay command', () => {
                 message: 'Error in autoplay command:',
             }),
         )
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Error' }),
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Error',
+            expect.any(String),
         )
     })
 })

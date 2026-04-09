@@ -23,10 +23,10 @@ jest.mock('../../../utils/command/commandValidations.js', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds.js', () => ({
-    errorEmbed: (title: string, desc: string) => ({
+    createErrorEmbed: (title: string, desc: string) => ({
         data: { title, description: desc },
     }),
-    successEmbed: (title: string, desc: string) => ({
+    createSuccessEmbed: (title: string, desc: string) => ({
         data: { title, description: desc },
     }),
 }))

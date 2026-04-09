@@ -10,7 +10,7 @@ const QueueRepeatMode = {
 
 const requireQueueMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
@@ -25,7 +25,7 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
 }))
 
 jest.mock('discord-player', () => ({
@@ -99,7 +99,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeat **turned off**',
         )
@@ -117,7 +117,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeating current song **infinitely**',
         )
@@ -136,7 +136,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeating current song **5 times**',
         )
@@ -158,7 +158,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.QUEUE)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeating queue **infinitely**',
         )
@@ -176,7 +176,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.QUEUE)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeating queue **3 times**',
         )
@@ -200,7 +200,7 @@ describe('repeat command', () => {
         expect(queue.setRepeatMode).toHaveBeenCalledWith(
             QueueRepeatMode.AUTOPLAY,
         )
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             '**Infinite** repeat activated (continuous autoplay)',
         )
@@ -256,7 +256,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeat **turned off**',
         )
@@ -274,7 +274,7 @@ describe('repeat command', () => {
         } as any)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
             'Repeating current song **infinitely**',
         )

@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import starboardCommand from './starboard'
 
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
-const errorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
-const infoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
-const buildListPageEmbedMock = jest.fn((items, page, config) => ({ type: 'listpage', items, page, config }))
+const createSuccessEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
+const createErrorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
+const createInfoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
+const buildListPageEmbedMock = jest.fn((items: unknown, page: unknown, config: unknown) => ({ type: 'listpage', items, page, config }))
 const requireGuildMock = jest.fn()
 const getConfigMock = jest.fn()
 const upsertConfigMock = jest.fn()
@@ -17,9 +17,9 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
-    infoEmbed: (...args: unknown[]) => infoEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createInfoEmbed: (...args: unknown[]) => createInfoEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
@@ -77,7 +77,7 @@ describe('starboard command', () => {
             threshold: 3,
             selfStar: false,
         })
-        expect(successEmbedMock).toHaveBeenCalledWith('Starboard Configured', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Starboard Configured', expect.any(String))
     })
 
     it('setup accepts custom emoji and threshold', async () => {
@@ -98,7 +98,7 @@ describe('starboard command', () => {
         deleteConfigMock.mockResolvedValue(undefined)
         await starboardCommand.execute({ interaction: createInteraction('disable') } as any)
         expect(deleteConfigMock).toHaveBeenCalledWith('guild-1')
-        expect(successEmbedMock).toHaveBeenCalledWith('Starboard Disabled', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Starboard Disabled', expect.any(String))
     })
 
     it('top shows entries when they exist', async () => {
@@ -138,13 +138,13 @@ describe('starboard command', () => {
             selfStar: false,
         })
         await starboardCommand.execute({ interaction: createInteraction('status') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Starboard Status', expect.stringContaining('ch-99'))
+        expect(createInfoEmbedMock).toHaveBeenCalledWith('Starboard Status', expect.stringContaining('ch-99'))
     })
 
     it('status shows not configured when no config', async () => {
         getConfigMock.mockResolvedValue(null)
         await starboardCommand.execute({ interaction: createInteraction('status') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Starboard Status', expect.stringContaining('not configured'))
+        expect(createInfoEmbedMock).toHaveBeenCalledWith('Starboard Status', expect.stringContaining('not configured'))
     })
 
     it('returns early without guild', async () => {
@@ -161,6 +161,6 @@ describe('starboard command', () => {
         await starboardCommand.execute({
             interaction: createInteraction('setup', { channel }),
         } as any)
-        expect(errorEmbedMock).toHaveBeenCalledWith('Error', 'DB error')
+        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', 'DB error')
     })
 })

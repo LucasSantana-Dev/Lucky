@@ -3,7 +3,7 @@ import { PermissionFlagsBits, ChannelType } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
-import { successEmbed, errorEmbed, infoEmbed } from '../../../utils/general/embeds'
+import { createSuccessEmbed, createErrorEmbed, createInfoEmbed } from '../../../utils/general/embeds'
 import { buildListPageEmbed } from '../../../utils/general/responseEmbeds'
 import { errorLog } from '@lucky/shared/utils'
 import { starboardService } from '@lucky/shared/services'
@@ -78,7 +78,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            successEmbed(
+                            createSuccessEmbed(
                                 'Starboard Configured',
                                 `Starboard set to ${channel} with emoji **${emoji}** and threshold **${threshold}**.`,
                             ),
@@ -90,14 +90,14 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [successEmbed('Starboard Disabled', 'The starboard has been disabled.')],
+                        embeds: [createSuccessEmbed('Starboard Disabled', 'The starboard has been disabled.')],
                     },
                 })
             } else if (subcommand === 'top') {
                 const entries = await starboardService.getTopEntries(interaction.guild.id, 5)
 
                 const items = entries.map(
-                    (e: { guildId: string; channelId: string; messageId: string; starCount: number }, i: number) => ({
+                    (e: { guildId: string; channelId: string; messageId: string; starCount: number }, _i: number) => ({
                         name: `⭐ ${e.starCount} stars`,
                         value: `[Jump to message](https://discord.com/channels/${e.guildId}/${e.channelId}/${e.messageId})`,
                         inline: false,
@@ -123,7 +123,7 @@ export default new Command({
                     await interactionReply({
                         interaction,
                         content: {
-                            embeds: [infoEmbed('Starboard Status', 'Starboard is not configured.')],
+                            embeds: [createInfoEmbed('Starboard Status', 'Starboard is not configured.')],
                         },
                     })
                     return
@@ -139,7 +139,7 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [infoEmbed('Starboard Status', description)],
+                        embeds: [createInfoEmbed('Starboard Status', description)],
                     },
                 })
             }
@@ -149,7 +149,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
                             error instanceof Error ? error.message : 'An error occurred.',
                         ),

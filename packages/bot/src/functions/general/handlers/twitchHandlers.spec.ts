@@ -18,8 +18,8 @@ const twitchNotificationServiceMock = jest.fn()
 const getPrismaClientMock = jest.fn()
 const getTwitchUserByLoginMock = jest.fn()
 const refreshTwitchSubscriptionsMock = jest.fn()
-const errorEmbedMock = jest.fn()
-const successEmbedMock = jest.fn()
+const createErrorEmbedMock = jest.fn()
+const createSuccessEmbedMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: interactionReplyMock,
@@ -53,8 +53,8 @@ jest.mock('../../../twitch', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    errorEmbed: errorEmbedMock,
-    successEmbed: successEmbedMock,
+    createErrorEmbed: createErrorEmbedMock,
+    createSuccessEmbed: createSuccessEmbedMock,
 }))
 
 import { twitchNotificationService } from '@lucky/shared/services'
@@ -111,8 +111,8 @@ describe('twitchHandlers', () => {
         }
 
         getPrismaClientMock.mockReturnValue(mockPrisma)
-        errorEmbedMock.mockReturnValue({} as any)
-        successEmbedMock.mockReturnValue({} as any)
+        createErrorEmbedMock.mockReturnValue({} as any)
+        createSuccessEmbedMock.mockReturnValue({} as any)
     })
 
     afterEach(() => {

@@ -4,11 +4,11 @@ import clearCommand from './clear'
 const requireGuildMock = jest.fn()
 const requireQueueMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const errorEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
@@ -26,8 +26,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -95,7 +95,7 @@ describe('clear command', () => {
                 interaction,
             }),
         )
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Queue cleared',
             '🗑️ Removed 10 songs from the queue!',
         )
@@ -120,7 +120,7 @@ describe('clear command', () => {
                 }),
             }),
         )
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Empty queue',
             '🗑️ The queue is already empty!',
         )
@@ -186,7 +186,7 @@ describe('clear command', () => {
                 }),
             }),
         )
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             '🔄 An error occurred while clearing the queue!',
         )
@@ -204,7 +204,7 @@ describe('clear command', () => {
         } as any)
 
         expect(queue.clear).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Queue cleared',
             '🗑️ Removed 1 songs from the queue!',
         )
@@ -222,7 +222,7 @@ describe('clear command', () => {
         } as any)
 
         expect(queue.clear).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Queue cleared',
             '🗑️ Removed 500 songs from the queue!',
         )

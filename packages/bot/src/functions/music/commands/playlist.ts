@@ -2,9 +2,9 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
-    infoEmbed,
-    successEmbed,
-    warningEmbed,
+    createInfoEmbed,
+    createSuccessEmbed,
+    createWarningEmbed,
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireGuild } from '../../../utils/command/commandValidations'
@@ -61,7 +61,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        infoEmbed(
+                        createInfoEmbed(
                             'Collaborative playlist status',
                             `Enabled: ${state.enabled ? 'yes' : 'no'}\nPer-user limit: ${state.perUserLimit}\nContributions:\n${contributions || 'No contributions yet.'}`,
                         ),
@@ -78,7 +78,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        warningEmbed(
+                        createWarningEmbed(
                             'Contributions reset',
                             'Collaborative playlist contribution counters were reset.',
                         ),
@@ -98,7 +98,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        successEmbed(
+                        createSuccessEmbed(
                             'Collaborative mode enabled',
                             `Per-user queue contribution limit set to ${state.perUserLimit}.`,
                         ),
@@ -113,7 +113,7 @@ export default new Command({
             interaction,
             content: {
                 embeds: [
-                    warningEmbed(
+                    createWarningEmbed(
                         'Collaborative mode disabled',
                         'Per-user queue contribution limits are no longer enforced.',
                     ),

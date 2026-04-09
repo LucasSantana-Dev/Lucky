@@ -3,12 +3,12 @@ import musicCommand from './music'
 
 const interactionReplyMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
-const errorEmbedMock = jest.fn((title: string, message: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'error',
     title,
     message,
 }))
-const successEmbedMock = jest.fn((title: string, message: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'success',
     title,
     message,
@@ -35,8 +35,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 
 jest.mock('../../../utils/general/embeds', () => ({
     createEmbed: (...args: unknown[]) => createEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
     EMBED_COLORS: { INFO: '#00BFFF' },
     EMOJIS: { INFO: 'ℹ️' },
 }))
@@ -134,7 +134,7 @@ describe('music command', () => {
             interaction: createInteraction('unknown'),
         } as any)
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'Unknown subcommand.',
         )
@@ -153,7 +153,7 @@ describe('music command', () => {
             interaction: createInteraction('health', null as unknown as string),
         } as any)
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'This command can only be used in a server.',
         )
@@ -363,7 +363,7 @@ describe('music command', () => {
         } as any)
 
         expect(clearFeedbackMock).toHaveBeenCalledWith('user-1')
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Feedback cleared',
             expect.stringContaining('cleared'),
         )

@@ -1,9 +1,9 @@
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import {
-    errorEmbed,
-    successEmbed,
-    warningEmbed,
+    createErrorEmbed,
+    createSuccessEmbed,
+    createWarningEmbed,
 } from '../../../../../utils/general/embeds'
 import { recommendationFeedbackService } from '../../../../../services/musicRecommendation/feedbackService'
 import type { CustomClient } from '../../../../../types'
@@ -19,7 +19,7 @@ export async function handleFeedback(
             interaction,
             content: {
                 embeds: [
-                    errorEmbed(
+                    createErrorEmbed(
                         'Error',
                         'This command can only be used in a server!',
                     ),
@@ -41,7 +41,7 @@ export async function handleFeedback(
             interaction,
             content: {
                 embeds: [
-                    warningEmbed(
+                    createWarningEmbed(
                         'No Track',
                         'No current track found. Provide `track_url` to leave feedback.',
                     ),
@@ -74,7 +74,7 @@ export async function handleFeedback(
         interaction,
         content: {
             embeds: [
-                successEmbed(
+                createSuccessEmbed(
                     'Feedback saved',
                     `Stored **${feedback}** feedback for this recommendation profile.`,
                 ),

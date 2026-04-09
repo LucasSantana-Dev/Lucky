@@ -2,7 +2,10 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import {
     requireGuild,
     requireQueue,
@@ -37,7 +40,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        successEmbed(
+                        createSuccessEmbed(
                             'Goodbye!',
                             '🚪 Disconnected from the voice channel and cleared the queue.',
                         ),
@@ -50,11 +53,12 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
                             'An error occurred while trying to leave the voice channel.',
                         ),
                     ],
+                    ephemeral: true,
                 },
             })
         }

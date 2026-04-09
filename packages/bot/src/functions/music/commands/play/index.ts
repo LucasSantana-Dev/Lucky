@@ -9,6 +9,7 @@ import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
+import { createUserFriendlyError } from '../../../../utils/general/errorSanitizer'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
 import { QueueRepeatMode, QueryType } from 'discord-player'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
@@ -256,9 +257,10 @@ export default new Command({
                         embeds: [
                             createErrorEmbed(
                                 'Play Error',
-                                'Could not find or play the requested track',
+                                createUserFriendlyError(error),
                             ),
                         ],
+                        ephemeral: true,
                     },
                 })
             } catch (replyError) {

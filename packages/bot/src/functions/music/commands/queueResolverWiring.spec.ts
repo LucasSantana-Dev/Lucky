@@ -48,9 +48,9 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    errorEmbed: jest.fn(() => ({})),
-    successEmbed: jest.fn(() => ({})),
-    warningEmbed: jest.fn(() => ({})),
+    createErrorEmbed: jest.fn(() => ({})),
+    createSuccessEmbed: jest.fn(() => ({})),
+    createWarningEmbed: jest.fn(() => ({})),
     musicEmbed: jest.fn(() => ({
         setThumbnail: jest.fn(),
     })),

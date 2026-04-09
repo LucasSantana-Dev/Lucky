@@ -9,8 +9,8 @@ import type { CommandExecuteParams } from '../../../../types/CommandData'
 import { createQueueEmbed, createQueueErrorEmbed } from './queueEmbed'
 import {
     createErrorEmbed,
-    successEmbed,
-    warningEmbed,
+    createSuccessEmbed,
+    createWarningEmbed,
 } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import {
@@ -18,6 +18,7 @@ import {
     rescueQueue,
 } from '../../../../utils/music/queueManipulation'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
+import { createUserFriendlyError } from '../../../../utils/general/errorSanitizer'
 
 type QueueAction = 'show' | 'smartshuffle' | 'rescue'
 
@@ -72,7 +73,7 @@ export default new Command({
                         interaction,
                         content: {
                             embeds: [
-                                warningEmbed(
+                                createWarningEmbed(
                                     'Queue too short',
                                     'Need at least 2 queued tracks for smart shuffle.',
                                 ),
@@ -89,7 +90,7 @@ export default new Command({
                     content: {
                         embeds: [
                             shuffled
-                                ? successEmbed(
+                                ? createSuccessEmbed(
                                       'Smart shuffle complete',
                                       'Queue reordered with requester fairness and momentum.',
                                   )
@@ -111,7 +112,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            successEmbed(
+                            createSuccessEmbed(
                                 'Queue rescue complete',
                                 `Removed ${result.removedTracks} broken track(s), kept ${result.keptTracks}, and added ${result.addedTracks} autoplay refill track(s).`,
                             ),
@@ -139,7 +140,7 @@ export default new Command({
             })
 
             const errorEmbed = createQueueErrorEmbed(
-                'Failed to retrieve queue information. Please try again.',
+                createUserFriendlyError(error),
             )
 
             await interaction.editReply({
