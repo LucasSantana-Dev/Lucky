@@ -2,7 +2,7 @@ import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { twitchNotificationService } from '@lucky/shared/services'
 import { getPrismaClient } from '@lucky/shared/utils'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 import { getTwitchUserByLogin } from '../../../twitch/twitchApi'
 import { refreshTwitchSubscriptions } from '../../../twitch'
 
@@ -30,7 +30,7 @@ async function replyError(
 ) {
     await interactionReply({
         interaction,
-        content: { embeds: [errorEmbed(title, description)], ephemeral: true },
+        content: { embeds: [createErrorEmbed(title, description)], ephemeral: true },
     })
 }
 
@@ -42,7 +42,7 @@ async function replySuccess(
     await interactionReply({
         interaction,
         content: {
-            embeds: [successEmbed(title, description)],
+            embeds: [createSuccessEmbed(title, description)],
             ephemeral: true,
         },
     })

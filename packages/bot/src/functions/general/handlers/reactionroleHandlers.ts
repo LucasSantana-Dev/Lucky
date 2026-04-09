@@ -7,7 +7,7 @@ import {
 } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { reactionRolesService } from '@lucky/shared/services'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 
 function replyEmbed(
     interaction: ChatInputCommandInteraction,
@@ -30,7 +30,7 @@ export async function handleCreate(
     if (!channel.isTextBased()) {
         await replyEmbed(
             interaction,
-            errorEmbed('Error', 'The channel must be a text channel.'),
+            createErrorEmbed('Error', 'The channel must be a text channel.'),
         )
         return
     }
@@ -75,7 +75,7 @@ export async function handleCreate(
     if (message) {
         await replyEmbed(
             interaction,
-            successEmbed(
+            createSuccessEmbed(
                 'Success',
                 `Reaction role message created in ${channel}!`,
             ),
@@ -96,12 +96,12 @@ export async function handleDelete(
     if (deleted) {
         await replyEmbed(
             interaction,
-            successEmbed('Success', 'Reaction role message deleted.'),
+            createSuccessEmbed('Success', 'Reaction role message deleted.'),
         )
     } else {
         await replyEmbed(
             interaction,
-            errorEmbed(
+            createErrorEmbed(
                 'Error',
                 'Reaction role message not found or you do not have permission to delete it.',
             ),
@@ -120,7 +120,7 @@ export async function handleList(
     if (messages.length === 0) {
         await replyEmbed(
             interaction,
-            errorEmbed(
+            createErrorEmbed(
                 'No Messages',
                 'No reaction role messages found in this server.',
             ),

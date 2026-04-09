@@ -2,7 +2,7 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildTrackEmbed, trackToData } from '../../../utils/general/responseEmbeds'
 import {
     requireGuild,
@@ -22,7 +22,7 @@ async function handleNotPlaying(
         interaction,
         content: {
             embeds: [
-                errorEmbed(
+                createErrorEmbed(
                     'Error',
                     "🤔 There's no music playing at the moment.",
                 ),
@@ -62,7 +62,7 @@ async function sendSkipSuccess(
             interaction,
             content: {
                 embeds: [
-                    successEmbed(
+                    createSuccessEmbed(
                         '⏭️ Song skipped',
                         'The current song has been skipped.',
                     ),
@@ -97,7 +97,7 @@ async function handleSkipError(
         interaction,
         content: {
             embeds: [
-                errorEmbed(
+                createErrorEmbed(
                     'Error',
                     'An error occurred while trying to skip the song.',
                 ),

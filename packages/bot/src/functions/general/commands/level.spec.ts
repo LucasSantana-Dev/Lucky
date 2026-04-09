@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import levelCommand from './level'
 
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
-const errorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
-const infoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
+const createSuccessEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
+const createErrorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
+const createInfoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
+const buildUserProfileEmbedMock = jest.fn((user: unknown, stats: unknown) => ({ type: 'userprofile', user, stats }))
 const requireGuildMock = jest.fn()
 const getMemberXPMock = jest.fn()
 const getRankMock = jest.fn()
@@ -18,9 +19,13 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
-    infoEmbed: (...args: unknown[]) => infoEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createInfoEmbed: (...args: unknown[]) => createInfoEmbedMock(...args),
+}))
+
+jest.mock('../../../utils/general/responseEmbeds', () => ({
+    buildUserProfileEmbed: (...args: unknown[]) => buildUserProfileEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -79,14 +84,20 @@ describe('level command', () => {
         getMemberXPMock.mockResolvedValue({ xp: 250, level: 1 })
         getRankMock.mockResolvedValue(1)
         await levelCommand.execute({ interaction: createInteraction('rank') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Rank', expect.stringContaining('250'))
+        expect(buildUserProfileEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'user-1' }),
+            expect.objectContaining({ xp: 250, level: 1, rank: 1 }),
+        )
     })
 
     it('rank shows level 0 when no XP record', async () => {
         getMemberXPMock.mockResolvedValue(null)
         getRankMock.mockResolvedValue(0)
         await levelCommand.execute({ interaction: createInteraction('rank') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Rank', expect.stringContaining('**Level:** 0'))
+        expect(buildUserProfileEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'user-1' }),
+            expect.objectContaining({ level: 0, rank: 0 }),
+        )
     })
 
     it('leaderboard lists top users', async () => {
@@ -95,13 +106,13 @@ describe('level command', () => {
             { userId: 'u2', level: 3, xp: 900 },
         ])
         await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('XP Leaderboard', expect.stringContaining('2500'))
+        expect(createInfoEmbedMock).toHaveBeenCalledWith('XP Leaderboard', expect.stringContaining('2500'))
     })
 
     it('leaderboard shows empty state when no data', async () => {
         getLeaderboardMock.mockResolvedValue([])
         await levelCommand.execute({ interaction: createInteraction('leaderboard') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Leaderboard', expect.stringContaining('No XP recorded'))
+        expect(createInfoEmbedMock).toHaveBeenCalledWith('Leaderboard', expect.stringContaining('No XP recorded'))
     })
 
     it('setup configures XP system correctly', async () => {
@@ -114,7 +125,7 @@ describe('level command', () => {
             xpCooldownMs: 30000,
             announceChannel: null,
         })
-        expect(successEmbedMock).toHaveBeenCalledWith('Level System Configured', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Level System Configured', expect.any(String))
     })
 
     it('reward add assigns role reward for level', async () => {
@@ -124,7 +135,7 @@ describe('level command', () => {
             interaction: createInteraction('add', { level: 5, role }, 'reward'),
         } as any)
         expect(addRewardMock).toHaveBeenCalledWith('guild-1', 5, 'role-1')
-        expect(successEmbedMock).toHaveBeenCalledWith('Reward Added', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Reward Added', expect.any(String))
     })
 
     it('reward remove deletes level reward', async () => {
@@ -133,7 +144,7 @@ describe('level command', () => {
             interaction: createInteraction('remove', { level: 5 }, 'reward'),
         } as any)
         expect(removeRewardMock).toHaveBeenCalledWith('guild-1', 5)
-        expect(successEmbedMock).toHaveBeenCalledWith('Reward Removed', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Reward Removed', expect.any(String))
     })
 
     it('returns early without guild', async () => {
@@ -148,6 +159,6 @@ describe('level command', () => {
         getMemberXPMock.mockRejectedValue(new Error('DB error'))
         getRankMock.mockRejectedValue(new Error('DB error'))
         await levelCommand.execute({ interaction: createInteraction('rank') } as any)
-        expect(errorEmbedMock).toHaveBeenCalled()
+        expect(createErrorEmbedMock).toHaveBeenCalled()
     })
 })

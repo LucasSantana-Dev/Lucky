@@ -10,8 +10,8 @@ const searchLyricsMock = jest.fn()
 const splitLyricsMock = jest.fn()
 const featureToggleIsEnabledMock = jest.fn()
 const musicEmbedMock = jest.fn()
-const errorEmbedMock = jest.fn()
-const warningEmbedMock = jest.fn()
+const createErrorEmbedMock = jest.fn()
+const createWarningEmbedMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -42,8 +42,8 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('../../../utils/general/embeds', () => ({
     musicEmbed: (...args: unknown[]) => musicEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
-    warningEmbed: (...args: unknown[]) => warningEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
 }))
 
 import lyricsCommand from './lyrics'
@@ -97,8 +97,8 @@ describe('lyrics command', () => {
             },
         })
         musicEmbedMock.mockReturnValue(createEmbed())
-        errorEmbedMock.mockReturnValue({ type: 'error' })
-        warningEmbedMock.mockReturnValue({ type: 'warning' })
+        createErrorEmbedMock.mockReturnValue({ type: 'error' })
+        createWarningEmbedMock.mockReturnValue({ type: 'warning' })
     })
 
     it('replies with warning when LYRICS feature is disabled', async () => {
@@ -106,7 +106,7 @@ describe('lyrics command', () => {
         const interaction = createInteraction({})
         const client = {} as unknown as TClient
         await lyricsCommand.execute({ client, interaction })
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'Feature unavailable',
             expect.any(String),
         )
@@ -121,7 +121,7 @@ describe('lyrics command', () => {
         const interaction = createInteraction({ guildId: null })
         const client = {} as unknown as TClient
         await lyricsCommand.execute({ client, interaction })
-        expect(errorEmbedMock).toHaveBeenCalled()
+        expect(createErrorEmbedMock).toHaveBeenCalled()
     })
 
     it('fetches lyrics for explicit song query', async () => {
@@ -190,7 +190,7 @@ describe('lyrics command', () => {
         await lyricsCommand.execute({ client, interaction })
         expect(deferReplyMock).toHaveBeenCalled()
         expect(editReplyMock).toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Lyrics not found',
             'Lyrics not found',
         )
@@ -203,7 +203,7 @@ describe('lyrics command', () => {
         await lyricsCommand.execute({ client, interaction })
         expect(deferReplyMock).toHaveBeenCalled()
         expect(editReplyMock).toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Lyrics error',
             expect.any(String),
         )

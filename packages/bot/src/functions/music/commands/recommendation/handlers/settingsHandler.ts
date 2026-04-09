@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
 import {
-    errorEmbed,
+    createErrorEmbed,
     createEmbed,
     EMBED_COLORS,
     EMOJIS,
@@ -31,7 +31,7 @@ export async function handleShowSettings(
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
                             'This command can only be used in a server!',
                         ),
@@ -80,7 +80,7 @@ export async function handleShowSettings(
         await interactionReply({
             interaction,
             content: {
-                embeds: [errorEmbed('Error', 'Failed to retrieve settings.')],
+                embeds: [createErrorEmbed('Error', 'Failed to retrieve settings.')],
             },
         })
     }

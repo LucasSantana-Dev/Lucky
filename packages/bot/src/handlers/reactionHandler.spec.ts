@@ -197,4 +197,21 @@ describe('handleReactionEvents', () => {
             expect.objectContaining({ message: 'Error handling reaction:' }),
         )
     })
+
+    it('gracefully handles starboard message fetch failure when editing', async () => {
+        getConfigMock.mockResolvedValue(DEFAULT_CONFIG)
+        upsertEntryMock.mockResolvedValue({ starboardMsgId: 'existing-1' })
+        const mockChannel = {
+            isTextBased: () => true,
+            send: jest.fn(),
+            messages: {
+                fetch: jest.fn().mockRejectedValue(new Error('message not found')),
+            },
+        }
+        client.channels.fetch = jest.fn().mockResolvedValue(mockChannel)
+        await client._handlers['messageReactionAdd'](makeReaction(), makeUser())
+        expect(mockChannel.messages.fetch).toHaveBeenCalledWith('existing-1')
+        expect(mockChannel.send).not.toHaveBeenCalled()
+        expect(errorLogMock).not.toHaveBeenCalled()
+    })
 })

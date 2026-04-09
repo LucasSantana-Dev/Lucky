@@ -3,6 +3,7 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
     createEmbed,
+    createErrorEmbed,
     EMBED_COLORS,
     EMOJIS,
 } from '../../../utils/general/embeds'
@@ -169,12 +170,7 @@ async function handleAutoplayError(
         interaction,
         content: {
             embeds: [
-                createEmbed({
-                    title: 'Error',
-                    description: messages.error.notPlaying,
-                    color: EMBED_COLORS.ERROR as ColorResolvable,
-                    emoji: EMOJIS.ERROR,
-                }),
+                createErrorEmbed('Error', messages.error.notPlaying),
             ],
             ephemeral: true,
         },
