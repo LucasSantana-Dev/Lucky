@@ -99,5 +99,55 @@ describe('playerFactory', () => {
             const [, options] = player.extractors.register.mock.calls[0]
             expect(typeof options.createStream).toBe('function')
         })
+
+        it('falls back to YoutubeiExtractor when YoutubeExtractor is absent (v2 compat)', async () => {
+            jest.resetModules()
+            jest.doMock('discord-player-youtubei', () => ({
+                YoutubeiExtractor: class MockYoutubeiExtractorV2 {},
+            }))
+
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+            const player = createPlayer({
+                client: { user: { id: '123' } } as any,
+            }) as unknown as { extractors: { register: jest.Mock } }
+
+            for (let i = 0; i < 50; i++) {
+                if (player.extractors.register.mock.calls.length > 0) break
+                await new Promise((resolve) => setTimeout(resolve, 10))
+            }
+
+            expect(player.extractors.register).toHaveBeenCalled()
+        })
+
+        it('logs warn and skips registration when no extractor export is found', async () => {
+            jest.resetModules()
+            jest.doMock('discord-player-youtubei', () => ({}))
+            jest.doMock('@lucky/shared/utils', () => ({
+                errorLog: jest.fn(),
+                infoLog: jest.fn(),
+                warnLog: jest.fn(),
+                debugLog: jest.fn(),
+            }))
+
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+            const { warnLog } = await import('@lucky/shared/utils')
+
+            const player = createPlayer({
+                client: { user: { id: '123' } } as any,
+            }) as unknown as { extractors: { register: jest.Mock } }
+
+            await new Promise((resolve) => setTimeout(resolve, 200))
+
+            expect(
+                (warnLog as jest.Mock).mock.calls.some((call) =>
+                    (call[0]?.message as string)?.includes(
+                        'no extractor export found',
+                    ),
+                ),
+            ).toBe(true)
+            expect(player.extractors.register).not.toHaveBeenCalled()
+        })
     })
 })
