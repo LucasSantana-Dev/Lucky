@@ -17,7 +17,7 @@ jest.mock('@discord-player/extractor', () => ({
 }))
 
 jest.mock('discord-player-youtubei', () => ({
-    YoutubeiExtractor: class MockYoutubeiExtractor {},
+    YoutubeExtractor: class MockYoutubeExtractor {},
 }))
 
 jest.mock('play-dl', () => ({
@@ -60,8 +60,8 @@ describe('playerFactory', () => {
         })
     })
 
-    describe('YoutubeiExtractor registration', () => {
-        it('registers YoutubeiExtractor with IOS client', async () => {
+    describe('YoutubeExtractor registration', () => {
+        it('registers YoutubeExtractor with createStream bridge', async () => {
             const { createPlayer } =
                 await import('../../../src/handlers/player/playerFactory')
 
@@ -77,9 +77,10 @@ describe('playerFactory', () => {
             expect(player.extractors.register).toHaveBeenCalled()
 
             const [, options] = player.extractors.register.mock.calls[0]
-            expect(options.streamOptions.useClient).toBe('IOS')
-            expect(options.streamOptions.highWaterMark).toBe(1 << 25)
-            expect(options.generateWithPoToken).toBe(true)
+            expect(typeof options.createStream).toBe('function')
+            // v3 API: streamOptions/generateWithPoToken removed
+            expect(options.streamOptions).toBeUndefined()
+            expect(options.generateWithPoToken).toBeUndefined()
         })
 
         it('sets a createStream override to route audio via SoundCloud', async () => {
