@@ -4,6 +4,7 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { successEmbed, errorEmbed, infoEmbed } from '../../../utils/general/embeds'
+import { buildUserProfileEmbed } from '../../../utils/general/responseEmbeds'
 import { errorLog } from '@lucky/shared/utils'
 import { levelService, xpNeededForLevel } from '@lucky/shared/services'
 
@@ -114,7 +115,6 @@ export default new Command({
             if (subcommand === 'rank') {
                 const targetUser = interaction.options.getUser('user') ?? interaction.user
                 const guildId = interaction.guild.id
-                const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null)
                 const xpData = await levelService.getMemberXP(guildId, targetUser.id)
                 const rank = await levelService.getRank(guildId, targetUser.id)
 
@@ -122,17 +122,17 @@ export default new Command({
                 const level = xpData?.level ?? 0
                 const xpNeeded = xpNeededForLevel(level + 1)
 
-                const description = [
-                    `**User:** ${member ?? targetUser.username}`,
-                    `**Level:** ${level}`,
-                    `**XP:** ${xp} / ${xpNeeded}`,
-                    `**Rank:** #${rank}`,
-                ].join('\n')
+                const embed = buildUserProfileEmbed(targetUser, {
+                    level,
+                    rank,
+                    xp,
+                    xpForNextLevel: xpNeeded,
+                })
 
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [infoEmbed('Rank', description)],
+                        embeds: [embed],
                     },
                 })
             } else if (subcommand === 'leaderboard') {
