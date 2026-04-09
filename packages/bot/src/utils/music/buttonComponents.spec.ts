@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     createMusicControlButtons,
     createQueuePaginationButtons,
+    createLeaderboardPaginationButtons,
 } from './buttonComponents'
 
 // jest.mock is hoisted — cannot reference outer-scope const variables in factory
@@ -91,5 +92,33 @@ describe('createQueuePaginationButtons', () => {
 
     it('does not throw for first page', () => {
         expect(() => createQueuePaginationButtons(0, 5)).not.toThrow()
+    })
+})
+
+describe('createLeaderboardPaginationButtons', () => {
+    it('returns null when totalPages <= 1', () => {
+        expect(createLeaderboardPaginationButtons(0, 1)).toBeNull()
+        expect(createLeaderboardPaginationButtons(0, 0)).toBeNull()
+    })
+
+    it('returns a row when totalPages > 1', () => {
+        const result = createLeaderboardPaginationButtons(0, 3)
+        expect(result).toBeDefined()
+        expect(result).not.toBeNull()
+    })
+
+    it('calls addComponents with 3 buttons for multi-page leaderboard', () => {
+        createLeaderboardPaginationButtons(1, 3)
+        const row = getRow()
+        const [call] = row.addComponents.mock.calls
+        expect((call as unknown[]).length).toBe(3)
+    })
+
+    it('does not throw for first page', () => {
+        expect(() => createLeaderboardPaginationButtons(0, 5)).not.toThrow()
+    })
+
+    it('does not throw for last page', () => {
+        expect(() => createLeaderboardPaginationButtons(4, 5)).not.toThrow()
     })
 })
