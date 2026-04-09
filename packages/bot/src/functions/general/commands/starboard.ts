@@ -4,6 +4,7 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { successEmbed, errorEmbed, infoEmbed } from '../../../utils/general/embeds'
+import { buildListPageEmbed } from '../../../utils/general/responseEmbeds'
 import { errorLog } from '@lucky/shared/utils'
 import { starboardService } from '@lucky/shared/services'
 
@@ -95,27 +96,24 @@ export default new Command({
             } else if (subcommand === 'top') {
                 const entries = await starboardService.getTopEntries(interaction.guild.id, 5)
 
-                if (entries.length === 0) {
-                    await interactionReply({
-                        interaction,
-                        content: {
-                            embeds: [infoEmbed('Top Starred Messages', 'No starred messages yet.')],
-                        },
-                    })
-                    return
-                }
+                const items = entries.map(
+                    (e: { guildId: string; channelId: string; messageId: string; starCount: number }, i: number) => ({
+                        name: `⭐ ${e.starCount} stars`,
+                        value: `[Jump to message](https://discord.com/channels/${e.guildId}/${e.channelId}/${e.messageId})`,
+                        inline: false,
+                    }),
+                )
 
-                const description = entries
-                    .map(
-                        (e: { guildId: string; channelId: string; messageId: string; starCount: number }, i: number) =>
-                            `**${i + 1}.** ⭐ ${e.starCount} — [Jump](https://discord.com/channels/${e.guildId}/${e.channelId}/${e.messageId})`,
-                    )
-                    .join('\n')
+                const embed = buildListPageEmbed(items, 1, {
+                    title: 'Top Starred Messages',
+                    emptyMessage: 'No starred messages yet.',
+                    itemsPerPage: 5,
+                })
 
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [infoEmbed('Top Starred Messages', description)],
+                        embeds: [embed],
                     },
                 })
             } else if (subcommand === 'status') {

@@ -5,6 +5,7 @@ const interactionReplyMock = jest.fn()
 const successEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
 const errorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
 const infoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
+const buildUserProfileEmbedMock = jest.fn((user, stats) => ({ type: 'userprofile', user, stats }))
 const requireGuildMock = jest.fn()
 const getMemberXPMock = jest.fn()
 const getRankMock = jest.fn()
@@ -21,6 +22,10 @@ jest.mock('../../../utils/general/embeds', () => ({
     successEmbed: (...args: unknown[]) => successEmbedMock(...args),
     errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
     infoEmbed: (...args: unknown[]) => infoEmbedMock(...args),
+}))
+
+jest.mock('../../../utils/general/responseEmbeds', () => ({
+    buildUserProfileEmbed: (...args: unknown[]) => buildUserProfileEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -79,14 +84,20 @@ describe('level command', () => {
         getMemberXPMock.mockResolvedValue({ xp: 250, level: 1 })
         getRankMock.mockResolvedValue(1)
         await levelCommand.execute({ interaction: createInteraction('rank') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Rank', expect.stringContaining('250'))
+        expect(buildUserProfileEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'user-1' }),
+            expect.objectContaining({ xp: 250, level: 1, rank: 1 }),
+        )
     })
 
     it('rank shows level 0 when no XP record', async () => {
         getMemberXPMock.mockResolvedValue(null)
         getRankMock.mockResolvedValue(0)
         await levelCommand.execute({ interaction: createInteraction('rank') } as any)
-        expect(infoEmbedMock).toHaveBeenCalledWith('Rank', expect.stringContaining('**Level:** 0'))
+        expect(buildUserProfileEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'user-1' }),
+            expect.objectContaining({ level: 0, rank: 0 }),
+        )
     })
 
     it('leaderboard lists top users', async () => {

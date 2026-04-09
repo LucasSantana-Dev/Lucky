@@ -3,6 +3,7 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { buildPlatformAttribEmbed } from '../../../utils/general/responseEmbeds'
 import { isLastFmConfigured } from '../../../lastfm'
 import { lastFmLinkService } from '@lucky/shared/services'
 
@@ -95,15 +96,14 @@ export default new Command({
                 })
                 return
             }
+            const embed = buildPlatformAttribEmbed('lastfm', {
+                title: 'Connect your Last.fm account',
+                description: `Click the link below to authorize Lucky with your Last.fm account. After you connect, tracks you request will be scrobbled to your profile.\n\n**[Click here to connect](${url})**\n\nThis link is valid for a short time and is only for you. Do not share it.`,
+            })
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [
-                        successEmbed(
-                            'Connect your Last.fm account',
-                            `Click the link below to authorize Lucky with your Last.fm account. After you connect, tracks you request will be scrobbled to your profile.\n\n**[Click here to connect](${url})**\n\nThis link is valid for a short time and is only for you. Do not share it.`,
-                        ),
-                    ],
+                    embeds: [embed],
                     ephemeral: true,
                 },
             })
@@ -113,17 +113,17 @@ export default new Command({
         if (subcommand === 'status') {
             const link = await lastFmLinkService.getByDiscordId(discordId)
             if (link) {
+                const description = link.lastFmUsername
+                    ? `Your account **${link.lastFmUsername}** is connected. Tracks you request will be scrobbled.`
+                    : 'Your Last.fm account is connected. Tracks you request will be scrobbled.'
+                const embed = buildPlatformAttribEmbed('lastfm', {
+                    title: 'Last.fm linked',
+                    description,
+                })
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [
-                            successEmbed(
-                                'Last.fm linked',
-                                link.lastFmUsername
-                                    ? `Your account **${link.lastFmUsername}** is connected. Tracks you request will be scrobbled.`
-                                    : 'Your Last.fm account is connected. Tracks you request will be scrobbled.',
-                            ),
-                        ],
+                        embeds: [embed],
                         ephemeral: true,
                     },
                 })
