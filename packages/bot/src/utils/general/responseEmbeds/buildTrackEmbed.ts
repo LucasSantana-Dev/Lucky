@@ -57,6 +57,17 @@ export function buildTrackEmbed(
     return embed
 }
 
+export function buildCommandTrackEmbed(
+    track: Track,
+    statusLabel: string,
+    requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>,
+): ReturnType<typeof buildTrackEmbed> {
+    const trackData = trackToData(track)
+    const embed = buildTrackEmbed(trackData, 'playing', requestedBy)
+    embed.setAuthor({ name: statusLabel })
+    return embed
+}
+
 export function trackToData(track: Track): TrackData {
     return {
         title: track.title,

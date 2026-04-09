@@ -3,7 +3,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
-import { buildTrackEmbed, trackToData } from '../../../utils/general/responseEmbeds'
+import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 import {
     requireGuild,
     requireQueue,
@@ -72,20 +72,8 @@ async function sendSkipSuccess(
         return
     }
 
-    // Build a rich embed for the next track
-    const trackData = trackToData(nextTrack)
-    const trackEmbed = buildTrackEmbed(trackData, 'playing', {
-        tag: interaction.user.username,
-        displayAvatarURL: interaction.user.displayAvatarURL,
-    })
-    trackEmbed.setAuthor({ name: '⏭️ Song skipped - Now playing' })
-
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [trackEmbed],
-        },
-    })
+    const trackEmbed = buildCommandTrackEmbed(nextTrack, '⏭️ Song skipped - Now playing', interaction.user)
+    await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
 }
 
 async function handleSkipError(

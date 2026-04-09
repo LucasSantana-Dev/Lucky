@@ -14,9 +14,7 @@ const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const setAuthorMock = jest.fn().mockReturnThis()
-const buildTrackEmbedMock = jest.fn(() => ({ setAuthor: setAuthorMock }))
-const trackToDataMock = jest.fn((track: unknown) => track)
+const buildCommandTrackEmbedMock = jest.fn(() => ({}))
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
@@ -48,8 +46,7 @@ jest.mock('../../../utils/music/queueResolver', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildTrackEmbed: (...args: unknown[]) => buildTrackEmbedMock(...args),
-    trackToData: (...args: unknown[]) => trackToDataMock(...args),
+    buildCommandTrackEmbed: (...args: unknown[]) => buildCommandTrackEmbedMock(...args),
 }))
 
 function createInteraction(guildId = 'guild-1') {
@@ -91,9 +88,7 @@ describe('skip command', () => {
         requireQueueMock.mockResolvedValue(true)
         requireCurrentTrackMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)
-        setAuthorMock.mockReturnThis()
-        buildTrackEmbedMock.mockReturnValue({ setAuthor: setAuthorMock })
-        trackToDataMock.mockImplementation((track: unknown) => track)
+        buildCommandTrackEmbedMock.mockReturnValue({})
     })
 
     afterEach(() => {
@@ -299,8 +294,11 @@ describe('skip command', () => {
 
         await skipCommand.execute({ client, interaction } as any)
 
-        expect(trackToDataMock).toHaveBeenCalledWith(nextTrack)
-        expect(buildTrackEmbedMock).toHaveBeenCalled()
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalledWith(
+            nextTrack,
+            '⏭️ Song skipped - Now playing',
+            expect.any(Object),
+        )
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 })

@@ -5,9 +5,7 @@ const requireQueueMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
 const createWarningEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const setAuthorMock = jest.fn().mockReturnThis()
-const buildTrackEmbedMock = jest.fn(() => ({ setAuthor: setAuthorMock }))
-const trackToDataMock = jest.fn((track: unknown) => track)
+const buildCommandTrackEmbedMock = jest.fn(() => ({}))
 const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -24,8 +22,7 @@ jest.mock('../../../utils/general/embeds', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildTrackEmbed: (...args: unknown[]) => buildTrackEmbedMock(...args),
-    trackToData: (...args: unknown[]) => trackToDataMock(...args),
+    buildCommandTrackEmbed: (...args: unknown[]) => buildCommandTrackEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
@@ -53,9 +50,7 @@ describe('resume command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireQueueMock.mockResolvedValue(true)
-        setAuthorMock.mockReturnThis()
-        buildTrackEmbedMock.mockReturnValue({ setAuthor: setAuthorMock })
-        trackToDataMock.mockImplementation((track: unknown) => track)
+        buildCommandTrackEmbedMock.mockReturnValue({})
     })
 
     it('returns early when queue validation fails', async () => {
@@ -96,8 +91,7 @@ describe('resume command', () => {
         await resumeCommand.execute({ client: {} as any, interaction: createInteraction() } as any)
 
         expect(queue.node.resume).toHaveBeenCalled()
-        expect(trackToDataMock).toHaveBeenCalledWith(track)
-        expect(buildTrackEmbedMock).toHaveBeenCalled()
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalledWith(track, '▶️ Resumed', expect.any(Object))
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 })

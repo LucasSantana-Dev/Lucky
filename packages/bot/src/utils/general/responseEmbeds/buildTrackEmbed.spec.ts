@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals'
-import { buildTrackEmbed, trackToData } from './buildTrackEmbed'
+import { buildTrackEmbed, buildCommandTrackEmbed, trackToData } from './buildTrackEmbed'
 import { detectSource } from '../../music/nowPlayingEmbed'
 
 const fakeUser = {
@@ -189,5 +189,27 @@ describe('trackToData', () => {
     it('sets source to null when missing', () => {
         const data = trackToData({ ...fakeTrack, source: undefined } as never)
         expect(data.source).toBeNull()
+    })
+})
+
+describe('buildCommandTrackEmbed', () => {
+    const track = {
+        title: 'Test Song',
+        author: 'Test Artist',
+        url: 'https://youtube.com/watch?v=test',
+        thumbnail: 'https://img.youtube.com/test.jpg',
+        durationMS: 60000,
+        source: 'youtube',
+    }
+
+    it('returns an embed with the status label as author name', () => {
+        const embed = buildCommandTrackEmbed(track as never, '⏸️ Paused', fakeUser)
+        expect(embed.data.author?.name).toBe('⏸️ Paused')
+    })
+
+    it('builds embed from track data and passes requestedBy', () => {
+        const embed = buildCommandTrackEmbed(track as never, '▶️ Resumed', fakeUser)
+        expect(embed.data.title).toBe(track.title)
+        expect(embed.data.footer?.text).toContain(fakeUser.tag)
     })
 })

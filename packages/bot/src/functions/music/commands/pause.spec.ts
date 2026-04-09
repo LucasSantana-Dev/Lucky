@@ -6,9 +6,7 @@ const requireVoiceChannelMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
 const createWarningEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const setAuthorMock = jest.fn().mockReturnThis()
-const buildTrackEmbedMock = jest.fn(() => ({ setAuthor: setAuthorMock }))
-const trackToDataMock = jest.fn((track: unknown) => track)
+const buildCommandTrackEmbedMock = jest.fn(() => ({}))
 const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -26,8 +24,7 @@ jest.mock('../../../utils/general/embeds', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildTrackEmbed: (...args: unknown[]) => buildTrackEmbedMock(...args),
-    trackToData: (...args: unknown[]) => trackToDataMock(...args),
+    buildCommandTrackEmbed: (...args: unknown[]) => buildCommandTrackEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
@@ -60,9 +57,7 @@ describe('pause command', () => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
-        setAuthorMock.mockReturnThis()
-        buildTrackEmbedMock.mockReturnValue({ setAuthor: setAuthorMock })
-        trackToDataMock.mockImplementation((track: unknown) => track)
+        buildCommandTrackEmbedMock.mockReturnValue({})
     })
 
     it('returns early when voice channel validation fails', async () => {
@@ -113,8 +108,7 @@ describe('pause command', () => {
         await pauseCommand.execute({ client: createClient(), interaction: createInteraction() } as any)
 
         expect(queue.node.pause).toHaveBeenCalled()
-        expect(trackToDataMock).toHaveBeenCalledWith(track)
-        expect(buildTrackEmbedMock).toHaveBeenCalled()
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalledWith(track, '⏸️ Paused', expect.any(Object))
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 })
