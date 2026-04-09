@@ -6,17 +6,17 @@ const requireGuildMock = jest.fn()
 const getStateMock = jest.fn()
 const resetContributionsMock = jest.fn()
 const setModeMock = jest.fn()
-const infoEmbedMock = jest.fn((title: string, message: string) => ({
+const createInfoEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'info',
     title,
     message,
 }))
-const successEmbedMock = jest.fn((title: string, message: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'success',
     title,
     message,
 }))
-const warningEmbedMock = jest.fn((title: string, message: string) => ({
+const createWarningEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'warning',
     title,
     message,
@@ -40,9 +40,9 @@ jest.mock('../../../utils/music/collaborativePlaylist', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    infoEmbed: (...args: unknown[]) => infoEmbedMock(...args),
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    warningEmbed: (...args: unknown[]) => warningEmbedMock(...args),
+    createInfoEmbed: (...args: unknown[]) => createInfoEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
 }))
 
 function createInteraction(action: string, guildId = 'guild-1', limit?: number) {
@@ -79,7 +79,7 @@ describe('playlist command', () => {
         await playlistCommand.execute({ interaction: createInteraction('status') } as any)
 
         expect(getStateMock).toHaveBeenCalledWith('guild-1')
-        expect(infoEmbedMock).toHaveBeenCalled()
+        expect(createInfoEmbedMock).toHaveBeenCalled()
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.objectContaining({ ephemeral: true }),
@@ -91,7 +91,7 @@ describe('playlist command', () => {
         await playlistCommand.execute({ interaction: createInteraction('reset') } as any)
 
         expect(resetContributionsMock).toHaveBeenCalledWith('guild-1')
-        expect(warningEmbedMock).toHaveBeenCalled()
+        expect(createWarningEmbedMock).toHaveBeenCalled()
     })
 
     it('enables collaborative mode with provided limit', async () => {
@@ -100,7 +100,7 @@ describe('playlist command', () => {
         } as any)
 
         expect(setModeMock).toHaveBeenCalledWith('guild-1', true, 4)
-        expect(successEmbedMock).toHaveBeenCalled()
+        expect(createSuccessEmbedMock).toHaveBeenCalled()
     })
 
     it('disables collaborative mode', async () => {
@@ -109,6 +109,6 @@ describe('playlist command', () => {
         } as any)
 
         expect(setModeMock).toHaveBeenCalledWith('guild-1', false)
-        expect(warningEmbedMock).toHaveBeenCalled()
+        expect(createWarningEmbedMock).toHaveBeenCalled()
     })
 })

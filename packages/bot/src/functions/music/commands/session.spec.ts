@@ -3,19 +3,19 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 const requireGuildMock = jest.fn()
 const requireVoiceChannelMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const warningEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createWarningEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const errorEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const infoEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createInfoEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
@@ -39,10 +39,10 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    warningEmbed: (...args: unknown[]) => warningEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
-    infoEmbed: (...args: unknown[]) => infoEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createInfoEmbed: (...args: unknown[]) => createInfoEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
@@ -137,7 +137,7 @@ describe('session command', () => {
             'user-1',
         )
         expect(interactionReplyMock).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalled()
+        expect(createSuccessEmbedMock).toHaveBeenCalled()
     })
 
     it('should handle save with no active queue', async () => {
@@ -148,7 +148,7 @@ describe('session command', () => {
         await sessionCommand.execute({ client, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             expect.stringContaining('No active queue'),
             expect.any(String),
         )
@@ -162,7 +162,7 @@ describe('session command', () => {
         await sessionCommand.execute({ client, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             expect.stringContaining('Could not save'),
             expect.any(String),
         )
@@ -176,7 +176,7 @@ describe('session command', () => {
 
         expect(namedSessionServiceMock.list).toHaveBeenCalledWith('guild-1')
         expect(interactionReplyMock).toHaveBeenCalled()
-        expect(infoEmbedMock).toHaveBeenCalledWith(
+        expect(createInfoEmbedMock).toHaveBeenCalledWith(
             'Saved Sessions',
             expect.stringContaining('session-1'),
         )
@@ -190,7 +190,7 @@ describe('session command', () => {
         await sessionCommand.execute({ client, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
-        expect(infoEmbedMock).toHaveBeenCalledWith(
+        expect(createInfoEmbedMock).toHaveBeenCalledWith(
             'No saved sessions',
             expect.any(String),
         )
@@ -206,7 +206,7 @@ describe('session command', () => {
             'guild-1',
             'party-mix',
         )
-        expect(successEmbedMock).toHaveBeenCalled()
+        expect(createSuccessEmbedMock).toHaveBeenCalled()
     })
 
     it('should handle delete when session not found', async () => {
@@ -216,7 +216,7 @@ describe('session command', () => {
 
         await sessionCommand.execute({ client, interaction })
 
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'Session not found',
             expect.any(String),
         )
@@ -233,7 +233,7 @@ describe('session command', () => {
             'party-mix',
             expect.any(Object),
         )
-        expect(successEmbedMock).toHaveBeenCalled()
+        expect(createSuccessEmbedMock).toHaveBeenCalled()
     })
 
     it('should handle restore when session not found', async () => {
@@ -245,7 +245,7 @@ describe('session command', () => {
 
         await sessionCommand.execute({ client, interaction })
 
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'Session not found',
             expect.any(String),
         )
@@ -268,7 +268,7 @@ describe('session command', () => {
 
         await sessionCommand.execute({ client, interaction })
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Connection error',
             expect.any(String),
         )

@@ -2,17 +2,17 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { handleFeedback } from './feedbackHandler'
 
 const interactionReplyMock = jest.fn()
-const errorEmbedMock = jest.fn((title: string, message: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'error',
     title,
     message,
 }))
-const warningEmbedMock = jest.fn((title: string, message: string) => ({
+const createWarningEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'warning',
     title,
     message,
 }))
-const successEmbedMock = jest.fn((title: string, message: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'success',
     title,
     message,
@@ -28,9 +28,9 @@ jest.mock('../../../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../../../utils/general/embeds', () => ({
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
-    warningEmbed: (...args: unknown[]) => warningEmbedMock(...args),
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
 }))
 
 jest.mock('../../../../../services/musicRecommendation/feedbackService', () => ({
@@ -79,7 +79,7 @@ describe('handleFeedback', () => {
     it('rejects execution outside guilds', async () => {
         await handleFeedback(createInteraction(null), createClient())
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'This command can only be used in a server!',
         )
@@ -89,7 +89,7 @@ describe('handleFeedback', () => {
     it('warns when there is no current track and no track url', async () => {
         await handleFeedback(createInteraction('guild-1'), createClient())
 
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'No Track',
             'No current track found. Provide `track_url` to leave feedback.',
         )
@@ -118,7 +118,7 @@ describe('handleFeedback', () => {
             'Song A::Artist A',
             'like',
         )
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Feedback saved',
             'Stored **like** feedback for this recommendation profile.',
         )
@@ -153,7 +153,7 @@ describe('handleFeedback', () => {
             expect.anything(),
             'guild-1',
         )
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'No Track',
             'No current track found. Provide `track_url` to leave feedback.',
         )

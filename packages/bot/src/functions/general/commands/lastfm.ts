@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed } from '../../../utils/general/embeds'
 import { buildPlatformAttribEmbed } from '../../../utils/general/responseEmbeds'
 import { isLastFmConfigured } from '../../../lastfm'
 import { lastFmLinkService } from '@lucky/shared/services'
@@ -68,7 +68,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Last.fm not configured',
                             'The bot does not have Last.fm API keys set. Ask the server owner to configure LASTFM_API_KEY and LASTFM_API_SECRET.',
                         ),
@@ -86,7 +86,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            errorEmbed(
+                            createErrorEmbed(
                                 'Cannot generate link',
                                 'WEBAPP_BACKEND_URL (fallback: WEBAPP_REDIRECT_URI) or LASTFM_LINK_SECRET / WEBAPP_SESSION_SECRET is not set. Ask the server owner to configure the web app.',
                             ),
@@ -132,7 +132,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            errorEmbed(
+                            createErrorEmbed(
                                 'Not linked',
                                 'Your Last.fm account is not linked. Use `/lastfm link` to get a connection link.',
                             ),

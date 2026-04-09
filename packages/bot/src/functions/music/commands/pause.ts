@@ -7,7 +7,7 @@ import {
     requireVoiceChannel,
 } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { successEmbed, warningEmbed } from '../../../utils/general/embeds'
+import { createSuccessEmbed, createWarningEmbed } from '../../../utils/general/embeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -26,7 +26,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        warningEmbed(
+                        createWarningEmbed(
                             'Already paused',
                             '⏸️ Music is already paused.',
                         ),
@@ -43,7 +43,7 @@ export default new Command({
             interaction,
             content: {
                 embeds: [
-                    successEmbed(
+                    createSuccessEmbed(
                         'Paused',
                         '⏸️ Music has been paused.',
                     ),

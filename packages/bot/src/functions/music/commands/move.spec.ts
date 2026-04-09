@@ -5,11 +5,11 @@ const requireGuildMock = jest.fn()
 const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const errorEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
@@ -27,8 +27,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
@@ -106,7 +106,7 @@ describe('move command', () => {
         const addedTracks = (queue.tracks.add as jest.Mock).mock.calls[0][0]
         expect(addedTracks[0].title).toBe('Song 3')
         expect(addedTracks[1].title).toBe('Song 1')
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Song moved',
             expect.stringContaining('Song 3'),
         )
@@ -157,7 +157,7 @@ describe('move command', () => {
         } as any)
 
         expect(queue.tracks.clear).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'Invalid position!',
         )
@@ -175,7 +175,7 @@ describe('move command', () => {
         } as any)
 
         expect(queue.tracks.clear).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'Invalid position!',
         )
@@ -193,7 +193,7 @@ describe('move command', () => {
         } as any)
 
         expect(queue.tracks.clear).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'Invalid position!',
         )
@@ -211,7 +211,7 @@ describe('move command', () => {
         } as any)
 
         expect(queue.tracks.clear).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'The queue is empty!',
         )

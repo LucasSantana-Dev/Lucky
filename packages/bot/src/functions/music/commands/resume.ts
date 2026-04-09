@@ -4,7 +4,7 @@ import { interactionReply } from "../../../utils/general/interactionReply"
 import type { CommandExecuteParams } from "../../../types/CommandData"
 import { requireQueue } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { successEmbed, warningEmbed } from '../../../utils/general/embeds'
+import { createSuccessEmbed, createWarningEmbed } from '../../../utils/general/embeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -21,7 +21,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        warningEmbed(
+                        createWarningEmbed(
                             'Already playing',
                             '▶️ Music is already playing.',
                         ),
@@ -38,7 +38,7 @@ export default new Command({
             interaction,
             content: {
                 embeds: [
-                    successEmbed(
+                    createSuccessEmbed(
                         'Resumed',
                         '▶️ Music has been resumed.',
                     ),
