@@ -1,69 +1,6 @@
 import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
-
-const LUCKY_MUSIC_COLOR = 0x9c27b0
-
-type SourceBadge = {
-    label: string
-    emoji: string
-    color: number
-}
-
-const SOURCE_BADGES: Record<string, SourceBadge> = {
-    spotify: {
-        label: 'Spotify',
-        emoji: '🟢',
-        color: 0x1db954,
-    },
-    youtube: {
-        label: 'YouTube',
-        emoji: '🔴',
-        color: 0xff0000,
-    },
-    soundcloud: {
-        label: 'SoundCloud',
-        emoji: '🟠',
-        color: 0xff5500,
-    },
-    apple_music: {
-        label: 'Apple Music',
-        emoji: '🍎',
-        color: 0xfa2d48,
-    },
-    vimeo: {
-        label: 'Vimeo',
-        emoji: '🔵',
-        color: 0x1ab7ea,
-    },
-}
-
-const DEFAULT_BADGE: SourceBadge = {
-    label: 'Music',
-    emoji: '🎵',
-    color: LUCKY_MUSIC_COLOR,
-}
-
-export function detectSource(track: {
-    url?: string
-    source?: string | null
-}): SourceBadge {
-    const sourceHint = (track.source ?? '').toLowerCase()
-    if (sourceHint && SOURCE_BADGES[sourceHint]) {
-        return SOURCE_BADGES[sourceHint]
-    }
-
-    const url = (track.url ?? '').toLowerCase()
-    if (!url) return DEFAULT_BADGE
-
-    if (url.includes('spotify.com')) return SOURCE_BADGES.spotify
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-        return SOURCE_BADGES.youtube
-    }
-    if (url.includes('soundcloud.com')) return SOURCE_BADGES.soundcloud
-    if (url.includes('music.apple.com')) return SOURCE_BADGES.apple_music
-    if (url.includes('vimeo.com')) return SOURCE_BADGES.vimeo
-    return DEFAULT_BADGE
-}
+import { detectSource } from '../../music/nowPlayingEmbed'
 
 export type TrackEmbedKind = 'queued' | 'playing' | 'recommended' | 'history'
 
@@ -76,17 +13,11 @@ type TrackData = {
     source?: string | null
 }
 
-function headerForKind(kind: TrackEmbedKind, badge: SourceBadge): string {
-    switch (kind) {
-        case 'playing':
-            return `${badge.emoji} Now Playing`
-        case 'queued':
-            return `${badge.emoji} Queued`
-        case 'recommended':
-            return `${badge.emoji} Recommended`
-        case 'history':
-            return `${badge.emoji} From History`
-    }
+const KIND_LABELS: Record<TrackEmbedKind, string> = {
+    playing: 'Now Playing',
+    queued: 'Queued',
+    recommended: 'Recommended',
+    history: 'From History',
 }
 
 export function buildTrackEmbed(
@@ -95,9 +26,10 @@ export function buildTrackEmbed(
     requestedBy?: Pick<User, 'tag' | 'displayAvatarURL'>,
 ): EmbedBuilder {
     const badge = detectSource(track)
+    const label = KIND_LABELS[kind]
 
     const embed = new EmbedBuilder()
-        .setAuthor({ name: headerForKind(kind, badge) })
+        .setAuthor({ name: `${badge.emoji} ${label}` })
         .setColor(badge.color)
         .setTimestamp()
 
@@ -108,13 +40,11 @@ export function buildTrackEmbed(
         })
     }
 
-    if (track.thumbnail) {
-        embed.setThumbnail(track.thumbnail)
-    }
+    if (track.thumbnail) embed.setThumbnail(track.thumbnail)
 
-    embed.setTitle(track.title || 'Unknown Track')
+    embed.setTitle(track.title ?? 'Unknown Track')
     if (track.url) embed.setURL(track.url)
-    embed.setDescription(`by **${track.author || 'Unknown artist'}**`)
+    embed.setDescription(`by **${track.author ?? 'Unknown artist'}**`)
 
     const fields: { name: string; value: string; inline: boolean }[] = []
     if (track.duration && track.duration !== '0:00') {

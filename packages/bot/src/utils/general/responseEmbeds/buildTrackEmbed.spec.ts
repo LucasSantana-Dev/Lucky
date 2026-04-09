@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals'
-import { buildTrackEmbed, detectSource } from './buildTrackEmbed'
+import { buildTrackEmbed } from './buildTrackEmbed'
+import { detectSource } from '../../music/nowPlayingEmbed'
 
 const fakeUser = {
     tag: 'Admin#0001',
