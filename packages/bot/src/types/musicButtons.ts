@@ -7,6 +7,7 @@ export const MUSIC_BUTTON_IDS = {
 } as const
 
 export const QUEUE_BUTTON_PREFIX = 'queue_page'
+export const LEADERBOARD_BUTTON_PREFIX = 'leaderboard_page'
 
 export type MusicButtonId =
     (typeof MUSIC_BUTTON_IDS)[keyof typeof MUSIC_BUTTON_IDS]
