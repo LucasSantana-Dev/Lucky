@@ -5,6 +5,7 @@ const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
 const createErrorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
 const createInfoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
+const buildListPageEmbedMock = jest.fn((items: unknown, page: unknown, config: unknown) => ({ type: 'listpage', items, page, config }))
 const requireGuildMock = jest.fn()
 const getConfigMock = jest.fn()
 const upsertConfigMock = jest.fn()
@@ -19,6 +20,10 @@ jest.mock('../../../utils/general/embeds', () => ({
     createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
     createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
     createInfoEmbed: (...args: unknown[]) => createInfoEmbedMock(...args),
+}))
+
+jest.mock('../../../utils/general/responseEmbeds', () => ({
+    buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -101,13 +106,28 @@ describe('starboard command', () => {
             { guildId: 'guild-1', channelId: 'ch-1', messageId: 'msg-1', starCount: 10 },
         ])
         await starboardCommand.execute({ interaction: createInteraction('top') } as any)
-        expect(createInfoEmbedMock).toHaveBeenCalledWith('Top Starred Messages', expect.stringContaining('10'))
+        expect(buildListPageEmbedMock).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    value: expect.stringContaining('Jump to message'),
+                }),
+            ]),
+            1,
+            expect.objectContaining({ title: 'Top Starred Messages' }),
+        )
     })
 
     it('top shows empty state when no entries', async () => {
         getTopEntriesMock.mockResolvedValue([])
         await starboardCommand.execute({ interaction: createInteraction('top') } as any)
-        expect(createInfoEmbedMock).toHaveBeenCalledWith('Top Starred Messages', expect.stringContaining('No starred'))
+        expect(buildListPageEmbedMock).toHaveBeenCalledWith(
+            [],
+            1,
+            expect.objectContaining({
+                title: 'Top Starred Messages',
+                emptyMessage: 'No starred messages yet.',
+            }),
+        )
     })
 
     it('status shows config when set', async () => {
