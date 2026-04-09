@@ -5,6 +5,8 @@ const interactionReplyMock = jest.fn()
 const successEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
 const errorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
 const infoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
+const buildListPageEmbedMock = jest.fn((items: unknown[], page: unknown, config: unknown) => ({ type: 'list', items, page, config }))
+const createLeaderboardPaginationButtonsMock = jest.fn()
 const requireGuildMock = jest.fn()
 const getMemberXPMock = jest.fn()
 const getRankMock = jest.fn()
@@ -24,15 +26,9 @@ jest.mock('../../../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
 }))
 
-const buildListPageEmbedMock = jest.fn((items: unknown[], page: number, config: unknown) => ({
-    toJSON: () => ({ type: 'list', page, config }),
-}))
-
 jest.mock('../../../utils/general/responseEmbeds', () => ({
     buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
 }))
-
-const createLeaderboardPaginationButtonsMock = jest.fn()
 
 jest.mock('../../../utils/music/buttonComponents', () => ({
     createLeaderboardPaginationButtons: (...args: unknown[]) => createLeaderboardPaginationButtonsMock(...args),
