@@ -57,9 +57,6 @@ export function buildTrackEmbed(
     return embed
 }
 
-/**
- * Convert a discord-player Track to TrackData for use with buildTrackEmbed
- */
 export function trackToData(track: Track): TrackData {
     return {
         title: track.title,
