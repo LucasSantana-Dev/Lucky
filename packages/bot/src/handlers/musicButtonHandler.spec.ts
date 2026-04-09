@@ -22,9 +22,13 @@ jest.mock('../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
 }))
 
+const createLeaderboardPaginationButtonsMock = jest.fn()
+
 jest.mock('../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (...args: unknown[]) =>
         createMusicControlButtonsMock(...args),
+    createLeaderboardPaginationButtons: (...args: unknown[]) =>
+        createLeaderboardPaginationButtonsMock(...args),
 }))
 
 jest.mock('../functions/music/commands/queue/queueEmbed', () => ({
@@ -37,6 +41,18 @@ jest.mock('../utils/music/queueManipulation', () => ({
 
 jest.mock('../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
+const buildListPageEmbedMock = jest.fn(() => ({ toJSON: () => ({ type: 'embed' }) }))
+
+jest.mock('../utils/general/responseEmbeds', () => ({
+    buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    levelService: {
+        getLeaderboard: jest.fn(),
+    },
 }))
 
 jest.mock('discord-player', () => ({
