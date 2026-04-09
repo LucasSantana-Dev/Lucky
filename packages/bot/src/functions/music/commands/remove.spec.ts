@@ -6,11 +6,11 @@ const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const requireVoiceChannelMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
-const errorEmbedMock = jest.fn((title: string, desc?: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
@@ -30,8 +30,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
@@ -102,7 +102,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Song removed',
             expect.stringContaining('Song 2'),
         )
@@ -120,7 +120,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Song removed',
             expect.stringContaining('Song 1'),
         )
@@ -138,7 +138,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Song removed',
             expect.stringContaining('Song 5'),
         )
@@ -156,7 +156,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'Invalid position!',
         )
@@ -174,7 +174,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'Invalid position!',
         )
@@ -192,7 +192,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).not.toHaveBeenCalled()
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Error',
             'The queue is empty!',
         )
@@ -274,7 +274,7 @@ describe('remove command', () => {
         } as any)
 
         expect(queue.tracks.remove).toHaveBeenCalled()
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Song removed',
             expect.stringContaining('Song 50'),
         )

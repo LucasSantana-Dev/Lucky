@@ -3,7 +3,7 @@ import { PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
-import { errorEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed } from '../../../utils/general/embeds'
 import { errorLog } from '@lucky/shared/utils'
 import {
     handleSetExclusive,
@@ -77,7 +77,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
                             'An error occurred while processing your request.',
                         ),

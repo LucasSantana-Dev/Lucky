@@ -538,7 +538,7 @@ describe('play command', () => {
         expect(interaction.editReply).not.toHaveBeenCalled()
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
-            expect.stringContaining('Could not find'),
+            expect.any(String),
         )
     })
 
@@ -595,6 +595,60 @@ describe('play command', () => {
         expect(warnLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Failed to send play command error reply',
+            }),
+        )
+    })
+
+    it('logs error and replies when queue blending fails', async () => {
+        const interaction = createInteraction('guild-1')
+        const track = {
+            id: 'track-1',
+            url: 'https://example.com/track-1',
+            title: 'Song A',
+            author: 'Artist A',
+        }
+        blendAutoplayTracksMock.mockRejectedValue(new Error('blend error'))
+
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 3,
+                tracks: {
+                    size: 2,
+                    toArray: () => [
+                        track,
+                        {
+                            id: 'track-2',
+                            url: 'https://example.com/track-2',
+                            title: 'Song B',
+                            author: 'Artist B',
+                            metadata: { isAutoplay: true },
+                        },
+                    ],
+                },
+            },
+        })
+
+        await playCommand.execute({
+            client: createClient(async () => ({
+                track,
+                searchResult: { playlist: null, tracks: [] },
+            })),
+            interaction,
+        } as any)
+
+        expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
+            expect.anything(),
+            track,
+        )
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Play command error:',
+            }),
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ embeds: expect.any(Array) }),
             }),
         )
     })

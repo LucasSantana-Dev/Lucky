@@ -3,10 +3,11 @@ import { PermissionFlagsBits, ChannelType } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { requireGuild } from '../../../utils/command/commandValidations'
-import { successEmbed, errorEmbed, infoEmbed } from '../../../utils/general/embeds'
+import { createSuccessEmbed, createErrorEmbed, createInfoEmbed } from '../../../utils/general/embeds'
+import { buildUserProfileEmbed, buildListPageEmbed } from '../../../utils/general/responseEmbeds'
 import { errorLog } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '../../../utils/general/errorSanitizer'
 import { levelService, xpNeededForLevel } from '@lucky/shared/services'
-import { buildListPageEmbed } from '../../../utils/general/responseEmbeds'
 import { createLeaderboardPaginationButtons } from '../../../utils/music/buttonComponents'
 
 export default new Command({
@@ -93,7 +94,7 @@ export default new Command({
                         interaction,
                         content: {
                             embeds: [
-                                successEmbed(
+                                createSuccessEmbed(
                                     'Reward Added',
                                     `${role} will be granted when reaching level **${level}**.`,
                                 ),
@@ -106,7 +107,7 @@ export default new Command({
                     await interactionReply({
                         interaction,
                         content: {
-                            embeds: [successEmbed('Reward Removed', `Reward for level **${level}** removed.`)],
+                            embeds: [createSuccessEmbed('Reward Removed', `Reward for level **${level}** removed.`)],
                         },
                     })
                 }
@@ -116,7 +117,6 @@ export default new Command({
             if (subcommand === 'rank') {
                 const targetUser = interaction.options.getUser('user') ?? interaction.user
                 const guildId = interaction.guild.id
-                const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null)
                 const xpData = await levelService.getMemberXP(guildId, targetUser.id)
                 const rank = await levelService.getRank(guildId, targetUser.id)
 
@@ -124,17 +124,17 @@ export default new Command({
                 const level = xpData?.level ?? 0
                 const xpNeeded = xpNeededForLevel(level + 1)
 
-                const description = [
-                    `**User:** ${member ?? targetUser.username}`,
-                    `**Level:** ${level}`,
-                    `**XP:** ${xp} / ${xpNeeded}`,
-                    `**Rank:** #${rank}`,
-                ].join('\n')
+                const embed = buildUserProfileEmbed(targetUser, {
+                    level,
+                    rank,
+                    xp,
+                    xpForNextLevel: xpNeeded,
+                })
 
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [infoEmbed('Rank', description)],
+                        embeds: [embed],
                     },
                 })
             } else if (subcommand === 'leaderboard') {
@@ -144,7 +144,7 @@ export default new Command({
                     await interactionReply({
                         interaction,
                         content: {
-                            embeds: [infoEmbed('Leaderboard', 'No XP recorded yet.')],
+                            embeds: [createInfoEmbed('Leaderboard', 'No XP recorded yet.')],
                         },
                     })
                     return
@@ -199,7 +199,7 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: {
-                        embeds: [successEmbed('Level System Configured', lines.join('\n'))],
+                        embeds: [createSuccessEmbed('Level System Configured', lines.join('\n'))],
                     },
                 })
             }
@@ -209,9 +209,9 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
-                            error instanceof Error ? error.message : 'An error occurred.',
+                            createUserFriendlyError(error),
                         ),
                     ],
                     ephemeral: true,

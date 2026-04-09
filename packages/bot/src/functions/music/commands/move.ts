@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
+import { createErrorEmbed, createSuccessEmbed } from "../../../utils/general/embeds"
 import {
     requireGuild,
     requireQueue,
@@ -22,7 +22,7 @@ async function handleEmptyQueue(
         interaction,
         content: {
             embeds: [
-                errorEmbed('Empty queue', '🗑️ The queue is already empty!'),
+                createErrorEmbed('Empty queue', '🗑️ The queue is already empty!'),
             ],
         },
     })
@@ -95,7 +95,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', validationError)],
+                    embeds: [createErrorEmbed('Error', validationError)],
                 },
             })
             return
@@ -112,7 +112,7 @@ export default new Command({
             interaction,
             content: {
                 embeds: [
-                    successEmbed(
+                    createSuccessEmbed(
                         'Song moved',
                         `Moved: **${(moved as { title: string }).title}** to position ${to + 1}`,
                     ),

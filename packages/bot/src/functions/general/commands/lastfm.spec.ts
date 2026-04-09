@@ -2,15 +2,20 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import lastfmCommand from './lastfm'
 
 const interactionReplyMock = jest.fn()
-const successEmbedMock = jest.fn((title: string, description: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, description: string) => ({
     type: 'success',
     title,
     description,
 }))
-const errorEmbedMock = jest.fn((title: string, description: string) => ({
+const createErrorEmbedMock = jest.fn((title: string, description: string) => ({
     type: 'error',
     title,
     description,
+}))
+const buildPlatformAttribEmbedMock = jest.fn((platform: string, body: unknown) => ({
+    type: 'platform',
+    platform,
+    ...body,
 }))
 const isLastFmConfiguredMock = jest.fn()
 const getByDiscordIdMock = jest.fn()
@@ -20,8 +25,12 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    errorEmbed: (...args: unknown[]) => errorEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+}))
+
+jest.mock('../../../utils/general/responseEmbeds', () => ({
+    buildPlatformAttribEmbed: (...args: unknown[]) => buildPlatformAttribEmbedMock(...args),
 }))
 
 jest.mock('../../../lastfm', () => ({
@@ -44,7 +53,12 @@ function createInteraction(subcommand = 'link') {
 }
 
 function getConnectUrlFromEmbed(): string {
-    const description = String(successEmbedMock.mock.calls.at(-1)?.[1] ?? '')
+    const lastCall = buildPlatformAttribEmbedMock.mock.calls.at(-1)
+    if (!lastCall) {
+        throw new Error('buildPlatformAttribEmbed was not called')
+    }
+    const [platform, body] = lastCall
+    const description = String((body as any)?.description ?? '')
     const match = description.match(/\[Click here to connect\]\(([^)]+)\)/)
     if (!match) {
         throw new Error(`Expected connect link in embed description: ${description}`)
@@ -144,7 +158,7 @@ describe('lastfm command link generation', () => {
             interaction: createInteraction('link'),
         } as any)
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Cannot generate link',
             expect.stringContaining('WEBAPP_BACKEND_URL'),
         )
@@ -158,11 +172,11 @@ describe('lastfm command link generation', () => {
             interaction: createInteraction('link'),
         } as any)
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Cannot generate link',
             expect.stringContaining('WEBAPP_BACKEND_URL'),
         )
-        expect(successEmbedMock).not.toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).not.toHaveBeenCalledWith(
             'Connect your Last.fm account',
             expect.any(String),
         )
@@ -177,7 +191,7 @@ describe('lastfm command link generation', () => {
             interaction: createInteraction('link'),
         } as any)
 
-        expect(errorEmbedMock).toHaveBeenCalledWith(
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Cannot generate link',
             expect.stringContaining('WEBAPP_BACKEND_URL'),
         )

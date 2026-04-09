@@ -5,8 +5,8 @@ import {
     createEmbed,
     EMBED_COLORS,
     EMOJIS,
-    errorEmbed,
-    successEmbed,
+    createErrorEmbed,
+    createSuccessEmbed,
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireGuild } from '../../../utils/command/commandValidations'
@@ -166,7 +166,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        successEmbed(
+                        createSuccessEmbed(
                             'Feedback cleared',
                             'Your autoplay feedback history has been cleared. Autoplay will no longer filter previously disliked tracks.',
                         ),
@@ -181,7 +181,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', 'Unknown subcommand.')],
+                    embeds: [createErrorEmbed('Error', 'Unknown subcommand.')],
                     ephemeral: true,
                 },
             })
@@ -194,7 +194,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        errorEmbed(
+                        createErrorEmbed(
                             'Error',
                             'This command can only be used in a server.',
                         ),
