@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
-import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX } from '../types/musicButtons'
+import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX, LEADERBOARD_BUTTON_PREFIX } from '../types/musicButtons'
 
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -49,9 +49,11 @@ jest.mock('../utils/general/responseEmbeds', () => ({
     buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
 }))
 
+const getLeaderboardMock = jest.fn()
+
 jest.mock('@lucky/shared/services', () => ({
     levelService: {
-        getLeaderboard: jest.fn(),
+        getLeaderboard: (...args: unknown[]) => getLeaderboardMock(...args),
     },
 }))
 
@@ -267,5 +269,77 @@ describe('handleMusicButtonInteraction', () => {
         )
         expect(queue.node.pause).toHaveBeenCalled()
         expect(interaction.update).toHaveBeenCalled()
+    })
+
+    describe('leaderboard page button', () => {
+        const fakeEntries = Array.from({ length: 7 }, (_, i) => ({
+            userId: `user-${i}`,
+            level: i + 1,
+            xp: (i + 1) * 100,
+        }))
+
+        beforeEach(() => {
+            resolveGuildQueueMock.mockReturnValue({
+                queue: createMockQueue(),
+                source: 'nodes.get',
+            })
+            buildListPageEmbedMock.mockReturnValue({ data: { title: 'XP Leaderboard' } })
+            createLeaderboardPaginationButtonsMock.mockReturnValue(null)
+        })
+
+        it('renders page 0 and calls buildListPageEmbed with correct args', async () => {
+            getLeaderboardMock.mockResolvedValue(fakeEntries)
+            const interaction = createInteraction(`${LEADERBOARD_BUTTON_PREFIX}_0`)
+
+            await handleMusicButtonInteraction(interaction as never)
+
+            expect(getLeaderboardMock).toHaveBeenCalledWith('guild-1', 50)
+            expect(buildListPageEmbedMock).toHaveBeenCalledWith(
+                expect.arrayContaining([
+                    expect.objectContaining({ name: '#1', value: expect.stringContaining('user-0') }),
+                ]),
+                1,
+                expect.objectContaining({ title: 'XP Leaderboard', itemsPerPage: 5 }),
+            )
+            expect(interaction.update).toHaveBeenCalled()
+        })
+
+        it('includes pagination row when createLeaderboardPaginationButtons returns a row', async () => {
+            getLeaderboardMock.mockResolvedValue(fakeEntries)
+            const paginationRow = { type: 1, components: [] }
+            createLeaderboardPaginationButtonsMock.mockReturnValue(paginationRow)
+            const interaction = createInteraction(`${LEADERBOARD_BUTTON_PREFIX}_0`)
+
+            await handleMusicButtonInteraction(interaction as never)
+
+            expect(interaction.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    components: [paginationRow],
+                }),
+            )
+        })
+
+        it('shows error embed and empty components when leaderboard is empty', async () => {
+            getLeaderboardMock.mockResolvedValue([])
+            const interaction = createInteraction(`${LEADERBOARD_BUTTON_PREFIX}_0`)
+
+            await handleMusicButtonInteraction(interaction as never)
+
+            expect(interaction.update).toHaveBeenCalledWith(
+                expect.objectContaining({ components: [] }),
+            )
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Leaderboard',
+                'No XP recorded yet.',
+            )
+        })
+
+        it('does nothing when customId has no page number', async () => {
+            const interaction = createInteraction('leaderboard_page_')
+
+            await handleMusicButtonInteraction(interaction as never)
+
+            expect(getLeaderboardMock).not.toHaveBeenCalled()
+        })
     })
 })
