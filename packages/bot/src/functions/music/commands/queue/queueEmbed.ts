@@ -13,7 +13,10 @@ import type {
 import { calculateQueueStats, getQueueStatus } from './queueStats'
 import { createTrackListDisplay, createQueueSummary } from './queueDisplay'
 import type { QueueDisplayOptions } from './types'
-import { createQueuePaginationButtons } from '../../../../utils/music/buttonComponents'
+import {
+    createQueuePaginationButtons,
+    createMusicControlButtons,
+} from '../../../../utils/music/buttonComponents'
 
 export type QueueEmbedResult = {
     embed: EmbedBuilder
@@ -125,6 +128,11 @@ export async function createQueueEmbed(
     const totalTracks = queue.tracks.size
     const totalPages = Math.ceil(totalTracks / options.maxTracksToShow)
     const components: ActionRowBuilder<ButtonBuilder>[] = []
+
+    // Add music control buttons
+    components.push(createMusicControlButtons(queue))
+
+    // Add pagination buttons if needed
     const paginationRow = createQueuePaginationButtons(page, totalPages)
     if (paginationRow) components.push(paginationRow)
 

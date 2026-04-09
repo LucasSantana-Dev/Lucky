@@ -14,6 +14,7 @@ const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     title,
     description: desc,
 }))
+const buildCommandTrackEmbedMock = jest.fn(() => ({}))
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
@@ -42,6 +43,10 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
+jest.mock('../../../utils/general/responseEmbeds', () => ({
+    buildCommandTrackEmbed: (...args: unknown[]) => buildCommandTrackEmbedMock(...args),
 }))
 
 function createInteraction(guildId = 'guild-1') {
@@ -83,6 +88,7 @@ describe('skip command', () => {
         requireQueueMock.mockResolvedValue(true)
         requireCurrentTrackMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)
+        buildCommandTrackEmbedMock.mockReturnValue({})
     })
 
     afterEach(() => {
@@ -271,5 +277,28 @@ describe('skip command', () => {
         await Promise.resolve()
 
         expect(queue.node.play).not.toHaveBeenCalled()
+    })
+
+    it('shows rich track embed for next track after skip', async () => {
+        const nextTrack = { title: 'Next Song', author: 'Artist', url: 'http://x', duration: '3:00' }
+        const queue = {
+            ...createQueue(),
+            currentTrack: nextTrack,
+        }
+        const client = createClient()
+        const interaction = {
+            ...createInteraction(),
+            user: { username: 'tester', displayAvatarURL: jest.fn().mockReturnValue('http://avatar') },
+        }
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({ client, interaction } as any)
+
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalledWith(
+            nextTrack,
+            '⏭️ Song skipped - Now playing',
+            expect.any(Object),
+        )
+        expect(interactionReplyMock).toHaveBeenCalled()
     })
 })
