@@ -8,7 +8,6 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
-import { createSuccessEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { collaborativePlaylistService } from '../../../../utils/music/collaborativePlaylist'
 import { QueueRepeatMode, QueryType } from 'discord-player'
@@ -17,6 +16,8 @@ import {
     moveUserTrackToPriority,
     blendAutoplayTracks,
 } from '../../../../utils/music/queueManipulation'
+import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
+import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
 
 const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
 
@@ -182,15 +183,40 @@ export default new Command({
                 }
             }
 
+            // Find the track's actual index in the current queue. The queue
+            // may have been re-ordered by moveUserTrackToPriority or
+            // blendAutoplayTracks after the search result resolved, so the
+            // raw queue length is not the user-facing position. Falls back to
+            // the queue length if the track can't be located (defensive —
+            // should not happen in practice).
+            const queuedTracks = queue ? (queue.tracks.toArray?.() ?? []) : []
+            const trackIndex = queuedTracks.findIndex(
+                (t) => t === track || (track.id && t.id === track.id),
+            )
+            const queuePosition =
+                hadQueueBeforePlay && queue
+                    ? trackIndex >= 0
+                        ? trackIndex + 1
+                        : queuedTracks.length
+                    : 0
+
             const embed = result.searchResult.playlist
-                ? createSuccessEmbed(
-                      'Playlist Enqueued',
-                      `**${result.searchResult.playlist.title}** — ${result.searchResult.tracks.length} tracks`,
-                  )
-                : createSuccessEmbed(
-                      'Now Playing',
-                      `**${track.title}** by ${track.author}`,
-                  )
+                ? buildPlayResponseEmbed({
+                      kind: 'playlistQueued',
+                      track,
+                      requestedBy: interaction.user,
+                      playlist: {
+                          title: result.searchResult.playlist.title,
+                          trackCount: result.searchResult.tracks.length,
+                          url: result.searchResult.playlist.url,
+                      },
+                  })
+                : buildPlayResponseEmbed({
+                      kind: queuePosition === 0 ? 'nowPlaying' : 'addedToQueue',
+                      track,
+                      requestedBy: interaction.user,
+                      queuePosition,
+                  })
 
             collaborativePlaylistService.recordContribution(
                 interaction.guildId,
@@ -198,9 +224,15 @@ export default new Command({
                 1,
             )
 
+            // Attach the music control button row so the user can
+            // pause/skip/shuffle/loop/previous directly from the /play
+            // response. The row is queue-state-aware (disables Previous
+            // when there's no history, disables Shuffle on small queues).
+            const components = queue ? [createMusicControlButtons(queue)] : []
+
             await interactionReply({
                 interaction,
-                content: { embeds: [embed] },
+                content: { embeds: [embed], components },
             })
         } catch (error) {
             if (isUnknownInteractionError(error)) {
