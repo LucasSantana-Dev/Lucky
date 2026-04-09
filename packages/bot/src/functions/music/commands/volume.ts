@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from "../../../utils/general/interactionReply"
-import { errorEmbed, successEmbed } from "../../../utils/general/embeds"
+import { createErrorEmbed, createSuccessEmbed } from "../../../utils/general/embeds"
 import type { CommandExecuteParams } from "../../../types/CommandData"
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
@@ -39,7 +39,7 @@ async function showCurrentVolume(
         interaction,
         content: {
             embeds: [
-                successEmbed(
+                createSuccessEmbed(
                     'Current volume',
                     `🔊 Volume is at ${queue?.node?.volume ?? 100}%`,
                 ),
@@ -61,7 +61,7 @@ async function setVolume(
         interaction,
         content: {
             embeds: [
-                successEmbed('Volume changed', `🔊 Volume set to ${value}%`),
+                createSuccessEmbed('Volume changed', `🔊 Volume set to ${value}%`),
             ],
         },
     })
@@ -91,7 +91,7 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [errorEmbed('Error', validationError)],
+                    embeds: [createErrorEmbed('Error', validationError)],
                 },
             })
             return

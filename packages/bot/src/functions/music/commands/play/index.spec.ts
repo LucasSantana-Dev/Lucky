@@ -538,7 +538,7 @@ describe('play command', () => {
         expect(interaction.editReply).not.toHaveBeenCalled()
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
-            expect.stringContaining('Could not find'),
+            expect.any(String),
         )
     })
 

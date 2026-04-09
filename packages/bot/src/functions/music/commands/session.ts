@@ -2,10 +2,10 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import {
-    infoEmbed,
-    successEmbed,
-    warningEmbed,
-    errorEmbed,
+    createInfoEmbed,
+    createSuccessEmbed,
+    createWarningEmbed,
+    createErrorEmbed,
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
@@ -80,7 +80,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            warningEmbed(
+                            createWarningEmbed(
                                 'No active queue',
                                 'Start playing music before saving a session.',
                             ),
@@ -102,7 +102,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            warningEmbed(
+                            createWarningEmbed(
                                 'Could not save session',
                                 'Session name already exists, is invalid, or max sessions reached (10 per server).',
                             ),
@@ -117,7 +117,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        successEmbed(
+                        createSuccessEmbed(
                             'Session saved',
                             `**${session.name}** — ${session.trackCount} tracks`,
                         ),
@@ -136,7 +136,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            infoEmbed(
+                            createInfoEmbed(
                                 'No saved sessions',
                                 'Use `/session save` to create one.',
                             ),
@@ -156,7 +156,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        infoEmbed(
+                        createInfoEmbed(
                             'Saved Sessions',
                             descriptions.join('\n'),
                         ),
@@ -177,11 +177,11 @@ export default new Command({
                     content: {
                         embeds: [
                             deleted
-                                ? successEmbed(
+                                ? createSuccessEmbed(
                                       'Session deleted',
                                       `**${name}** has been removed.`,
                                   )
-                                : warningEmbed(
+                                : createWarningEmbed(
                                       'Session not found',
                                       `Could not find **${name}**.`,
                                   ),
@@ -206,7 +206,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            errorEmbed(
+                            createErrorEmbed(
                                 'Connection error',
                                 'Could not connect to your voice channel.',
                             ),
@@ -228,7 +228,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            warningEmbed(
+                            createWarningEmbed(
                                 'Session not found',
                                 `Could not find **${name}**.`,
                             ),
@@ -243,7 +243,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        successEmbed(
+                        createSuccessEmbed(
                             'Session restored',
                             `Restored ${result.restoredCount} tracks from **${name}**.`,
                         ),

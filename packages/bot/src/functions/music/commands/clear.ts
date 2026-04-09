@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { errorEmbed, successEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
@@ -19,7 +19,7 @@ async function handleEmptyQueue(
         interaction,
         content: {
             embeds: [
-                errorEmbed('Empty queue', '🗑️ The queue is already empty!'),
+                createErrorEmbed('Empty queue', '🗑️ The queue is already empty!'),
             ],
             ephemeral: true,
         },
@@ -42,7 +42,7 @@ async function clearQueueAndRespond(
         interaction,
         content: {
             embeds: [
-                successEmbed(
+                createSuccessEmbed(
                     'Queue cleared',
                     `🗑️ Removed ${trackCount} songs from the queue!`,
                 ),
@@ -60,7 +60,7 @@ async function handleClearError(
         interaction,
         content: {
             embeds: [
-                errorEmbed(
+                createErrorEmbed(
                     'Error',
                     '🔄 An error occurred while clearing the queue!',
                 ),

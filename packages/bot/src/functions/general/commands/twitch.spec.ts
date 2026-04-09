@@ -11,7 +11,7 @@ import type { ChatInputCommandInteraction, Guild, User } from 'discord.js'
 
 const interactionReplyMock = jest.fn()
 const requireGuildMock = jest.fn()
-const errorEmbedMock = jest.fn()
+const createErrorEmbedMock = jest.fn()
 const errorLogMock = jest.fn()
 const featureToggleServiceMock = jest.fn()
 const handleTwitchAddMock = jest.fn()
@@ -27,8 +27,8 @@ jest.mock('../../../utils/command/commandValidations', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    errorEmbed: errorEmbedMock,
-    successEmbed: jest.fn(),
+    createErrorEmbed: createErrorEmbedMock,
+    createSuccessEmbed: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -84,7 +84,7 @@ describe('twitch command', () => {
 
         requireGuildMock.mockResolvedValue(true)
         featureToggleServiceMock.mockResolvedValue(true)
-        errorEmbedMock.mockReturnValue({} as any)
+        createErrorEmbedMock.mockReturnValue({} as any)
     })
 
     afterEach(() => {

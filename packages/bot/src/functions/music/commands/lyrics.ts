@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { errorEmbed, musicEmbed, warningEmbed } from '../../../utils/general/embeds'
+import { createErrorEmbed, musicEmbed, createWarningEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireCurrentTrack } from '../../../utils/command/commandValidations'
 import { featureToggleService, lyricsService } from '@lucky/shared/services'
@@ -37,7 +37,7 @@ export default new Command({
                 interaction,
                 content: {
                     embeds: [
-                        warningEmbed(
+                        createWarningEmbed(
                             'Feature unavailable',
                             'The lyrics feature is currently disabled.',
                         ),
@@ -59,7 +59,7 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            errorEmbed(
+                            createErrorEmbed(
                                 'Server only',
                                 'This command can only be used in a server.',
                             ),
@@ -86,7 +86,7 @@ export default new Command({
 
             if ('error' in result) {
                 await interaction.editReply({
-                    embeds: [errorEmbed('Lyrics not found', result.message)],
+                    embeds: [createErrorEmbed('Lyrics not found', result.message)],
                 })
                 return
             }
@@ -125,7 +125,7 @@ export default new Command({
             })
             await interaction.editReply({
                 embeds: [
-                    errorEmbed(
+                    createErrorEmbed(
                         'Lyrics error',
                         'An unexpected error occurred while fetching lyrics. Please try again later.',
                     ),

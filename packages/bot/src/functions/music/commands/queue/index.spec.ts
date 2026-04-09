@@ -12,12 +12,12 @@ const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
     title,
     message,
 }))
-const successEmbedMock = jest.fn((title: string, message: string) => ({
+const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'success',
     title,
     message,
 }))
-const warningEmbedMock = jest.fn((title: string, message: string) => ({
+const createWarningEmbedMock = jest.fn((title: string, message: string) => ({
     type: 'warning',
     title,
     message,
@@ -45,8 +45,8 @@ jest.mock('./queueEmbed', () => ({
 
 jest.mock('../../../../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    successEmbed: (...args: unknown[]) => successEmbedMock(...args),
-    warningEmbed: (...args: unknown[]) => warningEmbedMock(...args),
+    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
 }))
 
 jest.mock('../../../../utils/general/interactionReply', () => ({
@@ -117,7 +117,7 @@ describe('queue command', () => {
             interaction: createInteraction('smartshuffle'),
         } as any)
 
-        expect(warningEmbedMock).toHaveBeenCalledWith(
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'Queue too short',
             'Need at least 2 queued tracks for smart shuffle.',
         )
@@ -133,7 +133,7 @@ describe('queue command', () => {
         } as any)
 
         expect(smartShuffleQueueMock).toHaveBeenCalledWith(queue)
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Smart shuffle complete',
             'Queue reordered with requester fairness and momentum.',
         )
@@ -151,7 +151,7 @@ describe('queue command', () => {
         expect(rescueQueueMock).toHaveBeenCalledWith(queue, {
             probeResolvable: true,
         })
-        expect(successEmbedMock).toHaveBeenCalledWith(
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             'Queue rescue complete',
             expect.stringContaining('Removed 1 broken track(s)'),
         )
