@@ -264,6 +264,35 @@ describe('handleMessageCreate — XP handling', () => {
             expect.objectContaining({ message: 'Error handling XP:' }),
         )
     })
+
+    it('silently handles role assignment failures', async () => {
+        getConfigMock.mockResolvedValue({
+            ...ACTIVE_CONFIG,
+            announceChannel: 'ch',
+        })
+        getMemberXPMock.mockResolvedValue(null)
+        addXPMock.mockResolvedValue({ leveledUp: true, newLevel: 5 })
+        getRewardsMock.mockResolvedValue([{ level: 5, roleId: 'role-5' }])
+        const addRoleMock = jest.fn().mockRejectedValue(new Error('permission denied'))
+        const sendMock = jest.fn().mockResolvedValue(undefined)
+        const message = makeMessage({
+            member: { roles: { cache: new Map(), add: addRoleMock } },
+            client: {
+                channels: {
+                    fetch: jest.fn().mockResolvedValue({
+                        isTextBased: () => true,
+                        send: sendMock,
+                    }),
+                },
+                user: { id: 'bot-id', tag: 'Bot#0001' },
+            },
+        })
+        await client._handlers['messageCreate'](message)
+        expect(addRoleMock).toHaveBeenCalledWith('role-5')
+        expect(errorLogMock).not.toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error handling XP:' }),
+        )
+    })
 })
 
 describe('handleMessageCreate — AutoMod handling', () => {

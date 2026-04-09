@@ -126,6 +126,7 @@ describe('MusicRecommendationService', () => {
             )
 
             expect(result).toEqual([])
+            expect(trackHistoryGetMock).toHaveBeenCalledWith('guild-6', 20)
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'No history found for recommendations',

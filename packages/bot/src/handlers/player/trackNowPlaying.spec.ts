@@ -87,6 +87,7 @@ describe('trackNowPlaying', () => {
         getAutoplayCountMock.mockResolvedValue(7)
         isLastFmConfiguredMock.mockReturnValue(false)
         getSessionKeyForUserMock.mockResolvedValue(null)
+        createMusicControlButtonsMock.mockReturnValue({ type: 1, components: [] })
     })
 
     it('adds autoplay reason field and footer progress for autoplay tracks', async () => {
@@ -134,12 +135,22 @@ describe('trackNowPlaying', () => {
             requestedBy: { username: 'user-a' },
             metadata: {},
         }
+        const buttons = { type: 1, components: [] }
+        createMusicControlButtonsMock.mockReturnValue(buttons)
 
         await sendNowPlayingEmbed(queue as any, track as any, false)
         await sendNowPlayingEmbed(queue as any, track as any, false)
 
         expect(channel.send).toHaveBeenCalledTimes(1)
         expect(channel.messages.fetch).toHaveBeenCalledWith('message-1')
+        expect(createMusicControlButtonsMock).toHaveBeenCalled()
+        const message = await channel.messages.fetch('message-1')
+        expect(message.edit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embeds: expect.any(Array),
+                components: [buttons],
+            }),
+        )
     })
 
     it.each([
