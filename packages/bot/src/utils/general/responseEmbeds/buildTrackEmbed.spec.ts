@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals'
-import { buildTrackEmbed } from './buildTrackEmbed'
+import { buildTrackEmbed, buildCommandTrackEmbed, trackToData } from './buildTrackEmbed'
 import { detectSource } from '../../music/nowPlayingEmbed'
 
 const fakeUser = {
@@ -149,5 +149,67 @@ describe('buildTrackEmbed', () => {
     it('includes timestamp in all embeds', () => {
         const embed = buildTrackEmbed(baseTrack, 'playing')
         expect(embed.data.timestamp).toBeDefined()
+    })
+})
+
+describe('trackToData', () => {
+    const fakeTrack = {
+        title: 'Test Song',
+        author: 'Test Artist',
+        url: 'https://youtube.com/watch?v=test',
+        thumbnail: 'https://img.youtube.com/test.jpg',
+        durationMS: 215000,
+        source: 'youtube',
+    }
+
+    it('maps all fields correctly', () => {
+        const data = trackToData(fakeTrack as never)
+        expect(data.title).toBe('Test Song')
+        expect(data.author).toBe('Test Artist')
+        expect(data.url).toBe(fakeTrack.url)
+        expect(data.thumbnail).toBe(fakeTrack.thumbnail)
+        expect(data.source).toBe('youtube')
+    })
+
+    it('formats durationMS as MM:SS', () => {
+        const data = trackToData(fakeTrack as never)
+        expect(data.duration).toBe('3:35')
+    })
+
+    it('zero-pads seconds below 10', () => {
+        const data = trackToData({ ...fakeTrack, durationMS: 65000 } as never)
+        expect(data.duration).toBe('1:05')
+    })
+
+    it('omits duration when durationMS is 0', () => {
+        const data = trackToData({ ...fakeTrack, durationMS: 0 } as never)
+        expect(data.duration).toBeUndefined()
+    })
+
+    it('sets source to null when missing', () => {
+        const data = trackToData({ ...fakeTrack, source: undefined } as never)
+        expect(data.source).toBeNull()
+    })
+})
+
+describe('buildCommandTrackEmbed', () => {
+    const track = {
+        title: 'Test Song',
+        author: 'Test Artist',
+        url: 'https://youtube.com/watch?v=test',
+        thumbnail: 'https://img.youtube.com/test.jpg',
+        durationMS: 60000,
+        source: 'youtube',
+    }
+
+    it('returns an embed with the status label as author name', () => {
+        const embed = buildCommandTrackEmbed(track as never, '⏸️ Paused', fakeUser)
+        expect(embed.data.author?.name).toBe('⏸️ Paused')
+    })
+
+    it('builds embed from track data and passes requestedBy', () => {
+        const embed = buildCommandTrackEmbed(track as never, '▶️ Resumed', fakeUser)
+        expect(embed.data.title).toBe(track.title)
+        expect(embed.data.footer?.text).toContain(fakeUser.tag)
     })
 })

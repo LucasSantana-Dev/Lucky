@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 jest.mock('../../../../utils/music/buttonComponents', () => ({
     createQueuePaginationButtons: jest.fn().mockReturnValue(null),
+    createMusicControlButtons: jest.fn().mockReturnValue({}),
 }))
 
 import {
