@@ -1,6 +1,6 @@
 {
     "name": "lucky-bot",
-    "version": "2.6.64",
+    "version": "2.6.65",
     "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
     "type": "module",
     "workspaces": [
@@ -114,8 +114,8 @@
         "effect": "^3.20.0",
         "@smithy/config-resolver": ">=4.4.10",
         "@aws-sdk/client-sso": ">=3.726.0",
-        "@hono/node-server": ">=1.19.10",
-        "hono": ">=4.12.7",
+        "@hono/node-server": ">=1.19.13",
+        "hono": ">=4.12.12",
         "lodash": ">=4.17.22",
         "file-type": ">=21.3.2",
         "yauzl": ">=3.2.1",
