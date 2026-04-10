@@ -5,6 +5,7 @@ const flushPromises = () =>
 
 const requireVoiceChannelMock =
     jest.fn<(interaction: unknown) => Promise<boolean>>()
+const requireDJRoleMock = jest.fn()
 const errorLogMock = jest.fn<(payload: unknown) => void>()
 const debugLogMock = jest.fn<(payload: unknown) => void>()
 const warnLogMock = jest.fn<(payload: unknown) => void>()
