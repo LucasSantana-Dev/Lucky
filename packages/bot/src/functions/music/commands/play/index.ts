@@ -27,6 +27,7 @@ import {
     isUnknownInteractionError,
     isUrl,
     resolveSearchEngine,
+    normalizeSoundCloudUrl,
 } from './queryUtils'
 
 function isTrackAlreadyQueued(
@@ -98,7 +99,8 @@ export default new Command({
             throw error
         }
 
-        const query = interaction.options.getString('query', true)
+        const rawQuery = interaction.options.getString('query', true)
+        const query = normalizeSoundCloudUrl(rawQuery)
         const provider = interaction.options.getString('provider')
         const collaborativeCheck = collaborativePlaylistService.canAddTracks(
             interaction.guildId,

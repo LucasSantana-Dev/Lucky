@@ -28,6 +28,21 @@ export function isUrl(query: string): boolean {
     return query.startsWith('http://') || query.startsWith('https://')
 }
 
+/**
+ * Strips SoundCloud playlist-context query params (`?in=...`) that the
+ * SoundCloud extractor cannot resolve. The bare track URL resolves correctly.
+ */
+export function normalizeSoundCloudUrl(url: string): string {
+    if (!url.includes('soundcloud.com')) return url
+    try {
+        const parsed = new URL(url)
+        parsed.searchParams.delete('in')
+        return parsed.toString()
+    } catch {
+        return url
+    }
+}
+
 export function resolveSearchEngine(
     query: string,
     provider?: string | null,

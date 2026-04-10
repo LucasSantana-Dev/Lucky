@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { ColorResolvable, TextChannel, User } from 'discord.js'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
 import { constants } from '@lucky/shared/config'
@@ -163,7 +163,16 @@ export async function updateLastFmNowPlaying(
         )
         lastFmTrackStartTime.set(queue.guild.id, Math.floor(Date.now() / 1000))
     } catch (err) {
-        errorLog({ message: 'Last.fm updateNowPlaying failed', error: err })
+        const is403 = err instanceof Error && err.message.includes('403')
+        if (is403) {
+            warnLog({
+                message:
+                    'Last.fm updateNowPlaying: session expired, re-auth needed',
+                error: err,
+            })
+        } else {
+            errorLog({ message: 'Last.fm updateNowPlaying failed', error: err })
+        }
     }
 }
 
@@ -192,6 +201,14 @@ export async function scrobbleCurrentTrackIfLastFm(
             sessionKey,
         )
     } catch (err) {
-        errorLog({ message: 'Last.fm scrobble failed', error: err })
+        const is403 = err instanceof Error && err.message.includes('403')
+        if (is403) {
+            warnLog({
+                message: 'Last.fm scrobble: session expired, re-auth needed',
+                error: err,
+            })
+        } else {
+            errorLog({ message: 'Last.fm scrobble failed', error: err })
+        }
     }
 }
