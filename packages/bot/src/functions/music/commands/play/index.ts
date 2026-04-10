@@ -150,14 +150,20 @@ export default new Command({
                     query,
                     playOptions,
                 )
-            } catch (spotifyError) {
-                // Only auto-fallback when the user did NOT explicitly specify a
-                // provider. If they chose spotify/youtube/soundcloud and it
-                // failed, surface the error so they can adjust their query.
-                if (searchEngine !== QueryType.AUTO && provider === null) {
-                    debugLog({
-                        message: 'Search failed, falling back to YouTube',
-                        data: { query, searchEngine },
+            } catch (primaryError) {
+                // Primary search failed — fall back through YouTube then AUTO.
+                // Always fall back regardless of which provider was requested;
+                // surfacing a hard error is worse than playing the song from a
+                // different source. We log the fallback so it shows up in traces.
+                if (searchEngine !== QueryType.AUTO) {
+                    warnLog({
+                        message:
+                            'Primary search failed, falling back to YouTube',
+                        data: {
+                            query,
+                            requestedProvider: provider ?? 'default',
+                            searchEngine: String(searchEngine),
+                        },
                     })
                     try {
                         result = await client.player.play(voiceChannel, query, {
@@ -165,9 +171,9 @@ export default new Command({
                             searchEngine: QueryType.YOUTUBE_SEARCH,
                         })
                     } catch (youtubeError) {
-                        debugLog({
+                        warnLog({
                             message:
-                                'YouTube search failed, falling back to auto',
+                                'YouTube search failed, falling back to AUTO',
                             data: { query },
                         })
                         result = await client.player.play(voiceChannel, query, {
@@ -176,7 +182,7 @@ export default new Command({
                         })
                     }
                 } else {
-                    throw spotifyError
+                    throw primaryError
                 }
             }
 

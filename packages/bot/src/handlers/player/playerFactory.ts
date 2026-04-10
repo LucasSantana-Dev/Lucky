@@ -217,10 +217,11 @@ export async function createResilientStream(
             })
             return stream
         } catch (ytdlpError) {
-            debugLog({
+            warnLog({
                 message: 'Bridge: yt-dlp failed, falling back to SoundCloud',
                 data: {
                     error: (ytdlpError as Error).message,
+                    url: track.url,
                     cleanedTitle,
                 },
             })
@@ -247,13 +248,15 @@ export async function createResilientStream(
         return await streamViaSoundCloud(cleanedTitle, track.duration)
     } catch {
         debugLog({
-            message: 'Bridge: title-only SoundCloud failed, retrying without parentheticals',
+            message:
+                'Bridge: title-only SoundCloud failed, retrying without parentheticals',
             data: { cleanedTitle },
         })
     }
 
     const openParen = cleanedTitle.indexOf('(')
-    const coreTitle = openParen > 0 ? cleanedTitle.slice(0, openParen).trim() : cleanedTitle
+    const coreTitle =
+        openParen > 0 ? cleanedTitle.slice(0, openParen).trim() : cleanedTitle
     if (coreTitle && coreTitle !== cleanedTitle) {
         try {
             return await streamViaSoundCloud(coreTitle, track.duration)
@@ -344,7 +347,9 @@ export function findMatchingSoundCloudResult(
         const resultNorm = normalizeForMatch(result.name)
         if (!resultNorm) return false
 
-        const matched = tokens.filter((token) => resultNorm.includes(token)).length
+        const matched = tokens.filter((token) =>
+            resultNorm.includes(token),
+        ).length
         const titleMatch = matched / tokens.length >= TITLE_MATCH_THRESHOLD
         if (!titleMatch) return false
 
