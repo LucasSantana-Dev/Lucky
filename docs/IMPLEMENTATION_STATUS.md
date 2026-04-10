@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
-**Last Updated:** 2026-04-07  
-**Current Version:** v2.6.64
+**Last Updated:** 2026-04-10  
+**Current Version:** v2.6.71
 
 This document reflects what is currently shipped and running in production.
 
@@ -19,7 +19,7 @@ This document reflects what is currently shipped and running in production.
 
 ### Bot Commands
 
-#### Music (`/play`, `/queue`, `/skip`, `/stop`, `/pause`, `/resume`, `/volume`, etc.)
+#### Music (`/play`, `/queue`, `/skip`, `/stop`, `/pause`, `/volume`, etc.)
 
 - Full playback lifecycle with Discord Player v7
 - Queue management: `/queue show`, `/queue clear`, `/queue remove`, `/queue move`
@@ -27,8 +27,21 @@ This document reflects what is currently shipped and running in production.
 - `/queue smartshuffle` — energy-aware shuffle ordered by source/duration energy score, interleaved high/low buckets, per-requester streak limit (v2.6.24)
 - `/queue rescue` — probe-based detection and removal of unresolvable tracks (v2.6.20)
 - `/lyrics` — paginated lyrics via lyrics.ovh with smart query cleaning (v2.6.60)
-- `/repeat`, `/autoplay` — repeat mode and autoplay toggle; autoplay preference persists across sessions (v2.6.61)
+- `/repeat`, `/autoplay` — repeat mode and autoplay toggle; autoplay preference persists across sessions; **default ON** for new guilds (v2.6.61, v2.6.71)
 - `/session save|restore|list|delete <name>` — named queue snapshots, up to 10 per guild, 30-day TTL, autocomplete on restore/delete (v2.6.63)
+- **`/playtop <query>`** — queue a track at position 1, plays next after current (v2.6.71)
+- **`/playskip <query>`** — queue at front and immediately skip current track (v2.6.71)
+- **`/skipto <position>`** — skip all tracks before the given queue position (v2.6.71)
+- **`/seek <time>`** — seek to `mm:ss` or raw seconds in current track (v2.6.71)
+- **`/replay`** — restart current track from the beginning (v2.6.71)
+- **`/leavecleanup`** — remove queued tracks from users who left the voice channel (v2.6.71)
+- **`/nowplaying`** — alias for `/songinfo`; shows current track rich embed (v2.6.71)
+- **`/volume`** — range extended to 1–200 (v2.6.71)
+- **`/pause`** — now toggles pause/resume; `/resume` removed (v2.6.71)
+- **`/play`** — optional `provider` parameter: `spotify` (default) | `youtube` | `soundcloud` (v2.6.71)
+- **`/effects bassboost <0-5>`** — bass boost via FFmpeg filter; levels map to `bassboost_low/bassboost/bassboost_high` (v2.6.71)
+- **`/effects nightcore`** — speed + pitch up FFmpeg filter (v2.6.71)
+- **`/effects reset`** — remove all active audio effects (v2.6.71)
 
 #### Music Intelligence
 
@@ -52,6 +65,9 @@ This document reflects what is currently shipped and running in production.
 - Full case management with case number tracking, DM notifications, evidence logging
 - **`/digest view`** — moderation activity digest with period-filtered stats and top 5 moderators (7d/30d/90d); date-bounded `getCasesSince` query backed by a composite index (v2.6.24, accuracy fix v2.6.64)
 - **`/digest schedule|unschedule`** — weekly automated digest posts to a chosen text channel; Redis-backed config, hourly in-process scheduler with single-flight guard, per-guild error isolation, env-validated interval/period, startup decoupled from the ready handler (v2.6.64)
+- **`/purge <amount> [user] [contains]`** — bulk delete 1–100 messages; optional user and content filters; respects Discord's 14-day message age limit (v2.6.71)
+- **`/lockdown [reason]`** — toggle `SendMessages` permission for `@everyone`; second invocation unlocks; requires `ManageChannels` (v2.6.71)
+- **`/slowmode <seconds>`** — set channel slowmode 0–21600s (6h); 0 disables; requires `ManageChannels` (v2.6.71)
 
 #### Auto-Moderation (`/automod`)
 
@@ -65,6 +81,15 @@ This document reflects what is currently shipped and running in production.
 - Embed builder (`/embed`), custom commands (`/customcommand`), auto-messages (`/automessage`)
 - Server logs (`/serverlog`), guild automation (RBAC-aware role assignment)
 - Reaction roles (`/reactionrole`)
+- **`/autorole add <role> [delay_minutes]`** — assign a role to new members on join; optional delay up to 1440 minutes (v2.6.71)
+- **`/autorole remove <role>`** — remove a configured autorole (v2.6.71)
+- **`/autorole list`** — list all configured autoroles for the guild (v2.6.71)
+
+#### Engagement
+
+- **`/giveaway start <duration> <prize> [winners]`** — giveaway with 🎉 button entry; duration in `1h`/`30m`/`2d` format; auto-picks winners on end (v2.6.71)
+- **`/giveaway end <message_id>`** — end a giveaway early and pick winners (v2.6.71)
+- **`/giveaway reroll <message_id>`** — reroll winners for a completed giveaway (v2.6.71)
 
 #### Download
 
@@ -123,6 +148,10 @@ This document reflects what is currently shipped and running in production.
 | Area                    | Description                                                                                      | Complexity |
 | ----------------------- | ------------------------------------------------------------------------------------------------ | ---------- |
 | Collaborative playlists | Shared curation surface (`/playlist`) on top of the existing per-user contribution limit service | L          |
+| DJ role restriction     | `/djrole set/clear/show` — restrict music commands to a configured role per guild                | M          |
+| Auto-disconnect         | Leave voice channel after configurable idle timeout (default 5 min)                              | M          |
+| Vote skip               | `/voteskip` — democratic skip requiring configurable % of voice members                          | M          |
+| Queue history view      | `/history` — paginated view of recently played tracks (leverages existing trackHistoryService)   | S          |
 
 ---
 

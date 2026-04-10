@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.71] - 2026-04-10
+
+### Added
+
+- **`/playtop <query>`** — queue a track at the front (plays next after current)
+- **`/playskip <query>`** — queue a track at the front and immediately skip the current track
+- **`/skipto <position>`** — skip all tracks before the given queue position
+- **`/seek <time>`** — seek to a position in the current track (`mm:ss` or raw seconds)
+- **`/replay`** — restart the current track from the beginning
+- **`/leavecleanup`** — remove all queued tracks requested by users who have left the voice channel
+- **`/nowplaying`** — alias for `/songinfo`; shows current track with rich embed
+- **`/effects bassboost <0-5>`** — apply bass boost via FFmpeg filter (levels map to `bassboost_low` → `bassboost_high`)
+- **`/effects nightcore`** — apply nightcore (speed + pitch up) FFmpeg filter
+- **`/effects reset`** — remove all active audio effects
+- **`/volume`** range extended to 1–200 (was 1–100)
+- **`/pause`** now toggles (pauses if playing, resumes if paused); `/resume` removed
+- **`/play`** optional `provider` parameter: `spotify` (default) | `youtube` | `soundcloud`
+- **`/purge <amount> [user] [contains]`** — bulk delete 1–100 messages; optional user and content filters
+- **`/lockdown [reason]`** — toggle `SendMessages` permission for `@everyone` in the current channel
+- **`/slowmode <seconds>`** — set channel slowmode (0 = off, max 21600s / 6h)
+- **`/autorole add <role> [delay_minutes]`** — assign a role to all new members on join, with optional delay up to 1440 minutes
+- **`/autorole remove <role>`** — remove a configured autorole
+- **`/autorole list`** — display all configured autoroles for the guild
+- **`/giveaway start <duration> <prize> [winners]`** — start a giveaway with 🎉 button entry; duration in `1h`/`30m`/`2d` format
+- **`/giveaway end <message_id>`** — end a giveaway early and pick winners
+- **`/giveaway reroll <message_id>`** — reroll winners for a completed giveaway
+- **Autoplay default ON** — guilds with no stored preference now default to autoplay enabled on new queues
+- **Cross-session autoplay deduplication** — `replenishQueue` fetches the last 20 played tracks from persistent history and excludes them from autoplay candidates, preventing recently-played songs from cycling back cross-session
+
 ## [2.6.70] - 2026-04-10
 
 ### Fixed
