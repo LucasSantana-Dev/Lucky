@@ -13,6 +13,8 @@ const handleMemberEventsMock = jest.fn()
 const handleAuditEventsMock = jest.fn()
 const handleExternalScrobblerMock = jest.fn()
 const handleReactionEventsMock = jest.fn()
+const handleMusicButtonInteractionMock = jest.fn()
+const handleButtonInteractionMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -49,6 +51,18 @@ jest.mock('./externalScrobbler', () => ({
 jest.mock('./reactionHandler', () => ({
     handleReactionEvents: (...args: unknown[]) =>
         handleReactionEventsMock(...args),
+}))
+
+jest.mock('./musicButtonHandler', () => ({
+    handleMusicButtonInteraction: (...args: unknown[]) =>
+        handleMusicButtonInteractionMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    reactionRolesService: {
+        handleButtonInteraction: (...args: unknown[]) =>
+            handleButtonInteractionMock(...args),
+    },
 }))
 
 jest.mock('../utils/music/namedSessions', () => ({
@@ -106,10 +120,13 @@ function createAutocompleteInteraction(
         guildId: options.guildId === undefined ? 'guild-1' : options.guildId,
         commandName: options.commandName ?? 'session',
         options: {
-            getSubcommand: jest.fn().mockReturnValue(options.subcommand ?? 'restore'),
-            getFocused: jest
+            getSubcommand: jest
                 .fn()
-                .mockReturnValue({ name: options.focusedName ?? 'name', value: '' }),
+                .mockReturnValue(options.subcommand ?? 'restore'),
+            getFocused: jest.fn().mockReturnValue({
+                name: options.focusedName ?? 'name',
+                value: '',
+            }),
         },
         respond: respondMock,
     } as unknown as Interaction
@@ -136,6 +153,7 @@ describe('eventHandler', () => {
 
         interactionHandler?.({
             isAutocomplete: () => false,
+            isButton: () => false,
             isChatInputCommand: () => true,
             commandName: 'unknown',
             replied: false,
@@ -165,6 +183,7 @@ describe('eventHandler', () => {
 
         interactionHandler?.({
             isAutocomplete: () => false,
+            isButton: () => false,
             isChatInputCommand: () => true,
             commandName: 'broken',
             replied: true,
@@ -233,7 +252,9 @@ describe('eventHandler', () => {
 
         it('caps autocomplete response to the Discord limit of 25', async () => {
             namedSessionListMock.mockResolvedValue(
-                Array.from({ length: 40 }, (_, i) => ({ name: `session-${i}` })),
+                Array.from({ length: 40 }, (_, i) => ({
+                    name: `session-${i}`,
+                })),
             )
             const respondMock = jest.fn()
             const interaction = createAutocompleteInteraction({
@@ -288,6 +309,52 @@ describe('eventHandler', () => {
                     error: expect.any(Error),
                 }),
             )
+        })
+    })
+
+    describe('button interactions', () => {
+        function createButtonInteraction(customId: string): Interaction {
+            return {
+                isAutocomplete: () => false,
+                isChatInputCommand: () => false,
+                isButton: () => true,
+                customId,
+            } as unknown as Interaction
+        }
+
+        async function dispatchButton(customId: string): Promise<void> {
+            const { client, onMock } = createMockClient()
+            handleEvents(client as unknown as never)
+            const handler = getInteractionCreateHandler(onMock)
+            handler?.(createButtonInteraction(customId))
+            await flushAsyncHandlers()
+        }
+
+        beforeEach(() => {
+            handleMusicButtonInteractionMock.mockResolvedValue(undefined)
+            handleButtonInteractionMock.mockResolvedValue(undefined)
+        })
+
+        it('routes music_ buttons to handleMusicButtonInteraction', async () => {
+            await dispatchButton('music_pause_resume')
+            expect(handleMusicButtonInteractionMock).toHaveBeenCalledTimes(1)
+            expect(handleButtonInteractionMock).not.toHaveBeenCalled()
+        })
+
+        it('routes queue_page buttons to handleMusicButtonInteraction', async () => {
+            await dispatchButton('queue_page_2')
+            expect(handleMusicButtonInteractionMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('routes leaderboard_page buttons to handleMusicButtonInteraction', async () => {
+            await dispatchButton('leaderboard_page_0')
+            expect(handleMusicButtonInteractionMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('routes other buttons to reactionRolesService', async () => {
+            await dispatchButton('reaction_role_123')
+            expect(handleButtonInteractionMock).toHaveBeenCalledTimes(1)
+            expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
         })
     })
 })

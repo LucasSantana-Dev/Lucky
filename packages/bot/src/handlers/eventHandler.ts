@@ -18,6 +18,8 @@ import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
 import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
+import { handleMusicButtonInteraction } from './musicButtonHandler'
+import { reactionRolesService } from '@lucky/shared/services'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../utils/music/namedSessions'
 
@@ -102,9 +104,7 @@ async function handleInteractionError(
     }
 }
 
-async function handleAutocomplete(
-    interaction: Interaction,
-): Promise<void> {
+async function handleAutocomplete(interaction: Interaction): Promise<void> {
     try {
         if (!interaction.isAutocomplete()) return
         if (!interaction.guildId) {
@@ -121,9 +121,7 @@ async function handleAutocomplete(
             (subcommand === 'restore' || subcommand === 'delete') &&
             focusedOption.name === 'name'
         ) {
-            const sessions = await namedSessionService.list(
-                interaction.guildId,
-            )
+            const sessions = await namedSessionService.list(interaction.guildId)
             const choices = sessions
                 .map((s) => ({ name: s.name, value: s.name }))
                 .slice(0, 25)
@@ -145,6 +143,20 @@ async function handleInteractionCreate(
     try {
         if (interaction.isAutocomplete()) {
             await handleAutocomplete(interaction)
+            return
+        }
+
+        if (interaction.isButton()) {
+            const id = interaction.customId
+            if (
+                id.startsWith('music_') ||
+                id.startsWith('queue_page') ||
+                id.startsWith('leaderboard_page')
+            ) {
+                await handleMusicButtonInteraction(interaction)
+                return
+            }
+            await reactionRolesService.handleButtonInteraction(interaction)
             return
         }
 
