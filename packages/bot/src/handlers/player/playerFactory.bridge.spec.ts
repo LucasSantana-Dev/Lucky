@@ -124,7 +124,11 @@ describe('findMatchingSoundCloudResult', () => {
     it('accepts when duration is 16-30s off (relaxed tolerance)', () => {
         expect(
             findMatchingSoundCloudResult('Bohemian Rhapsody', '5:55', [
-                { name: 'Bohemian Rhapsody', url: 'sc://1', durationInSec: 374 },
+                {
+                    name: 'Bohemian Rhapsody',
+                    url: 'sc://1',
+                    durationInSec: 374,
+                },
             ])?.url,
         ).toBe('sc://1')
     })
@@ -171,9 +175,19 @@ describe('findMatchingSoundCloudResult', () => {
     })
 
     it('returns undefined when fewer than 75% of tokens match', () => {
-        const results = [{ name: 'Completely Different Song', url: 'sc://x', durationInSec: 180 }]
+        const results = [
+            {
+                name: 'Completely Different Song',
+                url: 'sc://x',
+                durationInSec: 180,
+            },
+        ]
         expect(
-            findMatchingSoundCloudResult('Bohemian Rhapsody Queen', '3:00', results),
+            findMatchingSoundCloudResult(
+                'Bohemian Rhapsody Queen',
+                '3:00',
+                results,
+            ),
         ).toBeUndefined()
     })
 })
@@ -222,18 +236,22 @@ describe('streamViaYtDlp', () => {
         spawnMock.mockReset()
     })
 
-    it('resolves with stdout when yt-dlp emits data', async () => {
+    it('resolves with a readable stream containing the first chunk when yt-dlp emits data', async () => {
         const proc = makeSpawnSuccess()
         spawnMock.mockReturnValue(proc)
 
         const stream = await streamViaYtDlp('https://youtube.com/watch?v=test')
-        expect(stream).toBe(proc.stdout)
+        // Now returns a PassThrough (not raw proc.stdout) to preserve first chunk
+        expect(stream).not.toBe(proc.stdout)
+        expect(stream.readable).toBe(true)
         expect(spawnMock).toHaveBeenCalledWith(
             'yt-dlp',
             expect.arrayContaining([
                 '--no-playlist',
                 '-o',
                 '-',
+                '--js-runtimes',
+                'node:/usr/local/bin/node',
                 'https://youtube.com/watch?v=test',
             ]),
             expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] }),
@@ -307,7 +325,7 @@ describe('createResilientStream', () => {
         spawnMock.mockReturnValue(proc)
 
         const result = await createResilientStream(makeTrack())
-        expect(result).toBe(proc.stdout)
+        expect(result.readable).toBe(true)
         expect(spawnMock).toHaveBeenCalledWith(
             'yt-dlp',
             expect.arrayContaining([
@@ -366,15 +384,19 @@ describe('createResilientStream', () => {
                 author: 'Best Songs',
             }),
         )
-        expect(result).toBe(proc.stdout)
+        expect(result.readable).toBe(true)
         expect(playdlSearchMock).not.toHaveBeenCalled()
     })
 
     it('falls back to core title (stripped parentheticals) when title-only search fails', async () => {
         spawnMock.mockReturnValue(makeSpawnError(1))
         playdlSearchMock
-            .mockResolvedValueOnce([{ name: 'Unrelated', url: 'sc://miss', durationInSec: 180 }])
-            .mockResolvedValueOnce([{ name: 'Unrelated', url: 'sc://miss2', durationInSec: 180 }])
+            .mockResolvedValueOnce([
+                { name: 'Unrelated', url: 'sc://miss', durationInSec: 180 },
+            ])
+            .mockResolvedValueOnce([
+                { name: 'Unrelated', url: 'sc://miss2', durationInSec: 180 },
+            ])
             .mockResolvedValueOnce([
                 {
                     name: 'Bohemian Rhapsody',
@@ -385,7 +407,9 @@ describe('createResilientStream', () => {
         playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
 
         const result = await createResilientStream(
-            makeTrack({ title: 'Bohemian Rhapsody (Official Music Live Session)' }),
+            makeTrack({
+                title: 'Bohemian Rhapsody (Official Music Live Session)',
+            }),
         )
         expect(result).toBe(fakeStream)
         expect(playdlSearchMock).toHaveBeenCalledTimes(3)
