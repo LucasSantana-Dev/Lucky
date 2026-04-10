@@ -225,11 +225,15 @@ export default new Command({
                       queuePosition,
                   })
 
-            collaborativePlaylistService.recordContribution(
-                interaction.guildId,
-                interaction.user.id,
-                1,
-            )
+            try {
+                collaborativePlaylistService.recordContribution(
+                    interaction.guildId,
+                    interaction.user.id,
+                    1,
+                )
+            } catch (err) {
+                errorLog({ message: 'Failed to record contribution', error: err })
+            }
 
             // Attach the music control button row so the user can
             // pause/skip/shuffle/loop/previous directly from the /play
