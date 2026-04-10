@@ -19,35 +19,12 @@ import {
 } from '../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
-
-const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
-
-function isUnknownInteractionError(error: unknown): boolean {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
-    )
-}
-
-function isUrl(query: string): boolean {
-    return query.startsWith('http://') || query.startsWith('https://')
-}
-
-function resolveSearchEngine(query: string, provider?: string | null): QueryType {
-    if (isUrl(query)) return QueryType.AUTO
-
-    switch (provider) {
-        case 'youtube':
-            return QueryType.YOUTUBE_SEARCH
-        case 'soundcloud':
-            return QueryType.SOUNDCLOUD_SEARCH
-        case 'spotify':
-        default:
-            return QueryType.SPOTIFY_SEARCH
-    }
-}
+import {
+    DISCORD_UNKNOWN_INTERACTION_CODE,
+    isUnknownInteractionError,
+    isUrl,
+    resolveSearchEngine,
+} from './queryUtils'
 
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },

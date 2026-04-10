@@ -11,27 +11,11 @@ import { createUserFriendlyError } from '../../../utils/general/errorSanitizer'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { buildPlayResponseEmbed } from '../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../utils/music/buttonComponents'
-import { QueryType } from 'discord-player'
-
-const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
-
-function isUnknownInteractionError(error: unknown): boolean {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
-    )
-}
-
-function isUrl(query: string): boolean {
-    return query.startsWith('http://') || query.startsWith('https://')
-}
-
-function resolveSearchEngine(query: string): QueryType {
-    if (isUrl(query)) return QueryType.AUTO
-    return QueryType.SPOTIFY_SEARCH
-}
+import {
+    isUnknownInteractionError,
+    isUrl,
+    resolveSearchEngine,
+} from './play/queryUtils'
 
 export default new Command({
     data: new SlashCommandBuilder()
