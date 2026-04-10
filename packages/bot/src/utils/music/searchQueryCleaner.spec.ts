@@ -138,3 +138,45 @@ describe('isSpamChannel', () => {
         expect(isSpamChannel('   ')).toBe(false)
     })
 })
+
+describe('cleanTitle — version variant noise patterns', () => {
+    it('strips (Live) and (Live Version)', () => {
+        expect(cleanTitle('Bohemian Rhapsody (Live)')).toBe('Bohemian Rhapsody')
+        expect(cleanTitle('Bohemian Rhapsody (Live Version)')).toBe(
+            'Bohemian Rhapsody',
+        )
+    })
+
+    it('strips (Acoustic) and (Acoustic Version)', () => {
+        expect(cleanTitle('Creep (Acoustic)')).toBe('Creep')
+        expect(cleanTitle('Creep (Acoustic Version)')).toBe('Creep')
+    })
+
+    it('strips (Cover) and (Cover Version)', () => {
+        expect(cleanTitle('Hallelujah (Cover)')).toBe('Hallelujah')
+    })
+
+    it('strips (Remix) and [Remix]', () => {
+        expect(cleanTitle('Blinding Lights (Remix)')).toBe('Blinding Lights')
+        expect(cleanTitle('Blinding Lights [Remix]')).toBe('Blinding Lights')
+    })
+
+    it('strips (Instrumental)', () => {
+        expect(cleanTitle('Shape of You (Instrumental)')).toBe('Shape of You')
+    })
+
+    it('strips (Explicit Version) and (Clean Version)', () => {
+        expect(cleanTitle('Track (Explicit Version)')).toBe('Track')
+        expect(cleanTitle('Track (Clean Version)')).toBe('Track')
+    })
+
+    it('strips (Deluxe Edition) and (Album Version)', () => {
+        expect(cleanTitle('Song (Deluxe Edition)')).toBe('Song')
+        expect(cleanTitle('Song (Album Version)')).toBe('Song')
+    })
+
+    it('strips (Single Version) and (Bonus Track)', () => {
+        expect(cleanTitle('Track (Single Version)')).toBe('Track')
+        expect(cleanTitle('Track (Bonus Track)')).toBe('Track')
+    })
+})

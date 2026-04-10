@@ -130,7 +130,8 @@ describe('handleMusicButtonInteraction', () => {
 
         await handleMusicButtonInteraction(interaction as never)
 
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
     })
@@ -141,7 +142,8 @@ describe('handleMusicButtonInteraction', () => {
 
         await handleMusicButtonInteraction(interaction as never)
 
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
     })
@@ -254,7 +256,8 @@ describe('handleMusicButtonInteraction', () => {
         await handleMusicButtonInteraction(interaction as never)
 
         expect(errorLogMock).toHaveBeenCalled()
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
     })

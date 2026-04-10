@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
+const flushPromises = () =>
+    new Promise<void>((resolve) => setImmediate(resolve))
+
 const requireVoiceChannelMock =
     jest.fn<(interaction: unknown) => Promise<boolean>>()
 const errorLogMock = jest.fn<(payload: unknown) => void>()
@@ -47,6 +50,8 @@ const moveUserTrackToPriorityMock =
 const blendAutoplayTracksMock =
     jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
 const interactionReplyMock = jest.fn<(payload: unknown) => Promise<void>>()
+const buildPlayResponseEmbedMock = jest.fn<(payload: unknown) => unknown>()
+const createMusicControlButtonsMock = jest.fn<(queue: unknown) => unknown>()
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
@@ -112,6 +117,20 @@ jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (payload: unknown) => interactionReplyMock(payload),
 }))
 
+jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({
+    buildPlayResponseEmbed: (payload: unknown) =>
+        buildPlayResponseEmbedMock(payload),
+}))
+
+jest.mock('../../../../utils/music/buttonComponents', () => ({
+    createMusicControlButtons: (queue: unknown) =>
+        createMusicControlButtonsMock(queue),
+}))
+
+jest.mock('../../../../utils/general/errorSanitizer', () => ({
+    createUserFriendlyError: (error: unknown) => 'User friendly error',
+}))
+
 import playCommand from './index'
 
 function createInteraction(guildId: string | null) {
@@ -165,6 +184,15 @@ describe('play command', () => {
         })
         getGuildSettingsMock.mockResolvedValue(null)
         resolveGuildQueueMock.mockReturnValue({ queue: null })
+        interactionReplyMock.mockResolvedValue(undefined)
+        buildPlayResponseEmbedMock.mockReturnValue({
+            title: 'Now Playing',
+            description: 'test track',
+        })
+        createMusicControlButtonsMock.mockReturnValue({
+            type: 1,
+            components: [],
+        })
     })
 
     it('rejects command outside guilds', async () => {
@@ -300,6 +328,9 @@ describe('play command', () => {
             interaction,
         } as any)
 
+        // Wait for background operations to complete
+        await flushPromises()
+
         expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -358,6 +389,9 @@ describe('play command', () => {
             client: createClient(async () => result),
             interaction,
         } as any)
+
+        // Wait for background operations to complete
+        await flushPromises()
 
         expect(queue.setRepeatMode).not.toHaveBeenCalled()
         expect(warnLogMock).toHaveBeenCalledWith(
@@ -428,6 +462,9 @@ describe('play command', () => {
             })),
             interaction,
         } as any)
+
+        // Wait for background operations to complete
+        await flushPromises()
 
         expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
         expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
@@ -636,13 +673,17 @@ describe('play command', () => {
             interaction,
         } as any)
 
+        // Wait for background operations to complete
+        await flushPromises()
+
         expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
             expect.anything(),
             track,
         )
+        // Blending error is now logged as "Post-play background ops failed" in background task
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Play command error:',
+                message: 'Post-play background ops failed',
             }),
         )
         expect(interactionReplyMock).toHaveBeenCalledWith(

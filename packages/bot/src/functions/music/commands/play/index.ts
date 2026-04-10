@@ -171,16 +171,9 @@ export default new Command({
                 interaction.guildId ?? '',
             )
 
-            if (!hadQueueBeforePlay && queue) {
-                await applyStoredAutoplayPreference(queue, interaction.guildId)
-            }
-
             if (!isPlaylist && queue) {
                 if (!isTrackAlreadyQueued(queue, track)) {
                     moveUserTrackToPriority(queue, track)
-                }
-                if (queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
-                    await blendAutoplayTracks(queue, track)
                 }
             }
 
@@ -235,6 +228,35 @@ export default new Command({
                 interaction,
                 content: { embeds: [embed], components },
             })
+
+            // Start background ops (apply autoplay pref then blend) without awaiting.
+            // This lets the response reach the user immediately.
+            // The Promise is not awaited, allowing the command handler to return while
+            // these operations continue processing in the background.
+            const bgOps = (async () => {
+                try {
+                    if (!hadQueueBeforePlay && queue) {
+                        await applyStoredAutoplayPreference(
+                            queue,
+                            interaction.guildId!,
+                        )
+                    }
+                    if (
+                        !isPlaylist &&
+                        queue &&
+                        queue.repeatMode === QueueRepeatMode.AUTOPLAY
+                    ) {
+                        await blendAutoplayTracks(queue, track)
+                    }
+                } catch (bgError) {
+                    errorLog({
+                        message: 'Post-play background ops failed',
+                        error: bgError,
+                        data: { guildId: interaction.guildId },
+                    })
+                }
+            })()
+            void bgOps
         } catch (error) {
             if (isUnknownInteractionError(error)) {
                 debugLog({
@@ -283,20 +305,22 @@ async function applyStoredAutoplayPreference(
 ): Promise<void> {
     try {
         const settings = await guildSettingsService.getGuildSettings(guildId)
-        if (typeof settings?.autoPlayEnabled === 'boolean') {
-            const repeatMode = settings.autoPlayEnabled
+        const repeatMode =
+            (settings?.autoPlayEnabled ?? true)
                 ? QueueRepeatMode.AUTOPLAY
                 : QueueRepeatMode.OFF
 
-            if (queue.repeatMode !== repeatMode) {
-                queue.setRepeatMode(repeatMode)
-            }
-
-            debugLog({
-                message: 'Applied stored autoplay preference to queue',
-                data: { guildId, autoPlayEnabled: settings.autoPlayEnabled },
-            })
+        if (queue.repeatMode !== repeatMode) {
+            queue.setRepeatMode(repeatMode)
         }
+
+        debugLog({
+            message: 'Applied stored autoplay preference to queue',
+            data: {
+                guildId,
+                autoPlayEnabled: settings?.autoPlayEnabled ?? true,
+            },
+        })
     } catch (error) {
         warnLog({
             message: 'Failed to apply stored autoplay preference',

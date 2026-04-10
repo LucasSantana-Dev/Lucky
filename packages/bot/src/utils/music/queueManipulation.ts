@@ -9,7 +9,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
-import { cleanSearchQuery } from './searchQueryCleaner'
+import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
@@ -743,7 +743,9 @@ function getHistoryTracks(queue: GuildQueue): Track[] {
 }
 
 function normalizeTrackKey(title?: string, author?: string): string {
-    return `${normalizeText(title)}::${normalizeText(author)}`
+    const cleanedTitle = title ? cleanTitle(title) : ''
+    const cleanedAuthor = author ? cleanAuthor(author) : ''
+    return `${normalizeText(cleanedTitle)}::${normalizeText(cleanedAuthor)}`
 }
 
 function normalizeText(value?: string): string {

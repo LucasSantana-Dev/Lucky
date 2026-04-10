@@ -47,6 +47,25 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\[download\]/gi,
     /\[free\s{0,3}download\]/gi,
 
+    // Version variants: live, acoustic, cover, remix, etc.
+    /\(live(?:\s{0,3}(?:version|session|performance|at\s[^)]+))?\)/gi,
+    /\[live(?:\s{0,3}(?:version|session|performance|at\s[^\]]+))?\]/gi,
+    /\(acoustic(?:\s{0,3}version)?\)/gi,
+    /\[acoustic(?:\s{0,3}version)?\]/gi,
+    /\(cover(?:\s{0,3}version)?\)/gi,
+    /\[cover(?:\s{0,3}version)?\]/gi,
+    /\(remix(?:\s{0,3}(?:version|edit))?\)/gi,
+    /\[remix(?:\s{0,3}(?:version|edit))?\]/gi,
+    /\(instrumental(?:\s{0,3}version)?\)/gi,
+    /\[instrumental(?:\s{0,3}version)?\]/gi,
+    /\(karaoke(?:\s{0,3}version)?\)/gi,
+    /\(explicit(?:\s{0,3}version)?\)/gi,
+    /\(clean(?:\s{0,3}version)?\)/gi,
+    /\(single(?:\s{0,3}version)?\)/gi,
+    /\(album\s{0,3}version\)/gi,
+    /\(deluxe(?:\s{0,3}(?:version|edition))?\)/gi,
+    /\(bonus\s{0,3}track\)/gi,
+
     // Bare decorators that weren't wrapped in brackets
     /\bofficial\s{0,3}music\s{0,3}video\b/gi,
     /\bofficial\s{0,3}video\b/gi,
