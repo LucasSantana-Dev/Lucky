@@ -307,6 +307,28 @@ describe('play command', () => {
         )
     })
 
+    it('logs error when recordContribution throws but play still succeeds', async () => {
+        const interaction = createInteraction('guild-1')
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        const client = createClient(async () => result, {
+            repeatMode: 3,
+            tracksSize: 2,
+        })
+        recordContributionMock.mockImplementation(() => {
+            throw new Error('state error')
+        })
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Failed to record contribution' }),
+        )
+        expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
     it('applies stored autoplay preference to a queue', async () => {
         const interaction = createInteraction('guild-1')
         const queue = {
