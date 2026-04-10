@@ -210,11 +210,35 @@ describe('streamViaYtDlp', () => {
         )
     })
 
-    it('rejects immediately for non-https URLs without spawning', async () => {
+    it('rejects for non-https URLs without spawning', async () => {
         await expect(
             streamViaYtDlp('http://youtube.com/watch?v=test'),
-        ).rejects.toThrow(/invalid URL scheme/i)
+        ).rejects.toThrow(/only https/i)
         expect(spawnMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects for domains not in the allowlist without spawning', async () => {
+        await expect(
+            streamViaYtDlp('https://evil.com/audio.mp3'),
+        ).rejects.toThrow(/not in allowlist/i)
+        expect(spawnMock).not.toHaveBeenCalled()
+    })
+
+    it('accepts all allowed domains', async () => {
+        const allowedUrls = [
+            'https://youtube.com/watch?v=test',
+            'https://www.youtube.com/watch?v=test',
+            'https://youtu.be/test',
+            'https://music.youtube.com/watch?v=test',
+            'https://soundcloud.com/artist/track',
+            'https://open.spotify.com/track/test',
+        ]
+        for (const url of allowedUrls) {
+            const proc = makeSpawnSuccess()
+            spawnMock.mockReturnValue(proc)
+            await expect(streamViaYtDlp(url)).resolves.toBeDefined()
+            spawnMock.mockReset()
+        }
     })
 
     it('rejects when yt-dlp closes with non-zero exit code', async () => {

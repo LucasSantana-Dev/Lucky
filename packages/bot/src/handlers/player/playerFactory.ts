@@ -109,14 +109,38 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
  * Rejects with a timeout error if no data arrives within 15 seconds.
  * Exported for testing.
  */
+const ALLOWED_YTDLP_DOMAINS = new Set([
+    'youtube.com',
+    'www.youtube.com',
+    'youtu.be',
+    'music.youtube.com',
+    'soundcloud.com',
+    'www.soundcloud.com',
+    'open.spotify.com',
+])
+
+function validateYtDlpUrl(url: string): void {
+    let parsed: URL
+    try {
+        parsed = new URL(url)
+    } catch {
+        throw new Error(`yt-dlp: invalid URL`)
+    }
+    if (parsed.protocol !== 'https:') {
+        throw new Error(`yt-dlp: only https URLs are allowed`)
+    }
+    if (!ALLOWED_YTDLP_DOMAINS.has(parsed.hostname.toLowerCase())) {
+        throw new Error(`yt-dlp: domain not in allowlist: ${parsed.hostname}`)
+    }
+}
+
 export function streamViaYtDlp(url: string): Promise<Readable> {
-    if (!url.startsWith('https://')) {
-        return Promise.reject(
-            new Error(`yt-dlp: invalid URL scheme — only https:// is allowed`),
-        )
+    try {
+        validateYtDlpUrl(url)
+    } catch (err) {
+        return Promise.reject(err)
     }
     return new Promise<Readable>((resolve, reject) => {
-        // URL validated to https:// above; spawn array args have no shell injection risk. NOSONAR
         const proc = spawn(
             'yt-dlp',
             [
