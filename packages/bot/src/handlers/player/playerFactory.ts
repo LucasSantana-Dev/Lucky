@@ -245,10 +245,28 @@ export async function createResilientStream(
 
     try {
         return await streamViaSoundCloud(cleanedTitle, track.duration)
-    } catch (titleOnlyError) {
+    } catch {
+        debugLog({
+            message: 'Bridge: title-only SoundCloud failed, retrying without parentheticals',
+            data: { cleanedTitle },
+        })
+    }
+
+    const openParen = cleanedTitle.indexOf('(')
+    const coreTitle = openParen > 0 ? cleanedTitle.slice(0, openParen).trim() : cleanedTitle
+    if (coreTitle && coreTitle !== cleanedTitle) {
+        try {
+            return await streamViaSoundCloud(coreTitle, track.duration)
+        } catch (coreError) {
+            errorLog({
+                message: 'Bridge: all stages exhausted',
+                error: coreError,
+                data: { title: track.title, coreTitle },
+            })
+        }
+    } else {
         errorLog({
             message: 'Bridge: all stages exhausted',
-            error: titleOnlyError,
             data: { title: track.title },
         })
     }
@@ -295,13 +313,19 @@ type SoundCloudSearchResult = {
 }
 
 /**
+ * Minimum fraction of query tokens that must appear in the result name.
+ * Using 0.75 instead of 1.0 tolerates minor title differences:
+ *   - Accent stripping ("Jacaré" → "jacar" vs "Jacare" → "jacare")
+ *   - Compound word splits ("DogDog" vs "Dog Dog" → "dog dog")
+ *   - DJ credits missing or abbreviated on SoundCloud
+ */
+const TITLE_MATCH_THRESHOLD = 0.75
+
+/**
  * Pure match logic, exported so tests can cover it without spinning up play-dl.
  *
- * Matches a candidate result iff every non-empty token in the cleaned query
- * appears in the normalized result name. This is tighter than the previous
- * symmetric substring check, which allowed short candidate names (e.g. a
- * 4-character remix title) to match a long query because
- * `queryNorm.includes(resultNorm)` was true.
+ * Requires at least TITLE_MATCH_THRESHOLD fraction of query tokens to appear
+ * in the result name, and duration within 30 seconds when available.
  */
 export function findMatchingSoundCloudResult(
     query: string,
@@ -311,7 +335,7 @@ export function findMatchingSoundCloudResult(
     const queryNorm = normalizeForMatch(query)
     if (!queryNorm) return undefined
 
-    const tokens = queryNorm.split(/\s+/).filter(Boolean)
+    const tokens = queryNorm.split(/ +/).filter(Boolean)
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
@@ -320,18 +344,20 @@ export function findMatchingSoundCloudResult(
         const resultNorm = normalizeForMatch(result.name)
         if (!resultNorm) return false
 
-        const titleMatch = tokens.every((token) => resultNorm.includes(token))
+        const matched = tokens.filter((token) => resultNorm.includes(token)).length
+        const titleMatch = matched / tokens.length >= TITLE_MATCH_THRESHOLD
         if (!titleMatch) return false
 
         if (trackSec === null || !result.durationInSec) return true
-        return Math.abs(result.durationInSec - trackSec) <= 15
+        return Math.abs(result.durationInSec - trackSec) <= 30
     })
 }
 
 function normalizeForMatch(value: string): string {
     return value
         .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/[^a-z0-9 ]/g, '')
+        .replace(/ {2,}/g, ' ')
         .trim()
 }
 
