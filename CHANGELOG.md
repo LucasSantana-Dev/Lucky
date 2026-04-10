@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.76] - 2026-04-10
+
+### Fixed
+
+- **`markAsAutoplayTrack`** — no longer throws when discord-player seals `metadata` as non-configurable; detects the descriptor and mutates the returned object directly instead of calling `Object.defineProperty`.
+- **Last.fm 403 Sentry noise** — expired session key errors (403 "Invalid session key") downgraded from `errorLog` (Sentry) to `warnLog`. Was firing after every track play when Last.fm needs re-auth.
+- **SoundCloud `?in=` playlist context** — `normalizeSoundCloudUrl` strips the `?in=<playlist>` query param before the extractor receives the URL, fixing `NoResultError` on valid SoundCloud track URLs shared from a playlist.
+
 ## [2.6.75] - 2026-04-10
 
 ### Fixed
