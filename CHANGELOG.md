@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.75] - 2026-04-10
+
+### Fixed
+
+- **`/play` search reliability** — default text search now uses `AUTO_SEARCH` (picks best available extractor) instead of requiring Spotify API to succeed first. Fixes "not playing" for songs where Spotify search was failing.
+- **Search fallback chain** — restored full fallback (primary → YouTube → AUTO) for all providers including explicit `provider:spotify`. A fallback source is always better than an error. Fallback attempts are now logged at WARN level.
+- **Bridge failures visible** — yt-dlp stream failures now appear in production logs (escalated from DEBUG to WARN).
+
 ## [2.6.74] - 2026-04-10
 
 ### Fixed
