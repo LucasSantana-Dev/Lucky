@@ -2,6 +2,7 @@ import { Player } from 'discord-player'
 import type { Track } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import * as playdl from 'play-dl'
+import { spawn } from 'child_process'
 import type { Readable } from 'stream'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
@@ -102,13 +103,92 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
 }
 
 /**
+ * Stream audio via yt-dlp subprocess.
+ *
+ * Resolves with the stdout Readable once yt-dlp begins writing data.
+ * Rejects with a timeout error if no data arrives within 15 seconds.
+ * Exported for testing.
+ */
+const ALLOWED_YTDLP_DOMAINS = new Set([
+    'youtube.com',
+    'www.youtube.com',
+    'youtu.be',
+    'music.youtube.com',
+    'soundcloud.com',
+    'www.soundcloud.com',
+    'open.spotify.com',
+])
+
+function validateYtDlpUrl(url: string): void {
+    let parsed: URL
+    try {
+        parsed = new URL(url)
+    } catch {
+        throw new Error(`yt-dlp: invalid URL`)
+    }
+    if (parsed.protocol !== 'https:') {
+        throw new Error(`yt-dlp: only https URLs are allowed`)
+    }
+    if (!ALLOWED_YTDLP_DOMAINS.has(parsed.hostname.toLowerCase())) {
+        throw new Error(`yt-dlp: domain not in allowlist: ${parsed.hostname}`)
+    }
+}
+
+export function streamViaYtDlp(url: string): Promise<Readable> {
+    try {
+        validateYtDlpUrl(url)
+    } catch (err) {
+        return Promise.reject(err)
+    }
+    return new Promise<Readable>((resolve, reject) => {
+        const proc = spawn(
+            'yt-dlp',
+            [
+                '--no-playlist',
+                '-f',
+                'bestaudio/best',
+                '-o',
+                '-',
+                '--quiet',
+                '--no-warnings',
+                '--no-progress',
+                url,
+            ],
+            { stdio: ['ignore', 'pipe', 'pipe'] },
+        )
+
+        const timeout = setTimeout(() => {
+            proc.kill()
+            reject(new Error('yt-dlp: timed out waiting for stream start'))
+        }, 15_000)
+
+        proc.stdout!.once('data', () => {
+            clearTimeout(timeout)
+            resolve(proc.stdout!)
+        })
+
+        proc.once('error', (err) => {
+            clearTimeout(timeout)
+            reject(err)
+        })
+
+        proc.once('close', (code) => {
+            clearTimeout(timeout)
+            if (code && code !== 0) {
+                reject(new Error(`yt-dlp exited with code ${code}`))
+            }
+        })
+    })
+}
+
+/**
  * Bridge fallback chain (discord-player-youtubei v3 createStream signature).
  *
- * Priority: YouTube direct → SoundCloud (full query) → SoundCloud (title only).
+ * Priority: yt-dlp direct → SoundCloud (full query) → SoundCloud (title only).
  *
- * YouTube direct is attempted first since the track always carries its source
- * URL and play-dl can stream it independently of the extractor. SoundCloud
- * search is the fallback for tracks blocked by YouTube bot-detection.
+ * yt-dlp is tried first (play-dl YouTube streaming is broken due to bot
+ * detection). SoundCloud search is the fallback for tracks unavailable via
+ * yt-dlp.
  */
 export async function createResilientStream(
     track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
@@ -130,18 +210,17 @@ export async function createResilientStream(
 
     if (track.url) {
         try {
-            const direct = await playdl.stream(track.url)
+            const stream = await streamViaYtDlp(track.url)
             infoLog({
-                message: 'Bridge: streamed directly from source URL',
+                message: 'Bridge: streamed via yt-dlp',
                 data: { url: track.url, title: cleanedTitle || track.title },
             })
-            return direct.stream
-        } catch (directError) {
+            return stream
+        } catch (ytdlpError) {
             debugLog({
-                message:
-                    'Bridge: direct stream failed, falling back to SoundCloud',
+                message: 'Bridge: yt-dlp failed, falling back to SoundCloud',
                 data: {
-                    error: (directError as Error).message,
+                    error: (ytdlpError as Error).message,
                     cleanedTitle,
                 },
             })

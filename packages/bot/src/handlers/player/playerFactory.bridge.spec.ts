@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { EventEmitter } from 'events'
+import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 
 const playdlSearchMock = jest.fn()
 const playdlStreamMock = jest.fn()
+const spawnMock = jest.fn()
 
-// Stub `discord-player` and `@discord-player/extractor` so importing
-// playerFactory.ts doesn't pull in their full dependency trees (one of
-// which requires the native `file-type` module that isn't present in
-// the test environment). We only exercise the bridge fallback chain —
-// the Player class and DefaultExtractors aren't touched in these tests.
+jest.mock('child_process', () => ({
+    spawn: (...args: unknown[]) => spawnMock(...args),
+}))
+
 jest.mock('discord-player', () => ({
     Player: class {
         extractors = {
@@ -37,16 +39,35 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
 
-// Import AFTER the mocks so the real module wires against the mock.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 import {
     createResilientStream,
+    streamViaYtDlp,
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
     parseDurationString,
 } from './playerFactory'
 
 const fakeStream = { on: jest.fn() } as unknown as Readable
+
+function makeSpawnSuccess() {
+    const stdout = new PassThrough()
+    const proc = Object.assign(new EventEmitter(), {
+        stdout,
+        kill: jest.fn(),
+    })
+    setImmediate(() => stdout.emit('data', Buffer.from('audio')))
+    return proc
+}
+
+function makeSpawnError(code = 1) {
+    const stdout = new PassThrough()
+    const proc = Object.assign(new EventEmitter(), {
+        stdout,
+        kill: jest.fn(),
+    })
+    setImmediate(() => proc.emit('close', code))
+    return proc
+}
 
 function makeTrack(overrides: Partial<Record<string, unknown>> = {}) {
     return {
@@ -58,7 +79,7 @@ function makeTrack(overrides: Partial<Record<string, unknown>> = {}) {
     }
 }
 
-describe('parseDurationString (real export)', () => {
+describe('parseDurationString', () => {
     it('parses m:ss', () => {
         expect(parseDurationString('3:45')).toBe(225)
     })
@@ -81,7 +102,7 @@ describe('parseDurationString (real export)', () => {
     })
 })
 
-describe('findMatchingSoundCloudResult (real export)', () => {
+describe('findMatchingSoundCloudResult', () => {
     const results = [
         { name: 'Bohemian Rhapsody', url: 'sc://1', durationInSec: 354 },
         { name: 'Unrelated', url: 'sc://2', durationInSec: 180 },
@@ -166,25 +187,109 @@ describe('streamViaSoundCloud', () => {
     })
 })
 
+describe('streamViaYtDlp', () => {
+    beforeEach(() => {
+        spawnMock.mockReset()
+    })
+
+    it('resolves with stdout when yt-dlp emits data', async () => {
+        const proc = makeSpawnSuccess()
+        spawnMock.mockReturnValue(proc)
+
+        const stream = await streamViaYtDlp('https://youtube.com/watch?v=test')
+        expect(stream).toBe(proc.stdout)
+        expect(spawnMock).toHaveBeenCalledWith(
+            'yt-dlp',
+            expect.arrayContaining([
+                '--no-playlist',
+                '-o',
+                '-',
+                'https://youtube.com/watch?v=test',
+            ]),
+            expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] }),
+        )
+    })
+
+    it('rejects for non-https URLs without spawning', async () => {
+        await expect(
+            streamViaYtDlp('http://youtube.com/watch?v=test'),
+        ).rejects.toThrow(/only https/i)
+        expect(spawnMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects for domains not in the allowlist without spawning', async () => {
+        await expect(
+            streamViaYtDlp('https://evil.com/audio.mp3'),
+        ).rejects.toThrow(/not in allowlist/i)
+        expect(spawnMock).not.toHaveBeenCalled()
+    })
+
+    it('accepts all allowed domains', async () => {
+        const allowedUrls = [
+            'https://youtube.com/watch?v=test',
+            'https://www.youtube.com/watch?v=test',
+            'https://youtu.be/test',
+            'https://music.youtube.com/watch?v=test',
+            'https://soundcloud.com/artist/track',
+            'https://open.spotify.com/track/test',
+        ]
+        for (const url of allowedUrls) {
+            const proc = makeSpawnSuccess()
+            spawnMock.mockReturnValue(proc)
+            await expect(streamViaYtDlp(url)).resolves.toBeDefined()
+            spawnMock.mockReset()
+        }
+    })
+
+    it('rejects when yt-dlp closes with non-zero exit code', async () => {
+        const proc = makeSpawnError(1)
+        spawnMock.mockReturnValue(proc)
+
+        await expect(
+            streamViaYtDlp('https://youtube.com/watch?v=test'),
+        ).rejects.toThrow(/exited with code 1/)
+    })
+
+    it('rejects when spawn emits error', async () => {
+        const stdout = new PassThrough()
+        const proc = Object.assign(new EventEmitter(), {
+            stdout,
+            kill: jest.fn(),
+        })
+        spawnMock.mockReturnValue(proc)
+        setImmediate(() => proc.emit('error', new Error('ENOENT')))
+
+        await expect(
+            streamViaYtDlp('https://youtube.com/watch?v=test'),
+        ).rejects.toThrow('ENOENT')
+    })
+})
+
 describe('createResilientStream', () => {
     beforeEach(() => {
+        spawnMock.mockReset()
         playdlSearchMock.mockReset()
         playdlStreamMock.mockReset()
     })
 
-    it('streams directly from source URL on first attempt', async () => {
-        playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
+    it('streams via yt-dlp from source URL on first attempt', async () => {
+        const proc = makeSpawnSuccess()
+        spawnMock.mockReturnValue(proc)
 
         const result = await createResilientStream(makeTrack())
-        expect(result).toBe(fakeStream)
-        expect(playdlStreamMock).toHaveBeenCalledWith(
-            'https://youtube.com/watch?v=fakeBohemian',
+        expect(result).toBe(proc.stdout)
+        expect(spawnMock).toHaveBeenCalledWith(
+            'yt-dlp',
+            expect.arrayContaining([
+                'https://youtube.com/watch?v=fakeBohemian',
+            ]),
+            expect.anything(),
         )
         expect(playdlSearchMock).not.toHaveBeenCalled()
     })
 
-    it('falls back to SoundCloud primary search when direct stream fails', async () => {
-        playdlStreamMock.mockRejectedValueOnce(new Error('403'))
+    it('falls back to SoundCloud primary search when yt-dlp fails', async () => {
+        spawnMock.mockReturnValue(makeSpawnError(1))
         playdlSearchMock.mockResolvedValueOnce([
             {
                 name: 'Bohemian Rhapsody - Queen',
@@ -201,7 +306,7 @@ describe('createResilientStream', () => {
     })
 
     it('falls back to SoundCloud title-only when primary returns no validated match', async () => {
-        playdlStreamMock.mockRejectedValueOnce(new Error('403'))
+        spawnMock.mockReturnValue(makeSpawnError(1))
         playdlSearchMock
             .mockResolvedValueOnce([
                 { name: 'Unrelated', url: 'sc://miss', durationInSec: 180 },
@@ -221,8 +326,9 @@ describe('createResilientStream', () => {
         expect(playdlStreamMock).toHaveBeenCalledWith('sc://secondary')
     })
 
-    it('streams directly from source URL even for spam uploader channels', async () => {
-        playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
+    it('streams via yt-dlp even for spam uploader channels', async () => {
+        const proc = makeSpawnSuccess()
+        spawnMock.mockReturnValue(proc)
 
         const result = await createResilientStream(
             makeTrack({
@@ -230,11 +336,11 @@ describe('createResilientStream', () => {
                 author: 'Best Songs',
             }),
         )
-        expect(result).toBe(fakeStream)
+        expect(result).toBe(proc.stdout)
         expect(playdlSearchMock).not.toHaveBeenCalled()
     })
 
-    it('throws "Bridge exhausted" when a track has no URL and SoundCloud fails', async () => {
+    it('throws "Bridge exhausted" when track has no URL and SoundCloud fails', async () => {
         playdlSearchMock.mockResolvedValue([])
 
         await expect(
@@ -243,7 +349,7 @@ describe('createResilientStream', () => {
     })
 
     it('throws "Bridge exhausted" when all stages fail', async () => {
-        playdlStreamMock.mockRejectedValueOnce(new Error('youtube 403'))
+        spawnMock.mockReturnValue(makeSpawnError(1))
         playdlSearchMock.mockResolvedValue([])
 
         await expect(createResilientStream(makeTrack())).rejects.toThrow(
