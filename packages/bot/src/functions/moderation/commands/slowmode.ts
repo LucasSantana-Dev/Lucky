@@ -66,8 +66,9 @@ export default new Command({
             })
 
             const action = seconds === 0 ? 'disabled slowmode' : `set slowmode to ${formatDuration(seconds)}`
+            const channelName = (interaction.channel as TextChannel).name
             infoLog({
-                message: `${interaction.user.tag} ${action} in #${interaction.channel.name} (${interaction.guild.name})`,
+                message: `${interaction.user.tag} ${action} in #${channelName} (${interaction.guild.name})`,
             })
         } catch (error) {
             errorLog({
