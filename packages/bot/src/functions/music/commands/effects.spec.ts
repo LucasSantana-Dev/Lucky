@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import effectsCommand from './effects'
 
 const requireGuildMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const requireQueueMock = jest.fn()
 const requireIsPlayingMock = jest.fn()
 const interactionReplyMock = jest.fn()
@@ -21,6 +22,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -69,6 +71,7 @@ describe('effects command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)
     })

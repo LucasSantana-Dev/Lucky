@@ -8,6 +8,7 @@ import {
     requireIsPlaying,
     requireVoiceChannel,
 } from "../../../utils/command/commandValidations"
+import { requireDJRole } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
@@ -19,6 +20,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireVoiceChannel(interaction))) return
+        if (!(await requireDJRole(interaction, interaction.guildId!))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 

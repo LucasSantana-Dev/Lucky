@@ -1,12 +1,14 @@
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import { GuildMemberRoleManager, PermissionsBitField, PermissionFlagsBits } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
-import { errorEmbed } from '../general/embeds'
+import { errorEmbed, createErrorEmbed } from '../general/embeds'
 import { interactionReply } from '../general/interactionReply'
 import {
     handleError,
     createUserErrorMessage,
     warnLog,
 } from '@lucky/shared/utils'
+import { guildSettingsService } from '@lucky/shared/services'
 
 export async function requireGuild(
     interaction: ChatInputCommandInteraction,
@@ -164,4 +166,43 @@ export async function requireInteractionOptions(
         return false
     }
     return true
+}
+
+export async function requireDJRole(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+): Promise<boolean> {
+    const member = interaction.member as GuildMember | null
+    if (!member) return true
+
+    if (
+        member.permissions instanceof PermissionsBitField &&
+        member.permissions.has(PermissionFlagsBits.ManageGuild)
+    ) {
+        return true
+    }
+
+    const settings = await guildSettingsService.getGuildSettings(guildId)
+    if (!settings?.djRoleId) return true
+
+    const hasDJRole =
+        member.roles instanceof GuildMemberRoleManager
+            ? member.roles.cache.has(settings.djRoleId)
+            : false
+
+    if (!hasDJRole) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'DJ Only',
+                        'This command is restricted to members with the DJ role.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+    }
+    return hasDJRole
 }

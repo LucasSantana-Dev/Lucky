@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
-import { requireVoiceChannel } from '../../../../utils/command/commandValidations'
+import { requireVoiceChannel, requireDJRole } from '../../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
@@ -84,6 +84,7 @@ export default new Command({
 
         const member = interaction.member as GuildMember
         if (!(await requireVoiceChannel(interaction))) return
+        if (!(await requireDJRole(interaction, interaction.guildId!))) return
 
         const voiceChannel = member.voice.channel!
 

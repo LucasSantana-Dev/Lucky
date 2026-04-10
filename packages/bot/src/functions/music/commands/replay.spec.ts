@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import replayCommand from './replay'
 
 const requireQueueMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const requireIsPlayingMock = jest.fn()
 const requireVoiceChannelMock = jest.fn()
@@ -15,6 +16,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireCurrentTrack: (...args: unknown[]) => requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
     requireVoiceChannel: (...args: unknown[]) => requireVoiceChannelMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -57,6 +59,7 @@ describe('replay command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
         requireCurrentTrackMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)

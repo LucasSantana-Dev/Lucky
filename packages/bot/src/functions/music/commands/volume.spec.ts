@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import volumeCommand from './volume'
 
 const requireGuildMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const requireIsPlayingMock = jest.fn()
@@ -15,6 +16,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) => requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -52,6 +54,7 @@ describe('volume command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
         requireCurrentTrackMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)

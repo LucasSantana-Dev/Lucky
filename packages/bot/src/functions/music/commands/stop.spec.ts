@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import stopCommand from './stop'
 
 const requireQueueMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
@@ -9,6 +10,7 @@ const markIntentionalStopMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -46,6 +48,7 @@ describe('stop command', () => {
         jest.clearAllMocks()
         interactionReplyMock.mockResolvedValue(undefined)
         createSuccessEmbedMock.mockReturnValue({ title: 'Playback stopped' })
+        requireDJRoleMock.mockResolvedValue(true)
     })
 
     it('marks intentional stop and deletes queue', async () => {

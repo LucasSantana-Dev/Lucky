@@ -5,7 +5,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 import {
-    requireGuild,
+    requireGuild, requireDJRole,
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
@@ -101,6 +101,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
+        if (!(await requireDJRole(interaction, interaction.guildId!))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 

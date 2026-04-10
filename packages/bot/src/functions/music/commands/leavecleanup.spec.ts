@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import leavecleanupCommand from './leavecleanup'
 
 const requireGuildMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const requireQueueMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
@@ -19,6 +20,7 @@ const resolveGuildQueueMock = jest.fn()
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -71,6 +73,7 @@ describe('leavecleanup command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
     })
 

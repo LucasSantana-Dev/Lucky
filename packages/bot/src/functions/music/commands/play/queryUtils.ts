@@ -1,7 +1,7 @@
 import { QueryType } from 'discord-player'
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 import type { CustomClient } from '../../../../types'
-import { requireVoiceChannel } from '../../../../utils/command/commandValidations'
+import { requireVoiceChannel, requireDJRole } from '../../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
@@ -62,6 +62,7 @@ export async function executePlayAtTop({
 
     const member = interaction.member as GuildMember
     if (!(await requireVoiceChannel(interaction))) return
+    if (!(await requireDJRole(interaction, interaction.guildId))) return
 
     const voiceChannel = member.voice.channel!
 
