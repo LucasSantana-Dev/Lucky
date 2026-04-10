@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.73] - 2026-04-10
+
+### Added
+
+- **`/history [page]`** — paginated view of recently played tracks; shows title, artist, duration, relative Discord timestamp, and 🤖 tag for autoplay-queued tracks. Backed by existing `trackHistoryService` (Redis ring buffer, 100 tracks, 7-day TTL).
+
 ## [2.6.72] - 2026-04-10
 
 ### Added
