@@ -3,9 +3,11 @@ import {
     createMockMember,
 } from '../../__mocks__/discord'
 
+const getGuildSettingsMock = jest.fn()
+
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
-        getGuildSettings: jest.fn().mockResolvedValue({}),
+        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
     },
 }))
 
@@ -30,6 +32,10 @@ jest.mock('../../../src/utils/general/embeds', () => ({
         title: _title,
         description,
     })),
+    createErrorEmbed: jest.fn((_title: string, description: string) => ({
+        title: _title,
+        description,
+    })),
 }))
 
 import {
@@ -38,6 +44,7 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
+    requireDJRole,
 } from '../../../src/utils/command/commandValidations'
 import { interactionReply } from '../../../src/utils/general/interactionReply'
 import { handleError, warnLog } from '@lucky/shared/utils'
@@ -58,6 +65,7 @@ function createInteraction(overrides: Record<string, unknown> = {}) {
 describe('commandValidations', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        getGuildSettingsMock.mockResolvedValue({})
         errorEmbedMock.mockImplementation(
             (_title: string, description: string) => ({
                 title: _title,
@@ -278,6 +286,42 @@ describe('commandValidations', () => {
             expect(result).toBe(false)
             expect(warnLogMock).toHaveBeenCalled()
             expect(interactionReplyMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('requireDJRole', () => {
+        it('returns true when member is null (no member context)', async () => {
+            const interaction = createInteraction({ member: null })
+            const result = await requireDJRole(interaction, 'guild-1')
+            expect(result).toBe(true)
+            expect(interactionReplyMock).not.toHaveBeenCalled()
+        })
+
+        it('returns true when no djRoleId is configured (open to all)', async () => {
+            getGuildSettingsMock.mockResolvedValue({ djRoleId: undefined })
+            const member = createMockMember()
+            const interaction = createInteraction({ member })
+            const result = await requireDJRole(interaction, 'guild-1')
+            expect(result).toBe(true)
+        })
+
+        it('returns true when settings are null', async () => {
+            getGuildSettingsMock.mockResolvedValue(null)
+            const member = createMockMember()
+            const interaction = createInteraction({ member })
+            const result = await requireDJRole(interaction, 'guild-1')
+            expect(result).toBe(true)
+        })
+
+        it('returns false and replies when member lacks DJ role', async () => {
+            getGuildSettingsMock.mockResolvedValue({ djRoleId: 'role-dj' })
+            const member = createMockMember({ roles: { cache: { has: jest.fn().mockReturnValue(false) } } })
+            const interaction = createInteraction({ member })
+            const result = await requireDJRole(interaction, 'guild-1')
+            expect(result).toBe(false)
+            expect(interactionReplyMock).toHaveBeenCalledWith(
+                expect.objectContaining({ content: expect.objectContaining({ ephemeral: true }) }),
+            )
         })
     })
 })
