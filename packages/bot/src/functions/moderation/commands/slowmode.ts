@@ -2,6 +2,7 @@ import {
     SlashCommandBuilder,
     PermissionFlagsBits,
     EmbedBuilder,
+    TextChannel,
 } from 'discord.js'
 import Command from '../../../models/Command.js'
 import { infoLog, errorLog } from '@lucky/shared/utils'
@@ -35,7 +36,7 @@ export default new Command({
         const seconds = interaction.options.getInteger('seconds', true)
 
         try {
-            await interaction.channel.setRateLimitPerUser(seconds)
+            await (interaction.channel as TextChannel).setRateLimitPerUser(seconds)
 
             const formatDuration = (sec: number): string => {
                 if (sec === 0) return 'disabled'
