@@ -11,10 +11,21 @@ packages/*/package-lock.json
 .env.vercel.*
 *.env
 
-# AI Agents
+# AI / IDE tooling (local-only)
 .claude/
 .serena/
+.windsurf/
+.data/
+.sisyphus/
 CLAUDE.md
+AGENTS.md
+opencode.jsonc
+replit.md
+.replit
+.opencode/
+.agents/
+.agent-skills/
+attached_assets/
 
 # IDE
 .vscode
@@ -33,7 +44,6 @@ CLAUDE.md
 *.swp
 *.swo
 *~
-.windsurf/
 
 # Build outputs
 dist
@@ -41,7 +51,6 @@ build
 *.tsbuildinfo
 
 # Session data
-.data/
 .worktrees/
 
 # Downloads and logs
@@ -87,6 +96,8 @@ config.json
 # Cloudflare Tunnel (credentials; config.example.yml is committed)
 cloudflared/*.json
 cloudflared/config.yml
+
+# macOS / tooling caches
 .DS_Store
 .vercel
 .cache_ggshield
