@@ -1,6 +1,7 @@
 import { QueryType, type GuildQueue } from 'discord-player'
-import type { User } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import type { TextChannel, User } from 'discord.js'
+import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { createErrorEmbed } from '../../utils/general/embeds'
 import {
     analyzeYouTubeError,
     logYouTubeError,
@@ -20,6 +21,27 @@ type PlayerEvents = {
 
 interface IQueueMetadata {
     requestedBy?: User | null
+    channel?: TextChannel | null
+}
+
+async function notifyChannelStreamFailed(
+    queue: GuildQueue,
+    trackTitle: string,
+): Promise<void> {
+    const channel = (queue.metadata as IQueueMetadata)?.channel
+    if (!channel) return
+    try {
+        await channel.send({
+            embeds: [
+                createErrorEmbed(
+                    '⚠️ Could not play track',
+                    `**${trackTitle}** could not be streamed from any source. It may be unavailable in your region or not on SoundCloud. Skipping to next track.`,
+                ),
+            ],
+        })
+    } catch {
+        // non-critical — don't crash if we can't notify
+    }
 }
 
 function toErrorDetails(error: unknown): {
@@ -202,6 +224,11 @@ async function recoverFromStreamExtractionError(
         (queue.metadata as IQueueMetadata).requestedBy ??
         undefined
     if (!requestedByUser) {
+        warnLog({
+            message: 'Stream failed, skipping — no requestedBy to search with',
+            data: { title: currentTrack.title, guildId: queue.guild.id },
+        })
+        await notifyChannelStreamFailed(queue, currentTrack.title)
         queue.node.skip()
         return
     }
@@ -212,6 +239,11 @@ async function recoverFromStreamExtractionError(
     })
 
     if (!searchResult || searchResult.tracks.length === 0) {
+        warnLog({
+            message: 'Stream failed, YouTube recovery found nothing — skipping',
+            data: { title: currentTrack.title, guildId: queue.guild.id },
+        })
+        await notifyChannelStreamFailed(queue, currentTrack.title)
         queue.node.skip()
         return
     }
@@ -229,8 +261,18 @@ async function recoverFromStreamExtractionError(
         providerHealthService.recordSuccess(providerFromTrack(currentTrack))
         debugLog({
             message: 'Successfully recovered from stream extraction error',
+            data: {
+                title: currentTrack.title,
+                alternativeUrl: alternativeTrack.url,
+            },
         })
     } else {
+        warnLog({
+            message:
+                'Stream failed, all YouTube alternatives already in queue — skipping',
+            data: { title: currentTrack.title, guildId: queue.guild.id },
+        })
+        await notifyChannelStreamFailed(queue, currentTrack.title)
         queue.node.skip()
     }
 }
@@ -289,6 +331,10 @@ const handlePlayerError = async (
                     'Failed to recover from stream extraction error:',
                     recoveryError,
                 )
+                const failedTrack = queue.currentTrack
+                if (failedTrack) {
+                    await notifyChannelStreamFailed(queue, failedTrack.title)
+                }
                 queue.node.skip()
             }
         }

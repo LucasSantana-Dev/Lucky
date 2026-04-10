@@ -51,21 +51,28 @@ const fakeStream = { on: jest.fn() } as unknown as Readable
 
 function makeSpawnSuccess() {
     const stdout = new PassThrough()
+    const stderr = new PassThrough()
     const proc = Object.assign(new EventEmitter(), {
         stdout,
+        stderr,
         kill: jest.fn(),
     })
     setImmediate(() => stdout.emit('data', Buffer.from('audio')))
     return proc
 }
 
-function makeSpawnError(code = 1) {
+function makeSpawnError(code = 1, stderrText = '') {
     const stdout = new PassThrough()
+    const stderr = new PassThrough()
     const proc = Object.assign(new EventEmitter(), {
         stdout,
+        stderr,
         kill: jest.fn(),
     })
-    setImmediate(() => proc.emit('close', code))
+    setImmediate(() => {
+        if (stderrText) stderr.emit('data', Buffer.from(stderrText))
+        proc.emit('close', code)
+    })
     return proc
 }
 
@@ -298,10 +305,24 @@ describe('streamViaYtDlp', () => {
         ).rejects.toThrow(/exited with code 1/)
     })
 
+    it('includes first stderr line in rejection message for diagnostics', async () => {
+        const proc = makeSpawnError(
+            1,
+            'ERROR: Video unavailable: This video is not available in your country',
+        )
+        spawnMock.mockReturnValue(proc)
+
+        await expect(
+            streamViaYtDlp('https://youtube.com/watch?v=test'),
+        ).rejects.toThrow(/Video unavailable/)
+    })
+
     it('rejects when spawn emits error', async () => {
         const stdout = new PassThrough()
+        const stderr = new PassThrough()
         const proc = Object.assign(new EventEmitter(), {
             stdout,
+            stderr,
             kill: jest.fn(),
         })
         spawnMock.mockReturnValue(proc)

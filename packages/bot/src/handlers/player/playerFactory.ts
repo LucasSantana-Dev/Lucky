@@ -168,6 +168,11 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             reject(new Error('yt-dlp: timed out waiting for stream start'))
         }, 15_000)
 
+        // Collect stderr so failures include yt-dlp's reason (bot detection,
+        // geo-restriction, unavailable video, etc.) in the error message.
+        const stderrChunks: Buffer[] = []
+        proc.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
+
         proc.stdout!.once('data', (firstChunk: Buffer) => {
             clearTimeout(timeout)
             // The `once('data')` callback consumes the first chunk from the
@@ -187,7 +192,9 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         proc.once('close', (code) => {
             clearTimeout(timeout)
             if (code && code !== 0) {
-                reject(new Error(`yt-dlp exited with code ${code}`))
+                const stderr = Buffer.concat(stderrChunks).toString().trim()
+                const reason = stderr ? ` — ${stderr.split('\n')[0]}` : ''
+                reject(new Error(`yt-dlp exited with code ${code}${reason}`))
             }
         })
     })
@@ -276,13 +283,29 @@ export async function createResilientStream(
             errorLog({
                 message: 'Bridge: all stages exhausted',
                 error: coreError,
-                data: { title: track.title, coreTitle },
+                data: {
+                    title: track.title,
+                    cleanedTitle,
+                    coreTitle,
+                    url: track.url,
+                    stages: [
+                        'yt-dlp',
+                        'soundcloud-full',
+                        'soundcloud-title',
+                        'soundcloud-core',
+                    ],
+                },
             })
         }
     } else {
         errorLog({
             message: 'Bridge: all stages exhausted',
-            data: { title: track.title },
+            data: {
+                title: track.title,
+                cleanedTitle,
+                url: track.url,
+                stages: ['yt-dlp', 'soundcloud-full', 'soundcloud-title'],
+            },
         })
     }
 
