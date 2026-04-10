@@ -1,7 +1,10 @@
 import { QueryType } from 'discord-player'
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 import type { CustomClient } from '../../../../types'
-import { requireVoiceChannel, requireDJRole } from '../../../../utils/command/commandValidations'
+import {
+    requireVoiceChannel,
+    requireDJRole,
+} from '../../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
@@ -25,7 +28,10 @@ export function isUrl(query: string): boolean {
     return query.startsWith('http://') || query.startsWith('https://')
 }
 
-export function resolveSearchEngine(query: string, provider?: string | null): QueryType {
+export function resolveSearchEngine(
+    query: string,
+    provider?: string | null,
+): QueryType {
     if (isUrl(query)) return QueryType.AUTO
 
     switch (provider) {
@@ -34,8 +40,9 @@ export function resolveSearchEngine(query: string, provider?: string | null): Qu
         case 'soundcloud':
             return QueryType.SOUNDCLOUD_SEARCH
         case 'spotify':
-        default:
             return QueryType.SPOTIFY_SEARCH
+        default:
+            return QueryType.AUTO_SEARCH
     }
 }
 
@@ -54,7 +61,12 @@ export async function executePlayAtTop({
 }: PlayAtTopOptions): Promise<void> {
     if (!interaction.guildId) {
         await interaction.reply({
-            embeds: [createErrorEmbed('Error', 'This command can only be used in a server')],
+            embeds: [
+                createErrorEmbed(
+                    'Error',
+                    'This command can only be used in a server',
+                ),
+            ],
             ephemeral: true,
         })
         return
@@ -77,7 +89,9 @@ export async function executePlayAtTop({
 
     try {
         const searchEngine = resolveSearchEngine(query)
-        const result = await client.player.play(voiceChannel, query, { searchEngine })
+        const result = await client.player.play(voiceChannel, query, {
+            searchEngine,
+        })
         const track = result.track
 
         const { queue } = resolveGuildQueue(client, interaction.guildId)
@@ -85,7 +99,9 @@ export async function executePlayAtTop({
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Error', 'Could not create queue')],
+                    embeds: [
+                        createErrorEmbed('Error', 'Could not create queue'),
+                    ],
                     ephemeral: true,
                 },
             })
@@ -102,16 +118,26 @@ export async function executePlayAtTop({
         const embed = buildPlayResponseEmbed(
             skipCurrent
                 ? { kind: 'nowPlaying', track, requestedBy: interaction.user }
-                : { kind: 'addedToQueue', track, requestedBy: interaction.user, queuePosition: 1 },
+                : {
+                      kind: 'addedToQueue',
+                      track,
+                      requestedBy: interaction.user,
+                      queuePosition: 1,
+                  },
         )
 
         await interactionReply({
             interaction,
-            content: { embeds: [embed], components: [createMusicControlButtons(queue)] },
+            content: {
+                embeds: [embed],
+                components: [createMusicControlButtons(queue)],
+            },
         })
 
         debugLog({
-            message: skipCurrent ? 'track added to top and current skipped' : 'track added to top of queue',
+            message: skipCurrent
+                ? 'track added to top and current skipped'
+                : 'track added to top of queue',
             data: { query, guildId: interaction.guildId },
         })
     } catch (error) {
@@ -123,13 +149,22 @@ export async function executePlayAtTop({
             return
         }
 
-        errorLog({ message: `${commandName} error:`, error, data: { query, guildId: interaction.guildId } })
+        errorLog({
+            message: `${commandName} error:`,
+            error,
+            data: { query, guildId: interaction.guildId },
+        })
 
         try {
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [createErrorEmbed('Play Error', createUserFriendlyError(error))],
+                    embeds: [
+                        createErrorEmbed(
+                            'Play Error',
+                            createUserFriendlyError(error),
+                        ),
+                    ],
                     ephemeral: true,
                 },
             })
