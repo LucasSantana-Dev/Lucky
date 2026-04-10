@@ -15,6 +15,7 @@ import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import * as musicPresence from '../../services/MusicPresenceService'
+import { scheduleIdleDisconnect, clearIdleTimer } from '../../utils/music/idleDisconnect'
 
 const MAX_GUILD_ENTRIES = 500
 
@@ -67,6 +68,7 @@ export const setupTrackHandlers = ({
     client,
 }: SetupTrackHandlersParams): void => {
     player.events.on('playerStart', async (queue: GuildQueue, track: Track) => {
+        clearIdleTimer(queue.guild.id)
         await handlePlayerStart(queue, track, client)
     })
     player.events.on(
@@ -84,6 +86,9 @@ export const setupTrackHandlers = ({
                 message: `Added "${tracks[0].title}" to queue in ${queue.guild.name}`,
             })
         }
+    })
+    player.events.on('emptyQueue', (queue: GuildQueue) => {
+        scheduleIdleDisconnect(queue)
     })
 }
 
