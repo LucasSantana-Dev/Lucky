@@ -77,7 +77,7 @@ jest.mock('../../../../utils/music/queueResolver', () => ({
 jest.mock('../../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (interaction: unknown) =>
         requireVoiceChannelMock(interaction),
-    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -133,6 +133,12 @@ jest.mock('../../../../utils/general/errorSanitizer', () => ({
     createUserFriendlyError: (error: unknown) => 'User friendly error',
 }))
 
+const registerNowPlayingMessageMock = jest.fn()
+jest.mock('../../../../handlers/player/trackNowPlaying', () => ({
+    registerNowPlayingMessage: (...args: unknown[]) =>
+        registerNowPlayingMessageMock(...args),
+}))
+
 import playCommand from './index'
 
 function createInteraction(guildId: string | null) {
@@ -151,6 +157,9 @@ function createInteraction(guildId: string | null) {
         reply: jest.fn(),
         deferReply: jest.fn(),
         editReply: jest.fn(),
+        fetchReply: jest
+            .fn()
+            .mockResolvedValue({ id: 'msg-123', channelId: 'channel-1' }),
     } as any
 }
 
@@ -327,7 +336,9 @@ describe('play command', () => {
         await playCommand.execute({ client, interaction } as any)
 
         expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Failed to record contribution' }),
+            expect.objectContaining({
+                message: 'Failed to record contribution',
+            }),
         )
         expect(interactionReplyMock).toHaveBeenCalled()
     })
@@ -716,6 +727,55 @@ describe('play command', () => {
                 interaction,
                 content: expect.objectContaining({ embeds: expect.any(Array) }),
             }),
+        )
+    })
+
+    it('registers interaction reply as now-playing message to prevent duplicate (queuePosition=0)', async () => {
+        // When the track starts immediately (no pre-existing queue), the /play
+        // interaction reply shows "Now Playing". Without registration, the
+        // playerStart handler sends a second "Now Playing" message. This test
+        // verifies the registration happens so the handler edits instead.
+        const interaction = createInteraction('guild-1')
+        const track = {
+            id: 'track-1',
+            url: 'https://youtube.com/watch?v=abc',
+            title: 'Test Song',
+            author: 'Test Artist',
+            duration: '3:30',
+            thumbnail: null,
+            requestedBy: { id: 'user-1' },
+            metadata: {},
+        }
+
+        resolveGuildQueueMock.mockReturnValue({ queue: null }) // no pre-existing queue
+        const queue = {
+            tracks: { size: 0, toArray: jest.fn(() => []) },
+            repeatMode: 0,
+        }
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValue({ queue })
+
+        await playCommand.execute({
+            client: createClient(
+                async () => ({
+                    track,
+                    searchResult: { playlist: null, tracks: [track] },
+                }),
+                { tracksSize: 0 },
+            ),
+            interaction,
+        } as any)
+
+        await flushPromises()
+
+        // fetchReply must be called and registerNowPlayingMessage invoked with
+        // the reply's id and channelId — this prevents the duplicate embed.
+        expect(interaction.fetchReply).toHaveBeenCalled()
+        expect(registerNowPlayingMessageMock).toHaveBeenCalledWith(
+            'guild-1',
+            'msg-123',
+            'channel-1',
         )
     })
 })

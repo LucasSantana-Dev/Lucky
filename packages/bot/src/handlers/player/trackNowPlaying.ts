@@ -22,6 +22,20 @@ const songInfoMessages = new Map<
     string,
     { messageId: string; channelId: string }
 >()
+
+/**
+ * Register an existing message as the "now playing" display for a guild.
+ * Used by the /play command to pre-register its interaction reply so that
+ * the playerStart handler edits it (with buttons) instead of sending a
+ * duplicate "Now Playing" message.
+ */
+export function registerNowPlayingMessage(
+    guildId: string,
+    messageId: string,
+    channelId: string,
+): void {
+    songInfoMessages.set(guildId, { messageId, channelId })
+}
 const lastFmTrackStartTime = new Map<string, number>()
 
 function getLastFmRequesterId(
