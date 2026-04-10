@@ -9,7 +9,10 @@ const QueueRepeatMode = {
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
-const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({ title, description: desc }))
+const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
+    title,
+    description: desc,
+}))
 const replenishQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -35,7 +38,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 
 jest.mock('../../../utils/general/embeds', () => ({
     createEmbed: (payload: unknown) => createEmbedMock(payload),
-    createErrorEmbed: (title: string, desc: string) => createErrorEmbedMock(title, desc),
+    createErrorEmbed: (title: string, desc: string) =>
+        createErrorEmbedMock(title, desc),
     EMBED_COLORS: {
         AUTOPLAY: '#00BFFF',
         ERROR: '#FF0000',
@@ -190,9 +194,7 @@ describe('autoplay command', () => {
         const embedPayload = createEmbedMock.mock.calls[0]?.[0] as {
             description: string
         }
-        expect(embedPayload.description).toContain(
-            'Next time you use /play',
-        )
+        expect(embedPayload.description).toContain('Next time you use /play')
     })
 
     it('shows an error when enabling autoplay without a queue fails to persist', async () => {
@@ -412,6 +414,56 @@ describe('autoplay command', () => {
                 message: 'Error replenishing queue after enabling autoplay:',
             }),
         )
+    })
+
+    it('returns silently when deferReply throws unknown interaction error (10062)', async () => {
+        const interaction = createInteraction()
+        interaction.deferReply = jest
+            .fn()
+            .mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+        resolveGuildQueueMock.mockReturnValue({
+            queue: null,
+            source: 'miss',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 0,
+                cacheSampleKeys: [],
+            },
+        })
+
+        await autoplayCommand.execute({
+            client: createClient({ directQueue: null }),
+            interaction,
+        } as any)
+
+        expect(interactionReplyMock).not.toHaveBeenCalled()
+        expect(getGuildSettingsMock).not.toHaveBeenCalled()
+    })
+
+    it('re-throws when deferReply fails with a non-10062 error', async () => {
+        const interaction = createInteraction()
+        const boom = new Error('network error')
+        interaction.deferReply = jest.fn().mockRejectedValue(boom)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: null,
+            source: 'miss',
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 0,
+                cacheSampleKeys: [],
+            },
+        })
+
+        await expect(
+            autoplayCommand.execute({
+                client: createClient({ directQueue: null }),
+                interaction,
+            } as any),
+        ).rejects.toThrow('network error')
     })
 
     it('uses autoplay error response when execution throws', async () => {
