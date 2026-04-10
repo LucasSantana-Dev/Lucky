@@ -334,7 +334,7 @@ export function findMatchingSoundCloudResult(
     const queryNorm = normalizeForMatch(query)
     if (!queryNorm) return undefined
 
-    const tokens = queryNorm.split(/\s+/).filter(Boolean)
+    const tokens = queryNorm.split(/ +/).filter(Boolean)
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
@@ -355,8 +355,8 @@ export function findMatchingSoundCloudResult(
 function normalizeForMatch(value: string): string {
     return value
         .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s{2,}/g, ' ')
+        .replace(/[^a-z0-9 ]/g, '')
+        .replace(/ {2,}/g, ' ')
         .trim()
 }
 
