@@ -862,21 +862,25 @@ function markAsAutoplayTrack(
     recommendationReason: string,
     requestedById?: string,
 ): void {
-    const trackWithMetadata = track as unknown as {
-        metadata?: Record<string, unknown>
-    }
-    const metadata = trackWithMetadata.metadata ?? {}
+    const existingMetadata =
+        (track as unknown as { metadata?: Record<string, unknown> }).metadata ??
+        {}
     const existingRequestedById =
-        typeof metadata.requestedById === 'string'
-            ? metadata.requestedById
+        typeof existingMetadata.requestedById === 'string'
+            ? existingMetadata.requestedById
             : undefined
 
-    trackWithMetadata.metadata = {
-        ...metadata,
-        isAutoplay: true,
-        recommendationReason,
-        requestedById: requestedById ?? existingRequestedById,
-    }
+    Object.defineProperty(track, 'metadata', {
+        value: {
+            ...existingMetadata,
+            isAutoplay: true,
+            recommendationReason,
+            requestedById: requestedById ?? existingRequestedById,
+        },
+        writable: true,
+        configurable: true,
+        enumerable: true,
+    })
 }
 
 export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
