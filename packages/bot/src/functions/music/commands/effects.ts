@@ -4,7 +4,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
-import type { GuildQueue } from 'discord-player'
+import type { GuildQueue, QueueFilters } from 'discord-player'
 import {
     requireGuild,
     requireQueue,
@@ -12,10 +12,10 @@ import {
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
-const BASS_BOOST_LEVELS: Record<number, string[]> = {
+const BASS_BOOST_LEVELS: Record<number, (keyof QueueFilters)[]> = {
     0: [],
-    1: ['bassboost'],
-    2: ['bassboost'],
+    1: ['bass'],
+    2: ['bassboost_low'],
     3: ['bassboost_low'],
     4: ['bassboost'],
     5: ['bassboost_high'],
@@ -71,7 +71,7 @@ async function handleNightcore(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     try {
-        const enabled = queue.filters.resampler.toggleFilter('nightcore')
+        const enabled = queue.filters.resampler?.toggleFilter('nightcore') ?? false
 
         const message = enabled ? 'Nightcore enabled' : 'Nightcore disabled'
         await interactionReply({
@@ -98,7 +98,7 @@ async function handleReset(
 ): Promise<void> {
     try {
         await queue.filters.ffmpeg.setFilters([])
-        queue.filters.resampler.toggleFilter('nightcore')
+        queue.filters.resampler?.toggleFilter('nightcore')
 
         await interactionReply({
             interaction,
@@ -157,11 +157,11 @@ export default new Command({
 
         if (subcommand === 'bassboost') {
             const level = interaction.options.getInteger('level', true)
-            await handleBassBoost(queue, level, interaction)
+            await handleBassBoost(queue!, level, interaction)
         } else if (subcommand === 'nightcore') {
-            await handleNightcore(queue, interaction)
+            await handleNightcore(queue!, interaction)
         } else if (subcommand === 'reset') {
-            await handleReset(queue, interaction)
+            await handleReset(queue!, interaction)
         }
     },
 })
