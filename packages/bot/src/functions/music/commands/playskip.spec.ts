@@ -31,6 +31,8 @@ jest.mock('../../../utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn((error) => 'User friendly error'),
 }))
 
+const requireDJRoleMock = jest.fn()
+
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: jest.fn(),
     requireGuild: jest.fn(),
@@ -38,7 +40,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireCurrentTrack: jest.fn(),
     requireIsPlaying: jest.fn(),
     requireInteractionOptions: jest.fn(),
-    requireDJRole: jest.fn(async () => true)
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -89,6 +91,7 @@ function createMockQueue(overrides = {}) {
 describe('playskip command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        requireDJRoleMock.mockResolvedValue(true)
     })
 
     it('should have correct command structure', () => {

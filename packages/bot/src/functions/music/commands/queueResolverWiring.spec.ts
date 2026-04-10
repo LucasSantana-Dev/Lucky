@@ -31,7 +31,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireCurrentTrack: (...args: unknown[]) =>
         requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
-    requireDJRole: jest.fn(async () => true)
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
@@ -132,6 +132,7 @@ describe('music command resolver wiring', () => {
         requireQueueMock.mockResolvedValue(false)
         requireCurrentTrackMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         featureToggleIsEnabledMock.mockResolvedValue(true)
         resolveGuildQueueMock.mockReturnValue({
             queue: { id: 'queue-1' },

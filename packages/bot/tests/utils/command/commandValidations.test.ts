@@ -3,6 +3,12 @@ import {
     createMockMember,
 } from '../../__mocks__/discord'
 
+jest.mock('@lucky/shared/services', () => ({
+    guildSettingsService: {
+        getGuildSettings: jest.fn().mockResolvedValue({}),
+    },
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     handleError: jest.fn((err: Error) => ({
         message: err.message,
