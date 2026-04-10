@@ -7,6 +7,7 @@ const QueueRepeatMode = {
 } as const
 
 const requireGuildMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
 const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
@@ -23,6 +24,7 @@ const setGuildSettingsMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('discord-player', () => ({
@@ -109,6 +111,7 @@ describe('autoplay command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         getGuildSettingsMock.mockResolvedValue(null)
         setGuildSettingsMock.mockResolvedValue(true)
         resolveGuildQueueMock.mockReturnValue({

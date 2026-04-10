@@ -14,6 +14,7 @@ import volumeCommand from './volume'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 
 const requireGuildMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const requireVoiceChannelMock = jest.fn()
 const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
@@ -30,6 +31,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireCurrentTrack: (...args: unknown[]) =>
         requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
+    requireDJRole: jest.fn(async () => true)
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({

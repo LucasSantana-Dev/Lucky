@@ -10,7 +10,7 @@ import {
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { QueueRepeatMode, type GuildQueue } from 'discord-player'
-import { requireGuild } from '../../../utils/command/commandValidations'
+import { requireGuild, requireDJRole } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { messages } from '../../../utils/general/messages'
 import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
@@ -195,6 +195,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
+        if (!(await requireDJRole(interaction, interaction.guildId!))) return
 
         const guildId = interaction.guildId
         if (!guildId) return

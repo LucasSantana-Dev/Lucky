@@ -76,6 +76,7 @@ jest.mock('../../../../utils/music/queueResolver', () => ({
 jest.mock('../../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (interaction: unknown) =>
         requireVoiceChannelMock(interaction),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -177,6 +178,7 @@ describe('play command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         blendAutoplayTracksMock.mockResolvedValue(undefined)
         canAddTracksMock.mockReturnValue({
             allowed: true,

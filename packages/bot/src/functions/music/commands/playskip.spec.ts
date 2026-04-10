@@ -38,6 +38,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireCurrentTrack: jest.fn(),
     requireIsPlaying: jest.fn(),
     requireInteractionOptions: jest.fn(),
+    requireDJRole: jest.fn(async () => true)
 }))
 
 jest.mock('@lucky/shared/utils', () => ({

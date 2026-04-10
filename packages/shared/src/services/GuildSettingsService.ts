@@ -16,6 +16,7 @@ export interface GuildSettings {
   allowSpotify: boolean
   commandCooldown: number
   downloadCooldown: number
+  djRoleId?: string
   idleTimeoutMinutes?: number
   createdAt: Date
   updatedAt: Date
@@ -54,6 +55,7 @@ export class GuildSettingsService {
       allowSpotify: true,
       commandCooldown: 3,
       downloadCooldown: 10,
+      djRoleId: undefined,
       idleTimeoutMinutes: 0,
       createdAt: new Date(),
       updatedAt: new Date(),

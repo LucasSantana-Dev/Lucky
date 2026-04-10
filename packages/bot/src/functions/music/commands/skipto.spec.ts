@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import skiptoCommand from './skipto'
 
 const requireQueueMock = jest.fn()
+const requireDJRoleMock = jest.fn()
 const requireVoiceChannelMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
@@ -12,6 +13,7 @@ const resolveGuildQueueMock = jest.fn()
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireVoiceChannel: (...args: unknown[]) => requireVoiceChannelMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -61,6 +63,7 @@ describe('skipto command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
         buildCommandTrackEmbedMock.mockReturnValue({})
     })
