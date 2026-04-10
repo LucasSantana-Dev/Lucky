@@ -116,7 +116,9 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         )
     }
     return new Promise<Readable>((resolve, reject) => {
+        // URL is validated above to be https:// — no shell injection possible with spawn array args.
         const proc = spawn(
+            // NOSONAR
             'yt-dlp',
             [
                 '--no-playlist',
