@@ -1,4 +1,5 @@
 import { Player } from 'discord-player'
+import type { Track } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import * as playdl from 'play-dl'
 import type { Readable } from 'stream'
@@ -13,13 +14,6 @@ import {
 
 type CreatePlayerParams = {
     client: CustomClient
-}
-
-type BridgeTrack = {
-    title: string
-    author: string
-    duration?: string
-    url?: string
 }
 
 export const createPlayer = ({ client }: CreatePlayerParams): Player => {
@@ -74,29 +68,31 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mod = (await import('discord-player-youtubei')) as any
 
-        const registered = await player.extractors.register(
-            mod.YoutubeiExtractor,
-            {
-                streamOptions: {
-                    useClient: 'IOS' as const,
-                    highWaterMark: 1 << 25,
-                },
-                generateWithPoToken: true,
-                createStream: createResilientStream,
-            },
-        )
+        // v3 renamed YoutubeiExtractor → YoutubeExtractor
+        const YoutubeExtractor = mod.YoutubeExtractor ?? mod.YoutubeiExtractor
+        if (!YoutubeExtractor) {
+            warnLog({
+                message:
+                    'discord-player-youtubei: no extractor export found — skipping YouTube extractor',
+            })
+            return
+        }
+
+        const registered = await player.extractors.register(YoutubeExtractor, {
+            createStream: createResilientStream,
+        })
 
         if (!registered) {
             warnLog({
                 message:
-                    'YoutubeiExtractor registration returned null — activation may have failed',
+                    'YoutubeExtractor registration returned null — activation may have failed',
             })
             return
         }
 
         infoLog({
             message:
-                'Registered YoutubeiExtractor (SoundCloud bridge + YouTube fallback)',
+                'Registered YoutubeExtractor (SoundCloud bridge + YouTube fallback)',
         })
     } catch (error) {
         warnLog({
@@ -107,7 +103,7 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
 }
 
 /**
- * Bridge fallback chain.
+ * Bridge fallback chain (discord-player-youtubei v3 createStream signature).
  *
  * 1. SoundCloud search with the cleaned "${title} ${author}" query
  * 2. SoundCloud search with cleaned title only (drops uploader-channel noise)
@@ -118,7 +114,8 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
  * context to understand WHY the bridge fell through.
  */
 export async function createResilientStream(
-    track: BridgeTrack,
+    track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
+    _ext?: unknown,
 ): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
