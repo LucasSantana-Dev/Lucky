@@ -16,6 +16,7 @@ import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import * as musicPresence from '../../services/MusicPresenceService'
 import { scheduleIdleDisconnect, clearIdleTimer } from '../../utils/music/idleDisconnect'
+import { clearVotes } from '../../utils/music/voteSkipStore'
 
 const MAX_GUILD_ENTRIES = 500
 
@@ -69,6 +70,7 @@ export const setupTrackHandlers = ({
 }: SetupTrackHandlersParams): void => {
     player.events.on('playerStart', async (queue: GuildQueue, track: Track) => {
         clearIdleTimer(queue.guild.id)
+        clearVotes(queue.guild.id)
         await handlePlayerStart(queue, track, client)
     })
     player.events.on(
