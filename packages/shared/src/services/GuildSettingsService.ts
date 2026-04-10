@@ -17,6 +17,7 @@ export interface GuildSettings {
   commandCooldown: number
   downloadCooldown: number
   idleTimeoutMinutes?: number
+  voteSkipThreshold?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -55,6 +56,7 @@ export class GuildSettingsService {
       commandCooldown: 3,
       downloadCooldown: 10,
       idleTimeoutMinutes: 0,
+      voteSkipThreshold: 50,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
