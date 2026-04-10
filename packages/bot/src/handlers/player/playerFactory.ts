@@ -252,7 +252,7 @@ export async function createResilientStream(
         })
     }
 
-    const coreTitle = cleanedTitle.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s{2,}/g, ' ').trim()
+    const coreTitle = cleanedTitle.replace(/ *\([^)]*\) */g, ' ').replace(/ {2,}/g, ' ').trim()
     if (coreTitle && coreTitle !== cleanedTitle) {
         try {
             return await streamViaSoundCloud(coreTitle, track.duration)
