@@ -2,8 +2,15 @@ import { type ButtonInteraction, type GuildMember } from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
-import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX, LEADERBOARD_BUTTON_PREFIX } from '../types/musicButtons'
-import { createMusicControlButtons, createLeaderboardPaginationButtons } from '../utils/music/buttonComponents'
+import {
+    MUSIC_BUTTON_IDS,
+    QUEUE_BUTTON_PREFIX,
+    LEADERBOARD_BUTTON_PREFIX,
+} from '../types/musicButtons'
+import {
+    createMusicControlButtons,
+    createLeaderboardPaginationButtons,
+} from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
 import { shuffleQueue } from '../utils/music/queueManipulation'
 import type { GuildQueue } from 'discord-player'
@@ -58,6 +65,7 @@ export async function handleMusicButtonInteraction(
             return
         }
 
+        await interaction.deferUpdate()
         await routeButtonAction(interaction, queue)
     } catch (error) {
         errorLog({
@@ -69,6 +77,12 @@ export async function handleMusicButtonInteraction(
                 .reply({
                     embeds: [createErrorEmbed('Error', 'Something went wrong')],
                     ephemeral: true,
+                })
+                .catch(() => {})
+        } else if (interaction.deferred) {
+            await interaction
+                .editReply({
+                    embeds: [createErrorEmbed('Error', 'Something went wrong')],
                 })
                 .catch(() => {})
         }
@@ -108,7 +122,6 @@ async function handlePrevious(
 ): Promise<void> {
     await queue.history.back()
     debugLog({ message: 'Previous track via button' })
-    await interaction.deferUpdate()
 }
 
 async function handlePauseResume(
@@ -121,7 +134,7 @@ async function handlePauseResume(
         queue.node.pause()
     }
 
-    await interaction.update({
+    await interaction.editReply({
         components: [createMusicControlButtons(queue)],
     })
 }
@@ -132,7 +145,6 @@ async function handleSkip(
 ): Promise<void> {
     queue.node.skip()
     debugLog({ message: 'Track skipped via button' })
-    await interaction.deferUpdate()
 }
 
 async function handleShuffle(
@@ -141,7 +153,6 @@ async function handleShuffle(
 ): Promise<void> {
     await shuffleQueue(queue)
     debugLog({ message: 'Queue shuffled via button' })
-    await interaction.deferUpdate()
 }
 
 const LOOP_MODE_NAMES: Record<number, string> = {
@@ -168,7 +179,7 @@ async function handleLoop(
     queue.setRepeatMode(newMode)
 
     const modeName = LOOP_MODE_NAMES[newMode] ?? 'Off'
-    await interaction.reply({
+    await interaction.followUp({
         content: `\u{1F501} Loop mode: **${modeName}**`,
         ephemeral: true,
     })
@@ -184,7 +195,7 @@ async function handleQueuePage(
     const page = parseInt(pageMatch[1], 10)
     const { embed, components } = await createQueueEmbed(queue, undefined, page)
 
-    await interaction.update({
+    await interaction.editReply({
         embeds: [embed],
         components,
     })
@@ -199,11 +210,16 @@ async function handleLeaderboardPage(
         if (!pageMatch?.[1] || !interaction.guildId) return
 
         const page = parseInt(pageMatch[1], 10)
-        const entries = await levelService.getLeaderboard(interaction.guildId, 50)
+        const entries = await levelService.getLeaderboard(
+            interaction.guildId,
+            50,
+        )
 
         if (entries.length === 0) {
-            await interaction.update({
-                embeds: [createErrorEmbed('Leaderboard', 'No XP recorded yet.')],
+            await interaction.editReply({
+                embeds: [
+                    createErrorEmbed('Leaderboard', 'No XP recorded yet.'),
+                ],
                 components: [],
             })
             return
@@ -225,12 +241,15 @@ async function handleLeaderboardPage(
         })
 
         const components = []
-        const paginationRow = createLeaderboardPaginationButtons(page, totalPages)
+        const paginationRow = createLeaderboardPaginationButtons(
+            page,
+            totalPages,
+        )
         if (paginationRow) {
             components.push(paginationRow)
         }
 
-        await interaction.update({
+        await interaction.editReply({
             embeds: [embed],
             components,
         })
@@ -240,13 +259,11 @@ async function handleLeaderboardPage(
             message: 'Error handling leaderboard page interaction',
             error,
         })
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction
-                .reply({
-                    embeds: [createErrorEmbed('Error', 'Something went wrong')],
-                    ephemeral: true,
-                })
-                .catch(() => {})
-        }
+        await interaction
+            .followUp({
+                embeds: [createErrorEmbed('Error', 'Something went wrong')],
+                ephemeral: true,
+            })
+            .catch(() => {})
     }
 }

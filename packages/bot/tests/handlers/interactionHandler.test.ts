@@ -135,6 +135,18 @@ describe('handleInteraction', () => {
         )
     })
 
+    it('calls handleMusicButtonInteraction for leaderboard_page prefixed buttons', async () => {
+        const interaction = createButtonInteraction('leaderboard_page_1')
+        const client = createClient()
+
+        await handleInteraction(interaction, client)
+
+        expect(handleMusicButtonInteractionMock).toHaveBeenCalledWith(
+            interaction,
+        )
+        expect(handleButtonInteractionMock).not.toHaveBeenCalled()
+    })
+
     it('calls reactionRolesService for non-music buttons', async () => {
         const interaction = createButtonInteraction('role_123')
         const client = createClient()
