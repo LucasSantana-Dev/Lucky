@@ -2,38 +2,31 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from "../../../utils/general/interactionReply"
 import type { CommandExecuteParams } from "../../../types/CommandData"
-import { requireQueue } from "../../../utils/command/commandValidations"
+import {
+    requireQueue,
+    requireCurrentTrack,
+    requireIsPlaying,
+    requireVoiceChannel,
+} from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { createSuccessEmbed, createWarningEmbed } from '../../../utils/general/embeds'
+import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
-        .setName('resume')
-        .setDescription('▶️ Resume the paused music.'),
+        .setName('replay')
+        .setDescription('🔄 Replay the current song from the beginning.'),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
+        if (!(await requireVoiceChannel(interaction))) return
+
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
         if (!(await requireQueue(queue, interaction))) return
+        if (!(await requireCurrentTrack(queue, interaction))) return
+        if (!(await requireIsPlaying(queue, interaction))) return
 
-        if (queue !== null && queue !== undefined && !queue.node.isPaused()) {
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        createWarningEmbed(
-                            'Already playing',
-                            '▶️ Music is already playing.',
-                        ),
-                    ],
-                    ephemeral: true,
-                },
-            })
-            return
-        }
-
-        queue?.node.resume()
+        queue?.node.seek(0)
 
         const currentTrack = queue?.currentTrack
         if (!currentTrack) {
@@ -42,8 +35,8 @@ export default new Command({
                 content: {
                     embeds: [
                         createSuccessEmbed(
-                            '▶️ Resumed',
-                            'Music has been resumed.',
+                            '🔄 Replayed',
+                            'Track has been replayed from the beginning.',
                         ),
                     ],
                 },
@@ -51,7 +44,7 @@ export default new Command({
             return
         }
 
-        const trackEmbed = buildCommandTrackEmbed(currentTrack, '▶️ Resumed', interaction.user)
+        const trackEmbed = buildCommandTrackEmbed(currentTrack, '🔄 Replayed', interaction.user)
         await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
     },
 })

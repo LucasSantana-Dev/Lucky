@@ -19,26 +19,12 @@ import {
 } from '../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
-
-const DISCORD_UNKNOWN_INTERACTION_CODE = 10062
-
-function isUnknownInteractionError(error: unknown): boolean {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: number }).code === DISCORD_UNKNOWN_INTERACTION_CODE
-    )
-}
-
-function isUrl(query: string): boolean {
-    return query.startsWith('http://') || query.startsWith('https://')
-}
-
-function resolveSearchEngine(query: string): QueryType {
-    if (isUrl(query)) return QueryType.AUTO
-    return QueryType.SPOTIFY_SEARCH
-}
+import {
+    DISCORD_UNKNOWN_INTERACTION_CODE,
+    isUnknownInteractionError,
+    isUrl,
+    resolveSearchEngine,
+} from './queryUtils'
 
 function isTrackAlreadyQueued(
     queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
@@ -66,6 +52,17 @@ export default new Command({
                     'Song name, artist, YouTube URL, or Spotify URL',
                 )
                 .setRequired(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName('provider')
+                .setDescription('Music provider to search (default: spotify)')
+                .addChoices(
+                    { name: 'Spotify', value: 'spotify' },
+                    { name: 'YouTube', value: 'youtube' },
+                    { name: 'SoundCloud', value: 'soundcloud' },
+                )
+                .setRequired(false),
         ),
     category: 'music',
     execute: async ({
@@ -98,6 +95,7 @@ export default new Command({
         }
 
         const query = interaction.options.getString('query', true)
+        const provider = interaction.options.getString('provider')
         const collaborativeCheck = collaborativePlaylistService.canAddTracks(
             interaction.guildId,
             interaction.user.id,
@@ -123,7 +121,7 @@ export default new Command({
                 resolveGuildQueue(client, interaction.guildId ?? '').queue,
             )
 
-            const searchEngine = resolveSearchEngine(query)
+            const searchEngine = resolveSearchEngine(query, provider)
             const playOptions = {
                 nodeOptions: {
                     metadata: {
