@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.78] - 2026-04-10
+
+### Fixed
+
+- **Silent audio playback (critical)** — two root causes found and fixed:
+  1. `streamViaYtDlp` consumed the first chunk from yt-dlp's stdout (the WebM EBML header `1a 45 df a3`) via `once('data')` and discarded it. discord-player/ffmpeg received a headerless stream and could not decode the codec, resulting in silence. Fixed with a `PassThrough` that re-injects the first chunk before piping the remainder.
+  2. yt-dlp spawned without a JavaScript runtime (`node: unavailable`). Added `--js-runtimes node:/usr/local/bin/node` so YouTube extraction uses the full JS extractor and all audio formats are available.
+
 ## [2.6.77] - 2026-04-10
 
 ### Fixed
