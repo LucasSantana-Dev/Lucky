@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.72] - 2026-04-10
+
+### Added
+
+- **`/djrole set <role>`** — restrict all music commands to users with a designated DJ role; server admins (ManageGuild) always bypass the check
+- **`/djrole clear`** — remove the DJ role restriction
+- **`/djrole show`** — display the currently configured DJ role
+- **`/voteskip`** — democratic skip: cast a vote to skip the current track; skips automatically when the threshold (default 50%) of eligible voice members vote. Threshold is configurable via `GuildSettings.voteSkipThreshold`. Vote state clears on track change.
+- **`/settings music idle-timeout <minutes>`** — configure how long (0–60 min, 0 = disabled) the bot waits in an empty voice channel before automatically disconnecting. Integrates with `MusicWatchdogService.markIntentionalStop` to prevent watchdog reconnect.
+
+### Fixed
+
+- **SoundCloud bridge matching (Sentry LUCKY-26/2P)** — Brazilian funk and tracks with compound DJ names (e.g. "DogDog" vs "Dog Dog" on SoundCloud) now match correctly. Changes:
+  - Token match changed from 100% (`every`) to 75% threshold, tolerating accent stripping and compound-word splits
+  - Duration tolerance relaxed from 15 s to 30 s
+  - `normalizeForMatch` regex uses literal space instead of `\s` (avoids Unicode edge cases)
+  - New 3rd fallback stage: strips content from first `(` in the cleaned title and retries SoundCloud search (e.g. "Bohemian Rhapsody (Official Music Live Session)" → "Bohemian Rhapsody")
+
 ## [2.6.71] - 2026-04-10
 
 ### Added
