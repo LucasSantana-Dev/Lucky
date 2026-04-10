@@ -243,7 +243,7 @@ describe('handleMusicButtonInteraction', () => {
         )
     })
 
-    it('logs error and replies on unexpected exception', async () => {
+    it('logs error and replies on unexpected exception when not yet replied', async () => {
         const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP, {
             replied: false,
         })
@@ -257,6 +257,26 @@ describe('handleMusicButtonInteraction', () => {
         expect(interaction.reply).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
+    })
+
+    it('uses editReply on error when interaction is already deferred', async () => {
+        const queue = createMockQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME, {
+            deferred: true,
+        })
+        interaction.editReply = jest.fn().mockResolvedValue(undefined)
+        createMusicControlButtonsMock.mockImplementation(() => {
+            throw new Error('render failed')
+        })
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(errorLogMock).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            expect.objectContaining({ embeds: expect.any(Array) }),
+        )
+        expect(interaction.reply).not.toHaveBeenCalled()
     })
 
     it('uses resolver-backed queue lookup so music buttons still work after queue cache fallback', async () => {
