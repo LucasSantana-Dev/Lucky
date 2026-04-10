@@ -371,7 +371,10 @@ fi
 log "Pulling images..."
 if ! docker_compose pull bot backend frontend nginx; then
     log "WARN: Pull failed, falling back to local build..."
-    if ! docker_compose build --parallel bot backend frontend nginx; then
+    _build_commit_sha=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo "")
+    if ! docker_compose build --parallel \
+            --build-arg "COMMIT_SHA=${_build_commit_sha}" \
+            bot backend frontend nginx; then
         notify 16711680 "Deploy Failed" "Docker build failed"
         exit 1
     fi
