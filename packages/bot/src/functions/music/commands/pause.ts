@@ -7,13 +7,13 @@ import {
     requireVoiceChannel,
 } from "../../../utils/command/commandValidations"
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
-import { createSuccessEmbed, createWarningEmbed } from '../../../utils/general/embeds'
+import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('pause')
-        .setDescription('⏸️ Pause the current music.'),
+        .setDescription('⏸️ Toggle pause/resume music.'),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireVoiceChannel(interaction))) return
@@ -22,33 +22,25 @@ export default new Command({
 
         if (!(await requireQueue(queue, interaction))) return
 
-        if (queue?.node.isPaused() === true) {
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        createWarningEmbed(
-                            'Already paused',
-                            '⏸️ Music is already paused.',
-                        ),
-                    ],
-                    ephemeral: true,
-                },
-            })
-            return
+        const isPaused = queue?.node.isPaused() === true
+
+        if (isPaused) {
+            queue?.node.resume()
+        } else {
+            queue?.node.pause()
         }
 
-        queue?.node.pause()
-
         const currentTrack = queue?.currentTrack
+        const action = isPaused ? '▶️ Resumed' : '⏸️ Paused'
+
         if (!currentTrack) {
             await interactionReply({
                 interaction,
                 content: {
                     embeds: [
                         createSuccessEmbed(
-                            '⏸️ Paused',
-                            'Music has been paused.',
+                            action,
+                            `Music has been ${isPaused ? 'resumed' : 'paused'}.`,
                         ),
                     ],
                 },
@@ -56,7 +48,7 @@ export default new Command({
             return
         }
 
-        const trackEmbed = buildCommandTrackEmbed(currentTrack, '⏸️ Paused', interaction.user)
+        const trackEmbed = buildCommandTrackEmbed(currentTrack, action, interaction.user)
         await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
     },
 })
