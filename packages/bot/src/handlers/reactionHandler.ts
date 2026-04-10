@@ -9,6 +9,22 @@ import {
 } from 'discord.js'
 import { starboardService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
+import { activeGiveaways } from '../functions/general/commands/giveaway'
+
+async function handleGiveawayReaction(
+    reaction: MessageReaction | PartialMessageReaction,
+    user: User | PartialUser,
+): Promise<void> {
+    if (user.bot) return
+    if (user.partial) await user.fetch()
+
+    const giveaway = activeGiveaways.get(reaction.message.id)
+    if (!giveaway) return
+
+    if (reaction.emoji.name === '🎉') {
+        giveaway.entries.add(user.id)
+    }
+}
 
 async function handleStarboardReaction(
     reaction: MessageReaction | PartialMessageReaction,
@@ -81,6 +97,7 @@ export function handleReactionEvents(client: Client): void {
             user: User | PartialUser,
         ) => {
             try {
+                await handleGiveawayReaction(reaction, user)
                 await handleStarboardReaction(reaction, user, client)
             } catch (error) {
                 errorLog({ message: 'Error handling reaction:', error })

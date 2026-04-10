@@ -627,3 +627,15 @@ model LiveBoard {
 
   @@map("live_boards")
 }
+
+model AutoRole {
+  id           String   @id @default(cuid())
+  guildId      String
+  roleId       String
+  delayMinutes Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([guildId, roleId])
+  @@index([guildId])
+  @@map("auto_roles")
+}

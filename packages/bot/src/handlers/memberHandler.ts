@@ -6,12 +6,54 @@ import {
     ChannelType,
     EmbedBuilder,
 } from 'discord.js'
-import { autoMessageService } from '@lucky/shared/services'
+import { autoMessageService, autoroleService } from '@lucky/shared/services'
 import { featureToggleService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 
 async function handleMemberAdd(member: GuildMember): Promise<void> {
     if (!member.guild) return
+
+    try {
+        // Assign auto-roles
+        const autoroles = await autoroleService.list(member.guild.id)
+        for (const autorole of autoroles) {
+            const role = member.guild.roles.cache.get(autorole.roleId)
+            if (!role) continue
+
+            if (autorole.delayMinutes > 0) {
+                setTimeout(async () => {
+                    try {
+                        await member.roles.add(role)
+                        debugLog({
+                            message: `Auto-assigned role ${role.name} to ${member.user.tag} after ${autorole.delayMinutes}m delay`,
+                        })
+                    } catch (error) {
+                        errorLog({
+                            message: `Failed to assign auto-role ${role.name} to ${member.user.tag}:`,
+                            error,
+                        })
+                    }
+                }, autorole.delayMinutes * 60 * 1000)
+            } else {
+                try {
+                    await member.roles.add(role)
+                    debugLog({
+                        message: `Auto-assigned role ${role.name} to ${member.user.tag}`,
+                    })
+                } catch (error) {
+                    errorLog({
+                        message: `Failed to assign auto-role ${role.name} to ${member.user.tag}:`,
+                        error,
+                    })
+                }
+            }
+        }
+    } catch (error) {
+        errorLog({
+            message: 'Error assigning auto-roles:',
+            error,
+        })
+    }
 
     const isEnabled = await featureToggleService.isEnabled('WELCOME_MESSAGES', {
         guildId: member.guild.id,
