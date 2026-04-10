@@ -44,6 +44,14 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
+const getTrackHistoryMock = jest.fn()
+
+jest.mock('@lucky/shared/services', () => ({
+    trackHistoryService: {
+        getTrackHistory: (...args: unknown[]) => getTrackHistoryMock(...args),
+    },
+}))
+
 const getLastFmSeedTracksMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
@@ -104,6 +112,7 @@ describe('queueManipulation.replenishQueue', () => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
         getLastFmSeedTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
     })
 
     async function replenishWithSingleCandidate(options: {

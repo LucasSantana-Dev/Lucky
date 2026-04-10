@@ -8,6 +8,7 @@ import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
+import { trackHistoryService } from '@lucky/shared/services'
 import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 
@@ -204,25 +205,29 @@ export async function replenishQueue(queue: GuildQueue): Promise<void> {
             HISTORY_SEED_LIMIT + 1,
         )
         const requestedBy = getRequestedBy(queue, currentTrack)
-        const [dislikedTrackKeys, likedTrackKeys] = await Promise.all([
-            recommendationFeedbackService.getDislikedTrackKeys(
-                queue.guild.id,
-                requestedBy?.id,
-            ),
-            recommendationFeedbackService.getLikedTrackKeys(
-                queue.guild.id,
-                requestedBy?.id,
-            ),
-        ])
+        const [dislikedTrackKeys, likedTrackKeys, persistentHistory] =
+            await Promise.all([
+                recommendationFeedbackService.getDislikedTrackKeys(
+                    queue.guild.id,
+                    requestedBy?.id,
+                ),
+                recommendationFeedbackService.getLikedTrackKeys(
+                    queue.guild.id,
+                    requestedBy?.id,
+                ),
+                trackHistoryService.getTrackHistory(queue.guild.id, 20),
+            ])
         const excludedUrls = buildExcludedUrls(
             queue,
             currentTrack,
             historyTracks,
+            persistentHistory,
         )
         const excludedKeys = buildExcludedKeys(
             queue,
             currentTrack,
             historyTracks,
+            persistentHistory,
         )
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const candidates = await collectRecommendationCandidates(
@@ -307,11 +312,13 @@ function buildExcludedUrls(
     queue: GuildQueue,
     currentTrack: Track,
     historyTracks: Track[],
+    persistentHistory: { url: string }[] = [],
 ): Set<string> {
     return new Set<string>([
         currentTrack.url,
         ...historyTracks.map((track) => track.url),
         ...queue.tracks.toArray().map((track) => track.url),
+        ...persistentHistory.map((entry) => entry.url).filter(Boolean),
     ])
 }
 
@@ -319,6 +326,7 @@ function buildExcludedKeys(
     queue: GuildQueue,
     currentTrack: Track,
     historyTracks: Track[],
+    persistentHistory: { title: string; author: string }[] = [],
 ): Set<string> {
     return new Set<string>([
         normalizeTrackKey(currentTrack.title, currentTrack.author),
@@ -328,6 +336,9 @@ function buildExcludedKeys(
         ...queue.tracks
             .toArray()
             .map((track) => normalizeTrackKey(track.title, track.author)),
+        ...persistentHistory.map((entry) =>
+            normalizeTrackKey(entry.title, entry.author),
+        ),
     ])
 }
 

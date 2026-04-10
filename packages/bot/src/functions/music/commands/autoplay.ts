@@ -183,7 +183,7 @@ async function resolveCurrentAutoplayState(
         return queue.repeatMode === QueueRepeatMode.AUTOPLAY
     }
     const settings = await guildSettingsService.getGuildSettings(guildId)
-    return settings?.autoPlayEnabled ?? false
+    return settings?.autoPlayEnabled ?? true
 }
 
 export default new Command({
