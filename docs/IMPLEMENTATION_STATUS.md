@@ -1,7 +1,7 @@
 # Lucky Implementation Status
 
 **Last Updated:** 2026-04-10  
-**Current Version:** v2.6.71
+**Current Version:** v2.6.72
 
 This document reflects what is currently shipped and running in production.
 
@@ -35,6 +35,12 @@ This document reflects what is currently shipped and running in production.
 - **`/seek <time>`** — seek to `mm:ss` or raw seconds in current track (v2.6.71)
 - **`/replay`** — restart current track from the beginning (v2.6.71)
 - **`/leavecleanup`** — remove queued tracks from users who left the voice channel (v2.6.71)
+- **`/djrole set <role>`** — restrict all music commands to users with a designated DJ role; ManageGuild bypasses the check (v2.6.72)
+- **`/djrole clear`** — remove the DJ role restriction (v2.6.72)
+- **`/djrole show`** — display the currently configured DJ role (v2.6.72)
+- **`/voteskip`** — democratic skip: configurable threshold (default 50%) of eligible voice members must vote; state clears on track change (v2.6.72)
+- **`/settings music idle-timeout <minutes>`** — configure idle auto-disconnect timeout (0–60 min, 0 = disabled); integrates with MusicWatchdogService (v2.6.72)
+- **`/history [page]`** — paginated view of recently played tracks; shows title, artist, duration, relative timestamp, and autoplay indicator (v2.6.72)
 - **`/nowplaying`** — alias for `/songinfo`; shows current track rich embed (v2.6.71)
 - **`/volume`** — range extended to 1–200 (v2.6.71)
 - **`/pause`** — now toggles pause/resume; `/resume` removed (v2.6.71)
@@ -148,10 +154,7 @@ This document reflects what is currently shipped and running in production.
 | Area                    | Description                                                                                      | Complexity |
 | ----------------------- | ------------------------------------------------------------------------------------------------ | ---------- |
 | Collaborative playlists | Shared curation surface (`/playlist`) on top of the existing per-user contribution limit service | L          |
-| DJ role restriction     | `/djrole set/clear/show` — restrict music commands to a configured role per guild                | M          |
-| Auto-disconnect         | Leave voice channel after configurable idle timeout (default 5 min)                              | M          |
-| Vote skip               | `/voteskip` — democratic skip requiring configurable % of voice members                          | M          |
-| Queue history view      | `/history` — paginated view of recently played tracks (leverages existing trackHistoryService)   | S          |
+| Collaborative playlists | Shared curation surface (`/playlist`) on top of the existing per-user contribution limit service | L          |
 
 ---
 
