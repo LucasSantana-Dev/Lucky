@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.79] - 2026-04-10
+
+### Fixed
+
+- **Silent stream failures** — when `playerError` fires and all recovery paths are exhausted, the bot now sends an error embed to the guild text channel: "⚠️ Could not play track — [title] could not be streamed from any source." Previously nothing was shown.
+- **yt-dlp stderr captured** — the first line of yt-dlp stderr (e.g. "Video unavailable in your country") is now included in the rejection message and visible in logs.
+- **Bridge exhaustion logs** — added `cleanedTitle`, `url`, and `stages[]` array to `Bridge: all stages exhausted` error entries.
+
 ## [2.6.78] - 2026-04-10
 
 ### Fixed
