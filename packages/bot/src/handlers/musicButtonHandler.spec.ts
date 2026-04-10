@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
-import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX, LEADERBOARD_BUTTON_PREFIX } from '../types/musicButtons'
+import {
+    MUSIC_BUTTON_IDS,
+    QUEUE_BUTTON_PREFIX,
+    LEADERBOARD_BUTTON_PREFIX,
+} from '../types/musicButtons'
 
 const errorLogMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -43,7 +47,9 @@ jest.mock('../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-const buildListPageEmbedMock = jest.fn(() => ({ toJSON: () => ({ type: 'embed' }) }))
+const buildListPageEmbedMock = jest.fn(() => ({
+    toJSON: () => ({ type: 'embed' }),
+}))
 
 jest.mock('../utils/general/responseEmbeds', () => ({
     buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
@@ -79,6 +85,8 @@ function createInteraction(
         member: { voice: { channel: hasVoice ? { id: 'vc-1' } : null } },
         reply: jest.fn().mockResolvedValue(undefined),
         update: jest.fn().mockResolvedValue(undefined),
+        editReply: jest.fn().mockResolvedValue(undefined),
+        followUp: jest.fn().mockResolvedValue(undefined),
         deferUpdate: jest.fn().mockResolvedValue(undefined),
     }
 }
@@ -147,6 +155,7 @@ describe('handleMusicButtonInteraction', () => {
 
         expect(queue.history.back).toHaveBeenCalled()
         expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
     it('pauses when PAUSE_RESUME and queue is playing', async () => {
@@ -160,7 +169,7 @@ describe('handleMusicButtonInteraction', () => {
 
         expect(queue.node.pause).toHaveBeenCalled()
         expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
-        expect(interaction.update).toHaveBeenCalledWith(
+        expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({ components: [buttons] }),
         )
     })
@@ -176,7 +185,7 @@ describe('handleMusicButtonInteraction', () => {
 
         expect(queue.node.resume).toHaveBeenCalled()
         expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
-        expect(interaction.update).toHaveBeenCalledWith(
+        expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({ components: [buttons] }),
         )
     })
@@ -190,6 +199,7 @@ describe('handleMusicButtonInteraction', () => {
 
         expect(queue.node.skip).toHaveBeenCalled()
         expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
     it('shuffles queue for SHUFFLE button', async () => {
@@ -201,6 +211,7 @@ describe('handleMusicButtonInteraction', () => {
 
         expect(shuffleQueueMock).toHaveBeenCalledWith(queue)
         expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.editReply).not.toHaveBeenCalled()
     })
 
     it('cycles loop mode for LOOP button', async () => {
@@ -211,7 +222,7 @@ describe('handleMusicButtonInteraction', () => {
         await handleMusicButtonInteraction(interaction as never)
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(1)
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interaction.followUp).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
     })
@@ -227,7 +238,7 @@ describe('handleMusicButtonInteraction', () => {
         await handleMusicButtonInteraction(interaction as never)
 
         expect(createQueueEmbedMock).toHaveBeenCalledWith(queue, undefined, 2)
-        expect(interaction.update).toHaveBeenCalledWith(
+        expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({ embeds: [embed], components }),
         )
     })
@@ -268,7 +279,7 @@ describe('handleMusicButtonInteraction', () => {
             'guild-1',
         )
         expect(queue.node.pause).toHaveBeenCalled()
-        expect(interaction.update).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalled()
     })
 
     describe('leaderboard page button', () => {
@@ -283,36 +294,50 @@ describe('handleMusicButtonInteraction', () => {
                 queue: createMockQueue(),
                 source: 'nodes.get',
             })
-            buildListPageEmbedMock.mockReturnValue({ data: { title: 'XP Leaderboard' } })
+            buildListPageEmbedMock.mockReturnValue({
+                data: { title: 'XP Leaderboard' },
+            })
             createLeaderboardPaginationButtonsMock.mockReturnValue(null)
         })
 
         it('renders page 0 and calls buildListPageEmbed with correct args', async () => {
             getLeaderboardMock.mockResolvedValue(fakeEntries)
-            const interaction = createInteraction(`${LEADERBOARD_BUTTON_PREFIX}_0`)
+            const interaction = createInteraction(
+                `${LEADERBOARD_BUTTON_PREFIX}_0`,
+            )
 
             await handleMusicButtonInteraction(interaction as never)
 
             expect(getLeaderboardMock).toHaveBeenCalledWith('guild-1', 50)
             expect(buildListPageEmbedMock).toHaveBeenCalledWith(
                 expect.arrayContaining([
-                    expect.objectContaining({ name: '#1', value: expect.stringContaining('user-0') }),
+                    expect.objectContaining({
+                        name: '#1',
+                        value: expect.stringContaining('user-0'),
+                    }),
                 ]),
                 1,
-                expect.objectContaining({ title: 'XP Leaderboard', itemsPerPage: 5 }),
+                expect.objectContaining({
+                    title: 'XP Leaderboard',
+                    itemsPerPage: 5,
+                }),
             )
-            expect(interaction.update).toHaveBeenCalled()
+            expect(interaction.editReply).toHaveBeenCalled()
         })
 
         it('includes pagination row when createLeaderboardPaginationButtons returns a row', async () => {
             getLeaderboardMock.mockResolvedValue(fakeEntries)
             const paginationRow = { type: 1, components: [] }
-            createLeaderboardPaginationButtonsMock.mockReturnValue(paginationRow)
-            const interaction = createInteraction(`${LEADERBOARD_BUTTON_PREFIX}_0`)
+            createLeaderboardPaginationButtonsMock.mockReturnValue(
+                paginationRow,
+            )
+            const interaction = createInteraction(
+                `${LEADERBOARD_BUTTON_PREFIX}_0`,
+            )
 
             await handleMusicButtonInteraction(interaction as never)
 
-            expect(interaction.update).toHaveBeenCalledWith(
+            expect(interaction.editReply).toHaveBeenCalledWith(
                 expect.objectContaining({
                     components: [paginationRow],
                 }),
@@ -321,11 +346,13 @@ describe('handleMusicButtonInteraction', () => {
 
         it('shows error embed and empty components when leaderboard is empty', async () => {
             getLeaderboardMock.mockResolvedValue([])
-            const interaction = createInteraction(`${LEADERBOARD_BUTTON_PREFIX}_0`)
+            const interaction = createInteraction(
+                `${LEADERBOARD_BUTTON_PREFIX}_0`,
+            )
 
             await handleMusicButtonInteraction(interaction as never)
 
-            expect(interaction.update).toHaveBeenCalledWith(
+            expect(interaction.editReply).toHaveBeenCalledWith(
                 expect.objectContaining({ components: [] }),
             )
             expect(createErrorEmbedMock).toHaveBeenCalledWith(
