@@ -35,9 +35,18 @@ function isUrl(query: string): boolean {
     return query.startsWith('http://') || query.startsWith('https://')
 }
 
-function resolveSearchEngine(query: string): QueryType {
+function resolveSearchEngine(query: string, provider?: string | null): QueryType {
     if (isUrl(query)) return QueryType.AUTO
-    return QueryType.SPOTIFY_SEARCH
+
+    switch (provider) {
+        case 'youtube':
+            return QueryType.YOUTUBE_SEARCH
+        case 'soundcloud':
+            return QueryType.SOUNDCLOUD_SEARCH
+        case 'spotify':
+        default:
+            return QueryType.SPOTIFY_SEARCH
+    }
 }
 
 function isTrackAlreadyQueued(
@@ -66,6 +75,17 @@ export default new Command({
                     'Song name, artist, YouTube URL, or Spotify URL',
                 )
                 .setRequired(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName('provider')
+                .setDescription('Music provider to search (default: spotify)')
+                .addChoices(
+                    { name: 'Spotify', value: 'spotify' },
+                    { name: 'YouTube', value: 'youtube' },
+                    { name: 'SoundCloud', value: 'soundcloud' },
+                )
+                .setRequired(false),
         ),
     category: 'music',
     execute: async ({
@@ -98,6 +118,7 @@ export default new Command({
         }
 
         const query = interaction.options.getString('query', true)
+        const provider = interaction.options.getString('provider')
         const collaborativeCheck = collaborativePlaylistService.canAddTracks(
             interaction.guildId,
             interaction.user.id,
@@ -123,7 +144,7 @@ export default new Command({
                 resolveGuildQueue(client, interaction.guildId ?? '').queue,
             )
 
-            const searchEngine = resolveSearchEngine(query)
+            const searchEngine = resolveSearchEngine(query, provider)
             const playOptions = {
                 nodeOptions: {
                     metadata: {

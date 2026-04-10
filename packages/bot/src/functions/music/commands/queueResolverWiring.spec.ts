@@ -6,7 +6,6 @@ import moveCommand from './move'
 import pauseCommand from './pause'
 import removeCommand from './remove'
 import repeatCommand from './repeat'
-import resumeCommand from './resume'
 import shuffleCommand from './shuffle'
 import skipCommand from './skip'
 import songinfoCommand from './songinfo'
@@ -82,7 +81,6 @@ const queueValidationCases: QueueCase[] = [
     { name: 'pause', command: pauseCommand },
     { name: 'remove', command: removeCommand },
     { name: 'repeat', command: repeatCommand },
-    { name: 'resume', command: resumeCommand },
     { name: 'shuffle', command: shuffleCommand },
     { name: 'skip', command: skipCommand },
     { name: 'songinfo', command: songinfoCommand },
