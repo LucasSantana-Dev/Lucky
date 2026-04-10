@@ -169,9 +169,7 @@ async function handleAutoplayError(
     await interactionReply({
         interaction,
         content: {
-            embeds: [
-                createErrorEmbed('Error', messages.error.notPlaying),
-            ],
+            embeds: [createErrorEmbed('Error', messages.error.notPlaying)],
             ephemeral: true,
         },
     })
@@ -216,6 +214,18 @@ export default new Command({
                     cacheSampleKeys: diagnostics.cacheSampleKeys,
                 },
             })
+        }
+
+        try {
+            await interaction.deferReply()
+        } catch (error) {
+            const isUnknownInteraction =
+                typeof error === 'object' &&
+                error !== null &&
+                'code' in error &&
+                (error as { code?: number }).code === 10062
+            if (isUnknownInteraction) return
+            throw error
         }
 
         try {

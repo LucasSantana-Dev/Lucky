@@ -25,9 +25,11 @@ export async function handleMusicButtonInteraction(
     interaction: ButtonInteraction,
 ): Promise<void> {
     try {
+        await interaction.deferUpdate()
+
         const member = interaction.member as GuildMember
         if (!member.voice.channel) {
-            await interaction.reply({
+            await interaction.followUp({
                 embeds: [
                     createErrorEmbed(
                         'Not in Voice',
@@ -53,7 +55,7 @@ export async function handleMusicButtonInteraction(
                     diagnostics,
                 },
             })
-            await interaction.reply({
+            await interaction.followUp({
                 embeds: [
                     createErrorEmbed(
                         'No Music',
@@ -65,24 +67,23 @@ export async function handleMusicButtonInteraction(
             return
         }
 
-        await interaction.deferUpdate()
         await routeButtonAction(interaction, queue)
     } catch (error) {
         errorLog({
             message: 'Music button interaction error',
             error,
         })
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction
-                .reply({
-                    embeds: [createErrorEmbed('Error', 'Something went wrong')],
-                    ephemeral: true,
-                })
-                .catch(() => {})
-        } else if (interaction.deferred) {
+        if (interaction.deferred) {
             await interaction
                 .editReply({
                     embeds: [createErrorEmbed('Error', 'Something went wrong')],
+                })
+                .catch(() => {})
+        } else if (!interaction.replied) {
+            await interaction
+                .followUp({
+                    embeds: [createErrorEmbed('Error', 'Something went wrong')],
+                    ephemeral: true,
                 })
                 .catch(() => {})
         }
