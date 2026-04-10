@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.70] - 2026-04-10
+
+### Fixed
+
+- **Autoplay metadata write crash (Sentry LUCKY-2K)** (`packages/bot/src/utils/music/queueManipulation.ts`): `markAsAutoplayTrack` was directly assigning to `track.metadata`, which is a getter-only property on discord-player Track objects. This threw `TypeError: Cannot set property metadata of [object Object] which has only a getter` on every autoplay replenishment call (9 Sentry events in 24h, silently breaking autoplay since v2.6.65). Fixed by replacing direct assignment with `Object.defineProperty(..., { writable: true, configurable: true })`.
+- **Source priority ordering**: stream bridge (`playerFactory.ts`) now tries direct YouTube streaming first, falling back to SoundCloud search. Search engine order in autoplay replenishment and Last.fm queries changed from `[SPOTIFY_SEARCH, AUTO, YOUTUBE_SEARCH]` to `[SPOTIFY_SEARCH, YOUTUBE_SEARCH, AUTO]`. `/play` fallback chain now goes Spotify → YouTube → AUTO instead of Spotify → AUTO.
+
 ## [2.6.69] - 2026-04-10
 
 ### Fixed
