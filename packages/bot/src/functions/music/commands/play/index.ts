@@ -151,13 +151,26 @@ export default new Command({
             } catch (spotifyError) {
                 if (searchEngine !== QueryType.AUTO) {
                     debugLog({
-                        message: 'Spotify search failed, falling back to auto',
+                        message:
+                            'Spotify search failed, falling back to YouTube',
                         data: { query },
                     })
-                    result = await client.player.play(voiceChannel, query, {
-                        ...playOptions,
-                        searchEngine: QueryType.AUTO,
-                    })
+                    try {
+                        result = await client.player.play(voiceChannel, query, {
+                            ...playOptions,
+                            searchEngine: QueryType.YOUTUBE_SEARCH,
+                        })
+                    } catch (youtubeError) {
+                        debugLog({
+                            message:
+                                'YouTube search failed, falling back to auto',
+                            data: { query },
+                        })
+                        result = await client.player.play(voiceChannel, query, {
+                            ...playOptions,
+                            searchEngine: QueryType.AUTO,
+                        })
+                    }
                 } else {
                     throw spotifyError
                 }
