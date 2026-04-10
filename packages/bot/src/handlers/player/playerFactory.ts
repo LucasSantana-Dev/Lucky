@@ -3,6 +3,7 @@ import type { Track } from 'discord-player'
 import { DefaultExtractors } from '@discord-player/extractor'
 import * as playdl from 'play-dl'
 import { spawn } from 'child_process'
+import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog, debugLog } from '@lucky/shared/utils'
@@ -152,6 +153,11 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
                 '--quiet',
                 '--no-warnings',
                 '--no-progress',
+                // Provide the Node.js runtime so yt-dlp can use the JS extractor
+                // for YouTube. Without it yt-dlp uses deprecated fallbacks and
+                // may produce incomplete/missing audio for certain formats.
+                '--js-runtimes',
+                'node:/usr/local/bin/node',
                 url,
             ],
             { stdio: ['ignore', 'pipe', 'pipe'] },
@@ -162,9 +168,15 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             reject(new Error('yt-dlp: timed out waiting for stream start'))
         }, 15_000)
 
-        proc.stdout!.once('data', () => {
+        proc.stdout!.once('data', (firstChunk: Buffer) => {
             clearTimeout(timeout)
-            resolve(proc.stdout!)
+            // The `once('data')` callback consumes the first chunk from the
+            // stream buffer (the WebM EBML header). We use a PassThrough to
+            // re-inject it so discord-player/ffmpeg receives a complete stream.
+            const through = new PassThrough()
+            through.write(firstChunk)
+            proc.stdout!.pipe(through)
+            resolve(through)
         })
 
         proc.once('error', (err) => {
