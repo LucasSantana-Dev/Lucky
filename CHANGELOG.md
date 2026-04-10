@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.74] - 2026-04-10
+
+### Fixed
+
+- **`/play provider:spotify`** — explicit provider choice is now respected; bot no longer silently falls back to YouTube when the user specified a provider. Fallback only applies when no provider is given.
+- **Stream recovery** — `playerError` handler now correctly recovers from `NoResultError: Could not extract stream` by inserting the YouTube alternative at the front of the queue and skipping the failing track, instead of re-playing the same failing track.
+
 ## [2.6.73] - 2026-04-10
 
 ### Added
