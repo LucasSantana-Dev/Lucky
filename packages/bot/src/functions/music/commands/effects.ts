@@ -14,9 +14,9 @@ import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 
 const BASS_BOOST_LEVELS: Record<number, (keyof QueueFilters)[]> = {
     0: [],
-    1: ['bass'],
+    1: ['bassboost_low'],
     2: ['bassboost_low'],
-    3: ['bassboost_low'],
+    3: ['bassboost'],
     4: ['bassboost'],
     5: ['bassboost_high'],
 }
