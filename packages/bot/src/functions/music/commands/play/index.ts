@@ -22,6 +22,7 @@ import {
 } from '../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
+import { registerNowPlayingMessage } from '../../../../handlers/player/trackNowPlaying'
 import {
     DISCORD_UNKNOWN_INTERACTION_CODE,
     isUnknownInteractionError,
@@ -260,6 +261,23 @@ export default new Command({
                 interaction,
                 content: { embeds: [embed], components },
             })
+
+            // When the track starts playing immediately (queuePosition === 0),
+            // register the interaction reply as the "now playing" message so
+            // the playerStart handler edits it (adding buttons) rather than
+            // sending a second "Now Playing" message in the channel.
+            if (queuePosition === 0 && interaction.guildId) {
+                try {
+                    const reply = await interaction.fetchReply()
+                    registerNowPlayingMessage(
+                        interaction.guildId,
+                        reply.id,
+                        reply.channelId,
+                    )
+                } catch {
+                    // non-critical — worst case playerStart sends a fresh message
+                }
+            }
 
             // Start background ops (apply autoplay pref then blend) without awaiting.
             // This lets the response reach the user immediately.
