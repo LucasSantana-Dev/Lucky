@@ -172,10 +172,19 @@ describe('createResilientStream', () => {
         playdlStreamMock.mockReset()
     })
 
-    it('succeeds on SoundCloud primary search (title+author)', async () => {
-        // Primary search uses the cleaned title+author query, so the result
-        // name must contain every token ("Bohemian", "Rhapsody", "Queen") for
-        // the tokenized match to accept it on the first try.
+    it('streams directly from source URL on first attempt', async () => {
+        playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
+
+        const result = await createResilientStream(makeTrack())
+        expect(result).toBe(fakeStream)
+        expect(playdlStreamMock).toHaveBeenCalledWith(
+            'https://youtube.com/watch?v=fakeBohemian',
+        )
+        expect(playdlSearchMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to SoundCloud primary search when direct stream fails', async () => {
+        playdlStreamMock.mockRejectedValueOnce(new Error('403'))
         playdlSearchMock.mockResolvedValueOnce([
             {
                 name: 'Bohemian Rhapsody - Queen',
@@ -188,9 +197,11 @@ describe('createResilientStream', () => {
         const result = await createResilientStream(makeTrack())
         expect(result).toBe(fakeStream)
         expect(playdlSearchMock).toHaveBeenCalledTimes(1)
+        expect(playdlStreamMock).toHaveBeenCalledWith('sc://primary')
     })
 
     it('falls back to SoundCloud title-only when primary returns no validated match', async () => {
+        playdlStreamMock.mockRejectedValueOnce(new Error('403'))
         playdlSearchMock
             .mockResolvedValueOnce([
                 { name: 'Unrelated', url: 'sc://miss', durationInSec: 180 },
@@ -210,51 +221,17 @@ describe('createResilientStream', () => {
         expect(playdlStreamMock).toHaveBeenCalledWith('sc://secondary')
     })
 
-    it('falls back to direct playdl.stream(track.url) when both SoundCloud stages miss', async () => {
-        playdlSearchMock.mockResolvedValue([])
-        playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
-
-        const result = await createResilientStream(makeTrack())
-        expect(result).toBe(fakeStream)
-        expect(playdlStreamMock).toHaveBeenCalledWith(
-            'https://youtube.com/watch?v=fakeBohemian',
-        )
-    })
-
-    it('skips SoundCloud entirely for known spam uploader channels', async () => {
+    it('streams directly from source URL even for spam uploader channels', async () => {
         playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
 
         const result = await createResilientStream(
             makeTrack({
-                title: 'GOLDEN - KPOP DEMON HUNTERS - HUNTR/X - Golden Huntrix [Download]',
+                title: 'GOLDEN - KPOP DEMON HUNTERS - HUNTR/X [Download]',
                 author: 'Best Songs',
             }),
         )
         expect(result).toBe(fakeStream)
-        // Primary SC search must not fire for spam-channel uploads — they
-        // would never have matched the real track on SoundCloud anyway.
         expect(playdlSearchMock).not.toHaveBeenCalled()
-    })
-
-    it('throws "Bridge exhausted" when spam channel has no source URL', async () => {
-        await expect(
-            createResilientStream(
-                makeTrack({
-                    title: 'Garbage [Download]',
-                    author: 'NCS',
-                    url: undefined,
-                }),
-            ),
-        ).rejects.toThrow(/bridge exhausted/i)
-    })
-
-    it('propagates direct-stream errors when the last-resort fallback fails', async () => {
-        playdlSearchMock.mockResolvedValue([])
-        playdlStreamMock.mockRejectedValueOnce(new Error('youtube 403'))
-
-        await expect(createResilientStream(makeTrack())).rejects.toThrow(
-            /youtube 403/i,
-        )
     })
 
     it('throws "Bridge exhausted" when a track has no URL and SoundCloud fails', async () => {
@@ -263,5 +240,14 @@ describe('createResilientStream', () => {
         await expect(
             createResilientStream(makeTrack({ url: undefined })),
         ).rejects.toThrow(/bridge exhausted/i)
+    })
+
+    it('throws "Bridge exhausted" when all stages fail', async () => {
+        playdlStreamMock.mockRejectedValueOnce(new Error('youtube 403'))
+        playdlSearchMock.mockResolvedValue([])
+
+        await expect(createResilientStream(makeTrack())).rejects.toThrow(
+            /bridge exhausted/i,
+        )
     })
 })

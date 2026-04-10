@@ -400,8 +400,8 @@ async function searchSeedCandidates(
     const query = cleanSearchQuery(seed.title, seed.author)
     const engines: QueryType[] = [
         QueryType.SPOTIFY_SEARCH,
-        QueryType.AUTO,
         QueryType.YOUTUBE_SEARCH,
+        QueryType.AUTO,
     ]
 
     for (const engine of engines) {
@@ -563,7 +563,11 @@ async function searchLastFmQuery(
     query: string,
     requestedBy: User,
 ): Promise<Track[]> {
-    const engines: QueryType[] = [QueryType.SPOTIFY_SEARCH, QueryType.AUTO]
+    const engines: QueryType[] = [
+        QueryType.SPOTIFY_SEARCH,
+        QueryType.YOUTUBE_SEARCH,
+        QueryType.AUTO,
+    ]
     for (const engine of engines) {
         try {
             const result = await queue.player.search(query, {

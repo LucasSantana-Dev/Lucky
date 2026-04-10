@@ -315,10 +315,17 @@ describe('queueManipulation.replenishQueue', () => {
                 }),
             )
             expect(queue.player.search).toHaveBeenNthCalledWith(
-                3,
+                2,
                 'Song A Artist A',
                 expect.objectContaining({
                     searchEngine: QueryType.YOUTUBE_SEARCH,
+                }),
+            )
+            expect(queue.player.search).toHaveBeenNthCalledWith(
+                3,
+                'Song A Artist A',
+                expect.objectContaining({
+                    searchEngine: QueryType.AUTO,
                 }),
             )
             expect(queue.addTrack).toHaveBeenCalledWith(
@@ -940,7 +947,7 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
-    it('falls back to AUTO engine for last.fm search when Spotify fails', async () => {
+    it('falls back to YouTube search for last.fm when Spotify fails', async () => {
         getLastFmSeedTracksMock.mockResolvedValueOnce([
             { artist: 'Radiohead', title: 'Creep' },
         ])
@@ -957,7 +964,7 @@ describe('queueManipulation.replenishQueue', () => {
                     },
                 ],
             })
-            // Last.fm seed: Spotify rejects, AUTO returns tracks
+            // Last.fm seed: Spotify rejects, YouTube returns tracks
             .mockRejectedValueOnce(new Error('Spotify down'))
             .mockResolvedValueOnce({
                 tracks: [
@@ -991,7 +998,7 @@ describe('queueManipulation.replenishQueue', () => {
         expect(searchMock).toHaveBeenCalledWith(
             expect.stringContaining('Creep'),
             expect.objectContaining({
-                searchEngine: QueryType.AUTO,
+                searchEngine: QueryType.YOUTUBE_SEARCH,
             }),
         )
         expect(queue.addTrack).toHaveBeenCalledWith(

@@ -9,7 +9,6 @@ import {
     cleanTitle,
     cleanAuthor,
     cleanSearchQuery,
-    isSpamChannel,
 } from '../../utils/music/searchQueryCleaner'
 
 type CreatePlayerParams = {
@@ -105,13 +104,11 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
 /**
  * Bridge fallback chain (discord-player-youtubei v3 createStream signature).
  *
- * 1. SoundCloud search with the cleaned "${title} ${author}" query
- * 2. SoundCloud search with cleaned title only (drops uploader-channel noise)
- * 3. Direct YouTube stream via play-dl when the track carries a YouTube URL
- *    and SoundCloud has no viable match (kpop, niche, indie tracks).
+ * Priority: YouTube direct → SoundCloud (full query) → SoundCloud (title only).
  *
- * Every stage logs its attempt + outcome so Sentry events carry enough
- * context to understand WHY the bridge fell through.
+ * YouTube direct is attempted first since the track always carries its source
+ * URL and play-dl can stream it independently of the extractor. SoundCloud
+ * search is the fallback for tracks blocked by YouTube bot-detection.
  */
 export async function createResilientStream(
     track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
@@ -119,7 +116,6 @@ export async function createResilientStream(
 ): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
-    const authorIsSpam = isSpamChannel(track.author)
 
     debugLog({
         message: 'Bridge: resolving stream',
@@ -128,47 +124,10 @@ export async function createResilientStream(
             author: track.author,
             cleanedTitle,
             cleanedAuthor,
-            authorIsSpam,
             hasUrl: Boolean(track.url),
         },
     })
 
-    // Spam-channel uploads (e.g. "Best Songs" compilations) never match the
-    // real track on SoundCloud — skip that stage outright.
-    if (!authorIsSpam) {
-        try {
-            return await streamViaSoundCloud(
-                cleanSearchQuery(cleanedTitle, cleanedAuthor),
-                track.duration,
-            )
-        } catch (primaryError) {
-            debugLog({
-                message:
-                    'Bridge: SoundCloud primary search failed, retrying with title only',
-                data: {
-                    error: (primaryError as Error).message,
-                    cleanedTitle,
-                },
-            })
-        }
-
-        try {
-            return await streamViaSoundCloud(cleanedTitle, track.duration)
-        } catch (titleOnlyError) {
-            debugLog({
-                message:
-                    'Bridge: SoundCloud title-only search failed, falling back to direct stream',
-                data: {
-                    error: (titleOnlyError as Error).message,
-                    cleanedTitle,
-                },
-            })
-        }
-    }
-
-    // Last-resort: stream the actual YouTube source URL directly via play-dl.
-    // This is the fix for tracks that genuinely are not on SoundCloud and for
-    // spam-channel uploads where the bridge would never have worked anyway.
     if (track.url) {
         try {
             const direct = await playdl.stream(track.url)
@@ -178,18 +137,44 @@ export async function createResilientStream(
             })
             return direct.stream
         } catch (directError) {
-            errorLog({
-                message: 'Bridge: direct stream from source URL failed',
-                error: directError,
-                data: { url: track.url, title: track.title },
+            debugLog({
+                message:
+                    'Bridge: direct stream failed, falling back to SoundCloud',
+                data: {
+                    error: (directError as Error).message,
+                    cleanedTitle,
+                },
             })
-            throw directError
         }
     }
 
-    throw new Error(
-        `Bridge exhausted: no SoundCloud match and no source URL for "${track.title}"`,
-    )
+    try {
+        return await streamViaSoundCloud(
+            cleanSearchQuery(cleanedTitle, cleanedAuthor),
+            track.duration,
+        )
+    } catch (primaryError) {
+        debugLog({
+            message:
+                'Bridge: SoundCloud primary search failed, retrying with title only',
+            data: {
+                error: (primaryError as Error).message,
+                cleanedTitle,
+            },
+        })
+    }
+
+    try {
+        return await streamViaSoundCloud(cleanedTitle, track.duration)
+    } catch (titleOnlyError) {
+        errorLog({
+            message: 'Bridge: all stages exhausted',
+            error: titleOnlyError,
+            data: { title: track.title },
+        })
+    }
+
+    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
 }
 
 /**
