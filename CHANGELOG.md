@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.69] - 2026-04-10
+
+### Fixed
+
+- **`/autoplay` 5-10s lag** (`packages/bot/src/functions/music/commands/autoplay.ts`): added `deferReply()` before the DB calls — Discord was timing out waiting for the initial acknowledgement, causing the "Lucky is thinking…" spinner to persist for 5-10 seconds or fail entirely.
+- **Music buttons "This interaction failed"** (`packages/bot/src/handlers/musicButtonHandler.ts`): `deferUpdate()` is now called as the very first operation before any checks or queue resolution, guaranteeing the 3-second acknowledgement window is always met. Error responses (not in voice, no queue) use `followUp({ ephemeral: true })` since the interaction is already deferred.
+- **`/play` slow reply** (`packages/bot/src/functions/music/commands/play/index.ts`): `applyStoredAutoplayPreference` (Prisma) and `blendAutoplayTracks` (Spotify API) were blocking the "Now Playing" embed. Both now run fire-and-forget after `interactionReply` — users see the response immediately, queue population continues in background.
+- **Autoplay repeated songs** (`packages/bot/src/utils/music/searchQueryCleaner.ts`, `packages/bot/src/utils/music/queueManipulation.ts`): `normalizeTrackKey` now uses `cleanTitle`/`cleanAuthor` before hashing, stripping version suffixes so "(Live)", "(Acoustic)", "(Cover)", "(Remix)", "(Instrumental)", etc. are treated as the same song for deduplication. Added 17 new version-variant noise patterns to `NOISE_PATTERNS`.
+
+### Changed
+
+- **Autoplay default ON**: guilds without a stored autoplay preference now default to autoplay enabled on new queues — no more manual `/autoplay` needed on first use.
+
 ## [2.6.68] - 2026-04-10
 
 ### Fixed
