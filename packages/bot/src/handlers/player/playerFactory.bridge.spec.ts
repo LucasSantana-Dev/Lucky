@@ -115,10 +115,18 @@ describe('findMatchingSoundCloudResult', () => {
         ).toBe('sc://1')
     })
 
-    it('rejects when duration is > 15s off', () => {
+    it('rejects when duration is > 30s off', () => {
         expect(
             findMatchingSoundCloudResult('Bohemian Rhapsody', '10:00', results),
         ).toBeUndefined()
+    })
+
+    it('accepts when duration is 16-30s off (relaxed tolerance)', () => {
+        expect(
+            findMatchingSoundCloudResult('Bohemian Rhapsody', '5:55', [
+                { name: 'Bohemian Rhapsody', url: 'sc://1', durationInSec: 374 },
+            ])?.url,
+        ).toBe('sc://1')
     })
 
     it('accepts when track has no duration', () => {
@@ -144,6 +152,28 @@ describe('findMatchingSoundCloudResult', () => {
             findMatchingSoundCloudResult('夜に駆ける', '4:07', [
                 { name: '夜に駆ける', url: 'sc://3', durationInSec: 247 },
             ]),
+        ).toBeUndefined()
+    })
+
+    it('matches Brazilian funk track when result is missing 1 compound token (75% threshold)', () => {
+        const query =
+            'MC Ryan SP MC Jacara e MC Meno K - Posso Ate Nao Te Dar Flores (DJ Japa NK e DJ Davi DogDog)'
+        const results = [
+            {
+                name: 'MC Ryan SP, MC Jacaré e MC Meno K - Posso Até Não Te Dar Flores (DJ Japa NK e DJ Davi Dog Dog)',
+                url: 'sc://funk',
+                durationInSec: 194,
+            },
+        ]
+        expect(findMatchingSoundCloudResult(query, '3:14', results)?.url).toBe(
+            'sc://funk',
+        )
+    })
+
+    it('returns undefined when fewer than 75% of tokens match', () => {
+        const results = [{ name: 'Completely Different Song', url: 'sc://x', durationInSec: 180 }]
+        expect(
+            findMatchingSoundCloudResult('Bohemian Rhapsody Queen', '3:00', results),
         ).toBeUndefined()
     })
 })
@@ -338,6 +368,28 @@ describe('createResilientStream', () => {
         )
         expect(result).toBe(proc.stdout)
         expect(playdlSearchMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to core title (stripped parentheticals) when title-only search fails', async () => {
+        spawnMock.mockReturnValue(makeSpawnError(1))
+        playdlSearchMock
+            .mockResolvedValueOnce([{ name: 'Unrelated', url: 'sc://miss', durationInSec: 180 }])
+            .mockResolvedValueOnce([{ name: 'Unrelated', url: 'sc://miss2', durationInSec: 180 }])
+            .mockResolvedValueOnce([
+                {
+                    name: 'Bohemian Rhapsody',
+                    url: 'sc://core',
+                    durationInSec: 354,
+                },
+            ])
+        playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
+
+        const result = await createResilientStream(
+            makeTrack({ title: 'Bohemian Rhapsody (Official Music Live Session)' }),
+        )
+        expect(result).toBe(fakeStream)
+        expect(playdlSearchMock).toHaveBeenCalledTimes(3)
+        expect(playdlStreamMock).toHaveBeenCalledWith('sc://core')
     })
 
     it('throws "Bridge exhausted" when track has no URL and SoundCloud fails', async () => {
