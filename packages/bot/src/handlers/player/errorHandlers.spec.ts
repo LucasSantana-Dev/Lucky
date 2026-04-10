@@ -149,11 +149,8 @@ describe('setupErrorHandlers', () => {
                     tracks: [alternativeTrack],
                 }),
             },
-            removeTrack: jest.fn(),
-            addTrack: jest.fn(),
+            insertTrack: jest.fn(),
             node: {
-                isPlaying: jest.fn(() => false),
-                play: jest.fn().mockResolvedValue(undefined),
                 skip: jest.fn(),
             },
         }
@@ -172,8 +169,8 @@ describe('setupErrorHandlers', () => {
             'Could not extract stream',
         )
         expect(queue.player.search).toHaveBeenCalled()
-        expect(queue.removeTrack).toHaveBeenCalledWith(0)
-        expect(queue.addTrack).toHaveBeenCalledWith(alternativeTrack)
+        expect(queue.insertTrack).toHaveBeenCalledWith(alternativeTrack, 0)
+        expect(queue.node.skip).toHaveBeenCalled()
         expect(recordSuccessMock).toHaveBeenCalledWith('youtube')
     })
 

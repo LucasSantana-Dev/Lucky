@@ -221,15 +221,15 @@ async function recoverFromStreamExtractionError(
     )
 
     if (alternativeTrack) {
-        queue.removeTrack(0)
-        queue.addTrack(alternativeTrack)
-        if (!queue.node.isPlaying()) {
-            await queue.node.play()
-            providerHealthService.recordSuccess(providerFromTrack(currentTrack))
-            debugLog({
-                message: 'Successfully recovered from stream extraction error',
-            })
-        }
+        // Insert at the front of the queue so the alternative plays immediately
+        // after we skip the failing current track. Using insertTrack(0) avoids
+        // accidentally removing a legitimately queued user track.
+        queue.insertTrack(alternativeTrack, 0)
+        queue.node.skip()
+        providerHealthService.recordSuccess(providerFromTrack(currentTrack))
+        debugLog({
+            message: 'Successfully recovered from stream extraction error',
+        })
     } else {
         queue.node.skip()
     }
