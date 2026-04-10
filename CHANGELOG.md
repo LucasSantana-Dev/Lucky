@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.77] - 2026-04-10
+
+### Fixed
+
+- **Duplicate "Now Playing" message** — `/play` no longer sends two separate "Now Playing" embeds when the track starts immediately. The interaction reply is now registered as the guild's now-playing display; the `playerStart` handler edits it (refreshing buttons) instead of posting a second message.
+
 ## [2.6.76] - 2026-04-10
 
 ### Fixed
