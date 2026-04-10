@@ -156,4 +156,56 @@ describe('effects command', () => {
         expect(queue.filters.resampler.toggleFilter).toHaveBeenCalledWith('nightcore')
         expect(createSuccessEmbedMock).toHaveBeenCalledWith('Effects reset', expect.stringContaining('All effects have been cleared'))
     })
+
+    it('disables bass boost when level is 0 (double-toggle)', async () => {
+        const queue = createQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await effectsCommand.execute({
+            client: {} as any,
+            interaction: createInteraction('guild-1', 'bassboost', 0),
+        } as any)
+
+        expect(queue.filters.ffmpeg.toggle).toHaveBeenCalledTimes(2)
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith('Bass boost', expect.stringContaining('disabled'))
+    })
+
+    it('replies with error when bass boost filter throws', async () => {
+        const queue = createQueue()
+        queue.filters.ffmpeg.toggle = jest.fn().mockRejectedValue(new Error('filter error'))
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await effectsCommand.execute({
+            client: {} as any,
+            interaction: createInteraction('guild-1', 'bassboost', 2),
+        } as any)
+
+        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to apply bass boost'))
+    })
+
+    it('replies with error when nightcore toggle throws', async () => {
+        const queue = createQueue()
+        queue.filters.resampler.toggleFilter = jest.fn().mockImplementation(() => { throw new Error('resampler error') })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await effectsCommand.execute({
+            client: {} as any,
+            interaction: createInteraction('guild-1', 'nightcore'),
+        } as any)
+
+        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to toggle nightcore'))
+    })
+
+    it('replies with error when reset throws', async () => {
+        const queue = createQueue()
+        queue.filters.ffmpeg.setFilters = jest.fn().mockRejectedValue(new Error('reset error'))
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await effectsCommand.execute({
+            client: {} as any,
+            interaction: createInteraction('guild-1', 'reset'),
+        } as any)
+
+        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to reset'))
+    })
 })
