@@ -1,6 +1,9 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
-import { requireVoiceChannel, requireDJRole } from '../../../../utils/command/commandValidations'
+import {
+    requireVoiceChannel,
+    requireDJRole,
+} from '../../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import type { CustomClient } from '../../../../types'
 import Command from '../../../../models/Command'
@@ -148,11 +151,13 @@ export default new Command({
                     playOptions,
                 )
             } catch (spotifyError) {
-                if (searchEngine !== QueryType.AUTO) {
+                // Only auto-fallback when the user did NOT explicitly specify a
+                // provider. If they chose spotify/youtube/soundcloud and it
+                // failed, surface the error so they can adjust their query.
+                if (searchEngine !== QueryType.AUTO && provider === null) {
                     debugLog({
-                        message:
-                            'Spotify search failed, falling back to YouTube',
-                        data: { query },
+                        message: 'Search failed, falling back to YouTube',
+                        data: { query, searchEngine },
                     })
                     try {
                         result = await client.player.play(voiceChannel, query, {
@@ -231,7 +236,10 @@ export default new Command({
                     1,
                 )
             } catch (err) {
-                errorLog({ message: 'Failed to record contribution', error: err })
+                errorLog({
+                    message: 'Failed to record contribution',
+                    error: err,
+                })
             }
 
             // Attach the music control button row so the user can
