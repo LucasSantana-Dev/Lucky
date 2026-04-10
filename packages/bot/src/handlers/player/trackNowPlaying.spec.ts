@@ -310,7 +310,31 @@ describe('trackNowPlaying', () => {
         expect(errorLogMock).not.toHaveBeenCalled()
     })
 
-    it('errorLogs non-403 Last.fm failures', async () => {
+    it('errorLogs non-403 Last.fm updateNowPlaying failures', async () => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue('session-key')
+        updateNowPlayingMock.mockRejectedValue(new Error('Network timeout'))
+
+        const { queue } = createQueue('guild-timeout-now')
+        const track = {
+            title: 'Song',
+            author: 'Artist',
+            durationMS: 0,
+            metadata: { requestedById: 'user-1' },
+            requestedBy: { id: 'user-1' },
+        }
+
+        await updateLastFmNowPlaying(queue as any, track as any)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('updateNowPlaying failed'),
+            }),
+        )
+        expect(warnLogMock).not.toHaveBeenCalled()
+    })
+
+    it('errorLogs non-403 Last.fm scrobble failures', async () => {
         isLastFmConfiguredMock.mockReturnValue(true)
         getSessionKeyForUserMock.mockResolvedValue('session-key')
         scrobbleMock.mockRejectedValue(new Error('Network timeout'))

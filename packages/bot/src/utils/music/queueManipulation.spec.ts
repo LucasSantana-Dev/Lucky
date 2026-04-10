@@ -1062,6 +1062,46 @@ describe('queueManipulation.replenishQueue', () => {
         expect(addedUrls).not.toContain('https://example.com/uprising')
     })
 
+    it('mutates existing metadata object when property is non-configurable (sealed tracks)', async () => {
+        const mutableMeta: Record<string, unknown> = { requestedById: 'user-1' }
+        const sealedTrack = Object.defineProperty(
+            {
+                title: 'Sealed Song',
+                author: 'Sealed Artist',
+                url: 'https://example.com/sealed',
+                source: 'spotify',
+                requestedBy: { id: 'user-1' },
+            },
+            'metadata',
+            {
+                get: () => mutableMeta,
+                configurable: false,
+                enumerable: true,
+            },
+        )
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current',
+                author: 'Artist',
+                url: 'https://example.com/current',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [sealedTrack],
+                }),
+            },
+        })
+
+        await expect(
+            replenishQueue(queue as unknown as GuildQueue),
+        ).resolves.not.toThrow()
+
+        expect(mutableMeta.isAutoplay).toBe(true)
+    })
+
     it('marks autoplay metadata on tracks with a read-only metadata getter (LUCKY-2K)', async () => {
         const trackWithReadOnlyMetadata = Object.defineProperty(
             {

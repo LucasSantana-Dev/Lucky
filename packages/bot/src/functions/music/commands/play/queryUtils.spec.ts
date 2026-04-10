@@ -49,8 +49,14 @@ describe('normalizeSoundCloudUrl', () => {
         expect(normalizeSoundCloudUrl(query)).toBe(query)
     })
 
-    it('handles malformed URLs gracefully', () => {
+    it('handles non-URL strings gracefully', () => {
         const bad = 'not a url at all'
+        expect(normalizeSoundCloudUrl(bad)).toBe(bad)
+    })
+
+    it('handles malformed soundcloud URLs (no protocol) gracefully', () => {
+        // new URL('soundcloud.com/...') throws — catch block must return input
+        const bad = 'soundcloud.com/artist/track-no-protocol'
         expect(normalizeSoundCloudUrl(bad)).toBe(bad)
     })
 
