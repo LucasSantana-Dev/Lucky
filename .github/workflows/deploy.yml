@@ -30,7 +30,8 @@ jobs:
                     exit 1
                   fi
 
-            - name: Wait for Docker images
+            - id: docker_wait
+              name: Wait for Docker images
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   GH_PAGER: cat
@@ -66,6 +67,7 @@ jobs:
                   if [ -z "$run_info" ]; then
                     if [ "${FORCE_UNVERIFIED_DEPLOY:-}" = "true" ]; then
                       echo "::warning::No docker-publish run found for this commit — proceeding anyway (FORCE_UNVERIFIED_DEPLOY=true)"
+                      echo "docker_rebuilt=false" >> "$GITHUB_OUTPUT"
                       exit 0
                     fi
 
@@ -88,6 +90,7 @@ jobs:
 
                     if [ -z "$docker_relevant" ]; then
                       echo "::notice::No Docker-relevant files changed in this commit — skipping image wait, deploying with existing images."
+                      echo "docker_rebuilt=false" >> "$GITHUB_OUTPUT"
                       exit 0
                     fi
 
@@ -104,6 +107,7 @@ jobs:
                   if [ "$status" = "completed" ]; then
                     if [ "$conclusion" = "success" ]; then
                       echo "==> Docker images already built successfully."
+                      echo "docker_rebuilt=true" >> "$GITHUB_OUTPUT"
                       exit 0
                     else
                       echo "::error::docker-publish failed (conclusion=$conclusion) — aborting deploy"
@@ -130,6 +134,7 @@ jobs:
                     if [ "$status" = "completed" ]; then
                       if [ "$conclusion" = "success" ]; then
                         echo "==> Docker images ready!"
+                        echo "docker_rebuilt=true" >> "$GITHUB_OUTPUT"
                         exit 0
                       else
                         echo "::error::docker-publish failed (conclusion=$conclusion) — aborting deploy"
@@ -242,12 +247,31 @@ jobs:
             - name: Validate deployed version
               env:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+                  DOCKER_REBUILT: ${{ steps.docker_wait.outputs.docker_rebuilt }}
               run: |
                   set -euo pipefail
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
-                  version_url="${base_url}/api/health/version"
                   expected="${{ github.sha }}"
 
+                  if [ "${DOCKER_REBUILT:-false}" != "true" ]; then
+                    health_url="${base_url}/api/health"
+                    echo "==> No Docker rebuild for this commit — verifying service health at $health_url..."
+                    for attempt in $(seq 1 20); do
+                      echo "Attempt ${attempt}/20..."
+                      response=$(curl -sS --max-time 20 -w "\n%{http_code}" "$health_url" || true)
+                      http_code=$(echo "$response" | tail -1)
+                      if [ "$http_code" = "200" ]; then
+                        echo "==> Service healthy after deploy. Done."
+                        exit 0
+                      fi
+                      echo "Not ready (HTTP $http_code). Waiting 15s..."
+                      sleep 15
+                    done
+                    echo "::error::Service did not become healthy after all attempts"
+                    exit 1
+                  fi
+
+                  version_url="${base_url}/api/health/version"
                   echo "==> Validating deployed SHA at $version_url (expected: $expected)..."
 
                   for attempt in $(seq 1 20); do
