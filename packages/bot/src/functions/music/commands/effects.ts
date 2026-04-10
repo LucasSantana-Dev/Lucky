@@ -21,20 +21,17 @@ const BASS_BOOST_LEVELS: Record<number, (keyof QueueFilters)[]> = {
     5: ['bassboost_high'],
 }
 
+async function replyError(interaction: ChatInputCommandInteraction, message: string): Promise<void> {
+    await interactionReply({ interaction, content: { embeds: [createErrorEmbed('Error', message)] } })
+}
+
 async function handleBassBoost(
     queue: GuildQueue,
     level: number,
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     if (level < 0 || level > 5) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed('Error', '🔊 Bass boost level must be between 0 and 5!'),
-                ],
-            },
-        })
+        await replyError(interaction, '🔊 Bass boost level must be between 0 and 5!')
         return
     }
 
@@ -50,19 +47,10 @@ async function handleBassBoost(
         const message = level === 0 ? 'Bass boost disabled' : `Bass boost level set to ${level}`
         await interactionReply({
             interaction,
-            content: {
-                embeds: [createSuccessEmbed('Bass boost', `🔊 ${message}`)],
-            },
+            content: { embeds: [createSuccessEmbed('Bass boost', `🔊 ${message}`)] },
         })
-    } catch (error) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to apply bass boost effect.'),
-                ],
-            },
-        })
+    } catch {
+        await replyError(interaction, 'Failed to apply bass boost effect.')
     }
 }
 
@@ -72,23 +60,13 @@ async function handleNightcore(
 ): Promise<void> {
     try {
         const enabled = queue.filters.resampler?.toggleFilter('nightcore') ?? false
-
         const message = enabled ? 'Nightcore enabled' : 'Nightcore disabled'
         await interactionReply({
             interaction,
-            content: {
-                embeds: [createSuccessEmbed('Nightcore', `🎵 ${message}`)],
-            },
+            content: { embeds: [createSuccessEmbed('Nightcore', `🎵 ${message}`)] },
         })
-    } catch (error) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to toggle nightcore effect.'),
-                ],
-            },
-        })
+    } catch {
+        await replyError(interaction, 'Failed to toggle nightcore effect.')
     }
 }
 
@@ -99,22 +77,12 @@ async function handleReset(
     try {
         await queue.filters.ffmpeg.setFilters([])
         queue.filters.resampler?.toggleFilter('nightcore')
-
         await interactionReply({
             interaction,
-            content: {
-                embeds: [createSuccessEmbed('Effects reset', '✨ All effects have been cleared.')],
-            },
+            content: { embeds: [createSuccessEmbed('Effects reset', '✨ All effects have been cleared.')] },
         })
-    } catch (error) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to reset effects.'),
-                ],
-            },
-        })
+    } catch {
+        await replyError(interaction, 'Failed to reset effects.')
     }
 }
 
