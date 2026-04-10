@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.68] - 2026-04-10
+
+### Fixed
+
+- **Button interaction timeout** (`packages/bot/src/handlers/musicButtonHandler.ts`): `deferUpdate()` is now called centrally after the voice-channel and queue guards, extending the acknowledgement window to 15 minutes for all button handlers. Handlers that update the message use `editReply()` instead of `update()`, and the loop-mode ephemeral reply uses `followUp()`. This prevents "This interaction failed" when Discord's 3-second acknowledgement window expires before the handler returns.
+- **Leaderboard pagination buttons silently failing** (`packages/bot/src/handlers/interactionHandler.ts`): `leaderboard_page_*` buttons were not matched by the music-button routing predicate and fell through to `reactionRolesService`, which sent no response. Added `leaderboard_page` to the routing check so pagination buttons are handled by `handleMusicButtonInteraction`.
+- **Bot reconnecting and resuming after `/stop` and `/leave`**: `connectionDestroyed` and `disconnect` lifecycle events both called `musicWatchdogService.checkAndRecover()`, which rejoined the voice channel and triggered a session restore. Added `MusicWatchdogService.markIntentionalStop(guildId)` — sets a 5-second flag that short-circuits recovery in `checkAndRecover()`. `/stop` and `/leave` call it immediately before `queue.delete()`.
+
 ## [2.6.67] - 2026-04-10
 
 ### Fixed
