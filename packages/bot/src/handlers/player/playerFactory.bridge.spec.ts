@@ -210,6 +210,13 @@ describe('streamViaYtDlp', () => {
         )
     })
 
+    it('rejects immediately for non-https URLs without spawning', async () => {
+        await expect(
+            streamViaYtDlp('http://youtube.com/watch?v=test'),
+        ).rejects.toThrow(/invalid URL scheme/i)
+        expect(spawnMock).not.toHaveBeenCalled()
+    })
+
     it('rejects when yt-dlp closes with non-zero exit code', async () => {
         const proc = makeSpawnError(1)
         spawnMock.mockReturnValue(proc)

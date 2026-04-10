@@ -110,6 +110,11 @@ const loadYoutubeExtractor = async (player: Player): Promise<void> => {
  * Exported for testing.
  */
 export function streamViaYtDlp(url: string): Promise<Readable> {
+    if (!url.startsWith('https://')) {
+        return Promise.reject(
+            new Error(`yt-dlp: invalid URL scheme — only https:// is allowed`),
+        )
+    }
     return new Promise<Readable>((resolve, reject) => {
         const proc = spawn(
             'yt-dlp',
