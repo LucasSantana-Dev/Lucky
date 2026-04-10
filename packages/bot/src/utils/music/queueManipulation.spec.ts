@@ -271,8 +271,7 @@ describe('queueManipulation.replenishQueue', () => {
             name: 'when Spotify and AUTO search throw',
             spotifySearch: () =>
                 Promise.reject(new Error('Spotify unavailable')),
-            autoSearch: () =>
-                Promise.reject(new Error('AUTO parser failed')),
+            autoSearch: () => Promise.reject(new Error('AUTO parser failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
@@ -888,9 +887,8 @@ describe('queueManipulation.replenishQueue', () => {
                 url: 'https://example.com/broad',
                 metadata: expect.objectContaining({
                     isAutoplay: true,
-                    recommendationReason: expect.stringContaining(
-                        'artist fallback',
-                    ),
+                    recommendationReason:
+                        expect.stringContaining('artist fallback'),
                 }),
             }),
         )
@@ -1046,6 +1044,48 @@ describe('queueManipulation.replenishQueue', () => {
         )
         expect(addedUrls).toContain('https://example.com/seed')
         expect(addedUrls).not.toContain('https://example.com/uprising')
+    })
+
+    it('marks autoplay metadata on tracks with a read-only metadata getter (LUCKY-2K)', async () => {
+        const trackWithReadOnlyMetadata = Object.defineProperty(
+            {
+                title: 'Getter Song',
+                author: 'Getter Artist',
+                url: 'https://example.com/getter',
+                source: 'spotify',
+                requestedBy: { id: 'user-1' },
+            },
+            'metadata',
+            {
+                get: () => ({ requestedById: 'user-1' }),
+                configurable: true,
+            },
+        )
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current',
+                author: 'Artist',
+                url: 'https://example.com/current',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [trackWithReadOnlyMetadata],
+                }),
+            },
+        })
+
+        await expect(
+            replenishQueue(queue as unknown as GuildQueue),
+        ).resolves.not.toThrow()
+
+        expect(queue.addTrack).toHaveBeenCalledTimes(1)
+        const added = queue.addTrack.mock.calls[0]?.[0] as Track
+        expect((added?.metadata as Record<string, unknown>)?.isAutoplay).toBe(
+            true,
+        )
     })
 })
 
