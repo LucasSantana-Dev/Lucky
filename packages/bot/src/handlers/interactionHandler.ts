@@ -99,7 +99,11 @@ export async function handleInteraction(
 
         if (interaction.isButton()) {
             const id = interaction.customId
-            if (id.startsWith('music_') || id.startsWith('queue_page')) {
+            if (
+                id.startsWith('music_') ||
+                id.startsWith('queue_page') ||
+                id.startsWith('leaderboard_page')
+            ) {
                 await handleMusicButtonInteraction(interaction)
                 return
             }

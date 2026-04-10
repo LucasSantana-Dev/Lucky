@@ -40,6 +40,7 @@ export class MusicWatchdogService {
     private scanTimer: ReturnType<typeof setInterval> | null = null
     private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
     private readonly states = new Map<string, WatchdogGuildState>()
+    private readonly intentionalStops = new Set<string>()
     private orphanMonitorInterval: ReturnType<typeof setInterval> | null = null
 
     constructor(options: MusicWatchdogOptions = {}) {
@@ -101,6 +102,12 @@ export class MusicWatchdogService {
         state.lastActivityAt = now
     }
 
+    markIntentionalStop(guildId: string): void {
+        this.intentionalStops.add(guildId)
+        this.clear(guildId)
+        setTimeout(() => this.intentionalStops.delete(guildId), 5_000)
+    }
+
     clear(guildId: string): void {
         const timer = this.timers.get(guildId)
         if (timer) {
@@ -123,6 +130,12 @@ export class MusicWatchdogService {
     async checkAndRecover(queue: GuildQueue): Promise<RecoveryAction> {
         const guildId = queue.guild.id
         const state = this.ensureState(guildId)
+
+        if (this.intentionalStops.has(guildId)) {
+            state.lastRecoveryAction = 'none'
+            state.lastRecoveryDetail = 'intentional_stop'
+            return 'none'
+        }
 
         if (queue.node.isPlaying()) {
             state.lastRecoveryAction = 'none'

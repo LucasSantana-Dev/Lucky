@@ -1,10 +1,11 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
-import { interactionReply } from "../../../utils/general/interactionReply"
-import type { CommandExecuteParams } from "../../../types/CommandData"
-import { requireQueue } from "../../../utils/command/commandValidations"
+import { interactionReply } from '../../../utils/general/interactionReply'
+import type { CommandExecuteParams } from '../../../types/CommandData'
+import { requireQueue } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
+import { musicWatchdogService } from '../../../utils/music/watchdog'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -16,6 +17,7 @@ export default new Command({
 
         if (!(await requireQueue(queue, interaction))) return
 
+        if (queue) musicWatchdogService.markIntentionalStop(queue.guild.id)
         queue?.delete()
 
         await interactionReply({
