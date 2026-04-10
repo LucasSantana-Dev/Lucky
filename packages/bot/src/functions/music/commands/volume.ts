@@ -21,8 +21,8 @@ function validateVolume(value: number | null): string | null {
         return null // Valid - show current volume
     }
 
-    if (value < 1 || value > 100) {
-        return '🔊 Volume must be between 1 and 100!'
+    if (value < 1 || value > 200) {
+        return '🔊 Volume must be between 1 and 200!'
     }
 
     return null
@@ -72,7 +72,7 @@ export default new Command({
         .setName('volume')
         .setDescription('🔊 Set or show the playback volume.')
         .addIntegerOption((option) =>
-            option.setName('value').setDescription('Volume (1-100)'),
+            option.setName('value').setDescription('Volume (1-200)'),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
