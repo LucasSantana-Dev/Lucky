@@ -16,9 +16,13 @@ const createMusicControlButtonsMock = jest.fn(() => ({
     toJSON: () => ({ type: 1, components: [] }),
 }))
 
+const warnLogMock = jest.fn()
+const errorLogMock = jest.fn()
+
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
-    errorLog: jest.fn(),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('../../utils/general/embeds', () => ({
@@ -87,7 +91,10 @@ describe('trackNowPlaying', () => {
         getAutoplayCountMock.mockResolvedValue(7)
         isLastFmConfiguredMock.mockReturnValue(false)
         getSessionKeyForUserMock.mockResolvedValue(null)
-        createMusicControlButtonsMock.mockReturnValue({ type: 1, components: [] })
+        createMusicControlButtonsMock.mockReturnValue({
+            type: 1,
+            components: [],
+        })
     })
 
     it('adds autoplay reason field and footer progress for autoplay tracks', async () => {
@@ -245,5 +252,85 @@ describe('trackNowPlaying', () => {
         expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(2, undefined)
         expect(updateNowPlayingMock).not.toHaveBeenCalled()
         expect(scrobbleMock).not.toHaveBeenCalled()
+    })
+
+    it('warnLogs (not errorLogs) when updateNowPlaying returns 403', async () => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue('session-key')
+        updateNowPlayingMock.mockRejectedValue(
+            new Error(
+                'Last.fm track.updateNowPlaying: 403 {"message":"Invalid session key"}',
+            ),
+        )
+
+        const { queue } = createQueue('guild-403-now')
+        const track = {
+            title: 'Song',
+            author: 'Artist',
+            durationMS: 0,
+            metadata: { requestedById: 'user-1' },
+            requestedBy: { id: 'user-1' },
+        }
+
+        await updateLastFmNowPlaying(queue as any, track as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('session expired'),
+            }),
+        )
+        expect(errorLogMock).not.toHaveBeenCalled()
+    })
+
+    it('warnLogs (not errorLogs) when scrobble returns 403', async () => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue('session-key')
+        scrobbleMock.mockRejectedValue(
+            new Error(
+                'Last.fm track.scrobble: 403 {"message":"Invalid session key"}',
+            ),
+        )
+
+        const { queue } = createQueue('guild-403-scrobble')
+        const track = {
+            title: 'Song',
+            author: 'Artist',
+            durationMS: 180000,
+            metadata: { requestedById: 'user-1' },
+            requestedBy: { id: 'user-1' },
+        }
+
+        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('session expired'),
+            }),
+        )
+        expect(errorLogMock).not.toHaveBeenCalled()
+    })
+
+    it('errorLogs non-403 Last.fm failures', async () => {
+        isLastFmConfiguredMock.mockReturnValue(true)
+        getSessionKeyForUserMock.mockResolvedValue('session-key')
+        scrobbleMock.mockRejectedValue(new Error('Network timeout'))
+
+        const { queue } = createQueue('guild-timeout-scrobble')
+        const track = {
+            title: 'Song',
+            author: 'Artist',
+            durationMS: 180000,
+            metadata: { requestedById: 'user-1' },
+            requestedBy: { id: 'user-1' },
+        }
+
+        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('scrobble failed'),
+            }),
+        )
+        expect(warnLogMock).not.toHaveBeenCalled()
     })
 })
