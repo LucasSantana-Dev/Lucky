@@ -207,6 +207,12 @@ describe('session command', () => {
             'party-mix',
         )
         expect(createSuccessEmbedMock).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
+        )
     })
 
     it('should handle delete when session not found', async () => {
@@ -219,6 +225,12 @@ describe('session command', () => {
         expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'Session not found',
             expect.any(String),
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
         )
     })
 
@@ -249,6 +261,12 @@ describe('session command', () => {
             'Session not found',
             expect.any(String),
         )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
+        )
     })
 
     it('should require voice channel for restore', async () => {
@@ -271,6 +289,12 @@ describe('session command', () => {
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Connection error',
             expect.any(String),
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
         )
     })
 })
