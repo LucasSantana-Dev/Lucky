@@ -418,4 +418,13 @@ describe('consumeLastFmSeedSlice', () => {
 
         expect(slice).toHaveLength(LASTFM_SEED_COUNT)
     })
+
+    it('returns empty array when inner operation throws', async () => {
+        getByDiscordIdMock.mockRejectedValue(new Error('DB error'))
+        getTopTracksMock.mockRejectedValue(new Error('API error'))
+
+        const slice = await consumeLastFmSeedSlice('user-throw', 3)
+
+        expect(slice).toEqual([])
+    })
 })

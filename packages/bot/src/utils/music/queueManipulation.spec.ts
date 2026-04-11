@@ -872,6 +872,62 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
+    it('searches similar tracks from Last.fm API and adds them with boosted score', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValueOnce([
+            { artist: 'Radiohead', title: 'Creep' },
+        ])
+        getSimilarTracksMock.mockResolvedValue([
+            { artist: 'Muse', title: 'Uprising', match: 0.85 },
+        ])
+
+        const seedSearchResult = {
+            tracks: [
+                {
+                    title: 'Karma Police',
+                    author: 'Radiohead',
+                    url: 'https://example.com/karma',
+                },
+            ],
+        }
+        const similarSearchResult = {
+            tracks: [
+                {
+                    title: 'Uprising',
+                    author: 'Muse',
+                    url: 'https://example.com/uprising',
+                },
+            ],
+        }
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Creep',
+                author: 'Radiohead',
+                url: 'https://example.com/creep',
+                requestedBy: { id: 'user-similar' },
+            } as unknown as Track,
+            player: {
+                search: jest
+                    .fn()
+                    .mockResolvedValueOnce(seedSearchResult)
+                    .mockResolvedValueOnce(seedSearchResult)
+                    .mockResolvedValueOnce(seedSearchResult)
+                    .mockResolvedValueOnce(similarSearchResult)
+                    .mockResolvedValueOnce(similarSearchResult)
+                    .mockResolvedValueOnce(similarSearchResult),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(getSimilarTracksMock).toHaveBeenCalledWith('Radiohead', 'Creep')
+        const searchCalls = (queue.player.search as jest.Mock).mock.calls.map(
+            (c: unknown[]) => c[0] as string,
+        )
+        expect(searchCalls.some((q) => q.includes('Uprising'))).toBe(true)
+    })
+
     it('uses broad artist fallback when seed search returns no candidates', async () => {
         const searchMock = jest
             .fn()
