@@ -20,7 +20,7 @@
     "@discordjs/builders": "^1.14.1",
     "@discordjs/opus": "^0.10.0",
     "@lucky/shared": "file:../shared",
-    "@sentry/node": "^10.47.0",
+    "@sentry/node": "^10.48.0",
     "chalk": "^5.6.2",
     "discord-player": "^7.1.0",
     "discord-player-youtubei": "^3.0.0-beta.4",
@@ -30,7 +30,7 @@
     "play-dl": "^1.9.7",
     "ws": "^8.19.0",
     "youtube-dl-exec": "^3.1.3",
-    "youtubei.js": "^16.0.1"
+    "youtubei.js": "^17.0.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
