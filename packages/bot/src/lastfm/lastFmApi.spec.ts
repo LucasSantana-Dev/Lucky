@@ -13,6 +13,8 @@ import {
     normalizeLastFmArtist,
     normalizeLastFmTitle,
     getTopTracks,
+    getRecentTracks,
+    getSimilarTracks,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -198,6 +200,190 @@ describe('lastFmApi', () => {
             const tracks = await getTopTracks('username')
 
             expect(tracks).toEqual([])
+        })
+    })
+
+    describe('getRecentTracks', () => {
+        it('returns recent tracks excluding nowplaying', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    recenttracks: {
+                        track: [
+                            {
+                                name: 'Currently Playing',
+                                artist: { name: 'Current Artist' },
+                                '@attr': { nowplaying: 'true' },
+                            },
+                            {
+                                name: 'Song A',
+                                artist: { name: 'Artist A' },
+                            },
+                            {
+                                name: 'Song B',
+                                artist: 'Artist B',
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getRecentTracks('username', 10)
+
+            expect(tracks).toHaveLength(2)
+            expect(tracks).toEqual([
+                { artist: 'Artist A', title: 'Song A' },
+                { artist: 'Artist B', title: 'Song B' },
+            ])
+        })
+
+        it('returns empty array when api is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+
+            const tracks = await getRecentTracks('username')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array on fetch failure', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network error'))
+
+            const tracks = await getRecentTracks('username')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('handles artist as string or object', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    recenttracks: {
+                        track: [
+                            {
+                                name: 'Song A',
+                                artist: { name: 'Artist A' },
+                            },
+                            {
+                                name: 'Song B',
+                                artist: 'Artist B',
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getRecentTracks('username')
+
+            expect(tracks[0].artist).toBe('Artist A')
+            expect(tracks[1].artist).toBe('Artist B')
+        })
+
+        it('uses default limit when not specified', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ recenttracks: { track: [] } }),
+            })
+
+            await getRecentTracks('username')
+
+            const call = fetchMock.mock.calls[0]?.[0] as string
+            expect(call).toContain('limit=20')
+        })
+    })
+
+    describe('getSimilarTracks', () => {
+        it('returns similar tracks with match score', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    similartracks: {
+                        track: [
+                            {
+                                name: 'Similar Song',
+                                artist: { name: 'Similar Artist' },
+                                match: '0.85',
+                            },
+                            {
+                                name: 'Other Song',
+                                artist: { name: 'Other Artist' },
+                                match: '0.42',
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getSimilarTracks('Artist', 'Track', 5)
+
+            expect(tracks).toHaveLength(2)
+            expect(tracks[0]).toEqual({
+                artist: 'Similar Artist',
+                title: 'Similar Song',
+                match: 0.85,
+            })
+            expect(tracks[1].match).toBe(0.42)
+        })
+
+        it('returns empty array when api is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+
+            const tracks = await getSimilarTracks('Artist', 'Track')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array on fetch failure', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network error'))
+
+            const tracks = await getSimilarTracks('Artist', 'Track')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('parses match as float, defaulting to 0 on invalid', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    similartracks: {
+                        track: [
+                            {
+                                name: 'Song',
+                                artist: { name: 'Artist' },
+                                match: 'invalid',
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getSimilarTracks('Artist', 'Track')
+
+            expect(tracks[0].match).toBe(0)
+        })
+
+        it('encodes artist and title in query parameters', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ similartracks: { track: [] } }),
+            })
+
+            await getSimilarTracks('The Artist', 'Song & Title')
+
+            const call = fetchMock.mock.calls[0]?.[0] as string
+            expect(call).toContain('artist=The%20Artist')
+            expect(call).toContain('track=Song%20%26%20Title')
+        })
+
+        it('uses default limit when not specified', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ similartracks: { track: [] } }),
+            })
+
+            await getSimilarTracks('Artist', 'Track')
+
+            const call = fetchMock.mock.calls[0]?.[0] as string
+            expect(call).toContain('limit=10')
         })
     })
 
