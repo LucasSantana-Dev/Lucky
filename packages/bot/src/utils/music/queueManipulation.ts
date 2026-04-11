@@ -243,7 +243,7 @@ async function _replenishQueue(
                     queue.guild.id,
                     requestedBy?.id,
                 ),
-                trackHistoryService.getTrackHistory(queue.guild.id, 50),
+                trackHistoryService.getTrackHistory(queue.guild.id, 100),
             ])
         if (persistentHistory.length === 0) {
             warnLog({
