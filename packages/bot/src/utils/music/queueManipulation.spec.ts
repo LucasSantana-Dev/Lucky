@@ -42,13 +42,17 @@ type Track = any
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
 const getTrackHistoryMock = jest.fn()
+const addTrackToHistoryMock = jest.fn().mockResolvedValue(true)
 
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: (...args: unknown[]) => getTrackHistoryMock(...args),
+        addTrackToHistory: (...args: unknown[]) =>
+            addTrackToHistoryMock(...args),
     },
 }))
 
