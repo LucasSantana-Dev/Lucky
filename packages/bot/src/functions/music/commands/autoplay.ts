@@ -1,224 +1,422 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { guildSettingsService } from '@lucky/shared/services'
 import {
     createEmbed,
     createErrorEmbed,
     EMBED_COLORS,
     EMOJIS,
 } from '../../../utils/general/embeds'
-import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
-import { guildSettingsService } from '@lucky/shared/services'
-import { QueueRepeatMode, type GuildQueue } from 'discord-player'
-import { requireGuild, requireDJRole } from '../../../utils/command/commandValidations'
+import { errorLog, debugLog } from '@lucky/shared/utils'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { messages } from '../../../utils/general/messages'
-import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
 import { replenishQueue } from '../../../utils/music/trackManagement/queueOperations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { trackHistoryService } from '@lucky/shared/services'
+import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
+import type { GuildQueue } from 'discord-player'
 
-async function replyAutoplayPersistenceFailure(
-    interaction: ChatInputCommandInteraction,
-    queue: GuildQueue | null,
-    enabled: boolean,
-): Promise<void> {
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [
-                createEmbed({
-                    title: enabled
-                        ? queue
-                            ? 'Autoplay enabled for current queue only'
-                            : 'Autoplay preference not saved'
-                        : queue
-                          ? 'Autoplay disabled for current queue only'
-                          : 'Autoplay preference not saved',
-                    description: enabled
-                        ? queue
-                            ? 'Autoplay was enabled on the active queue, but the preference could not be saved for future sessions.'
-                            : 'Could not save autoplay preference. Please try again.'
-                        : queue
-                          ? 'Autoplay was disabled on the active queue, but the preference could not be saved for future sessions.'
-                          : 'Could not update autoplay preference. Please try again.',
-                    color: EMBED_COLORS.ERROR as ColorResolvable,
-                    emoji: EMOJIS.ERROR,
-                    timestamp: true,
-                }),
-            ],
-            ephemeral: true,
-        },
-    })
+function isAutoplayTrack(track: any): boolean {
+    return (track?.metadata as any)?.isAutoplay === true
 }
 
-async function handleDisableAutoplay(
-    queue: GuildQueue | null,
+async function handleSkipAutoplayTrack(
     interaction: ChatInputCommandInteraction,
-    guildId: string,
-): Promise<void> {
-    queue?.setRepeatMode(QueueRepeatMode.OFF)
-    const persisted = await guildSettingsService.setGuildSettings(guildId, {
-        autoPlayEnabled: false,
-    })
-
-    if (!persisted) {
-        warnLog({
-            message: 'Failed to persist autoplay disabled preference',
-            data: { guildId, hasQueue: Boolean(queue) },
-        })
-        await replyAutoplayPersistenceFailure(interaction, queue, false)
-        return
-    }
-
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [
-                createEmbed({
-                    title: 'Autoplay disabled',
-                    description:
-                        'Autoplay has been disabled. The bot will no longer automatically add related songs.',
-                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
-                    emoji: EMOJIS.AUTOPLAY,
-                    timestamp: true,
-                }),
-            ],
-        },
-    })
-}
-
-async function handleEnableAutoplay(
-    queue: GuildQueue | null,
-    interaction: ChatInputCommandInteraction,
-    guildId: string,
-): Promise<void> {
-    queue?.setRepeatMode(QueueRepeatMode.AUTOPLAY)
-    const persisted = await guildSettingsService.setGuildSettings(guildId, {
-        autoPlayEnabled: true,
-    })
-
-    if (!persisted) {
-        warnLog({
-            message: 'Failed to persist autoplay enabled preference',
-            data: { guildId, hasQueue: Boolean(queue) },
-        })
-        if (queue?.currentTrack) {
-            void populateQueueWithRelatedTracks(queue, interaction)
-        }
-        await replyAutoplayPersistenceFailure(interaction, queue, true)
-        return
-    }
-
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [
-                createEmbed({
-                    title: 'Autoplay enabled',
-                    description: queue
-                        ? 'Autoplay has been enabled. The bot will automatically add related songs when the queue is empty.'
-                        : 'Autoplay preference saved. Next time you use /play, autoplay will be enabled automatically.',
-                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
-                    emoji: EMOJIS.AUTOPLAY,
-                    timestamp: true,
-                }),
-            ],
-        },
-    })
-
-    if (queue?.currentTrack) {
-        void populateQueueWithRelatedTracks(queue, interaction)
-    }
-}
-
-async function populateQueueWithRelatedTracks(
     queue: GuildQueue,
-    interaction: ChatInputCommandInteraction,
 ): Promise<void> {
-    debugLog({
-        message:
-            'Autoplay enabled, attempting to populate queue with related tracks',
-        data: {
-            guildId: interaction.guildId,
-            currentTrack: queue.currentTrack?.title,
-        },
-    })
-
-    try {
-        await replenishQueue(queue)
-        debugLog({
-            message: 'Queue replenished after enabling autoplay',
-            data: {
-                guildId: interaction.guildId,
-                queueSize: queue.tracks.size,
+    if (queue.tracks.size === 0) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Queue Empty',
+                        'No autoplay tracks to skip.',
+                    ),
+                ],
+                ephemeral: true,
             },
         })
-    } catch (replenishError) {
-        errorLog({
-            message: 'Error replenishing queue after enabling autoplay:',
-            error: replenishError,
-        })
+        return
     }
-}
 
-async function handleAutoplayError(
-    error: unknown,
-    interaction: ChatInputCommandInteraction,
-): Promise<void> {
-    errorLog({ message: 'Error in autoplay command:', error })
+    let skipped = false
+    for (let i = 0; i < queue.tracks.size; i++) {
+        const track = queue.tracks.at(i)
+        if (track && isAutoplayTrack(track)) {
+            queue.removeTrack(i)
+            skipped = true
+            debugLog({
+                message: 'Skipped autoplay track',
+                data: {
+                    guildId: queue.guild.id,
+                    trackTitle: track.title,
+                },
+            })
+            break
+        }
+    }
+
+    if (!skipped) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'No Autoplay Tracks',
+                        'No autoplay tracks found in queue.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    await replenishQueue(queue)
+
     await interactionReply({
         interaction,
         content: {
-            embeds: [createErrorEmbed('Error', messages.error.notPlaying)],
+            embeds: [
+                createEmbed({
+                    title: '⏭️ Autoplay track skipped',
+                    description:
+                        'First autoplay track removed and queue replenished.',
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
             ephemeral: true,
         },
     })
 }
 
-async function resolveCurrentAutoplayState(
-    queue: GuildQueue | null,
-    guildId: string,
-): Promise<boolean> {
-    if (queue) {
-        return queue.repeatMode === QueueRepeatMode.AUTOPLAY
+async function handleClearAutoplayTracks(
+    interaction: ChatInputCommandInteraction,
+    queue: GuildQueue,
+): Promise<void> {
+    let clearedCount = 0
+    for (let i = queue.tracks.size - 1; i >= 0; i--) {
+        const track = queue.tracks.at(i)
+        if (track && isAutoplayTrack(track)) {
+            queue.removeTrack(i)
+            clearedCount++
+        }
     }
-    const settings = await guildSettingsService.getGuildSettings(guildId)
-    return settings?.autoPlayEnabled ?? true
+
+    if (clearedCount === 0) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'No Autoplay Tracks',
+                        'No autoplay tracks in queue to clear.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    await replenishQueue(queue)
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '🗑️ Autoplay tracks cleared',
+                    description: `Removed ${clearedCount} autoplay track(s) and replenished queue.`,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleAutoplayStatus(
+    interaction: ChatInputCommandInteraction,
+    queue: GuildQueue,
+): Promise<void> {
+    let autoplayCount = 0
+    for (let i = 0; i < queue.tracks.size; i++) {
+        const track = queue.tracks.at(i)
+        if (track && isAutoplayTrack(track)) {
+            autoplayCount++
+        }
+    }
+
+    const statusEmbed = createEmbed({
+        title: '📊 Autoplay Status',
+        description: `**Autoplay tracks queued:** ${autoplayCount}\n**Last.fm integration:** Connected`,
+        color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+        emoji: EMOJIS.AUTOPLAY,
+        timestamp: true,
+    })
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [statusEmbed],
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleAutoplayMode(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const mode = interaction.options.getString('mode')
+
+    if (!mode) {
+        // Get current mode
+        const settings = await guildSettingsService.getGuildSettings(guildId)
+        const currentMode = settings?.autoplayMode ?? 'similar'
+
+        const modeDescriptions: Record<string, string> = {
+            similar: "🎵 Music like what's playing",
+            discover: '🔭 Prioritize new artists',
+            popular: '🔥 Favour your liked tracks',
+        }
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createEmbed({
+                        title: '🎚️ Autoplay Mode',
+                        description: `**Current mode:** ${currentMode}
+${modeDescriptions[currentMode] || 'Unknown mode'}`,
+                        color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                        emoji: EMOJIS.AUTOPLAY,
+                        timestamp: true,
+                    }),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    // Set new mode
+    const success = await guildSettingsService.updateGuildSettings(guildId, {
+        autoplayMode: mode as 'similar' | 'discover' | 'popular',
+    })
+
+    if (!success) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to update autoplay mode.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const modeEmojis: Record<string, string> = {
+        similar: '🎵',
+        discover: '🔭',
+        popular: '🔥',
+    }
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '✅ Autoplay mode updated',
+                    description: `${modeEmojis[mode]} Mode set to **${mode}**`,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleAutoplayAnalytics(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    try {
+        const stats = await trackHistoryService.getAutoplayStats(guildId, 200)
+
+        if (stats.total === 0) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createEmbed({
+                            title: '📈 Autoplay Analytics',
+                            description: 'No play history yet.',
+                            color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                            emoji: EMOJIS.AUTOPLAY,
+                            timestamp: true,
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
+            return
+        }
+
+        const artistsText =
+            stats.topAutoplayArtists.length > 0
+                ? stats.topAutoplayArtists
+                      .map(
+                          (a, i) =>
+                              `${i + 1}. ${a.artist} — ${a.count} play${a.count !== 1 ? 's' : ''}`,
+                      )
+                      .join('\n')
+                : 'No autoplay data yet.'
+
+        const analyticsEmbed = createEmbed({
+            title: '📈 Autoplay Analytics',
+            description: `**Recent plays:** ${stats.total} tracks in the last 200\n**Autoplay:** ${stats.autoplayCount} (${stats.autoplayPercent}%)\n\n**Top autoplay artists:**\n${artistsText}`,
+            color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+            emoji: EMOJIS.AUTOPLAY,
+            timestamp: true,
+        })
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [analyticsEmbed],
+                ephemeral: true,
+            },
+        })
+    } catch (error) {
+        errorLog({
+            message: 'Failed to fetch autoplay analytics',
+            error,
+        })
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to retrieve autoplay analytics.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+    }
 }
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('autoplay')
-        .setDescription(
-            '🔄 Enable or disable automatic playback of related music.',
+        .setDescription('🔄 Manage autoplay tracks in the queue')
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('skip')
+                .setDescription(
+                    'Skip the first autoplay track and replenish queue',
+                ),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('clear')
+                .setDescription(
+                    'Remove all autoplay tracks and replenish queue',
+                ),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('status')
+                .setDescription('Show autoplay queue status'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('analytics')
+                .setDescription('Show autoplay stats and top artists'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('mode')
+                .setDescription('Get or set autoplay recommendation mode')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('mode')
+                        .setDescription(
+                            'similar (default) | discover | popular',
+                        )
+                        .addChoices(
+                            {
+                                name: "🎵 Similar — music like what's playing",
+                                value: 'similar',
+                            },
+                            {
+                                name: '🔭 Discover — prioritize new artists',
+                                value: 'discover',
+                            },
+                            {
+                                name: '🔥 Popular — favour your liked tracks',
+                                value: 'popular',
+                            },
+                        )
+                        .setRequired(false),
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRole(interaction, interaction.guildId!))) return
-
         const guildId = interaction.guildId
         if (!guildId) return
 
-        const { queue, source, diagnostics } = resolveGuildQueue(
-            client,
-            guildId,
-        )
-        if (!queue) {
-            warnLog({
-                message: 'Autoplay queue resolution miss',
-                data: {
-                    guildId,
-                    userId: interaction.user.id,
-                    source,
-                    cacheSize: diagnostics.cacheSize,
-                    cacheSampleKeys: diagnostics.cacheSampleKeys,
-                },
-            })
-        }
+        const { queue } = resolveGuildQueue(client, guildId)
 
         try {
-            await interaction.deferReply()
+            await interaction.deferReply({ ephemeral: true })
         } catch (error) {
             const isUnknownInteraction =
                 typeof error === 'object' &&
@@ -230,18 +428,67 @@ export default new Command({
         }
 
         try {
-            const isAutoplayEnabled = await resolveCurrentAutoplayState(
-                queue,
-                guildId,
-            )
+            const subcommand = interaction.options.getSubcommand()
 
-            if (isAutoplayEnabled) {
-                await handleDisableAutoplay(queue, interaction, guildId)
-            } else {
-                await handleEnableAutoplay(queue, interaction, guildId)
+            switch (subcommand) {
+                case 'skip':
+                case 'clear':
+                case 'status':
+                    if (!queue) {
+                        await interactionReply({
+                            interaction,
+                            content: {
+                                embeds: [
+                                    createErrorEmbed(
+                                        'No Active Queue',
+                                        'No music is currently playing.',
+                                    ),
+                                ],
+                                ephemeral: true,
+                            },
+                        })
+                        return
+                    }
+                    if (subcommand === 'skip')
+                        await handleSkipAutoplayTrack(interaction, queue)
+                    else if (subcommand === 'clear')
+                        await handleClearAutoplayTracks(interaction, queue)
+                    else await handleAutoplayStatus(interaction, queue)
+                    break
+                case 'analytics':
+                    await handleAutoplayAnalytics(interaction)
+                    break
+                case 'mode':
+                    await handleAutoplayMode(interaction)
+                    break
+                default:
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            embeds: [
+                                createErrorEmbed(
+                                    'Unknown Subcommand',
+                                    'Please use skip, clear, status, analytics, or mode.',
+                                ),
+                            ],
+                            ephemeral: true,
+                        },
+                    })
             }
         } catch (error) {
-            await handleAutoplayError(error, interaction)
+            errorLog({ message: 'Error in autoplay command:', error })
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Error',
+                            'An error occurred while processing your request.',
+                        ),
+                    ],
+                    ephemeral: true,
+                },
+            })
         }
     },
 })

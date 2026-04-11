@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import autoplayCommand from './autoplay'
 
-const QueueRepeatMode = {
-    OFF: 0,
-    AUTOPLAY: 3,
-} as const
-
-const requireGuildMock = jest.fn()
-const requireDJRoleMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createEmbedMock = jest.fn((payload: unknown) => payload)
 const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
@@ -17,22 +10,8 @@ const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
 const replenishQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
-const warnLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
-const getGuildSettingsMock = jest.fn()
-const setGuildSettingsMock = jest.fn()
-
-jest.mock('../../../utils/command/commandValidations', () => ({
-    requireGuild: (...args: unknown[]) => requireGuildMock(...args),
-    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
-}))
-
-jest.mock('discord-player', () => ({
-    QueueRepeatMode: {
-        OFF: 0,
-        AUTOPLAY: 3,
-    },
-}))
+const trackHistoryServiceMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -63,436 +42,413 @@ jest.mock('../../../utils/music/queueResolver', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
-    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
+
+const getGuildSettingsMock = jest.fn()
+const updateGuildSettingsMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
         getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
-        setGuildSettings: (...args: unknown[]) => setGuildSettingsMock(...args),
+        updateGuildSettings: (...args: unknown[]) =>
+            updateGuildSettingsMock(...args),
+    },
+    trackHistoryService: {
+        getAutoplayStats: (...args: unknown[]) =>
+            trackHistoryServiceMock(...args),
     },
 }))
 
-function createInteraction(guildId = 'guild-1') {
+function createInteraction(subcommand = 'skip') {
     const interaction = {
-        guildId,
+        guildId: 'guild-1',
         deferred: false,
         replied: false,
         user: { id: 'user-1' },
         deferReply: jest.fn(async () => {
             interaction.deferred = true
         }),
+        options: {
+            getSubcommand: jest.fn(() => subcommand),
+        },
     }
 
     return interaction as any
 }
 
-function createQueue(repeatMode = QueueRepeatMode.OFF) {
+function createQueue() {
     return {
         guild: { id: 'guild-1' },
-        repeatMode,
-        currentTrack: { title: 'Song A' },
-        tracks: { size: 0 },
-        setRepeatMode: jest.fn(),
+        currentTrack: { title: 'Current Song' },
+        tracks: {
+            size: 3,
+            at: jest.fn((index: number) => {
+                if (index === 0)
+                    return {
+                        metadata: { isAutoplay: true },
+                        title: 'Autoplay 1',
+                    }
+                if (index === 1)
+                    return { metadata: { isAutoplay: false }, title: 'Manual' }
+                if (index === 2)
+                    return {
+                        metadata: { isAutoplay: true },
+                        title: 'Autoplay 2',
+                    }
+                return null
+            }),
+        },
+        removeTrack: jest.fn(),
     } as any
 }
 
-function createClient({ directQueue = null }: { directQueue?: unknown }) {
+function createClient() {
     return {
-        player: {
-            nodes: {
-                get: jest.fn(() => directQueue),
-            },
-        },
+        user: { id: 'bot-1' },
     } as any
 }
 
 describe('autoplay command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        requireGuildMock.mockResolvedValue(true)
-        requireDJRoleMock.mockResolvedValue(true)
-        getGuildSettingsMock.mockResolvedValue(null)
-        setGuildSettingsMock.mockResolvedValue(true)
-        resolveGuildQueueMock.mockReturnValue({
-            queue: null,
-            source: 'miss',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 0,
-                cacheSampleKeys: [],
-            },
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
+        updateGuildSettingsMock.mockResolvedValue(true)
+    })
+
+    describe('structure', () => {
+        it('should have correct name and description', () => {
+            expect(autoplayCommand.data.name).toBe('autoplay')
+            expect(autoplayCommand.data.description).toContain(
+                'Manage autoplay',
+            )
+        })
+
+        it('should have three subcommands', () => {
+            const builder = autoplayCommand.data
+            const options = (builder as any).options || []
+            expect(options.length).toBeGreaterThanOrEqual(3)
         })
     })
 
-    it('enables autoplay on active queue and persists preference', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({ directQueue: null })
-        const interaction = createInteraction()
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'cache.guild',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
+    describe('skip subcommand', () => {
+        it('should skip first autoplay track and replenish', async () => {
+            const interaction = createInteraction('skip')
+            const queue = createQueue()
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue })
+            replenishQueueMock.mockResolvedValue(undefined)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(interaction.deferReply).toHaveBeenCalled()
+            expect(queue.removeTrack).toHaveBeenCalledWith(0)
+            expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
+        it('should handle empty queue gracefully', async () => {
+            const interaction = createInteraction('skip')
+            const queue = createQueue()
+            queue.tracks.size = 0
+            const client = createClient()
 
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(
-            QueueRepeatMode.AUTOPLAY,
-        )
-        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: true,
+            resolveGuildQueueMock.mockReturnValue({ queue })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Queue Empty',
+                expect.anything(),
+            )
         })
-        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
-        expect(interactionReplyMock).toHaveBeenCalled()
     })
 
-    it('disables autoplay when already enabled', async () => {
-        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction()
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
+    describe('clear subcommand', () => {
+        it('should remove all autoplay tracks and replenish', async () => {
+            const interaction = createInteraction('clear')
+            const queue = createQueue()
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue })
+            replenishQueueMock.mockResolvedValue(undefined)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(queue.removeTrack).toHaveBeenCalledTimes(2)
+            expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
+        it('should handle no autoplay tracks gracefully', async () => {
+            const interaction = createInteraction('clear')
+            const queue = createQueue()
+            queue.tracks.at = jest.fn(() => ({
+                metadata: { isAutoplay: false },
+            }))
+            const client = createClient()
 
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
-        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: false,
+            resolveGuildQueueMock.mockReturnValue({ queue })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'No Autoplay Tracks',
+                expect.anything(),
+            )
         })
-        expect(replenishQueueMock).not.toHaveBeenCalled()
-        expect(interactionReplyMock).toHaveBeenCalled()
     })
 
-    it('disables autoplay when no queue exists and settings are missing (default-on)', async () => {
-        const client = createClient({ directQueue: null })
-        const interaction = createInteraction()
+    describe('status subcommand', () => {
+        it('should show autoplay status', async () => {
+            const interaction = createInteraction('status')
+            const queue = createQueue()
+            const client = createClient()
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
+            resolveGuildQueueMock.mockReturnValue({ queue })
 
-        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: false,
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalled()
+            const embed = createEmbedMock.mock.calls[0][0]
+            expect(embed.title).toContain('Status')
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
-        expect(interactionReplyMock).toHaveBeenCalled()
     })
 
-    it('shows an error when disabling autoplay without a queue fails to persist', async () => {
-        const client = createClient({ directQueue: null })
-        const interaction = createInteraction()
-        setGuildSettingsMock.mockResolvedValue(false)
+    describe('error handling', () => {
+        it('should handle unknown interaction error gracefully', async () => {
+            const interaction = createInteraction('skip')
+            const error = { code: 10062 }
+            interaction.deferReply = jest.fn(async () => {
+                throw error
+            })
+            const client = createClient()
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
 
-        expect(warnLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Failed to persist autoplay disabled preference',
-            }),
-        )
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: 'Autoplay preference not saved',
-            }),
-        )
-        expect(interactionReplyMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                content: expect.objectContaining({
-                    ephemeral: true,
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(interactionReplyMock).not.toHaveBeenCalled()
+        })
+
+        it('should reply with error when no queue exists', async () => {
+            const interaction = createInteraction('skip')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'No Active Queue',
+                expect.anything(),
+            )
+        })
+    })
+
+    describe('analytics subcommand', () => {
+        it('should show autoplay analytics with data', async () => {
+            const interaction = createInteraction('analytics')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            trackHistoryServiceMock.mockResolvedValue({
+                total: 100,
+                autoplayCount: 30,
+                autoplayPercent: 30,
+                topAutoplayArtists: [
+                    { artist: 'The Beatles', count: 10 },
+                    { artist: 'Pink Floyd', count: 8 },
+                ],
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(trackHistoryServiceMock).toHaveBeenCalledWith('guild-1', 200)
+            expect(createEmbedMock).toHaveBeenCalled()
+            const embed = createEmbedMock.mock.calls[0][0]
+            expect(embed.title).toContain('Analytics')
+            expect(embed.description).toContain('100 tracks')
+            expect(embed.description).toContain('30 (30%)')
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+
+        it('should handle empty history gracefully', async () => {
+            const interaction = createInteraction('analytics')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            trackHistoryServiceMock.mockResolvedValue({
+                total: 0,
+                autoplayCount: 0,
+                autoplayPercent: 0,
+                topAutoplayArtists: [],
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalled()
+            const embed = createEmbedMock.mock.calls[0][0]
+            expect(embed.description).toContain('No play history yet')
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+
+        it('should handle service errors gracefully', async () => {
+            const interaction = createInteraction('analytics')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            trackHistoryServiceMock.mockRejectedValue(
+                new Error('Service error'),
+            )
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.anything(),
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('mode subcommand', () => {
+        it('should show current mode when no mode argument provided', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest.fn().mockReturnValue(null)
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({
+                autoplayMode: 'discover',
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(getGuildSettingsMock).toHaveBeenCalledWith('guild-1')
+            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.stringContaining('discover'),
                 }),
-            }),
-        )
-        expect(replenishQueueMock).not.toHaveBeenCalled()
-    })
-
-    it('shows a queue-only warning when disabling autoplay cannot persist', async () => {
-        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction()
-        setGuildSettingsMock.mockResolvedValue(false)
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
+            )
         })
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
+        it('should show default mode when settings return null', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest.fn().mockReturnValue(null)
+            const client = createClient()
 
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.OFF)
-        expect(warnLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Failed to persist autoplay disabled preference',
-            }),
-        )
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: 'Autoplay disabled for current queue only',
-            }),
-        )
-        expect(replenishQueueMock).not.toHaveBeenCalled()
-    })
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({})
 
-    it('shows a queue-only warning when enabling autoplay cannot persist', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction()
-        setGuildSettingsMock.mockResolvedValue(false)
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
-        })
+            await autoplayCommand.execute({ client, interaction } as any)
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(
-            QueueRepeatMode.AUTOPLAY,
-        )
-        expect(warnLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Failed to persist autoplay enabled preference',
-            }),
-        )
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: 'Autoplay enabled for current queue only',
-            }),
-        )
-        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
-    })
-
-    it('disables stored preference when no queue and was enabled', async () => {
-        const client = createClient({ directQueue: null })
-        const interaction = createInteraction()
-        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: true })
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: false,
-        })
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Autoplay disabled' }),
-        )
-    })
-
-    it('enables stored preference when no queue and autoplay was disabled', async () => {
-        const client = createClient({ directQueue: null })
-        const interaction = createInteraction()
-        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
-            autoPlayEnabled: true,
-        })
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Autoplay enabled' }),
-        )
-    })
-
-    it('returns early when interaction guild id is missing', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction(null as unknown as string)
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(interactionReplyMock).not.toHaveBeenCalled()
-        expect(resolveGuildQueueMock).not.toHaveBeenCalled()
-    })
-
-    it('replies before replenishment finishes', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction()
-        let resolveReplenish: () => void = () => {}
-
-        replenishQueueMock.mockImplementation(
-            () =>
-                new Promise<void>((resolve) => {
-                    resolveReplenish = resolve
+            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.stringContaining('similar'),
                 }),
-        )
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
+            )
         })
 
-        const executePromise = autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-        const completion = await Promise.race([
-            executePromise.then(() => 'done'),
-            new Promise<string>((resolve) => {
-                setTimeout(() => resolve('timeout'), 25)
-            }),
-        ])
+        it('should update mode when mode argument provided', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest.fn().mockReturnValue('popular')
+            const client = createClient()
 
-        expect(completion).toBe('done')
-        expect(interactionReplyMock).toHaveBeenCalled()
-        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            updateGuildSettingsMock.mockResolvedValue(true)
 
-        resolveReplenish()
-        await executePromise
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(updateGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                autoplayMode: 'popular',
+            })
+            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: expect.stringContaining('mode updated'),
+                }),
+            )
+        })
+
+        it('should show error when mode update fails', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest
+                .fn()
+                .mockReturnValue('discover')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            updateGuildSettingsMock.mockResolvedValue(false)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                'Failed to update autoplay mode.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
     })
 
-    it('logs replenish failures after enabling autoplay', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction()
-        replenishQueueMock.mockRejectedValue(new Error('replenish failed'))
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
+    describe('skip subcommand edge cases', () => {
+        it('should show error when no autoplay tracks found in queue', async () => {
+            const interaction = createInteraction('skip')
+            const queue = createQueue()
+            queue.tracks.at = jest.fn(() => ({
+                metadata: { isAutoplay: false },
+                title: 'Manual Track',
+            }))
+            queue.tracks.size = 1
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'No Autoplay Tracks',
+                'No autoplay tracks found in queue.',
+            )
+            expect(queue.removeTrack).not.toHaveBeenCalled()
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
-
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        await Promise.resolve()
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Error replenishing queue after enabling autoplay:',
-            }),
-        )
     })
 
-    it('returns silently when deferReply throws unknown interaction error (10062)', async () => {
-        const interaction = createInteraction()
-        interaction.deferReply = jest.fn().mockRejectedValue(
-            Object.assign(new Error('Unknown interaction'), {
-                code: 10062,
-            }),
-        )
-        resolveGuildQueueMock.mockReturnValue({
-            queue: null,
-            source: 'miss',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 0,
-                cacheSampleKeys: [],
-            },
-        })
+    describe('execute function edge cases', () => {
+        it('should return early when guildId is null', async () => {
+            const interaction = createInteraction('skip')
+            interaction.guildId = null
+            const client = createClient()
 
-        await autoplayCommand.execute({
-            client: createClient({ directQueue: null }),
-            interaction,
-        } as any)
-
-        expect(interactionReplyMock).not.toHaveBeenCalled()
-        expect(getGuildSettingsMock).not.toHaveBeenCalled()
-    })
-
-    it('re-throws when deferReply fails with a non-10062 error', async () => {
-        const interaction = createInteraction()
-        const boom = new Error('network error')
-        interaction.deferReply = jest.fn().mockRejectedValue(boom)
-        resolveGuildQueueMock.mockReturnValue({
-            queue: null,
-            source: 'miss',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 0,
-                cacheSampleKeys: [],
-            },
-        })
-
-        await expect(
-            autoplayCommand.execute({
-                client: createClient({ directQueue: null }),
+            const result = await autoplayCommand.execute({
+                client,
                 interaction,
-            } as any),
-        ).rejects.toThrow('network error')
-    })
+            } as any)
 
-    it('uses autoplay error response when execution throws', async () => {
-        const queue = createQueue(QueueRepeatMode.OFF)
-        queue.setRepeatMode.mockImplementation(() => {
-            throw new Error('unexpected')
-        })
-        const client = createClient({ directQueue: queue })
-        const interaction = createInteraction()
-        resolveGuildQueueMock.mockReturnValue({
-            queue,
-            source: 'nodes.get',
-            diagnostics: {
-                guildId: 'guild-1',
-                cacheSize: 1,
-                cacheSampleKeys: ['guild-1'],
-            },
+            expect(resolveGuildQueueMock).not.toHaveBeenCalled()
+            expect(result).toBeUndefined()
         })
 
-        await autoplayCommand.execute({
-            client,
-            interaction,
-        } as any)
+        it('should handle unknown subcommand', async () => {
+            const interaction = createInteraction('unknown')
+            interaction.options.getSubcommand = jest
+                .fn()
+                .mockReturnValue('unknown')
+            const client = createClient()
 
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Error in autoplay command:',
-            }),
-        )
-        expect(createErrorEmbedMock).toHaveBeenCalledWith(
-            'Error',
-            expect.any(String),
-        )
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Unknown Subcommand',
+                'Please use skip, clear, status, analytics, or mode.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
     })
 })
