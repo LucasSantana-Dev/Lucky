@@ -28,6 +28,8 @@ jest.mock('../../utils/music/watchdog', () => ({
         checkAndRecover: (...args: unknown[]) =>
             watchdogCheckRecoverMock(...args),
         clear: (...args: unknown[]) => watchdogClearMock(...args),
+        isIntentionalStop: () => false,
+        markIntentionalStop: jest.fn(),
     },
 }))
 
