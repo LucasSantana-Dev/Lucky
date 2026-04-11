@@ -1575,3 +1575,65 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
         expect(addTrackMock).toHaveBeenCalledWith(userTrack)
     })
 })
+
+describe('queueManipulation.replenishQueue youtube dedup', () => {
+    it('does not re-queue a track whose youtube video id is in history under different url format', async () => {
+        const existingUrl = 'https://www.youtube.com/watch?v=yebNIHKAC4A'
+        const alternateUrl = 'https://youtube.com/watch?v=yebNIHKAC4A'
+        const currentTrack = {
+            url: existingUrl,
+            title: 'Golden KPop',
+            author: 'Sony',
+            requestedBy: { id: 'user-1' },
+        }
+        const duplicateCandidate = {
+            url: alternateUrl,
+            title: 'Golden KPop Official',
+            author: 'Sony',
+            requestedBy: null,
+        }
+        const addedTracks: unknown[] = []
+        const queue = {
+            guild: { id: 'guild-yt', name: 'Guild' },
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            history: { tracks: { toArray: jest.fn().mockReturnValue([]) } },
+            repeatMode: 3,
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            node: { play: jest.fn() },
+            player: {
+                search: jest
+                    .fn()
+                    .mockResolvedValue({ tracks: [duplicateCandidate] }),
+            },
+        }
+        await replenishQueue(queue as unknown as GuildQueue)
+        expect(addedTracks).toHaveLength(0)
+    })
+
+    it('uses finishedTrack as seed when currentTrack is null', async () => {
+        const finishedTrack = {
+            url: 'https://youtube.com/watch?v=test1234567',
+            title: 'Done Song',
+            author: 'Art',
+            requestedBy: { id: 'u1' },
+        }
+        const queue = {
+            guild: { id: 'guild-ft', name: 'G' },
+            currentTrack: null,
+            metadata: {},
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            history: { tracks: { toArray: jest.fn().mockReturnValue([]) } },
+            repeatMode: 3,
+            addTrack: jest.fn(),
+            player: { search: jest.fn().mockResolvedValue({ tracks: [] }) },
+        }
+        await expect(
+            replenishQueue(
+                queue as unknown as GuildQueue,
+                finishedTrack as unknown as import('discord-player').Track,
+            ),
+        ).resolves.not.toThrow()
+    })
+})

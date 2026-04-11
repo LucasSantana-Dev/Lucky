@@ -253,7 +253,10 @@ describe('trackHandlers autoplay replenishment', () => {
             guildId: 'guild-1',
             userId: undefined,
         })
-        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+        expect(replenishQueueMock).toHaveBeenCalledWith(
+            queue,
+            expect.anything(),
+        )
         expect(saveSnapshotMock).toHaveBeenCalledWith(queue)
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
     })
