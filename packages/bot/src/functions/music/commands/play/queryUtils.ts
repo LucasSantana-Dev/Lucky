@@ -57,7 +57,9 @@ export function resolveSearchEngine(
         case 'spotify':
             return QueryType.SPOTIFY_SEARCH
         default:
-            return QueryType.AUTO_SEARCH
+            // Spotify first: best metadata (titles, artwork, artist).
+            // Fallback chain in play/index.ts tries YouTube then AUTO if Spotify throws.
+            return QueryType.SPOTIFY_SEARCH
     }
 }
 
