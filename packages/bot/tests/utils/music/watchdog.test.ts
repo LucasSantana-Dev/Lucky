@@ -124,4 +124,21 @@ describe('MusicWatchdogService', () => {
             expect(queue.node.play).toHaveBeenCalled()
         })
     })
+
+    describe('isIntentionalStop', () => {
+        it('returns true after markIntentionalStop is called', () => {
+            service.markIntentionalStop('guild-1')
+            expect(service['intentionalStops'].has('guild-1')).toBe(true)
+        })
+
+        it('returns false before markIntentionalStop is called', () => {
+            expect(service['intentionalStops'].has('guild-new')).toBe(false)
+        })
+
+        it('returns false for a different guild after markIntentionalStop', () => {
+            service.markIntentionalStop('guild-1')
+            expect(service['intentionalStops'].has('guild-1')).toBe(true)
+            expect(service['intentionalStops'].has('guild-2')).toBe(false)
+        })
+    })
 })
