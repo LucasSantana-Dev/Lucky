@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.82] - 2026-04-10
+
+### Fixed
+
+- **Player recovery error logging** — catch blocks in stream recovery, bridge exhaustion, and Last.fm handlers now emit `debugLog`/`warnLog` instead of silently swallowing errors. Completes Phase 3 of the reliability audit.
+
 ## [2.6.81] - 2026-04-10
 
 ### Fixed
