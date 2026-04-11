@@ -180,3 +180,59 @@ describe('cleanTitle — version variant noise patterns', () => {
         expect(cleanTitle('Track (Bonus Track)')).toBe('Track')
     })
 })
+
+describe('cleanTitle — hyphenated version suffixes', () => {
+    it('strips " – 2011 Remaster" en-dash suffix', () => {
+        expect(cleanTitle('Bohemian Rhapsody – 2011 Remaster')).toBe(
+            'Bohemian Rhapsody',
+        )
+    })
+
+    it('strips " - Live" hyphen suffix', () => {
+        expect(cleanTitle('Song Title - Live')).toBe('Song Title')
+    })
+
+    it('leaves non-keyword suffix unchanged', () => {
+        expect(cleanTitle('Song Title - Some Other Suffix')).toBe(
+            'Song Title - Some Other Suffix',
+        )
+    })
+
+    it('handles already-parenthetical versions', () => {
+        expect(cleanTitle('Song Title (Live)')).toBe('Song Title')
+    })
+
+    it('strips " — 2020 Remastered" em-dash suffix', () => {
+        expect(cleanTitle('Classic Song — 2020 Remastered')).toBe(
+            'Classic Song',
+        )
+    })
+
+    it('does not strip suffix when no separator found', () => {
+        expect(cleanTitle('Song Title Remaster')).toBe('Song Title Remaster')
+    })
+
+    it('strips " - Acoustic" suffix', () => {
+        expect(cleanTitle('Track - Acoustic')).toBe('Track')
+    })
+
+    it('strips " - Extended" suffix', () => {
+        expect(cleanTitle('Track - Extended')).toBe('Track')
+    })
+
+    it('strips " - Radio Edit" suffix', () => {
+        expect(cleanTitle('Track - Radio Edit')).toBe('Track')
+    })
+
+    it('strips " - Demo" suffix', () => {
+        expect(cleanTitle('Track - Demo')).toBe('Track')
+    })
+
+    it('strips " - Album Version" suffix', () => {
+        expect(cleanTitle('Track - Album Version')).toBe('Track')
+    })
+
+    it('strips " - Single Version" suffix', () => {
+        expect(cleanTitle('Track - Single Version')).toBe('Track')
+    })
+})

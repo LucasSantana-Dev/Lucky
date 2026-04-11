@@ -59,6 +59,8 @@ jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'auto',
         SPOTIFY_SEARCH: 'spotifySearch',
+        YOUTUBE_SEARCH: 'youtubeSearch',
+        SOUNDCLOUD_SEARCH: 'soundcloudSearch',
     },
 }))
 
@@ -131,12 +133,6 @@ jest.mock('../../../../utils/music/buttonComponents', () => ({
 
 jest.mock('../../../../utils/general/errorSanitizer', () => ({
     createUserFriendlyError: (error: unknown) => 'User friendly error',
-}))
-
-const registerNowPlayingMessageMock = jest.fn()
-jest.mock('../../../../handlers/player/trackNowPlaying', () => ({
-    registerNowPlayingMessage: (...args: unknown[]) =>
-        registerNowPlayingMessageMock(...args),
 }))
 
 import playCommand from './index'
@@ -730,52 +726,83 @@ describe('play command', () => {
         )
     })
 
-    it('registers interaction reply as now-playing message to prevent duplicate (queuePosition=0)', async () => {
-        // When the track starts immediately (no pre-existing queue), the /play
-        // interaction reply shows "Now Playing". Without registration, the
-        // playerStart handler sends a second "Now Playing" message. This test
-        // verifies the registration happens so the handler edits instead.
+    it('falls back through YouTube to SoundCloud when both Spotify and YouTube fail', async () => {
         const interaction = createInteraction('guild-1')
-        const track = {
-            id: 'track-1',
-            url: 'https://youtube.com/watch?v=abc',
-            title: 'Test Song',
-            author: 'Test Artist',
-            duration: '3:30',
-            thumbnail: null,
-            requestedBy: { id: 'user-1' },
-            metadata: {},
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
         }
 
-        resolveGuildQueueMock.mockReturnValue({ queue: null }) // no pre-existing queue
-        const queue = {
-            tracks: { size: 0, toArray: jest.fn(() => []) },
-            repeatMode: 0,
+        let playCallCount = 0
+        const playImpl = async (...args: unknown[]) => {
+            playCallCount++
+            if (playCallCount === 1) {
+                // First call (Spotify) fails
+                throw new Error('Spotify search failed')
+            } else if (playCallCount === 2) {
+                // Second call (YouTube) fails
+                throw new Error('YouTube search failed')
+            } else {
+                // Third call (SoundCloud) succeeds
+                return result
+            }
         }
-        resolveGuildQueueMock
-            .mockReturnValueOnce({ queue: null })
-            .mockReturnValue({ queue })
+
+        const client = createClient(playImpl, {
+            repeatMode: 3,
+            tracksSize: 2,
+        })
 
         await playCommand.execute({
-            client: createClient(
-                async () => ({
-                    track,
-                    searchResult: { playlist: null, tracks: [track] },
-                }),
-                { tracksSize: 0 },
-            ),
+            client,
             interaction,
         } as any)
 
-        await flushPromises()
-
-        // fetchReply must be called and registerNowPlayingMessage invoked with
-        // the reply's id and channelId — this prevents the duplicate embed.
-        expect(interaction.fetchReply).toHaveBeenCalled()
-        expect(registerNowPlayingMessageMock).toHaveBeenCalledWith(
-            'guild-1',
-            'msg-123',
-            'channel-1',
+        expect(client.player.play).toHaveBeenCalledTimes(3)
+        // First attempt with default provider (SPOTIFY_SEARCH)
+        expect(client.player.play).toHaveBeenNthCalledWith(
+            1,
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                searchEngine: 'spotifySearch',
+            }),
+        )
+        // Second attempt with YouTube
+        expect(client.player.play).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                searchEngine: 'youtubeSearch',
+            }),
+        )
+        // Third attempt with SoundCloud
+        expect(client.player.play).toHaveBeenNthCalledWith(
+            3,
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                searchEngine: 'soundcloudSearch',
+            }),
+        )
+        // Should log warnings for first two failures
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/Primary search failed/i),
+            }),
+        )
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/YouTube search failed/i),
+            }),
+        )
+        // Should still reply with success
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ embeds: expect.any(Array) }),
+            }),
         )
     })
 })

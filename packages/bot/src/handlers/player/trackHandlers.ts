@@ -213,6 +213,7 @@ const handlePlayerFinish = async (
 ): Promise<void> => {
     try {
         await scrobbleAndRecord(queue, track)
+        if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
         await replenishIfAutoplay(queue)
         await musicSessionSnapshotService.saveSnapshot(queue)
 
@@ -235,6 +236,7 @@ const handlePlayerSkip = async (
     try {
         debugLog({ message: 'Track skipped, checking queue...' })
         await scrobbleAndRecord(queue, track)
+        if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
         await replenishIfAutoplay(queue)
         await musicSessionSnapshotService.saveSnapshot(queue)
 

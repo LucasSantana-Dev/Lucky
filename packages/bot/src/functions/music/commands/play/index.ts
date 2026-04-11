@@ -22,7 +22,6 @@ import {
 } from '../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
-import { registerNowPlayingMessage } from '../../../../handlers/player/trackNowPlaying'
 import {
     DISCORD_UNKNOWN_INTERACTION_CODE,
     isUnknownInteractionError,
@@ -176,12 +175,12 @@ export default new Command({
                     } catch (youtubeError) {
                         warnLog({
                             message:
-                                'YouTube search failed, falling back to AUTO',
+                                'YouTube search failed, falling back to SoundCloud',
                             data: { query },
                         })
                         result = await client.player.play(voiceChannel, query, {
                             ...playOptions,
-                            searchEngine: QueryType.AUTO,
+                            searchEngine: QueryType.SOUNDCLOUD_SEARCH,
                         })
                     }
                 } else {
@@ -232,7 +231,7 @@ export default new Command({
                       },
                   })
                 : buildPlayResponseEmbed({
-                      kind: queuePosition === 0 ? 'nowPlaying' : 'addedToQueue',
+                      kind: 'addedToQueue',
                       track,
                       requestedBy: interaction.user,
                       queuePosition,
@@ -251,33 +250,10 @@ export default new Command({
                 })
             }
 
-            // Attach the music control button row so the user can
-            // pause/skip/shuffle/loop/previous directly from the /play
-            // response. The row is queue-state-aware (disables Previous
-            // when there's no history, disables Shuffle on small queues).
-            const components = queue ? [createMusicControlButtons(queue)] : []
-
             await interactionReply({
                 interaction,
-                content: { embeds: [embed], components },
+                content: { embeds: [embed] },
             })
-
-            // When the track starts playing immediately (queuePosition === 0),
-            // register the interaction reply as the "now playing" message so
-            // the playerStart handler edits it (adding buttons) rather than
-            // sending a second "Now Playing" message in the channel.
-            if (queuePosition === 0 && interaction.guildId) {
-                try {
-                    const reply = await interaction.fetchReply()
-                    registerNowPlayingMessage(
-                        interaction.guildId,
-                        reply.id,
-                        reply.channelId,
-                    )
-                } catch {
-                    // non-critical — worst case playerStart sends a fresh message
-                }
-            }
 
             // Start background ops (apply autoplay pref then blend) without awaiting.
             // This lets the response reach the user immediately.

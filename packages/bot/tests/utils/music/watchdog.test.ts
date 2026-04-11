@@ -88,12 +88,15 @@ describe('MusicWatchdogService', () => {
             expect(service['timers'].has('guild-1')).toBe(false)
         })
 
-        it('removes the intentional stop flag after 5 seconds', async () => {
-            const queue = makeQueue()
+        it('removes the intentional stop flag after timeoutMs + 10s', async () => {
             service.markIntentionalStop('guild-1')
 
-            jest.advanceTimersByTime(5_000)
+            // Flag must persist through the watchdog timeout window
+            jest.advanceTimersByTime(100 + 9_999)
+            expect(service['intentionalStops'].has('guild-1')).toBe(true)
 
+            // Clears after timeoutMs (100) + 10_000
+            jest.advanceTimersByTime(1)
             expect(service['intentionalStops'].has('guild-1')).toBe(false)
         })
 
@@ -119,6 +122,23 @@ describe('MusicWatchdogService', () => {
             const result = await service.checkAndRecover(queue)
             expect(result).toBe('requeue_current')
             expect(queue.node.play).toHaveBeenCalled()
+        })
+    })
+
+    describe('isIntentionalStop', () => {
+        it('returns true after markIntentionalStop is called', () => {
+            service.markIntentionalStop('guild-1')
+            expect(service['intentionalStops'].has('guild-1')).toBe(true)
+        })
+
+        it('returns false before markIntentionalStop is called', () => {
+            expect(service['intentionalStops'].has('guild-new')).toBe(false)
+        })
+
+        it('returns false for a different guild after markIntentionalStop', () => {
+            service.markIntentionalStop('guild-1')
+            expect(service['intentionalStops'].has('guild-1')).toBe(true)
+            expect(service['intentionalStops'].has('guild-2')).toBe(false)
         })
     })
 })

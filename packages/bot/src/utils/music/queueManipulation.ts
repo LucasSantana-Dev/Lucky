@@ -329,18 +329,18 @@ function buildExcludedKeys(
     historyTracks: Track[],
     persistentHistory: { title: string; author: string }[] = [],
 ): Set<string> {
-    return new Set<string>([
-        normalizeTrackKey(currentTrack.title, currentTrack.author),
-        ...historyTracks.map((track) =>
-            normalizeTrackKey(track.title, track.author),
-        ),
-        ...queue.tracks
-            .toArray()
-            .map((track) => normalizeTrackKey(track.title, track.author)),
-        ...persistentHistory.map((entry) =>
-            normalizeTrackKey(entry.title, entry.author),
-        ),
-    ])
+    const allTracks: { title?: string; author?: string }[] = [
+        currentTrack,
+        ...historyTracks,
+        ...queue.tracks.toArray(),
+        ...persistentHistory,
+    ]
+    const keys: string[] = []
+    for (const t of allTracks) {
+        keys.push(normalizeTrackKey(t.title, t.author))
+        keys.push(normalizeTitleOnly(t.title))
+    }
+    return new Set(keys)
 }
 
 function buildRecentArtists(
@@ -764,6 +764,10 @@ function normalizeTrackKey(title?: string, author?: string): string {
     return `${normalizeText(cleanedTitle)}::${normalizeText(cleanedAuthor)}`
 }
 
+function normalizeTitleOnly(title?: string): string {
+    return normalizeText(title ? cleanTitle(title) : '')
+}
+
 function normalizeText(value?: string): string {
     return (value ?? '')
         .toLowerCase()
@@ -781,9 +785,9 @@ function isDuplicateCandidate(
     excludedKeys: Set<string>,
 ): boolean {
     if (track.url && excludedUrls.has(track.url)) return true
-
-    const key = normalizeTrackKey(track.title, track.author)
-    return excludedKeys.has(key)
+    if (excludedKeys.has(normalizeTrackKey(track.title, track.author)))
+        return true
+    return excludedKeys.has(normalizeTitleOnly(track.title))
 }
 
 function calculateRecommendationScore(

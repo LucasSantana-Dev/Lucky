@@ -69,6 +69,7 @@ jest.mock('../../utils/music/watchdog', () => ({
     musicWatchdogService: {
         arm: (...args: unknown[]) => watchdogArmMock(...args),
         clear: (...args: unknown[]) => watchdogClearMock(...args),
+        isIntentionalStop: () => false,
     },
 }))
 

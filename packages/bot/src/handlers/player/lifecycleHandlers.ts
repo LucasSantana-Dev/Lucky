@@ -1,4 +1,5 @@
 import type { GuildQueue } from 'discord-player'
+import type { Client } from 'discord.js'
 import { infoLog, debugLog } from '@lucky/shared/utils'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import * as musicPresence from '../../services/MusicPresenceService'
@@ -6,6 +7,20 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import type { QueueMetadata } from '../../types/QueueMetadata'
+
+export const setupVoiceKickDetection = (client: Client): void => {
+    client.on('voiceStateUpdate', (oldState, newState) => {
+        if (newState.member?.id !== client.user?.id) return
+        const wasInChannel = Boolean(oldState.channelId)
+        const nowDisconnected = !newState.channelId
+        if (wasInChannel && nowDisconnected && oldState.guild) {
+            musicWatchdogService.markIntentionalStop(oldState.guild.id)
+            infoLog({
+                message: `Bot was disconnected from voice in ${oldState.guild.name} — marked intentional`,
+            })
+        }
+    })
+}
 
 export const setupLifecycleHandlers = (player: {
     events: { on: (event: string, handler: Function) => void }
@@ -52,7 +67,7 @@ export const setupLifecycleHandlers = (player: {
         await voiceStatus.clearStatus(queue)
         musicPresence.clearMusicPresence(queue.guild.id)
         await musicSessionSnapshotService.saveSnapshot(queue)
-        await musicWatchdogService.checkAndRecover(queue)
+        // Queue was explicitly deleted — never attempt recovery here.
     })
 
     player.events.on('emptyChannel', async (queue: GuildQueue) => {
@@ -63,6 +78,10 @@ export const setupLifecycleHandlers = (player: {
         musicWatchdogService.clear(queue.guild.id)
     })
 
+    player.events.on('emptyQueue', async (queue: GuildQueue) => {
+        musicWatchdogService.markIntentionalStop(queue.guild.id)
+    })
+
     player.events.on('disconnect', async (queue: GuildQueue) => {
         infoLog({
             message: `Disconnected from voice channel in ${queue.guild.name}`,
@@ -71,6 +90,8 @@ export const setupLifecycleHandlers = (player: {
         await voiceStatus.clearStatus(queue)
         musicPresence.clearMusicPresence(queue.guild.id)
         await musicSessionSnapshotService.saveSnapshot(queue)
-        await musicWatchdogService.checkAndRecover(queue)
+        if (!musicWatchdogService.isIntentionalStop(queue.guild.id)) {
+            await musicWatchdogService.checkAndRecover(queue)
+        }
     })
 }
