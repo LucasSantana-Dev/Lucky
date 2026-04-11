@@ -691,6 +691,179 @@ describe('queueManipulation.replenishQueue', () => {
         ).toContain('similar energy')
     })
 
+    it('discover mode boosts novelty when candidate artist not in recent history', async () => {
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://example.com/current',
+                source: 'youtube',
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Undiscovered Track',
+                            author: 'Unknown Artist',
+                            url: 'https://example.com/undiscovered',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        getGuildSettingsMock.mockResolvedValueOnce({
+            autoplayMode: 'discover',
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
+        expect(addedTrack).toBeDefined()
+        expect(
+            (addedTrack?.metadata as Record<string, unknown>)
+                ?.recommendationReason,
+        ).toContain('discovery boost')
+    })
+
+    it('discover mode prefers new artists over familiar ones', async () => {
+        const recentArtist = 'Recent Artist'
+        const newArtist = 'New Artist'
+        const trackHistory = [
+            {
+                title: 'Past Track 1',
+                author: recentArtist,
+                url: 'https://example.com/past1',
+                source: 'youtube',
+            },
+            {
+                title: 'Past Track 2',
+                author: recentArtist,
+                url: 'https://example.com/past2',
+                source: 'youtube',
+            },
+        ]
+
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://example.com/current',
+                source: 'youtube',
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Familiar Track',
+                            author: recentArtist,
+                            url: 'https://example.com/familiar',
+                            source: 'spotify',
+                        },
+                        {
+                            title: 'New Track',
+                            author: newArtist,
+                            url: 'https://example.com/new',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        getTrackHistoryMock.mockResolvedValueOnce(trackHistory)
+        getGuildSettingsMock.mockResolvedValueOnce({
+            autoplayMode: 'discover',
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTracks = queue.addTrack.mock.calls.map((c) => c[0])
+        expect(addedTracks.some((t) => t.author === newArtist)).toBe(true)
+    })
+
+    it('popular mode boosts liked tracks and similar duration', async () => {
+        const currentTrackDuration = 200000
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://example.com/current',
+                source: 'youtube',
+                durationMS: currentTrackDuration,
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Popular Track',
+                            author: 'Popular Artist',
+                            url: 'https://example.com/popular',
+                            source: 'spotify',
+                            durationMS: 195000,
+                        },
+                    ],
+                }),
+            },
+        })
+
+        getGuildSettingsMock.mockResolvedValueOnce({
+            autoplayMode: 'popular',
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
+        expect(addedTrack).toBeDefined()
+        expect(
+            (addedTrack?.metadata as Record<string, unknown>)
+                ?.recommendationReason,
+        ).toContain('energy match')
+    })
+
+    it('popular mode with liked track gets extra boost', async () => {
+        const likedTrackKey = 'populartrack::popularartist'
+        const queue = createQueueMock({
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://example.com/current',
+                source: 'youtube',
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Popular Track',
+                            author: 'Popular Artist',
+                            url: 'https://example.com/popular',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        likedTrackKeysMock.mockResolvedValueOnce(new Set([likedTrackKey]))
+        getGuildSettingsMock.mockResolvedValueOnce({
+            autoplayMode: 'popular',
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
+        expect(addedTrack).toBeDefined()
+        expect(
+            (addedTrack?.metadata as Record<string, unknown>)
+                ?.recommendationReason,
+        ).toContain('liked track')
+    })
+
     it('prefers a different-source candidate when scores are otherwise close', async () => {
         const queue = createQueueMock({
             tracks: {

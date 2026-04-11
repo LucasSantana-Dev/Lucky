@@ -39,16 +39,24 @@ jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
+jest.mock('@lucky/shared/utils', () => ({
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
+}))
+
+const getGuildSettingsMock = jest.fn()
+const updateGuildSettingsMock = jest.fn()
+
 jest.mock('@lucky/shared/services', () => ({
+    guildSettingsService: {
+        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
+        updateGuildSettings: (...args: unknown[]) =>
+            updateGuildSettingsMock(...args),
+    },
     trackHistoryService: {
         getAutoplayStats: (...args: unknown[]) =>
             trackHistoryServiceMock(...args),
     },
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
-    debugLog: (...args: unknown[]) => debugLogMock(...args),
-    errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
 function createInteraction(subcommand = 'skip') {
@@ -103,6 +111,8 @@ function createClient() {
 describe('autoplay command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
+        updateGuildSettingsMock.mockResolvedValue(true)
     })
 
     describe('structure', () => {
@@ -301,55 +311,144 @@ describe('autoplay command', () => {
             )
             expect(interactionReplyMock).toHaveBeenCalled()
         })
+    })
 
-        describe('mode subcommand', () => {
-            const guildSettingsServiceMock = jest.fn()
+    describe('mode subcommand', () => {
+        it('should show current mode when no mode argument provided', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest.fn().mockReturnValue(null)
+            const client = createClient()
 
-            beforeEach(() => {
-                jest.clearAllMocks()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({
+                autoplayMode: 'discover',
             })
 
-            it('should show current mode when no mode argument provided', async () => {
-                const interaction = createInteraction('mode')
-                interaction.options.getString = jest.fn().mockReturnValue(null)
-                const client = createClient()
+            await autoplayCommand.execute({ client, interaction } as any)
 
-                resolveGuildQueueMock.mockReturnValue({ queue: null })
-                guildSettingsServiceMock.mockResolvedValue({
-                    autoplayMode: 'discover',
-                })
+            expect(getGuildSettingsMock).toHaveBeenCalledWith('guild-1')
+            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.stringContaining('discover'),
+                }),
+            )
+        })
 
-                // Mock the guildSettingsService
-                jest.doMock('@lucky/shared/services', () => ({
-                    ...jest.requireActual('@lucky/shared/services'),
-                    guildSettingsService: {
-                        getGuildSettings: guildSettingsServiceMock,
-                        updateGuildSettings: jest.fn(),
-                    },
-                }))
+        it('should show default mode when settings return null', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest.fn().mockReturnValue(null)
+            const client = createClient()
 
-                await autoplayCommand.execute({ client, interaction } as any)
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({})
 
-                expect(interactionReplyMock).toHaveBeenCalled()
-                const reply = interactionReplyMock.mock.calls[0][0]
-                expect(reply.content.ephemeral).toBe(true)
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.stringContaining('similar'),
+                }),
+            )
+        })
+
+        it('should update mode when mode argument provided', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest.fn().mockReturnValue('popular')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            updateGuildSettingsMock.mockResolvedValue(true)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(updateGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                autoplayMode: 'popular',
             })
+            expect(interactionReplyMock).toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: expect.stringContaining('mode updated'),
+                }),
+            )
+        })
 
-            it('should update mode when mode argument provided', async () => {
-                const interaction = createInteraction('mode')
-                interaction.options.getString = jest
-                    .fn()
-                    .mockReturnValue('popular')
-                const client = createClient()
+        it('should show error when mode update fails', async () => {
+            const interaction = createInteraction('mode')
+            interaction.options.getString = jest
+                .fn()
+                .mockReturnValue('discover')
+            const client = createClient()
 
-                resolveGuildQueueMock.mockReturnValue({ queue: null })
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            updateGuildSettingsMock.mockResolvedValue(false)
 
-                await autoplayCommand.execute({ client, interaction } as any)
+            await autoplayCommand.execute({ client, interaction } as any)
 
-                expect(interactionReplyMock).toHaveBeenCalled()
-                const reply = interactionReplyMock.mock.calls[0][0]
-                expect(reply.content.ephemeral).toBe(true)
-            })
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                'Failed to update autoplay mode.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('skip subcommand edge cases', () => {
+        it('should show error when no autoplay tracks found in queue', async () => {
+            const interaction = createInteraction('skip')
+            const queue = createQueue()
+            queue.tracks.at = jest.fn(() => ({
+                metadata: { isAutoplay: false },
+                title: 'Manual Track',
+            }))
+            queue.tracks.size = 1
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'No Autoplay Tracks',
+                'No autoplay tracks found in queue.',
+            )
+            expect(queue.removeTrack).not.toHaveBeenCalled()
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('execute function edge cases', () => {
+        it('should return early when guildId is null', async () => {
+            const interaction = createInteraction('skip')
+            interaction.guildId = null
+            const client = createClient()
+
+            const result = await autoplayCommand.execute({
+                client,
+                interaction,
+            } as any)
+
+            expect(resolveGuildQueueMock).not.toHaveBeenCalled()
+            expect(result).toBeUndefined()
+        })
+
+        it('should handle unknown subcommand', async () => {
+            const interaction = createInteraction('unknown')
+            interaction.options.getSubcommand = jest
+                .fn()
+                .mockReturnValue('unknown')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Unknown Subcommand',
+                'Please use skip, clear, status, analytics, or mode.',
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
 })
