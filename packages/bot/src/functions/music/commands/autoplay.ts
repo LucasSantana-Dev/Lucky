@@ -11,6 +11,7 @@ import { errorLog, debugLog } from '@lucky/shared/utils'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { replenishQueue } from '../../../utils/music/trackManagement/queueOperations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { trackHistoryService } from '@lucky/shared/services'
 import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 
@@ -168,6 +169,93 @@ async function handleAutoplayStatus(
     })
 }
 
+async function handleAutoplayAnalytics(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    try {
+        const stats = await trackHistoryService.getAutoplayStats(guildId, 200)
+
+        if (stats.total === 0) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createEmbed({
+                            title: '📈 Autoplay Analytics',
+                            description: 'No play history yet.',
+                            color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                            emoji: EMOJIS.AUTOPLAY,
+                            timestamp: true,
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
+            return
+        }
+
+        const artistsText =
+            stats.topAutoplayArtists.length > 0
+                ? stats.topAutoplayArtists
+                      .map(
+                          (a, i) =>
+                              `${i + 1}. ${a.artist} — ${a.count} play${a.count !== 1 ? 's' : ''}`,
+                      )
+                      .join('\n')
+                : 'No autoplay data yet.'
+
+        const analyticsEmbed = createEmbed({
+            title: '📈 Autoplay Analytics',
+            description: `**Recent plays:** ${stats.total} tracks in the last 200\n**Autoplay:** ${stats.autoplayCount} (${stats.autoplayPercent}%)\n\n**Top autoplay artists:**\n${artistsText}`,
+            color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+            emoji: EMOJIS.AUTOPLAY,
+            timestamp: true,
+        })
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [analyticsEmbed],
+                ephemeral: true,
+            },
+        })
+    } catch (error) {
+        errorLog({
+            message: 'Failed to fetch autoplay analytics',
+            error,
+        })
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to retrieve autoplay analytics.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+    }
+}
+
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('autoplay')
@@ -190,6 +278,11 @@ export default new Command({
             subcommand
                 .setName('status')
                 .setDescription('Show autoplay queue status'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('analytics')
+                .setDescription('Show autoplay stats and top artists'),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
@@ -239,6 +332,9 @@ export default new Command({
                 case 'status':
                     await handleAutoplayStatus(interaction, queue)
                     break
+                case 'analytics':
+                    await handleAutoplayAnalytics(interaction)
+                    break
                 default:
                     await interactionReply({
                         interaction,
@@ -246,7 +342,7 @@ export default new Command({
                             embeds: [
                                 createErrorEmbed(
                                     'Unknown Subcommand',
-                                    'Please use skip, clear, or status.',
+                                    'Please use skip, clear, status, or analytics.',
                                 ),
                             ],
                             ephemeral: true,

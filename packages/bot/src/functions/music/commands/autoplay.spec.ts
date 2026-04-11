@@ -11,6 +11,7 @@ const replenishQueueMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
+const trackHistoryServiceMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -36,6 +37,13 @@ jest.mock('../../../utils/music/trackManagement/queueOperations', () => ({
 
 jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+    trackHistoryService: {
+        getAutoplayStats: (...args: unknown[]) =>
+            trackHistoryServiceMock(...args),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -226,6 +234,72 @@ describe('autoplay command', () => {
                 'No Active Queue',
                 expect.anything(),
             )
+        })
+    })
+
+    describe('analytics subcommand', () => {
+        it('should show autoplay analytics with data', async () => {
+            const interaction = createInteraction('analytics')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            trackHistoryServiceMock.mockResolvedValue({
+                total: 100,
+                autoplayCount: 30,
+                autoplayPercent: 30,
+                topAutoplayArtists: [
+                    { artist: 'The Beatles', count: 10 },
+                    { artist: 'Pink Floyd', count: 8 },
+                ],
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(trackHistoryServiceMock).toHaveBeenCalledWith('guild-1', 200)
+            expect(createEmbedMock).toHaveBeenCalled()
+            const embed = createEmbedMock.mock.calls[0][0]
+            expect(embed.title).toContain('Analytics')
+            expect(embed.description).toContain('100 tracks')
+            expect(embed.description).toContain('30 (30%)')
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+
+        it('should handle empty history gracefully', async () => {
+            const interaction = createInteraction('analytics')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            trackHistoryServiceMock.mockResolvedValue({
+                total: 0,
+                autoplayCount: 0,
+                autoplayPercent: 0,
+                topAutoplayArtists: [],
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalled()
+            const embed = createEmbedMock.mock.calls[0][0]
+            expect(embed.description).toContain('No play history yet')
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
+
+        it('should handle service errors gracefully', async () => {
+            const interaction = createInteraction('analytics')
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            trackHistoryServiceMock.mockRejectedValue(
+                new Error('Service error'),
+            )
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.anything(),
+            )
+            expect(interactionReplyMock).toHaveBeenCalled()
         })
     })
 })
