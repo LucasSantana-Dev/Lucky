@@ -6,7 +6,7 @@ import {
 } from 'discord-player'
 import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { trackHistoryService } from '@lucky/shared/services'
 import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
@@ -187,7 +187,26 @@ export async function moveTrackInQueue(
     }
 }
 
-export async function replenishQueue(
+// Per-guild mutex: serializes concurrent replenishQueue calls so two events
+// firing within milliseconds (playerStart + playerFinish) cannot both read
+// the same exclusion sets and independently select the same track.
+const replenishLocks = new Map<string, Promise<void>>()
+
+export function replenishQueue(
+    queue: GuildQueue,
+    finishedTrack?: Track,
+): Promise<void> {
+    const guildId = queue.guild.id
+    const prev = replenishLocks.get(guildId) ?? Promise.resolve()
+    const next = prev.then(() => _replenishQueue(queue, finishedTrack))
+    replenishLocks.set(
+        guildId,
+        next.catch(() => {}),
+    )
+    return next
+}
+
+async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
 ): Promise<void> {
@@ -219,8 +238,15 @@ export async function replenishQueue(
                     queue.guild.id,
                     requestedBy?.id,
                 ),
-                trackHistoryService.getTrackHistory(queue.guild.id, 20),
+                trackHistoryService.getTrackHistory(queue.guild.id, 50),
             ])
+        if (persistentHistory.length === 0) {
+            warnLog({
+                message:
+                    'Autoplay: persistent history empty — Redis may be unavailable',
+                data: { guildId: queue.guild.id },
+            })
+        }
         const excludedUrls = buildExcludedUrls(
             queue,
             currentTrack,
@@ -233,6 +259,16 @@ export async function replenishQueue(
             historyTracks,
             persistentHistory,
         )
+        debugLog({
+            message: 'Autoplay: exclusion sets built',
+            data: {
+                guildId: queue.guild.id,
+                excludedUrlCount: excludedUrls.size,
+                excludedKeyCount: excludedKeys.size,
+                historyTracks: historyTracks.length,
+                persistentHistory: persistentHistory.length,
+            },
+        })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const candidates = await collectRecommendationCandidates(
             queue,
@@ -670,9 +706,26 @@ function addSelectedTracks(
     for (const candidate of selected) {
         markAsAutoplayTrack(candidate.track, candidate.reason, requestedById)
         queue.addTrack(candidate.track)
+        // Update local exclusion sets for this replenish call
         excludedUrls.add(candidate.track.url)
+        const vid = extractYouTubeVideoId(candidate.track.url)
+        if (vid) excludedUrls.add(vid)
         excludedKeys.add(
             normalizeTrackKey(candidate.track.title, candidate.track.author),
+        )
+        excludedKeys.add(normalizeTitleOnly(candidate.track.title))
+        // Write to Redis immediately so the NEXT replenish call (from the
+        // subsequent event) also excludes this track — not just the local set.
+        void trackHistoryService.addTrackToHistory(
+            {
+                id: candidate.track.id || candidate.track.url,
+                url: candidate.track.url,
+                title: candidate.track.title,
+                author: candidate.track.author,
+                duration: candidate.track.duration ?? '',
+                metadata: { isAutoplay: true },
+            },
+            queue.guild.id,
         )
     }
 }
