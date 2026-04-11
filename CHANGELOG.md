@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.86] - 2026-04-11
+
+### Fixed
+
+- Autoplay dedup: YouTube video ID extracted from URL so www/youtu.be/short URLs all match the same exclusion
+- Finished track now passed to replenishQueue so just-played song is excluded even when currentTrack already advanced
+- CI: SonarCloud reverted to self-contained coverage (artifact sharing between concurrent workflows was causing 0%% coverage)
+
 ## [2.6.84] - 2026-04-11
 
 ### Fixed
