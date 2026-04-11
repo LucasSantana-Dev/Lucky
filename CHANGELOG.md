@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.81] - 2026-04-10
+
+### Fixed
+
+- **Player retry logging** — retry failures now emit `warnLog` with track title and guild ID instead of being silently swallowed.
+- **Shared `QueueMetadata` type** — created `packages/bot/src/types/QueueMetadata.ts`; replaced 6+ scattered `IQueueMetadata` interfaces across `errorHandlers`, `trackHandlers`, `trackNowPlaying`, and `queueManipulation` with a single typed import.
+- **Bridge fallback hardening** — unhealthy SoundCloud results are now skipped before they reach the extractor, reducing silent failures.
+
 ## [2.6.80] - 2026-04-10
 
 ### Fixed
