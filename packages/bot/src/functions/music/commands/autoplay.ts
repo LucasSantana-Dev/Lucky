@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { guildSettingsService } from '@lucky/shared/services'
 import {
     createEmbed,
     createErrorEmbed,
@@ -169,6 +170,102 @@ async function handleAutoplayStatus(
     })
 }
 
+async function handleAutoplayMode(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Guild Not Found',
+                        'Unable to retrieve guild information.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const mode = interaction.options.getString('mode')
+
+    if (!mode) {
+        // Get current mode
+        const settings = await guildSettingsService.getGuildSettings(guildId)
+        const currentMode = settings?.autoplayMode ?? 'similar'
+
+        const modeDescriptions: Record<string, string> = {
+            similar: "🎵 Music like what's playing",
+            discover: '🔭 Prioritize new artists',
+            popular: '🔥 Favour your liked tracks',
+        }
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createEmbed({
+                        title: '🎚️ Autoplay Mode',
+                        description: `**Current mode:** ${currentMode}
+${modeDescriptions[currentMode] || 'Unknown mode'}`,
+                        color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                        emoji: EMOJIS.AUTOPLAY,
+                        timestamp: true,
+                    }),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    // Set new mode
+    const success = await guildSettingsService.updateGuildSettings(guildId, {
+        autoplayMode: mode as 'similar' | 'discover' | 'popular',
+    })
+
+    if (!success) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'Failed to update autoplay mode.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const modeEmojis: Record<string, string> = {
+        similar: '🎵',
+        discover: '🔭',
+        popular: '🔥',
+    }
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '✅ Autoplay mode updated',
+                    description: `${modeEmojis[mode]} Mode set to **${mode}**`,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
 async function handleAutoplayAnalytics(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
@@ -283,6 +380,33 @@ export default new Command({
             subcommand
                 .setName('analytics')
                 .setDescription('Show autoplay stats and top artists'),
+        )
+        .addSubcommand((subcommand) =>
+            subcommand
+                .setName('mode')
+                .setDescription('Get or set autoplay recommendation mode')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('mode')
+                        .setDescription(
+                            'similar (default) | discover | popular',
+                        )
+                        .addChoices(
+                            {
+                                name: "🎵 Similar — music like what's playing",
+                                value: 'similar',
+                            },
+                            {
+                                name: '🔭 Discover — prioritize new artists',
+                                value: 'discover',
+                            },
+                            {
+                                name: '🔥 Popular — favour your liked tracks',
+                                value: 'popular',
+                            },
+                        )
+                        .setRequired(false),
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
@@ -335,6 +459,9 @@ export default new Command({
                 case 'analytics':
                     await handleAutoplayAnalytics(interaction)
                     break
+                case 'mode':
+                    await handleAutoplayMode(interaction)
+                    break
                 default:
                     await interactionReply({
                         interaction,
@@ -342,7 +469,7 @@ export default new Command({
                             embeds: [
                                 createErrorEmbed(
                                     'Unknown Subcommand',
-                                    'Please use skip, clear, status, or analytics.',
+                                    'Please use skip, clear, status, analytics, or mode.',
                                 ),
                             ],
                             ephemeral: true,

@@ -301,5 +301,55 @@ describe('autoplay command', () => {
             )
             expect(interactionReplyMock).toHaveBeenCalled()
         })
+
+        describe('mode subcommand', () => {
+            const guildSettingsServiceMock = jest.fn()
+
+            beforeEach(() => {
+                jest.clearAllMocks()
+            })
+
+            it('should show current mode when no mode argument provided', async () => {
+                const interaction = createInteraction('mode')
+                interaction.options.getString = jest.fn().mockReturnValue(null)
+                const client = createClient()
+
+                resolveGuildQueueMock.mockReturnValue({ queue: null })
+                guildSettingsServiceMock.mockResolvedValue({
+                    autoplayMode: 'discover',
+                })
+
+                // Mock the guildSettingsService
+                jest.doMock('@lucky/shared/services', () => ({
+                    ...jest.requireActual('@lucky/shared/services'),
+                    guildSettingsService: {
+                        getGuildSettings: guildSettingsServiceMock,
+                        updateGuildSettings: jest.fn(),
+                    },
+                }))
+
+                await autoplayCommand.execute({ client, interaction } as any)
+
+                expect(interactionReplyMock).toHaveBeenCalled()
+                const reply = interactionReplyMock.mock.calls[0][0]
+                expect(reply.content.ephemeral).toBe(true)
+            })
+
+            it('should update mode when mode argument provided', async () => {
+                const interaction = createInteraction('mode')
+                interaction.options.getString = jest
+                    .fn()
+                    .mockReturnValue('popular')
+                const client = createClient()
+
+                resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+                await autoplayCommand.execute({ client, interaction } as any)
+
+                expect(interactionReplyMock).toHaveBeenCalled()
+                const reply = interactionReplyMock.mock.calls[0][0]
+                expect(reply.content.ephemeral).toBe(true)
+            })
+        })
     })
 })

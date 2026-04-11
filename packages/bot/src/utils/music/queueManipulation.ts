@@ -8,7 +8,10 @@ import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
-import { trackHistoryService } from '@lucky/shared/services'
+import {
+    trackHistoryService,
+    guildSettingsService,
+} from '@lucky/shared/services'
 import { consumeLastFmSeedSlice } from './autoplay/lastFmSeeds'
 import { getSimilarTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
@@ -233,18 +236,24 @@ async function _replenishQueue(
             HISTORY_SEED_LIMIT + 1,
         )
         const requestedBy = getRequestedBy(queue, currentTrack)
-        const [dislikedTrackKeys, likedTrackKeys, persistentHistory] =
-            await Promise.all([
-                recommendationFeedbackService.getDislikedTrackKeys(
-                    queue.guild.id,
-                    requestedBy?.id,
-                ),
-                recommendationFeedbackService.getLikedTrackKeys(
-                    queue.guild.id,
-                    requestedBy?.id,
-                ),
-                trackHistoryService.getTrackHistory(queue.guild.id, 100),
-            ])
+        const [
+            dislikedTrackKeys,
+            likedTrackKeys,
+            persistentHistory,
+            guildSettings,
+        ] = await Promise.all([
+            recommendationFeedbackService.getDislikedTrackKeys(
+                queue.guild.id,
+                requestedBy?.id,
+            ),
+            recommendationFeedbackService.getLikedTrackKeys(
+                queue.guild.id,
+                requestedBy?.id,
+            ),
+            trackHistoryService.getTrackHistory(queue.guild.id, 100),
+            guildSettingsService.getGuildSettings(queue.guild.id),
+        ])
+        const autoplayMode = guildSettings?.autoplayMode ?? 'similar'
         if (persistentHistory.length === 0) {
             warnLog({
                 message:
@@ -288,6 +297,7 @@ async function _replenishQueue(
             currentTrack,
             recentArtists,
             replenishCount,
+            autoplayMode,
         )
         if (requestedBy?.id) {
             await collectLastFmCandidates(
@@ -300,6 +310,7 @@ async function _replenishQueue(
                 currentTrack,
                 recentArtists,
                 candidates,
+                autoplayMode,
             )
         }
         if (candidates.size === 0 && currentTrack) {
@@ -313,6 +324,7 @@ async function _replenishQueue(
                 likedTrackKeys,
                 recentArtists,
                 candidates,
+                autoplayMode,
             )
         }
 
@@ -440,6 +452,7 @@ async function collectRecommendationCandidates(
     currentTrack: Track,
     recentArtists: Set<string>,
     replenishCount = 0,
+    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
 
@@ -471,6 +484,7 @@ async function collectRecommendationCandidates(
                     currentTrack,
                     recentArtists,
                     likedTrackKeys,
+                    autoplayMode,
                 ),
             )
         }
@@ -535,6 +549,7 @@ async function collectBroadFallbackCandidates(
     likedTrackKeys: Set<string>,
     recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
+    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
 ): Promise<void> {
     const fallbackQueries = [
         currentTrack.author,
@@ -566,6 +581,7 @@ async function collectBroadFallbackCandidates(
                     currentTrack,
                     recentArtists,
                     likedTrackKeys,
+                    autoplayMode,
                 )
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
@@ -617,6 +633,7 @@ async function collectLastFmCandidates(
     currentTrack: Track,
     recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
+    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
 ): Promise<void> {
     const seedSlice = await consumeLastFmSeedSlice(
         requestedBy.id,
@@ -638,6 +655,7 @@ async function collectLastFmCandidates(
                 currentTrack,
                 recentArtists,
                 likedTrackKeys,
+                autoplayMode,
             )
             upsertScoredCandidate(candidates, track, {
                 score: rec.score + LASTFM_SCORE_BOOST,
@@ -665,6 +683,7 @@ async function collectLastFmCandidates(
                     currentTrack,
                     recentArtists,
                     likedTrackKeys,
+                    autoplayMode,
                 )
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
@@ -935,6 +954,7 @@ function calculateRecommendationScore(
     currentTrack: Track,
     recentArtists: Set<string>,
     likedTrackKeys: Set<string> = new Set(),
+    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
 ): { score: number; reason: string } {
     let score = 1
     const reasons: string[] = []
@@ -988,6 +1008,31 @@ function calculateRecommendationScore(
     if (candidate.durationMS && candidate.durationMS > 7 * 60 * 1000) {
         score -= 0.2
         reasons.push('long track penalty')
+    }
+
+    // Mode-specific adjustments
+    if (autoplayMode === 'discover') {
+        // Boost novelty — prefer artists not heard recently
+        if (!recentArtists.has(candidateArtist)) {
+            score += 0.25
+            reasons.push('discovery boost')
+        }
+        if (recentArtists.has(candidateArtist)) {
+            score -= 0.2 // extra penalty on top of existing -0.25
+        }
+    } else if (autoplayMode === 'popular') {
+        // Boost liked tracks more and high-energy/shorter tracks
+        if (likedTrackKeys.has(candidateKey)) {
+            score += 0.2 // on top of existing +0.3
+        }
+        // Prefer similar-length (same energy feel)
+        if (candidate.durationMS && currentTrack.durationMS) {
+            const ratio = candidate.durationMS / currentTrack.durationMS
+            if (ratio >= 0.9 && ratio <= 1.1) {
+                score += 0.1
+                reasons.push('energy match')
+            }
+        }
     }
 
     return {
