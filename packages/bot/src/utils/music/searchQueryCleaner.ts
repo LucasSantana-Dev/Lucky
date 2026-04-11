@@ -83,6 +83,9 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\s{0,3}-\s{0,3}topic\b/gi,
 ]
 
+const HYPHENATED_VERSION_SUFFIX =
+    /^(?:\d{4} +)?remaster(?:ed)?$|^official (?:audio|video|music video)$|^(?:live|acoustic|demo|extended|radio edit|album version|single version)$/i
+
 /**
  * Channels whose uploads are almost always mislabeled or compilation garbage.
  * If a resolved YouTube track's author matches one of these exactly, the title
@@ -106,6 +109,19 @@ export function cleanTitle(title: string): string {
     for (const pattern of NOISE_PATTERNS) {
         cleaned = cleaned.replaceAll(pattern, ' ')
     }
+    // Strip hyphenated version suffixes: "Song – 2011 Remaster", "Song - Live", etc.
+    // indexOf avoids regex quantifier nesting (S5852).
+    for (const sep of [' – ', ' - ', ' — ']) {
+        const idx = cleaned.indexOf(sep)
+        if (idx > 0) {
+            const suffix = cleaned.slice(idx + sep.length).trim()
+            if (HYPHENATED_VERSION_SUFFIX.test(suffix)) {
+                cleaned = cleaned.slice(0, idx)
+                break
+            }
+        }
+    }
+
     // Drop empty parenthesis/bracket pairs left behind by the strips above.
     cleaned = cleaned
         .replaceAll(/\(\s{0,3}\)/g, ' ')

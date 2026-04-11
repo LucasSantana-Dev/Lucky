@@ -2,7 +2,10 @@ import type { Player } from 'discord-player'
 import type { CustomClient } from '../../types'
 import { createPlayer } from './playerFactory'
 import { setupErrorHandlers } from './errorHandlers'
-import { setupLifecycleHandlers } from './lifecycleHandlers'
+import {
+    setupLifecycleHandlers,
+    setupVoiceKickDetection,
+} from './lifecycleHandlers'
 import { setupTrackHandlers } from './trackHandlers'
 
 type CreatePlayerParams = {
@@ -16,9 +19,23 @@ export const createPlayerWithHandlers = ({
 
     player.events.removeAllListeners()
 
-    setupErrorHandlers(player as unknown as { events: { on: (event: string, handler: Function) => void } })
-    setupLifecycleHandlers(player as unknown as { events: { on: (event: string, handler: Function) => void } })
-    setupTrackHandlers({ player: player as unknown as { events: { on: (event: string, handler: Function) => void } }, client })
+    setupErrorHandlers(
+        player as unknown as {
+            events: { on: (event: string, handler: Function) => void }
+        },
+    )
+    setupLifecycleHandlers(
+        player as unknown as {
+            events: { on: (event: string, handler: Function) => void }
+        },
+    )
+    setupTrackHandlers({
+        player: player as unknown as {
+            events: { on: (event: string, handler: Function) => void }
+        },
+        client,
+    })
+    setupVoiceKickDetection(client)
 
     return player
 }

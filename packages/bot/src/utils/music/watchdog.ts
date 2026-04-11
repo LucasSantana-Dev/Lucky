@@ -105,7 +105,16 @@ export class MusicWatchdogService {
     markIntentionalStop(guildId: string): void {
         this.intentionalStops.add(guildId)
         this.clear(guildId)
-        setTimeout(() => this.intentionalStops.delete(guildId), 5_000)
+        // Window must outlive the watchdog timeout so the flag is still set
+        // when any already-scheduled checkAndRecover fires.
+        setTimeout(
+            () => this.intentionalStops.delete(guildId),
+            this.timeoutMs + 10_000,
+        )
+    }
+
+    isIntentionalStop(guildId: string): boolean {
+        return this.intentionalStops.has(guildId)
     }
 
     clear(guildId: string): void {
