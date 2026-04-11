@@ -34,7 +34,10 @@ jest.mock('../../utils/music/watchdog', () => ({
     },
 }))
 
-import { setupLifecycleHandlers } from './lifecycleHandlers'
+import {
+    setupLifecycleHandlers,
+    setupVoiceKickDetection,
+} from './lifecycleHandlers'
 
 type PlayerEventHandler = (queue: GuildQueue, message?: string) => Promise<void>
 
@@ -164,5 +167,123 @@ describe('setupLifecycleHandlers', () => {
         await handlers.emptyQueue(queue)
 
         expect(watchdogMarkIntentionalStopMock).toHaveBeenCalledWith('guild-5')
+    })
+})
+
+describe('setupVoiceKickDetection', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('marks intentional stop when bot is kicked from voice channel', () => {
+        const voiceStateUpdateListeners: Array<
+            (oldState: any, newState: any) => void
+        > = []
+        const client = {
+            user: { id: 'bot-user-id' },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: (oldState: any, newState: any) => void,
+                ) => {
+                    if (event === 'voiceStateUpdate') {
+                        voiceStateUpdateListeners.push(handler)
+                    }
+                },
+            ),
+        }
+
+        setupVoiceKickDetection(client)
+
+        expect(voiceStateUpdateListeners.length).toBe(1)
+
+        const oldState = {
+            member: { id: 'bot-user-id' },
+            channelId: 'voice-channel-1',
+            guild: { id: 'guild-1', name: 'Test Guild' },
+        }
+        const newState = {
+            member: { id: 'bot-user-id' },
+            channelId: null,
+        }
+
+        voiceStateUpdateListeners[0](oldState, newState)
+
+        expect(watchdogMarkIntentionalStopMock).toHaveBeenCalledWith('guild-1')
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/disconnected from voice/i),
+            }),
+        )
+    })
+
+    it('ignores voiceStateUpdate for non-bot members', () => {
+        const voiceStateUpdateListeners: Array<
+            (oldState: any, newState: any) => void
+        > = []
+        const client = {
+            user: { id: 'bot-user-id' },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: (oldState: any, newState: any) => void,
+                ) => {
+                    if (event === 'voiceStateUpdate') {
+                        voiceStateUpdateListeners.push(handler)
+                    }
+                },
+            ),
+        }
+
+        setupVoiceKickDetection(client)
+
+        const oldState = {
+            member: { id: 'other-user-id' },
+            channelId: 'voice-channel-1',
+            guild: { id: 'guild-1', name: 'Test Guild' },
+        }
+        const newState = {
+            member: { id: 'other-user-id' },
+            channelId: null,
+        }
+
+        voiceStateUpdateListeners[0](oldState, newState)
+
+        expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+
+    it('ignores bot moving between channels (not a disconnect)', () => {
+        const voiceStateUpdateListeners: Array<
+            (oldState: any, newState: any) => void
+        > = []
+        const client = {
+            user: { id: 'bot-user-id' },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: (oldState: any, newState: any) => void,
+                ) => {
+                    if (event === 'voiceStateUpdate') {
+                        voiceStateUpdateListeners.push(handler)
+                    }
+                },
+            ),
+        }
+
+        setupVoiceKickDetection(client)
+
+        const oldState = {
+            member: { id: 'bot-user-id' },
+            channelId: 'voice-channel-1',
+            guild: { id: 'guild-1', name: 'Test Guild' },
+        }
+        const newState = {
+            member: { id: 'bot-user-id' },
+            channelId: 'voice-channel-2',
+        }
+
+        voiceStateUpdateListeners[0](oldState, newState)
+
+        expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
     })
 })

@@ -59,6 +59,8 @@ jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'auto',
         SPOTIFY_SEARCH: 'spotifySearch',
+        YOUTUBE_SEARCH: 'youtubeSearch',
+        SOUNDCLOUD_SEARCH: 'soundcloudSearch',
     },
 }))
 
@@ -716,6 +718,86 @@ describe('play command', () => {
                 message: 'Post-play background ops failed',
             }),
         )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                interaction,
+                content: expect.objectContaining({ embeds: expect.any(Array) }),
+            }),
+        )
+    })
+
+    it('falls back through YouTube to SoundCloud when both Spotify and YouTube fail', async () => {
+        const interaction = createInteraction('guild-1')
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+
+        let playCallCount = 0
+        const playImpl = async (...args: unknown[]) => {
+            playCallCount++
+            if (playCallCount === 1) {
+                // First call (Spotify) fails
+                throw new Error('Spotify search failed')
+            } else if (playCallCount === 2) {
+                // Second call (YouTube) fails
+                throw new Error('YouTube search failed')
+            } else {
+                // Third call (SoundCloud) succeeds
+                return result
+            }
+        }
+
+        const client = createClient(playImpl, {
+            repeatMode: 3,
+            tracksSize: 2,
+        })
+
+        await playCommand.execute({
+            client,
+            interaction,
+        } as any)
+
+        expect(client.player.play).toHaveBeenCalledTimes(3)
+        // First attempt with default provider (SPOTIFY_SEARCH)
+        expect(client.player.play).toHaveBeenNthCalledWith(
+            1,
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                searchEngine: 'spotifySearch',
+            }),
+        )
+        // Second attempt with YouTube
+        expect(client.player.play).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                searchEngine: 'youtubeSearch',
+            }),
+        )
+        // Third attempt with SoundCloud
+        expect(client.player.play).toHaveBeenNthCalledWith(
+            3,
+            expect.anything(),
+            'test query',
+            expect.objectContaining({
+                searchEngine: 'soundcloudSearch',
+            }),
+        )
+        // Should log warnings for first two failures
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/Primary search failed/i),
+            }),
+        )
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringMatching(/YouTube search failed/i),
+            }),
+        )
+        // Should still reply with success
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 interaction,
