@@ -34,10 +34,18 @@ function isAutoplayTrack(track: Track): boolean {
 
 function formatSingleTrack(info: TrackDisplayInfo, index: number): string {
     const marker = info.isAutoplay ? '\u{1F916}' : '\u{1F464}'
-    const reason =
-        info.isAutoplay && info.recommendationReason
-            ? ` \u2014 _${info.recommendationReason}_`
-            : ''
+    let reason = ''
+    if (info.isAutoplay) {
+        if (info.recommendationReason) {
+            const truncated =
+                info.recommendationReason.length > 40
+                    ? info.recommendationReason.substring(0, 40) + '...'
+                    : info.recommendationReason
+            reason = ` \u2014 _${truncated}_`
+        } else {
+            reason = ' \u2014 autoplay'
+        }
+    }
     const by = info.requestedBy ? ` \u2022 ${info.requestedBy}` : ''
     return `${marker} ${index + 1}. [${info.title}](${info.url}) - ${info.author} (${info.duration})${by}${reason}`
 }

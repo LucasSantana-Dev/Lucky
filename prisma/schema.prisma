@@ -83,6 +83,14 @@ model TwitchNotification {
   @@map("twitch_notifications")
 }
 
+
+enum AutoplayMode {
+  similar
+  discover
+  popular
+}
+
+
 model GuildSettings {
   id      String @id @default(cuid())
   guildId String @unique
@@ -92,6 +100,7 @@ model GuildSettings {
   defaultVolume   Int     @default(50)
   maxQueueSize    Int     @default(100)
   autoPlayEnabled Boolean @default(true)
+  autoplayMode    AutoplayMode @default(similar)
   repeatMode      Int     @default(0)
   shuffleEnabled  Boolean @default(false)
 
