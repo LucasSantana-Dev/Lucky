@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.84] - 2026-04-11
+
+### Fixed
+
+- Provider priority: Spotify → YouTube → SoundCloud; no more SoundCloud-first resolution
+- Duplicate Now Playing message eliminated — interaction reply is addedToQueue only
+- Autoplay dedup: hyphenated version suffixes stripped (– Remaster, - Live, - Official Audio)
+- /stop no longer triggers watchdog reconnect (intentional-stop window extended)
+- Manual voice kick detected via voiceStateUpdate, marked intentional
+- /skip last song no longer triggers reconnect via emptyQueue event
+- Queue embed empty field guard prevents Discord API rejection
+
 ## [2.6.82] - 2026-04-10
 
 ### Fixed
