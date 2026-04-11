@@ -258,7 +258,7 @@ describe('streamViaYtDlp', () => {
                 '-o',
                 '-',
                 '--js-runtimes',
-                'node:/usr/local/bin/node',
+                `node:${process.execPath}`,
                 'https://youtube.com/watch?v=test',
             ]),
             expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] }),
