@@ -35,13 +35,31 @@ export const createPlayer = ({ client }: CreatePlayerParams): Player => {
 }
 
 const registerExtractors = (player: Player): void => {
-    void player.extractors.loadMulti(DefaultExtractors)
+    // Register DefaultExtractors synchronously (loadMulti is sync in this version).
+    // Errors are caught so a single bad extractor does not block the others.
+    try {
+        void player.extractors.loadMulti(DefaultExtractors)
+        infoLog({
+            message:
+                'Extractors: SoundCloud, Spotify, Apple Music, Vimeo, Attachments',
+        })
+    } catch (error) {
+        errorLog({
+            message:
+                'DefaultExtractors failed to load — music features degraded',
+            error,
+        })
+    }
 
-    void initPlayDlAndRegisterYoutubei(player)
-
-    infoLog({
-        message:
-            'Extractors: SoundCloud, Spotify, Apple Music, Vimeo, Attachments',
+    // Async: SoundCloud client ID + YouTube extractor.  Fire without awaiting so
+    // createPlayer() returns synchronously, but log any failures so they are not
+    // silently swallowed.
+    initPlayDlAndRegisterYoutubei(player).catch((error) => {
+        errorLog({
+            message:
+                'Async extractor init failed — SoundCloud/YouTube may be unavailable',
+            error,
+        })
     })
 }
 
@@ -154,10 +172,10 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
                 '--no-warnings',
                 '--no-progress',
                 // Provide the Node.js runtime so yt-dlp can use the JS extractor
-                // for YouTube. Without it yt-dlp uses deprecated fallbacks and
-                // may produce incomplete/missing audio for certain formats.
+                // for YouTube. Use process.execPath (the actual running binary)
+                // rather than a hardcoded path so this works on all systems.
                 '--js-runtimes',
-                'node:/usr/local/bin/node',
+                `node:${process.execPath}`,
                 url,
             ],
             { stdio: ['ignore', 'pipe', 'pipe'] },
@@ -173,7 +191,14 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         const stderrChunks: Buffer[] = []
         proc.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
 
+        // Guard against the race where `close` fires before `data` (yt-dlp
+        // crashes immediately). Once either event settles the promise we
+        // ignore the other.
+        let settled = false
+
         proc.stdout!.once('data', (firstChunk: Buffer) => {
+            if (settled) return
+            settled = true
             clearTimeout(timeout)
             // The `once('data')` callback consumes the first chunk from the
             // stream buffer (the WebM EBML header). We use a PassThrough to
@@ -185,11 +210,15 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         })
 
         proc.once('error', (err) => {
+            if (settled) return
+            settled = true
             clearTimeout(timeout)
             reject(err)
         })
 
         proc.once('close', (code) => {
+            if (settled) return
+            settled = true
             clearTimeout(timeout)
             if (code && code !== 0) {
                 const stderr = Buffer.concat(stderrChunks).toString().trim()

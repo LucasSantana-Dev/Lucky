@@ -546,4 +546,39 @@ describe('setupErrorHandlers', () => {
         expect(channelSendMock).toHaveBeenCalled()
         expect(queue.node.skip).toHaveBeenCalled()
     })
+
+    it('skips and notifies when YouTube search times out (Promise.race null)', async () => {
+        // Search returns null (simulates timeout resolution) — recovery must
+        // treat it the same as no results.
+        const { queueHandlers } = createPlayerWithHandlers()
+        providerFromTrackMock.mockReturnValue('youtube')
+        analyzeYouTubeErrorMock.mockReturnValue({ isParserError: false })
+
+        const channelSendMock = jest.fn().mockResolvedValue({})
+        const queue = {
+            guild: { id: 'guild-timeout', name: 'Guild Timeout' },
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                channel: { id: 'ch-1', send: channelSendMock },
+            },
+            currentTrack: {
+                url: 'https://example.com/track',
+                title: 'Slow Search Song',
+                requestedBy: { id: 'user-1' },
+            },
+            // search returns null — simulates the timeout branch resolving null
+            player: { search: jest.fn().mockResolvedValue(null) },
+            insertTrack: jest.fn(),
+            node: { skip: jest.fn() },
+        }
+
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('Could not extract stream'),
+        )
+        await flushPromises()
+
+        expect(queue.node.skip).toHaveBeenCalled()
+        expect(channelSendMock).toHaveBeenCalled()
+    })
 })

@@ -233,10 +233,18 @@ async function recoverFromStreamExtractionError(
         return
     }
 
-    const searchResult = await queue.player.search(currentTrack.title, {
-        requestedBy: requestedByUser,
-        searchEngine: QueryType.YOUTUBE_SEARCH,
-    })
+    // Timeout guard: if YouTube search hangs (no response in 10s), skip the
+    // track rather than blocking the player indefinitely.
+    const searchTimeout = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 10_000).unref(),
+    )
+    const searchResult = await Promise.race([
+        queue.player.search(currentTrack.title, {
+            requestedBy: requestedByUser,
+            searchEngine: QueryType.YOUTUBE_SEARCH,
+        }),
+        searchTimeout,
+    ])
 
     if (!searchResult || searchResult.tracks.length === 0) {
         warnLog({

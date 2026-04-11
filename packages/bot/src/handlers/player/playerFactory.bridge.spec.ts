@@ -258,7 +258,7 @@ describe('streamViaYtDlp', () => {
                 '-o',
                 '-',
                 '--js-runtimes',
-                'node:/usr/local/bin/node',
+                `node:${process.execPath}`,
                 'https://youtube.com/watch?v=test',
             ]),
             expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'] }),
@@ -331,6 +331,30 @@ describe('streamViaYtDlp', () => {
         await expect(
             streamViaYtDlp('https://youtube.com/watch?v=test'),
         ).rejects.toThrow('ENOENT')
+    })
+
+    it('does not double-settle when close fires before data (race guard)', async () => {
+        // Simulate yt-dlp crashing before emitting any stdout data.
+        const stdout = new PassThrough()
+        const stderr = new PassThrough()
+        const proc = Object.assign(new EventEmitter(), {
+            stdout,
+            stderr,
+            kill: jest.fn(),
+        })
+        spawnMock.mockReturnValue(proc)
+        // close fires first (code 1), then data fires afterward — settled guard
+        // must prevent the second settlement.
+        setImmediate(() => {
+            proc.emit('close', 1)
+            // This data event fires after close but the promise is already settled
+            stdout.emit('data', Buffer.from('late data'))
+        })
+
+        await expect(
+            streamViaYtDlp('https://youtube.com/watch?v=test'),
+        ).rejects.toThrow(/exited with code 1/)
+        // No unhandled rejection or double-settle
     })
 })
 
