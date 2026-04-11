@@ -131,7 +131,15 @@ export async function sendNowPlayingEmbed(
                 },
             })
             return
-        } catch {
+        } catch (error) {
+            debugLog({
+                message: 'Failed to update existing now playing message',
+                error,
+                data: {
+                    guildId: queue.guild.id,
+                    messageId: previousMessage.messageId,
+                },
+            })
             songInfoMessages.delete(queue.guild.id)
         }
     }

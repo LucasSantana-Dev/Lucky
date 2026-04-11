@@ -143,8 +143,8 @@ function validateYtDlpUrl(url: string): void {
     let parsed: URL
     try {
         parsed = new URL(url)
-    } catch {
-        throw new Error(`yt-dlp: invalid URL`)
+    } catch (error) {
+        throw new Error(`yt-dlp: invalid URL`, { cause: error })
     }
     if (parsed.protocol !== 'https:') {
         throw new Error(`yt-dlp: only https URLs are allowed`)
@@ -308,11 +308,14 @@ export async function createResilientStream(
 
     try {
         return await streamViaSoundCloud(cleanedTitle, track.duration)
-    } catch {
+    } catch (titleOnlyError) {
         debugLog({
             message:
                 'Bridge: title-only SoundCloud failed, retrying without parentheticals',
-            data: { cleanedTitle },
+            data: {
+                error: (titleOnlyError as Error).message,
+                cleanedTitle,
+            },
         })
     }
 

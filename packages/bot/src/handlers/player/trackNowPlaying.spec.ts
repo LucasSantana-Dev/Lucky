@@ -160,6 +160,31 @@ describe('trackNowPlaying', () => {
         )
     })
 
+    it('logs stale now-playing message fetch failures before sending a new one', async () => {
+        const { queue, channel } = createQueue('guild-fetch-fails')
+        const fetchError = new Error('message missing')
+        channel.messages.fetch.mockRejectedValueOnce(fetchError)
+        const track = {
+            title: 'Song B2',
+            author: 'Artist B2',
+            url: 'https://example.com/b2',
+            duration: '2:41',
+            thumbnail: null,
+            requestedBy: { username: 'user-b' },
+            metadata: {},
+        }
+
+        await sendNowPlayingEmbed(queue as any, track as any, false)
+        await sendNowPlayingEmbed(queue as any, track as any, false)
+
+        expect(debugLogMock).toHaveBeenCalledWith({
+            message: 'Failed to update existing now playing message',
+            error: fetchError,
+            data: { guildId: 'guild-fetch-fails', messageId: 'message-1' },
+        })
+        expect(channel.send).toHaveBeenCalledTimes(2)
+    })
+
     it.each([
         {
             name: 'track requester id over metadata and queue fallback',
