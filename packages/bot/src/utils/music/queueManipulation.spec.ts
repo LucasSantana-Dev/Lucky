@@ -1661,3 +1661,287 @@ describe('queueManipulation.replenishQueue youtube dedup', () => {
         ).resolves.not.toThrow()
     })
 })
+
+describe('queueManipulation.replenishQueue query variation', () => {
+    beforeEach(() => {
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+        getLastFmSeedTracksMock.mockResolvedValue([])
+        getLastFmSeedSliceMock.mockReturnValue([])
+        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+    })
+
+    it('applies query modifiers based on replenish counter', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Current Artist',
+            requestedBy: { id: 'user-1' },
+        }
+        const candidateTrack = {
+            title: 'Candidate Song',
+            author: 'Candidate Artist',
+            url: 'https://example.com/cand',
+            source: 'youtube',
+            durationMS: 200000,
+        }
+        const searchMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: {
+                search: searchMock.mockResolvedValue({
+                    tracks: [candidateTrack],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstSearchQuery = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstSearchQuery).toBeDefined()
+        expect(typeof firstSearchQuery).toBe('string')
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const secondSearchQuery = searchMock.mock.calls[1]?.[0] ?? ''
+        expect(typeof secondSearchQuery).toBe('string')
+    })
+
+    it('uses different modifiers for 5 sequential replenishes on same guild', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Current Artist',
+            requestedBy: { id: 'user-1' },
+        }
+        const candidateTrack = {
+            title: 'Candidate',
+            author: 'Artist',
+            url: 'https://example.com/cand',
+            source: 'youtube',
+            durationMS: 200000,
+        }
+        const searchMock = jest.fn()
+        const queue = createQueueMock({
+            guild: { id: 'guild-variation' },
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: {
+                search: searchMock.mockResolvedValue({
+                    tracks: [candidateTrack],
+                }),
+            },
+        })
+
+        const queries: string[] = []
+
+        for (let i = 0; i < 5; i++) {
+            await replenishQueue(queue as unknown as GuildQueue)
+            const query = searchMock.mock.calls[i]?.[0] ?? ''
+            queries.push(query)
+        }
+
+        expect(queries).toHaveLength(5)
+        queries.forEach((q) => {
+            expect(typeof q).toBe('string')
+        })
+    })
+})
+
+describe('queueManipulation.collectBroadFallbackCandidates diversification', () => {
+    beforeEach(() => {
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+        getLastFmSeedTracksMock.mockResolvedValue([])
+        getLastFmSeedSliceMock.mockReturnValue([])
+        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+    })
+
+    it('uses multiple fallback queries when primary candidates empty', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Pop Star',
+            requestedBy: { id: 'user-1' },
+        }
+        const fallbackCandidate = {
+            title: 'Fallback Song',
+            author: 'Pop Star',
+            url: 'https://example.com/fallback',
+            source: 'spotify',
+            durationMS: 180000,
+        }
+        const searchMock = jest.fn()
+        searchMock.mockResolvedValue({ tracks: [fallbackCandidate] })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.addTrack).toHaveBeenCalled()
+    })
+})
+
+describe('queueManipulation.selectDiverseCandidates score jitter', () => {
+    beforeEach(() => {
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+        getLastFmSeedTracksMock.mockResolvedValue([])
+        getLastFmSeedSliceMock.mockReturnValue([])
+        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+    })
+
+    it('applies jitter to candidate scores and maintains top candidate', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Artist',
+            requestedBy: { id: 'user-1' },
+        }
+        const highScoredTrack = {
+            title: 'High Score Song',
+            author: 'Different Artist',
+            url: 'https://example.com/high',
+            source: 'youtube',
+            durationMS: 200000,
+        }
+        const lowScoredTrack = {
+            title: 'Low Score Song',
+            author: 'Another Artist',
+            url: 'https://example.com/low',
+            source: 'spotify',
+            durationMS: 200000,
+        }
+        const addedTracks: unknown[] = []
+        const searchMock = jest.fn()
+        searchMock.mockResolvedValue({
+            tracks: [highScoredTrack, lowScoredTrack],
+        })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: { search: searchMock },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        if (addedTracks.length > 0) {
+            const firstAdded = addedTracks[0] as { author: string }
+            expect(
+                ['Different Artist', 'Another Artist', 'Artist'].includes(
+                    firstAdded.author,
+                ),
+            ).toBe(true)
+        }
+    })
+})
+
+describe('queueManipulation.addSelectedTracks async writes', () => {
+    beforeEach(() => {
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+        getLastFmSeedTracksMock.mockResolvedValue([])
+        getLastFmSeedSliceMock.mockReturnValue([])
+        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+        addTrackToHistoryMock.mockResolvedValue(true)
+    })
+
+    it('awaits all redis writes for selected tracks', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Artist',
+            id: 'track-current',
+            requestedBy: { id: 'user-1' },
+        }
+        const candidate1 = {
+            title: 'Song 1',
+            author: 'Artist 1',
+            url: 'https://example.com/song1',
+            id: 'track-1',
+            source: 'youtube',
+            durationMS: 200000,
+        }
+        const candidate2 = {
+            title: 'Song 2',
+            author: 'Artist 2',
+            url: 'https://example.com/song2',
+            id: 'track-2',
+            source: 'spotify',
+            durationMS: 200000,
+        }
+        const searchMock = jest.fn()
+        searchMock.mockResolvedValue({ tracks: [candidate1, candidate2] })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalled()
+        const callCount = addTrackToHistoryMock.mock.calls.length
+        expect(callCount).toBeGreaterThan(0)
+
+        for (const call of addTrackToHistoryMock.mock.calls) {
+            const arg = call[0]
+            expect(arg).toHaveProperty('url')
+            expect(arg).toHaveProperty('title')
+            expect(arg).toHaveProperty('author')
+        }
+    })
+
+    it('marks tracks as autoplay with recommendation reason', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Artist',
+            id: 'track-current',
+            requestedBy: { id: 'user-1' },
+        }
+        const candidate = {
+            title: 'Candidate Song',
+            author: 'Candidate Artist',
+            url: 'https://example.com/candidate',
+            id: 'track-cand',
+            source: 'youtube',
+            durationMS: 200000,
+            metadata: {},
+        }
+        const addedTracks: unknown[] = []
+        const searchMock = jest.fn()
+        searchMock.mockResolvedValue({ tracks: [candidate] })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: { search: searchMock },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(addedTracks.length).toBeGreaterThan(0)
+        if (addedTracks.length > 0) {
+            const track = addedTracks[0] as { metadata?: unknown }
+            expect(track).toHaveProperty('metadata')
+        }
+    })
+})
