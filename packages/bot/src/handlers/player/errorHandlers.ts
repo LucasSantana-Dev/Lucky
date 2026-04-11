@@ -1,5 +1,5 @@
 import { QueryType, type GuildQueue } from 'discord-player'
-import type { TextChannel, User } from 'discord.js'
+import type { User } from 'discord.js'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../../utils/general/embeds'
 import {
@@ -11,6 +11,7 @@ import {
     providerFromTrack,
     providerHealthService,
 } from '../../utils/music/search/providerHealth'
+import type { QueueMetadata } from '../../types/QueueMetadata'
 
 type PlayerEvents = {
     events: {
@@ -19,16 +20,11 @@ type PlayerEvents = {
     on?: (event: string, handler: Function) => void
 }
 
-interface IQueueMetadata {
-    requestedBy?: User | null
-    channel?: TextChannel | null
-}
-
 async function notifyChannelStreamFailed(
     queue: GuildQueue,
     trackTitle: string,
 ): Promise<void> {
-    const channel = (queue.metadata as IQueueMetadata)?.channel
+    const channel = (queue.metadata as QueueMetadata | undefined)?.channel
     if (!channel) return
     try {
         await channel.send({
@@ -187,7 +183,7 @@ function handleYouTubeParserError(
 ): void {
     const requestedBy: User | undefined =
         queue.currentTrack?.requestedBy ??
-        (queue.metadata as IQueueMetadata).requestedBy ??
+        (queue.metadata as QueueMetadata | undefined)?.requestedBy ??
         undefined
     logYouTubeError(
         error,
@@ -223,7 +219,7 @@ async function recoverFromStreamExtractionError(
 
     const requestedByUser: User | undefined =
         currentTrack.requestedBy ??
-        (queue.metadata as IQueueMetadata).requestedBy ??
+        (queue.metadata as QueueMetadata | undefined)?.requestedBy ??
         undefined
     if (!requestedByUser) {
         warnLog({
