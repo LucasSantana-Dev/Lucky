@@ -44,27 +44,28 @@ jobs:
             - name: Build project
               run: npm run build
 
-            - name: Run backend tests
-              run: npm run test:ci
+            - name: Run backend tests with coverage
+              run: npm run test:ci -- --coverage
 
-            - name: Run bot tests
-              run: npm run test --workspace=packages/bot -- --ci
+            - name: Run bot tests with coverage
+              run: npm run test --workspace=packages/bot -- --ci --coverage
 
             - name: Run music incident regression suite
               run: npm run test:music:incident
 
-            - name: Run frontend tests
-              run: npm run test --workspace=packages/frontend
+            - name: Run frontend tests with coverage
+              run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
 
-            - name: Upload coverage reports
-              uses: codecov/codecov-action@v6
+            - name: Upload coverage artifacts
+              uses: actions/upload-artifact@v4
+              if: always()
               with:
-                  files: |
+                  name: coverage-reports
+                  path: |
                       packages/backend/coverage/lcov.info
                       packages/bot/coverage/lcov.info
-                  flags: backend,bot
-                  name: codecov
-                  fail_ci_if_error: false
+                      packages/frontend/coverage/lcov.info
+                  retention-days: 1
 
     security:
         name: Security
