@@ -35,8 +35,12 @@ async function notifyChannelStreamFailed(
                 ),
             ],
         })
-    } catch {
-        // non-critical — don't crash if we can't notify
+    } catch (error) {
+        debugLog({
+            message: 'Failed to notify channel about stream failure',
+            error,
+            data: { guildId: queue.guild.id, trackTitle },
+        })
     }
 }
 

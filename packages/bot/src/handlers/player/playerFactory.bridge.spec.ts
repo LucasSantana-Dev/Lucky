@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
 import type { Readable } from 'stream'
+import { debugLog } from '@lucky/shared/utils'
 
 const playdlSearchMock = jest.fn()
 const playdlStreamMock = jest.fn()
@@ -286,6 +287,22 @@ describe('streamViaYtDlp', () => {
         expect(spawnMock).not.toHaveBeenCalled()
     })
 
+    it('preserves invalid URL parse failures as the rejection cause', async () => {
+        let rejection: unknown
+
+        try {
+            await streamViaYtDlp('not a url')
+        } catch (error) {
+            rejection = error
+        }
+
+        expect(rejection).toBeInstanceOf(Error)
+        expect((rejection as Error).message).toMatch(/invalid URL/i)
+        expect((rejection as Error).cause).toBeDefined()
+        expect(((rejection as Error).cause as Error).name).toBe('TypeError')
+        expect(spawnMock).not.toHaveBeenCalled()
+    })
+
     it('accepts all allowed domains', async () => {
         const allowedUrls = [
             'https://youtube.com/watch?v=test',
@@ -481,6 +498,18 @@ describe('createResilientStream', () => {
         expect(result).toBe(fakeStream)
         expect(playdlSearchMock).toHaveBeenCalledTimes(3)
         expect(playdlStreamMock).toHaveBeenCalledWith('sc://core')
+        expect(debugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'title-only SoundCloud failed',
+                ),
+                data: expect.objectContaining({
+                    error: expect.stringContaining('no validated match'),
+                    cleanedTitle:
+                        'Bohemian Rhapsody (Official Music Live Session)',
+                }),
+            }),
+        )
     })
 
     it('throws "Bridge exhausted" when track has no URL and SoundCloud fails', async () => {
