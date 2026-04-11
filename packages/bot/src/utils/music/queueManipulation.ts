@@ -11,6 +11,7 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 import { trackHistoryService } from '@lucky/shared/services'
 import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
+import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
@@ -304,7 +305,7 @@ function randomJitter(max: number): number {
 }
 
 function getRequestedBy(queue: GuildQueue, currentTrack: Track): User | null {
-    const metadata = queue.metadata as { requestedBy?: User | null }
+    const metadata = queue.metadata as QueueMetadata | undefined
     return currentTrack.requestedBy ?? metadata?.requestedBy ?? null
 }
 
