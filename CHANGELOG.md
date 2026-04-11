@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.87] - 2026-04-11
+
+### Fixed
+
+- Autoplay repeats: per-guild mutex serializes concurrent replenish calls so race conditions no longer allow the same track to be selected twice
+- Autoplay repeats: tracks added to queue are immediately written to Redis history so the next replenish call excludes them
+- Autoplay: history lookback increased from 20 to 50 entries (~3h session coverage)
+
 ## [2.6.86] - 2026-04-11
 
 ### Fixed
