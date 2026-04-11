@@ -9,7 +9,12 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { trackHistoryService } from '@lucky/shared/services'
-import { getLastFmSeedTracks } from './autoplay/lastFmSeeds'
+import {
+    getLastFmSeedTracks,
+    getLastFmSeedSlice,
+    advanceLastFmSeedOffset,
+} from './autoplay/lastFmSeeds'
+import { getSimilarTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
@@ -192,6 +197,9 @@ export async function moveTrackInQueue(
 // the same exclusion sets and independently select the same track.
 const replenishLocks = new Map<string, Promise<void>>()
 
+// Per-guild counter for query diversity across multiple replenish calls.
+const replenishCounters = new Map<string, number>()
+
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
@@ -270,6 +278,8 @@ async function _replenishQueue(
             },
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
+        const guildId = queue.guild.id
+        const replenishCount = replenishCounters.get(guildId) ?? 0
         const candidates = await collectRecommendationCandidates(
             queue,
             seedTracks,
@@ -280,6 +290,7 @@ async function _replenishQueue(
             likedTrackKeys,
             currentTrack,
             recentArtists,
+            replenishCount,
         )
         if (requestedBy?.id) {
             await collectLastFmCandidates(
@@ -310,13 +321,16 @@ async function _replenishQueue(
 
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
-        addSelectedTracks(
+        await addSelectedTracks(
             queue,
             selected,
             excludedUrls,
             excludedKeys,
             requestedBy?.id,
         )
+
+        // Increment replenish counter for next call's query variation
+        replenishCounters.set(guildId, replenishCount + 1)
 
         if (selected.length === 0) return
 
@@ -428,6 +442,7 @@ async function collectRecommendationCandidates(
     likedTrackKeys: Set<string>,
     currentTrack: Track,
     recentArtists: Set<string>,
+    replenishCount = 0,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
 
@@ -436,6 +451,7 @@ async function collectRecommendationCandidates(
             queue,
             seed,
             requestedBy,
+            replenishCount,
         )
         for (const candidate of seedCandidates) {
             if (
@@ -467,13 +483,18 @@ async function collectRecommendationCandidates(
 }
 
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
+const QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
 
 async function searchSeedCandidates(
     queue: GuildQueue,
     seed: Track,
     requestedBy: User | null,
+    replenishCount = 0,
 ): Promise<Track[]> {
-    const query = cleanSearchQuery(seed.title, seed.author)
+    const baseQuery = cleanSearchQuery(seed.title, seed.author)
+    const modifier = QUERY_MODIFIERS[replenishCount % QUERY_MODIFIERS.length]
+    const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
+
     const engines: QueryType[] = [
         QueryType.SPOTIFY_SEARCH,
         QueryType.YOUTUBE_SEARCH,
@@ -600,17 +621,13 @@ async function collectLastFmCandidates(
     recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
 ): Promise<void> {
-    const lastFmTracks = await getLastFmSeedTracks(requestedBy.id)
-    if (lastFmTracks.length === 0) return
+    // Ensure cache is loaded, then get rotated slice
+    await getLastFmSeedTracks(requestedBy.id)
+    const seedSlice = getLastFmSeedSlice(requestedBy.id)
+    if (seedSlice.length === 0) return
 
-    const pool = lastFmTracks.slice(0, 10)
-    const seeds: typeof lastFmTracks = []
-    while (seeds.length < LASTFM_SEED_COUNT && pool.length > 0) {
-        const idx = pool.length > 1 ? randomInt(pool.length) : 0
-        seeds.push(...pool.splice(idx, 1))
-    }
-
-    for (const seed of seeds) {
+    // Search for each seed via track search
+    for (const seed of seedSlice) {
         const query = `${seed.title} ${seed.artist}`.trim()
         const tracks = await searchLastFmQuery(queue, query, requestedBy)
         for (const track of tracks) {
@@ -631,7 +648,38 @@ async function collectLastFmCandidates(
                     : 'last.fm taste',
             })
         }
+
+        // Also search for similar tracks via Last.fm API
+        const similar = await getSimilarTracks(seed.artist, seed.title)
+        for (const s of similar) {
+            const query = `${s.title} ${s.artist}`.trim()
+            const tracks = await searchLastFmQuery(queue, query, requestedBy)
+            for (const track of tracks) {
+                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                    continue
+                const normalizedKey = normalizeTrackKey(
+                    track.title,
+                    track.author,
+                )
+                if (dislikedTrackKeys.has(normalizedKey)) continue
+                const rec = calculateRecommendationScore(
+                    track,
+                    currentTrack,
+                    recentArtists,
+                    likedTrackKeys,
+                )
+                upsertScoredCandidate(candidates, track, {
+                    score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
+                    reason: rec.reason
+                        ? `${rec.reason} • similar to your taste`
+                        : 'similar to your taste',
+                })
+            }
+        }
     }
+
+    // Advance offset for next replenish call
+    advanceLastFmSeedOffset(requestedBy.id)
 }
 
 async function searchLastFmQuery(
@@ -671,8 +719,13 @@ function selectDiverseCandidates(
     maxPerArtist = MAX_TRACKS_PER_ARTIST,
     maxPerSource = MAX_TRACKS_PER_SOURCE,
 ): ScoredTrack[] {
-    const sortedCandidates = Array.from(candidates.values()).sort(
-        (a, b) => b.score - a.score,
+    const jitteredCandidates = Array.from(candidates.values()).map((c) => ({
+        ...c,
+        jitteredScore: c.score + randomJitter(0.02),
+    })) as (ScoredTrack & { jitteredScore: number })[]
+
+    const sortedCandidates = jitteredCandidates.sort(
+        (a, b) => b.jitteredScore - a.jitteredScore,
     )
     const selected: ScoredTrack[] = []
     const artistCount = new Map<string, number>()
@@ -696,13 +749,15 @@ function selectDiverseCandidates(
     return selected
 }
 
-function addSelectedTracks(
+async function addSelectedTracks(
     queue: GuildQueue,
     selected: ScoredTrack[],
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
     requestedById?: string,
-): void {
+): Promise<void> {
+    const historyWrites: Promise<boolean>[] = []
+
     for (const candidate of selected) {
         markAsAutoplayTrack(candidate.track, candidate.reason, requestedById)
         queue.addTrack(candidate.track)
@@ -716,18 +771,22 @@ function addSelectedTracks(
         excludedKeys.add(normalizeTitleOnly(candidate.track.title))
         // Write to Redis immediately so the NEXT replenish call (from the
         // subsequent event) also excludes this track — not just the local set.
-        void trackHistoryService.addTrackToHistory(
-            {
-                id: candidate.track.id || candidate.track.url,
-                url: candidate.track.url,
-                title: candidate.track.title,
-                author: candidate.track.author,
-                duration: candidate.track.duration ?? '',
-                metadata: { isAutoplay: true },
-            },
-            queue.guild.id,
+        historyWrites.push(
+            trackHistoryService.addTrackToHistory(
+                {
+                    id: candidate.track.id || candidate.track.url,
+                    url: candidate.track.url,
+                    title: candidate.track.title,
+                    author: candidate.track.author,
+                    duration: candidate.track.duration ?? '',
+                    metadata: { isAutoplay: true },
+                },
+                queue.guild.id,
+            ),
         )
     }
+
+    await Promise.all(historyWrites)
 }
 
 function isPlayableTrack(track: Track): boolean {

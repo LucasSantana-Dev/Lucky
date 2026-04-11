@@ -10,6 +10,7 @@ import { getLastFmSeedTracks } from './lastFmSeeds'
 
 const getByDiscordIdMock = jest.fn()
 const getTopTracksMock = jest.fn()
+const getRecentTracksMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
@@ -24,11 +25,13 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('../../../lastfm', () => ({
     getTopTracks: (...args: unknown[]) => getTopTracksMock(...args),
+    getRecentTracks: (...args: unknown[]) => getRecentTracksMock(...args),
 }))
 
 describe('getLastFmSeedTracks', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        getRecentTracksMock.mockResolvedValue([])
     })
 
     afterEach(() => {
@@ -48,7 +51,7 @@ describe('getLastFmSeedTracks', () => {
             { artist: 'Artist A', title: 'Song A' },
             { artist: 'Artist B', title: 'Song B' },
         ])
-        expect(getTopTracksMock).toHaveBeenCalledWith('user123', '3month', 20)
+        expect(getTopTracksMock).toHaveBeenCalledWith('user123', '3month', 50)
     })
 
     it('returns empty array when user has no Last.fm link', async () => {

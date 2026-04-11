@@ -2,6 +2,8 @@ export {
     isLastFmConfigured,
     getSessionKeyForUser,
     getTopTracks,
+    getRecentTracks,
+    getSimilarTracks,
     isLastFmInvalidSessionError,
     normalizeLastFmArtist,
     normalizeLastFmTitle,

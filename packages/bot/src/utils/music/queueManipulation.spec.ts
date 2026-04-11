@@ -57,10 +57,21 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 const getLastFmSeedTracksMock = jest.fn()
+const getLastFmSeedSliceMock = jest.fn()
+const advanceLastFmSeedOffsetMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
     getLastFmSeedTracks: (...args: unknown[]) =>
         getLastFmSeedTracksMock(...args),
+    getLastFmSeedSlice: (...args: unknown[]) => getLastFmSeedSliceMock(...args),
+    advanceLastFmSeedOffset: (...args: unknown[]) =>
+        advanceLastFmSeedOffsetMock(...args),
+}))
+
+const getSimilarTracksMock = jest.fn()
+
+jest.mock('../../lastfm', () => ({
+    getSimilarTracks: (...args: unknown[]) => getSimilarTracksMock(...args),
 }))
 
 const dislikedTrackKeysMock = jest.fn()
@@ -116,6 +127,9 @@ describe('queueManipulation.replenishQueue', () => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
         getLastFmSeedTracksMock.mockResolvedValue([])
+        getLastFmSeedSliceMock.mockReturnValue([])
+        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
     })
 
@@ -262,7 +276,7 @@ describe('queueManipulation.replenishQueue', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(queue.player.search).toHaveBeenCalledWith(
-            'Song A Artist A',
+            expect.stringContaining('Song A Artist A'),
             expect.objectContaining({
                 searchEngine: QueryType.SPOTIFY_SEARCH,
             }),
@@ -322,21 +336,21 @@ describe('queueManipulation.replenishQueue', () => {
 
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 1,
-                'Song A Artist A',
+                expect.stringContaining('Song A Artist A'),
                 expect.objectContaining({
                     searchEngine: QueryType.SPOTIFY_SEARCH,
                 }),
             )
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 2,
-                'Song A Artist A',
+                expect.stringContaining('Song A Artist A'),
                 expect.objectContaining({
                     searchEngine: QueryType.YOUTUBE_SEARCH,
                 }),
             )
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 3,
-                'Song A Artist A',
+                expect.stringContaining('Song A Artist A'),
                 expect.objectContaining({
                     searchEngine: QueryType.AUTO,
                 }),
@@ -823,6 +837,9 @@ describe('queueManipulation.replenishQueue', () => {
             { artist: 'Radiohead', title: 'Paranoid Android' },
             { artist: 'Muse', title: 'Hysteria' },
         ])
+        getLastFmSeedSliceMock.mockReturnValueOnce([
+            { artist: 'Radiohead', title: 'Paranoid Android' },
+        ])
 
         const queue = createQueueMock({
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
@@ -962,6 +979,9 @@ describe('queueManipulation.replenishQueue', () => {
 
     it('falls back to YouTube search for last.fm when Spotify fails', async () => {
         getLastFmSeedTracksMock.mockResolvedValueOnce([
+            { artist: 'Radiohead', title: 'Creep' },
+        ])
+        getLastFmSeedSliceMock.mockReturnValueOnce([
             { artist: 'Radiohead', title: 'Creep' },
         ])
 
