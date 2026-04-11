@@ -28,6 +28,7 @@ const clearMusicPresenceMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: {
@@ -95,6 +96,7 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 type PlayerEventHandler = (queue: GuildQueue, track?: Track) => Promise<void>
@@ -298,6 +300,29 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(replenishQueueMock).toHaveBeenCalledTimes(2)
         expect(saveSnapshotMock).toHaveBeenCalledWith(autoplayQueue)
         expect(watchdogArmMock).toHaveBeenCalledWith(autoplayQueue)
+    })
+
+    it('logs a failed queue replenishment retry without retrying again', async () => {
+        jest.useFakeTimers()
+        const initialError = new Error('replenish failed')
+        const retryError = new Error('retry failed')
+        replenishQueueMock.mockRejectedValueOnce(initialError)
+        replenishQueueMock.mockRejectedValueOnce(retryError)
+
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const autoplayQueue = createQueue(QueueRepeatMode.AUTOPLAY)
+
+        await playerStart(autoplayQueue, createAutoplayTrack('listener-14'))
+        jest.advanceTimersByTime(5000)
+        await Promise.resolve()
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(2)
+        expect(warnLogMock).toHaveBeenCalledWith({
+            message: 'Replenish retry failed',
+            error: retryError,
+            data: { guildId: 'guild-1' },
+        })
     })
 
     it('logs and exits gracefully when playerStart fails before now-playing updates', async () => {

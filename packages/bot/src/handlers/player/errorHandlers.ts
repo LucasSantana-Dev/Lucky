@@ -74,7 +74,9 @@ function safeErrorLog(payload: {
 }): void {
     try {
         errorLog(payload)
-    } catch {}
+    } catch (error) {
+        debugLog({ message: 'errorHandlers: errorLog failed', error })
+    }
 }
 
 function logHandlerFailure(message: string, error: unknown): void {

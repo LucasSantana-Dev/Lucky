@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
-import { infoLog, debugLog, errorLog } from '@lucky/shared/utils'
+import { infoLog, debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { replenishQueue } from '../../utils/music/trackManagement/queueOperations'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
@@ -15,7 +15,10 @@ import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import * as musicPresence from '../../services/MusicPresenceService'
-import { scheduleIdleDisconnect, clearIdleTimer } from '../../utils/music/idleDisconnect'
+import {
+    scheduleIdleDisconnect,
+    clearIdleTimer,
+} from '../../utils/music/idleDisconnect'
 import { clearVotes } from '../../utils/music/voteSkipStore'
 
 const MAX_GUILD_ENTRIES = 500
@@ -136,7 +139,13 @@ async function handleQueueReplenishment(
                 error: String(error),
             })
             setTimeout(() => {
-                replenishQueue(queue).catch(() => {})
+                replenishQueue(queue).catch((retryErr) => {
+                    warnLog({
+                        message: 'Replenish retry failed',
+                        error: retryErr,
+                        data: { guildId: queue.guild.id },
+                    })
+                })
             }, 5000)
         }
     } else {
