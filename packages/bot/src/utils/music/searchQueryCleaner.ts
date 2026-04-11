@@ -84,11 +84,10 @@ const NOISE_PATTERNS: readonly RegExp[] = [
 
     // Hyphenated version suffixes not wrapped in brackets — common on YouTube/Spotify:
     //   "Song – 2011 Remaster", "Song - Remastered", "Song - Official Audio", etc.
-    // Strips everything after " - " or " – " when the remainder is a known version tag.
-    /\s+[-–]\s+\d{4}\s+remaster(?:ed)?\b.*/gi,
-    /\s+[-–]\s+remaster(?:ed)?(?:\s+\d{4})?\b.*/gi,
-    /\s+[-–]\s+official\s+(?:audio|video|music\s+video)\b.*/gi,
-    /\s+[-–]\s+(?:live|acoustic|demo|extended|radio\s+edit|album\s+version|single\s+version)\b.*/gi,
+    // Anchored to $ so no backtracking after the keyword boundary.
+    /\s+[-–]\s+(?:\d{4}\s+)?remaster(?:ed)?\s*$/gi,
+    /\s+[-–]\s+official\s+(?:audio|video|music\s+video)\s*$/gi,
+    /\s+[-–]\s+(?:live|acoustic|demo|extended|radio\s+edit|album\s+version|single\s+version)\s*$/gi,
 ]
 
 /**
