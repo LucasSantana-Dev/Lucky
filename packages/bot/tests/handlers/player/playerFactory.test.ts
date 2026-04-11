@@ -34,6 +34,12 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
 
+jest.mock('../../../src/utils/music/search/providerHealth', () => ({
+    providerHealthService: {
+        isAvailable: jest.fn(() => true),
+    },
+}))
+
 describe('playerFactory', () => {
     beforeEach(() => {
         jest.resetModules()

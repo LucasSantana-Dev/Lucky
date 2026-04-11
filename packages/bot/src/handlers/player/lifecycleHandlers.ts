@@ -5,7 +5,7 @@ import * as musicPresence from '../../services/MusicPresenceService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
-import type { User } from 'discord.js'
+import type { QueueMetadata } from '../../types/QueueMetadata'
 
 export const setupLifecycleHandlers = (player: {
     events: { on: (event: string, handler: Function) => void }
@@ -33,9 +33,7 @@ export const setupLifecycleHandlers = (player: {
         }
 
         if (ENVIRONMENT_CONFIG.MUSIC.SESSION_RESTORE_ENABLED) {
-            const metadata = queue.metadata as
-                | { requestedBy?: User | null }
-                | undefined
+            const metadata = queue.metadata as QueueMetadata | undefined
 
             await musicSessionSnapshotService.restoreSnapshot(
                 queue,

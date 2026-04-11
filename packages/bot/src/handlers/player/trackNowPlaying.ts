@@ -1,22 +1,17 @@
 import type { Track, GuildQueue } from 'discord-player'
-import type { ColorResolvable, TextChannel, User } from 'discord.js'
+import type { ColorResolvable } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
 import { constants } from '@lucky/shared/config'
 import { createMusicControlButtons } from '../../utils/music/buttonComponents'
+import type { QueueMetadata } from '../../types/QueueMetadata'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
     updateNowPlaying as lastFmUpdateNowPlaying,
     scrobble as lastFmScrobble,
 } from '../../lastfm'
-
-interface IQueueMetadata {
-    channel: TextChannel
-    client: unknown
-    requestedBy: User | undefined
-}
 
 const songInfoMessages = new Map<
     string,
@@ -45,7 +40,7 @@ function getLastFmRequesterId(
     const metadataRequester = (
         track.metadata as { requestedById?: unknown } | undefined
     )?.requestedById
-    const queueRequester = (queue.metadata as IQueueMetadata | undefined)
+    const queueRequester = (queue.metadata as QueueMetadata | undefined)
         ?.requestedBy?.id
     const fallbackRequester =
         typeof metadataRequester === 'string' ? metadataRequester : undefined
@@ -70,7 +65,7 @@ export async function sendNowPlayingEmbed(
     track: Track,
     isAutoplay: boolean,
 ): Promise<void> {
-    const metadata = queue.metadata as IQueueMetadata
+    const metadata = queue.metadata as QueueMetadata | undefined
     if (!metadata?.channel) return
 
     const requester = track.requestedBy

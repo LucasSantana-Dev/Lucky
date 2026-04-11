@@ -2,7 +2,7 @@ import type { GuildQueue } from 'discord-player'
 import { guildSettingsService } from '@lucky/shared/services'
 import { debugLog } from '@lucky/shared/utils'
 import { musicWatchdogService } from './watchdog'
-import type { TextChannel } from 'discord.js'
+import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const idleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -20,10 +20,13 @@ export function scheduleIdleDisconnect(queue: GuildQueue): void {
             data: { guildId, timeoutMinutes },
         })
 
-        const timer = setTimeout(() => {
-            idleTimers.delete(guildId)
-            void disconnectIdle(queue)
-        }, timeoutMinutes * 60 * 1000)
+        const timer = setTimeout(
+            () => {
+                idleTimers.delete(guildId)
+                void disconnectIdle(queue)
+            },
+            timeoutMinutes * 60 * 1000,
+        )
 
         idleTimers.set(guildId, timer)
     })()
@@ -42,12 +45,14 @@ async function disconnectIdle(queue: GuildQueue): Promise<void> {
     debugLog({ message: 'Idle disconnect triggered', data: { guildId } })
 
     try {
-        const metadata = queue.metadata as { channel?: TextChannel } | undefined
+        const metadata = queue.metadata as QueueMetadata | undefined
         musicWatchdogService.markIntentionalStop(guildId)
         queue.delete()
 
         if (metadata?.channel) {
-            await metadata.channel.send('👋 Left the voice channel due to inactivity.')
+            await metadata.channel.send(
+                '👋 Left the voice channel due to inactivity.',
+            )
         }
     } catch (error) {
         debugLog({

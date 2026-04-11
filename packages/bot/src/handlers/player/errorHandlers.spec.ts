@@ -344,6 +344,22 @@ describe('setupErrorHandlers', () => {
         )
     })
 
+    it('logs when the error logger fails inside guarded handlers', () => {
+        const { playerHandlers } = createPlayerWithHandlers()
+        const logError = new Error('error logger failed')
+        errorLogMock.mockImplementationOnce(() => {
+            throw logError
+        })
+        ;(playerHandlers.error as TopLevelErrorHandler)(
+            new Error('Unhandled player error'),
+        )
+
+        expect(debugLogMock).toHaveBeenCalledWith({
+            message: 'errorHandlers: errorLog failed',
+            error: logError,
+        })
+    })
+
     it('skips when stream recovery has no requester, no tracks, no alternative, or no current track', async () => {
         const { queueHandlers } = createPlayerWithHandlers()
         const streamError = new Error('Could not extract stream')

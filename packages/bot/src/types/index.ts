@@ -21,3 +21,5 @@ export type CommandType = {
     data: unknown
     execute: (_interaction: ChatInputCommandInteraction) => Promise<void>
 }
+
+export type { QueueMetadata } from './QueueMetadata'

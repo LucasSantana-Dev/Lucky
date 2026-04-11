@@ -12,6 +12,7 @@ import {
     cleanAuthor,
     cleanSearchQuery,
 } from '../../utils/music/searchQueryCleaner'
+import { providerHealthService } from '../../utils/music/search/providerHealth'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -274,6 +275,19 @@ export async function createResilientStream(
                 },
             })
         }
+    }
+
+    if (!providerHealthService.isAvailable('soundcloud')) {
+        warnLog({
+            message:
+                'Bridge: SoundCloud circuit open, skipping fallback stages',
+            data: {
+                title: track.title,
+                cleanedTitle,
+                url: track.url,
+            },
+        })
+        throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
     }
 
     try {

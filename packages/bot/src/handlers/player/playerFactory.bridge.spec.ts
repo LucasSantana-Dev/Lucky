@@ -6,6 +6,7 @@ import type { Readable } from 'stream'
 const playdlSearchMock = jest.fn()
 const playdlStreamMock = jest.fn()
 const spawnMock = jest.fn()
+const providerIsAvailableMock = jest.fn()
 
 jest.mock('child_process', () => ({
     spawn: (...args: unknown[]) => spawnMock(...args),
@@ -37,6 +38,12 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     warnLog: jest.fn(),
     debugLog: jest.fn(),
+}))
+
+jest.mock('../../utils/music/search/providerHealth', () => ({
+    providerHealthService: {
+        isAvailable: (...args: unknown[]) => providerIsAvailableMock(...args),
+    },
 }))
 
 import {
@@ -363,6 +370,8 @@ describe('createResilientStream', () => {
         spawnMock.mockReset()
         playdlSearchMock.mockReset()
         playdlStreamMock.mockReset()
+        providerIsAvailableMock.mockReset()
+        providerIsAvailableMock.mockReturnValue(true)
     })
 
     it('streams via yt-dlp from source URL on first attempt', async () => {
@@ -396,6 +405,19 @@ describe('createResilientStream', () => {
         expect(result).toBe(fakeStream)
         expect(playdlSearchMock).toHaveBeenCalledTimes(1)
         expect(playdlStreamMock).toHaveBeenCalledWith('sc://primary')
+    })
+
+    it('skips SoundCloud stages when provider health is in cooldown', async () => {
+        spawnMock.mockReturnValue(makeSpawnError(1))
+        providerIsAvailableMock.mockReturnValue(false)
+
+        await expect(createResilientStream(makeTrack())).rejects.toThrow(
+            /bridge exhausted/i,
+        )
+
+        expect(providerIsAvailableMock).toHaveBeenCalledWith('soundcloud')
+        expect(playdlSearchMock).not.toHaveBeenCalled()
+        expect(playdlStreamMock).not.toHaveBeenCalled()
     })
 
     it('falls back to SoundCloud title-only when primary returns no validated match', async () => {
