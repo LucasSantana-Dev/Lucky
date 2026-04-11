@@ -192,3 +192,63 @@ export function isLastFmInvalidSessionError(error: unknown): boolean {
         message.includes(' 9 - ')
     )
 }
+
+export async function getRecentTracks(
+    lastFmUsername: string,
+    limit = 20,
+): Promise<{ artist: string; title: string }[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=user.getrecenttracks&user=${encodeURIComponent(lastFmUsername)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
+        )
+        const data = (await response.json()) as {
+            recenttracks?: {
+                track?: Array<{
+                    name: string
+                    artist: { name: string } | string
+                    '@attr'?: { nowplaying: string }
+                }>
+            }
+        }
+        return (data.recenttracks?.track ?? [])
+            .filter((t) => !t['@attr']?.nowplaying)
+            .map((t) => ({
+                artist: typeof t.artist === 'string' ? t.artist : t.artist.name,
+                title: t.name,
+            }))
+    } catch {
+        return []
+    }
+}
+
+export async function getSimilarTracks(
+    artist: string,
+    title: string,
+    limit = 10,
+): Promise<{ artist: string; title: string; match: number }[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=track.getSimilar&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+        )
+        const data = (await response.json()) as {
+            similartracks?: {
+                track?: Array<{
+                    name: string
+                    artist: { name: string }
+                    match: string
+                }>
+            }
+        }
+        return (data.similartracks?.track ?? []).map((t) => ({
+            artist: t.artist.name,
+            title: t.name,
+            match: parseFloat(t.match) || 0,
+        }))
+    } catch {
+        return []
+    }
+}
