@@ -187,14 +187,17 @@ export async function moveTrackInQueue(
     }
 }
 
-export async function replenishQueue(queue: GuildQueue): Promise<void> {
+export async function replenishQueue(
+    queue: GuildQueue,
+    finishedTrack?: Track,
+): Promise<void> {
     try {
         debugLog({
             message: 'Replenishing queue',
             data: { guildId: queue.guild.id, queueSize: queue.tracks.size },
         })
 
-        const currentTrack = queue.currentTrack
+        const currentTrack = queue.currentTrack ?? finishedTrack ?? null
         if (!currentTrack) return
 
         const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
@@ -309,18 +312,43 @@ function getRequestedBy(queue: GuildQueue, currentTrack: Track): User | null {
     return currentTrack.requestedBy ?? metadata?.requestedBy ?? null
 }
 
+function extractYouTubeVideoId(url: string): string | null {
+    const idx = url.indexOf('v=')
+    if (idx !== -1) {
+        const id = url.slice(idx + 2, idx + 13).replace(/[^a-zA-Z0-9_-]/g, '')
+        return id.length >= 8 ? id : null
+    }
+    const shortIdx = url.indexOf('youtu.be/')
+    if (shortIdx !== -1) {
+        const id = url
+            .slice(shortIdx + 9, shortIdx + 20)
+            .replace(/[^a-zA-Z0-9_-]/g, '')
+        return id.length >= 8 ? id : null
+    }
+    return null
+}
+
 function buildExcludedUrls(
     queue: GuildQueue,
     currentTrack: Track,
     historyTracks: Track[],
     persistentHistory: { url: string }[] = [],
 ): Set<string> {
-    return new Set<string>([
+    const allUrls = [
         currentTrack.url,
-        ...historyTracks.map((track) => track.url),
-        ...queue.tracks.toArray().map((track) => track.url),
-        ...persistentHistory.map((entry) => entry.url).filter(Boolean),
-    ])
+        ...historyTracks.map((t) => t.url),
+        ...queue.tracks.toArray().map((t) => t.url),
+        ...persistentHistory.map((e) => e.url).filter(Boolean),
+    ]
+    const result = new Set<string>()
+    for (const url of allUrls) {
+        if (url) {
+            result.add(url)
+            const vid = extractYouTubeVideoId(url)
+            if (vid) result.add(vid)
+        }
+    }
+    return result
 }
 
 function buildExcludedKeys(
@@ -784,7 +812,11 @@ function isDuplicateCandidate(
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
 ): boolean {
-    if (track.url && excludedUrls.has(track.url)) return true
+    if (track.url) {
+        if (excludedUrls.has(track.url)) return true
+        const vid = extractYouTubeVideoId(track.url)
+        if (vid && excludedUrls.has(vid)) return true
+    }
     if (excludedKeys.has(normalizeTrackKey(track.title, track.author)))
         return true
     return excludedKeys.has(normalizeTitleOnly(track.title))

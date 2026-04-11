@@ -190,10 +190,13 @@ const handlePlayerStart = async (
     }
 }
 
-async function replenishIfAutoplay(queue: GuildQueue): Promise<void> {
+async function replenishIfAutoplay(
+    queue: GuildQueue,
+    finishedTrack?: Track,
+): Promise<void> {
     const autoplayEnabled = await isAutoplayReplenishmentEnabled(queue)
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
-        await replenishQueue(queue)
+        await replenishQueue(queue, finishedTrack)
     }
 }
 
@@ -214,7 +217,7 @@ const handlePlayerFinish = async (
     try {
         await scrobbleAndRecord(queue, track)
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
-        await replenishIfAutoplay(queue)
+        await replenishIfAutoplay(queue, track)
         await musicSessionSnapshotService.saveSnapshot(queue)
 
         if (queue.currentTrack || queue.tracks.size > 0) {
@@ -237,7 +240,7 @@ const handlePlayerSkip = async (
         debugLog({ message: 'Track skipped, checking queue...' })
         await scrobbleAndRecord(queue, track)
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
-        await replenishIfAutoplay(queue)
+        await replenishIfAutoplay(queue, track)
         await musicSessionSnapshotService.saveSnapshot(queue)
 
         if (queue.currentTrack || queue.tracks.size > 0) {
