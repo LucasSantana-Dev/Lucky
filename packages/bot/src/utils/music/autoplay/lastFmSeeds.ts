@@ -18,6 +18,10 @@ type CacheEntry = {
 }
 
 const cache = new Map<string, CacheEntry>()
+const consumeLocks = new Map<
+    string,
+    Promise<{ artist: string; title: string }[]>
+>()
 
 function deduplicateTracks(
     tracks: { artist: string; title: string }[],
@@ -81,21 +85,47 @@ export function getLastFmSeedSlice(
     const { tracks, offset } = cached
     if (tracks.length === 0) return []
 
+    const sliceSize = Math.min(count, tracks.length)
     const result: { artist: string; title: string }[] = []
-    for (let i = 0; i < count && result.length < count; i++) {
-        const idx = (offset + i) % tracks.length
+    for (let i = 0; i < sliceSize; i++) {
+        const idx = offset + i
+        if (idx >= tracks.length) break
         result.push(tracks[idx])
     }
     return result
 }
 
-export function advanceLastFmSeedOffset(discordUserId: string): void {
+function advanceLastFmSeedOffsetBy(
+    discordUserId: string,
+    amount: number,
+): void {
     const cached = cache.get(discordUserId)
     if (!cached) return
 
-    cached.offset = (cached.offset + LASTFM_SEED_COUNT) % cached.tracks.length
+    cached.offset = (cached.offset + amount) % cached.tracks.length
+}
+
+export function advanceLastFmSeedOffset(discordUserId: string): void {
+    advanceLastFmSeedOffsetBy(discordUserId, LASTFM_SEED_COUNT)
 }
 
 export function getLastFmCacheOffset(discordUserId: string): number {
     return cache.get(discordUserId)?.offset ?? 0
+}
+
+export async function consumeLastFmSeedSlice(
+    userId: string,
+    count: number = LASTFM_SEED_COUNT,
+): Promise<{ artist: string; title: string }[]> {
+    const prev = consumeLocks.get(userId) ?? Promise.resolve()
+    const next = prev
+        .then(async () => {
+            await getLastFmSeedTracks(userId)
+            const slice = getLastFmSeedSlice(userId, count)
+            advanceLastFmSeedOffsetBy(userId, slice.length)
+            return slice
+        })
+        .catch(() => [])
+    consumeLocks.set(userId, next)
+    return next
 }

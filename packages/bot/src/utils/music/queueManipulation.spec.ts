@@ -56,16 +56,11 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-const getLastFmSeedTracksMock = jest.fn()
-const getLastFmSeedSliceMock = jest.fn()
-const advanceLastFmSeedOffsetMock = jest.fn()
+const consumeLastFmSeedSliceMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
-    getLastFmSeedTracks: (...args: unknown[]) =>
-        getLastFmSeedTracksMock(...args),
-    getLastFmSeedSlice: (...args: unknown[]) => getLastFmSeedSliceMock(...args),
-    advanceLastFmSeedOffset: (...args: unknown[]) =>
-        advanceLastFmSeedOffsetMock(...args),
+    consumeLastFmSeedSlice: (...args: unknown[]) =>
+        consumeLastFmSeedSliceMock(...args),
 }))
 
 const getSimilarTracksMock = jest.fn()
@@ -126,9 +121,7 @@ describe('queueManipulation.replenishQueue', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
-        getLastFmSeedTracksMock.mockResolvedValue([])
-        getLastFmSeedSliceMock.mockReturnValue([])
-        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
     })
@@ -833,11 +826,7 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('collects lastfm seed tracks and searches for recommendations', async () => {
-        getLastFmSeedTracksMock.mockResolvedValueOnce([
-            { artist: 'Radiohead', title: 'Paranoid Android' },
-            { artist: 'Muse', title: 'Hysteria' },
-        ])
-        getLastFmSeedSliceMock.mockReturnValueOnce([
+        consumeLastFmSeedSliceMock.mockResolvedValueOnce([
             { artist: 'Radiohead', title: 'Paranoid Android' },
         ])
 
@@ -864,7 +853,10 @@ describe('queueManipulation.replenishQueue', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(getLastFmSeedTracksMock).toHaveBeenCalledWith('user-1')
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
+            'user-1',
+            expect.any(Number),
+        )
         expect(queue.player.search).toHaveBeenCalledWith(
             expect.stringContaining('Paranoid Android'),
             expect.objectContaining({ searchEngine: QueryType.SPOTIFY_SEARCH }),
@@ -978,10 +970,7 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('falls back to YouTube search for last.fm when Spotify fails', async () => {
-        getLastFmSeedTracksMock.mockResolvedValueOnce([
-            { artist: 'Radiohead', title: 'Creep' },
-        ])
-        getLastFmSeedSliceMock.mockReturnValueOnce([
+        consumeLastFmSeedSliceMock.mockResolvedValueOnce([
             { artist: 'Radiohead', title: 'Creep' },
         ])
 
@@ -1045,7 +1034,7 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('returns empty last.fm results when all engines fail', async () => {
-        getLastFmSeedTracksMock.mockResolvedValueOnce([
+        consumeLastFmSeedSliceMock.mockResolvedValueOnce([
             { artist: 'Muse', title: 'Uprising' },
         ])
 
@@ -1666,9 +1655,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
-        getLastFmSeedTracksMock.mockResolvedValue([])
-        getLastFmSeedSliceMock.mockReturnValue([])
-        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
     })
@@ -1755,9 +1742,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
-        getLastFmSeedTracksMock.mockResolvedValue([])
-        getLastFmSeedSliceMock.mockReturnValue([])
-        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
     })
@@ -1795,9 +1780,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
-        getLastFmSeedTracksMock.mockResolvedValue([])
-        getLastFmSeedSliceMock.mockReturnValue([])
-        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
     })
@@ -1853,9 +1836,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
-        getLastFmSeedTracksMock.mockResolvedValue([])
-        getLastFmSeedSliceMock.mockReturnValue([])
-        advanceLastFmSeedOffsetMock.mockReturnValue(undefined)
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         addTrackToHistoryMock.mockResolvedValue(true)

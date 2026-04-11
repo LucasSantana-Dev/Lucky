@@ -9,11 +9,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { trackHistoryService } from '@lucky/shared/services'
-import {
-    getLastFmSeedTracks,
-    getLastFmSeedSlice,
-    advanceLastFmSeedOffset,
-} from './autoplay/lastFmSeeds'
+import { consumeLastFmSeedSlice } from './autoplay/lastFmSeeds'
 import { getSimilarTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
@@ -25,6 +21,7 @@ const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 const LASTFM_SEED_COUNT = 3
 const LASTFM_SCORE_BOOST = 0.1
+const MAX_SIMILAR_LOOKUPS = 5
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
     process.env.QUEUE_RESCUE_PROBE_TIMEOUT_MS ?? '5000',
     10,
@@ -621,9 +618,10 @@ async function collectLastFmCandidates(
     recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
 ): Promise<void> {
-    // Ensure cache is loaded, then get rotated slice
-    await getLastFmSeedTracks(requestedBy.id)
-    const seedSlice = getLastFmSeedSlice(requestedBy.id)
+    const seedSlice = await consumeLastFmSeedSlice(
+        requestedBy.id,
+        LASTFM_SEED_COUNT,
+    )
     if (seedSlice.length === 0) return
 
     // Search for each seed via track search
@@ -651,7 +649,7 @@ async function collectLastFmCandidates(
 
         // Also search for similar tracks via Last.fm API
         const similar = await getSimilarTracks(seed.artist, seed.title)
-        for (const s of similar) {
+        for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
             const query = `${s.title} ${s.artist}`.trim()
             const tracks = await searchLastFmQuery(queue, query, requestedBy)
             for (const track of tracks) {
@@ -675,11 +673,9 @@ async function collectLastFmCandidates(
                         : 'similar to your taste',
                 })
             }
+            if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         }
     }
-
-    // Advance offset for next replenish call
-    advanceLastFmSeedOffset(requestedBy.id)
 }
 
 async function searchLastFmQuery(

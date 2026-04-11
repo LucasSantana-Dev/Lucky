@@ -11,6 +11,7 @@ import {
     getLastFmSeedSlice,
     advanceLastFmSeedOffset,
     getLastFmCacheOffset,
+    consumeLastFmSeedSlice,
     LASTFM_SEED_COUNT,
 } from './lastFmSeeds'
 
@@ -174,27 +175,28 @@ describe('getLastFmSeedSlice', () => {
         expect(slice[1]).toEqual({ artist: 'A2', title: 'S2' })
     })
 
-    it('wraps around when offset exceeds pool length', async () => {
+    it('stops at pool length without wraparound within slice', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
         getTopTracksMock.mockResolvedValue([
             { artist: 'A1', title: 'S1', playCount: 1 },
             { artist: 'A2', title: 'S2', playCount: 2 },
+            { artist: 'A3', title: 'S3', playCount: 3 },
+            { artist: 'A4', title: 'S4', playCount: 4 },
         ])
 
         await getLastFmSeedTracks('user-wrap')
 
         advanceLastFmSeedOffset('user-wrap')
-        advanceLastFmSeedOffset('user-wrap')
 
         const slice = getLastFmSeedSlice('user-wrap', 3)
 
         expect(slice).toHaveLength(3)
-        expect(slice[0]).toEqual({ artist: 'A1', title: 'S1' })
-        expect(slice[1]).toEqual({ artist: 'A2', title: 'S2' })
-        expect(slice[2]).toEqual({ artist: 'A1', title: 'S1' })
+        expect(slice[0]).toEqual({ artist: 'A2', title: 'S2' })
+        expect(slice[1]).toEqual({ artist: 'A3', title: 'S3' })
+        expect(slice[2]).toEqual({ artist: 'A4', title: 'S4' })
     })
 
-    it('returns slice of exactly requested count, wrapping when needed', async () => {
+    it('returns at most min(count, tracks.length) items without wraparound', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
         getTopTracksMock.mockResolvedValue([
             { artist: 'A1', title: 'S1', playCount: 1 },
@@ -205,12 +207,9 @@ describe('getLastFmSeedSlice', () => {
 
         const slice = getLastFmSeedSlice('user-short', 5)
 
-        expect(slice).toHaveLength(5)
+        expect(slice).toHaveLength(2)
         expect(slice[0]).toEqual({ artist: 'A1', title: 'S1' })
         expect(slice[1]).toEqual({ artist: 'A2', title: 'S2' })
-        expect(slice[2]).toEqual({ artist: 'A1', title: 'S1' })
-        expect(slice[3]).toEqual({ artist: 'A2', title: 'S2' })
-        expect(slice[4]).toEqual({ artist: 'A1', title: 'S1' })
     })
 
     it('uses default LASTFM_SEED_COUNT when count not specified', async () => {
@@ -331,5 +330,92 @@ describe('getLastFmCacheOffset', () => {
 
         const offsetAfter = getLastFmCacheOffset('user-track-offset')
         expect(offsetAfter).toBe(LASTFM_SEED_COUNT)
+    })
+})
+
+describe('consumeLastFmSeedSlice', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        getRecentTracksMock.mockResolvedValue([])
+    })
+
+    afterEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('loads cache, returns slice, and advances offset atomically', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'A1', title: 'S1', playCount: 1 },
+            { artist: 'A2', title: 'S2', playCount: 2 },
+            { artist: 'A3', title: 'S3', playCount: 3 },
+            { artist: 'A4', title: 'S4', playCount: 4 },
+            { artist: 'A5', title: 'S5', playCount: 5 },
+        ])
+
+        const slice = await consumeLastFmSeedSlice('user-consume', 3)
+
+        expect(slice).toHaveLength(3)
+        expect(slice[0]).toEqual({ artist: 'A1', title: 'S1' })
+        expect(slice[1]).toEqual({ artist: 'A2', title: 'S2' })
+        expect(slice[2]).toEqual({ artist: 'A3', title: 'S3' })
+        expect(getLastFmCacheOffset('user-consume')).toBe(3)
+    })
+
+    it('returns empty array when no cache entry exists', async () => {
+        const slice = await consumeLastFmSeedSlice('unknown-user', 3)
+
+        expect(slice).toEqual([])
+    })
+
+    it('returns at most pool length without wraparound', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'A1', title: 'S1', playCount: 1 },
+            { artist: 'A2', title: 'S2', playCount: 2 },
+        ])
+
+        const slice = await consumeLastFmSeedSlice('user-short-consume', 5)
+
+        expect(slice).toHaveLength(2)
+        expect(slice[0]).toEqual({ artist: 'A1', title: 'S1' })
+        expect(slice[1]).toEqual({ artist: 'A2', title: 'S2' })
+    })
+
+    it('handles concurrent calls with per-user locking', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'A1', title: 'S1', playCount: 1 },
+            { artist: 'A2', title: 'S2', playCount: 2 },
+            { artist: 'A3', title: 'S3', playCount: 3 },
+            { artist: 'A4', title: 'S4', playCount: 4 },
+            { artist: 'A5', title: 'S5', playCount: 5 },
+        ])
+
+        const promise1 = consumeLastFmSeedSlice('user-lock-test', 2)
+        const promise2 = consumeLastFmSeedSlice('user-lock-test', 2)
+
+        const slice1 = await promise1
+        const slice2 = await promise2
+
+        expect(slice1).toHaveLength(2)
+        expect(slice2).toHaveLength(2)
+        expect(slice1[0]).toEqual({ artist: 'A1', title: 'S1' })
+        expect(slice2[0]).toEqual({ artist: 'A3', title: 'S3' })
+    })
+
+    it('uses default LASTFM_SEED_COUNT when count not specified', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'A1', title: 'S1', playCount: 1 },
+            { artist: 'A2', title: 'S2', playCount: 2 },
+            { artist: 'A3', title: 'S3', playCount: 3 },
+            { artist: 'A4', title: 'S4', playCount: 4 },
+            { artist: 'A5', title: 'S5', playCount: 5 },
+        ])
+
+        const slice = await consumeLastFmSeedSlice('user-default-consume')
+
+        expect(slice).toHaveLength(LASTFM_SEED_COUNT)
     })
 })
