@@ -47,12 +47,16 @@ jest.mock('@lucky/shared/utils', () => ({
 
 const getTrackHistoryMock = jest.fn()
 const addTrackToHistoryMock = jest.fn().mockResolvedValue(true)
+const getGuildSettingsMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: (...args: unknown[]) => getTrackHistoryMock(...args),
         addTrackToHistory: (...args: unknown[]) =>
             addTrackToHistoryMock(...args),
+    },
+    guildSettingsService: {
+        getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
     },
 }))
 
@@ -124,6 +128,7 @@ describe('queueManipulation.replenishQueue', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
     async function replenishWithSingleCandidate(options: {
@@ -1714,6 +1719,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
     it('applies query modifiers based on replenish counter', async () => {
@@ -1801,6 +1807,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
     it('uses multiple fallback queries when primary candidates empty', async () => {
@@ -1839,6 +1846,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
     it('applies jitter to candidate scores and maintains top candidate', async () => {
@@ -1895,6 +1903,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
         addTrackToHistoryMock.mockResolvedValue(true)
     })
 

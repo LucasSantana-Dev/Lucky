@@ -428,33 +428,32 @@ export default new Command({
         }
 
         try {
-            if (!queue) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createErrorEmbed(
-                                'No Active Queue',
-                                'No music is currently playing.',
-                            ),
-                        ],
-                        ephemeral: true,
-                    },
-                })
-                return
-            }
-
             const subcommand = interaction.options.getSubcommand()
 
             switch (subcommand) {
                 case 'skip':
-                    await handleSkipAutoplayTrack(interaction, queue)
-                    break
                 case 'clear':
-                    await handleClearAutoplayTracks(interaction, queue)
-                    break
                 case 'status':
-                    await handleAutoplayStatus(interaction, queue)
+                    if (!queue) {
+                        await interactionReply({
+                            interaction,
+                            content: {
+                                embeds: [
+                                    createErrorEmbed(
+                                        'No Active Queue',
+                                        'No music is currently playing.',
+                                    ),
+                                ],
+                                ephemeral: true,
+                            },
+                        })
+                        return
+                    }
+                    if (subcommand === 'skip')
+                        await handleSkipAutoplayTrack(interaction, queue)
+                    else if (subcommand === 'clear')
+                        await handleClearAutoplayTracks(interaction, queue)
+                    else await handleAutoplayStatus(interaction, queue)
                     break
                 case 'analytics':
                     await handleAutoplayAnalytics(interaction)
