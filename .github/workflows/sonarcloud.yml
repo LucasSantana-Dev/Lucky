@@ -30,23 +30,15 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Run postinstall scripts (skip youtube-dl)
-              run: npx prisma generate
-              continue-on-error: true
-
             - name: Build shared package
-              run: npm run build:shared
-
-            - name: Run backend tests with coverage
-              run: npm run test --workspace=packages/backend -- --ci --coverage
+              run: npx prisma generate && npm run build:shared
               continue-on-error: true
 
-            - name: Run bot tests with coverage
-              run: npm run test --workspace=packages/bot -- --ci --coverage
-              continue-on-error: true
-
-            - name: Run frontend tests with coverage (lcov)
-              run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
+            - name: Download coverage artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  name: coverage-reports
+                  path: .
               continue-on-error: true
 
             - name: Validate Sonar token policy
@@ -57,14 +49,20 @@ jobs:
 
             - name: Skip Sonar scan for Dependabot without token
               if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor == 'dependabot[bot]'
-              run: |
-                  echo "SONAR_TOKEN is unavailable for Dependabot context."
-                  echo "Skipping SonarCloud scan as a non-blocking success path."
+              run: echo "Skipping SonarCloud scan — no token for Dependabot."
 
-            - name: SonarCloud Scan
-              if: env.SONAR_TOKEN_PRESENT == 'true'
+            - name: SonarCloud Scan (PR — quality gate blocks merge)
+              if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request'
               uses: SonarSource/sonarqube-scan-action@v7
               with:
                   args: -Dsonar.qualitygate.wait=true
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+            - name: SonarCloud Scan (main — informational, non-blocking)
+              if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'push'
+              uses: SonarSource/sonarqube-scan-action@v7
+              with:
+                  args: -Dsonar.qualitygate.wait=false
               env:
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

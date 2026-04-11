@@ -27,19 +27,11 @@ replit.md
 .agent-skills/
 attached_assets/
 
-# IDE
+# IDE — private configs stay in their own repos
 .vscode
-.cursor/*
-!.cursor/hooks.json
-!.cursor/hooks/
-!.cursor/hooks/*.sh
-!.cursor/rules/
-!.cursor/rules/**
-!.cursor/skills/
-!.cursor/skills/**
-!.cursor/COMMANDS.md
-.cursor/hooks.log
+.cursor/
 .cursorignore
+.serena/
 .idea/
 *.swp
 *.swo
