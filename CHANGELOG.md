@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.80] - 2026-04-10
+
+### Fixed
+
+- **Extractor errors now visible** — `DefaultExtractors.loadMulti()` and `initPlayDlAndRegisterYoutubei()` were `void`-called, silently swallowing load errors. Errors now surface via `errorLog`.
+- **Dynamic Node.js path for yt-dlp** — replaced hardcoded `/usr/local/bin/node` with `process.execPath` so the correct runtime is detected on all deployments.
+- **Stream race condition** — added `settled` guard in `streamViaYtDlp` so `close` firing before `data` cannot double-settle the promise.
+- **YouTube recovery timeout** — `queue.player.search()` in stream recovery now has a 10s `Promise.race` timeout; a hung YouTube API no longer blocks the player indefinitely.
+
 ## [2.6.79] - 2026-04-10
 
 ### Fixed
