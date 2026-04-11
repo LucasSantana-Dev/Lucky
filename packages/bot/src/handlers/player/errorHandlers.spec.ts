@@ -531,6 +531,48 @@ describe('setupErrorHandlers', () => {
         )
     })
 
+    it('logs Discord notification failures during stream recovery', async () => {
+        const { queueHandlers } = createPlayerWithHandlers()
+        providerFromTrackMock.mockReturnValue('youtube')
+        analyzeYouTubeErrorMock.mockReturnValue({ isParserError: false })
+
+        const sendError = new Error('missing access')
+        const queue = {
+            guild: { id: 'guild-notify-fail', name: 'Guild Notify Fail' },
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                channel: {
+                    id: 'ch-1',
+                    send: jest.fn().mockRejectedValue(sendError),
+                },
+            },
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Unavailable Song',
+                requestedBy: { id: 'user-1' },
+            },
+            player: { search: jest.fn().mockResolvedValue({ tracks: [] }) },
+            insertTrack: jest.fn(),
+            node: { skip: jest.fn() },
+        }
+
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('Could not extract stream'),
+        )
+        await flushPromises()
+
+        expect(debugLogMock).toHaveBeenCalledWith({
+            message: 'Failed to notify channel about stream failure',
+            error: sendError,
+            data: {
+                guildId: 'guild-notify-fail',
+                trackTitle: 'Unavailable Song',
+            },
+        })
+        expect(queue.node.skip).toHaveBeenCalled()
+    })
+
     it('sends Discord error embed when no requestedBy user', async () => {
         const { queueHandlers } = createPlayerWithHandlers()
         providerFromTrackMock.mockReturnValue('youtube')
