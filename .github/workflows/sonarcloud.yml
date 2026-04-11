@@ -34,11 +34,16 @@ jobs:
               run: npx prisma generate && npm run build:shared
               continue-on-error: true
 
-            - name: Download coverage artifacts
-              uses: actions/download-artifact@v4
-              with:
-                  name: coverage-reports
-                  path: .
+            - name: Run backend tests with coverage
+              run: npm run test --workspace=packages/backend -- --ci --coverage
+              continue-on-error: true
+
+            - name: Run bot tests with coverage
+              run: npm run test --workspace=packages/bot -- --ci --coverage
+              continue-on-error: true
+
+            - name: Run frontend tests with coverage (lcov)
+              run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
               continue-on-error: true
 
             - name: Validate Sonar token policy
