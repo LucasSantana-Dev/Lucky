@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { guildSettingsService } from '@lucky/shared/services'
+import { guildSettingsService, lastFmLinkService } from '@lucky/shared/services'
 import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
 import {
     createEmbed,
@@ -16,6 +16,7 @@ import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { trackHistoryService } from '@lucky/shared/services'
 import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
+import type { QueueMetadata } from '../../../types/QueueMetadata'
 
 function isAutoplayTrack(track: any): boolean {
     return (track?.metadata as any)?.isAutoplay === true
@@ -154,9 +155,29 @@ async function handleAutoplayStatus(
         }
     }
 
+    let descriptionLines = [
+        `**Autoplay tracks queued:** ${autoplayCount}`,
+        '**Last.fm integration:** Connected',
+    ]
+
+    const metadata = queue.metadata as QueueMetadata
+    const vcMemberIds = metadata?.vcMemberIds ?? []
+    if (vcMemberIds.length > 1) {
+        const linkedUsers = await Promise.all(
+            vcMemberIds.map(async (id) => {
+                const link = await lastFmLinkService.getByDiscordId(id)
+                return link?.lastFmUsername ? id : null
+            }),
+        )
+        const linkedCount = linkedUsers.filter((id) => id !== null).length
+        if (linkedCount > 1) {
+            descriptionLines.push(`🎭 Blending taste for ${linkedCount} users`)
+        }
+    }
+
     const statusEmbed = createEmbed({
         title: '📊 Autoplay Status',
-        description: `**Autoplay tracks queued:** ${autoplayCount}\n**Last.fm integration:** Connected`,
+        description: descriptionLines.join('\n'),
         color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
         emoji: EMOJIS.AUTOPLAY,
         timestamp: true,

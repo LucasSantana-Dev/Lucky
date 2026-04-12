@@ -11,8 +11,9 @@ import { recommendationFeedbackService } from '../../services/musicRecommendatio
 import {
     trackHistoryService,
     guildSettingsService,
+    lastFmLinkService,
 } from '@lucky/shared/services'
-import { consumeLastFmSeedSlice } from './autoplay/lastFmSeeds'
+import { consumeLastFmSeedSlice, consumeBlendedSeedSlice } from './autoplay/lastFmSeeds'
 import { getSimilarTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
@@ -663,10 +664,41 @@ async function collectLastFmCandidates(
     candidates: Map<string, ScoredTrack>,
     autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
 ): Promise<void> {
-    const seedSlice = await consumeLastFmSeedSlice(
-        requestedBy.id,
-        LASTFM_SEED_COUNT,
-    )
+    const metadata = queue.metadata as QueueMetadata
+    const vcMemberIds = metadata?.vcMemberIds ?? []
+
+    const otherUserIds = vcMemberIds.filter((id) => id !== requestedBy.id)
+
+    let seedSlice: { artist: string; title: string }[] = []
+    if (otherUserIds.length > 0) {
+        const linkedUsers = await Promise.all(
+            [requestedBy.id, ...otherUserIds].map(async (id) => {
+                const link = await lastFmLinkService.getByDiscordId(id)
+                return link?.lastFmUsername ? id : null
+            }),
+        )
+        const linkedUserIds = linkedUsers.filter(
+            (id) => id !== null,
+        ) as string[]
+
+        if (linkedUserIds.length > 1) {
+            seedSlice = await consumeBlendedSeedSlice(
+                linkedUserIds,
+                LASTFM_SEED_COUNT,
+            )
+        } else if (linkedUserIds.length === 1) {
+            seedSlice = await consumeLastFmSeedSlice(
+                linkedUserIds[0],
+                LASTFM_SEED_COUNT,
+            )
+        }
+    } else {
+        seedSlice = await consumeLastFmSeedSlice(
+            requestedBy.id,
+            LASTFM_SEED_COUNT,
+        )
+    }
+
     if (seedSlice.length === 0) return
 
     // Search for each seed via track search
