@@ -1,7 +1,9 @@
 import { redisClient } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
+import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 
 export type RecommendationFeedback = 'like' | 'dislike'
+export type ArtistFeedback = 'prefer' | 'block'
 
 type FeedbackEntry = {
     feedback: RecommendationFeedback
@@ -169,6 +171,134 @@ export class RecommendationFeedbackService {
         }
 
         return { liked, disliked }
+    }
+
+    private getArtistFeedbackRedisKey(userId: string): string {
+        return `music:artist_feedback:${userId}`
+    }
+
+    private async getArtistFeedbackMap(
+        userId: string,
+    ): Promise<Record<string, ArtistFeedback>> {
+        const key = this.getArtistFeedbackRedisKey(userId)
+        try {
+            const value = await redisClient.get(key)
+            if (!value) return {}
+            const parsed = JSON.parse(value) as Record<string, ArtistFeedback>
+            return parsed && typeof parsed === 'object' ? parsed : {}
+        } catch (error) {
+            errorLog({
+                message: 'Failed to load artist feedback map',
+                error,
+            })
+            return {}
+        }
+    }
+
+    private async saveArtistFeedbackMap(
+        userId: string,
+        map: Record<string, ArtistFeedback>,
+    ): Promise<void> {
+        const key = this.getArtistFeedbackRedisKey(userId)
+        const ttlSeconds = this.ttlDays * 24 * 60 * 60
+
+        await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
+    }
+
+    private normalizeArtistKey(artistName: string): string {
+        const cleaned = cleanAuthor(artistName)
+        return cleaned
+            .toLowerCase()
+            .replaceAll(/[^a-z0-9]+/g, '')
+            .trim()
+    }
+
+    async setArtistFeedback(
+        guildId: string,
+        userId: string,
+        artistName: string,
+        feedback: ArtistFeedback,
+    ): Promise<void> {
+        try {
+            const artistKey = this.normalizeArtistKey(artistName)
+            if (!artistKey) return
+
+            const map = await this.getArtistFeedbackMap(userId)
+            map[artistKey] = feedback
+            await this.saveArtistFeedbackMap(userId, map)
+        } catch (error) {
+            errorLog({
+                message: 'Failed to store artist feedback',
+                error,
+                data: { guildId },
+            })
+        }
+    }
+
+    async removeArtistFeedback(
+        guildId: string,
+        userId: string,
+        artistName: string,
+    ): Promise<void> {
+        try {
+            const artistKey = this.normalizeArtistKey(artistName)
+            if (!artistKey) return
+
+            const map = await this.getArtistFeedbackMap(userId)
+            delete map[artistKey]
+            await this.saveArtistFeedbackMap(userId, map)
+        } catch (error) {
+            errorLog({
+                message: 'Failed to remove artist feedback',
+                error,
+                data: { guildId },
+            })
+        }
+    }
+
+    async getPreferredArtistKeys(
+        guildId: string,
+        userId: string | undefined,
+    ): Promise<Set<string>> {
+        if (!userId) return new Set<string>()
+
+        const map = await this.getArtistFeedbackMap(userId)
+        return new Set(
+            Object.entries(map)
+                .filter(([, feedback]) => feedback === 'prefer')
+                .map(([artistKey]) => artistKey),
+        )
+    }
+
+    async getBlockedArtistKeys(
+        guildId: string,
+        userId: string | undefined,
+    ): Promise<Set<string>> {
+        if (!userId) return new Set<string>()
+
+        const map = await this.getArtistFeedbackMap(userId)
+        return new Set(
+            Object.entries(map)
+                .filter(([, feedback]) => feedback === 'block')
+                .map(([artistKey]) => artistKey),
+        )
+    }
+
+    async getArtistFeedbackSummary(
+        userId: string | undefined,
+    ): Promise<{ preferred: string[]; blocked: string[] }> {
+        if (!userId) return { preferred: [], blocked: [] }
+
+        const map = await this.getArtistFeedbackMap(userId)
+        const preferred: string[] = []
+        const blocked: string[] = []
+
+        for (const [artistKey, feedback] of Object.entries(map)) {
+            if (feedback === 'prefer') preferred.push(artistKey)
+            else if (feedback === 'block') blocked.push(artistKey)
+        }
+
+        return { preferred, blocked }
     }
 }
 

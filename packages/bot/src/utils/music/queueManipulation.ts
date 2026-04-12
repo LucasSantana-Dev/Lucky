@@ -239,6 +239,8 @@ async function _replenishQueue(
         const [
             dislikedTrackKeys,
             likedTrackKeys,
+            preferredArtistKeys,
+            blockedArtistKeys,
             persistentHistory,
             guildSettings,
         ] = await Promise.all([
@@ -247,6 +249,14 @@ async function _replenishQueue(
                 requestedBy?.id,
             ),
             recommendationFeedbackService.getLikedTrackKeys(
+                queue.guild.id,
+                requestedBy?.id,
+            ),
+            recommendationFeedbackService.getPreferredArtistKeys(
+                queue.guild.id,
+                requestedBy?.id,
+            ),
+            recommendationFeedbackService.getBlockedArtistKeys(
                 queue.guild.id,
                 requestedBy?.id,
             ),
@@ -294,6 +304,8 @@ async function _replenishQueue(
             excludedKeys,
             dislikedTrackKeys,
             likedTrackKeys,
+            preferredArtistKeys,
+            blockedArtistKeys,
             currentTrack,
             recentArtists,
             replenishCount,
@@ -307,6 +319,8 @@ async function _replenishQueue(
                 excludedKeys,
                 dislikedTrackKeys,
                 likedTrackKeys,
+                preferredArtistKeys,
+                blockedArtistKeys,
                 currentTrack,
                 recentArtists,
                 candidates,
@@ -326,6 +340,8 @@ async function _replenishQueue(
                     currentTrack,
                     excludedUrls,
                     excludedKeys,
+                    preferredArtistKeys,
+                    blockedArtistKeys,
                     autoplayMode,
                 },
             )
@@ -339,6 +355,8 @@ async function _replenishQueue(
                 excludedKeys,
                 dislikedTrackKeys,
                 likedTrackKeys,
+                preferredArtistKeys,
+                blockedArtistKeys,
                 recentArtists,
                 candidates,
                 autoplayMode,
@@ -466,6 +484,8 @@ async function collectRecommendationCandidates(
     excludedKeys: Set<string>,
     dislikedTrackKeys: Set<string>,
     likedTrackKeys: Set<string>,
+    preferredArtistKeys: Set<string>,
+    blockedArtistKeys: Set<string>,
     currentTrack: Track,
     recentArtists: Set<string>,
     replenishCount = 0,
@@ -493,17 +513,18 @@ async function collectRecommendationCandidates(
             if (dislikedTrackKeys.has(normalizedKey)) {
                 continue
             }
-            upsertScoredCandidate(
-                candidates,
+            const rec = calculateRecommendationScore(
                 candidate,
-                calculateRecommendationScore(
-                    candidate,
-                    currentTrack,
-                    recentArtists,
-                    likedTrackKeys,
-                    autoplayMode,
-                ),
+                currentTrack,
+                recentArtists,
+                likedTrackKeys,
+                preferredArtistKeys,
+                blockedArtistKeys,
+                autoplayMode,
             )
+            if (rec.score !== -Infinity) {
+                upsertScoredCandidate(candidates, candidate, rec)
+            }
         }
     }
 
@@ -564,6 +585,8 @@ async function collectBroadFallbackCandidates(
     excludedKeys: Set<string>,
     dislikedTrackKeys: Set<string>,
     likedTrackKeys: Set<string>,
+    preferredArtistKeys: Set<string>,
+    blockedArtistKeys: Set<string>,
     recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
     autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
@@ -598,8 +621,11 @@ async function collectBroadFallbackCandidates(
                     currentTrack,
                     recentArtists,
                     likedTrackKeys,
+                    preferredArtistKeys,
+                    blockedArtistKeys,
                     autoplayMode,
                 )
+                if (rec.score === -Infinity) continue
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
                     reason: rec.reason
@@ -649,6 +675,8 @@ async function collectLastFmCandidates(
     excludedKeys: Set<string>,
     dislikedTrackKeys: Set<string>,
     likedTrackKeys: Set<string>,
+    preferredArtistKeys: Set<string>,
+    blockedArtistKeys: Set<string>,
     currentTrack: Track,
     recentArtists: Set<string>,
     candidates: Map<string, ScoredTrack>,
@@ -674,8 +702,11 @@ async function collectLastFmCandidates(
                 currentTrack,
                 recentArtists,
                 likedTrackKeys,
+                preferredArtistKeys,
+                blockedArtistKeys,
                 autoplayMode,
             )
+            if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
                 score: rec.score + LASTFM_SCORE_BOOST,
                 reason: rec.reason
@@ -702,6 +733,8 @@ async function collectLastFmCandidates(
                     currentTrack,
                     recentArtists,
                     likedTrackKeys,
+                    preferredArtistKeys,
+                    blockedArtistKeys,
                     autoplayMode,
                 )
                 upsertScoredCandidate(candidates, track, {
@@ -759,6 +792,8 @@ interface CandidateContext {
     currentTrack: Track
     excludedUrls: Set<string>
     excludedKeys: Set<string>
+    preferredArtistKeys: Set<string>
+    blockedArtistKeys: Set<string>
     autoplayMode: 'similar' | 'discover' | 'popular'
 }
 
@@ -776,6 +811,8 @@ function addGenreTrackCandidate(
         ctx.currentTrack,
         ctx.recentArtists,
         ctx.likedTrackKeys,
+        ctx.preferredArtistKeys,
+        ctx.blockedArtistKeys,
         ctx.autoplayMode,
     )
     upsertScoredCandidate(ctx.candidates, track, {
@@ -1035,12 +1072,25 @@ function calculateRecommendationScore(
     currentTrack: Track,
     recentArtists: Set<string>,
     likedTrackKeys: Set<string> = new Set(),
+    preferredArtistKeys: Set<string> = new Set(),
+    blockedArtistKeys: Set<string> = new Set(),
     autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
 ): { score: number; reason: string } {
-    let score = 1
-    const reasons: string[] = []
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
+    const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
+
+    if (blockedArtistKeys.has(candidateArtistKey)) {
+        return { score: -Infinity, reason: 'blocked artist' }
+    }
+
+    let score = 1
+    const reasons: string[] = []
+
+    if (preferredArtistKeys.has(candidateArtistKey)) {
+        score += 0.3
+        reasons.push('preferred artist')
+    }
 
     const candidateKey = normalizeTrackKey(candidate.title, candidate.author)
     if (likedTrackKeys.has(candidateKey)) {
