@@ -373,29 +373,40 @@ export class RecommendationFeedbackService {
         }
     }
 
-    private async getImplicitKeysByType(
-        userId: string,
-        type: 'implicit_dislike' | 'implicit_like',
-    ): Promise<Set<string>> {
+    async getImplicitDislikeKeys(userId: string): Promise<Set<string>> {
         try {
             const map = await this.getImplicitFeedbackMap(userId)
             return new Set(
                 Object.entries(map)
-                    .filter(([, entry]) => entry.type === type)
+                    .filter(([, entry]) => entry.type === 'implicit_dislike')
                     .map(([trackKey]) => trackKey),
             )
         } catch (error) {
-            errorLog({ message: `Failed to get ${type} keys`, error, data: { userId } })
+            errorLog({
+                message: 'Failed to get implicit dislike keys',
+                error,
+                data: { userId },
+            })
             return new Set<string>()
         }
     }
 
-    async getImplicitDislikeKeys(userId: string): Promise<Set<string>> {
-        return this.getImplicitKeysByType(userId, 'implicit_dislike')
-    }
-
     async getImplicitLikeKeys(userId: string): Promise<Set<string>> {
-        return this.getImplicitKeysByType(userId, 'implicit_like')
+        try {
+            const map = await this.getImplicitFeedbackMap(userId)
+            return new Set(
+                Object.entries(map)
+                    .filter(([, entry]) => entry.type === 'implicit_like')
+                    .map(([trackKey]) => trackKey),
+            )
+        } catch (error) {
+            errorLog({
+                message: 'Failed to get implicit like keys',
+                error,
+                data: { userId },
+            })
+            return new Set<string>()
+        }
     }
 }
 

@@ -63,36 +63,6 @@ function normalizeTrackKeyForFeedback(title: string, author: string): string {
     return `${normalizedTitle}::${normalizedAuthor}`
 }
 
-async function recordPlayBehavior(
-    guildId: string,
-    track: Track | undefined,
-    requestedById: string | undefined,
-    minDurationMs: number,
-    ratioThreshold: number,
-    feedbackType: 'implicit_like' | 'implicit_dislike',
-): Promise<void> {
-    if (!track || !requestedById) return
-    const startTime = guildTrackStartTimes.get(guildId)
-    if (!startTime || !track.durationMS || track.durationMS < minDurationMs) {
-        guildTrackStartTimes.delete(guildId)
-        return
-    }
-    const playedMs = Date.now() - startTime
-    const ratio = playedMs / track.durationMS
-    guildTrackStartTimes.delete(guildId)
-    const shouldRecord =
-        (feedbackType === 'implicit_like' && ratio > ratioThreshold) ||
-        (feedbackType === 'implicit_dislike' && ratio < ratioThreshold)
-    if (shouldRecord) {
-        const trackKey = normalizeTrackKeyForFeedback(track.title, track.author)
-        await recommendationFeedbackService.recordImplicitFeedback(
-            requestedById,
-            trackKey,
-            feedbackType,
-        )
-    }
-}
-
 function evictOldEntries(): void {
     if (lastPlayedTracks.size > MAX_GUILD_ENTRIES) {
         const oldest = lastPlayedTracks.keys().next().value
@@ -265,17 +235,27 @@ const handlePlayerFinish = async (
         await scrobbleAndRecord(queue, track)
 
         if (track) {
-            const requesterId = track.requestedBy?.id
-                ?? (track.metadata as { requestedById?: string } | undefined)
-                    ?.requestedById
-            await recordPlayBehavior(
-                queue.guild.id,
-                track,
-                requesterId,
-                0,
-                0.8,
-                'implicit_like',
-            )
+            const startTime = guildTrackStartTimes.get(queue.guild.id)
+            if (startTime && track.durationMS) {
+                const playedMs = Date.now() - startTime
+                const completionRatio = playedMs / track.durationMS
+                const requesterId = track.requestedBy?.id
+                    ?? (track.metadata as { requestedById?: string } | undefined)
+                        ?.requestedById
+
+                if (completionRatio > 0.8 && requesterId) {
+                    const trackKey = normalizeTrackKeyForFeedback(
+                        track.title,
+                        track.author,
+                    )
+                    await recommendationFeedbackService.recordImplicitFeedback(
+                        requesterId,
+                        trackKey,
+                        'implicit_like',
+                    )
+                }
+            }
+            guildTrackStartTimes.delete(queue.guild.id)
         }
 
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
@@ -312,17 +292,27 @@ const handlePlayerSkip = async (
         await scrobbleAndRecord(queue, track)
 
         if (track) {
-            const requesterId = track.requestedBy?.id
-                ?? (track.metadata as { requestedById?: string } | undefined)
-                    ?.requestedById
-            await recordPlayBehavior(
-                queue.guild.id,
-                track,
-                requesterId,
-                20_000,
-                0.3,
-                'implicit_dislike',
-            )
+            const startTime = guildTrackStartTimes.get(queue.guild.id)
+            if (startTime && track.durationMS && track.durationMS > 20_000) {
+                const playedMs = Date.now() - startTime
+                const skipRatio = playedMs / track.durationMS
+                const requesterId = track.requestedBy?.id
+                    ?? (track.metadata as { requestedById?: string } | undefined)
+                        ?.requestedById
+
+                if (skipRatio < 0.3 && requesterId) {
+                    const trackKey = normalizeTrackKeyForFeedback(
+                        track.title,
+                        track.author,
+                    )
+                    await recommendationFeedbackService.recordImplicitFeedback(
+                        requesterId,
+                        trackKey,
+                        'implicit_dislike',
+                    )
+                }
+            }
+            guildTrackStartTimes.delete(queue.guild.id)
         }
 
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
