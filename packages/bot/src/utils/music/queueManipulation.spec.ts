@@ -1900,6 +1900,8 @@ describe('queueManipulation.replenishQueue query variation', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -1989,6 +1991,8 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -2029,6 +2033,8 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -2087,6 +2093,8 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
