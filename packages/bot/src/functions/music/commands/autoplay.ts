@@ -513,12 +513,16 @@ async function handleAutoplayArtist(
 
                 const preferredText =
                     summary.preferred.length > 0
-                        ? summary.preferred.map((a: string) => `⭐ ${a}`).join('\n')
+                        ? summary.preferred
+                              .map((a: string) => `⭐ ${a}`)
+                              .join('\n')
                         : 'No preferred artists.'
 
                 const blockedText =
                     summary.blocked.length > 0
-                        ? summary.blocked.map((a: string) => `🚫 ${a}`).join('\n')
+                        ? summary.blocked
+                              .map((a: string) => `🚫 ${a}`)
+                              .join('\n')
                         : 'No blocked artists.'
 
                 const listEmbed = createEmbed({
@@ -658,7 +662,9 @@ export default new Command({
                 .addSubcommand((subcommand) =>
                     subcommand
                         .setName('list')
-                        .setDescription('Show your preferred and blocked artists'),
+                        .setDescription(
+                            'Show your preferred and blocked artists',
+                        ),
                 )
                 .addSubcommand((subcommand) =>
                     subcommand
@@ -692,7 +698,14 @@ export default new Command({
         }
 
         try {
-            const subcommand = interaction.options.getSubcommand()
+            const subcommandGroup =
+                interaction.options.getSubcommandGroup(false)
+            const subcommand = interaction.options.getSubcommand(false)
+
+            if (subcommandGroup === 'artist') {
+                await handleAutoplayArtist(interaction)
+                return
+            }
 
             switch (subcommand) {
                 case 'skip':
@@ -724,9 +737,6 @@ export default new Command({
                     break
                 case 'mode':
                     await handleAutoplayMode(interaction)
-                    break
-                case 'artist':
-                    await handleAutoplayArtist(interaction)
                     break
                 default:
                     await interactionReply({
