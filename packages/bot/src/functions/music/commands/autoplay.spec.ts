@@ -49,6 +49,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 const getGuildSettingsMock = jest.fn()
 const updateGuildSettingsMock = jest.fn()
+const getLastFmLinkMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
@@ -59,6 +60,9 @@ jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getAutoplayStats: (...args: unknown[]) =>
             trackHistoryServiceMock(...args),
+    },
+    lastFmLinkService: {
+        getByDiscordId: (...args: unknown[]) => getLastFmLinkMock(...args),
     },
 }))
 
@@ -94,10 +98,11 @@ function createInteraction(
     return interaction as any
 }
 
-function createQueue() {
+function createQueue(metadata: Record<string, unknown> = {}) {
     return {
         guild: { id: 'guild-1' },
         currentTrack: { title: 'Current Song' },
+        metadata,
         tracks: {
             size: 3,
             at: jest.fn((index: number) => {
@@ -131,6 +136,7 @@ describe('autoplay command', () => {
         jest.clearAllMocks()
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
         updateGuildSettingsMock.mockResolvedValue(true)
+        getLastFmLinkMock.mockResolvedValue(null)
     })
 
     describe('structure', () => {
@@ -231,6 +237,42 @@ describe('autoplay command', () => {
             const embed = createEmbedMock.mock.calls[0][0]
             expect(embed.title).toContain('Status')
             expect(interactionReplyMock).toHaveBeenCalled()
+        })
+
+        it('should show blend info when multiple vc members have last.fm', async () => {
+            getLastFmLinkMock.mockResolvedValue({ lastFmUsername: 'user' })
+            const interaction = createInteraction('status')
+            const queue = createQueue({ vcMemberIds: ['user-1', 'user-2'] })
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.stringContaining('Blending taste'),
+                }),
+            )
+        })
+
+        it('should not show blend when only one member has last.fm', async () => {
+            getLastFmLinkMock
+                .mockResolvedValueOnce({ lastFmUsername: 'user1' })
+                .mockResolvedValueOnce(null)
+            const interaction = createInteraction('status')
+            const queue = createQueue({ vcMemberIds: ['user-1', 'user-2'] })
+            const client = createClient()
+
+            resolveGuildQueueMock.mockReturnValue({ queue })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.not.stringContaining('Blending taste'),
+                }),
+            )
         })
     })
 
