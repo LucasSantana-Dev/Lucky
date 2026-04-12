@@ -317,7 +317,13 @@ async function _replenishQueue(
             replenishCount,
             autoplayMode,
         )
+        debugLog({
+            message: 'Autoplay: recommendation candidates',
+            data: { guildId, count: candidates.size, source: 'recommendation' },
+        })
+
         if (requestedBy?.id) {
+            const beforeLastFm = candidates.size
             await collectLastFmCandidates(
                 queue,
                 requestedBy,
@@ -332,8 +338,18 @@ async function _replenishQueue(
                 candidates,
                 autoplayMode,
             )
+            debugLog({
+                message: 'Autoplay: last.fm candidates',
+                data: {
+                    guildId,
+                    added: candidates.size - beforeLastFm,
+                    total: candidates.size,
+                    source: 'lastfm',
+                },
+            })
         }
         if (requestedBy && guildSettings?.autoplayGenres?.length) {
+            const beforeGenre = candidates.size
             await collectGenreCandidates(
                 queue,
                 guildSettings.autoplayGenres,
@@ -351,6 +367,16 @@ async function _replenishQueue(
                     autoplayMode,
                 },
             )
+            debugLog({
+                message: 'Autoplay: genre candidates',
+                data: {
+                    guildId,
+                    added: candidates.size - beforeGenre,
+                    total: candidates.size,
+                    genres: guildSettings.autoplayGenres,
+                    source: 'genre',
+                },
+            })
         }
         if (candidates.size === 0 && currentTrack) {
             await collectBroadFallbackCandidates(
@@ -367,6 +393,10 @@ async function _replenishQueue(
                 candidates,
                 autoplayMode,
             )
+            debugLog({
+                message: 'Autoplay: broad fallback candidates',
+                data: { guildId, count: candidates.size, source: 'fallback' },
+            })
         }
 
         debugLog({
