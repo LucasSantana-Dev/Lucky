@@ -234,7 +234,8 @@ async function _replenishQueue(
         const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
         if (missingTracks <= 0) return
 
-        const historyTracks = getHistoryTracks(queue)
+        const allHistoryTracks = getAllHistoryTracks(queue)
+        const historyTracks = allHistoryTracks.slice(0, HISTORY_SEED_LIMIT)
         const seedTracks = [currentTrack, ...historyTracks].slice(
             0,
             HISTORY_SEED_LIMIT + 1,
@@ -278,13 +279,13 @@ async function _replenishQueue(
         const excludedUrls = buildExcludedUrls(
             queue,
             currentTrack,
-            historyTracks,
+            allHistoryTracks,
             persistentHistory,
         )
         const excludedKeys = buildExcludedKeys(
             queue,
             currentTrack,
-            historyTracks,
+            allHistoryTracks,
             persistentHistory,
         )
         debugLog({
@@ -293,7 +294,8 @@ async function _replenishQueue(
                 guildId: queue.guild.id,
                 excludedUrlCount: excludedUrls.size,
                 excludedKeyCount: excludedKeys.size,
-                historyTracks: historyTracks.length,
+                queueHistoryTracks: allHistoryTracks.length,
+                seedHistoryTracks: historyTracks.length,
                 persistentHistory: persistentHistory.length,
             },
         })
@@ -315,7 +317,13 @@ async function _replenishQueue(
             replenishCount,
             autoplayMode,
         )
+        debugLog({
+            message: 'Autoplay: recommendation candidates',
+            data: { guildId, count: candidates.size, source: 'recommendation' },
+        })
+
         if (requestedBy?.id) {
+            const beforeLastFm = candidates.size
             await collectLastFmCandidates(
                 queue,
                 requestedBy,
@@ -330,8 +338,18 @@ async function _replenishQueue(
                 candidates,
                 autoplayMode,
             )
+            debugLog({
+                message: 'Autoplay: last.fm candidates',
+                data: {
+                    guildId,
+                    added: candidates.size - beforeLastFm,
+                    total: candidates.size,
+                    source: 'lastfm',
+                },
+            })
         }
         if (requestedBy && guildSettings?.autoplayGenres?.length) {
+            const beforeGenre = candidates.size
             await collectGenreCandidates(
                 queue,
                 guildSettings.autoplayGenres,
@@ -349,6 +367,16 @@ async function _replenishQueue(
                     autoplayMode,
                 },
             )
+            debugLog({
+                message: 'Autoplay: genre candidates',
+                data: {
+                    guildId,
+                    added: candidates.size - beforeGenre,
+                    total: candidates.size,
+                    genres: guildSettings.autoplayGenres,
+                    source: 'genre',
+                },
+            })
         }
         if (candidates.size === 0 && currentTrack) {
             await collectBroadFallbackCandidates(
@@ -365,9 +393,47 @@ async function _replenishQueue(
                 candidates,
                 autoplayMode,
             )
+            debugLog({
+                message: 'Autoplay: broad fallback candidates',
+                data: { guildId, count: candidates.size, source: 'fallback' },
+            })
         }
 
+        debugLog({
+            message: 'Autoplay: candidate pool ready',
+            data: {
+                guildId: queue.guild.id,
+                candidateCount: candidates.size,
+                missingTracks,
+                autoplayMode,
+                currentTrack: currentTrack.title,
+            },
+        })
+
         const selected = selectDiverseCandidates(candidates, missingTracks)
+
+        if (selected.length === 0) {
+            warnLog({
+                message: 'Autoplay: no candidates selected — queue may stall',
+                data: { guildId: queue.guild.id, candidatePoolSize: candidates.size },
+            })
+            replenishCounters.set(guildId, replenishCount + 1)
+            return
+        }
+
+        debugLog({
+            message: 'Autoplay: tracks selected for queue',
+            data: {
+                guildId: queue.guild.id,
+                tracks: selected.map((s) => ({
+                    title: s.track.title,
+                    author: s.track.author,
+                    score: s.score.toFixed(3),
+                    reason: s.reason,
+                    url: s.track.url,
+                })),
+            },
+        })
 
         await addSelectedTracks(
             queue,
@@ -380,14 +446,12 @@ async function _replenishQueue(
         // Increment replenish counter for next call's query variation
         replenishCounters.set(guildId, replenishCount + 1)
 
-        if (selected.length === 0) return
-
         debugLog({
-            message: 'Queue replenished successfully',
+            message: 'Autoplay: queue replenished successfully',
             data: {
                 guildId: queue.guild.id,
                 addedCount: selected.length,
-                queueSize: queue.tracks.size,
+                newQueueSize: queue.tracks.size,
             },
         })
     } catch (error) {
@@ -903,12 +967,12 @@ function selectDiverseCandidates(
 
         if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) continue
         if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) continue
-        if (titleKey && selectedTitleKeys.has(titleKey)) continue
+        if (selectedTitleKeys.has(titleKey || artistKey)) continue
 
         selected.push(candidate)
         artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1)
         sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
-        if (titleKey) selectedTitleKeys.add(titleKey)
+        selectedTitleKeys.add(titleKey || artistKey)
         if (selected.length >= missingTracks) {
             break
         }
@@ -1052,18 +1116,20 @@ export async function rescueQueue(
     }
 }
 
-function getHistoryTracks(queue: GuildQueue): Track[] {
+function getAllHistoryTracks(queue: GuildQueue): Track[] {
     const history = queue.history as
         | { tracks?: { toArray?: () => Track[]; data?: Track[] } }
         | undefined
 
     if (!history?.tracks) return []
     if (typeof history.tracks.toArray === 'function')
-        return history.tracks.toArray().slice(0, HISTORY_SEED_LIMIT)
-    if (Array.isArray(history.tracks.data))
-        return history.tracks.data.slice(0, HISTORY_SEED_LIMIT)
-
+        return history.tracks.toArray()
+    if (Array.isArray(history.tracks.data)) return history.tracks.data
     return []
+}
+
+function getHistoryTracks(queue: GuildQueue): Track[] {
+    return getAllHistoryTracks(queue).slice(0, HISTORY_SEED_LIMIT)
 }
 
 function normalizeTrackKey(title?: string, author?: string): string {

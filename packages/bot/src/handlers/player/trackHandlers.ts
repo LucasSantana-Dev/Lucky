@@ -237,7 +237,16 @@ const handlePlayerSkip = async (
     track?: Track,
 ): Promise<void> => {
     try {
-        debugLog({ message: 'Track skipped, checking queue...' })
+        infoLog({
+            message: 'Track skipped',
+            data: {
+                guildId: queue.guild.id,
+                skippedTrack: track?.title ?? 'unknown',
+                skippedUrl: track?.url ?? '',
+                queueSizeAfter: queue.tracks.size,
+                currentTrack: queue.currentTrack?.title ?? 'none',
+            },
+        })
         await scrobbleAndRecord(queue, track)
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
         await replenishIfAutoplay(queue, track)
