@@ -319,9 +319,7 @@ async function handleAutoplayGenreAdd(
         await interactionReply({
             interaction,
             content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to add genre.'),
-                ],
+                embeds: [createErrorEmbed('Error', 'Failed to add genre.')],
                 ephemeral: true,
             },
         })
@@ -382,9 +380,7 @@ async function handleAutoplayGenreRemove(
         await interactionReply({
             interaction,
             content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to remove genre.'),
-                ],
+                embeds: [createErrorEmbed('Error', 'Failed to remove genre.')],
                 ephemeral: true,
             },
         })
@@ -452,12 +448,7 @@ async function handleAutoplayGenreClear(
         await interactionReply({
             interaction,
             content: {
-                embeds: [
-                    createErrorEmbed(
-                        'No Genres',
-                        'No genres to clear.',
-                    ),
-                ],
+                embeds: [createErrorEmbed('No Genres', 'No genres to clear.')],
                 ephemeral: true,
             },
         })
@@ -472,9 +463,7 @@ async function handleAutoplayGenreClear(
         await interactionReply({
             interaction,
             content: {
-                embeds: [
-                    createErrorEmbed('Error', 'Failed to clear genres.'),
-                ],
+                embeds: [createErrorEmbed('Error', 'Failed to clear genres.')],
                 ephemeral: true,
             },
         })
@@ -585,6 +574,22 @@ async function handleAutoplayAnalytics(
     }
 }
 
+async function handleAutoplayGenre(
+    interaction: ChatInputCommandInteraction,
+    subcommand: string | null,
+): Promise<void> {
+    switch (subcommand) {
+        case 'add':
+            return handleAutoplayGenreAdd(interaction)
+        case 'remove':
+            return handleAutoplayGenreRemove(interaction)
+        case 'list':
+            return handleAutoplayGenreList(interaction)
+        case 'clear':
+            return handleAutoplayGenreClear(interaction)
+    }
+}
+
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('autoplay')
@@ -671,14 +676,10 @@ export default new Command({
                 .addSubcommand((sub) =>
                     sub
                         .setName('list')
-                        .setDescription(
-                            'Show all configured autoplay genres',
-                        ),
+                        .setDescription('Show all configured autoplay genres'),
                 )
                 .addSubcommand((sub) =>
-                    sub
-                        .setName('clear')
-                        .setDescription('Remove all genres'),
+                    sub.setName('clear').setDescription('Remove all genres'),
                 ),
         ),
     category: 'music',
@@ -701,24 +702,12 @@ export default new Command({
         }
 
         try {
-            const subcommandGroup = interaction.options.getSubcommandGroup(false)
+            const subcommandGroup =
+                interaction.options.getSubcommandGroup(false)
             const subcommand = interaction.options.getSubcommand(false)
 
             if (subcommandGroup === 'genre') {
-                switch (subcommand) {
-                    case 'add':
-                        await handleAutoplayGenreAdd(interaction)
-                        break
-                    case 'remove':
-                        await handleAutoplayGenreRemove(interaction)
-                        break
-                    case 'list':
-                        await handleAutoplayGenreList(interaction)
-                        break
-                    case 'clear':
-                        await handleAutoplayGenreClear(interaction)
-                        break
-                }
+                await handleAutoplayGenre(interaction, subcommand)
                 return
             }
 

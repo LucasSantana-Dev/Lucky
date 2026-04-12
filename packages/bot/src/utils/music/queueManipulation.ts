@@ -313,19 +313,21 @@ async function _replenishQueue(
                 autoplayMode,
             )
         }
-        if (guildSettings?.autoplayGenres && guildSettings.autoplayGenres.length > 0) {
+        if (requestedBy && guildSettings?.autoplayGenres?.length) {
             await collectGenreCandidates(
                 queue,
                 guildSettings.autoplayGenres,
-                candidates,
-                recentArtists,
-                likedTrackKeys,
-                dislikedTrackKeys,
-                currentTrack,
                 requestedBy,
-                excludedUrls,
-                excludedKeys,
-                autoplayMode,
+                {
+                    candidates,
+                    recentArtists,
+                    likedTrackKeys,
+                    dislikedTrackKeys,
+                    currentTrack,
+                    excludedUrls,
+                    excludedKeys,
+                    autoplayMode,
+                },
             )
         }
         if (candidates.size === 0 && currentTrack) {
@@ -749,54 +751,56 @@ const GENRE_SCORE_BOOST = 0.1
 const MAX_GENRES = 3
 const MAX_TRACKS_PER_GENRE = 20
 
+interface CandidateContext {
+    candidates: Map<string, ScoredTrack>
+    recentArtists: Set<string>
+    likedTrackKeys: Set<string>
+    dislikedTrackKeys: Set<string>
+    currentTrack: Track
+    excludedUrls: Set<string>
+    excludedKeys: Set<string>
+    autoplayMode: 'similar' | 'discover' | 'popular'
+}
+
+function addGenreTrackCandidate(
+    track: Track,
+    tag: string,
+    ctx: CandidateContext,
+): void {
+    if (!shouldIncludeCandidate(track, ctx.excludedUrls, ctx.excludedKeys))
+        return
+    if (ctx.dislikedTrackKeys.has(normalizeTrackKey(track.title, track.author)))
+        return
+    const rec = calculateRecommendationScore(
+        track,
+        ctx.currentTrack,
+        ctx.recentArtists,
+        ctx.likedTrackKeys,
+        ctx.autoplayMode,
+    )
+    upsertScoredCandidate(ctx.candidates, track, {
+        score: rec.score + GENRE_SCORE_BOOST,
+        reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
+    })
+}
+
 async function collectGenreCandidates(
     queue: GuildQueue,
     genres: string[],
-    candidates: Map<string, ScoredTrack>,
-    recentArtists: Set<string>,
-    likedTrackKeys: Set<string>,
-    dislikedTrackKeys: Set<string>,
-    currentTrack: Track,
-    requestedBy: User | null,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
+    requestedBy: User,
+    ctx: CandidateContext,
 ): Promise<void> {
-    if (!requestedBy) return
-    const modsToUse = genres.slice(0, MAX_GENRES)
-    for (const tag of modsToUse) {
-        if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-        const tracks = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
-        for (const seed of tracks) {
-            if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-            const query = `${seed.title} ${seed.artist}`.trim()
+    for (const tag of genres.slice(0, MAX_GENRES)) {
+        if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+        const seeds = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
+        for (const seed of seeds) {
+            if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
             const results = await searchLastFmQuery(
                 queue,
-                query,
+                `${seed.title} ${seed.artist}`.trim(),
                 requestedBy,
             )
-            for (const track of results) {
-                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
-                    continue
-                const normalizedKey = normalizeTrackKey(
-                    track.title,
-                    track.author,
-                )
-                if (dislikedTrackKeys.has(normalizedKey)) continue
-                const rec = calculateRecommendationScore(
-                    track,
-                    currentTrack,
-                    recentArtists,
-                    likedTrackKeys,
-                    autoplayMode,
-                )
-                upsertScoredCandidate(candidates, track, {
-                    score: rec.score + GENRE_SCORE_BOOST,
-                    reason: rec.reason
-                        ? `${rec.reason} • ${tag} vibes`
-                        : `${tag} vibes`,
-                })
-            }
+            for (const track of results) addGenreTrackCandidate(track, tag, ctx)
         }
     }
 }
