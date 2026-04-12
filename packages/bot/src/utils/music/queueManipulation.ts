@@ -725,7 +725,7 @@ async function collectLastFmCandidates(
 
     // Search for each seed via track search
     for (const seed of seedSlice) {
-        const query = `${seed.title} ${seed.artist}`.trim()
+        const query = cleanSearchQuery(seed.title, seed.artist)
         const tracks = await searchLastFmQuery(queue, query, requestedBy)
         for (const track of tracks) {
             if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
@@ -751,9 +751,9 @@ async function collectLastFmCandidates(
         }
 
         // Also search for similar tracks via Last.fm API
-        const similar = await getSimilarTracks(seed.artist, seed.title)
+        const similar = await getSimilarTracks(seed.artist, cleanTitle(seed.title))
         for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
-            const query = `${s.title} ${s.artist}`.trim()
+            const query = cleanSearchQuery(s.title, s.artist)
             const tracks = await searchLastFmQuery(queue, query, requestedBy)
             for (const track of tracks) {
                 if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
@@ -869,7 +869,7 @@ async function collectGenreCandidates(
             if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
             const results = await searchLastFmQuery(
                 queue,
-                `${seed.title} ${seed.artist}`.trim(),
+                cleanSearchQuery(seed.title, seed.artist),
                 requestedBy,
             )
             for (const track of results) addGenreTrackCandidate(track, tag, ctx)

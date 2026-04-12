@@ -84,11 +84,13 @@ const NOISE_PATTERNS: readonly RegExp[] = [
 ]
 
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
-    /^(?:\d{4} +)?remaster(?:ed)?(?:\s+\d{4})?$/i,
-    /^official (?:audio|video|music video)$/i,
-    /^(?:live|acoustic|demo|extended)$/i,
-    /^(?:radio edit|album version|single version)$/i,
-    /^(?:original mix|original version)$/i,
+    /^(?:\d{4}\s+)?remaster(?:ed)?(?:\s+(?:version|\d{4}))?(?:\s+\d{4})?$/i,
+    /^official\s+(?:audio|video|music\s+video)$/i,
+    /^(?:live|acoustic|demo|extended|instrumental|karaoke)(?:\s+(?:version|edit|session|mix))?$/i,
+    /^(?:radio\s+edit|album\s+version|single\s+version|bonus\s+track)$/i,
+    /^(?:original\s+(?:mix|version)|original)$/i,
+    /^(?:deluxe|deluxe\s+(?:version|edition))$/i,
+    /^(?:explicit|clean|explicit\s+version|clean\s+version)$/i,
     /^(?:19|20)\d{2}$/,
 ]
 
