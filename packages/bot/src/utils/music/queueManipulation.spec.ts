@@ -2374,12 +2374,18 @@ describe('queueManipulation — multi-user VC blend', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         consumeLastFmSeedSliceMock.mockResolvedValue([])
+        consumeBlendedSeedSliceMock.mockResolvedValue([])
+        getLastFmLinkMock.mockResolvedValue(null)
         getTrackHistoryMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({
             autoplayMode: 'similar',
+            autoplayGenres: [],
         })
+        getTagTopTracksMock.mockResolvedValue([])
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getSimilarTracksMock.mockResolvedValue([])
     })
 
@@ -2388,6 +2394,10 @@ describe('queueManipulation — multi-user VC blend', () => {
     })
 
     it('uses blended seeds when multiple VC members have Last.fm linked', async () => {
+        getLastFmLinkMock.mockResolvedValue({ lastFmUsername: 'someuser' })
+        consumeBlendedSeedSliceMock.mockResolvedValue([
+            { artist: 'Artist A', title: 'Song A' },
+        ])
         const currentTrack = {
             url: 'https://example.com/track',
             title: 'Test Song',
@@ -2395,33 +2405,63 @@ describe('queueManipulation — multi-user VC blend', () => {
             id: 'track-123',
             requestedBy: { id: 'user-1' },
         }
-
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Similar Song',
-                    author: 'Similar Artist',
-                    url: 'https://youtube.com/watch?v=123',
-                    id: 'yt-similar',
-                    source: 'youtube',
-                    durationMS: 180000,
-                },
-            ],
-        })
-
         const queue = createQueueMock({
             currentTrack,
             metadata: {
                 requestedBy: { id: 'user-1' },
                 vcMemberIds: ['user-1', 'user-2'],
             },
-            player: { search: searchMock },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Song A',
+                            author: 'Artist A',
+                            url: 'https://youtube.com/watch?v=blend',
+                            id: 'yt-blend',
+                            source: 'youtube',
+                            durationMS: 180000,
+                        },
+                    ],
+                }),
+            },
             addTrack: jest.fn(),
         })
-
         await replenishQueue(queue as unknown as GuildQueue)
+        expect(consumeBlendedSeedSliceMock).toHaveBeenCalledWith(
+            ['user-1', 'user-2'],
+            expect.any(Number),
+        )
+    })
 
-        expect(searchMock).toHaveBeenCalled()
+    it('uses single-user seed when only one VC member has Last.fm linked', async () => {
+        getLastFmLinkMock
+            .mockResolvedValueOnce({ lastFmUsername: 'user1fm' })
+            .mockResolvedValueOnce(null)
+        consumeLastFmSeedSliceMock.mockResolvedValue([
+            { artist: 'Artist B', title: 'Song B' },
+        ])
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/t',
+                title: 'T',
+                author: 'A',
+                id: 't',
+                requestedBy: { id: 'user-1' },
+            } as any,
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                vcMemberIds: ['user-1', 'user-2'],
+            },
+            player: { search: jest.fn().mockResolvedValue({ tracks: [] }) },
+            addTrack: jest.fn(),
+        })
+        await replenishQueue(queue as unknown as GuildQueue)
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
+            'user-1',
+            expect.any(Number),
+        )
+        expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
     })
 
     it('falls back to single-user when VC has only one user', async () => {
