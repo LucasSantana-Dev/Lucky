@@ -235,4 +235,30 @@ describe('cleanTitle — hyphenated version suffixes', () => {
     it('strips " - Single Version" suffix', () => {
         expect(cleanTitle('Track - Single Version')).toBe('Track')
     })
+
+    it('strips year-suffix remaster: "Song - Remastered 2011" → "Song"', () => {
+        expect(cleanTitle('Bohemian Rhapsody - Remastered 2011')).toBe(
+            'Bohemian Rhapsody',
+        )
+    })
+
+    it('strips year-only: "Song - 2024" → "Song"', () => {
+        expect(cleanTitle('Track - 2024')).toBe('Track')
+    })
+
+    it('strips original mix: "Song - Original Mix" → "Song"', () => {
+        expect(cleanTitle('Electronic Track - Original Mix')).toBe(
+            'Electronic Track',
+        )
+    })
+
+    it('strips original version: "Song - Original Version" → "Song"', () => {
+        expect(cleanTitle('Classic Song - Original Version')).toBe(
+            'Classic Song',
+        )
+    })
+
+    it('preserves normal title: "Song Name" → "Song Name"', () => {
+        expect(cleanTitle('Song Name')).toBe('Song Name')
+    })
 })

@@ -84,7 +84,7 @@ const NOISE_PATTERNS: readonly RegExp[] = [
 ]
 
 const HYPHENATED_VERSION_SUFFIX =
-    /^(?:\d{4} +)?remaster(?:ed)?$|^official (?:audio|video|music video)$|^(?:live|acoustic|demo|extended|radio edit|album version|single version)$/i
+    /^(?:\d{4} +)?remaster(?:ed)?(?:\s+\d{4})?$|^official (?:audio|video|music video)$|^(?:live|acoustic|demo|extended|radio edit|album version|single version|original mix|original version|\d{4})$/i
 
 /**
  * Channels whose uploads are almost always mislabeled or compilation garbage.
