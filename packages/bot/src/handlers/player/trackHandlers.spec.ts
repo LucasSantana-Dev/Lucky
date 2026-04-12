@@ -29,6 +29,7 @@ const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const recordImplicitFeedbackMock = jest.fn()
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: {
@@ -98,6 +99,18 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
+
+jest.mock('../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        recordImplicitFeedback: (...args: unknown[]) =>
+            recordImplicitFeedbackMock(...args),
+    },
+}))
+
+jest.mock('../../utils/music/searchQueryCleaner', () => ({
+    cleanTitle: (title: string) => title,
+    cleanAuthor: (author: string) => author,
 }))
 
 type PlayerEventHandler = (queue: GuildQueue, track?: Track) => Promise<void>
@@ -177,6 +190,7 @@ describe('trackHandlers autoplay replenishment', () => {
         updateLastFmNowPlayingMock.mockResolvedValue(undefined)
         scrobbleCurrentTrackIfLastFmMock.mockResolvedValue(undefined)
         saveSnapshotMock.mockResolvedValue(undefined)
+        recordImplicitFeedbackMock.mockResolvedValue(undefined)
     })
 
     afterEach(() => {
@@ -482,5 +496,133 @@ describe('trackHandlers autoplay replenishment', () => {
         expect(infoLogMock).toHaveBeenCalledWith({
             message: 'Added "Test Song" to queue in Guild One',
         })
+    })
+
+    it('records implicit like on playerFinish when track played > 80%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const finishedTrack = {
+            ...createTrack('listener-finish-1'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, finishedTrack)
+        jest.advanceTimersByTime(85000)
+        await playerFinish(queue, finishedTrack)
+
+        expect(recordImplicitFeedbackMock).toHaveBeenCalledWith(
+            'listener-finish-1',
+            'testsong::testartist',
+            'implicit_like',
+        )
+    })
+
+    it('does not record feedback on playerFinish when track played < 80%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const finishedTrack = {
+            ...createTrack('listener-finish-2'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, finishedTrack)
+        jest.advanceTimersByTime(60000)
+        await playerFinish(queue, finishedTrack)
+
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('records implicit dislike on playerSkip when track played < 30%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const skippedTrack = {
+            ...createTrack('listener-skip-1'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, skippedTrack)
+        jest.advanceTimersByTime(20000)
+        await playerSkip(queue, skippedTrack)
+
+        expect(recordImplicitFeedbackMock).toHaveBeenCalledWith(
+            'listener-skip-1',
+            'testsong::testartist',
+            'implicit_dislike',
+        )
+    })
+
+    it('does not record feedback on playerSkip when track < 20 seconds duration', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const shortTrack = {
+            ...createTrack('listener-skip-2'),
+            durationMS: 10000,
+        }
+
+        await playerStart(queue, shortTrack)
+        jest.advanceTimersByTime(5000)
+        await playerSkip(queue, shortTrack)
+
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('does not record feedback on playerSkip when track played > 30%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const skippedTrack = {
+            ...createTrack('listener-skip-3'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, skippedTrack)
+        jest.advanceTimersByTime(50000)
+        await playerSkip(queue, skippedTrack)
+
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('records implicit like for track with metadata requestedById on playerFinish', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const metadataTrack = {
+            id: 'track-3',
+            title: 'Metadata Track',
+            author: 'Metadata Artist',
+            url: 'https://example.com/track-3',
+            source: 'youtube',
+            requestedBy: undefined,
+            metadata: {
+                requestedById: 'listener-finish-3',
+            },
+            durationMS: 100000,
+        } as unknown as Track
+
+        await playerStart(queue, metadataTrack)
+        jest.advanceTimersByTime(85000)
+        await playerFinish(queue, metadataTrack)
+
+        expect(recordImplicitFeedbackMock).toHaveBeenCalledWith(
+            'listener-finish-3',
+            'metadatatrack::metadataartist',
+            'implicit_like',
+        )
     })
 })

@@ -19,6 +19,7 @@ import {
 const getByDiscordIdMock = jest.fn()
 const getTopTracksMock = jest.fn()
 const getRecentTracksMock = jest.fn()
+const getLovedTracksMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
@@ -34,11 +35,13 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../../lastfm', () => ({
     getTopTracks: (...args: unknown[]) => getTopTracksMock(...args),
     getRecentTracks: (...args: unknown[]) => getRecentTracksMock(...args),
+    getLovedTracks: (...args: unknown[]) => getLovedTracksMock(...args),
 }))
 
 describe('getLastFmSeedTracks', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
         getRecentTracksMock.mockResolvedValue([])
     })
 
@@ -146,6 +149,7 @@ describe('getLastFmSeedTracks', () => {
 describe('getLastFmSeedSlice', () => {
     beforeEach(async () => {
         jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
         getRecentTracksMock.mockResolvedValue([])
     })
 
@@ -234,6 +238,7 @@ describe('getLastFmSeedSlice', () => {
 describe('advanceLastFmSeedOffset', () => {
     beforeEach(async () => {
         jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
         getRecentTracksMock.mockResolvedValue([])
     })
 
@@ -289,6 +294,7 @@ describe('advanceLastFmSeedOffset', () => {
 describe('getLastFmCacheOffset', () => {
     beforeEach(async () => {
         jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
         getRecentTracksMock.mockResolvedValue([])
     })
 
@@ -337,6 +343,7 @@ describe('getLastFmCacheOffset', () => {
 describe('consumeLastFmSeedSlice', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
         getRecentTracksMock.mockResolvedValue([])
     })
 
@@ -433,6 +440,7 @@ describe('consumeLastFmSeedSlice', () => {
 describe('consumeBlendedSeedSlice', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
         getRecentTracksMock.mockResolvedValue([])
     })
 
