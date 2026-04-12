@@ -12,4 +12,7 @@ export {
     scrobble,
 } from './lastFmApi'
 export type { LastFmTopTrack, LastFmPeriod } from './lastFmApi'
-export { consumeLastFmSeedSlice } from '../utils/music/autoplay/lastFmSeeds'
+export {
+    consumeLastFmSeedSlice,
+    consumeBlendedSeedSlice,
+} from '../utils/music/autoplay/lastFmSeeds'

@@ -12,6 +12,7 @@ import {
     advanceLastFmSeedOffset,
     getLastFmCacheOffset,
     consumeLastFmSeedSlice,
+    consumeBlendedSeedSlice,
     LASTFM_SEED_COUNT,
 } from './lastFmSeeds'
 
@@ -424,6 +425,107 @@ describe('consumeLastFmSeedSlice', () => {
         getTopTracksMock.mockRejectedValue(new Error('API error'))
 
         const slice = await consumeLastFmSeedSlice('user-throw', 3)
+
+        expect(slice).toEqual([])
+    })
+})
+
+describe('consumeBlendedSeedSlice', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        getRecentTracksMock.mockResolvedValue([])
+    })
+
+    afterEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('returns empty array when userIds is empty', async () => {
+        const slice = await consumeBlendedSeedSlice([], 5)
+
+        expect(slice).toEqual([])
+    })
+
+    it('interleaves tracks from two users round-robin style', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'UserA1', title: 'SongA1', playCount: 1 },
+            { artist: 'UserA2', title: 'SongA2', playCount: 2 },
+            { artist: 'UserA3', title: 'SongA3', playCount: 3 },
+            { artist: 'UserA4', title: 'SongA4', playCount: 4 },
+        ])
+
+        const slice = await consumeBlendedSeedSlice(
+            ['user-alpha', 'user-beta'],
+            4,
+        )
+
+        expect(slice.length).toBeGreaterThan(0)
+        expect(slice[0]).toEqual(
+            expect.objectContaining({
+                artist: expect.any(String),
+                title: expect.any(String),
+            }),
+        )
+    })
+
+    it('deduplicates identical tracks across users', async () => {
+        const sharedTrack = {
+            artist: 'Shared Artist',
+            title: 'Shared Song',
+            playCount: 5,
+        }
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([sharedTrack])
+
+        const slice = await consumeBlendedSeedSlice(['user-x', 'user-y'], 2)
+
+        expect(slice).toHaveLength(1)
+        expect(slice[0]).toEqual({
+            artist: 'Shared Artist',
+            title: 'Shared Song',
+        })
+    })
+
+    it('respects count limit', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'A1', title: 'S1', playCount: 1 },
+            { artist: 'A2', title: 'S2', playCount: 2 },
+            { artist: 'A3', title: 'S3', playCount: 3 },
+        ])
+
+        const slice = await consumeBlendedSeedSlice(['user-p', 'user-q'], 2)
+
+        expect(slice.length).toBeLessThanOrEqual(2)
+    })
+
+    it('falls back to single-user mode when only one user provided', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'solo-user' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'Solo1', title: 'Track1', playCount: 1 },
+            { artist: 'Solo2', title: 'Track2', playCount: 2 },
+        ])
+
+        const slice = await consumeBlendedSeedSlice(['solo-user'], 2)
+
+        expect(slice.length).toBeGreaterThan(0)
+        expect(slice[0]).toEqual(
+            expect.objectContaining({
+                artist: expect.stringMatching(/^Solo[12]$/),
+                title: expect.any(String),
+            }),
+        )
+    })
+
+    it('returns empty array when all users have no Last.fm link', async () => {
+        getByDiscordIdMock.mockResolvedValue(null)
+        getTopTracksMock.mockResolvedValue([])
+
+        const slice = await consumeBlendedSeedSlice(
+            ['no-link-1', 'no-link-2'],
+            5,
+        )
 
         expect(slice).toEqual([])
     })

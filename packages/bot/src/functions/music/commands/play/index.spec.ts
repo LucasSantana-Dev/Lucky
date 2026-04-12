@@ -805,4 +805,36 @@ describe('play command', () => {
             }),
         )
     })
+
+    it('captures vc member ids in queue metadata when voiceChannel.members is set', async () => {
+        let capturedPlayOptions: any
+
+        const client = createClient(
+            (_track: unknown, _query: unknown, opts: unknown) => {
+                capturedPlayOptions = opts
+                return Promise.resolve()
+            },
+        )
+
+        const interaction = createInteraction('guild-1')
+        interaction.member.voice.channel.members = new Map([
+            ['user-1', { id: 'user-1' }],
+            ['user-2', { id: 'user-2' }],
+            ['bot-1', { id: 'bot-1' }],
+        ])
+        client.user = { id: 'bot-1' }
+
+        getGuildSettingsMock.mockResolvedValue({ autoPlayEnabled: false })
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+        canAddTracksMock.mockReturnValue({ allowed: true, limit: 10 })
+
+        await playCommand.execute({ client, interaction } as any)
+
+        const vcMemberIds =
+            capturedPlayOptions?.nodeOptions?.metadata?.vcMemberIds
+        expect(vcMemberIds).toBeDefined()
+        expect(vcMemberIds).toContain('user-1')
+        expect(vcMemberIds).toContain('user-2')
+        expect(vcMemberIds).not.toContain('bot-1')
+    })
 })

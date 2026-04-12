@@ -5,4 +5,5 @@ export interface QueueMetadata {
     channel?: TextChannel | null
     requestedBy?: User | null
     client?: CustomClient | null
+    vcMemberIds?: string[]
 }
