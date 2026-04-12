@@ -1,0 +1,1 @@
+export { isSpotifyConfigured } from './spotifyConfig'

@@ -31,16 +31,17 @@ function buildSearchQueryFromSpotifyUrl(url: string): string {
     return url
 }
 
-export async function handleSpotifyTrack(
+async function handleSpotifyUrl(
     query: string,
     user: PlayCommandOptions['user'],
     guildId: string,
-    _channelId: string,
     player: PlayCommandOptions['player'],
+    isPlaylistQuery: boolean,
 ): Promise<PlayCommandResult> {
     try {
+        const logType = isPlaylistQuery ? 'playlist' : 'track'
         debugLog({
-            message: `Handling Spotify track: ${query}`,
+            message: `Handling Spotify ${logType}: ${query}`,
             data: { guildId, userId: user.id },
         })
 
@@ -50,36 +51,55 @@ export async function handleSpotifyTrack(
         })
 
         if (!searchResult.hasTracks()) {
+            const errorMsg = isPlaylistQuery
+                ? 'No tracks found for this Spotify playlist. Try searching by playlist name instead.'
+                : 'No tracks found for this Spotify link. Try searching by song name instead.'
             return {
                 success: false,
-                error: 'No tracks found for this Spotify link. Try searching by song name instead.',
+                error: errorMsg,
             }
         }
 
         const tracks = searchResult.tracks
-        const firstTrack = tracks[0]
+        const trackInfo = isPlaylistQuery
+            ? `Found ${tracks.length} tracks from Spotify playlist`
+            : `Found track: ${tracks[0].title}`
+        const isPlaylist = isPlaylistQuery
+            ? searchResult.playlist !== null || tracks.length > 1
+            : false
 
         debugLog({
-            message: `Found track: ${firstTrack.title}`,
-            data: { guildId },
+            message: trackInfo,
+            data: { guildId, isPlaylist },
         })
 
         return {
             success: true,
-            tracks: [firstTrack],
-            isPlaylist: false,
+            tracks: isPlaylistQuery ? tracks : [tracks[0]],
+            isPlaylist,
         }
     } catch (error) {
+        const logType = isPlaylistQuery ? 'playlist' : 'track'
         errorLog({
-            message: 'Error handling Spotify track:',
+            message: `Error handling Spotify ${logType}:`,
             error,
             data: { query, guildId, userId: user.id },
         })
         return {
             success: false,
-            error: 'Failed to process Spotify track',
+            error: `Failed to process Spotify ${logType}`,
         }
     }
+}
+
+export async function handleSpotifyTrack(
+    query: string,
+    user: PlayCommandOptions['user'],
+    guildId: string,
+    _channelId: string,
+    player: PlayCommandOptions['player'],
+): Promise<PlayCommandResult> {
+    return handleSpotifyUrl(query, user, guildId, player, false)
 }
 
 export async function handleSpotifyPlaylist(
@@ -89,46 +109,5 @@ export async function handleSpotifyPlaylist(
     _channelId: string,
     player: PlayCommandOptions['player'],
 ): Promise<PlayCommandResult> {
-    try {
-        debugLog({
-            message: `Handling Spotify playlist: ${query}`,
-            data: { guildId, userId: user.id },
-        })
-
-        const searchQuery = buildSearchQueryFromSpotifyUrl(query)
-        const searchResult = await player.search(searchQuery, {
-            requestedBy: user,
-        })
-
-        if (!searchResult.hasTracks()) {
-            return {
-                success: false,
-                error: 'No tracks found for this Spotify playlist. Try searching by playlist name instead.',
-            }
-        }
-
-        const tracks = searchResult.tracks
-        const isPlaylist = searchResult.playlist !== null
-
-        debugLog({
-            message: `Found ${tracks.length} tracks from Spotify playlist`,
-            data: { guildId, isPlaylist },
-        })
-
-        return {
-            success: true,
-            tracks,
-            isPlaylist: isPlaylist || tracks.length > 1,
-        }
-    } catch (error) {
-        errorLog({
-            message: 'Error handling Spotify playlist:',
-            error,
-            data: { query, guildId, userId: user.id },
-        })
-        return {
-            success: false,
-            error: 'Failed to process Spotify playlist',
-        }
-    }
+    return handleSpotifyUrl(query, user, guildId, player, true)
 }

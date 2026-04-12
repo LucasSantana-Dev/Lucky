@@ -5,6 +5,7 @@ import { setupGuildRoutes } from './guilds'
 import { setupManagementRoutes } from './management'
 import { setupModerationRoutes } from './moderation'
 import { setupLastFmRoutes } from './lastfm'
+import { setupSpotifyRoutes } from './spotify'
 import { setupGuildSettingsRoutes } from './guildSettings'
 import { setupTrackHistoryRoutes } from './trackHistory'
 import { setupTwitchRoutes } from './twitch'
@@ -59,6 +60,7 @@ const routeSetups = [
     setupManagementRoutes,
     setupModerationRoutes,
     setupLastFmRoutes,
+    setupSpotifyRoutes,
     setupGuildSettingsRoutes,
     setupTrackHistoryRoutes,
     setupTwitchRoutes,

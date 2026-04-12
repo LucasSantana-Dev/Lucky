@@ -40,6 +40,7 @@ const TwitchNotificationsPage = lazy(
     () => import('./pages/TwitchNotifications'),
 )
 const LastFmPage = lazy(() => import('./pages/LastFm'))
+const SpotifyPage = lazy(() => import('./pages/Spotify'))
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfService'))
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'))
 
@@ -193,6 +194,10 @@ function AuthenticatedRoutes() {
             <Route
                 path='/lastfm'
                 element={guardedRoute('integrations', <LastFmPage />)}
+            />
+            <Route
+                path='/spotify'
+                element={guardedRoute('integrations', <SpotifyPage />)}
             />
             <Route path='*' element={<Navigate to='/' replace />} />
         </Routes>
