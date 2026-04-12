@@ -391,6 +391,11 @@ async function _replenishQueue(
 
         if (requestedBy?.id) {
             const beforeLastFm = candidates.size
+            const metadata = queue.metadata as QueueMetadata | undefined
+            const vcMemberIds = metadata?.vcMemberIds ?? []
+            const contributionWeights = vcMemberIds.length > 1
+                ? buildVcContributionWeights(allHistoryTracks, vcMemberIds)
+                : new Map<string, number>()
             await collectLastFmCandidates(
                 queue,
                 requestedBy,
@@ -408,6 +413,7 @@ async function _replenishQueue(
                 implicitDislikeKeys,
                 implicitLikeKeys,
                 sessionMood,
+                contributionWeights,
             )
             debugLog({
                 message: 'Autoplay: last.fm candidates',
@@ -870,6 +876,7 @@ async function collectLastFmCandidates(
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
+    contributionWeights?: Map<string, number>,
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
@@ -892,6 +899,7 @@ async function collectLastFmCandidates(
             seedSlice = await consumeBlendedSeedSlice(
                 linkedUserIds,
                 LASTFM_SEED_COUNT,
+                contributionWeights,
             )
         } else if (linkedUserIds.length === 1) {
             seedSlice = await consumeLastFmSeedSlice(
@@ -1272,6 +1280,33 @@ function getAllHistoryTracks(queue: GuildQueue): Track[] {
 
 function getHistoryTracks(queue: GuildQueue): Track[] {
     return getAllHistoryTracks(queue).slice(0, HISTORY_SEED_LIMIT)
+}
+
+export function buildVcContributionWeights(
+    historyTracks: { requestedBy?: { id?: string } | null }[],
+    vcMemberIds: string[],
+): Map<string, number> {
+    const contributions = new Map<string, number>()
+
+    for (const memberId of vcMemberIds) {
+        const count = historyTracks.filter(
+            (t) => t.requestedBy?.id === memberId,
+        ).length
+        contributions.set(memberId, count > 0 ? count : 1)
+    }
+
+    const totalWeight = Array.from(contributions.values()).reduce(
+        (sum, w) => sum + w,
+        0,
+    )
+    const scaleFactor = vcMemberIds.length / totalWeight
+
+    const weights = new Map<string, number>()
+    for (const [memberId, count] of contributions) {
+        weights.set(memberId, count * scaleFactor)
+    }
+
+    return weights
 }
 
 function normalizeTrackKey(title?: string, author?: string): string {

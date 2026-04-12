@@ -7,6 +7,7 @@ import {
     moveTrackInQueue,
     rescueQueue,
     moveUserTrackToPriority,
+    buildVcContributionWeights,
 } from './queueManipulation'
 
 jest.mock('discord-player', () => ({
@@ -2457,6 +2458,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         expect(consumeBlendedSeedSliceMock).toHaveBeenCalledWith(
             ['user-1', 'user-2'],
             expect.any(Number),
+            expect.any(Object),
         )
     })
 
@@ -2973,5 +2975,56 @@ describe('queueManipulation — multi-user VC blend', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(addTrackMock).toHaveBeenCalled()
+    })
+})
+
+describe('buildVcContributionWeights', () => {
+    it('returns equal weights when all users have equal contributions', () => {
+        const historyTracks = [
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-2' } },
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-2' } },
+        ]
+        const vcMemberIds = ['user-1', 'user-2']
+
+        const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
+
+        expect(weights.size).toBe(2)
+        expect(weights.get('user-1')).toBe(1)
+        expect(weights.get('user-2')).toBe(1)
+    })
+
+    it('returns higher weight for heavy listener', () => {
+        const historyTracks = [
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-2' } },
+        ]
+        const vcMemberIds = ['user-1', 'user-2']
+
+        const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
+
+        expect(weights.get('user-1')).toBeGreaterThan(weights.get('user-2')!)
+        const totalWeight =
+            weights.get('user-1')! + weights.get('user-2')!
+        expect(totalWeight).toBe(2)
+    })
+
+    it('gives baseline weight of 1 to users with zero contributions', () => {
+        const historyTracks = [
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-1' } },
+        ]
+        const vcMemberIds = ['user-1', 'user-2']
+
+        const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
+
+        expect(weights.get('user-1')).toBeGreaterThan(0)
+        expect(weights.get('user-2')).toBeGreaterThan(0)
+        const totalWeight =
+            weights.get('user-1')! + weights.get('user-2')!
+        expect(totalWeight).toBe(vcMemberIds.length)
     })
 })
