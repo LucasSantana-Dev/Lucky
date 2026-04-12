@@ -59,7 +59,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-function createInteraction(subcommand = 'skip') {
+function createInteraction(subcommand = 'skip', subcommandGroup: string | null = null) {
     const interaction = {
         guildId: 'guild-1',
         deferred: false,
@@ -70,6 +70,7 @@ function createInteraction(subcommand = 'skip') {
         }),
         options: {
             getSubcommand: jest.fn(() => subcommand),
+            getSubcommandGroup: jest.fn(() => subcommandGroup),
         },
     }
 
@@ -446,7 +447,7 @@ describe('autoplay command', () => {
 
             expect(createErrorEmbedMock).toHaveBeenCalledWith(
                 'Unknown Subcommand',
-                'Please use skip, clear, status, analytics, or mode.',
+                'Please use skip, clear, status, analytics, mode, or genre.',
             )
             expect(interactionReplyMock).toHaveBeenCalled()
         })

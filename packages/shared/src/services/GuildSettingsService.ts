@@ -7,6 +7,7 @@ export interface GuildSettings {
     maxQueueSize: number
     autoPlayEnabled: boolean
     autoplayMode?: 'similar' | 'discover' | 'popular'
+    autoplayGenres?: string[]
     repeatMode: number
     shuffleEnabled: boolean
     prefix: string
@@ -50,6 +51,7 @@ export class GuildSettingsService {
             maxQueueSize: 100,
             autoPlayEnabled: true,
             autoplayMode: 'similar',
+            autoplayGenres: [],
             repeatMode: 0,
             shuffleEnabled: false,
             prefix: '/',

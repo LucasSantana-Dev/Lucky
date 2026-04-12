@@ -13,7 +13,7 @@ import {
     guildSettingsService,
 } from '@lucky/shared/services'
 import { consumeLastFmSeedSlice } from './autoplay/lastFmSeeds'
-import { getSimilarTracks } from '../../lastfm'
+import { getSimilarTracks, getTagTopTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
@@ -310,6 +310,21 @@ async function _replenishQueue(
                 currentTrack,
                 recentArtists,
                 candidates,
+                autoplayMode,
+            )
+        }
+        if (guildSettings?.autoplayGenres && guildSettings.autoplayGenres.length > 0) {
+            await collectGenreCandidates(
+                queue,
+                guildSettings.autoplayGenres,
+                candidates,
+                recentArtists,
+                likedTrackKeys,
+                dislikedTrackKeys,
+                currentTrack,
+                requestedBy,
+                excludedUrls,
+                excludedKeys,
                 autoplayMode,
             )
         }
@@ -728,6 +743,62 @@ async function searchLastFmQuery(
         }
     }
     return []
+}
+
+const GENRE_SCORE_BOOST = 0.1
+const MAX_GENRES = 3
+const MAX_TRACKS_PER_GENRE = 20
+
+async function collectGenreCandidates(
+    queue: GuildQueue,
+    genres: string[],
+    candidates: Map<string, ScoredTrack>,
+    recentArtists: Set<string>,
+    likedTrackKeys: Set<string>,
+    dislikedTrackKeys: Set<string>,
+    currentTrack: Track,
+    requestedBy: User | null,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
+): Promise<void> {
+    if (!requestedBy) return
+    const modsToUse = genres.slice(0, MAX_GENRES)
+    for (const tag of modsToUse) {
+        if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+        const tracks = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
+        for (const seed of tracks) {
+            if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+            const query = `${seed.title} ${seed.artist}`.trim()
+            const results = await searchLastFmQuery(
+                queue,
+                query,
+                requestedBy,
+            )
+            for (const track of results) {
+                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                    continue
+                const normalizedKey = normalizeTrackKey(
+                    track.title,
+                    track.author,
+                )
+                if (dislikedTrackKeys.has(normalizedKey)) continue
+                const rec = calculateRecommendationScore(
+                    track,
+                    currentTrack,
+                    recentArtists,
+                    likedTrackKeys,
+                    autoplayMode,
+                )
+                upsertScoredCandidate(candidates, track, {
+                    score: rec.score + GENRE_SCORE_BOOST,
+                    reason: rec.reason
+                        ? `${rec.reason} • ${tag} vibes`
+                        : `${tag} vibes`,
+                })
+            }
+        }
+    }
 }
 
 function selectDiverseCandidates(
