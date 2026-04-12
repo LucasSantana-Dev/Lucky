@@ -1,18 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import request from 'supertest'
-import { setupSpotifyRoutes } from '../../../src/routes/spotify'
 import type { Express } from 'express'
 import express from 'express'
 
 const mockSpotifyLinkService = {
-    getByDiscordId: jest.fn(),
-    unlink: jest.fn(),
-    set: jest.fn(),
+    getByDiscordId: jest.fn() as any,
+    unlink: jest.fn() as any,
+    set: jest.fn() as any,
 }
 
 const mockSpotifyAuthService = {
-    exchangeCodeForToken: jest.fn(),
-    isSpotifyAuthConfigured: jest.fn(),
+    exchangeCodeForToken: jest.fn() as any,
+    isSpotifyAuthConfigured: jest.fn() as any,
 }
 
 jest.mock('@lucky/shared/services', () => ({
@@ -20,6 +19,8 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 jest.mock('../../../src/services/SpotifyAuthService', () => mockSpotifyAuthService)
+
+import { setupSpotifyRoutes } from '../../../src/routes/spotify'
 
 jest.mock('../../../src/middleware/auth', () => ({
     requireAuth: (req: any, res: any, next: any) => {
