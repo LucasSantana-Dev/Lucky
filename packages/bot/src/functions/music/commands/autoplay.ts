@@ -266,6 +266,227 @@ ${modeDescriptions[currentMode] || 'Unknown mode'}`,
     })
 }
 
+async function handleAutoplayGenreAdd(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) return
+
+    const tag = interaction.options.getString('tag')
+    if (!tag) return
+
+    const settings = await guildSettingsService.getGuildSettings(guildId)
+    const genres = settings?.autoplayGenres ?? []
+
+    if (genres.length >= 5) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Limit Reached',
+                        'Maximum 5 genres allowed per guild.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const lowerTag = tag.toLowerCase().trim()
+    if (genres.includes(lowerTag)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Already Added',
+                        `Genre **${lowerTag}** is already in your list.`,
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const updated = await guildSettingsService.updateGuildSettings(guildId, {
+        autoplayGenres: [...genres, lowerTag],
+    })
+
+    if (!updated) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Failed to add genre.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '✅ Genre added',
+                    description: `Added **${lowerTag}** to autoplay genres.`,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleAutoplayGenreRemove(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) return
+
+    const tag = interaction.options.getString('tag')
+    if (!tag) return
+
+    const settings = await guildSettingsService.getGuildSettings(guildId)
+    const genres = settings?.autoplayGenres ?? []
+
+    const lowerTag = tag.toLowerCase().trim()
+    if (!genres.includes(lowerTag)) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Not Found',
+                        `Genre **${lowerTag}** is not in your list.`,
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const updated = await guildSettingsService.updateGuildSettings(guildId, {
+        autoplayGenres: genres.filter((g: string) => g !== lowerTag),
+    })
+
+    if (!updated) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Failed to remove genre.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '✅ Genre removed',
+                    description: `Removed **${lowerTag}** from autoplay genres.`,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleAutoplayGenreList(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) return
+
+    const settings = await guildSettingsService.getGuildSettings(guildId)
+    const genres = settings?.autoplayGenres ?? []
+
+    const description =
+        genres.length > 0
+            ? genres.map((g: string, i: number) => `${i + 1}. ${g}`).join('\n')
+            : 'No genres configured yet.'
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '🎵 Autoplay Genres',
+                    description,
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
+async function handleAutoplayGenreClear(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    const guildId = interaction.guildId
+    if (!guildId) return
+
+    const settings = await guildSettingsService.getGuildSettings(guildId)
+    const genres = settings?.autoplayGenres ?? []
+
+    if (genres.length === 0) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('No Genres', 'No genres to clear.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    const updated = await guildSettingsService.updateGuildSettings(guildId, {
+        autoplayGenres: [],
+    })
+
+    if (!updated) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Error', 'Failed to clear genres.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createEmbed({
+                    title: '✅ Genres cleared',
+                    description: 'All autoplay genres have been removed.',
+                    color: EMBED_COLORS.AUTOPLAY as ColorResolvable,
+                    emoji: EMOJIS.AUTOPLAY,
+                    timestamp: true,
+                }),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
 async function handleAutoplayAnalytics(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
@@ -353,6 +574,22 @@ async function handleAutoplayAnalytics(
     }
 }
 
+async function handleAutoplayGenre(
+    interaction: ChatInputCommandInteraction,
+    subcommand: string | null,
+): Promise<void> {
+    switch (subcommand) {
+        case 'add':
+            return handleAutoplayGenreAdd(interaction)
+        case 'remove':
+            return handleAutoplayGenreRemove(interaction)
+        case 'list':
+            return handleAutoplayGenreList(interaction)
+        case 'clear':
+            return handleAutoplayGenreClear(interaction)
+    }
+}
+
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('autoplay')
@@ -407,6 +644,43 @@ export default new Command({
                         )
                         .setRequired(false),
                 ),
+        )
+        .addSubcommandGroup((group) =>
+            group
+                .setName('genre')
+                .setDescription('Configure autoplay genres and moods')
+                .addSubcommand((sub) =>
+                    sub
+                        .setName('add')
+                        .setDescription('Add a genre to autoplay (max 5)')
+                        .addStringOption((opt) =>
+                            opt
+                                .setName('tag')
+                                .setDescription(
+                                    'Genre/mood tag (e.g., rock, indie, chillhop)',
+                                )
+                                .setRequired(true),
+                        ),
+                )
+                .addSubcommand((sub) =>
+                    sub
+                        .setName('remove')
+                        .setDescription('Remove a genre from autoplay')
+                        .addStringOption((opt) =>
+                            opt
+                                .setName('tag')
+                                .setDescription('Genre/mood tag to remove')
+                                .setRequired(true),
+                        ),
+                )
+                .addSubcommand((sub) =>
+                    sub
+                        .setName('list')
+                        .setDescription('Show all configured autoplay genres'),
+                )
+                .addSubcommand((sub) =>
+                    sub.setName('clear').setDescription('Remove all genres'),
+                ),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
@@ -428,7 +702,14 @@ export default new Command({
         }
 
         try {
-            const subcommand = interaction.options.getSubcommand()
+            const subcommandGroup =
+                interaction.options.getSubcommandGroup(false)
+            const subcommand = interaction.options.getSubcommand(false)
+
+            if (subcommandGroup === 'genre') {
+                await handleAutoplayGenre(interaction, subcommand)
+                return
+            }
 
             switch (subcommand) {
                 case 'skip':
@@ -468,7 +749,7 @@ export default new Command({
                             embeds: [
                                 createErrorEmbed(
                                     'Unknown Subcommand',
-                                    'Please use skip, clear, status, analytics, or mode.',
+                                    'Please use skip, clear, status, analytics, mode, or genre.',
                                 ),
                             ],
                             ephemeral: true,

@@ -68,9 +68,11 @@ jest.mock('./autoplay/lastFmSeeds', () => ({
 }))
 
 const getSimilarTracksMock = jest.fn()
+const getTagTopTracksMock = jest.fn()
 
 jest.mock('../../lastfm', () => ({
     getSimilarTracks: (...args: unknown[]) => getSimilarTracksMock(...args),
+    getTagTopTracks: (...args: unknown[]) => getTagTopTracksMock(...args),
 }))
 
 const dislikedTrackKeysMock = jest.fn()
@@ -128,6 +130,7 @@ describe('queueManipulation.replenishQueue', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -1892,6 +1895,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -1980,6 +1984,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -2019,6 +2024,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -2076,6 +2082,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
         addTrackToHistoryMock.mockResolvedValue(true)
     })
@@ -2256,5 +2263,85 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
                 t.title?.toLowerCase().includes('bohemian'),
         ).length
         expect(bohemian_added).toBeLessThanOrEqual(1)
+    })
+})
+
+describe('queueManipulation — genre candidate collection', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({
+            autoplayMode: 'similar',
+            autoplayGenres: [],
+        })
+    })
+
+    it('adds candidates from genre tag when autoplayGenres is configured', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { artist: 'Artist X', title: 'Rock Song' },
+        ])
+        getGuildSettingsMock.mockResolvedValue({
+            autoplayMode: 'similar',
+            autoplayGenres: ['rock'],
+        })
+
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            metadata: { requestedBy: { id: 'user-1' } },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Rock Song',
+                            author: 'Artist X',
+                            url: 'https://example.com/rock',
+                            requestedBy: { id: 'user-1' },
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
+        expect(addedTracks.length).toBeGreaterThan(0)
+    })
+
+    it('skips genre collection when autoplayGenres is empty', async () => {
+        getGuildSettingsMock.mockResolvedValue({
+            autoplayMode: 'similar',
+            autoplayGenres: [],
+        })
+
+        const queue = createQueueMock({
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(getTagTopTracksMock).not.toHaveBeenCalled()
+    })
+
+    it('caps genre collection at 3 tags', async () => {
+        getTagTopTracksMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({
+            autoplayMode: 'similar',
+            autoplayGenres: ['rock', 'pop', 'indie', 'jazz', 'metal'],
+        })
+
+        const queue = createQueueMock({
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(getTagTopTracksMock).toHaveBeenCalledTimes(3)
     })
 })

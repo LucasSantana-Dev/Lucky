@@ -13,7 +13,7 @@ import {
     guildSettingsService,
 } from '@lucky/shared/services'
 import { consumeLastFmSeedSlice } from './autoplay/lastFmSeeds'
-import { getSimilarTracks } from '../../lastfm'
+import { getSimilarTracks, getTagTopTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
@@ -311,6 +311,23 @@ async function _replenishQueue(
                 recentArtists,
                 candidates,
                 autoplayMode,
+            )
+        }
+        if (requestedBy && guildSettings?.autoplayGenres?.length) {
+            await collectGenreCandidates(
+                queue,
+                guildSettings.autoplayGenres,
+                requestedBy,
+                {
+                    candidates,
+                    recentArtists,
+                    likedTrackKeys,
+                    dislikedTrackKeys,
+                    currentTrack,
+                    excludedUrls,
+                    excludedKeys,
+                    autoplayMode,
+                },
             )
         }
         if (candidates.size === 0 && currentTrack) {
@@ -728,6 +745,64 @@ async function searchLastFmQuery(
         }
     }
     return []
+}
+
+const GENRE_SCORE_BOOST = 0.1
+const MAX_GENRES = 3
+const MAX_TRACKS_PER_GENRE = 20
+
+interface CandidateContext {
+    candidates: Map<string, ScoredTrack>
+    recentArtists: Set<string>
+    likedTrackKeys: Set<string>
+    dislikedTrackKeys: Set<string>
+    currentTrack: Track
+    excludedUrls: Set<string>
+    excludedKeys: Set<string>
+    autoplayMode: 'similar' | 'discover' | 'popular'
+}
+
+function addGenreTrackCandidate(
+    track: Track,
+    tag: string,
+    ctx: CandidateContext,
+): void {
+    if (!shouldIncludeCandidate(track, ctx.excludedUrls, ctx.excludedKeys))
+        return
+    if (ctx.dislikedTrackKeys.has(normalizeTrackKey(track.title, track.author)))
+        return
+    const rec = calculateRecommendationScore(
+        track,
+        ctx.currentTrack,
+        ctx.recentArtists,
+        ctx.likedTrackKeys,
+        ctx.autoplayMode,
+    )
+    upsertScoredCandidate(ctx.candidates, track, {
+        score: rec.score + GENRE_SCORE_BOOST,
+        reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
+    })
+}
+
+async function collectGenreCandidates(
+    queue: GuildQueue,
+    genres: string[],
+    requestedBy: User,
+    ctx: CandidateContext,
+): Promise<void> {
+    for (const tag of genres.slice(0, MAX_GENRES)) {
+        if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+        const seeds = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
+        for (const seed of seeds) {
+            if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+            const results = await searchLastFmQuery(
+                queue,
+                `${seed.title} ${seed.artist}`.trim(),
+                requestedBy,
+            )
+            for (const track of results) addGenreTrackCandidate(track, tag, ctx)
+        }
+    }
 }
 
 function selectDiverseCandidates(

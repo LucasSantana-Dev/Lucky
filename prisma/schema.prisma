@@ -101,6 +101,7 @@ model GuildSettings {
   maxQueueSize    Int     @default(100)
   autoPlayEnabled Boolean @default(true)
   autoplayMode    AutoplayMode @default(similar)
+  autoplayGenres  String[] @default([])
   repeatMode      Int     @default(0)
   shuffleEnabled  Boolean @default(false)
 
