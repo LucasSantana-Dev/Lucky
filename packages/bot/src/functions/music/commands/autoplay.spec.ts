@@ -59,7 +59,10 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-function createInteraction(subcommand = 'skip', subcommandGroup: string | null = null) {
+function createInteraction(
+    subcommand = 'skip',
+    subcommandGroup: string | null = null,
+) {
     const interaction = {
         guildId: 'guild-1',
         deferred: false,
@@ -416,6 +419,179 @@ describe('autoplay command', () => {
             )
             expect(queue.removeTrack).not.toHaveBeenCalled()
             expect(interactionReplyMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('genre subcommand group', () => {
+        function createGenreInteraction(subcommand: string, tag?: string) {
+            const interaction = {
+                guildId: 'guild-1',
+                deferred: false,
+                replied: false,
+                user: { id: 'user-1' },
+                deferReply: jest.fn(async () => {
+                    interaction.deferred = true
+                }),
+                options: {
+                    getSubcommand: jest.fn(() => subcommand),
+                    getSubcommandGroup: jest.fn(() => 'genre'),
+                    getString: jest.fn(() => tag ?? null),
+                },
+            }
+            return interaction as any
+        }
+
+        it('genre add — adds new genre successfully', async () => {
+            const interaction = createGenreInteraction('add', 'rock')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({ autoplayGenres: [] })
+            updateGuildSettingsMock.mockResolvedValue(true)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(updateGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                autoplayGenres: ['rock'],
+            })
+            expect(createEmbedMock).toHaveBeenCalled()
+        })
+
+        it('genre add — rejects when limit of 5 reached', async () => {
+            const interaction = createGenreInteraction('add', 'jazz')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({
+                autoplayGenres: ['rock', 'pop', 'indie', 'metal', 'electronic'],
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Limit Reached',
+                expect.any(String),
+            )
+        })
+
+        it('genre add — rejects duplicate genre', async () => {
+            const interaction = createGenreInteraction('add', 'rock')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({ autoplayGenres: ['rock'] })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Already Added',
+                expect.any(String),
+            )
+        })
+
+        it('genre remove — removes existing genre', async () => {
+            const interaction = createGenreInteraction('remove', 'rock')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({
+                autoplayGenres: ['rock', 'pop'],
+            })
+            updateGuildSettingsMock.mockResolvedValue(true)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(updateGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                autoplayGenres: ['pop'],
+            })
+            expect(createEmbedMock).toHaveBeenCalled()
+        })
+
+        it('genre remove — shows error when genre not found', async () => {
+            const interaction = createGenreInteraction('remove', 'jazz')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({ autoplayGenres: ['rock'] })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Not Found',
+                expect.any(String),
+            )
+        })
+
+        it('genre list — shows configured genres', async () => {
+            const interaction = createGenreInteraction('list')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({
+                autoplayGenres: ['rock', 'indie'],
+            })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: expect.stringContaining('Genres'),
+                }),
+            )
+        })
+
+        it('genre list — shows empty state message', async () => {
+            const interaction = createGenreInteraction('list')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({ autoplayGenres: [] })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: expect.stringContaining('No genres'),
+                }),
+            )
+        })
+
+        it('genre clear — clears all genres', async () => {
+            const interaction = createGenreInteraction('clear')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({
+                autoplayGenres: ['rock', 'pop'],
+            })
+            updateGuildSettingsMock.mockResolvedValue(true)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(updateGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                autoplayGenres: [],
+            })
+        })
+
+        it('genre clear — shows error when no genres set', async () => {
+            const interaction = createGenreInteraction('clear')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({ autoplayGenres: [] })
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'No Genres',
+                expect.any(String),
+            )
+        })
+
+        it('genre add — handles update failure', async () => {
+            const interaction = createGenreInteraction('add', 'rock')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            getGuildSettingsMock.mockResolvedValue({ autoplayGenres: [] })
+            updateGuildSettingsMock.mockResolvedValue(false)
+
+            await autoplayCommand.execute({ client, interaction } as any)
+
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.any(String),
+            )
         })
     })
 
