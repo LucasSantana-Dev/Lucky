@@ -177,7 +177,9 @@ export class RecommendationFeedbackService {
         return `music:artist_feedback:${userId}`
     }
 
-    private async getArtistFeedbackMap(userId: string): Promise<Record<string, ArtistFeedback>> {
+    private async getArtistFeedbackMap(
+        userId: string,
+    ): Promise<Record<string, ArtistFeedback>> {
         const key = this.getArtistFeedbackRedisKey(userId)
         try {
             const value = await redisClient.get(key)

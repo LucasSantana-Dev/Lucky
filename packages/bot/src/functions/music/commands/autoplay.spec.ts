@@ -12,6 +12,9 @@ const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const trackHistoryServiceMock = jest.fn()
+const setArtistFeedbackMock = jest.fn()
+const removeArtistFeedbackMock = jest.fn()
+const getArtistFeedbackSummaryMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -56,6 +59,17 @@ jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getAutoplayStats: (...args: unknown[]) =>
             trackHistoryServiceMock(...args),
+    },
+}))
+
+jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        setArtistFeedback: (...args: unknown[]) =>
+            setArtistFeedbackMock(...args),
+        removeArtistFeedback: (...args: unknown[]) =>
+            removeArtistFeedbackMock(...args),
+        getArtistFeedbackSummary: (...args: unknown[]) =>
+            getArtistFeedbackSummaryMock(...args),
     },
 }))
 
@@ -590,6 +604,101 @@ describe('autoplay command', () => {
 
             expect(createErrorEmbedMock).toHaveBeenCalledWith(
                 'Error',
+                expect.any(String),
+            )
+        })
+    })
+
+    describe('artist subcommand group', () => {
+        beforeEach(() => {
+            setArtistFeedbackMock.mockResolvedValue(undefined)
+            removeArtistFeedbackMock.mockResolvedValue(undefined)
+            getArtistFeedbackSummaryMock.mockResolvedValue({
+                preferred: [],
+                blocked: [],
+            })
+        })
+
+        function createArtistInteraction(subcommand: string, artist?: string) {
+            const interaction = {
+                guildId: 'guild-1',
+                deferred: false,
+                replied: false,
+                user: { id: 'user-1' },
+                deferReply: jest.fn(async () => {
+                    interaction.deferred = true
+                }),
+                options: {
+                    getSubcommand: jest.fn(() => subcommand),
+                    getSubcommandGroup: jest.fn(() => 'artist'),
+                    getString: jest.fn(() => artist ?? null),
+                },
+            }
+            return interaction as any
+        }
+
+        it('artist prefer — marks artist as preferred', async () => {
+            const interaction = createArtistInteraction('prefer', 'The Beatles')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(setArtistFeedbackMock).toHaveBeenCalledWith(
+                'guild-1',
+                'user-1',
+                'The Beatles',
+                'prefer',
+            )
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: expect.stringContaining('Preferred'),
+                }),
+            )
+        })
+
+        it('artist block — blocks artist from autoplay', async () => {
+            const interaction = createArtistInteraction('block', 'Artist X')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(setArtistFeedbackMock).toHaveBeenCalledWith(
+                'guild-1',
+                'user-1',
+                'Artist X',
+                'block',
+            )
+        })
+
+        it('artist remove — removes preference', async () => {
+            const interaction = createArtistInteraction('remove', 'The Beatles')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(removeArtistFeedbackMock).toHaveBeenCalledWith(
+                'guild-1',
+                'user-1',
+                'The Beatles',
+            )
+        })
+
+        it('artist list — shows preferences', async () => {
+            const interaction = createArtistInteraction('list')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: expect.stringContaining('Preferences'),
+                }),
+            )
+        })
+
+        it('artist prefer — shows error when no artist name', async () => {
+            const interaction = createArtistInteraction('prefer', undefined)
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Missing Input',
                 expect.any(String),
             )
         })
