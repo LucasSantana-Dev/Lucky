@@ -5,6 +5,7 @@ import {
     getSimilarTracks,
 } from '../../../lastfm'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { cleanTitle } from '../searchQueryCleaner'
 
 const CACHE_TTL_MS = 15 * 60 * 1000
 const TOP_TRACKS_LIMIT = 50
@@ -28,7 +29,8 @@ function deduplicateTracks(
 ): { artist: string; title: string }[] {
     const seen = new Set<string>()
     return tracks.filter((t) => {
-        const key = `${t.artist.toLowerCase()}|${t.title.toLowerCase()}`
+        const normalizedTitle = cleanTitle(t.title).toLowerCase().trim()
+        const key = `${t.artist.toLowerCase()}|${normalizedTitle}`
         if (seen.has(key)) return false
         seen.add(key)
         return true
