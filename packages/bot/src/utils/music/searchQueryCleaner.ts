@@ -94,8 +94,12 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
     /^(?:19|20)\d{2}$/,
 ]
 
+const VERSION_KEYWORD_RE =
+    /\b(?:remaster(?:ed)?|remix|acoustic|live|demo|extended|instrumental|deluxe|explicit|clean|bonus\s+track|radio\s+edit|single\s+version|album\s+version)\b/i
+
 function isVersionSuffix(suffix: string): boolean {
-    return HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))
+    if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) return true
+    return suffix.length <= 40 && VERSION_KEYWORD_RE.test(suffix)
 }
 
 /**
