@@ -129,3 +129,29 @@ export async function consumeLastFmSeedSlice(
     consumeLocks.set(userId, next)
     return next
 }
+
+export async function consumeBlendedSeedSlice(
+    userIds: string[],
+    count: number,
+): Promise<{ artist: string; title: string }[]> {
+    if (userIds.length === 0) return []
+
+    const perUserCount = Math.ceil(count / userIds.length)
+    const slices = await Promise.all(
+        userIds.map((id) => consumeLastFmSeedSlice(id, perUserCount)),
+    )
+
+    const interleaved: { artist: string; title: string }[] = []
+    const maxLen = Math.max(...slices.map((s) => s.length))
+
+    for (let i = 0; i < maxLen; i++) {
+        for (const slice of slices) {
+            if (i < slice.length) {
+                interleaved.push(slice[i])
+            }
+        }
+    }
+
+    const deduped = deduplicateTracks(interleaved)
+    return deduped.slice(0, count)
+}
