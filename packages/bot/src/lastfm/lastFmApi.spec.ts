@@ -15,6 +15,7 @@ import {
     getTopTracks,
     getRecentTracks,
     getSimilarTracks,
+    getTagTopTracks,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -409,6 +410,88 @@ describe('lastFmApi', () => {
             )
 
             expect(isLastFmInvalidSessionError(error)).toBe(true)
+        })
+    })
+
+    describe('getTagTopTracks', () => {
+        it('returns mapped tracks from tag on success', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptracks: {
+                        track: [
+                            {
+                                name: 'Rock Track 1',
+                                artist: { name: 'Rock Artist' },
+                            },
+                            {
+                                name: 'Rock Track 2',
+                                artist: { name: 'Another Rock Artist' },
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getTagTopTracks('rock', 10)
+
+            expect(tracks).toHaveLength(2)
+            expect(tracks[0]).toEqual({
+                artist: 'Rock Artist',
+                title: 'Rock Track 1',
+            })
+            expect(tracks[1]).toEqual({
+                artist: 'Another Rock Artist',
+                title: 'Rock Track 2',
+            })
+        })
+
+        it('uses default limit when not specified', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ toptracks: { track: [] } }),
+            })
+
+            await getTagTopTracks('indie')
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const url = lastCall?.[0] as string
+            expect(url).toContain('limit=30')
+        })
+
+        it('returns empty array when api_key is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+
+            const tracks = await getTagTopTracks('rock')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array when fetch fails', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network error'))
+
+            const tracks = await getTagTopTracks('jazz')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array on non-ok response', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+
+            const tracks = await getTagTopTracks('chillhop')
+
+            expect(tracks).toEqual([])
+        })
+
+        it('returns empty array when toptracks is missing', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({}),
+            })
+
+            const tracks = await getTagTopTracks('pop')
+
+            expect(tracks).toEqual([])
         })
     })
 })
