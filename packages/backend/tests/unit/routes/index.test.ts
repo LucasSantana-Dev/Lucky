@@ -18,6 +18,7 @@ const setupGuildAutomationRoutes = jest.fn()
 const setupLevelsRoutes = jest.fn()
 const setupStarboardRoutes = jest.fn()
 const setupMusicRoutes = jest.fn()
+const setupSpotifyRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
@@ -90,6 +91,10 @@ jest.mock('../../../src/routes/starboard', () => ({
 
 jest.mock('../../../src/routes/music', () => ({
     setupMusicRoutes,
+}))
+
+jest.mock('../../../src/routes/spotify', () => ({
+    setupSpotifyRoutes,
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
