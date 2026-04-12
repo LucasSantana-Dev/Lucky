@@ -183,4 +183,140 @@ describe('RecommendationFeedbackService', () => {
         expect(result.size).toBe(0)
         expect(getMock).not.toHaveBeenCalled()
     })
+
+    it('setArtistFeedback stores prefer feedback', async () => {
+        const service = new RecommendationFeedbackService(30)
+        getMock.mockResolvedValue(null)
+        setexMock.mockResolvedValue(true)
+
+        await service.setArtistFeedback('guild-1', 'user-1', 'Taylor Swift', 'prefer')
+
+        expect(setexMock).toHaveBeenCalledWith(
+            'music:artist_feedback:user-1',
+            30 * 24 * 60 * 60,
+            expect.any(String),
+        )
+        expect(getMock).toHaveBeenCalledWith('music:artist_feedback:user-1')
+    })
+
+    it('setArtistFeedback stores block feedback', async () => {
+        const service = new RecommendationFeedbackService(30)
+        getMock.mockResolvedValue(null)
+        setexMock.mockResolvedValue(true)
+
+        await service.setArtistFeedback('guild-1', 'user-1', 'Unknown Artist', 'block')
+
+        expect(setexMock).toHaveBeenCalled()
+        const callArgs = setexMock.mock.calls[0]
+        const storedData = JSON.parse(callArgs[2] as string)
+        expect(Object.values(storedData)[0]).toBe('block')
+    })
+
+    it('getPreferredArtistKeys returns preferred artists', async () => {
+        const service = new RecommendationFeedbackService(30)
+        const artistKey1 = 'taylorswift'
+        const artistKey2 = 'arianagrande'
+
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                [artistKey1]: 'prefer',
+                [artistKey2]: 'prefer',
+                'badartist': 'block',
+            }),
+        )
+
+        const preferred = await service.getPreferredArtistKeys('guild-1', 'user-1')
+
+        expect(preferred.has(artistKey1)).toBe(true)
+        expect(preferred.has(artistKey2)).toBe(true)
+        expect(preferred.has('badartist')).toBe(false)
+        expect(preferred.size).toBe(2)
+    })
+
+    it('getBlockedArtistKeys returns blocked artists', async () => {
+        const service = new RecommendationFeedbackService(30)
+        const artistKey1 = 'badartist1'
+        const artistKey2 = 'badartist2'
+
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                [artistKey1]: 'block',
+                [artistKey2]: 'block',
+                'goodartist': 'prefer',
+            }),
+        )
+
+        const blocked = await service.getBlockedArtistKeys('guild-1', 'user-1')
+
+        expect(blocked.has(artistKey1)).toBe(true)
+        expect(blocked.has(artistKey2)).toBe(true)
+        expect(blocked.has('goodartist')).toBe(false)
+        expect(blocked.size).toBe(2)
+    })
+
+    it('getPreferredArtistKeys returns empty set for undefined userId', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        const result = await service.getPreferredArtistKeys('guild-1', undefined)
+
+        expect(result.size).toBe(0)
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('getBlockedArtistKeys returns empty set for undefined userId', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        const result = await service.getBlockedArtistKeys('guild-1', undefined)
+
+        expect(result.size).toBe(0)
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('removeArtistFeedback deletes artist preference', async () => {
+        const service = new RecommendationFeedbackService(30)
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                'taylorswift': 'prefer',
+                'arianagrande': 'prefer',
+            }),
+        )
+        setexMock.mockResolvedValue(true)
+
+        await service.removeArtistFeedback('guild-1', 'user-1', 'Taylor Swift')
+
+        expect(setexMock).toHaveBeenCalled()
+        const callArgs = setexMock.mock.calls[0]
+        const storedData = JSON.parse(callArgs[2] as string)
+        expect(storedData).not.toHaveProperty('taylorswift')
+        expect(storedData).toHaveProperty('arianagrande')
+    })
+
+    it('getArtistFeedbackSummary returns preferred and blocked lists', async () => {
+        const service = new RecommendationFeedbackService(30)
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                'artistone': 'prefer',
+                'artisttwo': 'prefer',
+                'badartist': 'block',
+            }),
+        )
+
+        const summary = await service.getArtistFeedbackSummary('user-1')
+
+        expect(summary.preferred).toContain('artistone')
+        expect(summary.preferred).toContain('artisttwo')
+        expect(summary.blocked).toContain('badartist')
+        expect(summary.preferred.length).toBe(2)
+        expect(summary.blocked.length).toBe(1)
+    })
+
+    it('getArtistFeedbackSummary returns empty lists for undefined userId', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        const summary = await service.getArtistFeedbackSummary(undefined)
+
+        expect(summary.preferred).toEqual([])
+        expect(summary.blocked).toEqual([])
+        expect(getMock).not.toHaveBeenCalled()
+    })
 })

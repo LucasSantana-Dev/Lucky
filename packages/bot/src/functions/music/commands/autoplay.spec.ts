@@ -446,7 +446,7 @@ describe('autoplay command', () => {
 
             expect(createErrorEmbedMock).toHaveBeenCalledWith(
                 'Unknown Subcommand',
-                'Please use skip, clear, status, analytics, or mode.',
+                'Please use skip, clear, status, analytics, mode, or artist.',
             )
             expect(interactionReplyMock).toHaveBeenCalled()
         })
