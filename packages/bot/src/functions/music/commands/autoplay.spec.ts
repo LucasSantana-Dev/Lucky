@@ -623,7 +623,7 @@ describe('autoplay command', () => {
 
             expect(createErrorEmbedMock).toHaveBeenCalledWith(
                 'Unknown Subcommand',
-                'Please use skip, clear, status, analytics, mode, or genre.',
+                'Please use skip, clear, status, analytics, or mode.',
             )
             expect(interactionReplyMock).toHaveBeenCalled()
         })
