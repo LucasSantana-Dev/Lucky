@@ -340,6 +340,8 @@ async function _replenishQueue(
                     currentTrack,
                     excludedUrls,
                     excludedKeys,
+                    preferredArtistKeys,
+                    blockedArtistKeys,
                     autoplayMode,
                 },
             )
@@ -700,9 +702,9 @@ async function collectLastFmCandidates(
                 currentTrack,
                 recentArtists,
                 likedTrackKeys,
-            preferredArtistKeys,
-            blockedArtistKeys,
-            autoplayMode,
+                preferredArtistKeys,
+                blockedArtistKeys,
+                autoplayMode,
             )
             if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
@@ -790,6 +792,8 @@ interface CandidateContext {
     currentTrack: Track
     excludedUrls: Set<string>
     excludedKeys: Set<string>
+    preferredArtistKeys: Set<string>
+    blockedArtistKeys: Set<string>
     autoplayMode: 'similar' | 'discover' | 'popular'
 }
 
@@ -807,6 +811,8 @@ function addGenreTrackCandidate(
         ctx.currentTrack,
         ctx.recentArtists,
         ctx.likedTrackKeys,
+        ctx.preferredArtistKeys,
+        ctx.blockedArtistKeys,
         ctx.autoplayMode,
     )
     upsertScoredCandidate(ctx.candidates, track, {
