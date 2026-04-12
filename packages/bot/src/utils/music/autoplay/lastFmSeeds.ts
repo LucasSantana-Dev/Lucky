@@ -5,6 +5,7 @@ import {
     getSimilarTracks,
 } from '../../../lastfm'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { consumeSpotifySeedSlice } from './spotifySeeds'
 
 const CACHE_TTL_MS = 15 * 60 * 1000
 const TOP_TRACKS_LIMIT = 50
@@ -137,8 +138,13 @@ export async function consumeBlendedSeedSlice(
     if (userIds.length === 0) return []
 
     const perUserCount = Math.ceil(count / userIds.length)
+
     const slices = await Promise.all(
-        userIds.map((id) => consumeLastFmSeedSlice(id, perUserCount)),
+        userIds.map(async (id) => {
+            const spotifySlice = await consumeSpotifySeedSlice(id, perUserCount)
+            if (spotifySlice.length > 0) return spotifySlice
+            return consumeLastFmSeedSlice(id, perUserCount)
+        }),
     )
 
     const interleaved: { artist: string; title: string }[] = []

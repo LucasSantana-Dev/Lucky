@@ -19,6 +19,7 @@ import {
 const getByDiscordIdMock = jest.fn()
 const getTopTracksMock = jest.fn()
 const getRecentTracksMock = jest.fn()
+const consumeSpotifySeedSliceMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
@@ -34,6 +35,11 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../../lastfm', () => ({
     getTopTracks: (...args: unknown[]) => getTopTracksMock(...args),
     getRecentTracks: (...args: unknown[]) => getRecentTracksMock(...args),
+}))
+
+jest.mock('./spotifySeeds', () => ({
+    consumeSpotifySeedSlice: (...args: unknown[]) =>
+        consumeSpotifySeedSliceMock(...args),
 }))
 
 describe('getLastFmSeedTracks', () => {
@@ -434,6 +440,7 @@ describe('consumeBlendedSeedSlice', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         getRecentTracksMock.mockResolvedValue([])
+        consumeSpotifySeedSliceMock.mockResolvedValue([])
     })
 
     afterEach(() => {
@@ -526,6 +533,72 @@ describe('consumeBlendedSeedSlice', () => {
             ['no-link-1', 'no-link-2'],
             5,
         )
+
+        expect(slice).toEqual([])
+    })
+})
+
+describe('consumeBlendedSeedSlice with Spotify fallback', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        getRecentTracksMock.mockResolvedValue([])
+        consumeSpotifySeedSliceMock.mockResolvedValue([])
+    })
+
+    afterEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('tries Spotify first, falls back to Last.fm when Spotify returns empty', async () => {
+        consumeSpotifySeedSliceMock.mockResolvedValue([])
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'Fallback1', title: 'Track1', playCount: 1 },
+            { artist: 'Fallback2', title: 'Track2', playCount: 2 },
+        ])
+
+        const slice = await consumeBlendedSeedSlice(['user-fallback'], 2)
+
+        expect(consumeSpotifySeedSliceMock).toHaveBeenCalled()
+        expect(slice.length).toBeGreaterThan(0)
+        expect(getTopTracksMock).toHaveBeenCalled()
+    })
+
+    it('uses Spotify tracks when available', async () => {
+        consumeSpotifySeedSliceMock.mockResolvedValue([
+            { artist: 'Spotify Artist', title: 'Spotify Track' },
+        ])
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+
+        const slice = await consumeBlendedSeedSlice(['user-spotify'], 1)
+
+        expect(consumeSpotifySeedSliceMock).toHaveBeenCalled()
+        expect(slice).toContainEqual({
+            artist: 'Spotify Artist',
+            title: 'Spotify Track',
+        })
+    })
+
+    it('blends Spotify and Last.fm from different users', async () => {
+        consumeSpotifySeedSliceMock
+            .mockResolvedValueOnce([{ artist: 'Spotify1', title: 'Track1' }])
+            .mockResolvedValueOnce([])
+
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'LastFm1', title: 'Track1', playCount: 1 },
+        ])
+
+        const slice = await consumeBlendedSeedSlice(['user-spotify', 'user-lastfm'], 2)
+
+        expect(slice.length).toBeGreaterThan(0)
+    })
+
+    it('returns empty when all sources return empty', async () => {
+        consumeSpotifySeedSliceMock.mockResolvedValue([])
+        getByDiscordIdMock.mockResolvedValue(null)
+
+        const slice = await consumeBlendedSeedSlice(['user-empty'], 5)
 
         expect(slice).toEqual([])
     })
