@@ -83,8 +83,18 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\s{0,3}-\s{0,3}topic\b/gi,
 ]
 
-const HYPHENATED_VERSION_SUFFIX =
-    /^(?:\d{4} +)?remaster(?:ed)?(?:\s+\d{4})?$|^official (?:audio|video|music video)$|^(?:live|acoustic|demo|extended|radio edit|album version|single version|original mix|original version|\d{4})$/i
+const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
+    /^(?:\d{4} +)?remaster(?:ed)?(?:\s+\d{4})?$/i,
+    /^official (?:audio|video|music video)$/i,
+    /^(?:live|acoustic|demo|extended)$/i,
+    /^(?:radio edit|album version|single version)$/i,
+    /^(?:original mix|original version)$/i,
+    /^\d{4}$/,
+]
+
+function isVersionSuffix(suffix: string): boolean {
+    return HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))
+}
 
 /**
  * Channels whose uploads are almost always mislabeled or compilation garbage.
@@ -115,7 +125,7 @@ export function cleanTitle(title: string): string {
         const idx = cleaned.indexOf(sep)
         if (idx > 0) {
             const suffix = cleaned.slice(idx + sep.length).trim()
-            if (HYPHENATED_VERSION_SUFFIX.test(suffix)) {
+            if (isVersionSuffix(suffix)) {
                 cleaned = cleaned.slice(0, idx)
                 break
             }

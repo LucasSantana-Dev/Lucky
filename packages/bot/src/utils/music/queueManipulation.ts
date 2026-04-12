@@ -613,7 +613,7 @@ function upsertScoredCandidate(
 ): void {
     const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
     const candidateKey =
-        normalizedKey.replace(/:/g, '').length > 4
+        normalizedKey.replaceAll(':', '').length > 4
             ? normalizedKey
             : getTrackKey(candidate)
     const existing = candidates.get(candidateKey)
