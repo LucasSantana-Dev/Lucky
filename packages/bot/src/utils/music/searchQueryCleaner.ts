@@ -89,7 +89,7 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
     /^(?:live|acoustic|demo|extended)$/i,
     /^(?:radio edit|album version|single version)$/i,
     /^(?:original mix|original version)$/i,
-    /^\d{4}$/,
+    /^(?:19|20)\d{2}$/,
 ]
 
 function isVersionSuffix(suffix: string): boolean {

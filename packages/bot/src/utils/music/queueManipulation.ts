@@ -613,9 +613,7 @@ function upsertScoredCandidate(
 ): void {
     const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
     const candidateKey =
-        normalizedKey.replaceAll(':', '').length > 4
-            ? normalizedKey
-            : getTrackKey(candidate)
+        normalizedKey !== '::' ? normalizedKey : getTrackKey(candidate)
     const existing = candidates.get(candidateKey)
 
     if (!existing || recommendation.score > existing.score) {
