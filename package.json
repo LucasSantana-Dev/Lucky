@@ -1,124 +1,124 @@
 {
-  "name": "lucky-bot",
-  "version": "2.6.93",
-  "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
-  "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "build": "npm run db:generate && npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
-    "build:shared": "npm run build --workspace=packages/shared",
-    "build:bot": "npm run build --workspace=packages/bot",
-    "build:backend": "npm run build --workspace=packages/backend",
-    "build:frontend": "npm run build --workspace=packages/frontend",
-    "verify:shared-exports": "node scripts/verify-shared-exports.mjs",
-    "dev:bot": "npm run dev --workspace=packages/bot",
-    "dev:backend": "npm run dev --workspace=packages/backend",
-    "dev:frontend": "npm run dev --workspace=packages/frontend",
-    "format": "prettier . --write",
-    "lint": "eslint . -c eslint.config.js",
-    "lint:fix": "eslint . -c eslint.config.js --fix",
-    "type:check": "npm run type:check --workspace=packages/shared && npm run type:check --workspace=packages/bot && npm run type:check --workspace=packages/backend && npm run type:check --workspace=packages/frontend",
-    "test": "npm run test --workspace=packages/backend",
-    "test:backend": "npm run test --workspace=packages/backend -- --ci",
-    "test:bot": "npm run test --workspace=packages/bot -- --ci",
-    "test:frontend": "npm run test --workspace=packages/frontend",
-    "test:music:incident": "jest --config packages/bot/jest.config.cjs --testPathPatterns=\"engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec\" --runInBand",
-    "test:all": "npm run test:shared && npm run test:backend && npm run test:bot && npm run test:frontend",
-    "test:ci": "npm run test --workspace=packages/backend -- --ci",
-    "test:coverage": "npm run test --workspace=packages/backend -- --coverage",
-    "test:e2e": "npm run test:e2e --workspace=packages/frontend",
-    "verify": "npm run lint --workspace=packages/frontend && npm run lint --workspace=packages/backend && npm run build:shared && npm run verify:shared-exports && npm run type:check && npm run build && npm run test:all && npm run audit:high",
-    "audit:critical": "npm audit --audit-level=critical",
-    "audit:high": "npm audit --audit-level=high",
-    "lint:secrets": "secretlint \"**/*\"",
-    "check:outdated": "npm outdated || true",
-    "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/postgres} prisma generate --config prisma/prisma.config.ts",
-    "db:migrate": "./scripts/db-migrate-safe.sh",
-    "db:deploy": "prisma migrate deploy --config prisma/prisma.config.ts",
-    "db:reset": "prisma migrate reset --config prisma/prisma.config.ts",
-    "db:seed": "prisma db seed --config prisma/prisma.config.ts",
-    "db:setup": "./scripts/setup-database.sh",
-    "db:status": "prisma migrate status --config prisma/prisma.config.ts",
-    "db:studio": "prisma studio --config prisma/prisma.config.ts",
-    "deploy:remote": "./scripts/deploy-remote.sh",
-    "deploy:homelab": "./scripts/deploy-remote.sh main",
-    "test:shared": "npm run test:ci --workspace=packages/shared"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix -c eslint.config.js",
-      "prettier --write"
+    "name": "lucky-bot",
+    "version": "2.6.94",
+    "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
+    "type": "module",
+    "workspaces": [
+        "packages/*"
     ],
-    "*.{js,json,md}": [
-      "prettier --write"
+    "scripts": {
+        "build": "npm run db:generate && npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
+        "build:shared": "npm run build --workspace=packages/shared",
+        "build:bot": "npm run build --workspace=packages/bot",
+        "build:backend": "npm run build --workspace=packages/backend",
+        "build:frontend": "npm run build --workspace=packages/frontend",
+        "verify:shared-exports": "node scripts/verify-shared-exports.mjs",
+        "dev:bot": "npm run dev --workspace=packages/bot",
+        "dev:backend": "npm run dev --workspace=packages/backend",
+        "dev:frontend": "npm run dev --workspace=packages/frontend",
+        "format": "prettier . --write",
+        "lint": "eslint . -c eslint.config.js",
+        "lint:fix": "eslint . -c eslint.config.js --fix",
+        "type:check": "npm run type:check --workspace=packages/shared && npm run type:check --workspace=packages/bot && npm run type:check --workspace=packages/backend && npm run type:check --workspace=packages/frontend",
+        "test": "npm run test --workspace=packages/backend",
+        "test:backend": "npm run test --workspace=packages/backend -- --ci",
+        "test:bot": "npm run test --workspace=packages/bot -- --ci",
+        "test:frontend": "npm run test --workspace=packages/frontend",
+        "test:music:incident": "jest --config packages/bot/jest.config.cjs --testPathPatterns=\"engineManager.spec|autoplay.spec|queueManipulation.spec|playerFactory.test|play/index.spec\" --runInBand",
+        "test:all": "npm run test:shared && npm run test:backend && npm run test:bot && npm run test:frontend",
+        "test:ci": "npm run test --workspace=packages/backend -- --ci",
+        "test:coverage": "npm run test --workspace=packages/backend -- --coverage",
+        "test:e2e": "npm run test:e2e --workspace=packages/frontend",
+        "verify": "npm run lint --workspace=packages/frontend && npm run lint --workspace=packages/backend && npm run build:shared && npm run verify:shared-exports && npm run type:check && npm run build && npm run test:all && npm run audit:high",
+        "audit:critical": "npm audit --audit-level=critical",
+        "audit:high": "npm audit --audit-level=high",
+        "lint:secrets": "secretlint \"**/*\"",
+        "check:outdated": "npm outdated || true",
+        "db:generate": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/postgres} prisma generate --config prisma/prisma.config.ts",
+        "db:migrate": "./scripts/db-migrate-safe.sh",
+        "db:deploy": "prisma migrate deploy --config prisma/prisma.config.ts",
+        "db:reset": "prisma migrate reset --config prisma/prisma.config.ts",
+        "db:seed": "prisma db seed --config prisma/prisma.config.ts",
+        "db:setup": "./scripts/setup-database.sh",
+        "db:status": "prisma migrate status --config prisma/prisma.config.ts",
+        "db:studio": "prisma studio --config prisma/prisma.config.ts",
+        "deploy:remote": "./scripts/deploy-remote.sh",
+        "deploy:homelab": "./scripts/deploy-remote.sh main",
+        "test:shared": "npm run test:ci --workspace=packages/shared"
+    },
+    "lint-staged": {
+        "*.{ts,tsx}": [
+            "eslint --fix -c eslint.config.js",
+            "prettier --write"
+        ],
+        "*.{js,json,md}": [
+            "prettier --write"
+        ],
+        "*": [
+            "secretlint"
+        ]
+    },
+    "config": {
+        "commitizen": {
+            "path": "./node_modules/cz-conventional-changelog"
+        }
+    },
+    "engines": {
+        "node": "22.x"
+    },
+    "keywords": [
+        "discord-bot",
+        "typescript",
+        "music-bot",
+        "moderation",
+        "dashboard"
     ],
-    "*": [
-      "secretlint"
-    ]
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@commitlint/cli": "^20.3.1",
+        "@commitlint/config-conventional": "^20.3.1",
+        "@eslint/js": "^10.0.1",
+        "@secretlint/secretlint-rule-preset-recommend": "^11.6.0",
+        "@types/jest": "^30.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.58.1",
+        "@typescript-eslint/parser": "^8.54.0",
+        "eslint-config-prettier": "^10.1.8",
+        "globals": "^17.2.0",
+        "jest": "^30.2.0",
+        "prettier": "^3.8.2",
+        "prisma": "^7.7.0",
+        "secretlint": "^11.6.0",
+        "ts-jest": "^29.4.9",
+        "unfetch": "^5.0.0"
+    },
+    "dependencies": {
+        "@discord-player/extractor": "^7.2.0",
+        "@prisma/adapter-pg": "^7.6.0",
+        "@prisma/client": "^7.6.0",
+        "@snazzah/davey": "^0.1.11",
+        "chalk": "^5.6.2",
+        "discord-player-youtubei": "^3.0.0-beta.4",
+        "jintr": "^3.3.1",
+        "minipass-flush": "^2.0.0",
+        "unleash-client": "^6.10.1"
+    },
+    "overrides": {
+        "brace-expansion": ">=5.0.5",
+        "handlebars": ">=4.7.9",
+        "path-to-regexp": ">=8.4.0",
+        "fast-xml-parser": ">=5.5.6",
+        "tar": ">=7.5.11",
+        "undici": ">=7.24.0",
+        "flatted": "^3.4.2",
+        "effect": "^3.20.0",
+        "@smithy/config-resolver": ">=4.4.10",
+        "@aws-sdk/client-sso": ">=3.726.0",
+        "@hono/node-server": ">=1.19.13",
+        "hono": ">=4.12.12",
+        "lodash": ">=4.17.22",
+        "file-type": ">=21.3.2",
+        "yauzl": ">=3.2.1",
+        "picomatch": ">=2.3.2"
     }
-  },
-  "engines": {
-    "node": "22.x"
-  },
-  "keywords": [
-    "discord-bot",
-    "typescript",
-    "music-bot",
-    "moderation",
-    "dashboard"
-  ],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@commitlint/cli": "^20.3.1",
-    "@commitlint/config-conventional": "^20.3.1",
-    "@eslint/js": "^10.0.1",
-    "@secretlint/secretlint-rule-preset-recommend": "^11.6.0",
-    "@types/jest": "^30.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.58.1",
-    "@typescript-eslint/parser": "^8.54.0",
-    "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.2.0",
-    "jest": "^30.2.0",
-    "prettier": "^3.8.2",
-    "prisma": "^7.7.0",
-    "secretlint": "^11.6.0",
-    "ts-jest": "^29.4.9",
-    "unfetch": "^5.0.0"
-  },
-  "dependencies": {
-    "@discord-player/extractor": "^7.2.0",
-    "@prisma/adapter-pg": "^7.6.0",
-    "@prisma/client": "^7.6.0",
-    "@snazzah/davey": "^0.1.11",
-    "chalk": "^5.6.2",
-    "discord-player-youtubei": "^3.0.0-beta.4",
-    "jintr": "^3.3.1",
-    "minipass-flush": "^2.0.0",
-    "unleash-client": "^6.10.1"
-  },
-  "overrides": {
-    "brace-expansion": ">=5.0.5",
-    "handlebars": ">=4.7.9",
-    "path-to-regexp": ">=8.4.0",
-    "fast-xml-parser": ">=5.5.6",
-    "tar": ">=7.5.11",
-    "undici": ">=7.24.0",
-    "flatted": "^3.4.2",
-    "effect": "^3.20.0",
-    "@smithy/config-resolver": ">=4.4.10",
-    "@aws-sdk/client-sso": ">=3.726.0",
-    "@hono/node-server": ">=1.19.13",
-    "hono": ">=4.12.12",
-    "lodash": ">=4.17.22",
-    "file-type": ">=21.3.2",
-    "yauzl": ">=3.2.1",
-    "picomatch": ">=2.3.2"
-  }
 }
