@@ -611,7 +611,9 @@ function upsertScoredCandidate(
     candidate: Track,
     recommendation: { score: number; reason: string },
 ): void {
-    const candidateKey = getTrackKey(candidate)
+    const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
+    const candidateKey =
+        normalizedKey !== '::' ? normalizedKey : getTrackKey(candidate)
     const existing = candidates.get(candidateKey)
 
     if (!existing || recommendation.score > existing.score) {
@@ -745,17 +747,21 @@ function selectDiverseCandidates(
     const selected: ScoredTrack[] = []
     const artistCount = new Map<string, number>()
     const sourceCount = new Map<string, number>()
+    const selectedTitleKeys = new Set<string>()
 
     for (const candidate of sortedCandidates) {
         const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
+        const titleKey = normalizeTitleOnly(candidate.track.title)
 
         if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) continue
         if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) continue
+        if (titleKey && selectedTitleKeys.has(titleKey)) continue
 
         selected.push(candidate)
         artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1)
         sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
+        if (titleKey) selectedTitleKeys.add(titleKey)
         if (selected.length >= missingTracks) {
             break
         }
