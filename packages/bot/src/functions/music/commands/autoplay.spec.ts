@@ -702,6 +702,48 @@ describe('autoplay command', () => {
                 expect.any(String),
             )
         })
+
+        it('artist block — shows error when no artist name', async () => {
+            const interaction = createArtistInteraction('block', undefined)
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Missing Input',
+                expect.any(String),
+            )
+        })
+
+        it('artist remove — shows error when no artist name', async () => {
+            const interaction = createArtistInteraction('remove', undefined)
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Missing Input',
+                expect.any(String),
+            )
+        })
+
+        it('artist prefer — handles service error gracefully', async () => {
+            setArtistFeedbackMock.mockRejectedValue(new Error('Redis down'))
+            const interaction = createArtistInteraction('prefer', 'The Beatles')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.any(String),
+            )
+        })
+
+        it('artist unknown subcommand — shows error', async () => {
+            const interaction = createArtistInteraction('unknown')
+            const client = createClient()
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            await autoplayCommand.execute({ client, interaction } as any)
+            expect(interactionReplyMock).toHaveBeenCalled()
+        })
     })
 
     describe('execute function edge cases', () => {
