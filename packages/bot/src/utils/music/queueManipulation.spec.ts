@@ -89,8 +89,11 @@ jest.mock('../../lastfm', () => ({
 jest.mock('../../spotify/spotifyApi', () => ({
     getAudioFeatures: jest.fn().mockResolvedValue(null),
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
+    getBatchAudioFeatures: jest.fn().mockResolvedValue(new Map()),
+    getArtistPopularity: jest.fn().mockResolvedValue(null),
 }))
 
+const dislikedTrackWeightsMock = jest.fn()
 const dislikedTrackWeightsMock = jest.fn()
 const likedTrackWeightsMock = jest.fn()
 const getPreferredArtistKeysMock = jest.fn()
