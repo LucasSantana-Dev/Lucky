@@ -128,11 +128,17 @@ export default new Command({
             )
 
             const searchEngine = resolveSearchEngine(query, provider)
+            const vcMemberIds = voiceChannel.members
+                ? Array.from(voiceChannel.members.values())
+                      .filter((m) => m.id !== client.user?.id)
+                      .map((m) => m.id)
+                : []
             const playOptions = {
                 nodeOptions: {
                     metadata: {
                         channel: interaction.channel,
                         requestedBy: interaction.user,
+                        vcMemberIds,
                     },
                     connectionTimeout:
                         ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,

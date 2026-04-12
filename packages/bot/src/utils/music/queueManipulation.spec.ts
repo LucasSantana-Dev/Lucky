@@ -49,6 +49,8 @@ const getTrackHistoryMock = jest.fn()
 const addTrackToHistoryMock = jest.fn().mockResolvedValue(true)
 const getGuildSettingsMock = jest.fn()
 
+const getLastFmLinkMock = jest.fn()
+
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: (...args: unknown[]) => getTrackHistoryMock(...args),
@@ -58,13 +60,19 @@ jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
         getGuildSettings: (...args: unknown[]) => getGuildSettingsMock(...args),
     },
+    lastFmLinkService: {
+        getByDiscordId: (...args: unknown[]) => getLastFmLinkMock(...args),
+    },
 }))
 
 const consumeLastFmSeedSliceMock = jest.fn()
+const consumeBlendedSeedSliceMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),
+    consumeBlendedSeedSlice: (...args: unknown[]) =>
+        consumeBlendedSeedSliceMock(...args),
 }))
 
 const getSimilarTracksMock = jest.fn()
@@ -2359,5 +2367,132 @@ describe('queueManipulation — genre candidate collection', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(getTagTopTracksMock).toHaveBeenCalledTimes(3)
+    })
+})
+
+describe('queueManipulation — multi-user VC blend', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({
+            autoplayMode: 'similar',
+        })
+        dislikedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackKeysMock.mockResolvedValue(new Set())
+        getSimilarTracksMock.mockResolvedValue([])
+    })
+
+    afterEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('uses blended seeds when multiple VC members have Last.fm linked', async () => {
+        const currentTrack = {
+            url: 'https://example.com/track',
+            title: 'Test Song',
+            author: 'Test Artist',
+            id: 'track-123',
+            requestedBy: { id: 'user-1' },
+        }
+
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Similar Song',
+                    author: 'Similar Artist',
+                    url: 'https://youtube.com/watch?v=123',
+                    id: 'yt-similar',
+                    source: 'youtube',
+                    durationMS: 180000,
+                },
+            ],
+        })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                vcMemberIds: ['user-1', 'user-2'],
+            },
+            player: { search: searchMock },
+            addTrack: jest.fn(),
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(searchMock).toHaveBeenCalled()
+    })
+
+    it('falls back to single-user when VC has only one user', async () => {
+        const currentTrack = {
+            url: 'https://example.com/track',
+            title: 'Test Song',
+            author: 'Test Artist',
+            id: 'track-123',
+            requestedBy: { id: 'user-1' },
+        }
+
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Similar Song',
+                    author: 'Similar Artist',
+                    url: 'https://youtube.com/watch?v=123',
+                    id: 'yt-similar',
+                    source: 'youtube',
+                    durationMS: 180000,
+                },
+            ],
+        })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                vcMemberIds: ['user-1'],
+            },
+            player: { search: searchMock },
+            addTrack: jest.fn(),
+        })
+
+        consumeLastFmSeedSliceMock.mockResolvedValue([
+            { artist: 'Artist A', title: 'Song A' },
+        ])
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
+            'user-1',
+            expect.any(Number),
+        )
+    })
+
+    it('uses metadata vcMemberIds when available', async () => {
+        const currentTrack = {
+            url: 'https://example.com/track',
+            title: 'Test Song',
+            author: 'Test Artist',
+            id: 'track-123',
+            requestedBy: { id: 'user-1' },
+        }
+
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [],
+        })
+
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: {
+                requestedBy: { id: 'user-1' },
+                vcMemberIds: ['user-1', 'user-2', 'user-3'],
+            },
+            player: { search: searchMock },
+            addTrack: jest.fn(),
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(searchMock).toHaveBeenCalled()
     })
 })
