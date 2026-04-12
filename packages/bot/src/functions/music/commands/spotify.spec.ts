@@ -91,9 +91,10 @@ describe('spotify command', () => {
                 interaction: createInteraction('link'),
             } as any)
 
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].type).toBe('error')
-            expect(callArgs.content.embeds[0].title).toContain('not configured')
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Spotify not configured',
+                expect.any(String),
+            )
         })
 
         it('shows error when cannot generate link', async () => {
@@ -104,8 +105,10 @@ describe('spotify command', () => {
                 interaction: createInteraction('link'),
             } as any)
 
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].type).toBe('error')
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Cannot generate link',
+                expect.any(String),
+            )
         })
     })
 
@@ -125,8 +128,12 @@ describe('spotify command', () => {
             } as any)
 
             expect(unlinkMock).toHaveBeenCalledWith('123')
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].title).toContain('Disconnected')
+            expect(buildPlatformAttribEmbedMock).toHaveBeenCalledWith(
+                'spotify',
+                expect.objectContaining({
+                    title: expect.stringContaining('Disconnected'),
+                }),
+            )
         })
 
         it('shows error when not linked', async () => {
@@ -136,9 +143,10 @@ describe('spotify command', () => {
                 interaction: createInteraction('unlink'),
             } as any)
 
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].type).toBe('error')
-            expect(callArgs.content.embeds[0].title).toContain('not linked')
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Not linked',
+                expect.any(String),
+            )
         })
 
         it('shows error when unlink fails', async () => {
@@ -155,9 +163,10 @@ describe('spotify command', () => {
                 interaction: createInteraction('unlink'),
             } as any)
 
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].type).toBe('error')
-            expect(callArgs.content.embeds[0].title).toContain('Error')
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.stringContaining('Failed to disconnect'),
+            )
         })
     })
 
@@ -175,9 +184,13 @@ describe('spotify command', () => {
                 interaction: createInteraction('status'),
             } as any)
 
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].title).toContain('linked')
-            expect(callArgs.content.embeds[0].description).toContain('test-user')
+            expect(buildPlatformAttribEmbedMock).toHaveBeenCalledWith(
+                'spotify',
+                expect.objectContaining({
+                    title: expect.stringContaining('linked'),
+                    description: expect.stringContaining('test-user'),
+                }),
+            )
         })
 
         it('shows not linked when no link exists', async () => {
@@ -187,9 +200,10 @@ describe('spotify command', () => {
                 interaction: createInteraction('status'),
             } as any)
 
-            const callArgs = interactionReplyMock.mock.calls[0][0]
-            expect(callArgs.content.embeds[0].type).toBe('error')
-            expect(callArgs.content.embeds[0].title).toContain('not linked')
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Not linked',
+                expect.stringContaining('not linked'),
+            )
         })
     })
 })

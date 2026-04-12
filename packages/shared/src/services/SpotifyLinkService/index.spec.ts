@@ -3,9 +3,10 @@ import { spotifyLinkService } from './index'
 
 const mockPrismaClient = {
     spotifyLink: {
-        findUnique: jest.fn(),
-        upsert: jest.fn(),
-        delete: jest.fn(),
+        findUnique: jest.fn() as any,
+        upsert: jest.fn() as any,
+        update: jest.fn() as any,
+        delete: jest.fn() as any,
     },
 }
 
@@ -91,19 +92,22 @@ describe('SpotifyLinkService', () => {
                 refreshToken: 'refresh-token',
                 tokenExpiresAt: pastDate,
                 spotifyUsername: 'test-user',
-            })
+            } as any)
 
             process.env.SPOTIFY_CLIENT_ID = 'test-client-id'
             process.env.SPOTIFY_CLIENT_SECRET = 'test-client-secret'
 
-            global.fetch = jest.fn().mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    access_token: 'new-token',
-                    expires_in: 3600,
-                    refresh_token: 'refresh-token',
-                }),
-            } as any)
+            const mockFetch = jest.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        access_token: 'new-token',
+                        expires_in: 3600,
+                        refresh_token: 'refresh-token',
+                    }),
+                } as any),
+            )
+            ;(global as any).fetch = mockFetch
 
             const result = await spotifyLinkService.getValidAccessToken('discord-123')
 
@@ -115,7 +119,7 @@ describe('SpotifyLinkService', () => {
     describe('set', () => {
         it('creates new link', async () => {
             const expiresAt = new Date(Date.now() + 3600000)
-            mockPrismaClient.spotifyLink.upsert.mockResolvedValue({})
+            mockPrismaClient.spotifyLink.upsert.mockResolvedValue({} as any)
 
             const result = await spotifyLinkService.set({
                 discordId: 'discord-123',
@@ -131,7 +135,7 @@ describe('SpotifyLinkService', () => {
         })
 
         it('returns false on error', async () => {
-            mockPrismaClient.spotifyLink.upsert.mockRejectedValue(new Error('DB error'))
+            mockPrismaClient.spotifyLink.upsert.mockRejectedValue(new Error('DB error') as any)
 
             const result = await spotifyLinkService.set({
                 discordId: 'discord-123',
@@ -147,7 +151,7 @@ describe('SpotifyLinkService', () => {
 
     describe('unlink', () => {
         it('deletes link', async () => {
-            mockPrismaClient.spotifyLink.delete.mockResolvedValue({})
+            mockPrismaClient.spotifyLink.delete.mockResolvedValue({} as any)
 
             const result = await spotifyLinkService.unlink('discord-123')
 
@@ -160,7 +164,7 @@ describe('SpotifyLinkService', () => {
         it('returns true when link already absent (idempotent)', async () => {
             const error = new Error('Not found')
             ;(error as any).code = 'P2025'
-            mockPrismaClient.spotifyLink.delete.mockRejectedValue(error)
+            mockPrismaClient.spotifyLink.delete.mockRejectedValue(error as any)
 
             const result = await spotifyLinkService.unlink('discord-123')
 
@@ -168,7 +172,7 @@ describe('SpotifyLinkService', () => {
         })
 
         it('returns false on other error', async () => {
-            mockPrismaClient.spotifyLink.delete.mockRejectedValue(new Error('DB error'))
+            mockPrismaClient.spotifyLink.delete.mockRejectedValue(new Error('DB error') as any)
 
             const result = await spotifyLinkService.unlink('discord-123')
 
