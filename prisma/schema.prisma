@@ -389,6 +389,21 @@ model LastFmLink {
   @@map("lastfm_links")
 }
 
+// Spotify per-user linking (OAuth tokens stored per Discord user)
+model SpotifyLink {
+  id             String   @id @default(cuid())
+  discordId      String   @unique
+  spotifyId      String
+  accessToken    String
+  refreshToken   String
+  tokenExpiresAt DateTime
+  spotifyUsername String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("spotify_links")
+}
+
 // Role Management
 model RoleExclusion {
   id             String   @id @default(cuid())

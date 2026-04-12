@@ -389,6 +389,17 @@ export const api = {
         getConnectUrl: () => `${NORMALIZED_API_BASE}/lastfm/connect`,
     },
 
+    spotify: {
+        status: () =>
+            apiClient.get<{
+                configured: boolean
+                linked: boolean
+                username: string | null
+            }>('/spotify/status'),
+        unlink: () => apiClient.delete<{ success: boolean }>('/spotify/unlink'),
+        getConnectUrl: () => `${NORMALIZED_API_BASE}/spotify/connect`,
+    },
+
     lyrics: {
         search: (title: string, artist?: string) => {
             const params = new URLSearchParams({ title })

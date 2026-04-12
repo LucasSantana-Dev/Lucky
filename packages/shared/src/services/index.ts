@@ -30,6 +30,7 @@ export {
 } from './embedValidation.js'
 export { twitchNotificationService } from './TwitchNotificationService'
 export { lastFmLinkService, type LastFmLinkRow } from './LastFmLinkService'
+export { spotifyLinkService, type SpotifyLinkRow } from './SpotifyLinkService'
 export {
     trackHistoryService,
     type TrackHistoryEntry,
