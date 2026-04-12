@@ -19,6 +19,7 @@ import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
 } from './autoplay/lastFmSeeds'
+import { detectSessionMood, type SessionMood } from './autoplay/sessionMood'
 import { getSimilarTracks, getTagTopTracks } from '../../lastfm'
 import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
@@ -284,6 +285,7 @@ async function _replenishQueue(
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
+        const sessionMood = detectSessionMood(allHistoryTracks)
         const historyTracks = allHistoryTracks.slice(0, HISTORY_SEED_LIMIT)
         const seedTracks = [currentTrack, ...historyTracks].slice(
             0,
@@ -291,8 +293,8 @@ async function _replenishQueue(
         )
         const requestedBy = getRequestedBy(queue, currentTrack)
         const [
-            dislikedTrackKeys,
-            likedTrackKeys,
+            likedWeights,
+            dislikedWeights,
             preferredArtistKeys,
             blockedArtistKeys,
             persistentHistory,
@@ -300,13 +302,11 @@ async function _replenishQueue(
             implicitDislikeKeys,
             implicitLikeKeys,
         ] = await Promise.all([
-            recommendationFeedbackService.getDislikedTrackKeys(
-                queue.guild.id,
-                requestedBy?.id,
+            recommendationFeedbackService.getLikedTrackWeights(
+                requestedBy?.id ?? '',
             ),
-            recommendationFeedbackService.getLikedTrackKeys(
-                queue.guild.id,
-                requestedBy?.id,
+            recommendationFeedbackService.getDislikedTrackWeights(
+                requestedBy?.id ?? '',
             ),
             recommendationFeedbackService.getPreferredArtistKeys(
                 queue.guild.id,
@@ -358,6 +358,11 @@ async function _replenishQueue(
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
+        const currentFeatures = requestedBy?.id
+            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
+                  () => null,
+              )
+            : null
         const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
         const candidates = await collectRecommendationCandidates(
@@ -366,8 +371,8 @@ async function _replenishQueue(
             requestedBy,
             excludedUrls,
             excludedKeys,
-            dislikedTrackKeys,
-            likedTrackKeys,
+            dislikedWeights,
+            likedWeights,
             preferredArtistKeys,
             blockedArtistKeys,
             currentTrack,
@@ -377,6 +382,7 @@ async function _replenishQueue(
             artistFrequency,
             implicitDislikeKeys,
             implicitLikeKeys,
+            sessionMood,
         )
         debugLog({
             message: 'Autoplay: recommendation candidates',
@@ -390,8 +396,8 @@ async function _replenishQueue(
                 requestedBy,
                 excludedUrls,
                 excludedKeys,
-                dislikedTrackKeys,
-                likedTrackKeys,
+                dislikedWeights,
+                likedWeights,
                 preferredArtistKeys,
                 blockedArtistKeys,
                 currentTrack,
@@ -401,6 +407,7 @@ async function _replenishQueue(
                 artistFrequency,
                 implicitDislikeKeys,
                 implicitLikeKeys,
+                sessionMood,
             )
             debugLog({
                 message: 'Autoplay: last.fm candidates',
@@ -421,8 +428,8 @@ async function _replenishQueue(
                 {
                     candidates,
                     recentArtists,
-                    likedTrackKeys,
-                    dislikedTrackKeys,
+                    likedTrackKeys: likedWeights,
+                    dislikedTrackKeys: dislikedWeights,
                     currentTrack,
                     excludedUrls,
                     excludedKeys,
@@ -432,6 +439,7 @@ async function _replenishQueue(
                     artistFrequency,
                     implicitDislikeKeys,
                     implicitLikeKeys,
+                    sessionMood,
                 },
             )
             debugLog({
@@ -452,8 +460,8 @@ async function _replenishQueue(
                 requestedBy,
                 excludedUrls,
                 excludedKeys,
-                dislikedTrackKeys,
-                likedTrackKeys,
+                dislikedWeights,
+                likedWeights,
                 preferredArtistKeys,
                 blockedArtistKeys,
                 recentArtists,
@@ -462,6 +470,7 @@ async function _replenishQueue(
                 artistFrequency,
                 implicitDislikeKeys,
                 implicitLikeKeys,
+                sessionMood,
             )
             debugLog({
                 message: 'Autoplay: broad fallback candidates',
@@ -637,8 +646,8 @@ async function collectRecommendationCandidates(
     requestedBy: User | null,
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
-    dislikedTrackKeys: Set<string>,
-    likedTrackKeys: Set<string>,
+    dislikedWeights: Map<string, number>,
+    likedWeights: Map<string, number>,
     preferredArtistKeys: Set<string>,
     blockedArtistKeys: Set<string>,
     currentTrack: Track,
@@ -648,6 +657,7 @@ async function collectRecommendationCandidates(
     artistFrequency: Map<string, number> = new Map(),
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
+    sessionMood: SessionMood | null = null,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
 
@@ -668,20 +678,23 @@ async function collectRecommendationCandidates(
                 candidate.title,
                 candidate.author,
             )
-            if (dislikedTrackKeys.has(normalizedKey)) {
+            const dislikedWeight = dislikedWeights.get(normalizedKey)
+            if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
             const rec = calculateRecommendationScore(
                 candidate,
                 currentTrack,
                 recentArtists,
-                likedTrackKeys,
+                likedWeights,
                 preferredArtistKeys,
                 blockedArtistKeys,
                 autoplayMode,
                 artistFrequency,
                 implicitDislikeKeys,
                 implicitLikeKeys,
+                dislikedWeights,
+                sessionMood,
             )
             if (rec.score !== -Infinity) {
                 upsertScoredCandidate(candidates, candidate, rec)
@@ -744,8 +757,8 @@ async function collectBroadFallbackCandidates(
     requestedBy: User | null,
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
-    dislikedTrackKeys: Set<string>,
-    likedTrackKeys: Set<string>,
+    dislikedWeights: Map<string, number>,
+    likedWeights: Map<string, number>,
     preferredArtistKeys: Set<string>,
     blockedArtistKeys: Set<string>,
     recentArtists: Set<string>,
@@ -754,6 +767,7 @@ async function collectBroadFallbackCandidates(
     artistFrequency: Map<string, number> = new Map(),
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
+    sessionMood: SessionMood | null = null,
 ): Promise<void> {
     const fallbackQueries = [
         currentTrack.author,
@@ -779,18 +793,22 @@ async function collectBroadFallbackCandidates(
                 if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
                     continue
                 const key = normalizeTrackKey(track.title, track.author)
-                if (dislikedTrackKeys.has(key)) continue
+                const dislikedWeight = dislikedWeights.get(key)
+                if (dislikedWeight !== undefined && dislikedWeight > 0.5)
+                    continue
                 const rec = calculateRecommendationScore(
                     track,
                     currentTrack,
                     recentArtists,
-                    likedTrackKeys,
+                    likedWeights,
                     preferredArtistKeys,
                     blockedArtistKeys,
                     autoplayMode,
                     artistFrequency,
                     implicitDislikeKeys,
                     implicitLikeKeys,
+                    dislikedWeights,
+                    sessionMood,
                 )
                 if (rec.score === -Infinity) continue
                 upsertScoredCandidate(candidates, track, {
@@ -840,8 +858,8 @@ async function collectLastFmCandidates(
     requestedBy: User,
     excludedUrls: Set<string>,
     excludedKeys: Set<string>,
-    dislikedTrackKeys: Set<string>,
-    likedTrackKeys: Set<string>,
+    dislikedWeights: Map<string, number>,
+    likedWeights: Map<string, number>,
     preferredArtistKeys: Set<string>,
     blockedArtistKeys: Set<string>,
     currentTrack: Track,
@@ -851,6 +869,7 @@ async function collectLastFmCandidates(
     artistFrequency: Map<string, number> = new Map(),
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
+    sessionMood: SessionMood | null = null,
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
@@ -889,7 +908,6 @@ async function collectLastFmCandidates(
 
     if (seedSlice.length === 0) return
 
-    // Search for each seed via track search
     for (const seed of seedSlice) {
         const query = cleanSearchQuery(seed.title, seed.artist)
         const tracks = await searchLastFmQuery(queue, query, requestedBy)
@@ -897,18 +915,21 @@ async function collectLastFmCandidates(
             if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
                 continue
             const normalizedKey = normalizeTrackKey(track.title, track.author)
-            if (dislikedTrackKeys.has(normalizedKey)) continue
+            const dislikedWeight = dislikedWeights.get(normalizedKey)
+            if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
             const rec = calculateRecommendationScore(
                 track,
                 currentTrack,
                 recentArtists,
-                likedTrackKeys,
+                likedWeights,
                 preferredArtistKeys,
                 blockedArtistKeys,
                 autoplayMode,
                 artistFrequency,
                 implicitDislikeKeys,
                 implicitLikeKeys,
+                dislikedWeights,
+                sessionMood,
             )
             if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
@@ -919,7 +940,6 @@ async function collectLastFmCandidates(
             })
         }
 
-        // Also search for similar tracks via Last.fm API
         const similar = await getSimilarTracks(seed.artist, cleanTitle(seed.title))
         for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
             const query = cleanSearchQuery(s.title, s.artist)
@@ -931,18 +951,21 @@ async function collectLastFmCandidates(
                     track.title,
                     track.author,
                 )
-                if (dislikedTrackKeys.has(normalizedKey)) continue
+                const dislikedWeight = dislikedWeights.get(normalizedKey)
+                if (dislikedWeight !== undefined && dislikedWeight > 0.5)
+                    continue
                 const rec = calculateRecommendationScore(
                     track,
                     currentTrack,
                     recentArtists,
-                    likedTrackKeys,
+                    likedWeights,
                     preferredArtistKeys,
                     blockedArtistKeys,
                     autoplayMode,
                     artistFrequency,
                     implicitDislikeKeys,
                     implicitLikeKeys,
+                    dislikedWeights,
                 )
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
@@ -994,8 +1017,8 @@ const MAX_TRACKS_PER_GENRE = 20
 interface CandidateContext {
     candidates: Map<string, ScoredTrack>
     recentArtists: Set<string>
-    likedTrackKeys: Set<string>
-    dislikedTrackKeys: Set<string>
+    likedTrackKeys: Map<string, number>
+    dislikedTrackKeys: Map<string, number>
     currentTrack: Track
     excludedUrls: Set<string>
     excludedKeys: Set<string>
@@ -1005,6 +1028,7 @@ interface CandidateContext {
     artistFrequency?: Map<string, number>
     implicitDislikeKeys?: Set<string>
     implicitLikeKeys?: Set<string>
+    sessionMood?: SessionMood | null
 }
 
 function addGenreTrackCandidate(
@@ -1014,7 +1038,9 @@ function addGenreTrackCandidate(
 ): void {
     if (!shouldIncludeCandidate(track, ctx.excludedUrls, ctx.excludedKeys))
         return
-    if (ctx.dislikedTrackKeys.has(normalizeTrackKey(track.title, track.author)))
+    const key = normalizeTrackKey(track.title, track.author)
+    const dislikedWeight = ctx.dislikedTrackKeys.get(key)
+    if (dislikedWeight !== undefined && dislikedWeight > 0.5)
         return
     const rec = calculateRecommendationScore(
         track,
@@ -1027,6 +1053,8 @@ function addGenreTrackCandidate(
         ctx.artistFrequency,
         ctx.implicitDislikeKeys,
         ctx.implicitLikeKeys,
+        ctx.dislikedTrackKeys,
+        ctx.sessionMood,
     )
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
@@ -1286,13 +1314,15 @@ function calculateRecommendationScore(
     candidate: Track,
     currentTrack: Track,
     recentArtists: Set<string>,
-    likedTrackKeys: Set<string> = new Set(),
+    likedWeights: Map<string, number> = new Map(),
     preferredArtistKeys: Set<string> = new Set(),
     blockedArtistKeys: Set<string> = new Set(),
     autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
     artistFrequency: Map<string, number> = new Map(),
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
+    dislikedWeights: Map<string, number> = new Map(),
+    sessionMood: SessionMood | null = null,
 ): { score: number; reason: string } {
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
@@ -1323,9 +1353,19 @@ function calculateRecommendationScore(
     }
 
     const candidateKey = normalizeTrackKey(candidate.title, candidate.author)
-    if (likedTrackKeys.has(candidateKey)) {
-        score += 0.3
+    const likedWeight = likedWeights.get(candidateKey)
+    if (likedWeight !== undefined) {
+        score += 0.3 * likedWeight
         reasons.push('liked track')
+    }
+
+    const dislikedWeight = dislikedWeights.get(candidateKey)
+    if (dislikedWeight !== undefined) {
+        if (dislikedWeight > 0.5) {
+            return { score: -Infinity, reason: 'disliked' }
+        }
+        score -= 0.3 * dislikedWeight
+        reasons.push('old dislike')
     }
 
     if (implicitDislikeKeys.has(candidateKey)) {
@@ -1337,16 +1377,9 @@ function calculateRecommendationScore(
         reasons.push('completed before')
     }
 
-    if (candidateArtist === currentArtist) {
-        score -= 0.35
-    } else if (!recentArtists.has(candidateArtist)) {
+    if (!recentArtists.has(candidateArtist)) {
         score += 0.15
         reasons.push('session novelty')
-    } else {
-        reasons.push('fresh artist rotation')
-    }
-    if (recentArtists.has(candidateArtist)) {
-        score -= 0.25
     }
     if (candidate.source === currentTrack.source) {
         score -= 0.25
@@ -1380,27 +1413,48 @@ function calculateRecommendationScore(
         reasons.push('long track penalty')
     }
 
+    if (sessionMood) {
+        const durationMs = candidate.durationMS ?? 0
+        if (
+            sessionMood.deepDiveArtist &&
+            candidateArtist === sessionMood.deepDiveArtist
+        ) {
+            score += 0.15
+            reasons.push('deep dive')
+        }
+        if (sessionMood.preferLong && durationMs > 300_000) {
+            score += 0.1
+            reasons.push('long track match')
+        }
+        if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
+            score += 0.1
+            reasons.push('quick hit match')
+        }
+        if (sessionMood.restless) {
+            if (!recentArtists.has(candidateArtist)) {
+                score += 0.1
+                reasons.push('restless discovery')
+            }
+        }
+    }
+
     if (candidate.source === 'spotify' && currentTrack.source === 'spotify') {
         score += 0.08
         reasons.push('spotify mood match')
     }
 
-    // Mode-specific adjustments
     if (autoplayMode === 'discover') {
-        // Boost novelty — prefer artists not heard recently
         if (!recentArtists.has(candidateArtist)) {
             score += 0.25
             reasons.push('discovery boost')
         }
         if (recentArtists.has(candidateArtist)) {
-            score -= 0.2 // extra penalty on top of existing -0.25
+            score -= 0.2
         }
     } else if (autoplayMode === 'popular') {
-        // Boost liked tracks more and high-energy/shorter tracks
-        if (likedTrackKeys.has(candidateKey)) {
-            score += 0.2 // on top of existing +0.3
+        if (likedWeight !== undefined) {
+            score += 0.2 * likedWeight
         }
-        // Prefer similar-length (same energy feel)
         if (candidate.durationMS && currentTrack.durationMS) {
             const ratio = candidate.durationMS / currentTrack.durationMS
             if (ratio >= 0.9 && ratio <= 1.1) {

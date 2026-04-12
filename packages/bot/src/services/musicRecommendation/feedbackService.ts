@@ -5,6 +5,11 @@ import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 export type RecommendationFeedback = 'like' | 'dislike'
 export type ArtistFeedback = 'prefer' | 'block'
 
+function decayWeight(updatedAt: number): number {
+    const daysSince = (Date.now() - updatedAt) / 86_400_000
+    return Math.max(0.15, 1.0 - (daysSince / 30) * 0.85)
+}
+
 type FeedbackEntry = {
     feedback: RecommendationFeedback
     updatedAt: number
@@ -159,6 +164,68 @@ export class RecommendationFeedbackService {
         now = Date.now(),
     ): Promise<Set<string>> {
         return this.getTrackKeysByFeedback(userId, 'like', now)
+    }
+
+    async getLikedTrackWeights(
+        userId: string,
+        now = Date.now(),
+    ): Promise<Map<string, number>> {
+        if (!userId) return new Map<string, number>()
+
+        try {
+            const map = await this.getFeedbackMap(userId)
+            const { map: validMap, changed } = this.pruneExpired(map, now)
+
+            if (changed) {
+                await this.saveFeedbackMap(userId, validMap)
+            }
+
+            const weights = new Map<string, number>()
+            for (const [trackKey, entry] of Object.entries(validMap)) {
+                if (entry.feedback === 'like') {
+                    weights.set(trackKey, decayWeight(entry.updatedAt))
+                }
+            }
+            return weights
+        } catch (error) {
+            errorLog({
+                message: 'Failed to get liked track weights',
+                error,
+                data: { userId },
+            })
+            return new Map<string, number>()
+        }
+    }
+
+    async getDislikedTrackWeights(
+        userId: string,
+        now = Date.now(),
+    ): Promise<Map<string, number>> {
+        if (!userId) return new Map<string, number>()
+
+        try {
+            const map = await this.getFeedbackMap(userId)
+            const { map: validMap, changed } = this.pruneExpired(map, now)
+
+            if (changed) {
+                await this.saveFeedbackMap(userId, validMap)
+            }
+
+            const weights = new Map<string, number>()
+            for (const [trackKey, entry] of Object.entries(validMap)) {
+                if (entry.feedback === 'dislike') {
+                    weights.set(trackKey, decayWeight(entry.updatedAt))
+                }
+            }
+            return weights
+        } catch (error) {
+            errorLog({
+                message: 'Failed to get disliked track weights',
+                error,
+                data: { userId },
+            })
+            return new Map<string, number>()
+        }
     }
 
     async getFeedbackCounts(

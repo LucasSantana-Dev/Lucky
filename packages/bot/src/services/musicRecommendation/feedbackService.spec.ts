@@ -347,6 +347,94 @@ describe('RecommendationFeedbackService', () => {
         expect(summary.blocked).toEqual([])
         expect(getMock).not.toHaveBeenCalled()
     })
+
+    it('getLikedTrackWeights returns weighted map with decay', async () => {
+        const service = new RecommendationFeedbackService(30)
+        const key = service.buildTrackKey('Song A', 'Artist A')
+        const now = Date.now()
+        const updatedAt = now - 24 * 60 * 60 * 1000
+
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                [key]: {
+                    feedback: 'like',
+                    updatedAt,
+                    expiresAt: now + 30 * 24 * 60 * 60 * 1000,
+                },
+            }),
+        )
+
+        const weights = await service.getLikedTrackWeights('user-1', now)
+
+        expect(weights.has(key)).toBe(true)
+        const weight = weights.get(key)
+        expect(weight).toBeGreaterThan(0.95)
+        expect(weight).toBeLessThanOrEqual(1.0)
+    })
+
+    it('getDislikedTrackWeights returns weighted map with decay', async () => {
+        const service = new RecommendationFeedbackService(30)
+        const key = service.buildTrackKey('Song B', 'Artist B')
+        const now = Date.now()
+        const updatedAt = now - 24 * 60 * 60 * 1000
+
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                [key]: {
+                    feedback: 'dislike',
+                    updatedAt,
+                    expiresAt: now + 30 * 24 * 60 * 60 * 1000,
+                },
+            }),
+        )
+
+        const weights = await service.getDislikedTrackWeights('user-1', now)
+
+        expect(weights.has(key)).toBe(true)
+        const weight = weights.get(key)
+        expect(weight).toBeGreaterThan(0.95)
+        expect(weight).toBeLessThanOrEqual(1.0)
+    })
+
+    it('getLikedTrackWeights returns empty map for undefined userId', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        const weights = await service.getLikedTrackWeights('')
+
+        expect(weights.size).toBe(0)
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('getDislikedTrackWeights returns empty map for undefined userId', async () => {
+        const service = new RecommendationFeedbackService(30)
+
+        const weights = await service.getDislikedTrackWeights('')
+
+        expect(weights.size).toBe(0)
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('decay weight reduces to 0.15 after 30 days', async () => {
+        const baseTime = 100_000
+        const service = new RecommendationFeedbackService(30)
+        const key = service.buildTrackKey('Song C', 'Artist C')
+        const thirtyDaysAgo = baseTime - 30 * 24 * 60 * 60 * 1000
+
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                [key]: {
+                    feedback: 'like',
+                    updatedAt: thirtyDaysAgo,
+                    expiresAt: baseTime + 1_000_000,
+                },
+            }),
+        )
+
+        const weights = await service.getLikedTrackWeights('user-1', baseTime)
+
+        const weight = weights.get(key)
+        expect(weight).toBeCloseTo(0.15, 1)
+    })
 })
 
 describe('implicit feedback', () => {
