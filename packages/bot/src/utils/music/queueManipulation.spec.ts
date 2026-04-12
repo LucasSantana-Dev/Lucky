@@ -2163,4 +2163,98 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
             expect(track).toHaveProperty('metadata')
         }
     })
+
+    it('deduplicates same song different URL versions in candidates', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Current Song',
+            author: 'Artist',
+            id: 'track-current',
+            requestedBy: { id: 'user-1' },
+        }
+        const searchMock = jest.fn()
+        searchMock.mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Same Song (Official)',
+                    author: 'Same Artist',
+                    url: 'https://youtube.com/watch?v=aaa',
+                    id: 'yt-1',
+                    source: 'youtube',
+                    durationMS: 200000,
+                },
+                {
+                    title: 'Same Song (Remastered)',
+                    author: 'Same Artist',
+                    url: 'https://youtube.com/watch?v=bbb',
+                    id: 'yt-2',
+                    source: 'youtube',
+                    durationMS: 200000,
+                },
+            ],
+        })
+
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: { search: searchMock },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const same_song_added = addedTracks.filter((t: any) =>
+            t.title?.includes('Same Song'),
+        ).length
+        expect(same_song_added).toBeLessThanOrEqual(1)
+    })
+
+    it('does not add both (Official) and (2011 Remaster) versions of same song', async () => {
+        const currentTrack = {
+            url: 'https://example.com/current',
+            title: 'Bohemian Rhapsody',
+            author: 'Queen',
+            id: 'track-current',
+            requestedBy: { id: 'user-1' },
+        }
+        const searchMock = jest.fn()
+        searchMock.mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Bohemian Rhapsody (Official Video)',
+                    author: 'Queen',
+                    url: 'https://youtube.com/watch?v=official',
+                    id: 'yt-official',
+                    source: 'youtube',
+                    durationMS: 354000,
+                },
+                {
+                    title: 'Bohemian Rhapsody (2011 Remaster)',
+                    author: 'Queen',
+                    url: 'https://youtube.com/watch?v=remaster',
+                    id: 'yt-remaster',
+                    source: 'youtube',
+                    durationMS: 354000,
+                },
+            ],
+        })
+
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            currentTrack,
+            metadata: { requestedBy: { id: 'user-1' } },
+            player: { search: searchMock },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const bohemian_added = addedTracks.filter(
+            (t: any) =>
+                t.author === 'Queen' &&
+                t.title?.toLowerCase().includes('bohemian'),
+        ).length
+        expect(bohemian_added).toBeLessThanOrEqual(1)
+    })
 })
