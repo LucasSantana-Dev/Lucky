@@ -77,12 +77,18 @@ jest.mock('../../lastfm', () => ({
 
 const dislikedTrackKeysMock = jest.fn()
 const likedTrackKeysMock = jest.fn()
+const getPreferredArtistKeysMock = jest.fn()
+const getBlockedArtistKeysMock = jest.fn()
 
 jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         getDislikedTrackKeys: (...args: unknown[]) =>
             dislikedTrackKeysMock(...args),
         getLikedTrackKeys: (...args: unknown[]) => likedTrackKeysMock(...args),
+        getPreferredArtistKeys: (...args: unknown[]) =>
+            getPreferredArtistKeysMock(...args),
+        getBlockedArtistKeys: (...args: unknown[]) =>
+            getBlockedArtistKeysMock(...args),
     },
 }))
 
@@ -127,6 +133,8 @@ describe('queueManipulation.replenishQueue', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -1892,6 +1900,8 @@ describe('queueManipulation.replenishQueue query variation', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -1981,6 +1991,8 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -2021,6 +2033,8 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -2079,6 +2093,8 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
     beforeEach(() => {
         dislikedTrackKeysMock.mockResolvedValue(new Set())
         likedTrackKeysMock.mockResolvedValue(new Set())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
