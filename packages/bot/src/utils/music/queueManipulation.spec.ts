@@ -2902,6 +2902,41 @@ describe('queueManipulation — multi-user VC blend', () => {
         )
     })
 
+    it('fuzzy-deduplicates candidates with misspelled titles (>82% similarity)', async () => {
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/sirens',
+                title: 'Pearl Jam - Sirens',
+                author: 'Pearl Jam',
+                id: 'sirens1',
+                durationMS: 312000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://example.com/sirens-misspelled',
+                            // 'Syrens' vs 'Sirens' → 1-char diff → ~94% similarity
+                            title: 'Pearl Jam - Syrens',
+                            author: 'FanChannel',
+                            id: 'sirens-mis',
+                            durationMS: 315000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(addTrackMock).not.toHaveBeenCalled()
+    })
+
     it('rejects candidates over 15 minutes as track too long', async () => {
         const addTrackMock = jest.fn()
         const queue = createQueueMock({
