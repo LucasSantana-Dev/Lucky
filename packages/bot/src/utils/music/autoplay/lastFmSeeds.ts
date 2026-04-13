@@ -30,6 +30,7 @@ function deduplicateTracks(
 ): { artist: string; title: string }[] {
     const seen = new Set<string>()
     return tracks.filter((t) => {
+        if (!t.artist || !t.title) return false
         const normalizedTitle = cleanTitle(t.title).toLowerCase().trim()
         const key = `${t.artist.toLowerCase()}|${normalizedTitle}`
         if (seen.has(key)) return false

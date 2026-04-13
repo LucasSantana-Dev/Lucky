@@ -159,10 +159,6 @@ export default new Command({
                     playOptions,
                 )
             } catch (primaryError) {
-                // Primary search failed — fall back through YouTube then AUTO.
-                // Always fall back regardless of which provider was requested;
-                // surfacing a hard error is worse than playing the song from a
-                // different source. We log the fallback so it shows up in traces.
                 if (searchEngine !== QueryType.AUTO) {
                     warnLog({
                         message:
@@ -171,6 +167,7 @@ export default new Command({
                             query,
                             requestedProvider: provider ?? 'default',
                             searchEngine: String(searchEngine),
+                            error: String(primaryError),
                         },
                     })
                     try {

@@ -1,4 +1,16 @@
-import { describe, expect, it, jest } from '@jest/globals'
+import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
+const requireVoiceChannelMock = jest.fn()
+const requireDJRoleMock = jest.fn()
+const resolveGuildQueueMock = jest.fn()
+const buildPlayResponseEmbedMock = jest.fn()
+const createMusicControlButtonsMock = jest.fn()
+const interactionReplyMock = jest.fn()
+const createErrorEmbedMock = jest.fn()
+const createUserFriendlyErrorMock = jest.fn()
+const warnLogMock = jest.fn()
+const errorLogMock = jest.fn()
+const debugLogMock = jest.fn()
 
 jest.mock('discord-player', () => ({
     QueryType: {
@@ -10,20 +22,39 @@ jest.mock('discord-player', () => ({
     },
 }))
 jest.mock('discord.js', () => ({}))
-jest.mock('../../../../utils/command/commandValidations', () => ({}))
-jest.mock('../../../../utils/music/queueResolver', () => ({}))
-jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({}))
-jest.mock('../../../../utils/music/buttonComponents', () => ({}))
-jest.mock('../../../../utils/general/embeds', () => ({}))
-jest.mock('../../../../utils/general/interactionReply', () => ({}))
-jest.mock('../../../../utils/general/errorSanitizer', () => ({}))
+jest.mock('../../../../utils/command/commandValidations', () => ({
+    requireVoiceChannel: (...args: unknown[]) =>
+        requireVoiceChannelMock(...args),
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
+}))
+jest.mock('../../../../utils/music/queueResolver', () => ({
+    resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({
+    buildPlayResponseEmbed: (...args: unknown[]) =>
+        buildPlayResponseEmbedMock(...args),
+}))
+jest.mock('../../../../utils/music/buttonComponents', () => ({
+    createMusicControlButtons: (...args: unknown[]) =>
+        createMusicControlButtonsMock(...args),
+}))
+jest.mock('../../../../utils/general/embeds', () => ({
+    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+}))
+jest.mock('../../../../utils/general/interactionReply', () => ({
+    interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
+}))
+jest.mock('../../../../utils/general/errorSanitizer', () => ({
+    createUserFriendlyError: (...args: unknown[]) =>
+        createUserFriendlyErrorMock(...args),
+}))
 jest.mock('@lucky/shared/utils', () => ({
-    errorLog: jest.fn(),
-    debugLog: jest.fn(),
-    warnLog: jest.fn(),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
-import { normalizeSoundCloudUrl, isUrl } from './queryUtils'
+import { normalizeSoundCloudUrl, isUrl, executePlayAtTop } from './queryUtils'
 
 describe('normalizeSoundCloudUrl', () => {
     it('strips ?in= playlist context from SoundCloud track URLs', () => {
@@ -80,5 +111,98 @@ describe('isUrl', () => {
 
     it('returns false for plain text', () => {
         expect(isUrl('some song title')).toBe(false)
+    })
+})
+
+describe('executePlayAtTop — fallback chain', () => {
+    const fakeTrack = { id: 'track-1', title: 'Test Song', author: 'Artist' }
+    const fakeQueue = {
+        tracks: { toArray: () => [fakeTrack] },
+        node: { remove: jest.fn(), skip: jest.fn() },
+        insertTrack: jest.fn(),
+    }
+
+    function makeInteraction(query = 'test song') {
+        return {
+            guildId: 'guild-1',
+            user: { id: 'user-1' },
+            member: { voice: { channel: { id: 'vc-1' } } },
+            options: { getString: jest.fn(() => query) },
+            deferReply: jest.fn(),
+            reply: jest.fn(),
+        } as unknown as Parameters<typeof executePlayAtTop>[0]['interaction']
+    }
+
+    function makeClient(
+        playImpl: (...args: unknown[]) => unknown,
+    ): Parameters<typeof executePlayAtTop>[0]['client'] {
+        return { player: { play: jest.fn(playImpl) } } as unknown as Parameters<
+            typeof executePlayAtTop
+        >[0]['client']
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
+        resolveGuildQueueMock.mockReturnValue({ queue: fakeQueue })
+        buildPlayResponseEmbedMock.mockReturnValue({ title: 'Now Playing' })
+        createMusicControlButtonsMock.mockReturnValue([])
+        interactionReplyMock.mockResolvedValue(undefined)
+        createUserFriendlyErrorMock.mockReturnValue('friendly error')
+        createErrorEmbedMock.mockReturnValue({ title: 'error' })
+    })
+
+    it('falls back to YouTube when Spotify search throws', async () => {
+        const successResult = { track: fakeTrack }
+        const client = makeClient((_, __, opts: unknown) => {
+            const o = opts as { searchEngine: string }
+            if (o.searchEngine === 'spotifySearch') {
+                return Promise.reject(new Error('Spotify unavailable'))
+            }
+            return Promise.resolve(successResult)
+        })
+
+        await executePlayAtTop({
+            client,
+            interaction: makeInteraction(),
+            skipCurrent: false,
+            commandName: 'playtop',
+        })
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Primary search failed, falling back to YouTube',
+            }),
+        )
+        expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
+    it('falls back to SoundCloud when both Spotify and YouTube throw', async () => {
+        const successResult = { track: fakeTrack }
+        const client = makeClient((_, __, opts: unknown) => {
+            const o = opts as { searchEngine: string }
+            if (
+                o.searchEngine === 'spotifySearch' ||
+                o.searchEngine === 'youtubeSearch'
+            ) {
+                return Promise.reject(new Error('unavailable'))
+            }
+            return Promise.resolve(successResult)
+        })
+
+        await executePlayAtTop({
+            client,
+            interaction: makeInteraction(),
+            skipCurrent: false,
+            commandName: 'playtop',
+        })
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'YouTube search failed, falling back to SoundCloud',
+            }),
+        )
+        expect(interactionReplyMock).toHaveBeenCalled()
     })
 })
