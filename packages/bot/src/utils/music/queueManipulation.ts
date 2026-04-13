@@ -785,7 +785,7 @@ async function searchSeedCandidates(
         QueryType.AUTO,
     ]
 
-    for (const engine of engines) {
+    for (const [idx, engine] of engines.entries()) {
         try {
             const searchResult = await queue.player.search(query, {
                 requestedBy: requestedBy ?? undefined,
@@ -800,7 +800,16 @@ async function searchSeedCandidates(
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
 
-            if (tracks.length > 0) return tracks
+            if (tracks.length > 0) {
+                if (idx > 0) {
+                    warnLog({
+                        message:
+                            'Autoplay: primary search returned no results, using fallback engine',
+                        data: { engine, query },
+                    })
+                }
+                return tracks
+            }
         } catch (error) {
             debugLog({
                 message: 'Search failed for seed, trying next engine',
@@ -1221,15 +1230,22 @@ function selectDiverseCandidates(
         const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
         const titleKey = normalizeTitleOnly(candidate.track.title)
+        const core = extractSongCore(
+            candidate.track.title ?? '',
+            candidate.track.author,
+        )
+        const coreKey = core ? normalizeText(core) : null
 
         if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) continue
         if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) continue
         if (selectedTitleKeys.has(titleKey || artistKey)) continue
+        if (coreKey && selectedTitleKeys.has(coreKey)) continue
 
         selected.push(candidate)
         artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1)
         sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
         selectedTitleKeys.add(titleKey || artistKey)
+        if (coreKey) selectedTitleKeys.add(coreKey)
         if (selected.length >= missingTracks) {
             break
         }
@@ -1258,6 +1274,11 @@ async function addSelectedTracks(
             normalizeTrackKey(candidate.track.title, candidate.track.author),
         )
         excludedKeys.add(normalizeTitleOnly(candidate.track.title))
+        const core = extractSongCore(
+            candidate.track.title ?? '',
+            candidate.track.author,
+        )
+        if (core) excludedKeys.add(normalizeText(core))
         // Write to Redis immediately so the NEXT replenish call (from the
         // subsequent event) also excludes this track — not just the local set.
         historyWrites.push(

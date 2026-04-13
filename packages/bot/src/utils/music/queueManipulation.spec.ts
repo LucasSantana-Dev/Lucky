@@ -441,7 +441,9 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
     it('boosts liked tracks to the top of autoplay recommendations', async () => {
-        likedTrackWeightsMock.mockResolvedValue(new Map([['likedtrack::artistb', 1.0]]))
+        likedTrackWeightsMock.mockResolvedValue(
+            new Map([['likedtrack::artistb', 1.0]]),
+        )
 
         const queue = createQueueMock({
             tracks: {
@@ -888,7 +890,9 @@ describe('queueManipulation.replenishQueue', () => {
             },
         })
 
-        likedTrackWeightsMock.mockResolvedValueOnce(new Map([[likedTrackKey, 1.0]]))
+        likedTrackWeightsMock.mockResolvedValueOnce(
+            new Map([[likedTrackKey, 1.0]]),
+        )
         getGuildSettingsMock.mockResolvedValueOnce({
             autoplayMode: 'popular',
         })
@@ -2993,9 +2997,20 @@ describe('queueManipulation — multi-user VC blend', () => {
             acousticness: 0.2,
         })
         const candidateFeatureMap = new Map([
-            ['candidateSpotifyId01', { energy: 0.72, valence: 0.67, danceability: 0.58, tempo: 120, acousticness: 0.25 }],
+            [
+                'candidateSpotifyId01',
+                {
+                    energy: 0.72,
+                    valence: 0.67,
+                    danceability: 0.58,
+                    tempo: 120,
+                    acousticness: 0.25,
+                },
+            ],
         ])
-        spotifyMocks.getBatchAudioFeatures.mockResolvedValueOnce(candidateFeatureMap)
+        spotifyMocks.getBatchAudioFeatures.mockResolvedValueOnce(
+            candidateFeatureMap,
+        )
 
         const addTrackMock = jest.fn()
         const queue = createQueueMock({
@@ -3034,11 +3049,15 @@ describe('queueManipulation — multi-user VC blend', () => {
     })
 
     it('applies artist popularity boost in popular mode when popularity >= 70', async () => {
-        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'popular', autoplayGenres: [] })
+        getGuildSettingsMock.mockResolvedValue({
+            autoplayMode: 'popular',
+            autoplayGenres: [],
+        })
 
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
-        sharedMocks.spotifyLinkService.getValidAccessToken
-            .mockResolvedValue('pop-token')
+        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
+            'pop-token',
+        )
 
         const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
         spotifyMocks.getArtistPopularity.mockResolvedValue(85)
@@ -3106,8 +3125,7 @@ describe('buildVcContributionWeights', () => {
         const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
 
         expect(weights.get('user-1')).toBeGreaterThan(weights.get('user-2')!)
-        const totalWeight =
-            weights.get('user-1')! + weights.get('user-2')!
+        const totalWeight = weights.get('user-1')! + weights.get('user-2')!
         expect(totalWeight).toBe(2)
     })
 
@@ -3122,8 +3140,99 @@ describe('buildVcContributionWeights', () => {
 
         expect(weights.get('user-1')).toBeGreaterThan(0)
         expect(weights.get('user-2')).toBeGreaterThan(0)
-        const totalWeight =
-            weights.get('user-1')! + weights.get('user-2')!
+        const totalWeight = weights.get('user-1')! + weights.get('user-2')!
         expect(totalWeight).toBe(vcMemberIds.length)
+    })
+})
+
+describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
+    beforeEach(() => {
+        likedTrackWeightsMock.mockResolvedValue(new Map())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
+        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
+        getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
+    })
+
+    it('deduplicates inverted-format same-song within a single replenish cycle', async () => {
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Crazy In Love',
+                author: 'BeyoncéVEVO',
+                url: 'https://youtube.com/watch?v=seed001',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Beyoncé - Halo',
+                            author: 'BeyoncéVEVO',
+                            url: 'https://youtube.com/watch?v=halo001',
+                            durationMS: 240000,
+                        },
+                        {
+                            title: 'Halo - Beyoncé (Lyrics)',
+                            author: 'BeyoncéVEVO',
+                            url: 'https://youtube.com/watch?v=halo002',
+                            durationMS: 240000,
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const haloTracks = addedTracks.filter((t: any) =>
+            (t.title as string).toLowerCase().includes('halo'),
+        )
+        expect(haloTracks).toHaveLength(1)
+    })
+
+    it('logs warnLog when primary Spotify search returns no results and falls back', async () => {
+        const fallbackTrack = {
+            title: 'Fallback Song',
+            author: 'Fallback Artist',
+            url: 'https://youtube.com/watch?v=fallback01',
+            durationMS: 200000,
+        }
+        const searchMock = jest
+            .fn()
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValue({ tracks: [fallbackTrack] })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Current Song',
+                author: 'Current Artist',
+                url: 'https://youtube.com/watch?v=curr001',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const { warnLog } = jest.requireMock('@lucky/shared/utils') as {
+            warnLog: jest.Mock
+        }
+        expect(warnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('fallback engine'),
+            }),
+        )
     })
 })
