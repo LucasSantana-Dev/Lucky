@@ -4,6 +4,7 @@ import {
     cleanAuthor,
     cleanSearchQuery,
     isSpamChannel,
+    extractSongCore,
 } from './searchQueryCleaner'
 
 describe('cleanTitle', () => {
@@ -114,6 +115,93 @@ describe('cleanSearchQuery', () => {
         expect(cleaned).not.toContain('[Download]')
         expect(cleaned).toContain('GOLDEN')
         expect(cleaned).toContain('HUNTR/X')
+    })
+})
+
+describe('cleanTitle — Brazilian noise', () => {
+    it('strips (Tradução) variants', () => {
+        expect(cleanTitle('Beyoncé - Halo (Tradução)')).toBe('Beyoncé - Halo')
+        expect(cleanTitle('Beyoncé - Halo (Tradução/Legendado)')).toBe(
+            'Beyoncé - Halo',
+        )
+        expect(cleanTitle('Beyoncé - Halo (Tradução PT-BR)')).toBe(
+            'Beyoncé - Halo',
+        )
+    })
+
+    it('strips standalone Legendado', () => {
+        expect(cleanTitle('Beyoncé - Halo Legendado')).toBe('Beyoncé - Halo')
+    })
+
+    it('strips (Clipe Oficial) variants', () => {
+        expect(cleanTitle('Beyoncé - Halo (Clipe Oficial)')).toBe(
+            'Beyoncé - Halo',
+        )
+        expect(cleanTitle('Beyoncé - Halo (Clipe Oficial HD)')).toBe(
+            'Beyoncé - Halo',
+        )
+    })
+
+    it('strips hashtags', () => {
+        expect(cleanTitle('Beyoncé - Halo #music #lyrics')).toBe(
+            'Beyoncé - Halo',
+        )
+    })
+
+    it('strips bare Lyrics word', () => {
+        expect(cleanTitle('Beyoncé - Halo Lyrics')).toBe('Beyoncé - Halo')
+    })
+
+    it('strips combined Brazilian noise', () => {
+        expect(
+            cleanTitle('Beyonce - Halo (Tradução)( legendado)(Clipe Oficial)'),
+        ).toBe('Beyonce - Halo')
+    })
+})
+
+describe('extractSongCore', () => {
+    it('extracts right side of Artist - Song', () => {
+        expect(extractSongCore('Beyoncé - Halo')).toBe('Halo')
+    })
+
+    it('extracts left side when author matches right side (inverted format)', () => {
+        expect(
+            extractSongCore('Halo - Beyoncé (Lyrics)', 'Beyoncé - Topic'),
+        ).toBe('Halo')
+    })
+
+    it('extracts right side when author matches left side', () => {
+        expect(
+            extractSongCore('Beyoncé - Halo (Tradução)', 'Beyoncé - Topic'),
+        ).toBe('Halo')
+    })
+
+    it('trims secondary separators from the extracted core', () => {
+        expect(
+            extractSongCore(
+                'Beyoncé - Halo - VERSÃO FORROZINHO',
+                'Beyoncé - Topic',
+            ),
+        ).toBe('Halo')
+    })
+
+    it('returns null when no separator is found', () => {
+        expect(extractSongCore('Bohemian Rhapsody')).toBeNull()
+    })
+
+    it('strips noise from title before extracting', () => {
+        expect(
+            extractSongCore(
+                'Beyoncé - Halo (Tradução/Legendado)',
+                'Beyoncé - Topic',
+            ),
+        ).toBe('Halo')
+    })
+
+    it('defaults to right side when author does not match either part', () => {
+        expect(extractSongCore('Beyoncé - Halo', 'someuploader123')).toBe(
+            'Halo',
+        )
     })
 })
 
