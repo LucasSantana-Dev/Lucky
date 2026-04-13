@@ -64,6 +64,33 @@ describe('cleanTitle', () => {
     it('handles non-ASCII titles without mangling them', () => {
         expect(cleanTitle('夜に駆ける (Official Video)')).toBe('夜に駆ける')
     })
+
+    it('strips (Sped Up) / (Speed Up) variants', () => {
+        expect(cleanTitle('Flowers (Sped Up)')).toBe('Flowers')
+        expect(cleanTitle('Flowers [Speed Up Version]')).toBe('Flowers')
+        expect(cleanTitle('Flowers - Sped Up')).toBe('Flowers')
+    })
+
+    it('strips (Slowed) and (Slowed + Reverb) variants', () => {
+        expect(cleanTitle('Flowers (Slowed)')).toBe('Flowers')
+        expect(cleanTitle('Flowers [Slowed Reverb]')).toBe('Flowers')
+        expect(cleanTitle('Flowers - Slowed')).toBe('Flowers')
+    })
+
+    it('strips (Reverb) variants', () => {
+        expect(cleanTitle('Flowers (Reverb)')).toBe('Flowers')
+        expect(cleanTitle('Flowers [Reverb]')).toBe('Flowers')
+    })
+
+    it('strips 8D Audio / Bass Boosted tags', () => {
+        expect(cleanTitle('Flowers [8D Audio]')).toBe('Flowers')
+        expect(cleanTitle('Flowers (Bass Boosted)')).toBe('Flowers')
+    })
+
+    it('strips legendado and traduzido bare words', () => {
+        expect(cleanTitle('Song legendado')).toBe('Song')
+        expect(cleanTitle('Song traduzido')).toBe('Song')
+    })
 })
 
 describe('cleanAuthor', () => {

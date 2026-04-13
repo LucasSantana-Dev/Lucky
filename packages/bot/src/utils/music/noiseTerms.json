@@ -1,0 +1,35 @@
+{
+    "versionVariants": [
+        "sped up",
+        "speed up",
+        "slowed",
+        "reverb",
+        "slowed reverb",
+        "8d audio",
+        "bass boosted",
+        "live",
+        "acoustic",
+        "demo",
+        "remix",
+        "instrumental",
+        "karaoke",
+        "cover",
+        "extended",
+        "explicit",
+        "clean",
+        "remaster",
+        "remastered",
+        "deluxe",
+        "original mix",
+        "original version",
+        "radio edit",
+        "bonus track",
+        "single version",
+        "album version"
+    ],
+    "bareTitleNoise": [
+        "lyrics",
+        "legendado",
+        "traduzido"
+    ]
+}
