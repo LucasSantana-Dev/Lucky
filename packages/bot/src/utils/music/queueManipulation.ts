@@ -33,6 +33,7 @@ import {
     cleanAuthor,
     extractSongCore,
 } from './searchQueryCleaner'
+import { calculateStringSimilarity } from './duplicateDetection/similarityChecker'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const AUTOPLAY_BUFFER_SIZE = 8
@@ -328,7 +329,7 @@ async function _replenishQueue(
                 queue.guild.id,
                 requestedBy?.id,
             ),
-            trackHistoryService.getTrackHistory(queue.guild.id, 100),
+            trackHistoryService.getTrackHistory(queue.guild.id, 150),
             guildSettingsService.getGuildSettings(queue.guild.id),
             recommendationFeedbackService.getImplicitDislikeKeys(
                 requestedBy?.id ?? '',
@@ -1590,6 +1591,8 @@ function getTrackKey(track: Track): string {
     return track.id || track.url || normalizeTrackKey(track.title, track.author)
 }
 
+const FUZZY_TITLE_THRESHOLD = 0.82
+
 function isDuplicateCandidate(
     track: Track,
     excludedUrls: Set<string>,
@@ -1604,7 +1607,23 @@ function isDuplicateCandidate(
         return true
     if (excludedKeys.has(normalizeTitleOnly(track.title))) return true
     const core = extractSongCore(track.title ?? '', track.author)
-    return core !== null && excludedKeys.has(normalizeText(core))
+    if (core !== null && excludedKeys.has(normalizeText(core))) return true
+
+    // Fuzzy fallback: catch variants not stripped by noise patterns
+    // (e.g. novel language annotations, unenumerated descriptors)
+    const candidateTitle = normalizeTitleOnly(track.title)
+    if (candidateTitle.length >= 5) {
+        for (const key of excludedKeys) {
+            if (key.includes('::') || key.length < 5) continue
+            if (
+                calculateStringSimilarity(candidateTitle, key) >=
+                FUZZY_TITLE_THRESHOLD
+            ) {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 function calculateRecommendationScore(
