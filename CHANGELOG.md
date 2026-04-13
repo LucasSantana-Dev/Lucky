@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.110] - 2026-04-13
+
+### Fixed
+- Autoplay session coherence: Last.fm candidates no longer receive the +0.15 session novelty boost, preventing off-genre tracks from the user's global listening history (e.g. Kanye West during a FNAF session) from outscoring on-session seed-based candidates
+- Autoplay session drift: `getSessionOriginTrack()` finds the oldest user-added (non-autoplay) track in queue history and keeps it permanently in the seed pool — the original song that started the session always anchors recommendations even after many songs have played
+- Autoplay diagnostics: `searchSeedCandidates` now logs `spotifyQuery` when Spotify returns 0 results and includes both `spotifyQuery` and `fallbackQuery` in the fallback warn log, making it diagnosable in production
+
 ## [2.6.109] - 2026-04-13
 
 ### Fixed
