@@ -20,36 +20,37 @@ function escapeRegex(s: string): string {
     return s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function termToWordBoundaryRe(term: string): RegExp {
-    const inner = escapeRegex(term).replaceAll(/\s+/g, '\\s{0,3}')
-    return new RegExp(`\\b${inner}\\b`, 'gi')
+function termInner(term: string): string {
+    return escapeRegex(term).replaceAll(/\s+/g, '\\s{0,3}')
 }
 
-function termToParenRe(term: string): RegExp {
-    const inner = escapeRegex(term).replaceAll(/\s+/g, '\\s{0,3}')
-    return new RegExp(`\\(${inner}[^)]*\\)`, 'gi')
-}
+type TermPattern = 'word' | 'paren' | 'bracket' | 'suffix'
 
-function termToBracketRe(term: string): RegExp {
-    const inner = escapeRegex(term).replaceAll(/\s+/g, '\\s{0,3}')
-    return new RegExp(`\\[${inner}[^\\]]*\\]`, 'gi')
+function buildTermRe(term: string, type: TermPattern): RegExp {
+    const inner = termInner(term)
+    switch (type) {
+        case 'paren': return new RegExp(`\\(${inner}[^)]*\\)`, 'gi') // NOSONAR
+        case 'bracket': return new RegExp(`\\[${inner}[^\\]]*\\]`, 'gi') // NOSONAR
+        case 'suffix': return new RegExp(`^${inner}(?:\\s{0,3}(?:version|edit|mix))?$`, 'i') // NOSONAR
+        default: return new RegExp(`\\b${inner}\\b`, 'gi') // NOSONAR
+    }
 }
 
 const DYNAMIC_NOISE_PATTERNS: RegExp[] = [
     ...noiseTerms.versionVariants.flatMap((t) => [
-        termToParenRe(t),
-        termToBracketRe(t),
+        buildTermRe(t, 'paren'),
+        buildTermRe(t, 'bracket'),
     ]),
-    ...noiseTerms.bareTitleNoise.map(termToWordBoundaryRe),
+    ...noiseTerms.bareTitleNoise.map((t) => buildTermRe(t, 'word')),
 ]
 
-const DYNAMIC_VERSION_KEYWORD_RE = new RegExp(
-    `\\b(?:${noiseTerms.versionVariants.map((t) => escapeRegex(t).replaceAll(/\s+/g, '\\s+')).join('|')})\\b`,
+const DYNAMIC_VERSION_KEYWORD_RE = new RegExp( // NOSONAR
+    `\\b(?:${noiseTerms.versionVariants.map(termInner).join('|')})\\b`,
     'i',
 )
 
 const DYNAMIC_HYPHENATED_SUFFIXES: RegExp[] = noiseTerms.versionVariants.map(
-    (t) => new RegExp(`^${escapeRegex(t).replaceAll(/\s+/g, '\\s+')}(?:\\s+(?:version|edit|mix))?$`, 'i'),
+    (t) => buildTermRe(t, 'suffix'),
 )
 
 const NOISE_PATTERNS: readonly RegExp[] = [
