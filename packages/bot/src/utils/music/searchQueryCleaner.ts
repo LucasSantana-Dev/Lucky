@@ -108,6 +108,12 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\(clipe\s+oficial[^)]*\)/gi,
     /\[clipe\s+oficial[^\]]*\]/gi,
     /\blyrics\b/gi,
+
+    // Brazilian version qualifiers inside brackets
+    /\(vers[aã]o\s{0,3}[^)]*\)/gi,
+    /\[vers[aã]o\s{0,3}[^\]]*\]/gi,
+    /\(ao\s{0,3}vivo[^)]*\)/gi,
+    /\[ao\s{0,3}vivo[^\]]*\]/gi,
 ]
 
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
@@ -119,6 +125,10 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
     /^(?:deluxe|deluxe\s+(?:version|edition))$/i,
     /^(?:explicit|clean|explicit\s+version|clean\s+version)$/i,
     /^(?:19|20)\d{2}$/,
+    // Brazilian/Portuguese version descriptors after " - "
+    /^vers[aã]o/i,
+    /^ao\s+vivo/i,
+    /^forr[oó]/i,
 ]
 
 const VERSION_KEYWORD_RE =

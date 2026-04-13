@@ -349,4 +349,40 @@ describe('cleanTitle — hyphenated version suffixes', () => {
     it('preserves normal title: "Song Name" → "Song Name"', () => {
         expect(cleanTitle('Song Name')).toBe('Song Name')
     })
+
+    it('strips " - Versão Forró" suffix', () => {
+        expect(cleanTitle('Halo - Versão Forró')).toBe('Halo')
+    })
+
+    it('strips " - Versão Acústica" suffix', () => {
+        expect(cleanTitle('Let Her Go - Versão Acústica')).toBe('Let Her Go')
+    })
+
+    it('strips "(Versão Forró)" parenthetical', () => {
+        expect(cleanTitle('Halo (Versão Forró)')).toBe('Halo')
+    })
+
+    it('strips " - Ao Vivo" suffix', () => {
+        expect(cleanTitle('Evidências - Ao Vivo')).toBe('Evidências')
+    })
+
+    it('strips " - Ao Vivo em São Paulo" long suffix', () => {
+        expect(cleanTitle('Garota de Ipanema - Ao Vivo em São Paulo')).toBe(
+            'Garota de Ipanema',
+        )
+    })
+
+    it('strips "(Ao Vivo)" parenthetical', () => {
+        expect(cleanTitle('Evidências (Ao Vivo)')).toBe('Evidências')
+    })
+
+    it('strips " - Forró" suffix', () => {
+        expect(cleanTitle('Shape of You - Forró')).toBe('Shape of You')
+    })
+
+    it('leaves artist-prefixed title unchanged when second suffix is not standalone', () => {
+        expect(cleanTitle('Beyoncé - Halo - Versão Forró')).toBe(
+            'Beyoncé - Halo - Versão Forró',
+        )
+    })
 })
