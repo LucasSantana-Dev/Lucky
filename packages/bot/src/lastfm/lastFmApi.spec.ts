@@ -16,6 +16,7 @@ import {
     getRecentTracks,
     getSimilarTracks,
     getTagTopTracks,
+    getLovedTracks,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -492,6 +493,47 @@ describe('lastFmApi', () => {
             const tracks = await getTagTopTracks('pop')
 
             expect(tracks).toEqual([])
+        })
+    })
+
+    describe('getLovedTracks', () => {
+        it('returns loved tracks array on success', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    lovedtracks: {
+                        track: [
+                            { name: 'Loved Song', artist: { name: 'Artist A' } },
+                            { name: 'Another Fave', artist: { name: 'Artist B' } },
+                        ],
+                    },
+                }),
+            })
+
+            const result = await getLovedTracks('testuser', 10)
+
+            expect(result).toEqual([
+                { artist: 'Artist A', title: 'Loved Song' },
+                { artist: 'Artist B', title: 'Another Fave' },
+            ])
+        })
+
+        it('returns empty array on non-ok response', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            const result = await getLovedTracks('testuser')
+            expect(result).toEqual([])
+        })
+
+        it('returns empty array when lovedtracks missing', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+            const result = await getLovedTracks('testuser')
+            expect(result).toEqual([])
+        })
+
+        it('returns empty array on fetch error', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network'))
+            const result = await getLovedTracks('testuser')
+            expect(result).toEqual([])
         })
     })
 })

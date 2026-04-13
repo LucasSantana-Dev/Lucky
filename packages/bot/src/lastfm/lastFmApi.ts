@@ -279,3 +279,30 @@ export async function getTagTopTracks(
         return []
     }
 }
+
+export async function getLovedTracks(
+    username: string,
+    limit = 50,
+): Promise<{ artist: string; title: string }[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=user.getlovedtracks&user=${encodeURIComponent(username)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
+        )
+        const data = (await response.json()) as {
+            lovedtracks?: {
+                track?: Array<{
+                    name: string
+                    artist: { name: string }
+                }>
+            }
+        }
+        return (data.lovedtracks?.track ?? []).map((t) => ({
+            artist: t.artist.name,
+            title: t.name,
+        }))
+    } catch {
+        return []
+    }
+}

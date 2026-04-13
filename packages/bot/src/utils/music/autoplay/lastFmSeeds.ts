@@ -3,6 +3,7 @@ import {
     getTopTracks,
     getRecentTracks,
     getSimilarTracks,
+    getLovedTracks,
 } from '../../../lastfm'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { cleanTitle } from '../searchQueryCleaner'
@@ -49,12 +50,14 @@ export async function getLastFmSeedTracks(
         const link = await lastFmLinkService.getByDiscordId(discordUserId)
         if (!link?.lastFmUsername) return []
 
-        const [topTracks, recentTracks] = await Promise.all([
+        const [lovedTracks, topTracks, recentTracks] = await Promise.all([
+            getLovedTracks(link.lastFmUsername, 50),
             getTopTracks(link.lastFmUsername, '3month', TOP_TRACKS_LIMIT),
             getRecentTracks(link.lastFmUsername, RECENT_TRACKS_LIMIT),
         ])
 
         const merged = deduplicateTracks([
+            ...lovedTracks,
             ...topTracks.map((t) => ({ artist: t.artist, title: t.title })),
             ...recentTracks,
         ])

@@ -20,10 +20,14 @@ import {
     clearIdleTimer,
 } from '../../utils/music/idleDisconnect'
 import { clearVotes } from '../../utils/music/voteSkipStore'
+import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
+import { cleanTitle, cleanAuthor } from '../../utils/music/searchQueryCleaner'
 
 const MAX_GUILD_ENTRIES = 500
 
 export const lastPlayedTracks = new Map<string, Track>()
+
+const guildTrackStartTimes = new Map<string, number>()
 
 export type TrackHistoryEntry = {
     url: string
@@ -45,6 +49,48 @@ function isAutoplayTrack(track: Track, clientUserId?: string): boolean {
     return (
         metadata?.isAutoplay === true || track.requestedBy?.id === clientUserId
     )
+}
+
+function normalizeTrackKeyForFeedback(title: string, author: string): string {
+    const normalizedTitle = cleanTitle(title)
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '')
+        .trim()
+    const normalizedAuthor = cleanAuthor(author)
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '')
+        .trim()
+    return `${normalizedTitle}::${normalizedAuthor}`
+}
+
+async function recordPlayBehavior(
+    guildId: string,
+    track: Track | undefined,
+    requestedById: string | undefined,
+    minDurationMs: number,
+    ratioThreshold: number,
+    feedbackType: 'implicit_like' | 'implicit_dislike',
+): Promise<void> {
+    if (!track || !requestedById) return
+    const startTime = guildTrackStartTimes.get(guildId)
+    if (!startTime || !track.durationMS || track.durationMS < minDurationMs) {
+        guildTrackStartTimes.delete(guildId)
+        return
+    }
+    const playedMs = Date.now() - startTime
+    const ratio = playedMs / track.durationMS
+    guildTrackStartTimes.delete(guildId)
+    const shouldRecord =
+        (feedbackType === 'implicit_like' && ratio > ratioThreshold) ||
+        (feedbackType === 'implicit_dislike' && ratio < ratioThreshold)
+    if (shouldRecord) {
+        const trackKey = normalizeTrackKeyForFeedback(track.title, track.author)
+        await recommendationFeedbackService.recordImplicitFeedback(
+            requestedById,
+            trackKey,
+            feedbackType,
+        )
+    }
 }
 
 function evictOldEntries(): void {
@@ -162,6 +208,7 @@ const handlePlayerStart = async (
 ): Promise<void> => {
     try {
         evictOldEntries()
+        guildTrackStartTimes.set(queue.guild.id, Date.now())
         infoLog({
             message: `Started playing "${track.title}" in ${queue.guild.name}`,
         })
@@ -216,6 +263,21 @@ const handlePlayerFinish = async (
 ): Promise<void> => {
     try {
         await scrobbleAndRecord(queue, track)
+
+        if (track) {
+            const requesterId = track.requestedBy?.id
+                ?? (track.metadata as { requestedById?: string } | undefined)
+                    ?.requestedById
+            await recordPlayBehavior(
+                queue.guild.id,
+                track,
+                requesterId,
+                0,
+                0.8,
+                'implicit_like',
+            )
+        }
+
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
         await replenishIfAutoplay(queue, track)
         await musicSessionSnapshotService.saveSnapshot(queue)
@@ -248,6 +310,21 @@ const handlePlayerSkip = async (
             },
         })
         await scrobbleAndRecord(queue, track)
+
+        if (track) {
+            const requesterId = track.requestedBy?.id
+                ?? (track.metadata as { requestedById?: string } | undefined)
+                    ?.requestedById
+            await recordPlayBehavior(
+                queue.guild.id,
+                track,
+                requesterId,
+                20_000,
+                0.3,
+                'implicit_dislike',
+            )
+        }
+
         if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
         await replenishIfAutoplay(queue, track)
         await musicSessionSnapshotService.saveSnapshot(queue)
