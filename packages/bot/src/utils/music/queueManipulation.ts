@@ -823,7 +823,7 @@ async function searchSeedCandidates(
             spotifyBase = baseQuery
         }
     }
-    const spotifyQuery = modifier ? `${spotifyBase} ${modifier}` : spotifyBase
+    const spotifyQuery = spotifyBase
 
     const engines: QueryType[] = [
         QueryType.SPOTIFY_SEARCH,
