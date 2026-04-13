@@ -2902,6 +2902,77 @@ describe('queueManipulation — multi-user VC blend', () => {
         )
     })
 
+    it('rejects candidates over 15 minutes as track too long', async () => {
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Current Song',
+                author: 'Current Artist',
+                id: 'curr',
+                durationMS: 200000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://example.com/looped',
+                            title: 'Pearl Jam - Sirens (07:05:14)',
+                            author: 'SomeFanChannel',
+                            id: 'loop1',
+                            durationMS: 25_514_000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(addTrackMock).not.toHaveBeenCalled()
+    })
+
+    it('penalizes low-quality uploads with noise indicators in title', async () => {
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Current Song',
+                author: 'Current Artist',
+                id: 'curr',
+                durationMS: 200000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://example.com/noisy',
+                            title: 'Pearl Jam - Sirens (Legendado)',
+                            author: 'FanChannel',
+                            id: 'noisy1',
+                            durationMS: 312000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const addedTrack = addTrackMock.mock.calls[0]?.[0] as Track
+        expect(addedTrack?.metadata?.recommendationReason).toContain(
+            'low quality upload',
+        )
+    })
+
     it('applies outer duration-ratio partial boost (0.7–0.8 range)', async () => {
         const addTrackMock = jest.fn()
         const queue = createQueueMock({
@@ -3252,9 +3323,17 @@ describe('queueManipulation — Spotify priority', () => {
     })
 
     it('uses song-core query for Spotify engine when seed has artist-song format', async () => {
-        const searchMock = jest
-            .fn()
-            .mockResolvedValue({ tracks: [{ title: 'Shape of You', author: 'Ed Sheeran', url: 'https://open.spotify.com/track/abc', source: 'spotify', durationMS: 234000 }] })
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Shape of You',
+                    author: 'Ed Sheeran',
+                    url: 'https://open.spotify.com/track/abc',
+                    source: 'spotify',
+                    durationMS: 234000,
+                },
+            ],
+        })
 
         const queue = createQueueMock({
             currentTrack: {
@@ -3271,7 +3350,9 @@ describe('queueManipulation — Spotify priority', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstCallQuery).not.toContain('Ed Sheeran - Shape of You Ed Sheeran')
+        expect(firstCallQuery).not.toContain(
+            'Ed Sheeran - Shape of You Ed Sheeran',
+        )
         expect(firstCallQuery).toContain('Shape of You')
         expect(firstCallQuery).toContain('Ed Sheeran')
     })
@@ -3416,20 +3497,24 @@ describe('queueManipulation — Spotify priority', () => {
 
     it('never appends query modifiers to the Spotify engine query on subsequent replenish cycles', async () => {
         const capturedQueries: Array<{ query: string; engine: unknown }> = []
-        const searchMock = jest.fn().mockImplementation((query: string, opts: { searchEngine: unknown }) => {
-            capturedQueries.push({ query, engine: opts?.searchEngine })
-            return Promise.resolve({
-                tracks: [
-                    {
-                        title: 'Shape of You',
-                        author: 'Ed Sheeran',
-                        url: 'https://open.spotify.com/track/shapeofyou',
-                        source: 'spotify',
-                        durationMS: 234000,
-                    },
-                ],
-            })
-        })
+        const searchMock = jest
+            .fn()
+            .mockImplementation(
+                (query: string, opts: { searchEngine: unknown }) => {
+                    capturedQueries.push({ query, engine: opts?.searchEngine })
+                    return Promise.resolve({
+                        tracks: [
+                            {
+                                title: 'Shape of You',
+                                author: 'Ed Sheeran',
+                                url: 'https://open.spotify.com/track/shapeofyou',
+                                source: 'spotify',
+                                durationMS: 234000,
+                            },
+                        ],
+                    })
+                },
+            )
 
         const queue = createQueueMock({
             guild: { id: 'guild-spotify-modifier-test' },
@@ -3626,8 +3711,12 @@ describe('queueManipulation — diversity improvements', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        const artistsAdded = addedTracks.map((t) => (t as { author: string }).author)
-        const anatomiaCount = artistsAdded.filter((a) => a === 'ANATOMIA').length
+        const artistsAdded = addedTracks.map(
+            (t) => (t as { author: string }).author,
+        )
+        const anatomiaCount = artistsAdded.filter(
+            (a) => a === 'ANATOMIA',
+        ).length
         expect(anatomiaCount).toBeLessThanOrEqual(1)
     })
 })

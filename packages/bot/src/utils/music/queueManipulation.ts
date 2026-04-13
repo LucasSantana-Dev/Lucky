@@ -510,7 +510,13 @@ async function _replenishQueue(
 
         const seedArtistKey = currentTrack.author.toLowerCase()
         const selected = interleaveByArtist(
-            selectDiverseCandidates(candidates, missingTracks, MAX_TRACKS_PER_ARTIST, MAX_TRACKS_PER_SOURCE, seedArtistKey),
+            selectDiverseCandidates(
+                candidates,
+                missingTracks,
+                MAX_TRACKS_PER_ARTIST,
+                MAX_TRACKS_PER_SOURCE,
+                seedArtistKey,
+            ),
         )
 
         const currentAudioFeatures = await getTrackAudioFeatures(
@@ -816,7 +822,10 @@ function extractTitleArtistFromSong(
         const left = cleanedTitle.slice(0, idx).trim()
         if (/[()[\]]/.test(left) || left.length < 2) continue
         const right = cleanedTitle.slice(idx + sep.length).trim()
-        if (corePrefix.length >= 3 && normalizeText(left).startsWith(corePrefix)) {
+        if (
+            corePrefix.length >= 3 &&
+            normalizeText(left).startsWith(corePrefix)
+        ) {
             return right
         }
         return left
@@ -849,7 +858,10 @@ async function searchSeedCandidates(
     } else {
         const songCore = extractSongCore(seed.title, seed.author)
         if (songCore) {
-            const titleArtist = extractTitleArtistFromSong(cleanedTitle, songCore)
+            const titleArtist = extractTitleArtistFromSong(
+                cleanedTitle,
+                songCore,
+            )
             spotifyBase = `${songCore} ${titleArtist ?? cleanedAuthor}`.trim()
         } else {
             spotifyBase = baseQuery
@@ -883,7 +895,8 @@ async function searchSeedCandidates(
             if (tracks.length > 0) {
                 if (idx > 0) {
                     warnLog({
-                        message: 'Autoplay: Spotify returned 0 results, using fallback',
+                        message:
+                            'Autoplay: Spotify returned 0 results, using fallback',
                         data: {
                             fallbackEngine: engine,
                             spotifyQuery,
@@ -1617,6 +1630,14 @@ function calculateRecommendationScore(
         return { score: -Infinity, reason: 'blocked artist' }
     }
 
+    const MAX_CANDIDATE_DURATION_MS = 15 * 60 * 1000
+    if (
+        candidate.durationMS &&
+        candidate.durationMS > MAX_CANDIDATE_DURATION_MS
+    ) {
+        return { score: -Infinity, reason: 'track too long' }
+    }
+
     let score = 1
     const reasons: string[] = []
 
@@ -1737,7 +1758,7 @@ function calculateRecommendationScore(
     }
 
     if (candidate.source === 'spotify') {
-        score += 0.15
+        score += 0.4
         reasons.push('spotify preferred')
     }
 
@@ -1748,6 +1769,17 @@ function calculateRecommendationScore(
     ) {
         score -= 0.2
         reasons.push('version variant')
+    }
+
+    if (
+        /\b(?:legendad[ao]|traduzido|tradução|legendas?)\b/i.test(
+            candidate.title ?? '',
+        ) ||
+        /\(tributo[^)]*\)/i.test(candidate.title ?? '') ||
+        /\(\d{1,2}:\d{2}:\d{2}\)/.test(candidate.title ?? '')
+    ) {
+        score -= 0.4
+        reasons.push('low quality upload')
     }
 
     if (autoplayMode === 'discover') {

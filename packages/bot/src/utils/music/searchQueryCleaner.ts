@@ -29,10 +29,17 @@ type TermPattern = 'word' | 'paren' | 'bracket' | 'suffix'
 function buildTermRe(term: string, type: TermPattern): RegExp {
     const inner = termInner(term)
     switch (type) {
-        case 'paren': return new RegExp(`\\(${inner}[^)]*\\)`, 'gi') // NOSONAR
-        case 'bracket': return new RegExp(`\\[${inner}[^\\]]*\\]`, 'gi') // NOSONAR
-        case 'suffix': return new RegExp(`^${inner}(?:\\s{0,3}(?:version|edit|mix))?$`, 'i') // NOSONAR
-        default: return new RegExp(`\\b${inner}\\b`, 'gi') // NOSONAR
+        case 'paren':
+            return new RegExp(`\\(${inner}[^)]*\\)`, 'gi') // NOSONAR
+        case 'bracket':
+            return new RegExp(`\\[${inner}[^\\]]*\\]`, 'gi') // NOSONAR
+        case 'suffix':
+            return new RegExp(
+                `^${inner}(?:\\s{0,3}(?:version|edit|mix))?$`,
+                'i',
+            ) // NOSONAR
+        default:
+            return new RegExp(`\\b${inner}\\b`, 'gi') // NOSONAR
     }
 }
 
@@ -143,6 +150,15 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\[ao\s{0,3}vivo[^\]]*\]/gi,
     /\(ac[uú]stico[^)]*\)/gi,
     /\[ac[uú]stico[^\]]*\]/gi,
+
+    // Tribute / homage tags (e.g. "(Tributo ao Batman)")
+    /\(tributo[^)]*\)/gi,
+    /\[tributo[^\]]*\]/gi,
+    /\(homenagem[^)]*\)/gi,
+    /\[homenagem[^\]]*\]/gi,
+
+    // Duration annotations in parentheses: "(07:05:14)" — looped/extended YouTube uploads
+    /\(\d{1,2}:\d{2}:\d{2}\)/g,
 
     // Dynamic patterns built from noiseTerms.json at module init
     ...DYNAMIC_NOISE_PATTERNS,
