@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.114] - 2026-04-13
+
+### Added
+- Autoplay: Spotify `/v1/recommendations` API integrated as the first candidate source — when the user has a linked Spotify account, the bot seeds the endpoint with up to 5 Spotify track IDs from the current queue, fetches 15 musically similar recommendations, then searches discord-player for each result. Spotify recommendation candidates receive a +0.3 score boost over standard seed-based candidates, so musically coherent picks reliably surface ahead of YouTube text-search results.
+
 ## [2.6.113] - 2026-04-13
 
 ### Fixed
