@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.106] - 2026-04-13
+
+### Fixed
+- Autoplay diversity: studio recordings now preferred over acoustic/live/cover variants via a -0.2 score penalty on version-variant titles
+- Autoplay diversity: current playing track's artist now counts toward the per-artist cap so at most one more track from the same artist is queued per replenish cycle
+- Autoplay diversity: selected tracks are interleaved round-robin by artist before insertion, preventing consecutive tracks from the same artist
+
+## [2.6.105] - 2026-04-13
+
+### Fixed
+- Autoplay: cover-channel seeds (e.g. "ANATOMIA - Eu sei que é você (Acústico ao vivo)" by "Carlo Gatto") now extract the real artist from the title's left side via `extractTitleArtistFromSong`, yielding a clean Spotify query instead of falling back to the YouTube channel name
+- Autoplay dedup: Brazilian/Portuguese acoustic parentheticals `(Acústico...)` and `[Acústico...]` are now stripped from titles before normalization, so studio and acoustic versions of the same song share a dedup key and only one is queued
+
 ## [2.6.104] - 2026-04-13
 
 ### Fixed
