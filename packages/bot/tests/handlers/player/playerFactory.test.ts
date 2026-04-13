@@ -149,6 +149,127 @@ describe('playerFactory', () => {
             expect(player.extractors.register).toHaveBeenCalled()
         })
 
+        it('registers SpotifyExtractor as the first extractor', async () => {
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+
+            const player = createPlayer({
+                client: { user: { id: '123' } } as any,
+            }) as unknown as { extractors: { register: jest.Mock } }
+
+            for (let i = 0; i < 50; i++) {
+                const hasSpotify = player.extractors.register.mock.calls.some(
+                    ([ExtractorClass]: [unknown]) => {
+                        const name = (ExtractorClass as { name?: string })?.name
+                        return (
+                            name === 'MockSpotifyExtractor' ||
+                            typeof ExtractorClass === 'function'
+                        )
+                    },
+                )
+                if (
+                    hasSpotify &&
+                    player.extractors.register.mock.calls.length >= 2
+                )
+                    break
+                await new Promise((resolve) => setTimeout(resolve, 10))
+            }
+
+            expect(player.extractors.register).toHaveBeenCalled()
+            const firstCall = player.extractors.register.mock.calls[0]
+            expect(firstCall).toBeDefined()
+        })
+
+        it('logs warn when SpotifyExtractor registration fails', async () => {
+            jest.resetModules()
+            jest.doMock('@lucky/shared/utils', () => ({
+                errorLog: jest.fn(),
+                infoLog: jest.fn(),
+                warnLog: jest.fn(),
+                debugLog: jest.fn(),
+            }))
+
+            const { SpotifyExtractor } = await import(
+                '@discord-player/extractor'
+            )
+            jest.doMock('discord-player', () => {
+                const register = jest.fn().mockImplementation((ext) => {
+                    if (ext === SpotifyExtractor) {
+                        throw new Error('Spotify registration failed')
+                    }
+                    return Promise.resolve(true)
+                })
+                const MockPlayer = jest.fn().mockImplementation(function (
+                    this: any,
+                ) {
+                    this.extractors = { register }
+                    this.setMaxListeners = jest.fn()
+                    this.events = { on: jest.fn(), removeAllListeners: jest.fn() }
+                })
+                return { Player: MockPlayer }
+            })
+
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+            const { warnLog } = await import('@lucky/shared/utils')
+
+            createPlayer({ client: { user: { id: '123' } } as any })
+            await new Promise((resolve) => setTimeout(resolve, 200))
+
+            expect(
+                (warnLog as jest.Mock).mock.calls.some((call) =>
+                    (call[0]?.message as string)?.includes(
+                        'SpotifyExtractor failed to register',
+                    ),
+                ),
+            ).toBe(true)
+        })
+
+        it('logs warn when a remaining extractor registration fails', async () => {
+            jest.resetModules()
+            jest.doMock('@lucky/shared/utils', () => ({
+                errorLog: jest.fn(),
+                infoLog: jest.fn(),
+                warnLog: jest.fn(),
+                debugLog: jest.fn(),
+            }))
+
+            const { SoundCloudExtractor } = await import(
+                '@discord-player/extractor'
+            )
+            jest.doMock('discord-player', () => {
+                const register = jest.fn().mockImplementation((ext) => {
+                    if (ext === SoundCloudExtractor) {
+                        throw new Error('SoundCloud registration failed')
+                    }
+                    return Promise.resolve(true)
+                })
+                const MockPlayer = jest.fn().mockImplementation(function (
+                    this: any,
+                ) {
+                    this.extractors = { register }
+                    this.setMaxListeners = jest.fn()
+                    this.events = { on: jest.fn(), removeAllListeners: jest.fn() }
+                })
+                return { Player: MockPlayer }
+            })
+
+            const { createPlayer } =
+                await import('../../../src/handlers/player/playerFactory')
+            const { warnLog } = await import('@lucky/shared/utils')
+
+            createPlayer({ client: { user: { id: '123' } } as any })
+            await new Promise((resolve) => setTimeout(resolve, 200))
+
+            expect(
+                (warnLog as jest.Mock).mock.calls.some((call) =>
+                    (call[0]?.message as string)?.includes(
+                        'SoundCloud extractor failed to register',
+                    ),
+                ),
+            ).toBe(true)
+        })
+
         it('logs warn and skips registration when no extractor export is found', async () => {
             jest.resetModules()
             jest.doMock('discord-player-youtubei', () => ({}))
