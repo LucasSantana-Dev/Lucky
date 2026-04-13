@@ -522,5 +522,23 @@ describe('implicit feedback', () => {
 
         await expect(service.recordImplicitFeedback('user-1', 'key', 'implicit_like')).resolves.toBeUndefined()
     })
+
+    it('getLikedTrackWeights returns empty map on redis error', async () => {
+        getMock.mockRejectedValue(new Error('redis down'))
+        const service = new RecommendationFeedbackService(30)
+
+        const weights = await service.getLikedTrackWeights('user-1')
+
+        expect(weights.size).toBe(0)
+    })
+
+    it('getDislikedTrackWeights returns empty map on redis error', async () => {
+        getMock.mockRejectedValue(new Error('redis down'))
+        const service = new RecommendationFeedbackService(30)
+
+        const weights = await service.getDislikedTrackWeights('user-1')
+
+        expect(weights.size).toBe(0)
+    })
 })
 
