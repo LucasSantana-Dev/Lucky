@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.108] - 2026-04-13
+
+### Fixed
+- Last.fm seed tracks crashed silently with `TypeError: Cannot read properties of undefined (reading 'toLowerCase')` because `user.getrecenttracks` and `user.getlovedtracks` return `artist: { '#text': '...' }` instead of `{ name: '...' }`. Code now reads `#text` first, falling back to `name`. This was disabling all Last.fm-based autoplay diversity, causing the same songs to repeat
+- `/play`, `/playnow`, `/playtop`: primary Spotify error is now logged (was swallowed), making diagnosis possible
+- `executePlayAtTop` (`/playnow`, `/playtop`): added Spotify → YouTube → SoundCloud fallback chain — previously had no fallback and would show an error embed if Spotify failed
+
 ## [2.6.107] - 2026-04-13
 
 ### Fixed
