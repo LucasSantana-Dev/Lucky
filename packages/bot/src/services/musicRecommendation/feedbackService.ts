@@ -166,12 +166,11 @@ export class RecommendationFeedbackService {
         return this.getTrackKeysByFeedback(userId, 'like', now)
     }
 
-    async getLikedTrackWeights(
+    private async getTrackWeightsByFeedback(
         userId: string,
-        now = Date.now(),
+        type: RecommendationFeedback,
+        now: number,
     ): Promise<Map<string, number>> {
-        if (!userId) return new Map<string, number>()
-
         const map = await this.getFeedbackMap(userId)
         const { map: validMap, changed } = this.pruneExpired(map, now)
 
@@ -181,11 +180,19 @@ export class RecommendationFeedbackService {
 
         const weights = new Map<string, number>()
         for (const [trackKey, entry] of Object.entries(validMap)) {
-            if (entry.feedback === 'like') {
+            if (entry.feedback === type) {
                 weights.set(trackKey, decayWeight(entry.updatedAt))
             }
         }
         return weights
+    }
+
+    async getLikedTrackWeights(
+        userId: string,
+        now = Date.now(),
+    ): Promise<Map<string, number>> {
+        if (!userId) return new Map<string, number>()
+        return this.getTrackWeightsByFeedback(userId, 'like', now)
     }
 
     async getDislikedTrackWeights(
@@ -193,21 +200,7 @@ export class RecommendationFeedbackService {
         now = Date.now(),
     ): Promise<Map<string, number>> {
         if (!userId) return new Map<string, number>()
-
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap, changed } = this.pruneExpired(map, now)
-
-        if (changed) {
-            await this.saveFeedbackMap(userId, validMap)
-        }
-
-        const weights = new Map<string, number>()
-        for (const [trackKey, entry] of Object.entries(validMap)) {
-            if (entry.feedback === 'dislike') {
-                weights.set(trackKey, decayWeight(entry.updatedAt))
-            }
-        }
-        return weights
+        return this.getTrackWeightsByFeedback(userId, 'dislike', now)
     }
 
     async getFeedbackCounts(

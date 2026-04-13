@@ -414,6 +414,28 @@ describe('RecommendationFeedbackService', () => {
         expect(getMock).not.toHaveBeenCalled()
     })
 
+    it('getLikedTrackWeights prunes expired entries and saves', async () => {
+        const now = 50_000
+        const service = new RecommendationFeedbackService(30)
+        const key = service.buildTrackKey('Song D', 'Artist D')
+
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                [key]: {
+                    feedback: 'like',
+                    updatedAt: now - 10_000,
+                    expiresAt: now - 1,
+                },
+            }),
+        )
+        setexMock.mockResolvedValue(true)
+
+        const weights = await service.getLikedTrackWeights('user-1', now)
+
+        expect(weights.size).toBe(0)
+        expect(setexMock).toHaveBeenCalled()
+    })
+
     it('decay weight reduces to 0.15 after 30 days', async () => {
         const baseTime = 100_000
         const service = new RecommendationFeedbackService(30)
