@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.103] - 2026-04-13
+
+### Changed
+- Autoplay: Spotify engine now receives a clean `"Song Artist"` query (extracted via `extractSongCore`) instead of the raw title which could duplicate the artist name (e.g. `"Beyoncé - Halo Beyoncé"` → `"Halo Beyoncé"`), significantly improving Spotify hit rate
+- Autoplay: Spotify-sourced candidates now receive a consistent +0.15 score boost and are exempt from the same-source penalty, ensuring Spotify tracks are preferred over equivalent YouTube tracks when available
+
 ## [2.6.102] - 2026-04-13
 
 ### Fixed
