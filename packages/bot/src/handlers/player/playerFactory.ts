@@ -67,10 +67,16 @@ const registerExtractorsInOrder = async (player: Player): Promise<void> => {
 
 const registerSpotifyExtractor = async (player: Player): Promise<void> => {
     try {
-        await player.extractors.register(SpotifyExtractor, {
+        const registered = await player.extractors.register(SpotifyExtractor, {
             clientId: process.env.SPOTIFY_CLIENT_ID ?? null,
             clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? null,
         })
+        if (!registered) {
+            warnLog({
+                message: 'SpotifyExtractor registration returned null — Spotify searches degraded',
+            })
+            return
+        }
         infoLog({ message: 'Registered SpotifyExtractor (priority 1)' })
     } catch (error) {
         warnLog({
@@ -90,7 +96,10 @@ const registerRemainingExtractors = async (player: Player): Promise<void> => {
 
     for (const { extractor, name } of extractors) {
         try {
-            await player.extractors.register(extractor, {})
+            const registered = await player.extractors.register(extractor, {})
+            if (!registered) {
+                warnLog({ message: `${name} extractor registration returned null` })
+            }
         } catch (error) {
             warnLog({ message: `${name} extractor failed to register`, error })
         }
