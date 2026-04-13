@@ -537,4 +537,46 @@ describe('consumeBlendedSeedSlice', () => {
 
         expect(slice).toEqual([])
     })
+
+    it('allocates weighted slices proportionally with weights map', async () => {
+        getByDiscordIdMock.mockImplementation((userId) =>
+            Promise.resolve({
+                lastFmUsername: `user-${userId}`,
+            }),
+        )
+        getTopTracksMock.mockImplementation((username) => {
+            if (username === 'user-user-1')
+                return Promise.resolve([
+                    { artist: 'User1Artist', title: 'Track1', playCount: 1 },
+                    { artist: 'User1Artist', title: 'Track2', playCount: 1 },
+                    { artist: 'User1Artist', title: 'Track3', playCount: 1 },
+                    { artist: 'User1Artist', title: 'Track4', playCount: 1 },
+                ])
+            if (username === 'user-user-2')
+                return Promise.resolve([
+                    { artist: 'User2Artist', title: 'TrackA', playCount: 1 },
+                    { artist: 'User2Artist', title: 'TrackB', playCount: 1 },
+                ])
+            return Promise.resolve([])
+        })
+        getRecentTracksMock.mockResolvedValue([])
+        getLovedTracksMock.mockResolvedValue([])
+
+        const weights = new Map<string, number>([
+            ['user-1', 2],
+            ['user-2', 1],
+        ])
+        const slice = await consumeBlendedSeedSlice(['user-1', 'user-2'], 3, weights)
+
+        expect(slice.length).toBeLessThanOrEqual(3)
+        const user1Tracks = slice.filter((t) =>
+            t.artist.includes('User1'),
+        )
+        const user2Tracks = slice.filter((t) =>
+            t.artist.includes('User2'),
+        )
+        expect(user1Tracks.length).toBeGreaterThanOrEqual(
+            user2Tracks.length,
+        )
+    })
 })

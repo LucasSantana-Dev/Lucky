@@ -138,12 +138,34 @@ export async function consumeLastFmSeedSlice(
 export async function consumeBlendedSeedSlice(
     userIds: string[],
     count: number,
+    weights?: Map<string, number>,
 ): Promise<{ artist: string; title: string }[]> {
     if (userIds.length === 0) return []
 
-    const perUserCount = Math.ceil(count / userIds.length)
+    let sliceSizes: number[]
+    if (weights && weights.size > 0) {
+        const totalWeight = Array.from(weights.values()).reduce(
+            (sum, w) => sum + w,
+            0,
+        )
+        sliceSizes = userIds.map((id) => {
+            const weight = weights.get(id) ?? 1
+            return Math.max(1, Math.round((count * weight) / totalWeight))
+        })
+        const sumSlices = sliceSizes.reduce((sum, s) => sum + s, 0)
+        if (sumSlices > count) {
+            const toRemove = sumSlices - count
+            for (let i = 0; i < toRemove && i < sliceSizes.length; i++) {
+                if (sliceSizes[i] > 1) sliceSizes[i]--
+            }
+        }
+    } else {
+        const perUserCount = Math.ceil(count / userIds.length)
+        sliceSizes = userIds.map(() => perUserCount)
+    }
+
     const slices = await Promise.all(
-        userIds.map((id) => consumeLastFmSeedSlice(id, perUserCount)),
+        userIds.map((id, idx) => consumeLastFmSeedSlice(id, sliceSizes[idx])),
     )
 
     const interleaved: { artist: string; title: string }[] = []
