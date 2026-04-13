@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.100] - 2026-04-13
+
+### Added
+
+- Spotify batch audio features: batch-fetch up to 100 track audio features in one API call and score candidates by energy/valence delta against the current track
+- Artist popularity weighting: discover mode boosts low-popularity artists (≤40), popular mode boosts high-popularity artists (≥70)
+- Album cohesion scoring: same-artist candidates with shared title tokens get a +0.12 bonus, otherwise take a −0.35 same-artist penalty
+- Multi-user VC blend: contribution weights balance autoplay picks proportionally across all VC members' listening history
+
+### Fixed
+
+- `enrichWithAudioFeatures` no longer throws `TypeError` when Spotify token mock returns undefined
+- Album cohesion threshold corrected from unreachable `> 0.4` to `> 0`
+- Removed redundant `getTrackAudioFeatures` call per replenish cycle
+
 ## [2.6.99] - 2026-04-13
 
 ### Fixed
