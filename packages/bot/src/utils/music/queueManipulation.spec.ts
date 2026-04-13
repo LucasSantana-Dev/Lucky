@@ -3317,4 +3317,37 @@ describe('queueManipulation — Spotify priority', () => {
         const selected = addedTracks[0] as { source?: string }
         expect(selected?.source).toBe('spotify')
     })
+
+    it('uses cleaned title directly when author already appears in the title', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'ao pressão',
+                    author: 'ANATOMIA',
+                    url: 'https://open.spotify.com/track/aopressao',
+                    source: 'spotify',
+                    durationMS: 210000,
+                },
+            ],
+        })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'ANATOMIA - ao pressão (Visualizer)',
+                author: 'ANATOMIA',
+                url: 'https://youtube.com/watch?v=aopressao',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstCallQuery).not.toBe('ao pressão ANATOMIA')
+        expect(firstCallQuery).toContain('ANATOMIA')
+        expect(firstCallQuery).toContain('ao pressão')
+    })
 })
