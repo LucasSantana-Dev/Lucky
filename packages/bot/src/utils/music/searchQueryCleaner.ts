@@ -56,8 +56,8 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\[live(?:\s{0,3}(?:version|session|performance|at\s[^\]]+))?\]/gi,
     /\(acoustic(?:\s{0,3}version)?\)/gi,
     /\[acoustic(?:\s{0,3}version)?\]/gi,
-    /\(cover(?:\s{0,3}version)?\)/gi,
-    /\[cover(?:\s{0,3}version)?\]/gi,
+    /\(cover[^)]*\)/gi,
+    /\[cover[^\]]*\]/gi,
     /\(remix(?:\s{0,3}(?:version|edit))?\)/gi,
     /\[remix(?:\s{0,3}(?:version|edit))?\]/gi,
     /\(instrumental(?:\s{0,3}version)?\)/gi,
@@ -121,7 +121,7 @@ const NOISE_PATTERNS: readonly RegExp[] = [
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
     /^(?:\d{4}\s+)?remaster(?:ed)?(?:\s+(?:version|\d{4}))?(?:\s+\d{4})?$/i,
     /^official\s+(?:audio|video|music\s+video)$/i,
-    /^(?:live|acoustic|demo|extended|instrumental|karaoke)(?:\s+(?:version|edit|session|mix))?$/i,
+    /^(?:live|acoustic|demo|extended|instrumental|karaoke|cover)(?:\s+(?:version|edit|session|mix))?$/i,
     /^(?:radio\s+edit|album\s+version|single\s+version|bonus\s+track)$/i,
     /^(?:original\s+(?:mix|version)|original)$/i,
     /^(?:deluxe|deluxe\s+(?:version|edition))$/i,
@@ -135,7 +135,7 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
 ]
 
 const VERSION_KEYWORD_RE =
-    /\b(?:remaster(?:ed)?|remix|acoustic|live|demo|extended|instrumental|deluxe|explicit|clean|bonus\s+track|radio\s+edit|single\s+version|album\s+version)\b/i
+    /\b(?:remaster(?:ed)?|remix|acoustic|live|demo|extended|instrumental|deluxe|explicit|clean|cover|bonus\s+track|radio\s+edit|single\s+version|album\s+version)\b/i
 
 function isVersionSuffix(suffix: string): boolean {
     if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) return true
