@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.99] - 2026-04-13
+
+### Fixed
+
+- Spotify-first provider: SpotifyExtractor registered before YouTube so text searches resolve via Spotify first
+- Queue Error on bridge exhaustion: `Bridge exhausted` now triggers stream recovery (skip + Discord notification) instead of raw error embed
+- Extractor registration: null return from `player.extractors.register()` now logs a warning instead of silently succeeding
+
+## [2.6.98] - 2026-04-13
+
+### Fixed
+
+- Autoplay same-song repetition: fan-upload noise patterns strip decorators (`[K-POP IN PUBLIC]`, Korean/CJK parentheticals, `[Fancam]`, `[MPD*]`, `M/V`) from dedup keys so the same track with different YouTube titles deduplicates correctly
+- Autoplay artist blocking removed: only song-level dedup remains — artists are no longer penalised for playing consecutive tracks
+
+## [2.6.97] - 2026-04-13
+
+### Added
+
+- Intelligent autoplay signals: skip and completion tracking, loved tracks, artist frequency scoring, session mood detection, audio feature matching via Spotify API
+
+## [2.6.93] - 2026-04-12
+
+### Added
+
+- Multi-user voice channel taste blend: `consumeBlendedSeedSlice` distributes seeds across all VC members, blend status shown in autoplay display
+
+## [2.6.92] - 2026-04-12
+
+### Added
+
+- Autoplay artist preferences: `/autoplay artist prefer/block` — blocked artists score -∞, preferred artists score +0.3
+
+## [2.6.91] - 2026-04-12
+
+### Added
+
+- Autoplay genre/mood filters: `/autoplay genre` fetches top tracks via Last.fm tag API, `autoplayGenres[]` stored per guild
+
+## [2.6.90] - 2026-04-12
+
+### Fixed
+
+- Autoplay same-song dedup: normalized candidate keys, title-only dedup, regex version suffix detection for broader coverage
+
+## [2.6.89] - 2026-04-12
+
+### Fixed
+
+- Autoplay full session history exclusion: 100-track lookback window, broader version suffix detection
+- Autoplay: history dedup extended to 100 tracks, query variation added, `getSimilar` seeding diversified
+- Autoplay subcommands added: queue reason display, replenish serialised per guild
+
+## [2.6.88] - 2026-04-11
+
+### Fixed
+
+- Spotify OAuth account linking: SpotifyLink model, SpotifyLinkService, backend routes, `/spotify` command, frontend page
+
 ## [2.6.87] - 2026-04-11
 
 ### Fixed
