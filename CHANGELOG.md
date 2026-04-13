@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.112] - 2026-04-13
+
+### Fixed
+- Autoplay: candidates with `durationMS > 15 minutes` are now hard-rejected (`-Infinity` score) — 7-hour looped YouTube uploads no longer slip through the previous `-0.2` penalty
+- Autoplay dedup: `(Tributo ao X)`, `[Tributo...]`, `(Homenagem a X)`, and `(HH:MM:SS)` duration annotations stripped from titles before key normalisation — tribute/fan-annotated versions of now-playing track now correctly deduplicated
+- Autoplay quality: tracks whose resolved title contains `legendado`, `traduzido`, `tradução`, or `legendas` receive a `-0.4` "low quality upload" penalty, discouraging YouTube fan-upload junk even when Spotify fallback fires
+- Autoplay source: Spotify score boost raised from `+0.15` to `+0.4` so Spotify candidates decisively beat YouTube fallbacks
+- `noiseTerms.json`: added `legendas` to `bareTitleNoise`
+
 ## [2.6.111] - 2026-04-13
 
 ### Fixed
