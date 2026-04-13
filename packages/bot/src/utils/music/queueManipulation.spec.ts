@@ -3451,3 +3451,99 @@ describe('queueManipulation — Spotify priority', () => {
         expect(firstCallQuery).toContain('Halo')
     })
 })
+
+describe('queueManipulation — diversity improvements', () => {
+    beforeEach(() => {
+        likedTrackWeightsMock.mockResolvedValue(new Map())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
+        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
+        getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
+    })
+
+    it('penalises acoustic/live candidates so studio versions score higher', async () => {
+        const addedTracks: unknown[] = []
+        const studioTrack = {
+            title: 'Eu sei que é você',
+            author: 'ANATOMIA',
+            url: 'https://open.spotify.com/track/studio001',
+            source: 'spotify',
+            durationMS: 210000,
+        }
+        const acousticTrack = {
+            title: 'Eu sei que é você (Acoustic)',
+            author: 'ANATOMIA',
+            url: 'https://open.spotify.com/track/acoustic001',
+            source: 'spotify',
+            durationMS: 210000,
+        }
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Outra Música',
+                author: 'Other Artist',
+                url: 'https://youtube.com/watch?v=seed002',
+                source: 'youtube',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 7, toArray: jest.fn().mockReturnValue([]) },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [acousticTrack, studioTrack],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstAdded = addedTracks[0] as { title?: string }
+        expect(firstAdded?.title).toBe('Eu sei que é você')
+    })
+
+    it('limits current-track artist to 1 more track when currentTrack counts as first', async () => {
+        const addedTracks: unknown[] = []
+        const makeTrack = (id: string, artist: string) => ({
+            title: `Song ${id}`,
+            author: artist,
+            url: `https://open.spotify.com/track/${id}`,
+            source: 'spotify',
+            durationMS: 210000,
+        })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'First Song',
+                author: 'ANATOMIA',
+                url: 'https://youtube.com/watch?v=first',
+                source: 'youtube',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 7, toArray: jest.fn().mockReturnValue([]) },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        makeTrack('a1', 'ANATOMIA'),
+                        makeTrack('a2', 'ANATOMIA'),
+                        makeTrack('b1', 'Other Artist'),
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const artistsAdded = addedTracks.map((t) => (t as { author: string }).author)
+        const anatomiaCount = artistsAdded.filter((a) => a === 'ANATOMIA').length
+        expect(anatomiaCount).toBeLessThanOrEqual(1)
+    })
+})
