@@ -883,12 +883,21 @@ async function searchSeedCandidates(
             if (tracks.length > 0) {
                 if (idx > 0) {
                     warnLog({
-                        message:
-                            'Autoplay: primary search returned no results, using fallback engine',
-                        data: { engine, query: engineQuery },
+                        message: 'Autoplay: Spotify returned 0 results, using fallback',
+                        data: {
+                            fallbackEngine: engine,
+                            spotifyQuery,
+                            fallbackQuery: engineQuery,
+                        },
                     })
                 }
                 return tracks
+            }
+            if (engine === QueryType.SPOTIFY_SEARCH) {
+                debugLog({
+                    message: 'Autoplay: Spotify search returned 0 results',
+                    data: { spotifyQuery },
+                })
             }
         } catch (error) {
             debugLog({
@@ -1082,6 +1091,7 @@ async function collectLastFmCandidates(
                 implicitLikeKeys,
                 dislikedWeights,
                 sessionMood,
+                true,
             )
             if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
@@ -1121,6 +1131,8 @@ async function collectLastFmCandidates(
                     implicitDislikeKeys,
                     implicitLikeKeys,
                     dislikedWeights,
+                    null,
+                    true,
                 )
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
@@ -1595,6 +1607,7 @@ function calculateRecommendationScore(
     implicitLikeKeys: Set<string> = new Set(),
     dislikedWeights: Map<string, number> = new Map(),
     sessionMood: SessionMood | null = null,
+    skipNoveltyBoost = false,
 ): { score: number; reason: string } {
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
@@ -1659,7 +1672,7 @@ function calculateRecommendationScore(
             score += 0.12
             reasons.push('album match')
         }
-    } else if (!recentArtists.has(candidateArtist)) {
+    } else if (!skipNoveltyBoost && !recentArtists.has(candidateArtist)) {
         score += 0.15
         reasons.push('session novelty')
     }
