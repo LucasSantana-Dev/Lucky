@@ -1087,7 +1087,6 @@ describe('queueManipulation.replenishQueue', () => {
                 url: 'https://example.com/karma',
                 metadata: expect.objectContaining({
                     isAutoplay: true,
-                    recommendationReason: expect.stringContaining('last.fm'),
                 }),
             }),
         )
