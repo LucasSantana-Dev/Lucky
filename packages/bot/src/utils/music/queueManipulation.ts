@@ -781,9 +781,9 @@ function extractTitleArtistFromSong(
         const left = cleanedTitle.slice(0, idx).trim()
         if (/[()[\]]/.test(left) || left.length < 2) continue
         const right = cleanedTitle.slice(idx + sep.length).trim()
-        if (corePrefix.length < 3) return left
-        if (normalizeText(right).startsWith(corePrefix)) return left
-        if (normalizeText(left).startsWith(corePrefix)) return right
+        if (corePrefix.length >= 3 && normalizeText(left).startsWith(corePrefix)) {
+            return right
+        }
         return left
     }
     return null
