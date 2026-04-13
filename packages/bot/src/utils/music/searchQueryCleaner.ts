@@ -14,7 +14,7 @@
  * extended without touching regex logic.
  */
 
-import noiseTerms from './noiseTerms.json'
+import noiseTerms from './noiseTerms.json' with { type: 'json' }
 
 function escapeRegex(s: string): string {
     return s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
