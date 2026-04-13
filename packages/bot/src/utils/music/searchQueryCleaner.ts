@@ -135,7 +135,7 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
 ]
 
 const VERSION_KEYWORD_RE =
-    /\b(?:remaster(?:ed)?|remix|acoustic|live|demo|extended|instrumental|deluxe|explicit|clean|cover|bonus\s+track|radio\s+edit|single\s+version|album\s+version)\b/i
+    /\b(?:remaster(?:ed)?|remix|acoustic|live|demo|extended|instrumental|deluxe|explicit|clean|bonus\s+track|radio\s+edit|single\s+version|album\s+version)\b/i
 
 function isVersionSuffix(suffix: string): boolean {
     if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) return true
