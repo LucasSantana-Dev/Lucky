@@ -9,7 +9,49 @@
  * The goal is to strip YouTube-style noise ("(Official Video)", "[Download]",
  * uploader-channel junk like "- Topic", feat./ft., trailing tags) so downstream
  * searches find the actual track, not the uploader's decorated listing.
+ *
+ * Simple word/phrase noise terms live in noiseTerms.json so they can be
+ * extended without touching regex logic.
  */
+
+import noiseTerms from './noiseTerms.json'
+
+function escapeRegex(s: string): string {
+    return s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function termInner(term: string): string {
+    return escapeRegex(term).replaceAll(/\s+/g, '\\s{0,3}')
+}
+
+type TermPattern = 'word' | 'paren' | 'bracket' | 'suffix'
+
+function buildTermRe(term: string, type: TermPattern): RegExp {
+    const inner = termInner(term)
+    switch (type) {
+        case 'paren': return new RegExp(`\\(${inner}[^)]*\\)`, 'gi') // NOSONAR
+        case 'bracket': return new RegExp(`\\[${inner}[^\\]]*\\]`, 'gi') // NOSONAR
+        case 'suffix': return new RegExp(`^${inner}(?:\\s{0,3}(?:version|edit|mix))?$`, 'i') // NOSONAR
+        default: return new RegExp(`\\b${inner}\\b`, 'gi') // NOSONAR
+    }
+}
+
+const DYNAMIC_NOISE_PATTERNS: RegExp[] = [
+    ...noiseTerms.versionVariants.flatMap((t) => [
+        buildTermRe(t, 'paren'),
+        buildTermRe(t, 'bracket'),
+    ]),
+    ...noiseTerms.bareTitleNoise.map((t) => buildTermRe(t, 'word')),
+]
+
+const DYNAMIC_VERSION_KEYWORD_RE = new RegExp( // NOSONAR
+    `\\b(?:${noiseTerms.versionVariants.map(termInner).join('|')})\\b`,
+    'i',
+)
+
+const DYNAMIC_HYPHENATED_SUFFIXES: RegExp[] = noiseTerms.versionVariants.map(
+    (t) => buildTermRe(t, 'suffix'),
+)
 
 const NOISE_PATTERNS: readonly RegExp[] = [
     // Korean/CJK parenthetical duplicates: "(뱅뱅뱅)" when title already has English equivalent
@@ -51,24 +93,10 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\[download\]/gi,
     /\[free\s{0,3}download\]/gi,
 
-    // Version variants: live, acoustic, cover, remix, etc.
+    // Version variants with richer context (live at venue, etc.) — kept here
+    // because they go beyond a simple \bterm\b match.
     /\(live(?:\s{0,3}(?:version|session|performance|at\s[^)]+))?\)/gi,
     /\[live(?:\s{0,3}(?:version|session|performance|at\s[^\]]+))?\]/gi,
-    /\(acoustic(?:\s{0,3}version)?\)/gi,
-    /\[acoustic(?:\s{0,3}version)?\]/gi,
-    /\(cover[^)]*\)/gi,
-    /\[cover[^\]]*\]/gi,
-    /\(remix(?:\s{0,3}(?:version|edit))?\)/gi,
-    /\[remix(?:\s{0,3}(?:version|edit))?\]/gi,
-    /\(instrumental(?:\s{0,3}version)?\)/gi,
-    /\[instrumental(?:\s{0,3}version)?\]/gi,
-    /\(karaoke(?:\s{0,3}version)?\)/gi,
-    /\(explicit(?:\s{0,3}version)?\)/gi,
-    /\(clean(?:\s{0,3}version)?\)/gi,
-    /\(single(?:\s{0,3}version)?\)/gi,
-    /\(album\s{0,3}version\)/gi,
-    /\(deluxe(?:\s{0,3}(?:version|edition))?\)/gi,
-    /\(bonus\s{0,3}track\)/gi,
 
     // Bare decorators that weren't wrapped in brackets
     /\bofficial\s{0,3}music\s{0,3}video\b/gi,
@@ -105,11 +133,8 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\(tradu[çc][aã]o[^)]*\)/gi,
     /\[tradu[çc][aã]o[^\]]*\]/gi,
     /\btradu[çc][aã]o\b/gi,
-    /\btraduzido\b/gi,
-    /\blegendado\b/gi,
     /\(clipe\s+oficial[^)]*\)/gi,
     /\[clipe\s+oficial[^\]]*\]/gi,
-    /\blyrics\b/gi,
 
     // Brazilian version qualifiers inside brackets
     /\(vers[aã]o\s{0,3}[^)]*\)/gi,
@@ -118,26 +143,26 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\[ao\s{0,3}vivo[^\]]*\]/gi,
     /\(ac[uú]stico[^)]*\)/gi,
     /\[ac[uú]stico[^\]]*\]/gi,
+
+    // Dynamic patterns built from noiseTerms.json at module init
+    ...DYNAMIC_NOISE_PATTERNS,
 ]
 
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
     /^(?:\d{4}\s+)?remaster(?:ed)?(?:\s+(?:version|\d{4}))?(?:\s+\d{4})?$/i,
     /^official\s+(?:audio|video|music\s+video)$/i,
-    /^(?:live|acoustic|demo|extended|instrumental|karaoke|cover)(?:\s+(?:version|edit|session|mix))?$/i,
-    /^(?:radio\s+edit|album\s+version|single\s+version|bonus\s+track)$/i,
-    /^(?:original\s+(?:mix|version)|original)$/i,
-    /^(?:deluxe|deluxe\s+(?:version|edition))$/i,
-    /^(?:explicit|clean|explicit\s+version|clean\s+version)$/i,
+    /^original$/i,
     /^(?:19|20)\d{2}$/,
     // Brazilian/Portuguese version descriptors after " - "
     /^vers[aã]o/i,
     /^ao\s+vivo/i,
     /^forr[oó]/i,
     /^ac[uú]stico/i,
+    // Dynamic entries built from noiseTerms.json versionVariants
+    ...DYNAMIC_HYPHENATED_SUFFIXES,
 ]
 
-const VERSION_KEYWORD_RE =
-    /\b(?:remaster(?:ed)?|remix|acoustic|live|demo|extended|instrumental|deluxe|explicit|clean|bonus\s+track|radio\s+edit|single\s+version|album\s+version)\b/i
+const VERSION_KEYWORD_RE = DYNAMIC_VERSION_KEYWORD_RE
 
 function isVersionSuffix(suffix: string): boolean {
     if (HYPHENATED_VERSION_SUFFIXES.some((re) => re.test(suffix))) return true
