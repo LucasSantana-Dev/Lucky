@@ -3350,4 +3350,104 @@ describe('queueManipulation — Spotify priority', () => {
         expect(firstCallQuery).toContain('ANATOMIA')
         expect(firstCallQuery).toContain('ao pressão')
     })
+
+    it('uses title artist (not cover channel author) in spotify query', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Eu sei que é você',
+                    author: 'ANATOMIA',
+                    url: 'https://open.spotify.com/track/eusei001',
+                    source: 'spotify',
+                    durationMS: 195000,
+                },
+            ],
+        })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'ANATOMIA - Eu sei que é você (Acústico ao vivo)',
+                author: 'Carlo Gatto',
+                url: 'https://youtube.com/watch?v=carlogatto01',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstCallQuery).toContain('ANATOMIA')
+        expect(firstCallQuery).not.toContain('Carlo Gatto')
+        expect(firstCallQuery).toContain('Eu sei que é você')
+    })
+
+    it('falls back to cleanedAuthor when title has no separator', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Blinding Lights',
+                    author: 'The Weeknd',
+                    url: 'https://open.spotify.com/track/blight01',
+                    source: 'spotify',
+                    durationMS: 200000,
+                },
+            ],
+        })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Blinding Lights',
+                author: 'The Weeknd',
+                url: 'https://youtube.com/watch?v=blindinglight',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstCallQuery).toContain('The Weeknd')
+    })
+
+    it('uses right side as artist when song core is on the left of the separator', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Halo',
+                    author: 'Beyoncé',
+                    url: 'https://open.spotify.com/track/halo002',
+                    source: 'spotify',
+                    durationMS: 241000,
+                },
+            ],
+        })
+
+        // Author "BeyoBeyoFan" overlaps with "Beyoncé" via the 4-char prefix "beyo",
+        // so extractSongCore returns "Halo" (left). extractTitleArtistFromSong then
+        // detects that the core is on the left and returns the right side "Beyoncé".
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Halo - Beyoncé',
+                author: 'BeyoBeyoFan',
+                url: 'https://youtube.com/watch?v=halobeyonce',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstCallQuery).not.toContain('BeyoBeyoFan')
+        expect(firstCallQuery).toContain('Beyoncé')
+        expect(firstCallQuery).toContain('Halo')
+    })
 })
