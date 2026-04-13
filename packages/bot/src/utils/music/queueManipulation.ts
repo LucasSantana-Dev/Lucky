@@ -517,8 +517,8 @@ async function _replenishQueue(
             (autoplayMode === 'discover' || autoplayMode === 'popular') &&
             requestedBy?.id
         ) {
-            const token = await spotifyLinkService
-                .getValidAccessToken(requestedBy.id)
+            const token = await Promise.resolve(spotifyLinkService
+                .getValidAccessToken(requestedBy.id))
                 .catch(() => null)
             if (token) {
                 await Promise.all(
@@ -1147,7 +1147,7 @@ async function enrichWithAudioFeatures(
 ): Promise<ScoredTrack[]> {
     if (!currentFeatures || !userId) return tracks
 
-    const token = await spotifyLinkService.getValidAccessToken(userId).catch(() => null)
+    const token = await Promise.resolve(spotifyLinkService.getValidAccessToken(userId)).catch(() => null)
     if (!token) return tracks
 
     const spotifyIds: string[] = []
