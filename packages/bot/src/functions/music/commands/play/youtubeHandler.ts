@@ -1,9 +1,46 @@
 /**
- * YouTube track and playlist handlers
+ * YouTube and Spotify search handlers
  */
 
+import { QueryType } from 'discord-player'
 import type { PlayCommandResult, PlayCommandOptions } from './types'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+
+/**
+ * Search Spotify first. Returns success=false (no error thrown) when no
+ * results are found so the caller can silently fall through to YouTube.
+ */
+export async function handleSpotifySearch(
+    query: string,
+    user: PlayCommandOptions['user'],
+    guildId: string,
+    _channelId: string,
+    player: PlayCommandOptions['player'],
+): Promise<PlayCommandResult> {
+    try {
+        const searchResult = await player.search(query, {
+            requestedBy: user,
+            searchEngine: QueryType.SPOTIFY_SEARCH,
+        })
+
+        if (!searchResult.hasTracks()) {
+            return { success: false, error: '' }
+        }
+
+        debugLog({
+            message: `Spotify search found ${searchResult.tracks.length} tracks`,
+            data: { guildId, query },
+        })
+
+        return { success: true, tracks: searchResult.tracks, isPlaylist: false }
+    } catch (error) {
+        warnLog({
+            message: 'Spotify search failed, falling back to YouTube',
+            data: { query, guildId, error: (error as Error).message },
+        })
+        return { success: false, error: '' }
+    }
+}
 
 export async function handleYouTubeSearch(
     query: string,

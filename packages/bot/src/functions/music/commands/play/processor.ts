@@ -1,7 +1,11 @@
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { detectQueryType } from './queryDetector'
 import { handleSpotifyTrack, handleSpotifyPlaylist } from './spotifyHandler'
-import { handleYouTubePlaylist, handleYouTubeSearch } from './youtubeHandler'
+import {
+    handleYouTubePlaylist,
+    handleYouTubeSearch,
+    handleSpotifySearch,
+} from './youtubeHandler'
 import { manageQueue } from './queueManager'
 import type { PlayCommandOptions, PlayCommandResult } from './types'
 
@@ -92,6 +96,15 @@ export class PlayCommandProcessor {
         options: PlayCommandOptions,
     ): Promise<PlayCommandResult> {
         const { query, user, guildId, channelId, player } = options
+
+        const spotifyResult = await handleSpotifySearch(
+            query,
+            user,
+            guildId,
+            channelId,
+            player,
+        )
+        if (spotifyResult.success) return spotifyResult
 
         return handleYouTubeSearch(query, user, guildId, channelId, player)
     }
