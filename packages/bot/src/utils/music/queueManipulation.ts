@@ -19,6 +19,7 @@ import {
     searchSpotifyTrack,
     getBatchAudioFeatures,
     getArtistPopularity,
+    getSpotifyRecommendations,
     type SpotifyAudioFeatures,
 } from '../../spotify/spotifyApi'
 import {
@@ -743,6 +744,110 @@ function buildArtistFrequency(
     return freq
 }
 
+function extractSpotifyTrackId(track: Track): string | null {
+    const match =
+        track.url?.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/) ??
+        track.url?.match(/^spotify:track:([A-Za-z0-9]+)/)
+    return match?.[1] ?? null
+}
+
+async function collectSpotifyRecommendationCandidates(
+    queue: GuildQueue,
+    seedTracks: Track[],
+    requestedBy: User | null,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+    dislikedWeights: Map<string, number>,
+    likedWeights: Map<string, number>,
+    preferredArtistKeys: Set<string>,
+    blockedArtistKeys: Set<string>,
+    currentTrack: Track,
+    recentArtists: Set<string>,
+    candidates: Map<string, ScoredTrack>,
+    autoplayMode: 'similar' | 'discover' | 'popular',
+    artistFrequency: Map<string, number>,
+    implicitDislikeKeys: Set<string>,
+    implicitLikeKeys: Set<string>,
+    sessionMood: SessionMood | null,
+): Promise<void> {
+    if (!requestedBy) return
+    const token = await Promise.resolve(
+        spotifyLinkService.getValidAccessToken(requestedBy.id),
+    ).catch(() => null)
+    if (!token) return
+
+    const seedIds = seedTracks
+        .map(extractSpotifyTrackId)
+        .filter((id): id is string => id !== null)
+        .slice(0, 5)
+
+    if (seedIds.length === 0) {
+        const resolved = await Promise.allSettled(
+            seedTracks.slice(0, 3).map((s) => {
+                const core = extractSongCore(s.title ?? '', s.author)
+                return searchSpotifyTrack(
+                    token,
+                    core ?? cleanTitle(s.title ?? ''),
+                    cleanAuthor(s.author),
+                )
+            }),
+        )
+        resolved.forEach((r) => {
+            if (r.status === 'fulfilled' && r.value) seedIds.push(r.value)
+        })
+    }
+
+    if (seedIds.length === 0) return
+    const recs = await getSpotifyRecommendations(token, seedIds, 15)
+    if (recs.length === 0) return
+
+    debugLog({
+        message: 'Autoplay: Spotify recommendations fetched',
+        data: { count: recs.length, seedCount: seedIds.length },
+    })
+
+    const searchResults = await Promise.allSettled(
+        recs.map((rec) => {
+            const spotifyUrl = `https://open.spotify.com/track/${rec.id}`
+            return queue.player.search(spotifyUrl, {
+                requestedBy: requestedBy ?? undefined,
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+            })
+        }),
+    )
+
+    for (const result of searchResults) {
+        if (result.status !== 'fulfilled') continue
+        const track = result.value.tracks.find(
+            (t) => !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+        )
+        if (!track) continue
+        if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys)) continue
+        const normalizedKey = normalizeTrackKey(track.title, track.author)
+        const dislikedWeight = dislikedWeights.get(normalizedKey)
+        if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
+        const rec = calculateRecommendationScore(
+            track,
+            currentTrack,
+            recentArtists,
+            likedWeights,
+            preferredArtistKeys,
+            blockedArtistKeys,
+            autoplayMode,
+            artistFrequency,
+            implicitDislikeKeys,
+            implicitLikeKeys,
+            dislikedWeights,
+            sessionMood,
+        )
+        if (rec.score === -Infinity) continue
+        upsertScoredCandidate(candidates, track, {
+            score: rec.score + 0.3,
+            reason: rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec',
+        })
+    }
+}
+
 async function collectRecommendationCandidates(
     queue: GuildQueue,
     seedTracks: Track[],
@@ -763,6 +868,26 @@ async function collectRecommendationCandidates(
     sessionMood: SessionMood | null = null,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
+
+    await collectSpotifyRecommendationCandidates(
+        queue,
+        seedTracks,
+        requestedBy,
+        excludedUrls,
+        excludedKeys,
+        dislikedWeights,
+        likedWeights,
+        preferredArtistKeys,
+        blockedArtistKeys,
+        currentTrack,
+        recentArtists,
+        candidates,
+        autoplayMode,
+        artistFrequency,
+        implicitDislikeKeys,
+        implicitLikeKeys,
+        sessionMood,
+    )
 
     for (const seed of seedTracks) {
         const seedCandidates = await searchSeedCandidates(

@@ -92,6 +92,7 @@ jest.mock('../../spotify/spotifyApi', () => ({
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
     getBatchAudioFeatures: jest.fn().mockResolvedValue(new Map()),
     getArtistPopularity: jest.fn().mockResolvedValue(null),
+    getSpotifyRecommendations: jest.fn().mockResolvedValue([]),
 }))
 
 const dislikedTrackWeightsMock = jest.fn()
@@ -2918,7 +2919,6 @@ describe('queueManipulation — multi-user VC blend', () => {
                     tracks: [
                         {
                             url: 'https://example.com/sirens-misspelled',
-                            // 'Syrens' vs 'Sirens' → 1-char diff → ~94% similarity
                             title: 'Pearl Jam - Syrens',
                             author: 'FanChannel',
                             id: 'sirens-mis',
@@ -2935,6 +2935,69 @@ describe('queueManipulation — multi-user VC blend', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(addTrackMock).not.toHaveBeenCalled()
+    })
+
+    it('calls Spotify recommendations API when user has linked account and seed has Spotify URL', async () => {
+        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
+            getSpotifyRecommendations: jest.Mock
+        }
+        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
+            spotifyLinkService: { getValidAccessToken: jest.Mock }
+        }
+        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
+            'tok-abc',
+        )
+        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([])
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://open.spotify.com/track/seedid123',
+                title: 'Seed Song',
+                author: 'Seed Artist',
+                id: 'seed1',
+                source: 'spotify',
+                durationMS: 200000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({ tracks: [] }),
+            },
+            addTrack: jest.fn(),
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(spotifyApiMock.getSpotifyRecommendations).toHaveBeenCalledWith(
+            'tok-abc',
+            ['seedid123'],
+            15,
+        )
+    })
+
+    it('skips Spotify recommendations when no access token is available', async () => {
+        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
+            getSpotifyRecommendations: jest.Mock
+        }
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://open.spotify.com/track/seedid',
+                title: 'Seed Song',
+                author: 'Seed Artist',
+                id: 'seed1',
+                source: 'spotify',
+                durationMS: 200000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({ tracks: [] }),
+            },
+            addTrack: jest.fn(),
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(spotifyApiMock.getSpotifyRecommendations).not.toHaveBeenCalled()
     })
 
     it('rejects candidates over 15 minutes as track too long', async () => {
@@ -3091,6 +3154,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
         sharedMocks.spotifyLinkService.getValidAccessToken
             .mockResolvedValueOnce('token-for-current')
+            .mockResolvedValueOnce(null) // collectSpotifyRecommendationCandidates
             .mockResolvedValueOnce('token-for-enrich')
 
         const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
