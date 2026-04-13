@@ -22,6 +22,7 @@ import {
 } from '../../../../utils/music/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
+import { registerNowPlayingMessage } from '../../../../handlers/player/trackNowPlaying'
 import {
     DISCORD_UNKNOWN_INTERACTION_CODE,
     isUnknownInteractionError,
@@ -126,6 +127,21 @@ export default new Command({
             const hadQueueBeforePlay = Boolean(
                 resolveGuildQueue(client, interaction.guildId ?? '').queue,
             )
+
+            // Pre-register deferred reply so playerStart edits it rather than
+            // sending a duplicate "Now Playing" message when the queue was empty.
+            if (!hadQueueBeforePlay && interaction.channelId) {
+                try {
+                    const deferredMsg = await interaction.fetchReply()
+                    registerNowPlayingMessage(
+                        interaction.guildId!,
+                        deferredMsg.id,
+                        interaction.channelId,
+                    )
+                } catch {
+                    // Non-fatal — playerStart will send a new message instead
+                }
+            }
 
             const searchEngine = resolveSearchEngine(query, provider)
             const vcMemberIds = voiceChannel.members

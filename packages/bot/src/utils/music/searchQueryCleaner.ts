@@ -302,8 +302,15 @@ export function extractSongCore(title: string, author?: string): string | null {
             songPart = right
         }
 
+        const firstParen = Math.min(
+            ...[songPart.indexOf('('), songPart.indexOf('[')].filter(
+                (i) => i >= 0,
+            ),
+            songPart.length,
+        )
+        const bareRegion = songPart.slice(0, firstParen)
         for (const innerSep of [' - ', ' – ', ' — ']) {
-            const innerIdx = songPart.indexOf(innerSep)
+            const innerIdx = bareRegion.indexOf(innerSep)
             if (innerIdx > 0) {
                 songPart = songPart.slice(0, innerIdx).trim()
                 break
