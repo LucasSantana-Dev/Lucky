@@ -779,6 +779,15 @@ async function searchSeedCandidates(
     const modifier = QUERY_MODIFIERS[replenishCount % QUERY_MODIFIERS.length]
     const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
 
+    // Build a cleaner query for Spotify by separating song from artist,
+    // avoiding duplicates like "Beyoncé - Halo Beyoncé" → "Halo Beyoncé".
+    const songCore = extractSongCore(seed.title, seed.author)
+    const cleanedAuthor = cleanAuthor(seed.author)
+    const spotifyBase = songCore
+        ? `${songCore} ${cleanedAuthor}`.trim()
+        : baseQuery
+    const spotifyQuery = modifier ? `${spotifyBase} ${modifier}` : spotifyBase
+
     const engines: QueryType[] = [
         QueryType.SPOTIFY_SEARCH,
         QueryType.YOUTUBE_SEARCH,
@@ -786,8 +795,10 @@ async function searchSeedCandidates(
     ]
 
     for (const [idx, engine] of engines.entries()) {
+        const engineQuery =
+            engine === QueryType.SPOTIFY_SEARCH ? spotifyQuery : query
         try {
-            const searchResult = await queue.player.search(query, {
+            const searchResult = await queue.player.search(engineQuery, {
                 requestedBy: requestedBy ?? undefined,
                 searchEngine: engine,
             })
@@ -805,7 +816,7 @@ async function searchSeedCandidates(
                     warnLog({
                         message:
                             'Autoplay: primary search returned no results, using fallback engine',
-                        data: { engine, query },
+                        data: { engine, query: engineQuery },
                     })
                 }
                 return tracks
@@ -813,7 +824,7 @@ async function searchSeedCandidates(
         } catch (error) {
             debugLog({
                 message: 'Search failed for seed, trying next engine',
-                data: { query, engine, error: String(error) },
+                data: { query: engineQuery, engine, error: String(error) },
             })
         }
     }
@@ -1556,9 +1567,12 @@ function calculateRecommendationScore(
         score += 0.15
         reasons.push('session novelty')
     }
-    if (candidate.source === currentTrack.source) {
+    if (
+        candidate.source === currentTrack.source &&
+        candidate.source !== 'spotify'
+    ) {
         score -= 0.25
-    } else if (candidate.source) {
+    } else if (candidate.source && candidate.source !== currentTrack.source) {
         reasons.push('source variety')
     }
     const tokenScore = sharedTitleTokenScore(
@@ -1613,9 +1627,9 @@ function calculateRecommendationScore(
         }
     }
 
-    if (candidate.source === 'spotify' && currentTrack.source === 'spotify') {
-        score += 0.08
-        reasons.push('spotify mood match')
+    if (candidate.source === 'spotify') {
+        score += 0.15
+        reasons.push('spotify preferred')
     }
 
     if (autoplayMode === 'discover') {
