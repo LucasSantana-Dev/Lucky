@@ -129,20 +129,25 @@ export class RecommendationFeedbackService {
         return { map: next, changed }
     }
 
+    private async getValidFeedbackMap(
+        userId: string,
+        now: number,
+    ): Promise<FeedbackMap> {
+        const map = await this.getFeedbackMap(userId)
+        const { map: validMap, changed } = this.pruneExpired(map, now)
+        if (changed) {
+            await this.saveFeedbackMap(userId, validMap)
+        }
+        return validMap
+    }
+
     private async getTrackKeysByFeedback(
         userId: string | undefined,
         type: RecommendationFeedback,
         now = Date.now(),
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
-
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap, changed } = this.pruneExpired(map, now)
-
-        if (changed) {
-            await this.saveFeedbackMap(userId, validMap)
-        }
-
+        const validMap = await this.getValidFeedbackMap(userId, now)
         return new Set(
             Object.entries(validMap)
                 .filter(([, entry]) => entry.feedback === type)
@@ -171,13 +176,7 @@ export class RecommendationFeedbackService {
         type: RecommendationFeedback,
         now: number,
     ): Promise<Map<string, number>> {
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap, changed } = this.pruneExpired(map, now)
-
-        if (changed) {
-            await this.saveFeedbackMap(userId, validMap)
-        }
-
+        const validMap = await this.getValidFeedbackMap(userId, now)
         const weights = new Map<string, number>()
         for (const [trackKey, entry] of Object.entries(validMap)) {
             if (entry.feedback === type) {
