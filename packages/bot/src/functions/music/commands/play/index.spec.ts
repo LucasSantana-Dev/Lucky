@@ -53,6 +53,16 @@ const blendAutoplayTracksMock =
 const interactionReplyMock = jest.fn<(payload: unknown) => Promise<void>>()
 const buildPlayResponseEmbedMock = jest.fn<(payload: unknown) => unknown>()
 const createMusicControlButtonsMock = jest.fn<(queue: unknown) => unknown>()
+const registerNowPlayingMessageMock =
+    jest.fn<(guildId: string, messageId: string, channelId: string) => void>()
+
+jest.mock('../../../../handlers/player/trackNowPlaying', () => ({
+    registerNowPlayingMessage: (
+        guildId: string,
+        messageId: string,
+        channelId: string,
+    ) => registerNowPlayingMessageMock(guildId, messageId, channelId),
+}))
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: { OFF: 0, AUTOPLAY: 3 },
@@ -147,6 +157,7 @@ function createInteraction(guildId: string | null) {
         },
         channel: { id: 'channel-1' },
         member: { voice: { channel: { id: 'voice-1' } } },
+        channelId: 'channel-1',
         options: {
             getString: jest.fn(() => 'test query'),
         },
@@ -804,6 +815,73 @@ describe('play command', () => {
                 content: expect.objectContaining({ embeds: expect.any(Array) }),
             }),
         )
+    })
+
+    it('pre-registers deferred reply message when queue was empty before play', async () => {
+        const interaction = createInteraction('guild-1')
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValueOnce({ queue: null })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(interaction.fetchReply).toHaveBeenCalled()
+        expect(registerNowPlayingMessageMock).toHaveBeenCalledWith(
+            'guild-1',
+            'msg-123',
+            'channel-1',
+        )
+    })
+
+    it('skips now-playing pre-registration when queue was already active', async () => {
+        const interaction = createInteraction('guild-1')
+        const existingQueue = {
+            repeatMode: 3,
+            tracks: { size: 1, toArray: () => [] },
+        }
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        resolveGuildQueueMock.mockReturnValue({ queue: existingQueue })
+
+        await playCommand.execute({
+            client: createClient(async () => result),
+            interaction,
+        } as any)
+
+        expect(registerNowPlayingMessageMock).not.toHaveBeenCalled()
+    })
+
+    it('silently continues when fetchReply throws during now-playing pre-registration', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.fetchReply.mockRejectedValue(
+            new Error('interaction expired'),
+        )
+        const result = {
+            track: { title: 'Song A', author: 'Artist A' },
+            searchResult: { playlist: null, tracks: [] },
+        }
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValueOnce({ queue: null })
+
+        await expect(
+            playCommand.execute({
+                client: createClient(async () => result),
+                interaction,
+            } as any),
+        ).resolves.not.toThrow()
+
+        expect(registerNowPlayingMessageMock).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalled()
     })
 
     it('captures vc member ids in queue metadata when voiceChannel.members is set', async () => {

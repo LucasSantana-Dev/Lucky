@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.115] - 2026-04-13
+
+### Fixed
+- Autoplay dedup: `extractSongCore` no longer clips song names at a ` - ` separator that appears inside a parenthetical — e.g. `Nutshell (MTV Unplugged - HD Video)` now correctly extracts `Nutshell` instead of `Nutshell (MTV Unplugged`
+- Autoplay dedup: `noiseTerms.json` adds `unplugged`, `mtv unplugged`, and `hd video` as version variants so parentheticals like `(MTV Unplugged)` and `(HD Video)` are stripped before key normalisation — prevents live/unplugged variants of a track from appearing as separate recommendations
+- Play command: duplicate "Now Playing" embed eliminated — `/play` now pre-registers its deferred reply message so the `playerStart` handler edits it to the "Now Playing" embed instead of sending a second message
+
 ## [2.6.114] - 2026-04-13
 
 ### Added

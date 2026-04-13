@@ -230,6 +230,38 @@ describe('extractSongCore', () => {
             'Halo',
         )
     })
+
+    it('does not clip inside parenthetical when secondary separator is inside parens', () => {
+        expect(
+            extractSongCore(
+                'Alice In Chains - Nutshell (MTV Unplugged - HD Video)',
+                'Alice In Chains',
+            ),
+        ).toBe('Nutshell')
+    })
+
+    it('still trims bare secondary separator before any parenthetical', () => {
+        // "(2019)" is not a noise term so cleanTitle keeps the paren,
+        // letting extractSongCore exercise the bareRegion guard.
+        expect(
+            extractSongCore('Pearl Jam - Black - Edit (2019)', 'Pearl Jam'),
+        ).toBe('Black')
+    })
+})
+
+describe('cleanTitle — unplugged and hd video noise patterns', () => {
+    it('strips (Unplugged) and [Unplugged]', () => {
+        expect(cleanTitle('Nutshell (Unplugged)')).toBe('Nutshell')
+        expect(cleanTitle('Nutshell [Unplugged]')).toBe('Nutshell')
+    })
+
+    it('strips (MTV Unplugged) as unplugged variant', () => {
+        expect(cleanTitle('Nutshell (MTV Unplugged)')).toBe('Nutshell')
+    })
+
+    it('strips (HD Video) variant', () => {
+        expect(cleanTitle('Nutshell (HD Video)')).toBe('Nutshell')
+    })
 })
 
 describe('isSpamChannel', () => {
