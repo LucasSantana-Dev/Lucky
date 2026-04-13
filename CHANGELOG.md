@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.104] - 2026-04-13
+
+### Fixed
+- Autoplay: when the YouTube channel name equals the artist name (e.g. `"ANATOMIA - ao pressão (Visualizer)"` by author `"ANATOMIA"`), the Spotify query was previously assembled as `"ao pressão ANATOMIA"` (flipped), causing Spotify search to fail and fall back to YouTube. The Spotify engine now receives the cleaned title directly (`"ANATOMIA - ao pressão"`) which Spotify natively parses as `"Artist - Song"`, restoring correct Spotify-first playback for artist-named channels
+
 ## [2.6.103] - 2026-04-13
 
 ### Changed
