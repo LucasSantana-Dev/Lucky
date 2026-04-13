@@ -1,9 +1,17 @@
-import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals'
+import {
+    describe,
+    it,
+    expect,
+    beforeEach,
+    jest,
+    afterEach,
+} from '@jest/globals'
 import {
     getAudioFeatures,
     searchSpotifyTrack,
     getBatchAudioFeatures,
     getArtistPopularity,
+    getSpotifyRecommendations,
 } from './spotifyApi'
 
 type MockFetchResponse = {
@@ -11,9 +19,13 @@ type MockFetchResponse = {
     json?: () => Promise<unknown>
 }
 
-const fetchMock = jest.fn<
-    (input: RequestInfo | URL, init?: RequestInit) => Promise<MockFetchResponse>
->()
+const fetchMock =
+    jest.fn<
+        (
+            input: RequestInfo | URL,
+            init?: RequestInit,
+        ) => Promise<MockFetchResponse>
+    >()
 
 describe('spotifyApi', () => {
     let originalFetch: typeof global.fetch
@@ -84,7 +96,9 @@ describe('spotifyApi', () => {
         it('returns null when json parsing fails', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: async () => { throw new Error('JSON parse error') },
+                json: async () => {
+                    throw new Error('JSON parse error')
+                },
             })
 
             const result = await getAudioFeatures('test-token', 'track-123')
@@ -132,7 +146,11 @@ describe('spotifyApi', () => {
                 }),
             })
 
-            const result = await searchSpotifyTrack('test-token', 'Song Title', 'Artist Name')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Song Title',
+                'Artist Name',
+            )
 
             expect(result).toBe('spotify:track:abc123')
         })
@@ -143,7 +161,11 @@ describe('spotifyApi', () => {
                 json: async () => ({ tracks: { items: [] } }),
             })
 
-            const result = await searchSpotifyTrack('test-token', 'Unknown Song', 'Unknown Artist')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Unknown Song',
+                'Unknown Artist',
+            )
 
             expect(result).toBeNull()
         })
@@ -154,7 +176,11 @@ describe('spotifyApi', () => {
                 json: async () => ({}),
             })
 
-            const result = await searchSpotifyTrack('test-token', 'Song', 'Artist')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Song',
+                'Artist',
+            )
 
             expect(result).toBeNull()
         })
@@ -162,7 +188,11 @@ describe('spotifyApi', () => {
         it('returns null when response is not ok', async () => {
             fetchMock.mockResolvedValue({ ok: false })
 
-            const result = await searchSpotifyTrack('test-token', 'Song', 'Artist')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Song',
+                'Artist',
+            )
 
             expect(result).toBeNull()
         })
@@ -170,10 +200,16 @@ describe('spotifyApi', () => {
         it('returns null when json parsing fails', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: async () => { throw new Error('JSON parse error') },
+                json: async () => {
+                    throw new Error('JSON parse error')
+                },
             })
 
-            const result = await searchSpotifyTrack('test-token', 'Song', 'Artist')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Song',
+                'Artist',
+            )
 
             expect(result).toBeNull()
         })
@@ -181,7 +217,11 @@ describe('spotifyApi', () => {
         it('catches and returns null on fetch error', async () => {
             fetchMock.mockRejectedValue(new Error('Network error'))
 
-            const result = await searchSpotifyTrack('test-token', 'Song', 'Artist')
+            const result = await searchSpotifyTrack(
+                'test-token',
+                'Song',
+                'Artist',
+            )
 
             expect(result).toBeNull()
         })
@@ -198,17 +238,46 @@ describe('spotifyApi', () => {
                 ok: true,
                 json: async () => ({
                     audio_features: [
-                        { id: 'track1', energy: 0.8, valence: 0.7, danceability: 0.6, tempo: 120, acousticness: 0.1 },
-                        { id: 'track2', energy: 0.5, valence: 0.6, danceability: 0.7, tempo: 100, acousticness: 0.3 },
+                        {
+                            id: 'track1',
+                            energy: 0.8,
+                            valence: 0.7,
+                            danceability: 0.6,
+                            tempo: 120,
+                            acousticness: 0.1,
+                        },
+                        {
+                            id: 'track2',
+                            energy: 0.5,
+                            valence: 0.6,
+                            danceability: 0.7,
+                            tempo: 100,
+                            acousticness: 0.3,
+                        },
                     ],
                 }),
             })
 
-            const result = await getBatchAudioFeatures('token', ['track1', 'track2'])
+            const result = await getBatchAudioFeatures('token', [
+                'track1',
+                'track2',
+            ])
 
             expect(result.size).toBe(2)
-            expect(result.get('track1')).toEqual({ energy: 0.8, valence: 0.7, danceability: 0.6, tempo: 120, acousticness: 0.1 })
-            expect(result.get('track2')).toEqual({ energy: 0.5, valence: 0.6, danceability: 0.7, tempo: 100, acousticness: 0.3 })
+            expect(result.get('track1')).toEqual({
+                energy: 0.8,
+                valence: 0.7,
+                danceability: 0.6,
+                tempo: 120,
+                acousticness: 0.1,
+            })
+            expect(result.get('track2')).toEqual({
+                energy: 0.5,
+                valence: 0.6,
+                danceability: 0.7,
+                tempo: 100,
+                acousticness: 0.3,
+            })
         })
 
         it('skips null entries in audio_features array', async () => {
@@ -216,14 +285,32 @@ describe('spotifyApi', () => {
                 ok: true,
                 json: async () => ({
                     audio_features: [
-                        { id: 'track1', energy: 0.8, valence: 0.7, danceability: 0.6, tempo: 120, acousticness: 0.1 },
+                        {
+                            id: 'track1',
+                            energy: 0.8,
+                            valence: 0.7,
+                            danceability: 0.6,
+                            tempo: 120,
+                            acousticness: 0.1,
+                        },
                         null,
-                        { id: 'track3', energy: 0.5, valence: 0.6, danceability: 0.7, tempo: 100, acousticness: 0.3 },
+                        {
+                            id: 'track3',
+                            energy: 0.5,
+                            valence: 0.6,
+                            danceability: 0.7,
+                            tempo: 100,
+                            acousticness: 0.3,
+                        },
                     ],
                 }),
             })
 
-            const result = await getBatchAudioFeatures('token', ['track1', 'invalid', 'track3'])
+            const result = await getBatchAudioFeatures('token', [
+                'track1',
+                'invalid',
+                'track3',
+            ])
 
             expect(result.size).toBe(2)
             expect(result.has('track1')).toBe(true)
@@ -240,7 +327,9 @@ describe('spotifyApi', () => {
         it('returns empty map on json parse error', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: async () => { throw new Error('JSON error') },
+                json: async () => {
+                    throw new Error('JSON error')
+                },
             })
 
             const result = await getBatchAudioFeatures('token', ['track1'])
@@ -251,12 +340,20 @@ describe('spotifyApi', () => {
             fetchMock.mockResolvedValue({
                 ok: true,
                 json: async () => ({
-                    audio_features: [{ id: 'track1', energy: 0.8, valence: 0.7 }],
+                    audio_features: [
+                        { id: 'track1', energy: 0.8, valence: 0.7 },
+                    ],
                 }),
             })
 
             const result = await getBatchAudioFeatures('token', ['track1'])
-            expect(result.get('track1')).toEqual({ energy: 0.8, valence: 0.7, danceability: 0, tempo: 0, acousticness: 0 })
+            expect(result.get('track1')).toEqual({
+                energy: 0.8,
+                valence: 0.7,
+                danceability: 0,
+                tempo: 0,
+                acousticness: 0,
+            })
         })
     })
 
@@ -264,7 +361,9 @@ describe('spotifyApi', () => {
         it('returns artist popularity from search', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: async () => ({ artists: { items: [{ popularity: 75 }] } }),
+                json: async () => ({
+                    artists: { items: [{ popularity: 75 }] },
+                }),
             })
 
             const result = await getArtistPopularity('token', 'The Beatles')
@@ -298,11 +397,126 @@ describe('spotifyApi', () => {
         it('returns null on json parse error', async () => {
             fetchMock.mockResolvedValue({
                 ok: true,
-                json: async () => { throw new Error('JSON error') },
+                json: async () => {
+                    throw new Error('JSON error')
+                },
             })
 
             const result = await getArtistPopularity('token', 'Some Artist')
             expect(result).toBeNull()
+        })
+    })
+
+    describe('getSpotifyRecommendations', () => {
+        it('returns empty array when seedTrackIds is empty', async () => {
+            const result = await getSpotifyRecommendations('token', [])
+            expect(result).toEqual([])
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns tracks on successful response', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    tracks: [
+                        {
+                            id: 'rec1',
+                            name: 'Recommended Track',
+                            artists: [{ name: 'Artist A' }],
+                            duration_ms: 200000,
+                        },
+                        {
+                            id: 'rec2',
+                            name: 'Another Track',
+                            artists: [
+                                { name: 'Artist B' },
+                                { name: 'Artist C' },
+                            ],
+                            duration_ms: 180000,
+                        },
+                    ],
+                }),
+            })
+
+            const result = await getSpotifyRecommendations(
+                'token',
+                ['seed1', 'seed2'],
+                10,
+            )
+
+            expect(result).toHaveLength(2)
+            expect(result[0]).toEqual({
+                id: 'rec1',
+                name: 'Recommended Track',
+                artists: [{ name: 'Artist A' }],
+                duration_ms: 200000,
+            })
+            expect(result[1].artists).toHaveLength(2)
+        })
+
+        it('slices seed track ids to max 5', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ tracks: [] }),
+            })
+
+            await getSpotifyRecommendations('token', [
+                'a',
+                'b',
+                'c',
+                'd',
+                'e',
+                'f',
+                'g',
+            ])
+
+            const url = fetchMock.mock.calls[0]?.[0] as string
+            const params = new URLSearchParams(url.split('?')[1])
+            expect(params.get('seed_tracks')?.split(',').length).toBe(5)
+        })
+
+        it('returns empty array when response is not ok', async () => {
+            fetchMock.mockResolvedValue({ ok: false })
+            const result = await getSpotifyRecommendations('token', ['seed1'])
+            expect(result).toEqual([])
+        })
+
+        it('returns empty array on network error', async () => {
+            fetchMock.mockRejectedValue(new Error('network error'))
+            const result = await getSpotifyRecommendations('token', ['seed1'])
+            expect(result).toEqual([])
+        })
+
+        it('filters out tracks missing id or name', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    tracks: [
+                        {
+                            id: 'good',
+                            name: 'Good Track',
+                            artists: [],
+                            duration_ms: 200000,
+                        },
+                        {
+                            id: null,
+                            name: 'No ID',
+                            artists: [],
+                            duration_ms: 100000,
+                        },
+                        {
+                            id: 'noid2',
+                            name: null,
+                            artists: [],
+                            duration_ms: 100000,
+                        },
+                    ],
+                }),
+            })
+
+            const result = await getSpotifyRecommendations('token', ['seed1'])
+            expect(result).toHaveLength(1)
+            expect(result[0].id).toBe('good')
         })
     })
 })

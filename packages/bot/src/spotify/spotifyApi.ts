@@ -1,3 +1,47 @@
+export interface SpotifyRecommendationTrack {
+    id: string
+    name: string
+    artists: { name: string }[]
+    duration_ms: number
+}
+
+export async function getSpotifyRecommendations(
+    accessToken: string,
+    seedTrackIds: string[],
+    limit = 10,
+): Promise<SpotifyRecommendationTrack[]> {
+    if (seedTrackIds.length === 0) return []
+    try {
+        const params = new URLSearchParams({
+            seed_tracks: seedTrackIds.slice(0, 5).join(','),
+            limit: String(Math.min(limit, 100)),
+        })
+        const res = await fetch(
+            `https://api.spotify.com/v1/recommendations?${params.toString()}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+        )
+        if (!res.ok) return []
+        const data = (await res.json().catch(() => null)) as {
+            tracks?: Array<{
+                id?: string
+                name?: string
+                artists?: Array<{ name?: string }>
+                duration_ms?: number
+            }>
+        }
+        return (data?.tracks ?? [])
+            .filter((t) => t.id && t.name)
+            .map((t) => ({
+                id: t.id!,
+                name: t.name!,
+                artists: (t.artists ?? []).map((a) => ({ name: a.name ?? '' })),
+                duration_ms: t.duration_ms ?? 0,
+            }))
+    } catch {
+        return []
+    }
+}
+
 export interface SpotifyAudioFeatures {
     energy: number
     valence: number
