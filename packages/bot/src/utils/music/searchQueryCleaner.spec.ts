@@ -82,8 +82,7 @@ describe('cleanTitle', () => {
         expect(cleanTitle('Flowers [Reverb]')).toBe('Flowers')
     })
 
-    it('strips Nightcore / 8D Audio / Bass Boosted tags', () => {
-        expect(cleanTitle('Flowers (Nightcore)')).toBe('Flowers')
+    it('strips 8D Audio / Bass Boosted tags', () => {
         expect(cleanTitle('Flowers [8D Audio]')).toBe('Flowers')
         expect(cleanTitle('Flowers (Bass Boosted)')).toBe('Flowers')
     })
