@@ -99,6 +99,15 @@ const NOISE_PATTERNS: readonly RegExp[] = [
 
     // YouTube auto-generated "Topic" channel suffix
     /\s{0,3}-\s{0,3}topic\b/gi,
+
+    // Brazilian/Portuguese YouTube title noise
+    /#\S+/g,
+    /\(tradu[çc][aã]o[^)]*\)/gi,
+    /\[tradu[çc][aã]o[^\]]*\]/gi,
+    /\blegendado\b/gi,
+    /\(clipe\s+oficial[^)]*\)/gi,
+    /\[clipe\s+oficial[^\]]*\]/gi,
+    /\blyrics\b/gi,
 ]
 
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
@@ -198,6 +207,56 @@ export function cleanSearchQuery(title: string, author: string): string {
     if (!cleanedAuthor) return cleanedTitle
     if (!cleanedTitle) return cleanedAuthor
     return `${cleanedTitle} ${cleanedAuthor}`.trim()
+}
+
+/**
+ * Extract the song-title core from a YouTube-style "Artist - Song" title.
+ * Uses the author field to determine which side of the separator is the artist
+ * (handles both "Artist - Song" and inverted "Song - Artist" formats).
+ * Strips secondary separators from the core (e.g. "Halo - VERSÃO FORROZINHO" → "Halo").
+ * Returns null when no separator is found in the cleaned title.
+ */
+export function extractSongCore(title: string, author?: string): string | null {
+    const cleaned = cleanTitle(title)
+    for (const sep of [' - ', ' – ', ' — ']) {
+        const idx = cleaned.indexOf(sep)
+        if (idx < 2 || idx > 60) continue
+        const left = cleaned.slice(0, idx).trim()
+        if (/[()[\]]/.test(left)) continue
+        const right = cleaned.slice(idx + sep.length).trim()
+        if (left.length < 2 || right.length < 2) continue
+
+        let songPart: string
+        if (author) {
+            const norm = (s: string) =>
+                s.toLowerCase().replaceAll(/[^a-z0-9]+/g, '')
+            const authNorm = norm(cleanAuthor(author))
+            const overlaps = (a: string, b: string) =>
+                a.length >= 3 &&
+                b.length >= 3 &&
+                (a.includes(b.slice(0, 4)) || b.includes(a.slice(0, 4)))
+            if (overlaps(authNorm, norm(left))) {
+                songPart = right
+            } else if (overlaps(authNorm, norm(right))) {
+                songPart = left
+            } else {
+                songPart = right
+            }
+        } else {
+            songPart = right
+        }
+
+        for (const innerSep of [' - ', ' – ', ' — ']) {
+            const innerIdx = songPart.indexOf(innerSep)
+            if (innerIdx > 0) {
+                songPart = songPart.slice(0, innerIdx).trim()
+                break
+            }
+        }
+
+        return songPart.length >= 2 ? songPart : null
+    }
+    return null
 }
 
 /**

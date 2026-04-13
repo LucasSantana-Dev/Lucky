@@ -27,7 +27,12 @@ import {
 } from './autoplay/lastFmSeeds'
 import { detectSessionMood, type SessionMood } from './autoplay/sessionMood'
 import { getSimilarTracks, getTagTopTracks } from '../../lastfm'
-import { cleanSearchQuery, cleanTitle, cleanAuthor } from './searchQueryCleaner'
+import {
+    cleanSearchQuery,
+    cleanTitle,
+    cleanAuthor,
+    extractSongCore,
+} from './searchQueryCleaner'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 const AUTOPLAY_BUFFER_SIZE = 8
@@ -54,27 +59,27 @@ async function getTrackAudioFeatures(
     userId: string,
 ): Promise<SpotifyAudioFeatures | null> {
     const cacheKey = normalizeTrackKey(track.title, track.author)
-    
+
     const cached = audioFeatureCache.get(cacheKey)
     if (cached !== undefined) {
         return cached
     }
-    
+
     const token = await spotifyLinkService.getValidAccessToken(userId)
     if (!token) {
         audioFeatureCache.set(cacheKey, null)
         return null
     }
-    
+
     let spotifyId: string | null = null
-    
+
     if (track.url && track.url.includes('open.spotify.com/track/')) {
         const match = track.url.match(/track\/([a-zA-Z0-9]+)/)
         if (match) {
             spotifyId = match[1]
         }
     }
-    
+
     if (!spotifyId) {
         spotifyId = await searchSpotifyTrack(
             token,
@@ -82,17 +87,16 @@ async function getTrackAudioFeatures(
             cleanAuthor(track.author ?? ''),
         )
     }
-    
+
     if (!spotifyId) {
         audioFeatureCache.set(cacheKey, null)
         return null
     }
-    
+
     const features = await getAudioFeatures(token, spotifyId).catch(() => null)
     audioFeatureCache.set(cacheKey, features)
     return features
 }
-
 
 type ScoredTrack = {
     track: Track
@@ -399,9 +403,10 @@ async function _replenishQueue(
             const beforeLastFm = candidates.size
             const metadata = queue.metadata as QueueMetadata | undefined
             const vcMemberIds = metadata?.vcMemberIds ?? []
-            const contributionWeights = vcMemberIds.length > 1
-                ? buildVcContributionWeights(allHistoryTracks, vcMemberIds)
-                : new Map<string, number>()
+            const contributionWeights =
+                vcMemberIds.length > 1
+                    ? buildVcContributionWeights(allHistoryTracks, vcMemberIds)
+                    : new Map<string, number>()
             await collectLastFmCandidates(
                 queue,
                 requestedBy,
@@ -517,9 +522,9 @@ async function _replenishQueue(
             (autoplayMode === 'discover' || autoplayMode === 'popular') &&
             requestedBy?.id
         ) {
-            const token = await Promise.resolve(spotifyLinkService
-                .getValidAccessToken(requestedBy.id))
-                .catch(() => null)
+            const token = await Promise.resolve(
+                spotifyLinkService.getValidAccessToken(requestedBy.id),
+            ).catch(() => null)
             if (token) {
                 await Promise.all(
                     enriched.slice(0, 3).map(async (track) => {
@@ -528,10 +533,7 @@ async function _replenishQueue(
                             track.track.author,
                         ).catch(() => null)
                         if (popularity === null) return
-                        if (
-                            autoplayMode === 'popular' &&
-                            popularity >= 70
-                        ) {
+                        if (autoplayMode === 'popular' && popularity >= 70) {
                             track.score += 0.12
                         } else if (
                             autoplayMode === 'discover' &&
@@ -548,7 +550,10 @@ async function _replenishQueue(
         if (enriched.length === 0) {
             warnLog({
                 message: 'Autoplay: no candidates selected — queue may stall',
-                data: { guildId: queue.guild.id, candidatePoolSize: candidates.size },
+                data: {
+                    guildId: queue.guild.id,
+                    candidatePoolSize: candidates.size,
+                },
             })
             replenishCounters.set(guildId, replenishCount + 1)
             return
@@ -662,6 +667,8 @@ function buildExcludedKeys(
     for (const t of allTracks) {
         keys.push(normalizeTrackKey(t.title, t.author))
         keys.push(normalizeTitleOnly(t.title))
+        const core = extractSongCore(t.title ?? '', t.author)
+        if (core) keys.push(normalizeText(core))
     }
     return new Set(keys)
 }
@@ -996,7 +1003,10 @@ async function collectLastFmCandidates(
             })
         }
 
-        const similar = await getSimilarTracks(seed.artist, cleanTitle(seed.title))
+        const similar = await getSimilarTracks(
+            seed.artist,
+            cleanTitle(seed.title),
+        )
         for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
             const query = cleanSearchQuery(s.title, s.artist)
             const tracks = await searchLastFmQuery(queue, query, requestedBy)
@@ -1096,8 +1106,7 @@ function addGenreTrackCandidate(
         return
     const key = normalizeTrackKey(track.title, track.author)
     const dislikedWeight = ctx.dislikedTrackKeys.get(key)
-    if (dislikedWeight !== undefined && dislikedWeight > 0.5)
-        return
+    if (dislikedWeight !== undefined && dislikedWeight > 0.5) return
     const rec = calculateRecommendationScore(
         track,
         ctx.currentTrack,
@@ -1139,7 +1148,6 @@ async function collectGenreCandidates(
     }
 }
 
-
 async function enrichWithAudioFeatures(
     tracks: ScoredTrack[],
     userId: string,
@@ -1147,7 +1155,9 @@ async function enrichWithAudioFeatures(
 ): Promise<ScoredTrack[]> {
     if (!currentFeatures || !userId) return tracks
 
-    const token = await Promise.resolve(spotifyLinkService.getValidAccessToken(userId)).catch(() => null)
+    const token = await Promise.resolve(
+        spotifyLinkService.getValidAccessToken(userId),
+    ).catch(() => null)
     if (!token) return tracks
 
     const spotifyIds: string[] = []
@@ -1439,7 +1449,9 @@ function isDuplicateCandidate(
     }
     if (excludedKeys.has(normalizeTrackKey(track.title, track.author)))
         return true
-    return excludedKeys.has(normalizeTitleOnly(track.title))
+    if (excludedKeys.has(normalizeTitleOnly(track.title))) return true
+    const core = extractSongCore(track.title ?? '', track.author)
+    return core !== null && excludedKeys.has(normalizeText(core))
 }
 
 function calculateRecommendationScore(
