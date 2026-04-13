@@ -5,6 +5,11 @@ import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 export type RecommendationFeedback = 'like' | 'dislike'
 export type ArtistFeedback = 'prefer' | 'block'
 
+function decayWeight(updatedAt: number): number {
+    const daysSince = (Date.now() - updatedAt) / 86_400_000
+    return Math.max(0.15, 1.0 - (daysSince / 30) * 0.85)
+}
+
 type FeedbackEntry = {
     feedback: RecommendationFeedback
     updatedAt: number
@@ -124,20 +129,25 @@ export class RecommendationFeedbackService {
         return { map: next, changed }
     }
 
+    private async getValidFeedbackMap(
+        userId: string,
+        now: number,
+    ): Promise<FeedbackMap> {
+        const map = await this.getFeedbackMap(userId)
+        const { map: validMap, changed } = this.pruneExpired(map, now)
+        if (changed) {
+            await this.saveFeedbackMap(userId, validMap)
+        }
+        return validMap
+    }
+
     private async getTrackKeysByFeedback(
         userId: string | undefined,
         type: RecommendationFeedback,
         now = Date.now(),
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
-
-        const map = await this.getFeedbackMap(userId)
-        const { map: validMap, changed } = this.pruneExpired(map, now)
-
-        if (changed) {
-            await this.saveFeedbackMap(userId, validMap)
-        }
-
+        const validMap = await this.getValidFeedbackMap(userId, now)
         return new Set(
             Object.entries(validMap)
                 .filter(([, entry]) => entry.feedback === type)
@@ -159,6 +169,37 @@ export class RecommendationFeedbackService {
         now = Date.now(),
     ): Promise<Set<string>> {
         return this.getTrackKeysByFeedback(userId, 'like', now)
+    }
+
+    private async getTrackWeightsByFeedback(
+        userId: string,
+        type: RecommendationFeedback,
+        now: number,
+    ): Promise<Map<string, number>> {
+        const validMap = await this.getValidFeedbackMap(userId, now)
+        const weights = new Map<string, number>()
+        for (const [trackKey, entry] of Object.entries(validMap)) {
+            if (entry.feedback === type) {
+                weights.set(trackKey, decayWeight(entry.updatedAt))
+            }
+        }
+        return weights
+    }
+
+    async getLikedTrackWeights(
+        userId: string,
+        now = Date.now(),
+    ): Promise<Map<string, number>> {
+        if (!userId) return new Map<string, number>()
+        return this.getTrackWeightsByFeedback(userId, 'like', now)
+    }
+
+    async getDislikedTrackWeights(
+        userId: string,
+        now = Date.now(),
+    ): Promise<Map<string, number>> {
+        if (!userId) return new Map<string, number>()
+        return this.getTrackWeightsByFeedback(userId, 'dislike', now)
     }
 
     async getFeedbackCounts(
@@ -377,17 +418,12 @@ export class RecommendationFeedbackService {
         userId: string,
         type: 'implicit_dislike' | 'implicit_like',
     ): Promise<Set<string>> {
-        try {
-            const map = await this.getImplicitFeedbackMap(userId)
-            return new Set(
-                Object.entries(map)
-                    .filter(([, entry]) => entry.type === type)
-                    .map(([trackKey]) => trackKey),
-            )
-        } catch (error) {
-            errorLog({ message: `Failed to get ${type} keys`, error, data: { userId } })
-            return new Set<string>()
-        }
+        const map = await this.getImplicitFeedbackMap(userId)
+        return new Set(
+            Object.entries(map)
+                .filter(([, entry]) => entry.type === type)
+                .map(([trackKey]) => trackKey),
+        )
     }
 
     async getImplicitDislikeKeys(userId: string): Promise<Set<string>> {

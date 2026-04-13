@@ -91,8 +91,8 @@ jest.mock('../../spotify/spotifyApi', () => ({
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
 }))
 
-const dislikedTrackKeysMock = jest.fn()
-const likedTrackKeysMock = jest.fn()
+const dislikedTrackWeightsMock = jest.fn()
+const likedTrackWeightsMock = jest.fn()
 const getPreferredArtistKeysMock = jest.fn()
 const getBlockedArtistKeysMock = jest.fn()
 const getImplicitDislikeKeysMock = jest.fn()
@@ -100,9 +100,10 @@ const getImplicitLikeKeysMock = jest.fn()
 
 jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
-        getDislikedTrackKeys: (...args: unknown[]) =>
-            dislikedTrackKeysMock(...args),
-        getLikedTrackKeys: (...args: unknown[]) => likedTrackKeysMock(...args),
+        getLikedTrackWeights: (...args: unknown[]) =>
+            likedTrackWeightsMock(...args),
+        getDislikedTrackWeights: (...args: unknown[]) =>
+            dislikedTrackWeightsMock(...args),
         getPreferredArtistKeys: (...args: unknown[]) =>
             getPreferredArtistKeysMock(...args),
         getBlockedArtistKeys: (...args: unknown[]) =>
@@ -153,8 +154,8 @@ function createQueueMock(overrides: Partial<QueueMock> = {}): QueueMock {
 
 describe('queueManipulation.replenishQueue', () => {
     beforeEach(() => {
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
@@ -400,8 +401,8 @@ describe('queueManipulation.replenishQueue', () => {
     )
 
     it('skips tracks disliked by the requester feedback profile', async () => {
-        dislikedTrackKeysMock.mockResolvedValue(
-            new Set(['dislikedtrack::artistb']),
+        dislikedTrackWeightsMock.mockResolvedValue(
+            new Map([['dislikedtrack::artistb', 0.8]]),
         )
 
         const queue = createQueueMock({
@@ -437,7 +438,7 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
     it('boosts liked tracks to the top of autoplay recommendations', async () => {
-        likedTrackKeysMock.mockResolvedValue(new Set(['likedtrack::artistb']))
+        likedTrackWeightsMock.mockResolvedValue(new Map([['likedtrack::artistb', 1.0]]))
 
         const queue = createQueueMock({
             tracks: {
@@ -884,7 +885,7 @@ describe('queueManipulation.replenishQueue', () => {
             },
         })
 
-        likedTrackKeysMock.mockResolvedValueOnce(new Set([likedTrackKey]))
+        likedTrackWeightsMock.mockResolvedValueOnce(new Map([[likedTrackKey, 1.0]]))
         getGuildSettingsMock.mockResolvedValueOnce({
             autoplayMode: 'popular',
         })
@@ -1922,8 +1923,8 @@ describe('queueManipulation.replenishQueue youtube dedup', () => {
 
 describe('queueManipulation.replenishQueue query variation', () => {
     beforeEach(() => {
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
@@ -2015,8 +2016,8 @@ describe('queueManipulation.replenishQueue query variation', () => {
 
 describe('queueManipulation.collectBroadFallbackCandidates diversification', () => {
     beforeEach(() => {
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
@@ -2059,8 +2060,8 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
 
 describe('queueManipulation.selectDiverseCandidates score jitter', () => {
     beforeEach(() => {
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
@@ -2121,8 +2122,8 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
 
 describe('queueManipulation.addSelectedTracks async writes', () => {
     beforeEach(() => {
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
@@ -2315,8 +2316,8 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
 describe('queueManipulation — genre candidate collection', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
@@ -2404,8 +2405,8 @@ describe('queueManipulation — multi-user VC blend', () => {
             autoplayGenres: [],
         })
         getTagTopTracksMock.mockResolvedValue([])
-        dislikedTrackKeysMock.mockResolvedValue(new Set())
-        likedTrackKeysMock.mockResolvedValue(new Set())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         getSimilarTracksMock.mockResolvedValue([])
