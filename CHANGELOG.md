@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.101] - 2026-04-13
+
+### Fixed
+
+- Autoplay dedup now correctly identifies the same song across YouTube title format variants (e.g. "Beyoncé - Halo (Tradução/Legendado)", "Halo - Beyoncé (Lyrics)", "Beyoncé - Halo Lyrics #music") — Brazilian noise patterns strip Tradução, Legendado, Clipe Oficial, hashtags, and bare Lyrics; `extractSongCore` extracts the song portion from artist-prefixed or inverted titles using the author field to disambiguate
+
 ## [2.6.100] - 2026-04-13
 
 ### Added
