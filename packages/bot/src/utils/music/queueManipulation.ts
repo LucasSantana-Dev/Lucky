@@ -1351,17 +1351,9 @@ function calculateRecommendationScore(
         reasons.push('completed before')
     }
 
-    if (candidateArtist === currentArtist) {
-        score -= 0.75
-        reasons.push('same artist as current')
-    } else if (!recentArtists.has(candidateArtist)) {
+    if (!recentArtists.has(candidateArtist)) {
         score += 0.15
         reasons.push('session novelty')
-    } else {
-        reasons.push('fresh artist rotation')
-    }
-    if (recentArtists.has(candidateArtist)) {
-        score -= 0.45
     }
     if (candidate.source === currentTrack.source) {
         score -= 0.25
@@ -1408,7 +1400,7 @@ function calculateRecommendationScore(
             reasons.push('discovery boost')
         }
         if (recentArtists.has(candidateArtist)) {
-            score -= 0.2 // extra penalty on top of existing -0.25
+            score -= 0.2
         }
     } else if (autoplayMode === 'popular') {
         // Boost liked tracks more and high-energy/shorter tracks
