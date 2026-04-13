@@ -506,7 +506,10 @@ async function _replenishQueue(
             },
         })
 
-        const selected = selectDiverseCandidates(candidates, missingTracks)
+        const seedArtistKey = currentTrack.author.toLowerCase()
+        const selected = interleaveByArtist(
+            selectDiverseCandidates(candidates, missingTracks, MAX_TRACKS_PER_ARTIST, MAX_TRACKS_PER_SOURCE, seedArtistKey),
+        )
 
         const currentAudioFeatures = await getTrackAudioFeatures(
             currentTrack,
@@ -1229,11 +1232,36 @@ async function enrichWithAudioFeatures(
     return tracks.sort((a, b) => b.score - a.score)
 }
 
+function interleaveByArtist(tracks: ScoredTrack[]): ScoredTrack[] {
+    const groups = new Map<string, ScoredTrack[]>()
+    for (const t of tracks) {
+        const key = cleanAuthor(t.track.author).toLowerCase()
+        const group = groups.get(key) ?? []
+        group.push(t)
+        groups.set(key, group)
+    }
+    const result: ScoredTrack[] = []
+    let added = true
+    let round = 0
+    while (added) {
+        added = false
+        for (const group of groups.values()) {
+            if (round < group.length) {
+                result.push(group[round]!)
+                added = true
+            }
+        }
+        round++
+    }
+    return result
+}
+
 function selectDiverseCandidates(
     candidates: Map<string, ScoredTrack>,
     missingTracks: number,
     maxPerArtist = MAX_TRACKS_PER_ARTIST,
     maxPerSource = MAX_TRACKS_PER_SOURCE,
+    seedArtistKey = '',
 ): ScoredTrack[] {
     const jitteredCandidates = Array.from(candidates.values()).map((c) => ({
         ...c,
@@ -1244,7 +1272,9 @@ function selectDiverseCandidates(
         (a, b) => b.jitteredScore - a.jitteredScore,
     )
     const selected: ScoredTrack[] = []
-    const artistCount = new Map<string, number>()
+    const artistCount = new Map<string, number>(
+        seedArtistKey ? [[seedArtistKey, 1]] : [],
+    )
     const sourceCount = new Map<string, number>()
     const selectedTitleKeys = new Set<string>()
 
@@ -1641,6 +1671,15 @@ function calculateRecommendationScore(
     if (candidate.source === 'spotify') {
         score += 0.15
         reasons.push('spotify preferred')
+    }
+
+    if (
+        /\b(?:acoustic|live|ao\s{0,3}vivo|ac[uú]stico|cover|karaoke|instrumental)\b/i.test(
+            candidate.title ?? '',
+        )
+    ) {
+        score -= 0.2
+        reasons.push('version variant')
     }
 
     if (autoplayMode === 'discover') {
