@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.109] - 2026-04-13
+
+### Fixed
+- Autoplay dedup: bare "Tradução" / "traduzido" in titles now stripped before key normalization, so "YE - FATHER Tradução" no longer bypasses the dedup check against "YE - FATHER"
+- Autoplay: `purgeDuplicatesOfCurrentTrack()` runs at each replenish cycle start and removes any upcoming-queue entries that duplicate the now-playing track, eliminating stale duplicates that were added before the current song started
+- Autoplay diversity: `LASTFM_SCORE_BOOST` reduced from 0.1 to 0.0 so Last.fm novelty candidates no longer outscore seed-based candidates — prevents unrelated-genre tracks from being injected into an otherwise coherent session
+
 ## [2.6.108] - 2026-04-13
 
 ### Fixed
