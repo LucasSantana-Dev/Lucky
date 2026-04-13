@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.113] - 2026-04-13
+
+### Fixed
+- Autoplay dedup: fuzzy title matching via Levenshtein similarity (threshold 0.82) wired into `isDuplicateCandidate` — misspellings and minor title variants (e.g. "Sirens" vs "Syrens") are now caught as duplicates instead of slipping through exact-key checks
+- Autoplay dedup: history window expanded from 100 to 150 tracks, reducing the chance of recently-played songs re-entering the candidate pool
+
 ## [2.6.112] - 2026-04-13
 
 ### Fixed
