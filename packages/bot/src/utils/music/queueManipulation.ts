@@ -41,7 +41,7 @@ const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 const LASTFM_SEED_COUNT = 3
-const LASTFM_SCORE_BOOST = 0.1
+const LASTFM_SCORE_BOOST = 0.0
 const MAX_SIMILAR_LOOKUPS = 5
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
     process.env.QUEUE_RESCUE_PROBE_TIMEOUT_MS ?? '5000',
@@ -290,6 +290,8 @@ async function _replenishQueue(
 
         const currentTrack = queue.currentTrack ?? finishedTrack ?? null
         if (!currentTrack) return
+
+        purgeDuplicatesOfCurrentTrack(queue, currentTrack)
 
         const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
         if (missingTracks <= 0) return
@@ -652,6 +654,36 @@ function buildExcludedUrls(
         }
     }
     return result
+}
+
+function purgeDuplicatesOfCurrentTrack(
+    queue: GuildQueue,
+    currentTrack: Track,
+): void {
+    const urls = new Set<string>()
+    if (currentTrack.url) {
+        urls.add(currentTrack.url)
+        const vid = extractYouTubeVideoId(currentTrack.url)
+        if (vid) urls.add(vid)
+    }
+    const keys = new Set<string>()
+    keys.add(normalizeTrackKey(currentTrack.title, currentTrack.author))
+    keys.add(normalizeTitleOnly(currentTrack.title))
+    const core = extractSongCore(currentTrack.title ?? '', currentTrack.author)
+    if (core) keys.add(normalizeText(core))
+
+    for (const track of queue.tracks.toArray()) {
+        if (isDuplicateCandidate(track, urls, keys)) {
+            queue.node.remove(track)
+            debugLog({
+                message: 'Autoplay: purged stale duplicate of now-playing',
+                data: {
+                    removed: track.title,
+                    nowPlaying: currentTrack.title,
+                },
+            })
+        }
+    }
 }
 
 function buildExcludedKeys(
