@@ -63,6 +63,18 @@ function normalizeTrackKeyForFeedback(title: string, author: string): string {
     return `${normalizedTitle}::${normalizedAuthor}`
 }
 
+async function recordImplicitTrackFeedback(
+    track: Track,
+    type: 'implicit_like' | 'implicit_dislike',
+): Promise<void> {
+    const requesterId =
+        track.requestedBy?.id ??
+        (track.metadata as { requestedById?: string } | undefined)?.requestedById
+    if (!requesterId) return
+    const trackKey = normalizeTrackKeyForFeedback(track.title, track.author)
+    await recommendationFeedbackService.recordImplicitFeedback(requesterId, trackKey, type)
+}
+
 function evictOldEntries(): void {
     if (lastPlayedTracks.size > MAX_GUILD_ENTRIES) {
         const oldest = lastPlayedTracks.keys().next().value
@@ -237,22 +249,9 @@ const handlePlayerFinish = async (
         if (track) {
             const startTime = guildTrackStartTimes.get(queue.guild.id)
             if (startTime && track.durationMS) {
-                const playedMs = Date.now() - startTime
-                const completionRatio = playedMs / track.durationMS
-                const requesterId = track.requestedBy?.id
-                    ?? (track.metadata as { requestedById?: string } | undefined)
-                        ?.requestedById
-
-                if (completionRatio > 0.8 && requesterId) {
-                    const trackKey = normalizeTrackKeyForFeedback(
-                        track.title,
-                        track.author,
-                    )
-                    await recommendationFeedbackService.recordImplicitFeedback(
-                        requesterId,
-                        trackKey,
-                        'implicit_like',
-                    )
+                const completionRatio = (Date.now() - startTime) / track.durationMS
+                if (completionRatio > 0.8) {
+                    await recordImplicitTrackFeedback(track, 'implicit_like')
                 }
             }
             guildTrackStartTimes.delete(queue.guild.id)
@@ -294,22 +293,9 @@ const handlePlayerSkip = async (
         if (track) {
             const startTime = guildTrackStartTimes.get(queue.guild.id)
             if (startTime && track.durationMS && track.durationMS > 20_000) {
-                const playedMs = Date.now() - startTime
-                const skipRatio = playedMs / track.durationMS
-                const requesterId = track.requestedBy?.id
-                    ?? (track.metadata as { requestedById?: string } | undefined)
-                        ?.requestedById
-
-                if (skipRatio < 0.3 && requesterId) {
-                    const trackKey = normalizeTrackKeyForFeedback(
-                        track.title,
-                        track.author,
-                    )
-                    await recommendationFeedbackService.recordImplicitFeedback(
-                        requesterId,
-                        trackKey,
-                        'implicit_dislike',
-                    )
+                const skipRatio = (Date.now() - startTime) / track.durationMS
+                if (skipRatio < 0.3) {
+                    await recordImplicitTrackFeedback(track, 'implicit_dislike')
                 }
             }
             guildTrackStartTimes.delete(queue.guild.id)
