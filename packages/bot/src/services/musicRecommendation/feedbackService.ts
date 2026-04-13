@@ -13,6 +13,13 @@ type FeedbackEntry = {
 
 type FeedbackMap = Record<string, FeedbackEntry>
 
+type ImplicitFeedbackEntry = {
+    type: 'implicit_dislike' | 'implicit_like'
+    updatedAt: number
+}
+
+type ImplicitFeedbackMap = Record<string, ImplicitFeedbackEntry>
+
 export class RecommendationFeedbackService {
     constructor(private readonly ttlDays = 30) {}
 
@@ -299,6 +306,96 @@ export class RecommendationFeedbackService {
         }
 
         return { preferred, blocked }
+    }
+
+    private getImplicitFeedbackRedisKey(userId: string): string {
+        return `music:implicit_feedback:${userId}`
+    }
+
+    private async getImplicitFeedbackMap(
+        userId: string,
+    ): Promise<ImplicitFeedbackMap> {
+        const key = this.getImplicitFeedbackRedisKey(userId)
+        try {
+            const value = await redisClient.get(key)
+            if (!value) return {}
+            const parsed = JSON.parse(value) as ImplicitFeedbackMap
+            return parsed && typeof parsed === 'object' ? parsed : {}
+        } catch (error) {
+            errorLog({
+                message: 'Failed to load implicit feedback map',
+                error,
+            })
+            return {}
+        }
+    }
+
+    private async saveImplicitFeedbackMap(
+        userId: string,
+        map: ImplicitFeedbackMap,
+    ): Promise<void> {
+        const key = this.getImplicitFeedbackRedisKey(userId)
+        const ttlSeconds = 14 * 24 * 60 * 60
+
+        await redisClient.setex(key, ttlSeconds, JSON.stringify(map))
+    }
+
+    async recordImplicitFeedback(
+        userId: string,
+        trackKey: string,
+        type: 'implicit_dislike' | 'implicit_like',
+    ): Promise<void> {
+        try {
+            const map = await this.getImplicitFeedbackMap(userId)
+            const now = Date.now()
+
+            map[trackKey] = { type, updatedAt: now }
+
+            const entries = Object.entries(map).sort(
+                (a, b) => a[1].updatedAt - b[1].updatedAt,
+            )
+
+            if (entries.length > 200) {
+                const trimmed: ImplicitFeedbackMap = {}
+                for (const [key, entry] of entries.slice(-200)) {
+                    trimmed[key] = entry
+                }
+                await this.saveImplicitFeedbackMap(userId, trimmed)
+            } else {
+                await this.saveImplicitFeedbackMap(userId, map)
+            }
+        } catch (error) {
+            errorLog({
+                message: 'Failed to record implicit feedback',
+                error,
+                data: { userId, trackKey, type },
+            })
+        }
+    }
+
+    private async getImplicitKeysByType(
+        userId: string,
+        type: 'implicit_dislike' | 'implicit_like',
+    ): Promise<Set<string>> {
+        try {
+            const map = await this.getImplicitFeedbackMap(userId)
+            return new Set(
+                Object.entries(map)
+                    .filter(([, entry]) => entry.type === type)
+                    .map(([trackKey]) => trackKey),
+            )
+        } catch (error) {
+            errorLog({ message: `Failed to get ${type} keys`, error, data: { userId } })
+            return new Set<string>()
+        }
+    }
+
+    async getImplicitDislikeKeys(userId: string): Promise<Set<string>> {
+        return this.getImplicitKeysByType(userId, 'implicit_dislike')
+    }
+
+    async getImplicitLikeKeys(userId: string): Promise<Set<string>> {
+        return this.getImplicitKeysByType(userId, 'implicit_like')
     }
 }
 

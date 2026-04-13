@@ -348,3 +348,91 @@ describe('RecommendationFeedbackService', () => {
         expect(getMock).not.toHaveBeenCalled()
     })
 })
+
+describe('implicit feedback', () => {
+    beforeEach(() => {
+        getMock.mockReset()
+        setexMock.mockReset()
+    })
+
+    it('recordImplicitFeedback stores implicit_dislike entry', async () => {
+        getMock.mockResolvedValue(null)
+        setexMock.mockResolvedValue('OK')
+        const service = new RecommendationFeedbackService(30)
+
+        await service.recordImplicitFeedback('user-1', 'song::artist', 'implicit_dislike')
+
+        expect(setexMock).toHaveBeenCalledWith(
+            'music:implicit_feedback:user-1',
+            expect.any(Number),
+            expect.stringContaining('implicit_dislike'),
+        )
+    })
+
+    it('recordImplicitFeedback trims to 200 entries when exceeded', async () => {
+        const bigMap: Record<string, { type: string; updatedAt: number }> = {}
+        for (let i = 0; i < 201; i++) {
+            bigMap[`track${i}::artist`] = { type: 'implicit_like', updatedAt: i }
+        }
+        getMock.mockResolvedValue(JSON.stringify(bigMap))
+        setexMock.mockResolvedValue('OK')
+        const service = new RecommendationFeedbackService(30)
+
+        await service.recordImplicitFeedback('user-1', 'newtrack::artist', 'implicit_dislike')
+
+        const saved = JSON.parse(setexMock.mock.calls[0][2] as string)
+        expect(Object.keys(saved).length).toBeLessThanOrEqual(200)
+    })
+
+    it('getImplicitDislikeKeys returns skipped tracks', async () => {
+        getMock.mockResolvedValue(JSON.stringify({
+            'song1::artist': { type: 'implicit_dislike', updatedAt: Date.now() },
+            'song2::artist': { type: 'implicit_like', updatedAt: Date.now() },
+        }))
+        const service = new RecommendationFeedbackService(30)
+
+        const keys = await service.getImplicitDislikeKeys('user-1')
+
+        expect(keys.has('song1::artist')).toBe(true)
+        expect(keys.has('song2::artist')).toBe(false)
+    })
+
+    it('getImplicitLikeKeys returns completed tracks', async () => {
+        getMock.mockResolvedValue(JSON.stringify({
+            'song1::artist': { type: 'implicit_dislike', updatedAt: Date.now() },
+            'song2::artist': { type: 'implicit_like', updatedAt: Date.now() },
+        }))
+        const service = new RecommendationFeedbackService(30)
+
+        const keys = await service.getImplicitLikeKeys('user-1')
+
+        expect(keys.has('song2::artist')).toBe(true)
+        expect(keys.has('song1::artist')).toBe(false)
+    })
+
+    it('getImplicitDislikeKeys returns empty set on redis error', async () => {
+        getMock.mockRejectedValue(new Error('redis down'))
+        const service = new RecommendationFeedbackService(30)
+
+        const keys = await service.getImplicitDislikeKeys('user-1')
+
+        expect(keys.size).toBe(0)
+    })
+
+    it('getImplicitLikeKeys returns empty set on redis error', async () => {
+        getMock.mockRejectedValue(new Error('redis down'))
+        const service = new RecommendationFeedbackService(30)
+
+        const keys = await service.getImplicitLikeKeys('user-1')
+
+        expect(keys.size).toBe(0)
+    })
+
+    it('recordImplicitFeedback handles redis error gracefully', async () => {
+        getMock.mockRejectedValue(new Error('redis down'))
+        const service = new RecommendationFeedbackService(30)
+
+        await expect(service.recordImplicitFeedback('user-1', 'key', 'implicit_like')).resolves.toBeUndefined()
+    })
+})
+
