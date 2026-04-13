@@ -3230,7 +3230,7 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         }
         expect(warnLog).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('fallback engine'),
+                message: expect.stringContaining('Spotify returned 0 results'),
             }),
         )
     })
