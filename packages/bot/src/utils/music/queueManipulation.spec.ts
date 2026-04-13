@@ -2899,7 +2899,7 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
         expect(addedTrack?.metadata?.recommendationReason).toContain(
-            'spotify mood match',
+            'spotify preferred',
         )
     })
 
@@ -3234,5 +3234,87 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
                 message: expect.stringContaining('fallback engine'),
             }),
         )
+    })
+})
+
+describe('queueManipulation — Spotify priority', () => {
+    beforeEach(() => {
+        likedTrackWeightsMock.mockResolvedValue(new Map())
+        dislikedTrackWeightsMock.mockResolvedValue(new Map())
+        getPreferredArtistKeysMock.mockResolvedValue(new Set())
+        getBlockedArtistKeysMock.mockResolvedValue(new Set())
+        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
+        getImplicitLikeKeysMock.mockResolvedValue(new Set())
+        consumeLastFmSeedSliceMock.mockResolvedValue([])
+        getSimilarTracksMock.mockResolvedValue([])
+        getTrackHistoryMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
+    })
+
+    it('uses song-core query for Spotify engine when seed has artist-song format', async () => {
+        const searchMock = jest
+            .fn()
+            .mockResolvedValue({ tracks: [{ title: 'Shape of You', author: 'Ed Sheeran', url: 'https://open.spotify.com/track/abc', source: 'spotify', durationMS: 234000 }] })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Ed Sheeran - Shape of You',
+                author: 'Ed SheeranVEVO',
+                url: 'https://youtube.com/watch?v=seed001',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstCallQuery).not.toContain('Ed Sheeran - Shape of You Ed Sheeran')
+        expect(firstCallQuery).toContain('Shape of You')
+        expect(firstCallQuery).toContain('Ed Sheeran')
+    })
+
+    it('prefers Spotify candidate over YouTube candidate of the same song', async () => {
+        const addedTracks: unknown[] = []
+        const ytTrack = {
+            title: 'Halo',
+            author: 'Beyoncé',
+            url: 'https://youtube.com/watch?v=haloyt',
+            source: 'youtube',
+            durationMS: 241000,
+        }
+        const spotifyTrack = {
+            title: 'Halo',
+            author: 'Beyoncé',
+            url: 'https://open.spotify.com/track/halo001',
+            source: 'spotify',
+            durationMS: 241000,
+        }
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'Crazy In Love',
+                author: 'Beyoncé',
+                url: 'https://youtube.com/watch?v=seed001',
+                source: 'youtube',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 7, toArray: jest.fn().mockReturnValue([]) },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [ytTrack, spotifyTrack],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const selected = addedTracks[0] as { source?: string }
+        expect(selected?.source).toBe('spotify')
     })
 })
