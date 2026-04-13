@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.102] - 2026-04-13
+
+### Fixed
+- Autoplay dedup: same-song variants selected within a single replenish cycle (e.g. "Beyoncé - Halo" and "Halo - Beyoncé (Lyrics)") now correctly deduplicated via extractSongCore key in selectDiverseCandidates and addSelectedTracks
+- Autoplay dedup: Brazilian/Portuguese version qualifiers ("Versão Forró", "Ao Vivo", "Forró") now stripped from track titles before normalization, preventing different versions of the same song from both being queued
+
 ## [2.6.101] - 2026-04-13
 
 ### Fixed
