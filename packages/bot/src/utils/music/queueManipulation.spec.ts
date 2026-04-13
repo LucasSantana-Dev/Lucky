@@ -2928,14 +2928,6 @@ describe('queueManipulation — multi-user VC blend', () => {
 
     it('applies discover-mode familiar-artist penalty when artist is in recent history', async () => {
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'discover' })
-        getTrackHistoryMock.mockResolvedValue([
-            {
-                title: 'Past Track',
-                author: 'Familiar Artist',
-                url: 'https://example.com/past',
-                isAutoplay: false,
-            },
-        ])
         const addTrackMock = jest.fn()
         const queue = createQueueMock({
             currentTrack: {
@@ -2945,6 +2937,17 @@ describe('queueManipulation — multi-user VC blend', () => {
                 id: 'curr',
                 requestedBy: { id: 'user-1' },
             } as unknown as Track,
+            history: {
+                tracks: {
+                    toArray: jest.fn().mockReturnValue([
+                        {
+                            title: 'Past Track',
+                            author: 'Familiar Artist',
+                            url: 'https://example.com/past',
+                        },
+                    ]),
+                },
+            },
             player: {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
