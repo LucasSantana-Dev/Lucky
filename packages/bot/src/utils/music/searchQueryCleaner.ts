@@ -12,6 +12,10 @@
  */
 
 const NOISE_PATTERNS: readonly RegExp[] = [
+    // Korean/CJK parenthetical duplicates: "(뱅뱅뱅)" when title already has English equivalent
+    /\([^\x00-\x7F]+\)/g,
+    /\[[^\x00-\x7F]+\]/g,
+
     // Parenthetical / bracketed decorators. Order matters: longer phrases
     // like "(Official Music Video)" must be tried before the bare "(Official)"
     // fallback so they're stripped atomically rather than leaving "(Music Video)".
@@ -78,6 +82,20 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     // Featuring prefixes (leave the featured artist name in place; only strip the noise word)
     /\bft\.?\s+/gi,
     /\bfeat\.?\s+/gi,
+
+    // Fan-upload / concert / public-cover prefixes (bracket-wrapped context tags)
+    /\[k-?pop\s+in\s+public[^\]]*\]/gi,
+    /\[kpop\s+in\s+public[^\]]*\]/gi,
+    /\[dance\s+cover[^\]]*\]/gi,
+    /\[fancam[^\]]*\]/gi,
+    /\[mpd[^\]]*\]/gi,
+    /\[color\s+coded[^\]]*\]/gi,
+    /\[color-coded[^\]]*\]/gi,
+    /\[(?:4k|hd|uhd)[\s\d+fps[^\]]*\]/gi,
+    /\[(?:full\s+)?(?:perf|performance)[^\]]*\]/gi,
+    /\[stage\s+mix[^\]]*\]/gi,
+    /\[multi[^\]]*\]/gi,
+    /\bm\.?v\.?\b/gi,
 
     // YouTube auto-generated "Topic" channel suffix
     /\s{0,3}-\s{0,3}topic\b/gi,

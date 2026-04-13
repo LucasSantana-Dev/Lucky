@@ -14,7 +14,11 @@ import {
     lastFmLinkService,
     spotifyLinkService,
 } from '@lucky/shared/services'
-import { getAudioFeatures, searchSpotifyTrack, type SpotifyAudioFeatures } from '../../spotify/spotifyApi'
+import {
+    getAudioFeatures,
+    searchSpotifyTrack,
+    type SpotifyAudioFeatures,
+} from '../../spotify/spotifyApi'
 import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
@@ -47,27 +51,27 @@ async function getTrackAudioFeatures(
     userId: string,
 ): Promise<SpotifyAudioFeatures | null> {
     const cacheKey = normalizeTrackKey(track.title, track.author)
-    
+
     const cached = audioFeatureCache.get(cacheKey)
     if (cached !== undefined) {
         return cached
     }
-    
+
     const token = await spotifyLinkService.getValidAccessToken(userId)
     if (!token) {
         audioFeatureCache.set(cacheKey, null)
         return null
     }
-    
+
     let spotifyId: string | null = null
-    
+
     if (track.url && track.url.includes('open.spotify.com/track/')) {
         const match = track.url.match(/track\/([a-zA-Z0-9]+)/)
         if (match) {
             spotifyId = match[1]
         }
     }
-    
+
     if (!spotifyId) {
         spotifyId = await searchSpotifyTrack(
             token,
@@ -75,17 +79,16 @@ async function getTrackAudioFeatures(
             cleanAuthor(track.author ?? ''),
         )
     }
-    
+
     if (!spotifyId) {
         audioFeatureCache.set(cacheKey, null)
         return null
     }
-    
+
     const features = await getAudioFeatures(token, spotifyId).catch(() => null)
     audioFeatureCache.set(cacheKey, features)
     return features
 }
-
 
 type ScoredTrack = {
     track: Track
@@ -356,10 +359,12 @@ async function _replenishQueue(
                 persistentHistory: persistentHistory.length,
             },
         })
-        const recentArtists = buildRecentArtists(currentTrack, historyTracks)
+        const recentArtists = buildRecentArtists(currentTrack, allHistoryTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
         const currentFeatures = requestedBy?.id
-            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(() => null)
+            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
+                  () => null,
+              )
             : null
         const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
@@ -488,7 +493,10 @@ async function _replenishQueue(
         if (selected.length === 0) {
             warnLog({
                 message: 'Autoplay: no candidates selected — queue may stall',
-                data: { guildId: queue.guild.id, candidatePoolSize: candidates.size },
+                data: {
+                    guildId: queue.guild.id,
+                    candidatePoolSize: candidates.size,
+                },
             })
             replenishCounters.set(guildId, replenishCount + 1)
             return
@@ -923,7 +931,10 @@ async function collectLastFmCandidates(
         }
 
         // Also search for similar tracks via Last.fm API
-        const similar = await getSimilarTracks(seed.artist, cleanTitle(seed.title))
+        const similar = await getSimilarTracks(
+            seed.artist,
+            cleanTitle(seed.title),
+        )
         for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
             const query = cleanSearchQuery(s.title, s.artist)
             const tracks = await searchLastFmQuery(queue, query, requestedBy)
@@ -1340,16 +1351,9 @@ function calculateRecommendationScore(
         reasons.push('completed before')
     }
 
-    if (candidateArtist === currentArtist) {
-        score -= 0.35
-    } else if (!recentArtists.has(candidateArtist)) {
+    if (!recentArtists.has(candidateArtist)) {
         score += 0.15
         reasons.push('session novelty')
-    } else {
-        reasons.push('fresh artist rotation')
-    }
-    if (recentArtists.has(candidateArtist)) {
-        score -= 0.25
     }
     if (candidate.source === currentTrack.source) {
         score -= 0.25
@@ -1396,7 +1400,7 @@ function calculateRecommendationScore(
             reasons.push('discovery boost')
         }
         if (recentArtists.has(candidateArtist)) {
-            score -= 0.2 // extra penalty on top of existing -0.25
+            score -= 0.2
         }
     } else if (autoplayMode === 'popular') {
         // Boost liked tracks more and high-energy/shorter tracks
