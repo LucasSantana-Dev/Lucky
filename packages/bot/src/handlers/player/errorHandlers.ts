@@ -321,7 +321,8 @@ const handlePlayerError = async (
         const isStreamExtractionError =
             error.message.includes('Could not extract stream') ||
             error.message.includes('Streaming data not available') ||
-            error.message.includes('chooseFormat')
+            error.message.includes('chooseFormat') ||
+            error.message.includes('Bridge exhausted')
 
         if (isStreamExtractionError) {
             debugLog({

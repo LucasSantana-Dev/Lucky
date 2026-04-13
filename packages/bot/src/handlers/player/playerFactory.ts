@@ -1,6 +1,12 @@
 import { Player } from 'discord-player'
 import type { Track } from 'discord-player'
-import { DefaultExtractors } from '@discord-player/extractor'
+import {
+    SpotifyExtractor,
+    SoundCloudExtractor,
+    AppleMusicExtractor,
+    VimeoExtractor,
+    AttachmentExtractor,
+} from '@discord-player/extractor'
 import * as playdl from 'play-dl'
 import { spawn } from 'child_process'
 import { PassThrough } from 'stream'
@@ -36,37 +42,61 @@ export const createPlayer = ({ client }: CreatePlayerParams): Player => {
 }
 
 const registerExtractors = (player: Player): void => {
-    // Register DefaultExtractors synchronously (loadMulti is sync in this version).
-    // Errors are caught so a single bad extractor does not block the others.
-    try {
-        void player.extractors.loadMulti(DefaultExtractors)
-        infoLog({
-            message:
-                'Extractors: SoundCloud, Spotify, Apple Music, Vimeo, Attachments',
-        })
-    } catch (error) {
+    // Register all extractors asynchronously in priority order:
+    //   Spotify → YouTube → SoundCloud → Apple Music → Vimeo → Attachments
+    // Fire without awaiting so createPlayer() returns synchronously.
+    registerExtractorsInOrder(player).catch((error) => {
         errorLog({
-            message:
-                'DefaultExtractors failed to load — music features degraded',
-            error,
-        })
-    }
-
-    // Async: SoundCloud client ID + YouTube extractor.  Fire without awaiting so
-    // createPlayer() returns synchronously, but log any failures so they are not
-    // silently swallowed.
-    initPlayDlAndRegisterYoutubei(player).catch((error) => {
-        errorLog({
-            message:
-                'Async extractor init failed — SoundCloud/YouTube may be unavailable',
+            message: 'Extractor init failed — music features degraded',
             error,
         })
     })
 }
 
-const initPlayDlAndRegisterYoutubei = async (player: Player): Promise<void> => {
+const registerExtractorsInOrder = async (player: Player): Promise<void> => {
+    // 1. Spotify — first priority for searches and Spotify URLs
+    await registerSpotifyExtractor(player)
+
+    // 2. YouTube — via resilient yt-dlp bridge
     await initPlayDlSoundCloud()
     await loadYoutubeExtractor(player)
+
+    // 3. SoundCloud, Apple Music, Vimeo, Attachments
+    await registerRemainingExtractors(player)
+}
+
+const registerSpotifyExtractor = async (player: Player): Promise<void> => {
+    try {
+        await player.extractors.register(SpotifyExtractor, {
+            clientId: process.env.SPOTIFY_CLIENT_ID ?? null,
+            clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? null,
+        })
+        infoLog({ message: 'Registered SpotifyExtractor (priority 1)' })
+    } catch (error) {
+        warnLog({
+            message: 'SpotifyExtractor failed to register — Spotify searches degraded',
+            error,
+        })
+    }
+}
+
+const registerRemainingExtractors = async (player: Player): Promise<void> => {
+    const extractors = [
+        { extractor: SoundCloudExtractor, name: 'SoundCloud' },
+        { extractor: AppleMusicExtractor, name: 'Apple Music' },
+        { extractor: VimeoExtractor, name: 'Vimeo' },
+        { extractor: AttachmentExtractor, name: 'Attachments' },
+    ]
+
+    for (const { extractor, name } of extractors) {
+        try {
+            await player.extractors.register(extractor, {})
+        } catch (error) {
+            warnLog({ message: `${name} extractor failed to register`, error })
+        }
+    }
+
+    infoLog({ message: 'Registered: SoundCloud, Apple Music, Vimeo, Attachments' })
 }
 
 const initPlayDlSoundCloud = async (): Promise<void> => {

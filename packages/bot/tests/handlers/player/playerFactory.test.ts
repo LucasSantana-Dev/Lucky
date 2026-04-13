@@ -14,6 +14,11 @@ jest.mock('discord-player', () => {
 
 jest.mock('@discord-player/extractor', () => ({
     DefaultExtractors: [],
+    SpotifyExtractor: class MockSpotifyExtractor {},
+    SoundCloudExtractor: class MockSoundCloudExtractor {},
+    AppleMusicExtractor: class MockAppleMusicExtractor {},
+    VimeoExtractor: class MockVimeoExtractor {},
+    AttachmentExtractor: class MockAttachmentExtractor {},
 }))
 
 jest.mock('discord-player-youtubei', () => ({
@@ -76,13 +81,22 @@ describe('playerFactory', () => {
             }) as unknown as { extractors: { register: jest.Mock } }
 
             for (let i = 0; i < 50; i++) {
-                if (player.extractors.register.mock.calls.length > 0) break
+                const hasYoutube = player.extractors.register.mock.calls.some(
+                    ([, opts]: [unknown, Record<string, unknown>]) =>
+                        typeof opts?.createStream === 'function',
+                )
+                if (hasYoutube) break
                 await new Promise((resolve) => setTimeout(resolve, 10))
             }
 
             expect(player.extractors.register).toHaveBeenCalled()
 
-            const [, options] = player.extractors.register.mock.calls[0]
+            const youtubeCall = player.extractors.register.mock.calls.find(
+                ([, opts]: [unknown, Record<string, unknown>]) =>
+                    typeof opts?.createStream === 'function',
+            )
+            expect(youtubeCall).toBeDefined()
+            const [, options] = youtubeCall!
             expect(typeof options.createStream).toBe('function')
             // v3 API: streamOptions/generateWithPoToken removed
             expect(options.streamOptions).toBeUndefined()
@@ -98,11 +112,20 @@ describe('playerFactory', () => {
             }) as unknown as { extractors: { register: jest.Mock } }
 
             for (let i = 0; i < 50; i++) {
-                if (player.extractors.register.mock.calls.length > 0) break
+                const hasYoutube = player.extractors.register.mock.calls.some(
+                    ([, opts]: [unknown, Record<string, unknown>]) =>
+                        typeof opts?.createStream === 'function',
+                )
+                if (hasYoutube) break
                 await new Promise((resolve) => setTimeout(resolve, 10))
             }
 
-            const [, options] = player.extractors.register.mock.calls[0]
+            const youtubeCall = player.extractors.register.mock.calls.find(
+                ([, opts]: [unknown, Record<string, unknown>]) =>
+                    typeof opts?.createStream === 'function',
+            )
+            expect(youtubeCall).toBeDefined()
+            const [, options] = youtubeCall!
             expect(typeof options.createStream).toBe('function')
         })
 
@@ -153,7 +176,13 @@ describe('playerFactory', () => {
                     ),
                 ),
             ).toBe(true)
-            expect(player.extractors.register).not.toHaveBeenCalled()
+            // YouTube extractor specifically should NOT have been registered
+            // (identified by the createStream option it carries)
+            const youtubeCall = player.extractors.register.mock.calls.find(
+                ([, opts]: [unknown, Record<string, unknown>]) =>
+                    typeof opts?.createStream === 'function',
+            )
+            expect(youtubeCall).toBeUndefined()
         })
     })
 })
