@@ -110,10 +110,10 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\blyrics\b/gi,
 
     // Brazilian version qualifiers inside brackets
-    /\(vers[aã]o\s+[^)]+\)/gi,
-    /\[vers[aã]o\s+[^\]]+\]/gi,
-    /\(ao\s+vivo[^)]*\)/gi,
-    /\[ao\s+vivo[^\]]*\]/gi,
+    /\(vers[aã]o\s{0,3}[^)]*\)/gi,
+    /\[vers[aã]o\s{0,3}[^\]]*\]/gi,
+    /\(ao\s{0,3}vivo[^)]*\)/gi,
+    /\[ao\s{0,3}vivo[^\]]*\]/gi,
 ]
 
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
