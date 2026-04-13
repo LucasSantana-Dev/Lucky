@@ -503,14 +503,10 @@ async function _replenishQueue(
 
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
-        const currentAudioFeatures = await getTrackAudioFeatures(
-            currentTrack,
-            requestedBy?.id ?? '',
-        )
         const enriched = await enrichWithAudioFeatures(
             selected,
             requestedBy?.id ?? '',
-            currentAudioFeatures,
+            currentFeatures,
         )
 
         if (
@@ -1515,7 +1511,7 @@ function calculateRecommendationScore(
             candidate.title ?? '',
             currentTrack.title ?? '',
         )
-        if (titleSim > 0.4) {
+        if (titleSim > 0) {
             score += 0.12
             reasons.push('album match')
         }
