@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.107] - 2026-04-13
+
+### Fixed
+- Autoplay: query modifiers (`similar`, `like`, `playlist`, `mix`) were appended to the Spotify search query on every non-first replenish cycle — Spotify treats these as literal terms and returns 0 results, causing silent fallback to YouTube. Spotify query now always uses the clean base query; modifiers are only sent to YouTube/AUTO engines
+- Autoplay dedup: cover variant parentheticals `(Cover - ...)`, `(Cover by X)` etc. were not stripped before `coreKey` computation because the old pattern only matched the exact strings `(cover)` and `(cover version)`. Pattern broadened to `(cover[^)]*)` / `[cover[^\]]*]`; `cover` added to `HYPHENATED_VERSION_SUFFIXES` so `"Song - Cover"` hyphenated titles are also normalized
+
 ## [2.6.106] - 2026-04-13
 
 ### Fixed
