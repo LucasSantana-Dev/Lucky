@@ -3350,4 +3350,37 @@ describe('queueManipulation — Spotify priority', () => {
         expect(firstCallQuery).toContain('ANATOMIA')
         expect(firstCallQuery).toContain('ao pressão')
     })
+
+    it('uses title artist (not cover channel author) in spotify query', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'Eu sei que é você',
+                    author: 'ANATOMIA',
+                    url: 'https://open.spotify.com/track/eusei001',
+                    source: 'spotify',
+                    durationMS: 195000,
+                },
+            ],
+        })
+
+        const queue = createQueueMock({
+            currentTrack: {
+                title: 'ANATOMIA - Eu sei que é você (Acústico ao vivo)',
+                author: 'Carlo Gatto',
+                url: 'https://youtube.com/watch?v=carlogatto01',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
+        expect(firstCallQuery).toContain('ANATOMIA')
+        expect(firstCallQuery).not.toContain('Carlo Gatto')
+        expect(firstCallQuery).toContain('Eu sei que é você')
+    })
 })
