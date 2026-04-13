@@ -3415,6 +3415,48 @@ describe('queueManipulation — Spotify priority', () => {
         expect(firstCallQuery).toContain('The Weeknd')
     })
 
+    it('never appends query modifiers to the Spotify engine query on subsequent replenish cycles', async () => {
+        const capturedQueries: Array<{ query: string; engine: unknown }> = []
+        const searchMock = jest.fn().mockImplementation((query: string, opts: { searchEngine: unknown }) => {
+            capturedQueries.push({ query, engine: opts?.searchEngine })
+            return Promise.resolve({
+                tracks: [
+                    {
+                        title: 'Shape of You',
+                        author: 'Ed Sheeran',
+                        url: 'https://open.spotify.com/track/shapeofyou',
+                        source: 'spotify',
+                        durationMS: 234000,
+                    },
+                ],
+            })
+        })
+
+        const queue = createQueueMock({
+            guild: { id: 'guild-spotify-modifier-test' },
+            currentTrack: {
+                title: 'Ed Sheeran - Shape of You',
+                author: 'Ed SheeranVEVO',
+                url: 'https://youtube.com/watch?v=seed001',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
+            player: { search: searchMock },
+        })
+
+        // First call: replenishCount=0, no modifier
+        await replenishQueue(queue as unknown as GuildQueue)
+        // Second call: replenishCount=1, modifier='similar' — must NOT appear in Spotify query
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        // Spotify returns results on every call, so YouTube/AUTO are never reached.
+        // All captured queries are Spotify queries — none should contain text modifiers.
+        for (const { query } of capturedQueries) {
+            expect(query).not.toMatch(/\b(similar|like|playlist|mix)\b/)
+        }
+    })
+
     it('uses right side as artist when song core is on the left of the separator', async () => {
         const searchMock = jest.fn().mockResolvedValue({
             tracks: [
@@ -3506,6 +3548,49 @@ describe('queueManipulation — diversity improvements', () => {
 
         const firstAdded = addedTracks[0] as { title?: string }
         expect(firstAdded?.title).toBe('Eu sei que é você')
+    })
+
+    it('deduplicates cover variant of now-playing song so it is not queued', async () => {
+        const addedTracks: unknown[] = []
+        const coverTrack = {
+            title: 'ANATOMIA - Água viva (Cover - ao vivo)',
+            author: 'ANATOMIA',
+            url: 'https://youtube.com/watch?v=cover001',
+            source: 'youtube',
+            durationMS: 230000,
+        }
+        const differentTrack = {
+            title: 'Outra Música',
+            author: 'Other Artist',
+            url: 'https://open.spotify.com/track/other001',
+            source: 'spotify',
+            durationMS: 210000,
+        }
+
+        const queue = createQueueMock({
+            guild: { id: 'guild-cover-dedup-test' },
+            currentTrack: {
+                title: 'ANATOMIA - Água viva',
+                author: 'ANATOMIA',
+                url: 'https://youtube.com/watch?v=original',
+                source: 'youtube',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            metadata: { requestedBy: { id: 'user-1' } },
+            tracks: { size: 7, toArray: jest.fn().mockReturnValue([]) },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [coverTrack, differentTrack],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        const titles = addedTracks.map((t) => (t as { title: string }).title)
+        expect(titles).not.toContain('ANATOMIA - Água viva (Cover - ao vivo)')
+        expect(titles).toContain('Outra Música')
     })
 
     it('limits current-track artist to 1 more track when currentTrack counts as first', async () => {

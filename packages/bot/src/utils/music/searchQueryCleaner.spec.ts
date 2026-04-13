@@ -410,3 +410,29 @@ describe('cleanTitle — Acústico variants', () => {
         expect(cleanTitle('Música - Acústico ao vivo')).toBe('Música')
     })
 })
+
+describe('cleanTitle — Cover variants', () => {
+    it('strips "(Cover)" parenthetical', () => {
+        expect(cleanTitle('Hallelujah (Cover)')).toBe('Hallelujah')
+    })
+
+    it('strips "(Cover Version)" parenthetical', () => {
+        expect(cleanTitle('Hallelujah (Cover Version)')).toBe('Hallelujah')
+    })
+
+    it('strips "(Cover by Someone)" parenthetical with extra content', () => {
+        expect(cleanTitle('Água viva (Cover by Carlos)')).toBe('Água viva')
+    })
+
+    it('strips "(Cover - Ao vivo)" parenthetical with dash and extra content', () => {
+        expect(cleanTitle('ANATOMIA - Água viva (Cover - Ao vivo)')).toBe('ANATOMIA - Água viva')
+    })
+
+    it('strips "[Cover]" bracketed', () => {
+        expect(cleanTitle('Song Title [Cover]')).toBe('Song Title')
+    })
+
+    it('strips "- Cover" hyphenated suffix', () => {
+        expect(cleanTitle('Água viva - Cover')).toBe('Água viva')
+    })
+})
