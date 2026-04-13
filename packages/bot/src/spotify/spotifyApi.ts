@@ -6,6 +6,8 @@ export interface SpotifyAudioFeatures {
     acousticness: number
 }
 
+const artistPopularityCache = new Map<string, number | null>()
+
 export async function getAudioFeatures(
     accessToken: string,
     spotifyTrackId: string,
@@ -45,6 +47,106 @@ export async function getAudioFeatures(
             acousticness: data.acousticness ?? 0,
         }
     } catch {
+        return null
+    }
+}
+
+export async function getBatchAudioFeatures(
+    accessToken: string,
+    spotifyIds: string[],
+): Promise<Map<string, SpotifyAudioFeatures>> {
+    if (spotifyIds.length === 0) return new Map()
+
+    try {
+        const ids = spotifyIds.slice(0, 100).join(',')
+        const res = await fetch(
+            `https://api.spotify.com/v1/audio-features?ids=${ids}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        )
+
+        if (!res.ok) return new Map()
+
+        const data = (await res.json().catch(() => null)) as {
+            audio_features?: Array<{
+                id?: string
+                energy?: number
+                valence?: number
+                danceability?: number
+                tempo?: number
+                acousticness?: number
+            } | null>
+        }
+
+        const result = new Map<string, SpotifyAudioFeatures>()
+        if (!data?.audio_features) return result
+
+        for (const feature of data.audio_features) {
+            if (
+                !feature?.id ||
+                typeof feature.energy !== 'number' ||
+                typeof feature.valence !== 'number'
+            ) {
+                continue
+            }
+
+            result.set(feature.id, {
+                energy: feature.energy,
+                valence: feature.valence,
+                danceability: feature.danceability ?? 0,
+                tempo: feature.tempo ?? 0,
+                acousticness: feature.acousticness ?? 0,
+            })
+        }
+
+        return result
+    } catch {
+        return new Map()
+    }
+}
+
+export async function getArtistPopularity(
+    accessToken: string,
+    artistName: string,
+): Promise<number | null> {
+    const cached = artistPopularityCache.get(artistName)
+    if (cached !== undefined) return cached
+
+    try {
+        const params = new URLSearchParams({
+            q: artistName,
+            type: 'artist',
+            limit: '1',
+        })
+
+        const res = await fetch(
+            `https://api.spotify.com/v1/search?${params.toString()}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        )
+
+        if (!res.ok) {
+            artistPopularityCache.set(artistName, null)
+            return null
+        }
+
+        const data = (await res.json().catch(() => null)) as {
+            artists?: { items?: Array<{ popularity?: number }> }
+        }
+
+        const popularity = data?.artists?.items?.[0]?.popularity ?? null
+        artistPopularityCache.set(artistName, popularity)
+        return popularity
+    } catch {
+        artistPopularityCache.set(artistName, null)
         return null
     }
 }

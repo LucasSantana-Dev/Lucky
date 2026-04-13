@@ -7,6 +7,7 @@ import {
     moveTrackInQueue,
     rescueQueue,
     moveUserTrackToPriority,
+    buildVcContributionWeights,
 } from './queueManipulation'
 
 jest.mock('discord-player', () => ({
@@ -89,6 +90,8 @@ jest.mock('../../lastfm', () => ({
 jest.mock('../../spotify/spotifyApi', () => ({
     getAudioFeatures: jest.fn().mockResolvedValue(null),
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
+    getBatchAudioFeatures: jest.fn().mockResolvedValue(new Map()),
+    getArtistPopularity: jest.fn().mockResolvedValue(null),
 }))
 
 const dislikedTrackWeightsMock = jest.fn()
@@ -2409,6 +2412,8 @@ describe('queueManipulation — multi-user VC blend', () => {
         likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
+        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
+        getImplicitLikeKeysMock.mockResolvedValue(new Set())
         getSimilarTracksMock.mockResolvedValue([])
     })
 
@@ -2454,6 +2459,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         expect(consumeBlendedSeedSliceMock).toHaveBeenCalledWith(
             ['user-1', 'user-2'],
             expect.any(Number),
+            expect.any(Object),
         )
     })
 
@@ -2970,5 +2976,154 @@ describe('queueManipulation — multi-user VC blend', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(addTrackMock).toHaveBeenCalled()
+    })
+
+    it('applies energy/valence score boost when spotify candidate matches current track features', async () => {
+        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
+        sharedMocks.spotifyLinkService.getValidAccessToken
+            .mockResolvedValueOnce('token-for-current')
+            .mockResolvedValueOnce('token-for-enrich')
+
+        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
+        spotifyMocks.getAudioFeatures.mockResolvedValueOnce({
+            energy: 0.7,
+            valence: 0.65,
+            danceability: 0.6,
+            tempo: 125,
+            acousticness: 0.2,
+        })
+        const candidateFeatureMap = new Map([
+            ['candidateSpotifyId01', { energy: 0.72, valence: 0.67, danceability: 0.58, tempo: 120, acousticness: 0.25 }],
+        ])
+        spotifyMocks.getBatchAudioFeatures.mockResolvedValueOnce(candidateFeatureMap)
+
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://open.spotify.com/track/currentSpotifyId01',
+                title: 'Current Spotify Track',
+                author: 'Spotify Artist',
+                id: 'currentSpotifyId01',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://open.spotify.com/track/candidateSpotifyId01',
+                            title: 'Candidate Spotify Track',
+                            author: 'Other Artist',
+                            id: 'candidateSpotifyId01',
+                            durationMS: 200000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(spotifyMocks.getBatchAudioFeatures).toHaveBeenCalledWith(
+            'token-for-enrich',
+            ['candidateSpotifyId01'],
+        )
+        expect(addTrackMock).toHaveBeenCalled()
+    })
+
+    it('applies artist popularity boost in popular mode when popularity >= 70', async () => {
+        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'popular', autoplayGenres: [] })
+
+        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
+        sharedMocks.spotifyLinkService.getValidAccessToken
+            .mockResolvedValue('pop-token')
+
+        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
+        spotifyMocks.getArtistPopularity.mockResolvedValue(85)
+
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Current Track',
+                author: 'Popular Artist',
+                id: 'curr',
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://example.com/popular',
+                            title: 'Hit Song',
+                            author: 'Chart Topper',
+                            id: 'pop1',
+                            durationMS: 210000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(spotifyMocks.getArtistPopularity).toHaveBeenCalled()
+        expect(addTrackMock).toHaveBeenCalled()
+    })
+})
+
+describe('buildVcContributionWeights', () => {
+    it('returns equal weights when all users have equal contributions', () => {
+        const historyTracks = [
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-2' } },
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-2' } },
+        ]
+        const vcMemberIds = ['user-1', 'user-2']
+
+        const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
+
+        expect(weights.size).toBe(2)
+        expect(weights.get('user-1')).toBe(1)
+        expect(weights.get('user-2')).toBe(1)
+    })
+
+    it('returns higher weight for heavy listener', () => {
+        const historyTracks = [
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-2' } },
+        ]
+        const vcMemberIds = ['user-1', 'user-2']
+
+        const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
+
+        expect(weights.get('user-1')).toBeGreaterThan(weights.get('user-2')!)
+        const totalWeight =
+            weights.get('user-1')! + weights.get('user-2')!
+        expect(totalWeight).toBe(2)
+    })
+
+    it('gives baseline weight of 1 to users with zero contributions', () => {
+        const historyTracks = [
+            { requestedBy: { id: 'user-1' } },
+            { requestedBy: { id: 'user-1' } },
+        ]
+        const vcMemberIds = ['user-1', 'user-2']
+
+        const weights = buildVcContributionWeights(historyTracks, vcMemberIds)
+
+        expect(weights.get('user-1')).toBeGreaterThan(0)
+        expect(weights.get('user-2')).toBeGreaterThan(0)
+        const totalWeight =
+            weights.get('user-1')! + weights.get('user-2')!
+        expect(totalWeight).toBe(vcMemberIds.length)
     })
 })
