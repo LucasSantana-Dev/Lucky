@@ -104,6 +104,8 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /#\S+/g,
     /\(tradu[çc][aã]o[^)]*\)/gi,
     /\[tradu[çc][aã]o[^\]]*\]/gi,
+    /\btradu[çc][aã]o\b/gi,
+    /\btraduzido\b/gi,
     /\blegendado\b/gi,
     /\(clipe\s+oficial[^)]*\)/gi,
     /\[clipe\s+oficial[^\]]*\]/gi,
