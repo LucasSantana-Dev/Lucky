@@ -14,7 +14,13 @@ import {
     lastFmLinkService,
     spotifyLinkService,
 } from '@lucky/shared/services'
-import { getAudioFeatures, searchSpotifyTrack, type SpotifyAudioFeatures } from '../../spotify/spotifyApi'
+import {
+    getAudioFeatures,
+    searchSpotifyTrack,
+    getBatchAudioFeatures,
+    getArtistPopularity,
+    type SpotifyAudioFeatures,
+} from '../../spotify/spotifyApi'
 import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
@@ -497,7 +503,49 @@ async function _replenishQueue(
 
         const selected = selectDiverseCandidates(candidates, missingTracks)
 
-        if (selected.length === 0) {
+        const currentAudioFeatures = await getTrackAudioFeatures(
+            currentTrack,
+            requestedBy?.id ?? '',
+        )
+        const enriched = await enrichWithAudioFeatures(
+            selected,
+            requestedBy?.id ?? '',
+            currentAudioFeatures,
+        )
+
+        if (
+            (autoplayMode === 'discover' || autoplayMode === 'popular') &&
+            requestedBy?.id
+        ) {
+            const token = await spotifyLinkService
+                .getValidAccessToken(requestedBy.id)
+                .catch(() => null)
+            if (token) {
+                await Promise.all(
+                    enriched.slice(0, 3).map(async (track) => {
+                        const popularity = await getArtistPopularity(
+                            token,
+                            track.track.author,
+                        ).catch(() => null)
+                        if (popularity === null) return
+                        if (
+                            autoplayMode === 'popular' &&
+                            popularity >= 70
+                        ) {
+                            track.score += 0.12
+                        } else if (
+                            autoplayMode === 'discover' &&
+                            popularity <= 40
+                        ) {
+                            track.score += 0.12
+                        }
+                    }),
+                )
+                enriched.sort((a, b) => b.score - a.score)
+            }
+        }
+
+        if (enriched.length === 0) {
             warnLog({
                 message: 'Autoplay: no candidates selected — queue may stall',
                 data: { guildId: queue.guild.id, candidatePoolSize: candidates.size },
@@ -510,7 +558,7 @@ async function _replenishQueue(
             message: 'Autoplay: tracks selected for queue',
             data: {
                 guildId: queue.guild.id,
-                tracks: selected.map((s) => ({
+                tracks: enriched.map((s) => ({
                     title: s.track.title,
                     author: s.track.author,
                     score: s.score.toFixed(3),
@@ -522,7 +570,7 @@ async function _replenishQueue(
 
         await addSelectedTracks(
             queue,
-            selected,
+            enriched,
             excludedUrls,
             excludedKeys,
             requestedBy?.id,
@@ -1091,6 +1139,55 @@ async function collectGenreCandidates(
     }
 }
 
+
+async function enrichWithAudioFeatures(
+    tracks: ScoredTrack[],
+    userId: string,
+    currentFeatures: SpotifyAudioFeatures | null,
+): Promise<ScoredTrack[]> {
+    if (!currentFeatures || !userId) return tracks
+
+    const token = await spotifyLinkService.getValidAccessToken(userId).catch(() => null)
+    if (!token) return tracks
+
+    const spotifyIds: string[] = []
+    const idToTrack = new Map<string, ScoredTrack>()
+
+    for (const track of tracks) {
+        if (track.track.url?.includes('open.spotify.com/track/')) {
+            const match = track.track.url.match(/track\/([a-zA-Z0-9]+)/)
+            if (match?.[1]) {
+                spotifyIds.push(match[1])
+                idToTrack.set(match[1], track)
+            }
+        }
+    }
+
+    if (spotifyIds.length === 0) return tracks
+
+    const features = await getBatchAudioFeatures(token, spotifyIds).catch(
+        () => new Map(),
+    )
+
+    for (const [id, feature] of features) {
+        const track = idToTrack.get(id)
+        if (!track) continue
+
+        const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
+        const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
+
+        if (energyDelta < 0.15 && valenceDelta < 0.2) {
+            track.score += 0.15
+        } else if (energyDelta < 0.3 || valenceDelta < 0.35) {
+            track.score += 0.07
+        } else if (energyDelta > 0.6) {
+            track.score -= 0.1
+        }
+    }
+
+    return tracks.sort((a, b) => b.score - a.score)
+}
+
 function selectDiverseCandidates(
     candidates: Map<string, ScoredTrack>,
     missingTracks: number,
@@ -1412,7 +1509,17 @@ function calculateRecommendationScore(
         reasons.push('completed before')
     }
 
-    if (!recentArtists.has(candidateArtist)) {
+    if (candidateArtist === currentArtist) {
+        score -= 0.35
+        const titleSim = sharedTitleTokenScore(
+            candidate.title ?? '',
+            currentTrack.title ?? '',
+        )
+        if (titleSim > 0.4) {
+            score += 0.12
+            reasons.push('album match')
+        }
+    } else if (!recentArtists.has(candidateArtist)) {
         score += 0.15
         reasons.push('session novelty')
     }
