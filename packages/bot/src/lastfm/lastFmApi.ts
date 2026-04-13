@@ -215,7 +215,12 @@ export async function getRecentTracks(
         return (data.recenttracks?.track ?? [])
             .filter((t) => !t['@attr']?.nowplaying)
             .map((t) => ({
-                artist: typeof t.artist === 'string' ? t.artist : t.artist.name,
+                artist:
+                    typeof t.artist === 'string'
+                        ? t.artist
+                        : ((t.artist as Record<string, string>)['#text'] ??
+                          t.artist.name ??
+                          ''),
                 title: t.name,
             }))
     } catch {
@@ -299,7 +304,10 @@ export async function getLovedTracks(
             }
         }
         return (data.lovedtracks?.track ?? []).map((t) => ({
-            artist: t.artist.name,
+            artist:
+                (t.artist as Record<string, string>)['#text'] ??
+                t.artist.name ??
+                '',
             title: t.name,
         }))
     } catch {

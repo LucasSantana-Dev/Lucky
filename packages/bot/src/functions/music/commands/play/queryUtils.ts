@@ -106,9 +106,39 @@ export async function executePlayAtTop({
 
     try {
         const searchEngine = resolveSearchEngine(query)
-        const result = await client.player.play(voiceChannel, query, {
-            searchEngine,
-        })
+        let result
+        try {
+            result = await client.player.play(voiceChannel, query, {
+                searchEngine,
+            })
+        } catch (primaryError) {
+            if (searchEngine !== QueryType.AUTO) {
+                warnLog({
+                    message: 'Primary search failed, falling back to YouTube',
+                    data: {
+                        query,
+                        searchEngine: String(searchEngine),
+                        error: String(primaryError),
+                    },
+                })
+                try {
+                    result = await client.player.play(voiceChannel, query, {
+                        searchEngine: QueryType.YOUTUBE_SEARCH,
+                    })
+                } catch (youtubeError) {
+                    warnLog({
+                        message:
+                            'YouTube search failed, falling back to SoundCloud',
+                        data: { query, error: String(youtubeError) },
+                    })
+                    result = await client.player.play(voiceChannel, query, {
+                        searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                    })
+                }
+            } else {
+                throw primaryError
+            }
+        }
         const track = result.track
 
         const { queue } = resolveGuildQueue(client, interaction.guildId)

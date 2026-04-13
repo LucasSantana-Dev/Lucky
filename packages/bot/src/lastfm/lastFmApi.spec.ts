@@ -280,6 +280,31 @@ describe('lastFmApi', () => {
             expect(tracks[1].artist).toBe('Artist B')
         })
 
+        it('handles artist as #text object (actual Last.fm API format)', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    recenttracks: {
+                        track: [
+                            {
+                                name: 'Song A',
+                                artist: { '#text': 'Oasis', mbid: '' },
+                            },
+                            {
+                                name: 'Song B',
+                                artist: { '#text': 'Blur', mbid: '123' },
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getRecentTracks('username')
+
+            expect(tracks[0].artist).toBe('Oasis')
+            expect(tracks[1].artist).toBe('Blur')
+        })
+
         it('uses default limit when not specified', async () => {
             fetchMock.mockResolvedValueOnce({
                 ok: true,
@@ -534,6 +559,26 @@ describe('lastFmApi', () => {
             fetchMock.mockRejectedValueOnce(new Error('network'))
             const result = await getLovedTracks('testuser')
             expect(result).toEqual([])
+        })
+
+        it('handles artist as #text object (actual Last.fm API format)', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    lovedtracks: {
+                        track: [
+                            {
+                                name: 'Wonderwall',
+                                artist: { '#text': 'Oasis', mbid: '' },
+                            },
+                        ],
+                    },
+                }),
+            })
+
+            const result = await getLovedTracks('testuser')
+
+            expect(result).toEqual([{ artist: 'Oasis', title: 'Wonderwall' }])
         })
     })
 })

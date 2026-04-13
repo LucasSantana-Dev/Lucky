@@ -144,6 +144,24 @@ describe('getLastFmSeedTracks', () => {
             { artist: 'Artist B', title: 'Song B' },
         ])
     })
+
+    it('filters out tracks with undefined artist or title', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([
+            { artist: 'Artist A', title: 'Good Song', playCount: 5 },
+        ])
+        getRecentTracksMock.mockResolvedValue([
+            { artist: undefined as unknown as string, title: 'No Artist' },
+            { artist: 'Artist B', title: undefined as unknown as string },
+        ])
+        getLovedTracksMock.mockResolvedValue([])
+
+        const tracks = await getLastFmSeedTracks('discord-user-guard')
+
+        expect(tracks.every((t) => t.artist && t.title)).toBe(true)
+        expect(tracks).toHaveLength(1)
+        expect(tracks[0]).toEqual({ artist: 'Artist A', title: 'Good Song' })
+    })
 })
 
 describe('getLastFmSeedSlice', () => {
