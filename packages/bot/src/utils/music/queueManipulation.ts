@@ -769,6 +769,26 @@ async function collectRecommendationCandidates(
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 const QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
 
+function extractTitleArtistFromSong(
+    cleanedTitle: string,
+    songCore: string,
+): string | null {
+    const normCore = normalizeText(songCore)
+    const corePrefix = normCore.slice(0, Math.min(6, normCore.length))
+    for (const sep of [' - ', ' – ', ' — ']) {
+        const idx = cleanedTitle.indexOf(sep)
+        if (idx < 2 || idx > 60) continue
+        const left = cleanedTitle.slice(0, idx).trim()
+        if (/[()[\]]/.test(left) || left.length < 2) continue
+        const right = cleanedTitle.slice(idx + sep.length).trim()
+        if (corePrefix.length >= 3 && normalizeText(left).startsWith(corePrefix)) {
+            return right
+        }
+        return left
+    }
+    return null
+}
+
 async function searchSeedCandidates(
     queue: GuildQueue,
     seed: Track,
@@ -779,24 +799,27 @@ async function searchSeedCandidates(
     const modifier = QUERY_MODIFIERS[replenishCount % QUERY_MODIFIERS.length]
     const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
 
-    // Build a cleaner Spotify query. Three cases:
-    // 1. Author already appears in the cleaned title (e.g. "ANATOMIA - ao pressão",
-    //    author "ANATOMIA") → use cleanedTitle directly; Spotify handles "Artist - Song".
-    // 2. Author not in title but extractSongCore finds a separator → "Song Author".
-    // 3. Fallback → original baseQuery.
     const cleanedTitle = cleanTitle(seed.title)
     const cleanedAuthor = cleanAuthor(seed.author)
     const authorNorm = normalizeText(cleanedAuthor)
-    const titleNorm = normalizeText(cleanedTitle)
     const authorInTitle =
         authorNorm.length >= 3 &&
-        titleNorm.includes(authorNorm.slice(0, Math.min(5, authorNorm.length)))
-    const songCore = authorInTitle ? null : extractSongCore(seed.title, seed.author)
-    const spotifyBase = authorInTitle
-        ? cleanedTitle
-        : songCore
-          ? `${songCore} ${cleanedAuthor}`.trim()
-          : baseQuery
+        normalizeText(cleanedTitle).includes(
+            authorNorm.slice(0, Math.min(5, authorNorm.length)),
+        )
+
+    let spotifyBase: string
+    if (authorInTitle) {
+        spotifyBase = cleanedTitle
+    } else {
+        const songCore = extractSongCore(seed.title, seed.author)
+        if (songCore) {
+            const titleArtist = extractTitleArtistFromSong(cleanedTitle, songCore)
+            spotifyBase = `${songCore} ${titleArtist ?? cleanedAuthor}`.trim()
+        } else {
+            spotifyBase = baseQuery
+        }
+    }
     const spotifyQuery = modifier ? `${spotifyBase} ${modifier}` : spotifyBase
 
     const engines: QueryType[] = [

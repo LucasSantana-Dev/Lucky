@@ -386,3 +386,27 @@ describe('cleanTitle — hyphenated version suffixes', () => {
         )
     })
 })
+
+describe('cleanTitle — Acústico variants', () => {
+    it('strips "(Acústico ao vivo)" parenthetical', () => {
+        expect(cleanTitle('ANATOMIA - Eu sei que é você (Acústico ao vivo)')).toBe(
+            'ANATOMIA - Eu sei que é você',
+        )
+    })
+
+    it('strips "(Acústico)" parenthetical', () => {
+        expect(cleanTitle('Song Title (Acústico)')).toBe('Song Title')
+    })
+
+    it('strips "[Acústico]" bracketed', () => {
+        expect(cleanTitle('Song Title [Acústico]')).toBe('Song Title')
+    })
+
+    it('strips "- Acústico" when it is the direct suffix of a single-separator title', () => {
+        expect(cleanTitle('Música - Acústico')).toBe('Música')
+    })
+
+    it('strips "- Acústico ao vivo" when it is the direct suffix', () => {
+        expect(cleanTitle('Música - Acústico ao vivo')).toBe('Música')
+    })
+})

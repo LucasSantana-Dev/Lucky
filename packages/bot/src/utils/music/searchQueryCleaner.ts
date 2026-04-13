@@ -114,6 +114,8 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     /\[vers[aã]o\s{0,3}[^\]]*\]/gi,
     /\(ao\s{0,3}vivo[^)]*\)/gi,
     /\[ao\s{0,3}vivo[^\]]*\]/gi,
+    /\(ac[uú]stico[^)]*\)/gi,
+    /\[ac[uú]stico[^\]]*\]/gi,
 ]
 
 const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
@@ -129,6 +131,7 @@ const HYPHENATED_VERSION_SUFFIXES: RegExp[] = [
     /^vers[aã]o/i,
     /^ao\s+vivo/i,
     /^forr[oó]/i,
+    /^ac[uú]stico/i,
 ]
 
 const VERSION_KEYWORD_RE =
