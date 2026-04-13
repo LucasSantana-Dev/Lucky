@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.111] - 2026-04-13
+
+### Fixed
+- Crash on startup: `import noiseTerms from './noiseTerms.json'` was missing the `with { type: 'json' }` import attribute required by Node.js 22 ESM — bot crashed immediately on every start
+
 ## [2.6.110] - 2026-04-13
 
 ### Fixed
