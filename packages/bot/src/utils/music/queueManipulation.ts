@@ -779,13 +779,24 @@ async function searchSeedCandidates(
     const modifier = QUERY_MODIFIERS[replenishCount % QUERY_MODIFIERS.length]
     const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
 
-    // Build a cleaner query for Spotify by separating song from artist,
-    // avoiding duplicates like "Beyoncé - Halo Beyoncé" → "Halo Beyoncé".
-    const songCore = extractSongCore(seed.title, seed.author)
+    // Build a cleaner Spotify query. Three cases:
+    // 1. Author already appears in the cleaned title (e.g. "ANATOMIA - ao pressão",
+    //    author "ANATOMIA") → use cleanedTitle directly; Spotify handles "Artist - Song".
+    // 2. Author not in title but extractSongCore finds a separator → "Song Author".
+    // 3. Fallback → original baseQuery.
+    const cleanedTitle = cleanTitle(seed.title)
     const cleanedAuthor = cleanAuthor(seed.author)
-    const spotifyBase = songCore
-        ? `${songCore} ${cleanedAuthor}`.trim()
-        : baseQuery
+    const authorNorm = normalizeText(cleanedAuthor)
+    const titleNorm = normalizeText(cleanedTitle)
+    const authorInTitle =
+        authorNorm.length >= 3 &&
+        titleNorm.includes(authorNorm.slice(0, Math.min(5, authorNorm.length)))
+    const songCore = authorInTitle ? null : extractSongCore(seed.title, seed.author)
+    const spotifyBase = authorInTitle
+        ? cleanedTitle
+        : songCore
+          ? `${songCore} ${cleanedAuthor}`.trim()
+          : baseQuery
     const spotifyQuery = modifier ? `${spotifyBase} ${modifier}` : spotifyBase
 
     const engines: QueryType[] = [
