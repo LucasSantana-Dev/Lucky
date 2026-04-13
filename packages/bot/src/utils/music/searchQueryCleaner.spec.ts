@@ -416,9 +416,9 @@ describe('cleanTitle — hyphenated version suffixes', () => {
 
 describe('cleanTitle — Acústico variants', () => {
     it('strips "(Acústico ao vivo)" parenthetical', () => {
-        expect(cleanTitle('ANATOMIA - Eu sei que é você (Acústico ao vivo)')).toBe(
-            'ANATOMIA - Eu sei que é você',
-        )
+        expect(
+            cleanTitle('ANATOMIA - Eu sei que é você (Acústico ao vivo)'),
+        ).toBe('ANATOMIA - Eu sei que é você')
     })
 
     it('strips "(Acústico)" parenthetical', () => {
@@ -452,7 +452,9 @@ describe('cleanTitle — Cover variants', () => {
     })
 
     it('strips "(Cover - Ao vivo)" parenthetical with dash and extra content', () => {
-        expect(cleanTitle('ANATOMIA - Água viva (Cover - Ao vivo)')).toBe('ANATOMIA - Água viva')
+        expect(cleanTitle('ANATOMIA - Água viva (Cover - Ao vivo)')).toBe(
+            'ANATOMIA - Água viva',
+        )
     })
 
     it('strips "[Cover]" bracketed', () => {
@@ -461,5 +463,35 @@ describe('cleanTitle — Cover variants', () => {
 
     it('strips "- Cover" hyphenated suffix', () => {
         expect(cleanTitle('Água viva - Cover')).toBe('Água viva')
+    })
+})
+
+describe('cleanTitle — tribute and duration annotation noise', () => {
+    it('strips "(Tributo ao Batman)" parenthetical', () => {
+        expect(cleanTitle('Pearl Jam - Sirens (Tributo ao Batman)')).toBe(
+            'Pearl Jam - Sirens',
+        )
+    })
+
+    it('strips "[Tributo a Led Zeppelin]" bracket', () => {
+        expect(cleanTitle('Stairway to Heaven [Tributo a Led Zeppelin]')).toBe(
+            'Stairway to Heaven',
+        )
+    })
+
+    it('strips "(Homenagem a Raul Seixas)" parenthetical', () => {
+        expect(
+            cleanTitle('Metamorfose Ambulante (Homenagem a Raul Seixas)'),
+        ).toBe('Metamorfose Ambulante')
+    })
+
+    it('strips HH:MM:SS duration annotation from title', () => {
+        expect(cleanTitle('Pearl Jam - Sirens (Legendado) (07:05:14)')).toBe(
+            'Pearl Jam - Sirens',
+        )
+    })
+
+    it('leaves MM:SS intact (only strip 3-part HH:MM:SS)', () => {
+        expect(cleanTitle('Song Title (03:42)')).toBe('Song Title (03:42)')
     })
 })
