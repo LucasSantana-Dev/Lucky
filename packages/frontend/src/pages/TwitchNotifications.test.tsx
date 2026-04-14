@@ -94,6 +94,9 @@ describe('TwitchNotificationsPage', () => {
                 value: vi.fn(),
             },
         )
+        vi.mocked(api.twitch.status).mockResolvedValue({
+            data: { configured: true },
+        } as any)
         vi.mocked(api.guilds.getChannels).mockResolvedValue({
             data: {
                 channels: [{ id: '67890', name: '#general' }],
@@ -370,5 +373,23 @@ describe('TwitchNotificationsPage', () => {
         expect(
             await screen.findByText('Twitch user not found'),
         ).toBeInTheDocument()
+    })
+
+    test('shows not-configured banner when twitch api is not set up', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.twitch.status).mockResolvedValue({
+            data: { configured: false },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Not Configured')).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByText(/Twitch API is not configured/),
+        ).toBeInTheDocument()
+        expect(screen.queryByText('Add')).not.toBeInTheDocument()
     })
 })
