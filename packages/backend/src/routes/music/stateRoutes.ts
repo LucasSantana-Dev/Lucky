@@ -22,7 +22,7 @@ export function setupStateRoutes(app: Express): void {
             if (currentState) {
                 try {
                     res.write(`data: ${JSON.stringify(currentState)}\n\n`)
-                } catch (err) {
+                } catch {
                     // Client disconnected before we could send initial state
                     return
                 }
@@ -38,7 +38,7 @@ export function setupStateRoutes(app: Express): void {
             const heartbeat = setInterval(() => {
                 try {
                     res.write(': heartbeat\n\n')
-                } catch (err) {
+                } catch {
                     // Client disconnected, will be cleaned up by close handler
                 }
             }, 30000)
