@@ -34,7 +34,7 @@ describe('Session Middleware', () => {
         }).not.toThrow()
     })
 
-    test('should use default secret when WEBAPP_SESSION_SECRET is not set', async () => {
+    test('should throw when WEBAPP_SESSION_SECRET is not set', async () => {
         const { setupSessionMiddleware } =
             await import('../../../src/middleware/session')
         const originalSecret = process.env.WEBAPP_SESSION_SECRET
@@ -42,7 +42,7 @@ describe('Session Middleware', () => {
 
         expect(() => {
             setupSessionMiddleware(app)
-        }).not.toThrow()
+        }).toThrow('WEBAPP_SESSION_SECRET environment variable is required')
 
         if (originalSecret) {
             process.env.WEBAPP_SESSION_SECRET = originalSecret
