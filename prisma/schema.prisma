@@ -329,6 +329,24 @@ model Download {
   @@map("downloads")
 }
 
+// Artist Preferences (per Discord user per guild)
+model UserArtistPreference {
+  id          String   @id @default(cuid())
+  discordUserId String
+  guildId     String
+  artistKey   String  // normalized: lowercase alphanumeric
+  artistName  String  // display name
+  spotifyId   String?
+  imageUrl    String?
+  preference  String  @default("prefer") // "prefer" | "block"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([discordUserId, guildId, artistKey])
+  @@index([discordUserId, guildId])
+  @@map("user_artist_preferences")
+}
+
 // Music Recommendations
 model Recommendation {
   id      String @id @default(cuid())

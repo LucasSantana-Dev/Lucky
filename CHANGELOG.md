@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.121] - 2026-04-14
+
+### Added
+- Preferred Artists page (`/music/artists`): YouTube Music-style artist picker where users search for artists, view related artists, and mark them as preferred or blocked — preferences persist to Postgres and influence autoplay recommendations
+- Autoplay VC blend: when multiple users are in voice, autoplay now blends preferred/blocked artist preferences from all VC members (union of all preferences) instead of only the user who requested the current track
+- Preferred artists set via the web UI now sync to the bot's autoplay scoring (previously only bot `/recommendation prefer` command wrote to the scoring engine)
+
+### Fixed
+- Stop command: `/stop` and the web player Stop button now clear all queued tracks before deleting the queue — previously stopping mid-session would cause the same track to resume on the next `/play` command
+
 ## [2.6.120] - 2026-04-14
 
 ### Fixed

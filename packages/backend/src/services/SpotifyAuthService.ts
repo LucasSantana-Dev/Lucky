@@ -80,6 +80,40 @@ export async function exchangeCodeForToken(
     }
 }
 
+let cachedClientToken: { token: string; expiresAt: number } | null = null
+
+export async function getSpotifyClientToken(): Promise<string | null> {
+    if (cachedClientToken && Date.now() < cachedClientToken.expiresAt) {
+        return cachedClientToken.token
+    }
+    const clientId = process.env.SPOTIFY_CLIENT_ID
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
+    if (!clientId || !clientSecret) return null
+
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    try {
+        const data = await fetchJson<{
+            access_token?: string
+            expires_in?: number
+        }>('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                Authorization: `Basic ${auth}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'grant_type=client_credentials',
+        })
+        if (!data?.access_token) return null
+        cachedClientToken = {
+            token: data.access_token,
+            expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 - 30_000,
+        }
+        return cachedClientToken.token
+    } catch {
+        return null
+    }
+}
+
 export function isSpotifyAuthConfigured(): boolean {
     return !!(
         process.env.SPOTIFY_CLIENT_ID &&

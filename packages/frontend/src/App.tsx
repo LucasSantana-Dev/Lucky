@@ -36,6 +36,7 @@ const LevelsPage = lazy(() => import('./pages/Levels'))
 const StarboardPage = lazy(() => import('./pages/Starboard'))
 const TrackHistoryPage = lazy(() => import('./pages/TrackHistory'))
 const LyricsPage = lazy(() => import('./pages/Lyrics'))
+const PreferredArtistsPage = lazy(() => import('./pages/PreferredArtists'))
 const TwitchNotificationsPage = lazy(
     () => import('./pages/TwitchNotifications'),
 )
@@ -183,6 +184,10 @@ function AuthenticatedRoutes() {
             <Route
                 path='/lyrics'
                 element={guardedRoute('music', <LyricsPage />)}
+            />
+            <Route
+                path='/music/artists'
+                element={guardedRoute('music', <PreferredArtistsPage />)}
             />
             <Route
                 path='/twitch'
