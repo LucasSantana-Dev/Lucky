@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.119] - 2026-04-14
+
+### Fixed
+- Autoplay genre drift: Spotify `/v1/recommendations` now receives `min_energy`/`max_energy`, `min_valence`/`max_valence`, and `min_danceability`/`max_danceability` constraints derived from the current track's audio features (±0.25 tolerance window) — prevents the algorithm from drifting to electro/EDM tracks when the session is playing reggaeton or forró with similar energy but a different genre profile
+
+## [2.6.118] - 2026-04-14
+
+### Fixed
+- Autoplay dedup: Spotify returns the same song under different author metadata for different releases (e.g. `"DJ Jesh FSC"` vs `"DJ Jesh FSC, MC Biel"`) — `normalizeTrackKey` now strips comma-separated collaborators and `feat./ft./con./with` suffixes before normalizing, so both variants map to the same dedup key and are no longer queued twice
+
 ## [2.6.117] - 2026-04-14
 
 ### Fixed
