@@ -4191,4 +4191,76 @@ describe('queueManipulation — diversity improvements', () => {
         ).length
         expect(anatomiaCount).toBeLessThanOrEqual(1)
     })
+
+    it('applies Spanish/Latin genre penalty when session has no Spanish markers', async () => {
+        const latinPlayer = {
+            search: jest.fn().mockResolvedValue({
+                tracks: [
+                    {
+                        title: 'Reggaeton Mix',
+                        author: 'Latin Artist',
+                        url: 'https://example.com/latin',
+                    },
+                ],
+            }),
+        }
+        const queue = createQueueMock({
+            history: {
+                tracks: {
+                    toArray: jest.fn().mockReturnValue([
+                        { title: 'Rock Song', author: 'Rock Artist', url: 'https://example.com/r', durationMS: 240000 },
+                        { title: 'Pop Song', author: 'Pop Artist', url: 'https://example.com/p', durationMS: 200000 },
+                    ]),
+                },
+            },
+            player: latinPlayer,
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        if (queue.addTrack.mock.calls.length > 0) {
+            const addedTrack = queue.addTrack.mock.calls[0][0] as {
+                metadata: { recommendationReason: string }
+            }
+            expect(addedTrack.metadata.recommendationReason).toContain(
+                'genre mismatch: latin/spanish',
+            )
+        }
+    })
+
+    it('does not apply Spanish penalty when session has Spanish markers', async () => {
+        const latinPlayer = {
+            search: jest.fn().mockResolvedValue({
+                tracks: [
+                    {
+                        title: 'Reggaeton Mix',
+                        author: 'Latin Artist',
+                        url: 'https://example.com/latin',
+                    },
+                ],
+            }),
+        }
+        const queue = createQueueMock({
+            history: {
+                tracks: {
+                    toArray: jest.fn().mockReturnValue([
+                        { title: 'Cumbia vieja', author: 'Artist', url: 'https://example.com/c', durationMS: 200000 },
+                        { title: 'Bachata romántica', author: 'Artist', url: 'https://example.com/b', durationMS: 200000 },
+                    ]),
+                },
+            },
+            player: latinPlayer,
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        if (queue.addTrack.mock.calls.length > 0) {
+            const addedTrack = queue.addTrack.mock.calls[0][0] as {
+                metadata: { recommendationReason: string }
+            }
+            expect(addedTrack.metadata.recommendationReason).not.toContain(
+                'genre mismatch: latin/spanish',
+            )
+        }
+    })
 })

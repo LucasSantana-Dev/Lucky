@@ -1773,6 +1773,9 @@ const AMBIENT_NOISE_RE =
 const EDM_MIX_RE =
     /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
 
+const SPANISH_LOCALE_RE =
+    /\b(?:reggaeton|reggaet[oó]n|dembow|trap latino|latin trap|cumbia|bachata|merengue|ranchera|corrido|vallenato|banda)\b/i // NOSONAR S5852
+
 function isDuplicateCandidate(
     track: Track,
     excludedUrls: Set<string>,
@@ -1847,6 +1850,15 @@ function calculateRecommendationScore(
 
     let score = 1
     const reasons: string[] = []
+
+    if (
+        sessionMood !== null &&
+        sessionMood.dominantLocale === null &&
+        SPANISH_LOCALE_RE.test(candidateTitle)
+    ) {
+        score -= 0.45
+        reasons.push('genre mismatch: latin/spanish')
+    }
 
     if (preferredArtistKeys.has(candidateArtistKey)) {
         score += 0.3
