@@ -68,8 +68,8 @@ const registerExtractorsInOrder = async (player: Player): Promise<void> => {
 const registerSpotifyExtractor = async (player: Player): Promise<void> => {
     try {
         const registered = await player.extractors.register(SpotifyExtractor, {
-            clientId: process.env.SPOTIFY_CLIENT_ID ?? null,
-            clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? null,
+            clientId: process.env.SPOTIFY_CLIENT_ID ?? undefined,
+            clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? undefined,
             market: 'US',
         })
         if (!registered) {
