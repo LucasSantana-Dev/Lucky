@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import {
     validateBody,
     validateParams,
@@ -27,6 +28,7 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automessages',
         requireAuth,
+        requireGuildModuleAccess('automation', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(s.messagesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -60,6 +62,7 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/automessages',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.createMessageBody),
@@ -94,6 +97,7 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/automessages/:id',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.messageIdParam),
         validateBody(s.updateMessageBody),
@@ -116,6 +120,7 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/automessages/:id/toggle',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.messageIdParam),
         validateBody(s.toggleBody),
@@ -138,6 +143,7 @@ export function setupAutoMessageRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/automessages/:id',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.messageIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
