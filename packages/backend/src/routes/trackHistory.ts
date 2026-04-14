@@ -13,6 +13,7 @@ function p(val: string | string[]): string {
 
 const historyQuery = z.object({
     limit: z.coerce.number().int().min(1).max(100).optional(),
+    offset: z.coerce.number().int().min(0).optional(),
 })
 
 const topQuery = z.object({
@@ -28,11 +29,15 @@ export function setupTrackHistoryRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const limit = Number(req.query.limit) || 10
+            const offset = Number(req.query.offset) || 0
             const history = await trackHistoryService.getTrackHistory(
                 guildId,
                 limit,
+                offset,
             )
-            res.json({ history })
+            const total =
+                await trackHistoryService.getTrackHistoryCount(guildId)
+            res.json({ history, total })
         }),
     )
 

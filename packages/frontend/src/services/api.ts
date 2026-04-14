@@ -298,7 +298,7 @@ export const api = {
     },
 
     trackHistory: {
-        getHistory: (guildId: string, limit = 10) =>
+        getHistory: (guildId: string, limit = 50, offset = 0) =>
             apiClient.get<{
                 history: Array<{
                     trackId: string
@@ -309,7 +309,10 @@ export const api = {
                     timestamp: number
                     playedBy?: string
                 }>
-            }>(`/guilds/${guildId}/music/history?limit=${limit}`),
+                total: number
+            }>(
+                `/guilds/${guildId}/music/history?limit=${limit}&offset=${offset}`,
+            ),
         getStats: (guildId: string) =>
             apiClient.get<{
                 stats: {
