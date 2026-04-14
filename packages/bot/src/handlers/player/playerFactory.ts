@@ -74,14 +74,16 @@ const registerSpotifyExtractor = async (player: Player): Promise<void> => {
         })
         if (!registered) {
             warnLog({
-                message: 'SpotifyExtractor registration returned null — Spotify searches degraded',
+                message:
+                    'SpotifyExtractor registration returned null — Spotify searches degraded',
             })
             return
         }
         infoLog({ message: 'Registered SpotifyExtractor (priority 1)' })
     } catch (error) {
         warnLog({
-            message: 'SpotifyExtractor failed to register — Spotify searches degraded',
+            message:
+                'SpotifyExtractor failed to register — Spotify searches degraded',
             error,
         })
     }
@@ -99,14 +101,18 @@ const registerRemainingExtractors = async (player: Player): Promise<void> => {
         try {
             const registered = await player.extractors.register(extractor, {})
             if (!registered) {
-                warnLog({ message: `${name} extractor registration returned null` })
+                warnLog({
+                    message: `${name} extractor registration returned null`,
+                })
             }
         } catch (error) {
             warnLog({ message: `${name} extractor failed to register`, error })
         }
     }
 
-    infoLog({ message: 'Registered: SoundCloud, Apple Music, Vimeo, Attachments' })
+    infoLog({
+        message: 'Registered: SoundCloud, Apple Music, Vimeo, Attachments',
+    })
 }
 
 const initPlayDlSoundCloud = async (): Promise<void> => {
@@ -176,7 +182,6 @@ const ALLOWED_YTDLP_DOMAINS = new Set([
     'music.youtube.com',
     'soundcloud.com',
     'www.soundcloud.com',
-    'open.spotify.com',
 ])
 
 function validateYtDlpUrl(url: string): void {
@@ -271,13 +276,86 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
 }
 
 /**
+ * Search YouTube via yt-dlp using a text query (ytsearch1: prefix).
+ * Used as a fallback for Spotify-sourced tracks where the Spotify URL
+ * cannot be streamed directly.
+ */
+export function streamViaYtDlpSearch(query: string): Promise<Readable> {
+    if (!query.trim())
+        return Promise.reject(new Error('yt-dlp search: empty query'))
+    return new Promise<Readable>((resolve, reject) => {
+        const proc = spawn(
+            'yt-dlp',
+            [
+                '--no-playlist',
+                '-f',
+                'bestaudio/best',
+                '-o',
+                '-',
+                '--quiet',
+                '--no-warnings',
+                '--no-progress',
+                '--js-runtimes',
+                `node:${process.execPath}`,
+                `ytsearch1:${query}`,
+            ],
+            { stdio: ['ignore', 'pipe', 'pipe'] },
+        )
+
+        const timeout = setTimeout(() => {
+            proc.kill()
+            reject(new Error('yt-dlp search: timed out'))
+        }, 20_000)
+
+        const stderrChunks: Buffer[] = []
+        proc.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
+
+        let settled = false
+
+        proc.stdout!.once('data', (firstChunk: Buffer) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            const through = new PassThrough()
+            through.write(firstChunk)
+            proc.stdout!.pipe(through)
+            resolve(through)
+        })
+
+        proc.once('error', (err) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            reject(err)
+        })
+
+        proc.once('close', (code) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            if (code && code !== 0) {
+                const stderr = Buffer.concat(stderrChunks).toString().trim()
+                const reason = stderr ? ` — ${stderr.split('\n')[0]}` : ''
+                reject(
+                    new Error(
+                        `yt-dlp search exited with code ${code}${reason}`,
+                    ),
+                )
+            }
+        })
+    })
+}
+
+/**
  * Bridge fallback chain (discord-player-youtubei v3 createStream signature).
  *
- * Priority: yt-dlp direct → SoundCloud (full query) → SoundCloud (title only).
+ * Priority: yt-dlp direct URL → yt-dlp YouTube search (Spotify sources) →
+ * SoundCloud (full query) → SoundCloud (title only).
  *
- * yt-dlp is tried first (play-dl YouTube streaming is broken due to bot
- * detection). SoundCloud search is the fallback for tracks unavailable via
- * yt-dlp.
+ * yt-dlp is tried first for direct URLs (play-dl YouTube streaming is broken
+ * due to bot detection). For Spotify-sourced tracks the URL cannot be streamed
+ * directly, so a YouTube search via yt-dlp is attempted before falling back to
+ * SoundCloud.
  */
 export async function createResilientStream(
     track: Pick<Track, 'title' | 'author' | 'duration' | 'url'>,
@@ -285,6 +363,7 @@ export async function createResilientStream(
 ): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
+    const isSpotifyUrl = track.url?.includes('open.spotify.com') ?? false
 
     debugLog({
         message: 'Bridge: resolving stream',
@@ -294,10 +373,11 @@ export async function createResilientStream(
             cleanedTitle,
             cleanedAuthor,
             hasUrl: Boolean(track.url),
+            isSpotifyUrl,
         },
     })
 
-    if (track.url) {
+    if (track.url && !isSpotifyUrl) {
         try {
             const stream = await streamViaYtDlp(track.url)
             infoLog({
@@ -311,6 +391,29 @@ export async function createResilientStream(
                 data: {
                     error: (ytdlpError as Error).message,
                     url: track.url,
+                    cleanedTitle,
+                },
+            })
+        }
+    }
+
+    if (isSpotifyUrl) {
+        const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
+        try {
+            const stream = await streamViaYtDlpSearch(ytQuery)
+            infoLog({
+                message:
+                    'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
+                data: { query: ytQuery, title: cleanedTitle },
+            })
+            return stream
+        } catch (ytSearchError) {
+            warnLog({
+                message:
+                    'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
+                data: {
+                    error: (ytSearchError as Error).message,
+                    query: ytQuery,
                     cleanedTitle,
                 },
             })
