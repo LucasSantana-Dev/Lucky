@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { handlePause } from './commandHandlers'
+import { handlePause, handleStop } from './commandHandlers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
@@ -20,6 +20,44 @@ jest.mock('../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
+describe('handleStop', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        buildQueueStateMock.mockResolvedValue({ guildId: 'guild-1' })
+    })
+
+    it('stops node, clears, and deletes the queue', async () => {
+        const stop = jest.fn()
+        const clear = jest.fn()
+        const del = jest.fn()
+        resolveGuildQueueMock.mockReturnValue({
+            queue: { node: { stop }, clear, delete: del },
+        })
+
+        const result = await handleStop(
+            {} as any,
+            { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(stop).toHaveBeenCalled()
+        expect(clear).toHaveBeenCalled()
+        expect(del).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+    })
+
+    it('returns failure when no queue', async () => {
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+        const result = await handleStop(
+            {} as any,
+            { id: 'cmd-2', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('No active queue')
+    })
+})
+
 describe('webMusic commandHandlers queue resolution', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -33,7 +71,11 @@ describe('webMusic commandHandlers queue resolution', () => {
                 node: { pause },
             },
             source: 'cache.guild',
-            diagnostics: { guildId: 'guild-1', cacheSize: 1, cacheSampleKeys: [] },
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 1,
+                cacheSampleKeys: [],
+            },
         })
 
         const result = await handlePause(
@@ -41,7 +83,10 @@ describe('webMusic commandHandlers queue resolution', () => {
             { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
         )
 
-        expect(resolveGuildQueueMock).toHaveBeenCalledWith(expect.anything(), 'guild-1')
+        expect(resolveGuildQueueMock).toHaveBeenCalledWith(
+            expect.anything(),
+            'guild-1',
+        )
         expect(pause).toHaveBeenCalled()
         expect(publishStateMock).toHaveBeenCalledWith({ guildId: 'guild-1' })
         expect(result.success).toBe(true)
@@ -51,7 +96,11 @@ describe('webMusic commandHandlers queue resolution', () => {
         resolveGuildQueueMock.mockReturnValue({
             queue: null,
             source: 'miss',
-            diagnostics: { guildId: 'guild-1', cacheSize: 0, cacheSampleKeys: [] },
+            diagnostics: {
+                guildId: 'guild-1',
+                cacheSize: 0,
+                cacheSampleKeys: [],
+            },
         })
 
         const result = await handlePause(
