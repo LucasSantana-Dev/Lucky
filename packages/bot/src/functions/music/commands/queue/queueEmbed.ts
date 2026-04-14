@@ -62,9 +62,11 @@ async function addUpcomingTracks(
 
     if (allTracks.length > 0) {
         const trackList = await createTrackListDisplay(allTracks, options, page)
+        const raw = trackList || 'No displayable tracks'
+        const value = raw.length > 1024 ? raw.slice(0, 1021) + '…' : raw
         embed.addFields({
             name: `\u{1F4CB} Upcoming Tracks (${allTracks.length})`,
-            value: trackList || 'No displayable tracks',
+            value,
             inline: false,
         })
     } else {

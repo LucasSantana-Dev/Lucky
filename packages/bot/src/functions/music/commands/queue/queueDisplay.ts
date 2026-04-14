@@ -47,7 +47,13 @@ function formatSingleTrack(info: TrackDisplayInfo, index: number): string {
         }
     }
     const by = info.requestedBy ? ` \u2022 ${info.requestedBy}` : ''
-    return `${marker} ${index + 1}. [${info.title}](${info.url}) - ${info.author} (${info.duration})${by}${reason}`
+    const title =
+        info.title.length > 40 ? info.title.slice(0, 39) + '\u2026' : info.title
+    const link =
+        info.url && info.url.startsWith('http')
+            ? `[${title}](${info.url})`
+            : title
+    return `${marker} ${index + 1}. ${link} - ${info.author} (${info.duration})${by}${reason}`
 }
 
 export async function createTrackListDisplay(
