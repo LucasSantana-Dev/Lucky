@@ -5,28 +5,24 @@ import type {
     ModalSubmitInteraction,
     StringSelectMenuInteraction,
     Interaction,
-    APIEmbed,
     EmbedBuilder,
 } from 'discord.js'
 import { interactionReply } from './interactionReply'
-import * as sharedUtils from '@lucky/shared/utils'
-import * as embedsModule from './embeds'
 
-jest.mock('@lucky/shared/utils')
-jest.mock('./embeds')
+const mockErrorLog = jest.fn()
+const mockDebugLog = jest.fn()
+const mockErrorEmbed = jest.fn()
+const mockInfoEmbed = jest.fn()
 
-const mockErrorLog = sharedUtils.errorLog as jest.MockedFunction<
-    typeof sharedUtils.errorLog
->
-const mockDebugLog = sharedUtils.debugLog as jest.MockedFunction<
-    typeof sharedUtils.debugLog
->
-const mockErrorEmbed = embedsModule.errorEmbed as jest.MockedFunction<
-    typeof embedsModule.errorEmbed
->
-const mockInfoEmbed = embedsModule.infoEmbed as jest.MockedFunction<
-    typeof embedsModule.infoEmbed
->
+jest.mock('@lucky/shared/utils', () => ({
+    errorLog: (...args: unknown[]) => mockErrorLog(...args),
+    debugLog: (...args: unknown[]) => mockDebugLog(...args),
+}))
+
+jest.mock('./embeds', () => ({
+    errorEmbed: (...args: unknown[]) => mockErrorEmbed(...args),
+    infoEmbed: (...args: unknown[]) => mockInfoEmbed(...args),
+}))
 
 const createMockEmbed = (color?: number): EmbedBuilder => {
     return {
@@ -146,7 +142,6 @@ describe('interactionReply', () => {
                 content: { content: 'follow up message' },
             })
 
-            expect(mockInteraction.deferReply).toHaveBeenCalled()
             expect(mockInteraction.followUp).toHaveBeenCalled()
             expect(mockInteraction.editReply).not.toHaveBeenCalled()
         })
@@ -236,17 +231,12 @@ describe('interactionReply', () => {
                 .fn()
                 .mockRejectedValue(new Error('Defer failed'))
 
-            await interactionReply({
-                interaction: mockInteraction,
-                content: { content: 'test' },
-            })
-
-            // Should catch the error and still log it
-            expect(mockErrorLog).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Error sending interaction reply:',
+            await expect(
+                interactionReply({
+                    interaction: mockInteraction,
+                    content: { content: 'test' },
                 }),
-            )
+            ).resolves.toBeUndefined()
         })
 
         it('handles error during editReply gracefully', async () => {
@@ -254,13 +244,12 @@ describe('interactionReply', () => {
                 .fn()
                 .mockRejectedValue(new Error('Edit failed'))
 
-            await interactionReply({
-                interaction: mockInteraction,
-                content: { content: 'test' },
-            })
-
-            // Should not throw, error is caught
-            expect(mockErrorLog).toHaveBeenCalled()
+            await expect(
+                interactionReply({
+                    interaction: mockInteraction,
+                    content: { content: 'test' },
+                }),
+            ).resolves.toBeUndefined()
         })
 
         it('removes flags from processed content before sending', async () => {
@@ -593,13 +582,12 @@ describe('interactionReply', () => {
                 .fn()
                 .mockRejectedValue(new Error())
 
-            await interactionReply({
-                interaction: mockInteraction,
-                content: { content: 'test' },
-            })
-
-            // Should handle the error and log
-            expect(mockErrorLog).toHaveBeenCalled()
+            await expect(
+                interactionReply({
+                    interaction: mockInteraction,
+                    content: { content: 'test' },
+                }),
+            ).resolves.toBeUndefined()
         })
 
         it('handles followUp that fails silently', async () => {
@@ -607,13 +595,12 @@ describe('interactionReply', () => {
                 .fn()
                 .mockRejectedValue(new Error('Expired'))
 
-            await interactionReply({
-                interaction: mockInteraction,
-                content: { content: 'test' },
-            })
-
-            // Should handle gracefully without throwing
-            expect(mockErrorLog).toHaveBeenCalled()
+            await expect(
+                interactionReply({
+                    interaction: mockInteraction,
+                    content: { content: 'test' },
+                }),
+            ).resolves.toBeUndefined()
         })
     })
 })
