@@ -391,7 +391,7 @@ describe('api service bootstrap', () => {
             { enabled: false },
         )
         expect(apiClient.get).toHaveBeenCalledWith(
-            '/guilds/guild-1/music/history?limit=10&offset=0',
+            '/guilds/guild-1/music/history?limit=50&offset=0',
         )
         expect(apiClient.get).toHaveBeenCalledWith(
             '/guilds/guild-1/music/history/stats',
