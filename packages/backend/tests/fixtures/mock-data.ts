@@ -58,3 +58,5 @@ export const MOCK_EXPIRED_SESSION_DATA: SessionData = {
 export const MOCK_AUTH_CODE = 'mock_authorization_code_12345'
 
 export const MOCK_SESSION_ID = 'mock_session_id_12345'
+
+export const MOCK_OAUTH_STATE = 'a'.repeat(64)

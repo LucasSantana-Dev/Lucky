@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express'
+import { randomBytes } from 'node:crypto'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { sessionService } from '../services/SessionService'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
@@ -22,6 +23,8 @@ export function setupAuthRoutes(app: Express): void {
             try {
                 req.session.oauthInitiated = true
                 req.session.oauthRedirectUri = getOAuthRedirectUri(req)
+                const stateBuffer = randomBytes(32)
+                req.session.oauthState = stateBuffer.toString('hex')
 
                 await new Promise<void>((resolve) => {
                     req.session.save((err) => {
@@ -43,6 +46,7 @@ export function setupAuthRoutes(app: Express): void {
                 const clientId = process.env.CLIENT_ID
                 const redirectUri = req.session.oauthRedirectUri
                 const scope = 'identify guilds'
+                const state = req.session.oauthState
 
                 if (!clientId) {
                     const frontendUrl = getFrontendUrl()
@@ -51,7 +55,7 @@ export function setupAuthRoutes(app: Express): void {
                     )
                 }
 
-                const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`
+                const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&state=${state}`
 
                 res.redirect(authUrl)
             } catch (error) {
