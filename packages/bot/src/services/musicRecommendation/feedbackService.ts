@@ -1,5 +1,5 @@
 import { redisClient } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, getPrismaClient } from '@lucky/shared/utils'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 
 export type RecommendationFeedback = 'like' | 'dislike'
@@ -304,16 +304,54 @@ export class RecommendationFeedbackService {
         }
     }
 
+    private async getPreferredKeysFromRedis(
+        userId: string,
+    ): Promise<Set<string>> {
+        const map = await this.getArtistFeedbackMap(userId)
+        return new Set(
+            Object.entries(map)
+                .filter(([, feedback]) => feedback === 'prefer')
+                .map(([artistKey]) => artistKey),
+        )
+    }
+
+    private async getArtistKeysFromDb(
+        guildId: string,
+        userId: string,
+        preference: 'prefer' | 'block',
+    ): Promise<Set<string>> {
+        try {
+            const db = getPrismaClient()
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId, guildId, preference },
+                select: { artistKey: true },
+            })
+            return new Set(prefs.map((p) => p.artistKey))
+        } catch {
+            return new Set<string>()
+        }
+    }
+
     async getPreferredArtistKeys(
         guildId: string,
         userId: string | undefined,
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
 
+        const [redisKeys, dbKeys] = await Promise.all([
+            this.getPreferredKeysFromRedis(userId),
+            this.getArtistKeysFromDb(guildId, userId, 'prefer'),
+        ])
+        return new Set([...redisKeys, ...dbKeys])
+    }
+
+    private async getBlockedKeysFromRedis(
+        userId: string,
+    ): Promise<Set<string>> {
         const map = await this.getArtistFeedbackMap(userId)
         return new Set(
             Object.entries(map)
-                .filter(([, feedback]) => feedback === 'prefer')
+                .filter(([, feedback]) => feedback === 'block')
                 .map(([artistKey]) => artistKey),
         )
     }
@@ -324,12 +362,11 @@ export class RecommendationFeedbackService {
     ): Promise<Set<string>> {
         if (!userId) return new Set<string>()
 
-        const map = await this.getArtistFeedbackMap(userId)
-        return new Set(
-            Object.entries(map)
-                .filter(([, feedback]) => feedback === 'block')
-                .map(([artistKey]) => artistKey),
-        )
+        const [redisKeys, dbKeys] = await Promise.all([
+            this.getBlockedKeysFromRedis(userId),
+            this.getArtistKeysFromDb(guildId, userId, 'block'),
+        ])
+        return new Set([...redisKeys, ...dbKeys])
     }
 
     async getArtistFeedbackSummary(
