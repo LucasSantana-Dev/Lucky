@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.120] - 2026-04-14
+
+### Fixed
+- Autoplay: hard-reject ambient/noise content (rain sounds, ocean waves, white noise, ASMR, sleep music, binaural beats, meditation music, spa/yoga music) and DJ mixes/EDM sets (DJ set, festival set, extended club mixes, trance/EDM mixes) — these were slipping through the candidate pipeline despite being unrelated to the session's genre
+
 ## [2.6.119] - 2026-04-14
 
 ### Added
