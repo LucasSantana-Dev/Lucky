@@ -1,6 +1,11 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
-import { MUSIC_BUTTON_IDS, QUEUE_BUTTON_PREFIX, LEADERBOARD_BUTTON_PREFIX } from '../../types/musicButtons'
+import { QueueRepeatMode } from 'discord-player'
+import {
+    MUSIC_BUTTON_IDS,
+    QUEUE_BUTTON_PREFIX,
+    LEADERBOARD_BUTTON_PREFIX,
+} from '../../types/musicButtons'
 
 export function createMusicControlButtons(
     queue: GuildQueue,
@@ -43,6 +48,37 @@ export function createMusicControlButtons(
         skipButton,
         shuffleButton,
         loopButton,
+    )
+}
+
+export function createMusicActionButtons(
+    queue: GuildQueue,
+): ActionRowBuilder<ButtonBuilder> {
+    const isAutoplay = queue.repeatMode === QueueRepeatMode.AUTOPLAY
+
+    const stopButton = new ButtonBuilder()
+        .setCustomId(MUSIC_BUTTON_IDS.STOP)
+        .setEmoji('⏹️')
+        .setLabel('Stop')
+        .setStyle(ButtonStyle.Danger)
+
+    const clearQueueButton = new ButtonBuilder()
+        .setCustomId(MUSIC_BUTTON_IDS.CLEAR_QUEUE)
+        .setEmoji('🗑️')
+        .setLabel('Clear')
+        .setStyle(ButtonStyle.Secondary)
+
+    const clearAutoplayButton = new ButtonBuilder()
+        .setCustomId(MUSIC_BUTTON_IDS.CLEAR_AUTOPLAY)
+        .setEmoji('🤖')
+        .setLabel('Clear Autoplay')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(!isAutoplay)
+
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+        stopButton,
+        clearQueueButton,
+        clearAutoplayButton,
     )
 }
 

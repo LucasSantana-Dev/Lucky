@@ -9,6 +9,7 @@ import {
 } from '../types/musicButtons'
 import {
     createMusicControlButtons,
+    createMusicActionButtons,
     createLeaderboardPaginationButtons,
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
@@ -107,6 +108,12 @@ async function routeButtonAction(
             return handleShuffle(interaction, queue)
         case MUSIC_BUTTON_IDS.LOOP:
             return handleLoop(interaction, queue)
+        case MUSIC_BUTTON_IDS.STOP:
+            return handleStop(interaction, queue)
+        case MUSIC_BUTTON_IDS.CLEAR_QUEUE:
+            return handleClearQueue(interaction, queue)
+        case MUSIC_BUTTON_IDS.CLEAR_AUTOPLAY:
+            return handleClearAutoplay(interaction, queue)
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
@@ -136,7 +143,10 @@ async function handlePauseResume(
     }
 
     await interaction.editReply({
-        components: [createMusicControlButtons(queue)],
+        components: [
+            createMusicControlButtons(queue),
+            createMusicActionButtons(queue),
+        ],
     })
 }
 
@@ -184,6 +194,50 @@ async function handleLoop(
         content: `\u{1F501} Loop mode: **${modeName}**`,
         ephemeral: true,
     })
+}
+
+async function handleStop(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    queue.delete()
+    await interaction.editReply({
+        embeds: [
+            createErrorEmbed('Stopped', 'Playback stopped and queue cleared'),
+        ],
+        components: [],
+    })
+    debugLog({ message: 'Playback stopped via button' })
+}
+
+async function handleClearQueue(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    queue.tracks.clear()
+    await interaction.followUp({
+        content: '🗑️ Queue cleared',
+        ephemeral: true,
+    })
+    debugLog({ message: 'Queue cleared via button' })
+}
+
+async function handleClearAutoplay(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    queue.setRepeatMode(QueueRepeatMode.OFF)
+    await interaction.editReply({
+        components: [
+            createMusicControlButtons(queue),
+            createMusicActionButtons(queue),
+        ],
+    })
+    await interaction.followUp({
+        content: '🤖 Autoplay disabled',
+        ephemeral: true,
+    })
+    debugLog({ message: 'Autoplay cleared via button' })
 }
 
 async function handleQueuePage(

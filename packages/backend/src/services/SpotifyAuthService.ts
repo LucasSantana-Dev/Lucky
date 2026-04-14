@@ -6,7 +6,9 @@ export type SpotifyTokenResponse = {
     spotifyUsername: string
 }
 
-export async function exchangeCodeForToken(code: string): Promise<SpotifyTokenResponse | null> {
+export async function exchangeCodeForToken(
+    code: string,
+): Promise<SpotifyTokenResponse | null> {
     const clientId = process.env.SPOTIFY_CLIENT_ID
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
     const redirectUri = process.env.SPOTIFY_REDIRECT_URI
@@ -21,7 +23,7 @@ export async function exchangeCodeForToken(code: string): Promise<SpotifyTokenRe
         const res = await fetch('https://accounts.spotify.com/api/token', {
             method: 'POST',
             headers: {
-                'Authorization': `Basic ${auth}`,
+                Authorization: `Basic ${auth}`,
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
@@ -35,20 +37,25 @@ export async function exchangeCodeForToken(code: string): Promise<SpotifyTokenRe
             return null
         }
 
-        const data = (await res.json().catch(() => null)) as {
+        const tokenData = (await res.json().catch(() => null)) as {
             access_token?: string
             refresh_token?: string
             expires_in?: number
             error?: string
         }
 
-        if (data?.error || !data?.access_token || !data?.refresh_token) {
+        if (
+            !tokenData ||
+            tokenData.error ||
+            !tokenData.access_token ||
+            !tokenData.refresh_token
+        ) {
             return null
         }
 
         const userRes = await fetch('https://api.spotify.com/v1/me', {
             headers: {
-                'Authorization': `Bearer ${data.access_token}`,
+                Authorization: `Bearer ${tokenData.access_token}`,
             },
         })
 
@@ -62,14 +69,14 @@ export async function exchangeCodeForToken(code: string): Promise<SpotifyTokenRe
             error?: string
         }
 
-        if (userData?.error || !userData?.id) {
+        if (!userData || userData.error || !userData.id) {
             return null
         }
 
         return {
-            accessToken: data.access_token,
-            refreshToken: data.refresh_token,
-            expiresIn: data.expires_in ?? 3600,
+            accessToken: tokenData.access_token,
+            refreshToken: tokenData.refresh_token,
+            expiresIn: tokenData.expires_in ?? 3600,
             spotifyId: userData.id,
             spotifyUsername: userData.display_name ?? userData.id,
         }

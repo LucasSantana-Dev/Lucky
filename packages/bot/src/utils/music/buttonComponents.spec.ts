@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     createMusicControlButtons,
+    createMusicActionButtons,
     createQueuePaginationButtons,
     createLeaderboardPaginationButtons,
 } from './buttonComponents'
@@ -19,26 +20,46 @@ jest.mock('discord.js', () => {
     return {
         ActionRowBuilder: jest.fn(() => rowInner),
         ButtonBuilder: MockButtonBuilder,
-        ButtonStyle: { Primary: 'PRIMARY', Secondary: 'SECONDARY' },
+        ButtonStyle: {
+            Primary: 'PRIMARY',
+            Secondary: 'SECONDARY',
+            Danger: 'DANGER',
+        },
     }
 })
 
+jest.mock('discord-player', () => ({
+    QueueRepeatMode: { OFF: 0, TRACK: 1, QUEUE: 2, AUTOPLAY: 3 },
+}))
+
 function getRow(): { addComponents: jest.Mock } {
-    const { ActionRowBuilder } = jest.requireMock('discord.js') as { ActionRowBuilder: jest.Mock }
-    return ActionRowBuilder.mock.results[0]?.value as { addComponents: jest.Mock }
+    const { ActionRowBuilder } = jest.requireMock('discord.js') as {
+        ActionRowBuilder: jest.Mock
+    }
+    return ActionRowBuilder.mock.results[0]?.value as {
+        addComponents: jest.Mock
+    }
 }
 
-function createMockQueue(isPaused: boolean, historyLength: number, tracksSize: number) {
+function createMockQueue(
+    isPaused: boolean,
+    historyLength: number,
+    tracksSize: number,
+    repeatMode = 0,
+) {
     return {
         node: { isPaused: jest.fn(() => isPaused) },
         history: { tracks: { data: new Array(historyLength).fill({}) } },
         tracks: { size: tracksSize },
+        repeatMode,
     }
 }
 
 // Restore addComponents after each resetMocks cycle
 beforeEach(() => {
-    const { ActionRowBuilder } = jest.requireMock('discord.js') as { ActionRowBuilder: jest.Mock }
+    const { ActionRowBuilder } = jest.requireMock('discord.js') as {
+        ActionRowBuilder: jest.Mock
+    }
     // Build a fresh rowInner per test since resetMocks clears implementations
     const rowInner = { addComponents: jest.fn().mockReturnThis() }
     ActionRowBuilder.mockReturnValue(rowInner)
@@ -68,6 +89,26 @@ describe('createMusicControlButtons', () => {
         expect(() => createMusicControlButtons(queue as never)).not.toThrow()
         const row = getRow()
         expect(row.addComponents).toHaveBeenCalled()
+    })
+})
+
+describe('createMusicActionButtons', () => {
+    it('calls addComponents with 3 buttons', () => {
+        const queue = createMockQueue(false, 0, 0)
+        createMusicActionButtons(queue as never)
+        const row = getRow()
+        const [call] = row.addComponents.mock.calls
+        expect((call as unknown[]).length).toBe(3)
+    })
+
+    it('does not throw when autoplay is active', () => {
+        const queue = createMockQueue(false, 0, 0, 3)
+        expect(() => createMusicActionButtons(queue as never)).not.toThrow()
+    })
+
+    it('does not throw when autoplay is off', () => {
+        const queue = createMockQueue(false, 0, 0, 0)
+        expect(() => createMusicActionButtons(queue as never)).not.toThrow()
     })
 })
 

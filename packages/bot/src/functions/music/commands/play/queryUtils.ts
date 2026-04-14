@@ -7,7 +7,10 @@ import {
 } from '../../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
-import { createMusicControlButtons } from '../../../../utils/music/buttonComponents'
+import {
+    createMusicControlButtons,
+    createMusicActionButtons,
+} from '../../../../utils/music/buttonComponents'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { createUserFriendlyError } from '../../../../utils/general/errorSanitizer'
@@ -177,7 +180,10 @@ export async function executePlayAtTop({
             interaction,
             content: {
                 embeds: [embed],
-                components: [createMusicControlButtons(queue)],
+                components: [
+                    createMusicControlButtons(queue),
+                    createMusicActionButtons(queue),
+                ],
             },
         })
 

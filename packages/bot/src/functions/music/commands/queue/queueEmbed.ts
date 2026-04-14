@@ -16,6 +16,7 @@ import type { QueueDisplayOptions } from './types'
 import {
     createQueuePaginationButtons,
     createMusicControlButtons,
+    createMusicActionButtons,
 } from '../../../../utils/music/buttonComponents'
 
 export type QueueEmbedResult = {
@@ -131,8 +132,8 @@ export async function createQueueEmbed(
     const totalPages = Math.ceil(totalTracks / options.maxTracksToShow)
     const components: ActionRowBuilder<ButtonBuilder>[] = []
 
-    // Add music control buttons
     components.push(createMusicControlButtons(queue))
+    components.push(createMusicActionButtons(queue))
 
     // Add pagination buttons if needed
     const paginationRow = createQueuePaginationButtons(page, totalPages)

@@ -4,6 +4,9 @@ export const MUSIC_BUTTON_IDS = {
     SKIP: 'music_skip',
     SHUFFLE: 'music_shuffle',
     LOOP: 'music_loop',
+    STOP: 'music_stop',
+    CLEAR_QUEUE: 'music_clear_queue',
+    CLEAR_AUTOPLAY: 'music_clear_autoplay',
 } as const
 
 export const QUEUE_BUTTON_PREFIX = 'queue_page'
