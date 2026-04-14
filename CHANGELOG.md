@@ -9,8 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.119] - 2026-04-14
 
+### Added
+- Feature toggles: per-guild toggle state now persisted in the database — toggling a feature for a server survives bot restarts and takes priority over Unleash/fallback values; failed toggle updates surface as toast errors in the UI instead of silently discarding the change
+
 ### Fixed
 - Autoplay genre drift: Spotify `/v1/recommendations` now receives `min_energy`/`max_energy`, `min_valence`/`max_valence`, and `min_danceability`/`max_danceability` constraints derived from the current track's audio features (±0.25 tolerance window) — prevents the algorithm from drifting to electro/EDM tracks when the session is playing reggaeton or forró with similar energy but a different genre profile
+- Web music player: player now syncs with the bot's actual state when opening the app mid-playback — bot broadcasts state every 30 s for active queues, SSE writes are wrapped in try/catch to handle client disconnects, and the SSE connection lifecycle correctly ignores stale callbacks after component unmount
+- Webapp sidebar: active tab highlighting fixed — `startsWith` was causing both `/music` and `/music/history` to highlight simultaneously; now uses exact match with `path + '/'` prefix fallback
+- Track history: removed hardcoded 50-track cap; backend now accepts `offset` param and returns total count, enabling full pagination of the history list
+- Server logs: pagination total count now comes from the server's actual log count instead of the current page slice length, fixing page range display
+- Twitch notifications: added `GET /api/twitch/status` endpoint and pre-check in the UI — when Twitch API credentials are not configured, a clear banner is shown and the Add button is disabled instead of returning a generic 503
 
 ## [2.6.118] - 2026-04-14
 
