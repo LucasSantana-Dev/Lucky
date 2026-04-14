@@ -3,7 +3,11 @@ export interface SessionMood {
     preferLong: boolean
     preferShort: boolean
     restless: boolean
+    dominantLocale: 'spanish' | null
 }
+
+const SPANISH_LOCALE_RE =
+    /\b(?:reggaeton|reggaet[oó]n|dembow|trap latino|latin trap|cumbia|bachata|merengue|ranchera|corrido|vallenato|banda)\b/i // NOSONAR S5852
 
 function parseDurationString(durationStr: string | undefined): number {
     if (!durationStr || typeof durationStr !== 'string') return 0
@@ -40,6 +44,7 @@ export function detectSessionMood(
         durationMS?: number
         duration?: string
         isAutoplay?: boolean
+        title?: string
     }[],
 ): SessionMood {
     if (historyTracks.length === 0) {
@@ -48,6 +53,7 @@ export function detectSessionMood(
             preferLong: false,
             preferShort: false,
             restless: false,
+            dominantLocale: null,
         }
     }
 
@@ -105,10 +111,23 @@ export function detectSessionMood(
         }
     }
 
+    // Spanish/Latin locale: check for Spanish genre markers in recent tracks
+    let dominantLocale: 'spanish' | null = null
+    const recentForLocale = historyTracks.slice(-15)
+    const hasSpanishMarkers = recentForLocale.some(
+        (t) =>
+            SPANISH_LOCALE_RE.test(t.title ?? '') ||
+            SPANISH_LOCALE_RE.test(t.author ?? ''),
+    )
+    if (hasSpanishMarkers) {
+        dominantLocale = 'spanish'
+    }
+
     return {
         deepDiveArtist,
         preferLong,
         preferShort,
         restless,
+        dominantLocale,
     }
 }
