@@ -46,23 +46,26 @@ export function useMusicPlayer(guildId: string | undefined) {
             sseRef.current = sse
 
             sse.onopen = () => {
+                if (cancelled) return
                 retryRef.current = 0
                 setIsConnected(true)
             }
 
             sse.onmessage = (event) => {
+                if (cancelled) return
                 try {
                     setState(JSON.parse(event.data))
                 } catch {
-                    /* heartbeat */
+                    /* heartbeat or malformed data */
                 }
             }
 
             sse.onerror = () => {
+                if (cancelled) return
+
                 sse.close()
                 sseRef.current = null
                 setIsConnected(false)
-                if (cancelled) return
 
                 const delay = Math.min(
                     BASE_RECONNECT_DELAY * 2 ** retryRef.current,
