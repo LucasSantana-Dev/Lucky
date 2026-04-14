@@ -1699,8 +1699,8 @@ function normalizeTrackKey(title?: string, author?: string): string {
     const cleanedTitle = title ? cleanTitle(title) : ''
     const primaryAuthor = author
         ? cleanAuthor(author)
-              .split(/\s*,\s*/)[0]
-              .replace(/\s+(feat|ft|con|with)\b.*/i, '')
+              .split(',')[0]
+              .replace(/\s+(feat|ft|con|with)\b[^,]{0,80}/i, '')
               .trim()
         : ''
     return `${normalizeText(cleanedTitle)}::${normalizeText(primaryAuthor)}`
