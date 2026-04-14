@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { toast } from 'sonner'
 import { useFeaturesStore } from '@/stores/featuresStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
@@ -57,12 +58,16 @@ export function useFeatures() {
     }, [selectedGuild, fetchServerToggles, isAuthenticated, isAuthLoading])
 
     const handleGlobalToggle = (name: FeatureToggleName, enabled: boolean) => {
-        updateGlobalToggle(name, enabled)
+        updateGlobalToggle(name, enabled).catch(() => {
+            toast.error('Failed to update global toggle')
+        })
     }
 
     const handleServerToggle = (name: FeatureToggleName, enabled: boolean) => {
         if (selectedGuild) {
-            updateServerToggle(selectedGuild.id, name, enabled)
+            updateServerToggle(selectedGuild.id, name, enabled).catch(() => {
+                toast.error('Failed to update server toggle')
+            })
         }
     }
 

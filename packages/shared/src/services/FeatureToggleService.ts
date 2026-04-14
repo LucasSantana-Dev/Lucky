@@ -2,6 +2,7 @@ import { unleash, isUnleashEnabled } from '../config/unleash'
 import type { FeatureToggleName } from '../types/featureToggle'
 import { getFeatureToggleConfig } from '../config/featureToggles'
 import { debugLog } from '../utils/general/log'
+import { getPrismaClient } from '../utils/database/prismaClient'
 
 const DEVELOPER_USER_IDS = (process.env.DEVELOPER_USER_IDS ?? '')
     .split(',')
@@ -49,6 +50,37 @@ class FeatureToggleService {
         return DEVELOPER_USER_IDS.includes(userId)
     }
 
+    private get db() {
+        return getPrismaClient()
+    }
+
+    private async getDbOverride(
+        guildId: string,
+        name: string,
+    ): Promise<boolean | null> {
+        try {
+            const row = await this.db.guildFeatureToggle.findUnique({
+                where: { guildId_name: { guildId, name } },
+                select: { enabled: true },
+            })
+            return row?.enabled ?? null
+        } catch {
+            return null
+        }
+    }
+
+    async setGuildFeatureToggle(
+        guildId: string,
+        name: FeatureToggleName,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.db.guildFeatureToggle.upsert({
+            where: { guildId_name: { guildId, name } },
+            update: { enabled },
+            create: { guildId, name, enabled },
+        })
+    }
+
     async isEnabledGlobal(
         name: FeatureToggleName,
         userId?: string,
@@ -81,6 +113,11 @@ class FeatureToggleService {
         guildId: string,
         userId?: string,
     ): Promise<boolean> {
+        const dbOverride = await this.getDbOverride(guildId, name)
+        if (dbOverride !== null) {
+            return dbOverride
+        }
+
         if (!isUnleashEnabled() || !this.unleashReady || unleash === null) {
             return this.getFallbackValue(name)
         }

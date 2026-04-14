@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { useFeatures } from './useFeatures'
 import { useAuthStore } from '@/stores/authStore'
 import { useGuildStore } from '@/stores/guildStore'
@@ -8,6 +8,7 @@ import { useFeaturesStore } from '@/stores/featuresStore'
 vi.mock('@/stores/authStore')
 vi.mock('@/stores/guildStore')
 vi.mock('@/stores/featuresStore')
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 type AuthState = {
     isDeveloper: boolean
@@ -46,8 +47,8 @@ describe('useFeatures', () => {
     const fetchFeatures = vi.fn<() => Promise<void>>()
     const fetchGlobalToggles = vi.fn<() => Promise<void>>()
     const fetchServerToggles = vi.fn<(guildId: string) => Promise<void>>()
-    const updateGlobalToggle = vi.fn()
-    const updateServerToggle = vi.fn()
+    const updateGlobalToggle = vi.fn<() => Promise<void>>()
+    const updateServerToggle = vi.fn<() => Promise<void>>()
     const getServerToggles = vi.fn()
     const clearLoadError = vi.fn()
 
@@ -60,6 +61,8 @@ describe('useFeatures', () => {
         fetchFeatures.mockResolvedValue()
         fetchGlobalToggles.mockResolvedValue()
         fetchServerToggles.mockResolvedValue()
+        updateGlobalToggle.mockResolvedValue()
+        updateServerToggle.mockResolvedValue()
         getServerToggles.mockReturnValue({ DOWNLOAD_VIDEO: true })
 
         authState = {
@@ -84,18 +87,15 @@ describe('useFeatures', () => {
             getServerToggles,
         }
 
-        vi.mocked(useAuthStore).mockImplementation(
-            ((selector: (state: AuthState) => unknown) => selector(authState)) as
-                typeof useAuthStore,
-        )
-        vi.mocked(useGuildStore).mockImplementation(
-            ((selector: (state: GuildState) => unknown) =>
-                selector(guildState)) as typeof useGuildStore,
-        )
-        vi.mocked(useFeaturesStore).mockImplementation(
-            ((selector: (state: FeaturesState) => unknown) =>
-                selector(featuresState)) as typeof useFeaturesStore,
-        )
+        vi.mocked(useAuthStore).mockImplementation(((
+            selector: (state: AuthState) => unknown,
+        ) => selector(authState)) as typeof useAuthStore)
+        vi.mocked(useGuildStore).mockImplementation(((
+            selector: (state: GuildState) => unknown,
+        ) => selector(guildState)) as typeof useGuildStore)
+        vi.mocked(useFeaturesStore).mockImplementation(((
+            selector: (state: FeaturesState) => unknown,
+        ) => selector(featuresState)) as typeof useFeaturesStore)
     })
 
     test('does not fetch global toggles for non-developer users', async () => {
@@ -168,7 +168,9 @@ describe('useFeatures', () => {
     test('returns global toggles when guild is not selected', () => {
         const { result } = renderHook(() => useFeatures())
 
-        expect(result.current.serverToggles).toEqual(featuresState.globalToggles)
+        expect(result.current.serverToggles).toEqual(
+            featuresState.globalToggles,
+        )
         expect(getServerToggles).not.toHaveBeenCalled()
     })
 
@@ -212,6 +214,39 @@ describe('useFeatures', () => {
         rerender()
         result.current.handleServerToggle('AUTOPLAY', true)
         expect(updateServerToggle).toHaveBeenCalledTimes(1)
+    })
+
+    test('shows error toast when global toggle update fails', async () => {
+        const { toast } = await import('sonner')
+        updateGlobalToggle.mockRejectedValue(new Error('API failure'))
+
+        const { result } = renderHook(() => useFeatures())
+
+        await act(async () => {
+            result.current.handleGlobalToggle('AUTOPLAY', false)
+            await new Promise((r) => setTimeout(r, 10))
+        })
+
+        expect(toast.error).toHaveBeenCalledWith(
+            'Failed to update global toggle',
+        )
+    })
+
+    test('shows error toast when server toggle update fails', async () => {
+        const { toast } = await import('sonner')
+        guildState.selectedGuild = { id: 'guild-5' }
+        updateServerToggle.mockRejectedValue(new Error('API failure'))
+
+        const { result } = renderHook(() => useFeatures())
+
+        await act(async () => {
+            result.current.handleServerToggle('AUTOPLAY', false)
+            await new Promise((r) => setTimeout(r, 10))
+        })
+
+        expect(toast.error).toHaveBeenCalledWith(
+            'Failed to update server toggle',
+        )
     })
 
     test('retries load with current auth and guild context', async () => {

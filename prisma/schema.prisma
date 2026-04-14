@@ -65,8 +65,21 @@ model Guild {
   trackHistory        TrackHistory[]
   commandUsage        CommandUsage[]
   twitchNotifications TwitchNotification[]
+  featureToggles      GuildFeatureToggle[]
 
   @@map("guilds")
+}
+
+model GuildFeatureToggle {
+  id      String @id @default(cuid())
+  guildId String
+  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  name    String
+  enabled Boolean
+
+  @@unique([guildId, name])
+  @@index([guildId])
+  @@map("guild_feature_toggles")
 }
 
 model TwitchNotification {

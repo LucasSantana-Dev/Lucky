@@ -14,11 +14,15 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
+const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
+
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
         getAllToggles: jest.fn(),
         isEnabledGlobal: jest.fn(),
         isEnabledForGuild: jest.fn(),
+        setGuildFeatureToggle: (...args: any[]) =>
+            mockSetGuildFeatureToggle(...args),
     },
 }))
 
@@ -322,7 +326,7 @@ describe('Toggles Routes Integration', () => {
     })
 
     describe('POST /api/guilds/:id/features/:name', () => {
-        test('should return success message', async () => {
+        test('saves toggle to db and returns updated state', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
@@ -342,7 +346,17 @@ describe('Toggles Routes Integration', () => {
                 .send({ enabled: true })
                 .expect(200)
 
-            expect(response.body).toHaveProperty('success', true)
+            expect(response.body).toEqual({
+                success: true,
+                guildId: '111111111111111111',
+                name: 'DOWNLOAD_VIDEO',
+                enabled: true,
+            })
+            expect(mockSetGuildFeatureToggle).toHaveBeenCalledWith(
+                '111111111111111111',
+                'DOWNLOAD_VIDEO',
+                true,
+            )
         })
 
         test('should return 400 when enabled is missing', async () => {
