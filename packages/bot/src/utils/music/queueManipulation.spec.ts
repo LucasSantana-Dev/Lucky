@@ -1730,6 +1730,136 @@ describe('queueManipulation — title-only deduplication', () => {
     })
 })
 
+describe('queueManipulation — collaborator author deduplication', () => {
+    it('deduplicates same song where one variant has comma-separated collaborators', async () => {
+        const currentTrack = {
+            title: 'Puta Mexicana',
+            author: 'DJ Jesh FSC',
+            url: 'https://open.spotify.com/track/aaa',
+        } as Track
+
+        const candidateWithCollaborator = {
+            title: 'Puta Mexicana',
+            author: 'DJ Jesh FSC, MC Biel',
+            url: 'https://open.spotify.com/track/bbb',
+            durationMS: 200000,
+            source: 'spotify',
+        } as unknown as Track
+
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            currentTrack,
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [candidateWithCollaborator],
+                }),
+            },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as any, {
+            targetQueueSize: 1,
+            guildId: 'guild-collab-1',
+        })
+
+        expect(
+            addedTracks.filter((t: any) => t.title === 'Puta Mexicana').length,
+        ).toBe(0)
+    })
+
+    it('deduplicates same song where queue has feat. variant and candidate has plain author', async () => {
+        const currentTrack = {
+            title: 'Kanye West',
+            author: 'Farruco feat. Sech',
+            url: 'https://open.spotify.com/track/ccc',
+        } as Track
+
+        const candidatePlainAuthor = {
+            title: 'Kanye West',
+            author: 'Farruco',
+            url: 'https://open.spotify.com/track/ddd',
+            durationMS: 200000,
+            source: 'spotify',
+        } as unknown as Track
+
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            currentTrack,
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [candidatePlainAuthor],
+                }),
+            },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as any, {
+            targetQueueSize: 1,
+            guildId: 'guild-collab-2',
+        })
+
+        expect(
+            addedTracks.filter((t: any) => t.title === 'Kanye West').length,
+        ).toBe(0)
+    })
+
+    it('does not add both the solo and collab versions of the same song to the queue', async () => {
+        const currentTrack = {
+            title: 'Different Song',
+            author: 'Other Artist',
+            url: 'https://example.com/other',
+        } as Track
+
+        const addedTracks: unknown[] = []
+        const queue = createQueueMock({
+            currentTrack,
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Puta Mexicana',
+                            author: 'DJ Jesh FSC',
+                            url: 'https://youtube.com/watch?v=xxx',
+                            durationMS: 200000,
+                            source: 'youtube',
+                        },
+                        {
+                            title: 'Puta Mexicana',
+                            author: 'DJ Jesh FSC, MC Biel',
+                            url: 'https://open.spotify.com/track/yyy',
+                            durationMS: 200000,
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
+        })
+
+        await replenishQueue(queue as any, {
+            targetQueueSize: 2,
+            guildId: 'guild-collab-3',
+        })
+
+        const count = addedTracks.filter(
+            (t: any) => t.title === 'Puta Mexicana',
+        ).length
+        expect(count).toBeLessThanOrEqual(1)
+    })
+})
+
 describe('queueManipulation.moveUserTrackToPriority', () => {
     it('moves user track from after autoplay tracks to before first autoplay track', () => {
         const userTrack = {
