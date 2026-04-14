@@ -327,4 +327,117 @@ describe('sessionMood', () => {
             expect(mood.restless).toBe(true)
         })
     })
+
+    describe('detectSessionMood - dominantLocale', () => {
+        it('returns null dominantLocale when no Spanish genre markers in history', () => {
+            const history = [
+                { author: 'The Beatles', title: 'Hey Jude', durationMS: 200000 },
+                { author: 'Led Zeppelin', title: 'Stairway to Heaven', durationMS: 480000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBeNull()
+        })
+
+        it('detects Spanish locale from reggaeton in track title', () => {
+            const history = [
+                { author: 'Bad Bunny', title: 'Reggaeton mix', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('detects Spanish locale from cumbia in track title', () => {
+            const history = [
+                { author: 'Artist X', title: 'Cumbia caliente', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('detects Spanish locale from Spanish genre in author field', () => {
+            const history = [
+                { author: 'Banda MS', title: 'Mi razón de ser', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('detects Spanish locale from bachata in title', () => {
+            const history = [
+                { author: 'Romeo Santos', title: 'Bachata Rosa', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('detects Spanish locale from dembow in title', () => {
+            const history = [
+                { author: 'Artist', title: 'Dembow clásico', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('detects Spanish locale even when only 1 of 15 recent tracks has marker', () => {
+            const history = Array.from({ length: 14 }, (_, i) => ({
+                author: `Artist ${i}`,
+                title: `Song ${i}`,
+                durationMS: 200000,
+            }))
+            history.push({ author: 'J Balvin', title: 'Cumbia nuevo', durationMS: 200000 })
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('ignores Spanish markers outside the last 15 tracks window', () => {
+            const old = Array.from({ length: 5 }, () => ({
+                author: 'Bad Bunny',
+                title: 'Reggaeton hit',
+                durationMS: 200000,
+            }))
+            const recent = Array.from({ length: 15 }, (_, i) => ({
+                author: `Artist ${i}`,
+                title: `Song ${i}`,
+                durationMS: 200000,
+            }))
+
+            const mood = detectSessionMood([...old, ...recent])
+
+            expect(mood.dominantLocale).toBeNull()
+        })
+
+        it('detects reggaetón with accent in title', () => {
+            const history = [
+                { author: 'Artist', title: 'Reggaetón urbano', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+
+        it('is case-insensitive for Spanish genre detection', () => {
+            const history = [
+                { author: 'Artist', title: 'BACHATA hits', durationMS: 200000 },
+            ]
+
+            const mood = detectSessionMood(history)
+
+            expect(mood.dominantLocale).toBe('spanish')
+        })
+    })
 })
