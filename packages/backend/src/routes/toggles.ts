@@ -168,11 +168,13 @@ export function setupToggleRoutes(app: Express): void {
                 throw AppError.badRequest('Invalid toggle name')
             }
 
-            res.json({
-                success: true,
-                message: 'Toggle updated via Unleash admin API',
-                note: 'Use Unleash admin API to update toggles per guild',
-            })
+            await featureToggleService.setGuildFeatureToggle(
+                guildId,
+                toggleName as FeatureToggleName,
+                enabled,
+            )
+
+            res.json({ success: true, guildId, name: toggleName, enabled })
         }),
     )
 }
