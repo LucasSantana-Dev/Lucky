@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { getPrismaClient } from '@lucky/shared/utils'
 import { RecommendationFeedbackService } from './feedbackService'
 
 const getMock = jest.fn()
 const setexMock = jest.fn()
 const delMock = jest.fn()
 
+const mockUserArtistPreference = {
+    findMany: jest.fn(),
+}
+
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
+    getPrismaClient: jest.fn(() => ({
+        userArtistPreference: mockUserArtistPreference,
+    })),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -561,6 +569,104 @@ describe('implicit feedback', () => {
         const weights = await service.getDislikedTrackWeights('user-1')
 
         expect(weights.size).toBe(0)
+    })
+
+    describe('Postgres DB integration', () => {
+        beforeEach(() => {
+            ;(getPrismaClient as jest.Mock).mockReturnValue({
+                userArtistPreference: mockUserArtistPreference,
+            })
+            mockUserArtistPreference.findMany.mockResolvedValue([])
+        })
+
+        it('getPreferredArtistKeys merges Redis and Postgres results', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(JSON.stringify({ redisartist: 'prefer' }))
+            mockUserArtistPreference.findMany.mockResolvedValue([
+                { artistKey: 'dbartist' },
+            ])
+
+            const result = await service.getPreferredArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect(result.has('redisartist')).toBe(true)
+            expect(result.has('dbartist')).toBe(true)
+            expect(result.size).toBe(2)
+        })
+
+        it('getBlockedArtistKeys merges Redis and Postgres results', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(
+                JSON.stringify({ redisblocked: 'block' }),
+            )
+            mockUserArtistPreference.findMany.mockResolvedValue([
+                { artistKey: 'dbblocked' },
+            ])
+
+            const result = await service.getBlockedArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect(result.has('redisblocked')).toBe(true)
+            expect(result.has('dbblocked')).toBe(true)
+            expect(result.size).toBe(2)
+        })
+
+        it('getPreferredArtistKeys deduplicates keys present in both Redis and DB', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(
+                JSON.stringify({ sharedartist: 'prefer' }),
+            )
+            mockUserArtistPreference.findMany.mockResolvedValue([
+                { artistKey: 'sharedartist' },
+            ])
+
+            const result = await service.getPreferredArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect(result.size).toBe(1)
+        })
+
+        it('getPreferredArtistKeys handles Postgres errors gracefully', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(
+                JSON.stringify({ redisartist: 'prefer' }),
+            )
+            mockUserArtistPreference.findMany.mockRejectedValue(
+                new Error('DB error'),
+            )
+
+            const result = await service.getPreferredArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect(result.has('redisartist')).toBe(true)
+            expect(result.size).toBe(1)
+        })
+
+        it('getBlockedArtistKeys handles Postgres errors gracefully', async () => {
+            const service = new RecommendationFeedbackService(30)
+            getMock.mockResolvedValue(
+                JSON.stringify({ redisblocked: 'block' }),
+            )
+            mockUserArtistPreference.findMany.mockRejectedValue(
+                new Error('DB error'),
+            )
+
+            const result = await service.getBlockedArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect(result.has('redisblocked')).toBe(true)
+            expect(result.size).toBe(1)
+        })
     })
 })
 
