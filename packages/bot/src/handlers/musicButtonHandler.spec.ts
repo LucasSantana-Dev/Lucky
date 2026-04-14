@@ -31,6 +31,7 @@ const createLeaderboardPaginationButtonsMock = jest.fn()
 jest.mock('../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (...args: unknown[]) =>
         createMusicControlButtonsMock(...args),
+    createMusicActionButtons: jest.fn().mockReturnValue({}),
     createLeaderboardPaginationButtons: (...args: unknown[]) =>
         createLeaderboardPaginationButtonsMock(...args),
 }))

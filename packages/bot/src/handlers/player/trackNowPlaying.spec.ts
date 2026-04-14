@@ -33,6 +33,7 @@ jest.mock('../../utils/general/embeds', () => ({
 jest.mock('../../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (...args: unknown[]) =>
         createMusicControlButtonsMock(...args),
+    createMusicActionButtons: jest.fn().mockReturnValue({}),
 }))
 
 jest.mock('../../utils/music/autoplayManager', () => ({
