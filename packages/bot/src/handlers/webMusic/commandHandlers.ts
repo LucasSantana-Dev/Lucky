@@ -129,6 +129,7 @@ export async function handleStop(
     const queue = getQueue(client, cmd.guildId)
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
     queue.node.stop()
+    queue.clear()
     queue.delete()
     return publishAndOk(client, cmd)
 }

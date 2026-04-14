@@ -10,7 +10,7 @@ const markIntentionalStopMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
-    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args)
+    requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -39,6 +39,8 @@ function createInteraction(guildId = 'guild-1') {
 function createQueue(guildId = 'guild-1') {
     return {
         guild: { id: guildId },
+        node: { stop: jest.fn() },
+        clear: jest.fn(),
         delete: jest.fn(),
     }
 }
@@ -51,22 +53,28 @@ describe('stop command', () => {
         requireDJRoleMock.mockResolvedValue(true)
     })
 
-    it('marks intentional stop and deletes queue', async () => {
+    it('stops node, clears and deletes queue', async () => {
         const queue = createQueue()
         resolveGuildQueueMock.mockReturnValue({ queue })
         requireQueueMock.mockResolvedValue(true)
 
-        const interaction = createInteraction()
-        await stopCommand.execute({ interaction, client: {} as any })
+        await stopCommand.execute({
+            interaction: createInteraction(),
+            client: {} as any,
+        })
 
         expect(markIntentionalStopMock).toHaveBeenCalledWith('guild-1')
+        expect(queue.node.stop).toHaveBeenCalled()
+        expect(queue.clear).toHaveBeenCalled()
         expect(queue.delete).toHaveBeenCalled()
     })
 
-    it('calls markIntentionalStop before queue.delete', async () => {
+    it('calls stop, clear, delete in order', async () => {
         const queue = createQueue()
         const callOrder: string[] = []
         markIntentionalStopMock.mockImplementation(() => callOrder.push('mark'))
+        queue.node.stop.mockImplementation(() => callOrder.push('stop'))
+        queue.clear.mockImplementation(() => callOrder.push('clear'))
         queue.delete.mockImplementation(() => callOrder.push('delete'))
         resolveGuildQueueMock.mockReturnValue({ queue })
         requireQueueMock.mockResolvedValue(true)
@@ -76,7 +84,7 @@ describe('stop command', () => {
             client: {} as any,
         })
 
-        expect(callOrder).toEqual(['mark', 'delete'])
+        expect(callOrder).toEqual(['mark', 'stop', 'clear', 'delete'])
     })
 
     it('replies with success embed after stopping', async () => {
