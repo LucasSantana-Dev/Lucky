@@ -253,6 +253,7 @@ describe('sessionMood', () => {
                 preferLong: false,
                 preferShort: false,
                 restless: false,
+                dominantLocale: null,
             })
         })
 
