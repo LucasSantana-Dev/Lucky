@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.117] - 2026-04-14
+
+### Fixed
+- `/queue` command crash: embed field value is now clamped to Discord's 1024-character limit — Spotify track URLs are longer than YouTube URLs so queues with many tracks overflowed the limit and were rejected by `EmbedBuilder.addFields` with "Received one or more errors"
+- Queue track titles truncated to 40 chars in the track list to keep lines compact
+
 ## [2.6.116] - 2026-04-14
 
 ### Fixed

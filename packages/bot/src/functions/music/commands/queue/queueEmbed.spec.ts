@@ -248,6 +248,27 @@ describe('queueEmbed', () => {
             expect(upcomingCall).toBeUndefined()
         })
 
+        it('truncates track list value to 1024 chars when it exceeds Discord embed limit', async () => {
+            createTrackListDisplayMock.mockResolvedValue('x'.repeat(2000))
+            const track = createTrack()
+            const queue = createQueue({
+                currentTrack: null,
+                tracks: { toArray: () => [track] },
+            })
+
+            await createQueueEmbed(queue as any, defaultOptions)
+
+            const upcomingCall = addFieldsMock.mock.calls.find((call) =>
+                String((call[0] as any).name ?? '').startsWith(
+                    '📋 Upcoming Tracks (',
+                ),
+            )
+            expect(upcomingCall).toBeDefined()
+            expect((upcomingCall![0] as any).value.length).toBeLessThanOrEqual(
+                1024,
+            )
+        })
+
         it('returns the embed instance', async () => {
             const queue = createQueue()
 
