@@ -49,7 +49,11 @@ describe('queueDisplay', () => {
         it('returns basic display info without recommendation reason for normal tracks', async () => {
             const track = createTrack()
 
-            const result = await formatTrackForDisplay(track as any, 1, defaultOptions)
+            const result = await formatTrackForDisplay(
+                track as any,
+                1,
+                defaultOptions,
+            )
 
             expect(result.title).toBe('Test Track')
             expect(result.author).toBe('Test Artist')
@@ -59,10 +63,17 @@ describe('queueDisplay', () => {
 
         it('surfaces isAutoplay and recommendationReason from track metadata', async () => {
             const track = createTrack({
-                metadata: { isAutoplay: true, recommendationReason: 'fresh artist rotation' },
+                metadata: {
+                    isAutoplay: true,
+                    recommendationReason: 'fresh artist rotation',
+                },
             })
 
-            const result = await formatTrackForDisplay(track as any, 1, defaultOptions)
+            const result = await formatTrackForDisplay(
+                track as any,
+                1,
+                defaultOptions,
+            )
 
             expect(result.isAutoplay).toBe(true)
             expect(result.recommendationReason).toBe('fresh artist rotation')
@@ -72,18 +83,96 @@ describe('queueDisplay', () => {
     describe('createTrackListDisplay', () => {
         it('renders plain track entry without reason tag for non-autoplay tracks', async () => {
             const track = createTrack()
-            const result = await createTrackListDisplay([track as any], defaultOptions)
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
 
             expect(result).toContain('[Test Track]')
             expect(result).not.toContain('_')
         })
 
+        it('truncates title longer than 40 chars to exactly 40 displayed chars', async () => {
+            const track = createTrack({ title: 'A'.repeat(41) })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
+
+            expect(result).toContain('A'.repeat(39) + '\u2026')
+            expect(result).not.toContain('A'.repeat(41))
+        })
+
+        it('does not truncate title of exactly 40 chars', async () => {
+            const track = createTrack({ title: 'B'.repeat(40) })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
+
+            expect(result).toContain('B'.repeat(40))
+            expect(result).not.toContain('\u2026')
+        })
+
+        it('renders hyperlink for http URL', async () => {
+            const track = createTrack({
+                url: 'https://open.spotify.com/track/abc123',
+            })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
+
+            expect(result).toContain(
+                '[Test Track](https://open.spotify.com/track/abc123)',
+            )
+        })
+
+        it('renders plain title without hyperlink for ytsearch internal URL', async () => {
+            const track = createTrack({ url: 'ytsearch:Test Track' })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
+
+            expect(result).not.toContain('](ytsearch:')
+            expect(result).toContain('Test Track')
+        })
+
+        it('renders plain title without hyperlink for scsearch internal URL', async () => {
+            const track = createTrack({ url: 'scsearch:Test Track' })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
+
+            expect(result).not.toContain('](scsearch:')
+            expect(result).toContain('Test Track')
+        })
+
+        it('renders plain title without hyperlink when url is empty', async () => {
+            const track = createTrack({ url: '' })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
+
+            expect(result).not.toContain('](')
+            expect(result).toContain('Test Track')
+        })
+
         it('appends recommendation reason tag for autoplay tracks', async () => {
             const track = createTrack({
-                metadata: { isAutoplay: true, recommendationReason: 'fresh artist rotation' },
+                metadata: {
+                    isAutoplay: true,
+                    recommendationReason: 'fresh artist rotation',
+                },
             })
 
-            const result = await createTrackListDisplay([track as any], defaultOptions)
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
 
             expect(result).toContain('fresh artist rotation')
             expect(result).toContain('_fresh artist rotation_')
@@ -94,7 +183,10 @@ describe('queueDisplay', () => {
                 metadata: { isAutoplay: true, recommendationReason: '' },
             })
 
-            const result = await createTrackListDisplay([track as any], defaultOptions)
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+            )
 
             expect(result).not.toContain('_')
         })
@@ -104,7 +196,10 @@ describe('queueDisplay', () => {
                 createTrack({ title: `Track ${i}` }),
             )
             const options = { ...defaultOptions, maxTracksToShow: 10 }
-            const result = await createTrackListDisplay(tracks as any[], options)
+            const result = await createTrackListDisplay(
+                tracks as any[],
+                options,
+            )
 
             expect(result).toContain('5 more tracks')
         })
@@ -120,10 +215,10 @@ describe('queueDisplay', () => {
                 .mockResolvedValueOnce(true)
                 .mockResolvedValueOnce(false)
 
-            const result = await findSimilarTracksInQueue(
-                current as any,
-                [similar as any, different as any],
-            )
+            const result = await findSimilarTracksInQueue(current as any, [
+                similar as any,
+                different as any,
+            ])
 
             expect(result).toHaveLength(1)
             expect(result[0]).toBe(similar)
@@ -135,7 +230,9 @@ describe('queueDisplay', () => {
 
             isSimilarTitleMock.mockResolvedValue(false)
 
-            const result = await findSimilarTracksInQueue(current as any, [unrelated as any])
+            const result = await findSimilarTracksInQueue(current as any, [
+                unrelated as any,
+            ])
 
             expect(result).toHaveLength(0)
         })
