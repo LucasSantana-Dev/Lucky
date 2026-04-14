@@ -518,5 +518,61 @@ describe('spotifyApi', () => {
             expect(result).toHaveLength(1)
             expect(result[0].id).toBe('good')
         })
+
+        it('passes audio feature constraints as URL parameters when provided', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ tracks: [] }),
+            })
+
+            await getSpotifyRecommendations('token', ['seed1'], 10, {
+                energy: 0.8,
+                valence: 0.6,
+                danceability: 0.75,
+            })
+
+            const call = fetchMock.mock.calls[0]!
+            const url = String(call[0])
+            expect(url).toContain('min_energy=0.55')
+            expect(url).toContain('max_energy=1.00')
+            expect(url).toContain('min_valence=0.35')
+            expect(url).toContain('max_valence=0.85')
+            expect(url).toContain('min_danceability=0.50')
+            expect(url).toContain('max_danceability=1.00')
+        })
+
+        it('does not pass audio feature constraints when audioConstraints is undefined', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ tracks: [] }),
+            })
+
+            await getSpotifyRecommendations('token', ['seed1'], 10, undefined)
+
+            const call = fetchMock.mock.calls[0]!
+            const url = String(call[0])
+            expect(url).not.toContain('min_energy')
+            expect(url).not.toContain('min_valence')
+            expect(url).not.toContain('min_danceability')
+        })
+
+        it('clamps audio constraint bounds to [0, 1]', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ tracks: [] }),
+            })
+
+            await getSpotifyRecommendations('token', ['seed1'], 10, {
+                energy: 0.1,
+                valence: 0.95,
+            })
+
+            const call = fetchMock.mock.calls[0]!
+            const url = String(call[0])
+            expect(url).toContain('min_energy=0.00')
+            expect(url).toContain('max_energy=0.35')
+            expect(url).toContain('min_valence=0.70')
+            expect(url).toContain('max_valence=1.00')
+        })
     })
 })
