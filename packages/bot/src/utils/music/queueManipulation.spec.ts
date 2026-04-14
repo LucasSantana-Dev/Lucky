@@ -3097,11 +3097,16 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(spotifyApiMock.getSpotifyRecommendations).toHaveBeenCalledWith(
-            'tok-abc',
-            ['seedid123'],
-            15,
-        )
+        const recsCalls = spotifyApiMock.getSpotifyRecommendations.mock.calls
+        expect(recsCalls.length).toBeGreaterThan(0)
+        const [callToken, callIds, callLimit, callConstraints] = recsCalls[0]!
+        expect(callToken).toBe('tok-abc')
+        expect(callIds).toEqual(['seedid123'])
+        expect(callLimit).toBe(15)
+        expect(
+            callConstraints === undefined ||
+                typeof callConstraints === 'object',
+        ).toBe(true)
     })
 
     it('skips Spotify recommendations when no access token is available', async () => {
@@ -3165,11 +3170,17 @@ describe('queueManipulation — multi-user VC blend', () => {
         await replenishQueue(queue as unknown as GuildQueue)
 
         expect(spotifyApiMock.searchSpotifyTrack).toHaveBeenCalled()
-        expect(spotifyApiMock.getSpotifyRecommendations).toHaveBeenCalledWith(
-            'tok-resolve',
-            ['resolved-spotify-id'],
-            15,
-        )
+        const recsCalls2 = spotifyApiMock.getSpotifyRecommendations.mock.calls
+        expect(recsCalls2.length).toBeGreaterThan(0)
+        const [callToken2, callIds2, callLimit2, callConstraints2] =
+            recsCalls2[0]!
+        expect(callToken2).toBe('tok-resolve')
+        expect(callIds2).toEqual(['resolved-spotify-id'])
+        expect(callLimit2).toBe(15)
+        expect(
+            callConstraints2 === undefined ||
+                typeof callConstraints2 === 'object',
+        ).toBe(true)
     })
 
     it('adds spotify recommendation results as scored candidates', async () => {

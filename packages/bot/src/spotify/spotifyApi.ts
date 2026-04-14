@@ -5,10 +5,17 @@ export interface SpotifyRecommendationTrack {
     duration_ms: number
 }
 
+export type SpotifyAudioFeatureConstraints = {
+    energy?: number
+    valence?: number
+    danceability?: number
+}
+
 export async function getSpotifyRecommendations(
     accessToken: string,
     seedTrackIds: string[],
     limit = 10,
+    audioConstraints?: SpotifyAudioFeatureConstraints,
 ): Promise<SpotifyRecommendationTrack[]> {
     if (seedTrackIds.length === 0) return []
     try {
@@ -16,6 +23,70 @@ export async function getSpotifyRecommendations(
             seed_tracks: seedTrackIds.slice(0, 5).join(','),
             limit: String(Math.min(limit, 100)),
         })
+
+        if (audioConstraints) {
+            const TOLERANCE = 0.25
+            if (audioConstraints.energy !== undefined) {
+                params.set(
+                    'min_energy',
+                    String(
+                        Math.max(
+                            0,
+                            audioConstraints.energy - TOLERANCE,
+                        ).toFixed(2),
+                    ),
+                )
+                params.set(
+                    'max_energy',
+                    String(
+                        Math.min(
+                            1,
+                            audioConstraints.energy + TOLERANCE,
+                        ).toFixed(2),
+                    ),
+                )
+            }
+            if (audioConstraints.valence !== undefined) {
+                params.set(
+                    'min_valence',
+                    String(
+                        Math.max(
+                            0,
+                            audioConstraints.valence - TOLERANCE,
+                        ).toFixed(2),
+                    ),
+                )
+                params.set(
+                    'max_valence',
+                    String(
+                        Math.min(
+                            1,
+                            audioConstraints.valence + TOLERANCE,
+                        ).toFixed(2),
+                    ),
+                )
+            }
+            if (audioConstraints.danceability !== undefined) {
+                params.set(
+                    'min_danceability',
+                    String(
+                        Math.max(
+                            0,
+                            audioConstraints.danceability - TOLERANCE,
+                        ).toFixed(2),
+                    ),
+                )
+                params.set(
+                    'max_danceability',
+                    String(
+                        Math.min(
+                            1,
+                            audioConstraints.danceability + TOLERANCE,
+                        ).toFixed(2),
+                    ),
+                )
+            }
+        }
         const res = await fetch(
             `https://api.spotify.com/v1/recommendations?${params.toString()}`,
             { headers: { Authorization: `Bearer ${accessToken}` } },
