@@ -1,12 +1,12 @@
 import { Player } from 'discord-player'
 import type { Track } from 'discord-player'
 import {
-    SpotifyExtractor,
     SoundCloudExtractor,
     AppleMusicExtractor,
     VimeoExtractor,
     AttachmentExtractor,
 } from '@discord-player/extractor'
+import { SpotifyExtractor } from 'discord-player-spotify'
 import * as playdl from 'play-dl'
 import { spawn } from 'child_process'
 import { PassThrough } from 'stream'
@@ -68,8 +68,9 @@ const registerExtractorsInOrder = async (player: Player): Promise<void> => {
 const registerSpotifyExtractor = async (player: Player): Promise<void> => {
     try {
         const registered = await player.extractors.register(SpotifyExtractor, {
-            clientId: process.env.SPOTIFY_CLIENT_ID ?? null,
-            clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? null,
+            clientId: process.env.SPOTIFY_CLIENT_ID ?? undefined,
+            clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? undefined,
+            market: 'US',
         })
         if (!registered) {
             warnLog({
