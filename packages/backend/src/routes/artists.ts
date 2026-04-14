@@ -1,7 +1,7 @@
 import type { Express, Response } from 'express'
 import { z } from 'zod'
-import { errorLog } from '@lucky/shared/utils'
 import {
+    errorLog,
     getPrismaClient,
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
