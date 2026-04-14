@@ -69,7 +69,7 @@ describe('vectorOperations', () => {
             expect(vector.trackId).toBe('unique-id-123')
         })
 
-        it('falls back to track.url when track.id is missing', () => {
+        it('falls back to track.url when id missing', () => {
             const track = createMockTrack({
                 id: undefined,
                 url: 'https://example.com/song',
@@ -82,7 +82,7 @@ describe('vectorOperations', () => {
             expect(vector.trackId).toBe('https://example.com/song')
         })
 
-        it('sets title and artist from track properties', () => {
+        it('sets title and artist from track', () => {
             const track = createMockTrack({
                 title: 'My Awesome Song',
                 author: 'Great Artist Name',
@@ -107,7 +107,7 @@ describe('vectorOperations', () => {
             expect(vector.vector.every((v) => typeof v === 'number')).toBe(true)
         })
 
-        it('has duration, views, genre, tags fields set correctly', () => {
+        it('has duration, views, genre, tags fields set', () => {
             const track = createMockTrack({
                 duration: 240000,
                 views: 5000000,
@@ -157,7 +157,7 @@ describe('vectorOperations', () => {
     })
 
     describe('calculateCosineSimilarity', () => {
-        it('returns 1.0 for identical non-zero vectors', () => {
+        it('returns 1.0 for identical vectors', () => {
             const vector = [1, 2, 3, 4]
             const similarity = calculateCosineSimilarity(vector, vector)
             expect(similarity).toBeCloseTo(1.0, 5)
@@ -170,7 +170,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBeCloseTo(0.0, 5)
         })
 
-        it('returns 0.0 for vectors of different lengths', () => {
+        it('returns 0.0 for different lengths', () => {
             const vectorA = [1, 2, 3]
             const vectorB = [1, 2, 3, 4]
             const similarity = calculateCosineSimilarity(vectorA, vectorB)
@@ -183,7 +183,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBe(0)
         })
 
-        it('calculates realistic partial similarity correctly', () => {
+        it('calculates partial similarity correctly', () => {
             const vectorA = [1, 2, 3]
             const vectorB = [2, 4, 6]
             const similarity = calculateCosineSimilarity(vectorA, vectorB)
@@ -212,14 +212,14 @@ describe('vectorOperations', () => {
             expect(distance).toBeCloseTo(0.0, 5)
         })
 
-        it('returns Infinity for vectors of different lengths', () => {
+        it('returns Infinity for different lengths', () => {
             const vectorA = [1, 2, 3]
             const vectorB = [1, 2, 3, 4]
             const distance = calculateEuclideanDistance(vectorA, vectorB)
             expect(distance).toBe(Infinity)
         })
 
-        it('calculates correct distance [0,0] vs [3,4] = 5.0', () => {
+        it('calculates [0,0] vs [3,4] = 5.0', () => {
             const vectorA = [0, 0]
             const vectorB = [3, 4]
             const distance = calculateEuclideanDistance(vectorA, vectorB)
@@ -277,7 +277,7 @@ describe('vectorOperations', () => {
             ).toBe(true)
         })
 
-        it('already normalized vector stays nearly identical', () => {
+        it('already normalized vector stays identical', () => {
             const vector = [1, 0, 0]
             const normalized = normalizeVector(vector)
             expect(normalized[0]).toBeCloseTo(1.0, 5)
@@ -316,7 +316,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBeGreaterThan(0.1)
         })
 
-        it('applies no bonus when genres are different', () => {
+        it('applies no bonus for different genres', () => {
             const track1 = createMockTrack()
             const track2 = createMockTrack()
             const vectorA = createTrackVector(track1)
@@ -338,7 +338,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBeLessThanOrEqual(1.0)
         })
 
-        it('applies no bonus when genre is missing on either vector', () => {
+        it('no bonus when genre missing', () => {
             const track1 = createMockTrack()
             const track2 = createMockTrack()
             const vectorA = createTrackVector(track1)
@@ -360,7 +360,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBeLessThanOrEqual(1.0)
         })
 
-        it('clamps result to max 1.0 even with bonus', () => {
+        it('result clamped to max 1.0 with bonus', () => {
             const track1 = createMockTrack()
             const track2 = createMockTrack()
             const vectorA = createTrackVector(track1)
@@ -384,7 +384,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBeLessThanOrEqual(1.0)
         })
 
-        it('returns value between 0 and 1 for different vectors', () => {
+        it('value between 0 and 1 for different vectors', () => {
             const track1 = createMockTrack()
             const track2 = createMockTrack()
             const vectorA = createTrackVector(track1)
@@ -407,7 +407,7 @@ describe('vectorOperations', () => {
             expect(similarity).toBeLessThanOrEqual(1.0)
         })
 
-        it('returns higher similarity for very similar vectors with same genre', () => {
+        it('higher similarity for similar vectors same genre', () => {
             const track1 = createMockTrack()
             const track2 = createMockTrack()
             const vectorA = createTrackVector(track1)

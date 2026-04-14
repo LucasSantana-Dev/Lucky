@@ -80,7 +80,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeGreaterThan(0.5)
         })
 
-        it('handles artist substring matches with 0.8 partial match', () => {
+        it('handles artist substring matches with 0.8 partial', () => {
             const trackA = createMockTrack({
                 title: 'Song',
                 author: 'Artist Name Full',
@@ -95,7 +95,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeGreaterThan(0.7)
         })
 
-        it('handles duration ratio: same duration gives 1.0', () => {
+        it('handles duration ratio: same duration = 1.0', () => {
             const trackA = createMockTrack({
                 title: 'Song',
                 author: 'Artist',
@@ -112,7 +112,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeGreaterThan(0.8)
         })
 
-        it('handles wildly different durations with lower score', () => {
+        it('wildly different durations lower the score', () => {
             const trackA = createMockTrack({ duration: 60000 })
             const trackB = createMockTrack({ duration: 600000 })
             const config = createMockConfig()
@@ -126,7 +126,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeLessThan(identicalTrackScore)
         })
 
-        it('handles duration 0 as neutral (0.5)', () => {
+        it('duration 0 treated as neutral (0.5)', () => {
             const trackA = createMockTrack({
                 duration: 0,
                 title: 'X',
@@ -143,7 +143,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeCloseTo(1.095, 1)
         })
 
-        it('handles title word overlap (Jaccard): 2 common out of 4 union = 0.5', () => {
+        it('Jaccard: 2 common out of 4 union = 0.5', () => {
             const trackA = createMockTrack({ title: 'Hello World Song' })
             const trackB = createMockTrack({ title: 'Hello World Different' })
             const config = createMockConfig()
@@ -152,7 +152,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeGreaterThan(0.1)
         })
 
-        it('returns 0.0 title component when no common words', () => {
+        it('no common words in title = 0.0 component', () => {
             const trackA = createMockTrack({ title: 'AAA BBB' })
             const trackB = createMockTrack({ title: 'XXX YYY' })
             const config = createMockConfig()
@@ -161,7 +161,7 @@ describe('similarityCalculator', () => {
             expect(similarity).toBeLessThan(0.6)
         })
 
-        it('correctly parses numeric duration strings', () => {
+        it('parses numeric duration strings correctly', () => {
             const trackA = createMockTrack({ duration: '240000' as never })
             const trackB = createMockTrack({ duration: '240000' as never })
             const config = createMockConfig()
@@ -205,7 +205,7 @@ describe('similarityCalculator', () => {
             expect(scoreHighDuration).toBeGreaterThan(scoreHighArtist)
         })
 
-        it('is case-insensitive for title and artist comparison', () => {
+        it('is case-insensitive for comparison', () => {
             const trackA = createMockTrack({
                 title: 'Amazing Song',
                 author: 'Great Artist',
@@ -250,14 +250,14 @@ describe('similarityCalculator', () => {
             expect(score).toBe(1.0)
         })
 
-        it('returns low score for two identical tracks', () => {
+        it('returns low score for identical tracks', () => {
             const track = createMockTrack()
             const config = createMockConfig()
             const score = calculateDiversityScore([track, track], config)
             expect(score).toBeLessThan(0.3)
         })
 
-        it('returns high score for two very different tracks', () => {
+        it('returns high score for very different tracks', () => {
             const trackA = createMockTrack({
                 title: 'Rock Song',
                 author: 'Rock Band',
@@ -273,7 +273,7 @@ describe('similarityCalculator', () => {
             expect(score).toBeGreaterThan(0.5)
         })
 
-        it('correctly calculates diversity for multiple tracks', () => {
+        it('calculates diversity for multiple tracks', () => {
             const trackA = createMockTrack({
                 title: 'Song A',
                 author: 'Artist A',
@@ -299,7 +299,7 @@ describe('similarityCalculator', () => {
             expect(score).toBeLessThanOrEqual(1.0)
         })
 
-        it('diversity decreases when adding more similar tracks', () => {
+        it('diversity decreases with similar tracks', () => {
             const trackA = createMockTrack({
                 title: 'Song A',
                 author: 'Artist A',
