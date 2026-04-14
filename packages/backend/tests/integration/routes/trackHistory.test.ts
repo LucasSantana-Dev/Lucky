@@ -14,6 +14,7 @@ jest.mock('../../../src/services/SessionService', () => ({
 }))
 
 const mockGetHistory = jest.fn<any>()
+const mockGetHistoryCount = jest.fn<any>().mockResolvedValue(1)
 const mockGenerateStats = jest.fn<any>()
 const mockGetTopTracks = jest.fn<any>()
 const mockGetTopArtists = jest.fn<any>()
@@ -22,6 +23,7 @@ const mockClearHistory = jest.fn<any>()
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: (...args: any[]) => mockGetHistory(...args),
+        getTrackHistoryCount: (...args: any[]) => mockGetHistoryCount(...args),
         generateStats: (...args: any[]) => mockGenerateStats(...args),
         getTopTracks: (...args: any[]) => mockGetTopTracks(...args),
         getTopArtists: (...args: any[]) => mockGetTopArtists(...args),
@@ -70,7 +72,8 @@ describe('Track History Routes', () => {
 
             expect(res.status).toBe(200)
             expect(res.body.history).toHaveLength(1)
-            expect(mockGetHistory).toHaveBeenCalledWith(GUILD_ID, 10)
+            expect(res.body.total).toBe(1)
+            expect(mockGetHistory).toHaveBeenCalledWith(GUILD_ID, 10, 0)
         })
 
         test('should accept limit query param', async () => {
@@ -82,7 +85,7 @@ describe('Track History Routes', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
 
             expect(res.status).toBe(200)
-            expect(mockGetHistory).toHaveBeenCalledWith(GUILD_ID, 25)
+            expect(mockGetHistory).toHaveBeenCalledWith(GUILD_ID, 25, 0)
         })
 
         test('should return 401 when not authenticated', async () => {
