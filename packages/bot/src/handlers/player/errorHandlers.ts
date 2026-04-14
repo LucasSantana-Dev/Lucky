@@ -87,13 +87,16 @@ function normalizeText(value?: string): string {
         .trim()
 }
 
-function isSameTrack(currentTrack: { title?: string; author?: string }, alternativeTrack: { title?: string; author?: string }): boolean {
-    if (currentTrack.url === alternativeTrack.url) {
+function isSameTrack(
+    currentTrack: { title?: string; author?: string; url?: string },
+    alternativeTrack: { title?: string; author?: string; url?: string },
+): boolean {
+    if (currentTrack.url && alternativeTrack.url && currentTrack.url === alternativeTrack.url) {
         return true
     }
     const currentNorm = normalizeText(cleanTitle(currentTrack.title ?? ''))
     const altNorm = normalizeText(cleanTitle(alternativeTrack.title ?? ''))
-    return currentNorm && currentNorm === altNorm && currentNorm.length > 3
+    return currentNorm.length > 3 && currentNorm === altNorm
 }
 
 function logHandlerFailure(message: string, error: unknown): void {

@@ -299,7 +299,9 @@ const handlePlayerSkip = async (
                 currentTrack: queue.currentTrack?.title ?? 'none',
             },
         })
-        await addTrackToHistory(track, queue.guild.id)
+        if (track) {
+            await addTrackToHistory(track, queue.guild.id)
+        }
         await scrobbleCurrentTrackIfLastFm(queue, track)
 
         if (track) {
