@@ -1746,10 +1746,10 @@ function getTrackKey(track: Track): string {
 const FUZZY_TITLE_THRESHOLD = 0.82
 
 const AMBIENT_NOISE_RE =
-    /\b(?:rain\s{0,3}sounds?|rain\s{0,3}for\s{0,3}sleep|ocean\s{0,3}waves?|waves?\s{0,3}sounds?|nature\s{0,3}sounds?|forest\s{0,3}sounds?|thunder\s{0,3}sounds?|white\s{0,3}noise|brown\s{0,3}noise|pink\s{0,3}noise|asmr|sleep\s{0,3}sounds?|sleep\s{0,3}music|relaxing\s{0,3}rain|ambient\s{0,3}sounds?|binaural\s{0,3}beats?|solfeggio|healing\s{0,3}frequ?e?n?c?|528\s?hz|432\s?hz|963\s?hz|chakra\s{0,3}healing|spa\s{0,3}music|massage\s{0,3}music|yoga\s{0,3}music|deep\s{0,3}sleep|baby\s{0,3}sleep|guided\s{0,3}meditation|meditation\s{0,3}music)\b/i
+    /\b(?:rain sounds?|rain for sleep|ocean waves?|waves? sounds?|nature sounds?|forest sounds?|thunder sounds?|white noise|brown noise|pink noise|asmr|sleep sounds?|sleep music|relaxing rain|ambient sounds?|binaural beats?|solfeggio|healing frequ|528 ?hz|432 ?hz|963 ?hz|chakra healing|spa music|massage music|yoga music|deep sleep|baby sleep|guided meditation|meditation music)\b/i
 
 const EDM_MIX_RE =
-    /\b(?:dj\s{0,3}set|festival\s{0,3}set|\d+\s?(?:hour|hr)\s{0,3}(?:long\s{0,3})?mix|extended\s{0,3}mix|club\s{0,3}mix|nightclub\s{0,3}mix|edm\s{0,3}mix|trance\s{0,3}mix)\b/i
+    /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i
 
 function isDuplicateCandidate(
     track: Track,
