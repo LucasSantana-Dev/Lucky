@@ -14,8 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.118] - 2026-04-14
 
+### Added
+- Music player: second button row with Stop, Clear Queue, and Clear Autoplay buttons — Stop deletes the queue and clears the player embed, Clear Queue removes all queued tracks, Clear Autoplay disables autoplay mode and refreshes the button state
+
 ### Fixed
 - Autoplay dedup: Spotify returns the same song under different author metadata for different releases (e.g. `"DJ Jesh FSC"` vs `"DJ Jesh FSC, MC Biel"`) — `normalizeTrackKey` now strips comma-separated collaborators and `feat./ft./con./with` suffixes before normalizing, so both variants map to the same dedup key and are no longer queued twice
+- `SpotifyAuthService`: extracted `fetchJson<T>` helper to reduce cyclomatic complexity and eliminate duplicated fetch/error-handling boilerplate in `exchangeCodeForToken`
 
 ## [2.6.117] - 2026-04-14
 
