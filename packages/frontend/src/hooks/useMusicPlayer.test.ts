@@ -59,7 +59,12 @@ function makeMockSSE() {
 describe('useMusicPlayer', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        vi.useRealTimers()
         mockGetState.mockResolvedValue({ data: { guildId: 'g1', isPlaying: false, tracks: [], currentTrack: null, isPaused: false, volume: 50, repeatMode: 'off', shuffled: false, position: 0, voiceChannelId: null, voiceChannelName: null, timestamp: 0 } })
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
     })
 
     test('returns empty state when guildId is undefined', () => {
@@ -123,8 +128,7 @@ describe('useMusicPlayer', () => {
         expect(result.current.state.volume).toBe(volumeBefore)
     })
 
-    test('sets isConnected false and schedules reconnect on SSE error', async () => {
-        vi.useFakeTimers()
+    test('sets isConnected false and calls close on SSE error', async () => {
         const { sse, listeners } = makeMockSSE()
         mockCreateSSEConnection.mockReturnValue(sse)
 
@@ -132,6 +136,10 @@ describe('useMusicPlayer', () => {
 
         act(() => {
             listeners.onopen?.()
+        })
+
+        await waitFor(() => {
+            expect(result.current.isConnected).toBe(true)
         })
 
         act(() => {
@@ -142,8 +150,6 @@ describe('useMusicPlayer', () => {
             expect(result.current.isConnected).toBe(false)
         })
         expect(sse.close).toHaveBeenCalled()
-
-        vi.useRealTimers()
     })
 
     test('does not update state after unmount (cancelled flag)', async () => {
