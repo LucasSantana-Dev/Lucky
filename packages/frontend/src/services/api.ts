@@ -25,6 +25,7 @@ import { createReactionRolesApi } from './reactionRolesApi'
 import { createAutomationApi } from './automationApi'
 import { createLevelsApi } from './levelsApi'
 import { createStarboardApi } from './starboardApi'
+import { createArtistsApi } from './artistsApi'
 import { inferApiBase } from './apiBase'
 
 const browserLocation =
@@ -426,6 +427,7 @@ export const api = {
     moderation: createModerationApi(apiClient),
     automod: createAutoModApi(apiClient),
     serverLogs: createLogsApi(apiClient),
+    artists: createArtistsApi(apiClient),
 }
 
 export { ApiError } from './ApiError'

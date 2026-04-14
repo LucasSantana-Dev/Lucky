@@ -16,6 +16,7 @@ import { setupGuildAutomationRoutes } from './guildAutomation'
 import { setupLevelsRoutes } from './levels'
 import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
+import { setupArtistsRoutes } from './artists'
 import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
@@ -71,6 +72,7 @@ const routeSetups = [
     setupLevelsRoutes,
     setupStarboardRoutes,
     setupMusicRoutes,
+    setupArtistsRoutes,
 ]
 
 export function setupRoutes(app: Express): void {

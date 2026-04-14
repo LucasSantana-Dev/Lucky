@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
     ChevronsUpDown,
     GitBranch,
+    Heart,
     History,
     LayoutDashboard,
     Layers,
@@ -175,6 +176,12 @@ const navSections: NavSection[] = [
                 path: '/lyrics',
                 label: 'Lyrics',
                 icon: MicVocal,
+                module: 'music',
+            },
+            {
+                path: '/music/artists',
+                label: 'Preferred Artists',
+                icon: Heart,
                 module: 'music',
             },
         ],
