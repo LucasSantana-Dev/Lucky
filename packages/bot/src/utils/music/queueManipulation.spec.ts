@@ -3321,6 +3321,88 @@ describe('queueManipulation — multi-user VC blend', () => {
         expect(addTrackMock).not.toHaveBeenCalled()
     })
 
+    it.each([
+        'Relaxing Rain Sounds for Sleep',
+        'Ocean Waves Sounds 1 Hour',
+        'White Noise for Baby Sleep',
+        'ASMR Soft Spoken Triggers',
+        'Binaural Beats Deep Focus',
+        'Guided Meditation Music 432Hz',
+        'Spa Music Relaxation',
+    ])('rejects ambient/noise track "%s"', async (title) => {
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Current Song',
+                author: 'Current Artist',
+                id: 'curr',
+                durationMS: 200000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://example.com/ambient',
+                            title,
+                            author: 'Ambient Channel',
+                            id: 'amb1',
+                            durationMS: 3600000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(addTrackMock).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        'DJ Set Live at Tomorrowland 2024',
+        'Festival Set Main Stage',
+        '2 Hour EDM Mix 2024',
+        'Extended Mix Club Night',
+        'Trance Mix Progressive',
+    ])('rejects EDM mix/set track "%s"', async (title) => {
+        const addTrackMock = jest.fn()
+        const queue = createQueueMock({
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Current Song',
+                author: 'Current Artist',
+                id: 'curr',
+                durationMS: 200000,
+                requestedBy: { id: 'user-1' },
+            } as unknown as Track,
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            url: 'https://example.com/edm',
+                            title,
+                            author: 'DJ Channel',
+                            id: 'edm1',
+                            durationMS: 3600000,
+                            requestedBy: null,
+                        },
+                    ],
+                }),
+            },
+            addTrack: addTrackMock,
+            metadata: { requestedBy: { id: 'user-1' } },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(addTrackMock).not.toHaveBeenCalled()
+    })
+
     it('penalizes low-quality uploads with noise indicators in title', async () => {
         const addTrackMock = jest.fn()
         const queue = createQueueMock({
