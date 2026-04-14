@@ -172,10 +172,13 @@ export default function ServerLogsPage() {
                           levelFilter,
                           pageLimit,
                       )
-                    : await api.serverLogs.getRecent(selectedGuild.id, pageLimit)
+                    : await api.serverLogs.getRecent(
+                          selectedGuild.id,
+                          pageLimit,
+                      )
             const allLogs = res.data.logs
             setLogs(allLogs.slice((page - 1) * limit, page * limit))
-            setTotal(allLogs.length)
+            setTotal(res.data.total)
         } catch {
             setLogs([])
             setTotal(0)

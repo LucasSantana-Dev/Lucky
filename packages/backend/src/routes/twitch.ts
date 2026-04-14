@@ -108,6 +108,14 @@ async function lookupTwitchUser(
 
 export function setupTwitchRoutes(app: Express): void {
     app.get(
+        '/api/twitch/status',
+        asyncHandler(async (_req: Request, res: Response) => {
+            const configured = !!process.env.TWITCH_CLIENT_ID
+            res.json({ configured })
+        }),
+    )
+
+    app.get(
         '/api/twitch/users',
         requireAuth,
         asyncHandler(async (req: Request, res: Response) => {

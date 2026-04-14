@@ -40,6 +40,8 @@ jest.mock('@lucky/shared/services', () => ({
         searchLogs: jest.fn(),
         getUserLogs: jest.fn(),
         getStats: jest.fn(),
+        countRecentLogs: jest.fn(),
+        countLogsByType: jest.fn(),
         logAutoModSettingsChange: jest.fn(),
         logCustomCommandChange: jest.fn(),
     },
@@ -337,7 +339,9 @@ describe('Management Routes Integration', () => {
             )
 
             const response = await request(app)
-                .post('/api/guilds/111111111111111111/automod/templates/unknown/apply')
+                .post(
+                    '/api/guilds/111111111111111111/automod/templates/unknown/apply',
+                )
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(404)
 
@@ -718,13 +722,14 @@ describe('Management Routes Integration', () => {
                 typeof serverLogService
             >
             mockServerLogService.getRecentLogs.mockResolvedValue(mockLogs)
+            mockServerLogService.countRecentLogs.mockResolvedValue(10)
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/logs')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual({ logs: mockLogs })
+            expect(response.body).toEqual({ logs: mockLogs, total: 10 })
             expect(mockServerLogService.getRecentLogs).toHaveBeenCalledWith(
                 '111111111111111111',
                 50,
@@ -743,13 +748,14 @@ describe('Management Routes Integration', () => {
                 typeof serverLogService
             >
             mockServerLogService.getLogsByType.mockResolvedValue(mockLogs)
+            mockServerLogService.countLogsByType.mockResolvedValue(5)
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/logs?type=error')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual({ logs: mockLogs })
+            expect(response.body).toEqual({ logs: mockLogs, total: 5 })
             expect(mockServerLogService.getLogsByType).toHaveBeenCalledWith(
                 '111111111111111111',
                 'error',
