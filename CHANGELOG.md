@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.116] - 2026-04-14
+
+### Fixed
+- Replaced built-in `SpotifyExtractor` from `@discord-player/extractor` with the community-maintained `discord-player-spotify` package — the built-in extractor has a confirmed unfixed bug (discord-player#1988) where text searches return 0 results despite valid credentials, causing every `/play` text query to fall back to YouTube
+
 ## [2.6.115] - 2026-04-13
 
 ### Fixed

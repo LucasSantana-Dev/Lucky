@@ -14,11 +14,14 @@ jest.mock('discord-player', () => {
 
 jest.mock('@discord-player/extractor', () => ({
     DefaultExtractors: [],
-    SpotifyExtractor: class MockSpotifyExtractor {},
     SoundCloudExtractor: class MockSoundCloudExtractor {},
     AppleMusicExtractor: class MockAppleMusicExtractor {},
     VimeoExtractor: class MockVimeoExtractor {},
     AttachmentExtractor: class MockAttachmentExtractor {},
+}))
+
+jest.mock('discord-player-spotify', () => ({
+    SpotifyExtractor: class MockSpotifyExtractor {},
 }))
 
 jest.mock('discord-player-youtubei', () => ({
@@ -185,7 +188,7 @@ describe('playerFactory', () => {
             }))
 
             const { SpotifyExtractor } = await import(
-                '@discord-player/extractor'
+                'discord-player-spotify'
             )
             jest.doMock('discord-player', () => {
                 const register = jest.fn().mockImplementation((ext) => {
@@ -275,7 +278,7 @@ describe('playerFactory', () => {
             }))
 
             const { SpotifyExtractor } = await import(
-                '@discord-player/extractor'
+                'discord-player-spotify'
             )
             jest.doMock('discord-player', () => {
                 const register = jest.fn().mockImplementation((ext) => {

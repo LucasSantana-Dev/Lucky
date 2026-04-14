@@ -27,6 +27,10 @@ jest.mock('@discord-player/extractor', () => ({
     DefaultExtractors: [],
 }))
 
+jest.mock('discord-player-spotify', () => ({
+    SpotifyExtractor: class MockSpotifyExtractor {},
+}))
+
 jest.mock('play-dl', () => ({
     search: (...args: unknown[]) => playdlSearchMock(...args),
     stream: (...args: unknown[]) => playdlStreamMock(...args),
