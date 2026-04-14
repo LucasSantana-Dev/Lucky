@@ -397,6 +397,7 @@ async function _replenishQueue(
             implicitDislikeKeys,
             implicitLikeKeys,
             sessionMood,
+            currentFeatures,
         )
         debugLog({
             message: 'Autoplay: recommendation candidates',
@@ -769,6 +770,7 @@ async function collectSpotifyRecommendationCandidates(
     implicitDislikeKeys: Set<string>,
     implicitLikeKeys: Set<string>,
     sessionMood: SessionMood | null,
+    currentFeatures: SpotifyAudioFeatures | null,
 ): Promise<void> {
     if (!requestedBy) return
     const token = await Promise.resolve(
@@ -798,7 +800,19 @@ async function collectSpotifyRecommendationCandidates(
     }
 
     if (seedIds.length === 0) return
-    const recs = await getSpotifyRecommendations(token, seedIds, 15)
+    const audioConstraints = currentFeatures
+        ? {
+              energy: currentFeatures.energy,
+              valence: currentFeatures.valence,
+              danceability: currentFeatures.danceability,
+          }
+        : undefined
+    const recs = await getSpotifyRecommendations(
+        token,
+        seedIds,
+        15,
+        audioConstraints,
+    )
     if (recs.length === 0) return
 
     debugLog({
@@ -866,6 +880,7 @@ async function collectRecommendationCandidates(
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
+    currentFeatures: SpotifyAudioFeatures | null = null,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
 
@@ -887,6 +902,7 @@ async function collectRecommendationCandidates(
         implicitDislikeKeys,
         implicitLikeKeys,
         sessionMood,
+        currentFeatures,
     )
 
     for (const seed of seedTracks) {
