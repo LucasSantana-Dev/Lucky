@@ -1695,10 +1695,21 @@ export function buildVcContributionWeights(
     return weights
 }
 
+function stripFeaturing(author: string): string {
+    const lower = author.toLowerCase()
+    for (const kw of [' feat ', ' ft ', ' con ', ' with ']) {
+        const idx = lower.indexOf(kw)
+        if (idx >= 0) return author.slice(0, idx)
+    }
+    return author
+}
+
 function normalizeTrackKey(title?: string, author?: string): string {
     const cleanedTitle = title ? cleanTitle(title) : ''
-    const cleanedAuthor = author ? cleanAuthor(author) : ''
-    return `${normalizeText(cleanedTitle)}::${normalizeText(cleanedAuthor)}`
+    const primaryAuthor = author
+        ? stripFeaturing(cleanAuthor(author).split(',')[0] ?? '').trim()
+        : ''
+    return `${normalizeText(cleanedTitle)}::${normalizeText(primaryAuthor)}`
 }
 
 function normalizeTitleOnly(title?: string): string {
