@@ -93,12 +93,15 @@ export class TrackHistoryService {
     async getTrackHistory(
         guildId: string,
         limit = 10,
+        offset = 0,
     ): Promise<TrackHistoryEntry[]> {
         try {
+            const start = offset
+            const end = offset + limit - 1
             const historyData = await redisClient.lrange(
                 this.getRedisKey(guildId),
-                0,
-                limit - 1,
+                start,
+                end,
             )
             return historyData.map(
                 (data) => JSON.parse(data) as TrackHistoryEntry,
@@ -121,6 +124,15 @@ export class TrackHistoryService {
         } catch (error) {
             errorLog({ message: 'Failed to get last track', error })
             return null
+        }
+    }
+
+    async getTrackHistoryCount(guildId: string): Promise<number> {
+        try {
+            return await redisClient.llen(this.getRedisKey(guildId))
+        } catch (error) {
+            errorLog({ message: 'Failed to get track history count', error })
+            return 0
         }
     }
 

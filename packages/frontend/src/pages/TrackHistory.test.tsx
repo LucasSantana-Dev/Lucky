@@ -233,4 +233,49 @@ describe('TrackHistoryPage', () => {
             'noopener noreferrer',
         )
     })
+
+    test('shows load-more button and track count when more tracks available', async () => {
+        const user = userEvent.setup()
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.trackHistory.getHistory)
+            .mockResolvedValueOnce({
+                data: { history: mockHistory, total: 10 },
+            } as any)
+            .mockResolvedValueOnce({
+                data: { history: [], total: 10 },
+            } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: mockStats },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Load More Tracks')).toBeInTheDocument()
+        })
+
+        expect(screen.getByText(/Showing 2 of 10/)).toBeInTheDocument()
+
+        await user.click(screen.getByText('Load More Tracks'))
+
+        expect(api.trackHistory.getHistory).toHaveBeenCalledTimes(2)
+    })
+
+    test('hides load-more button when all tracks are loaded', async () => {
+        mockGuildSelection(mockGuild)
+        vi.mocked(api.trackHistory.getHistory).mockResolvedValue({
+            data: { history: mockHistory, total: 2 },
+        } as any)
+        vi.mocked(api.trackHistory.getStats).mockResolvedValue({
+            data: { stats: mockStats },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Recent Tracks')).toBeInTheDocument()
+        })
+
+        expect(screen.queryByText('Load More Tracks')).not.toBeInTheDocument()
+    })
 })

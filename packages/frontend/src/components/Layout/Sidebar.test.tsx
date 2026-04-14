@@ -120,6 +120,14 @@ describe('Sidebar', () => {
         expect(dashboardLink).toHaveAttribute('data-active', 'false')
     })
 
+    test('activates parent route for sub-routes using slash boundary', () => {
+        renderSidebar('/music/history')
+
+        const musicLink = screen.getByText('Music Player').closest('a')
+        expect(musicLink).toHaveAttribute('data-active', 'true')
+        expect(musicLink).toHaveAttribute('aria-current', 'page')
+    })
+
     test('shows server selector dropdown with guilds', async () => {
         const user = userEvent.setup()
         renderSidebar()

@@ -40,35 +40,64 @@ function formatTimeAgo(timestamp: number): string {
     return `${Math.floor(hrs / 24)}d ago`
 }
 
+const PAGE_SIZE = 50
+
 export default function TrackHistoryPage() {
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const [history, setHistory] = useState<TrackEntry[]>([])
     const [stats, setStats] = useState<Stats | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [isLoadingMore, setIsLoadingMore] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [page, setPage] = useState(1)
+    const [total, setTotal] = useState(0)
 
-    const loadData = useCallback(async () => {
-        if (!guildId) return
-        setIsLoading(true)
-        setError(null)
-        try {
-            const [histRes, statsRes] = await Promise.all([
-                api.trackHistory.getHistory(guildId, 50),
-                api.trackHistory.getStats(guildId),
-            ])
-            setHistory(histRes.data.history)
-            setStats(statsRes.data.stats)
-        } catch {
-            setError('Failed to load track history')
-        } finally {
-            setIsLoading(false)
-        }
+    const loadData = useCallback(
+        async (reset = true) => {
+            if (!guildId) return
+            if (reset) {
+                setIsLoading(true)
+                setHistory([])
+                setPage(1)
+            } else {
+                setIsLoadingMore(true)
+            }
+            setError(null)
+            try {
+                const offset = reset ? 0 : (page - 1) * PAGE_SIZE
+                const [histRes, statsRes] = await Promise.all([
+                    api.trackHistory.getHistory(guildId, PAGE_SIZE, offset),
+                    reset
+                        ? api.trackHistory.getStats(guildId)
+                        : Promise.resolve(null),
+                ])
+                if (reset) {
+                    setHistory(histRes.data.history)
+                    setStats(statsRes?.data.stats ?? null)
+                } else {
+                    setHistory((prev) => [...prev, ...histRes.data.history])
+                }
+                setTotal(histRes.data.total)
+            } catch {
+                setError('Failed to load track history')
+            } finally {
+                setIsLoading(false)
+                setIsLoadingMore(false)
+            }
+        },
+        [guildId, page],
+    )
+
+    useEffect(() => {
+        loadData(true)
     }, [guildId])
 
     useEffect(() => {
-        loadData()
-    }, [loadData])
+        if (page > 1) {
+            loadData(false)
+        }
+    }, [page])
 
     const handleClear = async () => {
         if (!guildId) return
@@ -76,9 +105,15 @@ export default function TrackHistoryPage() {
             await api.trackHistory.clearHistory(guildId)
             setHistory([])
             setStats(null)
+            setTotal(0)
+            setPage(1)
         } catch {
             setError('Failed to clear history')
         }
+    }
+
+    const handleLoadMore = () => {
+        setPage((prev) => prev + 1)
     }
 
     if (!selectedGuild) {
@@ -177,12 +212,24 @@ export default function TrackHistoryPage() {
                     )}
 
                     <div className='space-y-1'>
-                        <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wider px-1'>
-                            Recent Tracks
-                        </h2>
+                        <div className='flex items-center justify-between px-1 mb-3'>
+                            <h2 className='type-meta text-lucky-text-tertiary uppercase tracking-wider'>
+                                Recent Tracks
+                            </h2>
+                            {total > 0 && (
+                                <span className='type-body-sm text-lucky-text-tertiary'>
+                                    Showing {history.length} of {total}
+                                </span>
+                            )}
+                        </div>
                         {history.length === 0 ? (
                             <EmptyState
-                                icon={<History className='h-10 w-10' aria-hidden='true' />}
+                                icon={
+                                    <History
+                                        className='h-10 w-10'
+                                        aria-hidden='true'
+                                    />
+                                }
                                 title='No tracks played yet'
                                 description='Play some music to see your history here'
                                 className='min-h-[180px]'
@@ -209,7 +256,9 @@ export default function TrackHistoryPage() {
                                             <p className='type-body-sm text-lucky-text-tertiary truncate'>
                                                 {track.author} ·{' '}
                                                 {track.duration}
-                                                {track.playedBy ? ` · Played by ${track.playedBy}` : ''}
+                                                {track.playedBy
+                                                    ? ` · Played by ${track.playedBy}`
+                                                    : ''}
                                             </p>
                                         </div>
                                         <span className='type-body-sm text-lucky-text-tertiary shrink-0'>
@@ -217,6 +266,17 @@ export default function TrackHistoryPage() {
                                         </span>
                                     </div>
                                 ))}
+                                {history.length < total && (
+                                    <button
+                                        onClick={handleLoadMore}
+                                        disabled={isLoadingMore}
+                                        className='w-full mt-4 px-3 py-2 rounded-lg border border-lucky-border text-lucky-text-secondary hover:text-lucky-text-primary hover:bg-lucky-bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed type-body-sm font-medium'
+                                    >
+                                        {isLoadingMore
+                                            ? 'Loading...'
+                                            : 'Load More Tracks'}
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
