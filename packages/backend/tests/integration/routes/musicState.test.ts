@@ -1,6 +1,8 @@
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
+import http from 'http'
+import type { AddressInfo } from 'net'
 import express from 'express'
 import { setupStateRoutes } from '../../../src/routes/music/stateRoutes'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
@@ -104,5 +106,136 @@ describe('Music State Routes', () => {
                 .get(`/api/guilds/${GUILD_ID}/music/stream`)
                 .expect(401)
         })
+
+        test('returns SSE headers and sends initial state when state exists', (done) => {
+            authed()
+            mockGetState.mockResolvedValue({
+                guildId: GUILD_ID,
+                currentTrack: { title: 'Test', author: 'Artist' },
+                tracks: [],
+                isPlaying: true,
+                isPaused: false,
+                volume: 75,
+                repeatMode: 'off' as const,
+                shuffled: false,
+                position: 0,
+                voiceChannelId: null,
+                voiceChannelName: null,
+                timestamp: 0,
+            })
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                const chunks: string[] = []
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        expect(res.headers['content-type']).toContain(
+                            'text/event-stream',
+                        )
+                        res.on('data', (chunk: Buffer) => {
+                            chunks.push(chunk.toString())
+                            req.destroy()
+                        })
+                    },
+                )
+
+                req.on('close', () => {
+                    server.close(() => {
+                        expect(chunks.join('')).toContain('data:')
+                        done()
+                    })
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
+
+        test('returns SSE headers with no data when no current state', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        expect(res.headers['content-type']).toContain(
+                            'text/event-stream',
+                        )
+                        setTimeout(() => req.destroy(), 50)
+                    },
+                )
+
+                req.on('close', () => {
+                    server.close(() => done())
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 1000)
+            })
+        }, 5000)
+
+        test('cleans up SSE client on connection close', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        setTimeout(() => req.destroy(), 30)
+                    },
+                )
+
+                req.on('close', () => {
+                    server.close(() => done())
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 1000)
+            })
+        }, 5000)
     })
 })
