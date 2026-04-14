@@ -183,27 +183,23 @@ export const useFeaturesStore = create<FeaturesState>((set, get) => ({
     },
 
     updateGlobalToggle: async (name, enabled) => {
-        try {
-            await api.features.updateGlobalToggle(name, enabled)
-            set((state) => ({
-                globalToggles: { ...state.globalToggles, [name]: enabled },
-            }))
-        } catch {}
+        await api.features.updateGlobalToggle(name, enabled)
+        set((state) => ({
+            globalToggles: { ...state.globalToggles, [name]: enabled },
+        }))
     },
 
     updateServerToggle: async (guildId, name, enabled) => {
-        try {
-            await api.features.updateServerToggle(guildId, name, enabled)
-            set((state) => ({
-                serverToggles: {
-                    ...state.serverToggles,
-                    [guildId]: {
-                        ...(state.serverToggles[guildId] || defaultToggles),
-                        [name]: enabled,
-                    },
+        await api.features.updateServerToggle(guildId, name, enabled)
+        set((state) => ({
+            serverToggles: {
+                ...state.serverToggles,
+                [guildId]: {
+                    ...(state.serverToggles[guildId] || defaultToggles),
+                    [name]: enabled,
                 },
-            }))
-        } catch {}
+            },
+        }))
     },
 
     getServerToggles: (guildId) =>
