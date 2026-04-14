@@ -1697,8 +1697,13 @@ export function buildVcContributionWeights(
 
 function normalizeTrackKey(title?: string, author?: string): string {
     const cleanedTitle = title ? cleanTitle(title) : ''
-    const cleanedAuthor = author ? cleanAuthor(author) : ''
-    return `${normalizeText(cleanedTitle)}::${normalizeText(cleanedAuthor)}`
+    const primaryAuthor = author
+        ? cleanAuthor(author)
+              .split(/\s*,\s*/)[0]
+              .replace(/\s+(feat|ft|con|with)\b.*/i, '')
+              .trim()
+        : ''
+    return `${normalizeText(cleanedTitle)}::${normalizeText(primaryAuthor)}`
 }
 
 function normalizeTitleOnly(title?: string): string {
