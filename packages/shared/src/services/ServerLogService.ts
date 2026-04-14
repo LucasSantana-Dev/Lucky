@@ -81,6 +81,16 @@ export class ServerLogService {
         })
     }
 
+    async countRecentLogs(guildId: string) {
+        return await prisma.serverLog.count({ where: { guildId } })
+    }
+
+    async countLogsByType(guildId: string, type: LogType) {
+        return await prisma.serverLog.count({
+            where: { guildId, type },
+        })
+    }
+
     async searchLogs(
         guildId: string,
         filters: {

@@ -25,6 +25,32 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+describe('GET /api/twitch/status', () => {
+    let app: express.Express
+
+    beforeEach(() => {
+        app = express()
+        app.use(express.json())
+        setupTwitchRoutes(app)
+        app.use(errorHandler)
+    })
+
+    test('returns configured=true when TWITCH_CLIENT_ID is set', async () => {
+        process.env.TWITCH_CLIENT_ID = 'test-client-id'
+        const res = await request(app).get('/api/twitch/status')
+        delete process.env.TWITCH_CLIENT_ID
+        expect(res.status).toBe(200)
+        expect(res.body.configured).toBe(true)
+    })
+
+    test('returns configured=false when TWITCH_CLIENT_ID is not set', async () => {
+        delete process.env.TWITCH_CLIENT_ID
+        const res = await request(app).get('/api/twitch/status')
+        expect(res.status).toBe(200)
+        expect(res.body.configured).toBe(false)
+    })
+})
+
 describe('Twitch Routes', () => {
     let app: express.Express
 

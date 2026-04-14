@@ -224,12 +224,17 @@ export function setupManagementRoutes(app: Express): void {
                     type as LogType,
                     limit,
                 )
-                res.json({ logs })
+                const total = await serverLogService.countLogsByType(
+                    guildId,
+                    type as LogType,
+                )
+                res.json({ logs, total })
                 return
             }
 
             const logs = await serverLogService.getRecentLogs(guildId, limit)
-            res.json({ logs })
+            const total = await serverLogService.countRecentLogs(guildId)
+            res.json({ logs, total })
         }),
     )
 

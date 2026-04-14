@@ -346,6 +346,7 @@ export const api = {
     },
 
     twitch: {
+        status: () => apiClient.get<{ configured: boolean }>('/twitch/status'),
         lookupUser: (login: string) =>
             apiClient.get<{
                 id: string

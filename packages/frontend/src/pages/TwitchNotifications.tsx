@@ -41,6 +41,9 @@ export default function TwitchNotificationsPage() {
     const [showAdd, setShowAdd] = useState(false)
     const [newTwitchInput, setNewTwitchInput] = useState('')
     const [newChannelId, setNewChannelId] = useState('')
+    const [twitchConfigured, setTwitchConfigured] = useState<boolean | null>(
+        null,
+    )
     const notificationsRequestIdRef = useRef(0)
     const channelsRequestIdRef = useRef(0)
     const selectedGuildIdRef = useRef<string | undefined>(guildId)
@@ -48,6 +51,18 @@ export default function TwitchNotificationsPage() {
     useEffect(() => {
         selectedGuildIdRef.current = guildId
     }, [guildId])
+
+    useEffect(() => {
+        const checkTwitchStatus = async () => {
+            try {
+                const res = await api.twitch.status()
+                setTwitchConfigured(res.data.configured)
+            } catch {
+                setTwitchConfigured(false)
+            }
+        }
+        checkTwitchStatus()
+    }, [])
 
     const channelNameById = useMemo(
         () => new Map(channels.map((channel) => [channel.id, channel.name])),
@@ -272,6 +287,26 @@ export default function TwitchNotificationsPage() {
         )
     }
 
+    if (twitchConfigured === false) {
+        return (
+            <div className='space-y-6 px-1 sm:px-0'>
+                <header className='flex items-center gap-3'>
+                    <Tv className='h-6 w-6 text-purple-500' />
+                    <h1 className='text-xl font-bold text-white'>
+                        Twitch Notifications
+                    </h1>
+                </header>
+                <div className='p-4 rounded-lg bg-lucky-error/10 border border-lucky-error text-lucky-error'>
+                    <p className='font-semibold mb-1'>Not Configured</p>
+                    <p className='text-sm'>
+                        Twitch API is not configured on this server. Contact the
+                        server administrator to set up Twitch credentials.
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className='space-y-6 px-1 sm:px-0'>
             <header className='flex items-center justify-between'>
@@ -286,7 +321,8 @@ export default function TwitchNotificationsPage() {
                 </div>
                 <button
                     onClick={() => setShowAdd(!showAdd)}
-                    className='flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600/10 px-3 py-1.5 text-sm text-purple-400 transition-colors hover:bg-purple-600/20'
+                    disabled={!twitchConfigured}
+                    className='flex cursor-pointer items-center gap-2 rounded-lg bg-purple-600/10 px-3 py-1.5 text-sm text-purple-400 transition-colors hover:bg-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed'
                 >
                     <Plus className='w-4 h-4' />
                     Add
