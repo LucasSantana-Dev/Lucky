@@ -206,6 +206,7 @@ function spawnYtDlpAndStream(
 ): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
         const proc = spawn('yt-dlp', args, {
+            // NOSONAR — yt-dlp is a trusted, pinned binary; PATH is controlled by the deployment environment
             stdio: ['ignore', 'pipe', 'pipe'],
         })
 
