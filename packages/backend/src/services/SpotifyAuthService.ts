@@ -6,6 +6,15 @@ export type SpotifyTokenResponse = {
     spotifyUsername: string
 }
 
+async function fetchJson<T>(
+    url: string,
+    init: Parameters<typeof fetch>[1],
+): Promise<T | null> {
+    const res = await fetch(url, init)
+    if (!res.ok) return null
+    return res.json().catch(() => null) as Promise<T | null>
+}
+
 export async function exchangeCodeForToken(
     code: string,
 ): Promise<SpotifyTokenResponse | null> {
@@ -13,14 +22,17 @@ export async function exchangeCodeForToken(
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
     const redirectUri = process.env.SPOTIFY_REDIRECT_URI
 
-    if (!clientId || !clientSecret || !redirectUri) {
-        return null
-    }
+    if (!clientId || !clientSecret || !redirectUri) return null
 
     const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
     try {
-        const res = await fetch('https://accounts.spotify.com/api/token', {
+        const tokenData = await fetchJson<{
+            access_token?: string
+            refresh_token?: string
+            expires_in?: number
+            error?: string
+        }>('https://accounts.spotify.com/api/token', {
             method: 'POST',
             headers: {
                 Authorization: `Basic ${auth}`,
@@ -33,17 +45,6 @@ export async function exchangeCodeForToken(
             }).toString(),
         })
 
-        if (!res.ok) {
-            return null
-        }
-
-        const tokenData = (await res.json().catch(() => null)) as {
-            access_token?: string
-            refresh_token?: string
-            expires_in?: number
-            error?: string
-        }
-
         if (
             !tokenData ||
             tokenData.error ||
@@ -53,21 +54,15 @@ export async function exchangeCodeForToken(
             return null
         }
 
-        const userRes = await fetch('https://api.spotify.com/v1/me', {
+        const userData = await fetchJson<{
+            id?: string
+            display_name?: string
+            error?: string
+        }>('https://api.spotify.com/v1/me', {
             headers: {
                 Authorization: `Bearer ${tokenData.access_token}`,
             },
         })
-
-        if (!userRes.ok) {
-            return null
-        }
-
-        const userData = (await userRes.json().catch(() => null)) as {
-            id?: string
-            display_name?: string
-            error?: string
-        }
 
         if (!userData || userData.error || !userData.id) {
             return null
