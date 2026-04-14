@@ -199,126 +199,33 @@ function validateYtDlpUrl(url: string): void {
     }
 }
 
-export function streamViaYtDlp(url: string): Promise<Readable> {
-    try {
-        validateYtDlpUrl(url)
-    } catch (err) {
-        return Promise.reject(err)
-    }
+function spawnYtDlpAndStream(
+    args: string[],
+    timeoutMs: number,
+    errorLabel: string,
+): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
-        const proc = spawn(
-            'yt-dlp',
-            [
-                '--no-playlist',
-                '-f',
-                'bestaudio/best',
-                '-o',
-                '-',
-                '--quiet',
-                '--no-warnings',
-                '--no-progress',
-                // Provide the Node.js runtime so yt-dlp can use the JS extractor
-                // for YouTube. Use process.execPath (the actual running binary)
-                // rather than a hardcoded path so this works on all systems.
-                '--js-runtimes',
-                `node:${process.execPath}`,
-                url,
-            ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
-        )
+        const proc = spawn('yt-dlp', args, {
+            stdio: ['ignore', 'pipe', 'pipe'],
+        })
 
         const timeout = setTimeout(() => {
             proc.kill()
-            reject(new Error('yt-dlp: timed out waiting for stream start'))
-        }, 15_000)
-
-        // Collect stderr so failures include yt-dlp's reason (bot detection,
-        // geo-restriction, unavailable video, etc.) in the error message.
-        const stderrChunks: Buffer[] = []
-        proc.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
-
-        // Guard against the race where `close` fires before `data` (yt-dlp
-        // crashes immediately). Once either event settles the promise we
-        // ignore the other.
-        let settled = false
-
-        proc.stdout!.once('data', (firstChunk: Buffer) => {
-            if (settled) return
-            settled = true
-            clearTimeout(timeout)
-            // The `once('data')` callback consumes the first chunk from the
-            // stream buffer (the WebM EBML header). We use a PassThrough to
-            // re-inject it so discord-player/ffmpeg receives a complete stream.
-            const through = new PassThrough()
-            through.write(firstChunk)
-            proc.stdout!.pipe(through)
-            resolve(through)
-        })
-
-        proc.once('error', (err) => {
-            if (settled) return
-            settled = true
-            clearTimeout(timeout)
-            reject(err)
-        })
-
-        proc.once('close', (code) => {
-            if (settled) return
-            settled = true
-            clearTimeout(timeout)
-            if (code && code !== 0) {
-                const stderr = Buffer.concat(stderrChunks).toString().trim()
-                const reason = stderr ? ` — ${stderr.split('\n')[0]}` : ''
-                reject(new Error(`yt-dlp exited with code ${code}${reason}`))
-            }
-        })
-    })
-}
-
-/**
- * Search YouTube via yt-dlp using a text query (ytsearch1: prefix).
- * Used as a fallback for Spotify-sourced tracks where the Spotify URL
- * cannot be streamed directly.
- */
-export function streamViaYtDlpSearch(query: string): Promise<Readable> {
-    if (!query.trim())
-        return Promise.reject(new Error('yt-dlp search: empty query'))
-    return new Promise<Readable>((resolve, reject) => {
-        const proc = spawn(
-            'yt-dlp',
-            [
-                '--no-playlist',
-                '-f',
-                'bestaudio/best',
-                '-o',
-                '-',
-                '--quiet',
-                '--no-warnings',
-                '--no-progress',
-                '--js-runtimes',
-                `node:${process.execPath}`,
-                `ytsearch1:${query}`,
-            ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
-        )
-
-        const timeout = setTimeout(() => {
-            proc.kill()
-            reject(new Error('yt-dlp search: timed out'))
-        }, 20_000)
+            reject(new Error(`${errorLabel}: timed out`))
+        }, timeoutMs)
 
         const stderrChunks: Buffer[] = []
-        proc.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
+        proc.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
 
         let settled = false
 
-        proc.stdout!.once('data', (firstChunk: Buffer) => {
+        proc.stdout.once('data', (firstChunk: Buffer) => {
             if (settled) return
             settled = true
             clearTimeout(timeout)
             const through = new PassThrough()
             through.write(firstChunk)
-            proc.stdout!.pipe(through)
+            proc.stdout.pipe(through)
             resolve(through)
         })
 
@@ -338,12 +245,64 @@ export function streamViaYtDlpSearch(query: string): Promise<Readable> {
                 const reason = stderr ? ` — ${stderr.split('\n')[0]}` : ''
                 reject(
                     new Error(
-                        `yt-dlp search exited with code ${code}${reason}`,
+                        `${errorLabel} exited with code ${code}${reason}`,
                     ),
                 )
             }
         })
     })
+}
+
+export function streamViaYtDlp(url: string): Promise<Readable> {
+    try {
+        validateYtDlpUrl(url)
+    } catch (err) {
+        return Promise.reject(err)
+    }
+    return spawnYtDlpAndStream(
+        [
+            '--no-playlist',
+            '-f',
+            'bestaudio/best',
+            '-o',
+            '-',
+            '--quiet',
+            '--no-warnings',
+            '--no-progress',
+            '--js-runtimes',
+            `node:${process.execPath}`,
+            url,
+        ],
+        15_000,
+        'yt-dlp',
+    )
+}
+
+/**
+ * Search YouTube via yt-dlp using a text query (ytsearch1: prefix).
+ * Used as a fallback for Spotify-sourced tracks where the Spotify URL
+ * cannot be streamed directly.
+ */
+export function streamViaYtDlpSearch(query: string): Promise<Readable> {
+    if (!query.trim())
+        return Promise.reject(new Error('yt-dlp search: empty query'))
+    return spawnYtDlpAndStream(
+        [
+            '--no-playlist',
+            '-f',
+            'bestaudio/best',
+            '-o',
+            '-',
+            '--quiet',
+            '--no-warnings',
+            '--no-progress',
+            '--js-runtimes',
+            `node:${process.execPath}`,
+            `ytsearch1:${query}`,
+        ],
+        20_000,
+        'yt-dlp search',
+    )
 }
 
 /**
