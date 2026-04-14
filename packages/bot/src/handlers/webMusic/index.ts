@@ -102,6 +102,30 @@ export async function setupWebMusicHandler(
             },
         )
 
+        // Periodically publish state for all active queues to keep SSE clients in sync
+        setInterval(async () => {
+            try {
+                for (const queue of client.player.nodes.cache.values()) {
+                    if (!queue) continue
+                    const state = await buildQueueState(client, queue.guild.id)
+                    // Only publish if queue is active (playing or has tracks)
+                    if (state.isPlaying || state.tracks.length > 0) {
+                        await musicControlService.publishState(state)
+                    }
+                }
+            } catch (error) {
+                debugLog({
+                    message: 'Error during periodic state publish',
+                    data: {
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    },
+                })
+            }
+        }, 30000)
+
         infoLog({ message: 'Web music handler initialized' })
     } catch (error) {
         errorLog({ message: 'Failed to setup web music handler:', error })

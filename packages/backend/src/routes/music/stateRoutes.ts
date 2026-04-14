@@ -20,7 +20,12 @@ export function setupStateRoutes(app: Express): void {
 
             const currentState = await musicControlService.getState(guildId)
             if (currentState) {
-                res.write(`data: ${JSON.stringify(currentState)}\n\n`)
+                try {
+                    res.write(`data: ${JSON.stringify(currentState)}\n\n`)
+                } catch {
+                    // Client disconnected before we could send initial state
+                    return
+                }
             }
 
             let clients = sseClients.get(guildId)
@@ -30,10 +35,13 @@ export function setupStateRoutes(app: Express): void {
             }
             clients.add(res)
 
-            const heartbeat = setInterval(
-                () => res.write(': heartbeat\n\n'),
-                30000,
-            )
+            const heartbeat = setInterval(() => {
+                try {
+                    res.write(': heartbeat\n\n')
+                } catch {
+                    // Client disconnected, will be cleaned up by close handler
+                }
+            }, 30000)
 
             req.on('close', () => {
                 clearInterval(heartbeat)
