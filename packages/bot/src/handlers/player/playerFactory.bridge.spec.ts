@@ -54,6 +54,7 @@ jest.mock('../../utils/music/search/providerHealth', () => ({
 import {
     createResilientStream,
     streamViaYtDlp,
+    streamViaYtDlpSearch,
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
     parseDurationString,
@@ -314,7 +315,6 @@ describe('streamViaYtDlp', () => {
             'https://youtu.be/test',
             'https://music.youtube.com/watch?v=test',
             'https://soundcloud.com/artist/track',
-            'https://open.spotify.com/track/test',
         ]
         for (const url of allowedUrls) {
             const proc = makeSpawnSuccess()
@@ -322,6 +322,13 @@ describe('streamViaYtDlp', () => {
             await expect(streamViaYtDlp(url)).resolves.toBeDefined()
             spawnMock.mockReset()
         }
+    })
+
+    it('rejects open.spotify.com (not in allowlist — Spotify URLs cannot be streamed by yt-dlp)', async () => {
+        await expect(
+            streamViaYtDlp('https://open.spotify.com/track/test'),
+        ).rejects.toThrow(/domain not in allowlist/i)
+        expect(spawnMock).not.toHaveBeenCalled()
     })
 
     it('rejects when yt-dlp closes with non-zero exit code', async () => {
@@ -383,6 +390,42 @@ describe('streamViaYtDlp', () => {
             streamViaYtDlp('https://youtube.com/watch?v=test'),
         ).rejects.toThrow(/exited with code 1/)
         // No unhandled rejection or double-settle
+    })
+})
+
+describe('streamViaYtDlpSearch', () => {
+    beforeEach(() => {
+        spawnMock.mockReset()
+    })
+
+    it('spawns yt-dlp with ytsearch1: prefix and returns stream', async () => {
+        const proc = makeSpawnSuccess()
+        spawnMock.mockReturnValue(proc)
+
+        const result = await streamViaYtDlpSearch(
+            'Bohemian Rhapsody Queen official audio',
+        )
+        expect(result.readable).toBe(true)
+        expect(spawnMock).toHaveBeenCalledWith(
+            'yt-dlp',
+            expect.arrayContaining([
+                'ytsearch1:Bohemian Rhapsody Queen official audio',
+            ]),
+            expect.anything(),
+        )
+    })
+
+    it('rejects on empty query', async () => {
+        await expect(streamViaYtDlpSearch('')).rejects.toThrow(/empty query/i)
+        expect(spawnMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects when yt-dlp exits with non-zero code', async () => {
+        spawnMock.mockReturnValue(makeSpawnError(1, 'ERROR: No video found'))
+
+        await expect(streamViaYtDlpSearch('nonexistent song')).rejects.toThrow(
+            /No video found/,
+        )
     })
 })
 
@@ -514,6 +557,43 @@ describe('createResilientStream', () => {
                 }),
             }),
         )
+    })
+
+    it('skips yt-dlp direct URL and uses YouTube search for Spotify-sourced tracks', async () => {
+        const proc = makeSpawnSuccess()
+        spawnMock.mockReturnValue(proc)
+
+        const result = await createResilientStream(
+            makeTrack({ url: 'https://open.spotify.com/track/abc123' }),
+        )
+        expect(result.readable).toBe(true)
+        expect(spawnMock).toHaveBeenCalledTimes(1)
+        expect(spawnMock).toHaveBeenCalledWith(
+            'yt-dlp',
+            expect.arrayContaining([
+                expect.stringMatching(/^ytsearch1:.*official audio$/),
+            ]),
+            expect.anything(),
+        )
+        expect(playdlSearchMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to SoundCloud when yt-dlp YouTube search fails for Spotify track', async () => {
+        spawnMock.mockReturnValue(makeSpawnError(1))
+        playdlSearchMock.mockResolvedValueOnce([
+            {
+                name: 'Bohemian Rhapsody - Queen',
+                url: 'sc://spotify-fallback',
+                durationInSec: 354,
+            },
+        ])
+        playdlStreamMock.mockResolvedValueOnce({ stream: fakeStream })
+
+        const result = await createResilientStream(
+            makeTrack({ url: 'https://open.spotify.com/track/abc123' }),
+        )
+        expect(result).toBe(fakeStream)
+        expect(playdlSearchMock).toHaveBeenCalledTimes(1)
     })
 
     it('throws "Bridge exhausted" when track has no URL and SoundCloud fails', async () => {
