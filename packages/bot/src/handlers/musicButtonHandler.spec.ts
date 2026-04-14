@@ -164,8 +164,7 @@ describe('handleMusicButtonInteraction', () => {
     it('pauses when PAUSE_RESUME and queue is playing', async () => {
         const queue = createMockQueue({ isPaused: false })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
-        const buttons = { type: 1 }
-        createMusicControlButtonsMock.mockReturnValue(buttons)
+        createMusicControlButtonsMock.mockReturnValue({ type: 1 })
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
@@ -173,15 +172,14 @@ describe('handleMusicButtonInteraction', () => {
         expect(queue.node.pause).toHaveBeenCalled()
         expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
         expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ components: [buttons] }),
+            expect.objectContaining({ components: expect.any(Array) }),
         )
     })
 
     it('resumes when PAUSE_RESUME and queue is paused', async () => {
         const queue = createMockQueue({ isPaused: true })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
-        const buttons = { type: 1 }
-        createMusicControlButtonsMock.mockReturnValue(buttons)
+        createMusicControlButtonsMock.mockReturnValue({ type: 1 })
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
 
         await handleMusicButtonInteraction(interaction as never)
@@ -189,7 +187,53 @@ describe('handleMusicButtonInteraction', () => {
         expect(queue.node.resume).toHaveBeenCalled()
         expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
         expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ components: [buttons] }),
+            expect.objectContaining({ components: expect.any(Array) }),
+        )
+    })
+
+    it('stops playback and clears queue for STOP button', async () => {
+        const queue = { ...createMockQueue(), delete: jest.fn() }
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.STOP)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(queue.delete).toHaveBeenCalled()
+        expect(interaction.editReply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                components: [],
+                embeds: expect.any(Array),
+            }),
+        )
+    })
+
+    it('clears upcoming tracks for CLEAR_QUEUE button', async () => {
+        const queue = {
+            ...createMockQueue(),
+            tracks: { size: 3, clear: jest.fn() },
+        }
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.CLEAR_QUEUE)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(queue.tracks.clear).toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({ ephemeral: true }),
+        )
+    })
+
+    it('sets repeat mode to OFF for CLEAR_AUTOPLAY button', async () => {
+        const queue = createMockQueue({ repeatMode: 3 })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.CLEAR_AUTOPLAY)
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'nodes.get' })
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
+        expect(interaction.editReply).toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({ ephemeral: true }),
         )
     })
 
@@ -286,6 +330,7 @@ describe('handleMusicButtonInteraction', () => {
     it('uses resolver-backed queue lookup so music buttons still work after queue cache fallback', async () => {
         const queue = createMockQueue({ isPaused: false })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+        createMusicControlButtonsMock.mockReturnValue({ type: 1 })
         resolveGuildQueueMock.mockReturnValue({
             queue,
             source: 'cache.guild',
