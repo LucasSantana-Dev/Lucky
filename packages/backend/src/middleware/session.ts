@@ -276,10 +276,9 @@ export function setupSessionMiddleware(app: Express): void {
     const sessionSecret = process.env.WEBAPP_SESSION_SECRET
 
     if (!sessionSecret) {
-        errorLog({
-            message:
-                'WEBAPP_SESSION_SECRET not configured. Session management will not work properly.',
-        })
+        throw new Error(
+            'WEBAPP_SESSION_SECRET environment variable is required. Session management cannot initialize securely.',
+        )
     }
 
     const isProduction = process.env.NODE_ENV === 'production'
@@ -294,7 +293,7 @@ export function setupSessionMiddleware(app: Express): void {
 
     app.use(
         session({
-            secret: sessionSecret || 'fallback-secret-change-in-production',
+            secret: sessionSecret,
             name: 'sessionId',
             resave: false,
             saveUninitialized: false,
