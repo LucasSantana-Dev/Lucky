@@ -1745,6 +1745,12 @@ function getTrackKey(track: Track): string {
 
 const FUZZY_TITLE_THRESHOLD = 0.82
 
+const AMBIENT_NOISE_RE =
+    /\b(?:rain sounds?|rain for sleep|ocean waves?|waves? sounds?|nature sounds?|forest sounds?|thunder sounds?|white noise|brown noise|pink noise|asmr|sleep sounds?|sleep music|relaxing rain|ambient sounds?|binaural beats?|solfeggio|healing frequ|528 ?hz|432 ?hz|963 ?hz|chakra healing|spa music|massage music|yoga music|deep sleep|baby sleep|guided meditation|meditation music)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
+
+const EDM_MIX_RE =
+    /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
+
 function isDuplicateCandidate(
     track: Track,
     excludedUrls: Set<string>,
@@ -1807,6 +1813,14 @@ function calculateRecommendationScore(
         candidate.durationMS > MAX_CANDIDATE_DURATION_MS
     ) {
         return { score: -Infinity, reason: 'track too long' }
+    }
+
+    const candidateTitle = candidate.title ?? ''
+    if (AMBIENT_NOISE_RE.test(candidateTitle)) {
+        return { score: -Infinity, reason: 'ambient/noise content' }
+    }
+    if (EDM_MIX_RE.test(candidateTitle)) {
+        return { score: -Infinity, reason: 'dj mix / edm set' }
     }
 
     let score = 1
