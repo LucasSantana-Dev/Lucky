@@ -306,29 +306,30 @@ async function _replenishQueue(
             HISTORY_SEED_LIMIT + 1,
         )
         const requestedBy = getRequestedBy(queue, currentTrack)
+        const metadata = queue.metadata as QueueMetadata | undefined
+        const vcMemberIds = metadata?.vcMemberIds ?? []
+        const allMemberIds = Array.from(
+            new Set([
+                ...(requestedBy?.id ? [requestedBy.id] : []),
+                ...vcMemberIds,
+            ]),
+        )
+
         const [
             likedWeights,
             dislikedWeights,
-            preferredArtistKeys,
-            blockedArtistKeys,
             persistentHistory,
             guildSettings,
             implicitDislikeKeys,
             implicitLikeKeys,
+            allPreferredSets,
+            allBlockedSets,
         ] = await Promise.all([
             recommendationFeedbackService.getLikedTrackWeights(
                 requestedBy?.id ?? '',
             ),
             recommendationFeedbackService.getDislikedTrackWeights(
                 requestedBy?.id ?? '',
-            ),
-            recommendationFeedbackService.getPreferredArtistKeys(
-                queue.guild.id,
-                requestedBy?.id,
-            ),
-            recommendationFeedbackService.getBlockedArtistKeys(
-                queue.guild.id,
-                requestedBy?.id,
             ),
             trackHistoryService.getTrackHistory(queue.guild.id, 150),
             guildSettingsService.getGuildSettings(queue.guild.id),
@@ -338,7 +339,34 @@ async function _replenishQueue(
             recommendationFeedbackService.getImplicitLikeKeys(
                 requestedBy?.id ?? '',
             ),
+            Promise.all(
+                allMemberIds.map((id) =>
+                    recommendationFeedbackService.getPreferredArtistKeys(
+                        queue.guild.id,
+                        id,
+                    ),
+                ),
+            ),
+            Promise.all(
+                allMemberIds.map((id) =>
+                    recommendationFeedbackService.getBlockedArtistKeys(
+                        queue.guild.id,
+                        id,
+                    ),
+                ),
+            ),
         ])
+
+        const preferredArtistKeys = new Set(
+            allPreferredSets.flatMap((s) => [...s]),
+        )
+        const blockedArtistKeys = new Set(
+            allBlockedSets.flatMap((s) => [...s]),
+        )
+        const contributionWeights =
+            vcMemberIds.length > 1
+                ? buildVcContributionWeights(allHistoryTracks, vcMemberIds)
+                : new Map<string, number>()
         const autoplayMode = guildSettings?.autoplayMode ?? 'similar'
         if (persistentHistory.length === 0) {
             warnLog({
@@ -406,12 +434,6 @@ async function _replenishQueue(
 
         if (requestedBy?.id) {
             const beforeLastFm = candidates.size
-            const metadata = queue.metadata as QueueMetadata | undefined
-            const vcMemberIds = metadata?.vcMemberIds ?? []
-            const contributionWeights =
-                vcMemberIds.length > 1
-                    ? buildVcContributionWeights(allHistoryTracks, vcMemberIds)
-                    : new Map<string, number>()
             await collectLastFmCandidates(
                 queue,
                 requestedBy,
