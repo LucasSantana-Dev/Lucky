@@ -1,8 +1,5 @@
 import { z } from 'zod'
-
-const guildIdParam = z.object({
-    guildId: z.string().regex(/^\d{17,20}$/, 'Invalid guild ID'),
-})
+import { guildIdParam, userIdParam as commonUserIdParam } from './common'
 
 const commandNameParam = guildIdParam.extend({
     name: z.string().min(1).max(32),
@@ -72,9 +69,7 @@ const logsSearchQuery = z.object({
         .optional(),
 })
 
-const userIdParam = guildIdParam.extend({
-    userId: z.string().regex(/^\d{17,20}$/, 'Invalid user ID'),
-})
+const userIdParam = commonUserIdParam
 
 export const managementSchemas = {
     guildIdParam,
