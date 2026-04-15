@@ -127,7 +127,16 @@ interface PopularityEntry {
     value: number | null
 }
 
+interface GenresEntry {
+    value: string[] | null
+}
+
 const artistPopularityCache = new LRUCache<string, PopularityEntry>({
+    max: 5000,
+    ttl: 24 * 60 * 60 * 1000,
+})
+
+const artistGenresCache = new LRUCache<string, GenresEntry>({
     max: 5000,
     ttl: 24 * 60 * 60 * 1000,
 })
@@ -272,6 +281,48 @@ export async function getArtistPopularity(
     } catch {
         artistPopularityCache.set(artistName, { value: null })
         return null
+    }
+}
+
+export async function getArtistGenres(
+    accessToken: string,
+    artistName: string,
+): Promise<string[]> {
+    const cached = artistGenresCache.get(artistName)
+    if (cached !== undefined) return cached.value ?? []
+
+    try {
+        const params = new URLSearchParams({
+            q: artistName,
+            type: 'artist',
+            limit: '1',
+        })
+
+        const res = await fetch(
+            `https://api.spotify.com/v1/search?${params.toString()}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        )
+
+        if (!res.ok) {
+            artistGenresCache.set(artistName, { value: null })
+            return []
+        }
+
+        const data = (await res.json().catch(() => null)) as {
+            artists?: { items?: Array<{ genres?: string[] }> }
+        }
+
+        const genres = data?.artists?.items?.[0]?.genres ?? []
+        artistGenresCache.set(artistName, { value: genres })
+        return genres
+    } catch {
+        artistGenresCache.set(artistName, { value: null })
+        return []
     }
 }
 

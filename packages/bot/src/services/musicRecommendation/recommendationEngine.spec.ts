@@ -12,6 +12,8 @@ import {
     generateRecommendations,
     generateUserPreferenceRecommendations,
     generateHistoryBasedRecommendations,
+    applySpanishLanguagePenalty,
+    blendRecommendations,
 } from './recommendationEngine'
 
 const calculateTrackSimilarityMock = jest.fn()
@@ -445,6 +447,184 @@ describe('recommendationEngine', () => {
             )
 
             expect(result).toEqual([])
+        })
+    })
+})
+
+    describe('applySpanishLanguagePenalty', () => {
+        test('rejects Spanish track in non-Spanish session', () => {
+            const recs = [
+                {
+                    track: {
+                        id: '1',
+                        title: 'Reggaeton Éxito',
+                        author: 'Latino',
+                        metadata: {},
+                    },
+                    score: 0.8,
+                    reasons: [],
+                },
+            ]
+            const result = applySpanishLanguagePenalty(recs, false)
+            expect(result[0].score).toBe(-2.0)
+        })
+
+        test('keeps non-Spanish track', () => {
+            const recs = [
+                {
+                    track: {
+                        id: '1',
+                        title: 'Rock Song',
+                        author: 'Band',
+                        metadata: {},
+                    },
+                    score: 0.8,
+                    reasons: [],
+                },
+            ]
+            const result = applySpanishLanguagePenalty(recs, false)
+            expect(result[0].score).toBe(0.8)
+        })
+
+        test('accepts Spanish in Spanish session', () => {
+            const recs = [
+                {
+                    track: {
+                        id: '1',
+                        title: 'Reggaeton Éxito',
+                        author: 'Latino',
+                        metadata: {},
+                    },
+                    score: 0.8,
+                    reasons: [],
+                },
+            ]
+            const result = applySpanishLanguagePenalty(recs, true)
+            expect(result[0].score).toBe(0.8)
+        })
+
+        test('handles empty array', () => {
+            expect(applySpanishLanguagePenalty([], false)).toEqual([])
+        })
+
+        test('handles mixed batch', () => {
+            const recs = [
+                {
+                    track: {
+                        id: '1',
+                        title: 'Reggaeton Éxito',
+                        author: 'Latino',
+                        metadata: {},
+                    },
+                    score: 0.8,
+                    reasons: [],
+                },
+                {
+                    track: {
+                        id: '2',
+                        title: 'Rock Song',
+                        author: 'Band',
+                        metadata: {},
+                    },
+                    score: 0.7,
+                    reasons: [],
+                },
+            ]
+            const result = applySpanishLanguagePenalty(recs, false)
+            expect(result[0].score).toBe(-2.0)
+            expect(result[1].score).toBe(0.7)
+        })
+    })
+
+    describe('blendRecommendations', () => {
+        const mockConfig: RecommendationConfig = {
+            maxRecommendations: 5,
+            diversityThreshold: 0.7,
+            prioritizeNewArtists: false,
+        }
+
+        test('returns empty array with no inputs', async () => {
+            applyDiversityFilterMock.mockImplementation((r) => r)
+            const result = await blendRecommendations([], [], [], mockConfig, [], false)
+            expect(result).toEqual([])
+        })
+
+        test('sorts by score descending', async () => {
+            applyDiversityFilterMock.mockImplementation((r) => r)
+            const primary = [
+                {
+                    track: { id: '1' },
+                    score: 0.5,
+                    reasons: [],
+                },
+                {
+                    track: { id: '2' },
+                    score: 0.9,
+                    reasons: [],
+                },
+            ]
+            const result = await blendRecommendations(
+                primary,
+                [],
+                [],
+                mockConfig,
+                [],
+                false,
+            )
+            expect(result[0].score >= result[1].score).toBe(true)
+        })
+
+        test('respects max recommendations', async () => {
+            applyDiversityFilterMock.mockImplementation((r) => r)
+            const primary = Array.from({ length: 10 }, (_, i) => ({
+                track: { id: String(i) },
+                score: 0.5,
+                reasons: [],
+            }))
+            const result = await blendRecommendations(
+                primary,
+                [],
+                [],
+                mockConfig,
+                [],
+                false,
+            )
+            expect(result.length <= 5).toBe(true)
+        })
+
+        test('sorts by score after filtering', async () => {
+            applyDiversityFilterMock.mockImplementation((r) => r)
+            const primary = [
+                { track: { id: '1' }, score: 0.5, reasons: [] },
+                { track: { id: '2' }, score: 0.9, reasons: [] },
+            ]
+            const result = await blendRecommendations(
+                primary,
+                [],
+                [],
+                mockConfig,
+                [],
+                false,
+            )
+            expect(result[0].score >= result[1].score).toBe(true)
+        })
+
+
+        test('handles negative scores', async () => {
+            applyDiversityFilterMock.mockImplementation((r) => r)
+            const primary = [
+                { track: { id: '1' }, score: -0.5, reasons: [] },
+                { track: { id: '2' }, score: 0.5, reasons: [] },
+            ]
+            const result = await blendRecommendations(
+                primary,
+                [],
+                [],
+                mockConfig,
+                [],
+                false,
+            )
+            expect(result[0].score >= result[1].score).toBe(true)
         })
     })
 })
