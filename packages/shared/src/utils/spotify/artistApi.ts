@@ -58,19 +58,34 @@ export async function getSpotifyRelatedArtists(
     artistId: string,
 ): Promise<SpotifyArtist[]> {
     try {
+        const params = new URLSearchParams({
+            seed_artists: artistId,
+            limit: '20',
+        })
         const res = await fetch(
-            `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/related-artists`,
+            `https://api.spotify.com/v1/recommendations?${params.toString()}`,
             { headers: { Authorization: `Bearer ${accessToken}` } },
         )
         if (!res.ok) return []
         const data = (await res.json().catch(() => null)) as {
-            artists?: unknown[]
+            tracks?: Array<{ artists?: unknown[] }>
         }
-        return (data?.artists ?? [])
-            .map((a) =>
-                mapSpotifyArtist(a as Parameters<typeof mapSpotifyArtist>[0]),
-            )
-            .filter((a): a is SpotifyArtist => a !== null)
+        const seenIds = new Set<string>()
+        const artists: SpotifyArtist[] = []
+        for (const track of data?.tracks ?? []) {
+            if (artists.length >= 12) break
+            for (const artist of track.artists ?? []) {
+                if (artists.length >= 12) break
+                const mapped = mapSpotifyArtist(
+                    artist as Parameters<typeof mapSpotifyArtist>[0],
+                )
+                if (mapped && !seenIds.has(mapped.id)) {
+                    seenIds.add(mapped.id)
+                    artists.push(mapped)
+                }
+            }
+        }
+        return artists
     } catch {
         return []
     }

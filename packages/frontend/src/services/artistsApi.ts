@@ -55,6 +55,21 @@ export function createArtistsApi(apiClient: AxiosInstance) {
                 data,
             ),
 
+        savePreferencesBatch: (data: {
+            guildId: string
+            items: Array<{
+                artistId: string
+                artistKey: string
+                artistName: string
+                imageUrl: string | null
+                preference: 'prefer' | 'block'
+            }>
+        }) =>
+            apiClient.put<{ preferences: ArtistPreference[] }>(
+                '/api/artists/preferences/batch',
+                data,
+            ),
+
         deletePreference: (artistKey: string, guildId: string) =>
             apiClient.delete<{ success: boolean }>(
                 `/users/me/preferred-artists/${encodeURIComponent(artistKey)}?guildId=${encodeURIComponent(guildId)}`,

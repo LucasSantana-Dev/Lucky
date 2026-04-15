@@ -11,6 +11,7 @@ const mockGetPreferences = vi.fn()
 const mockSearch = vi.fn()
 const mockGetRelated = vi.fn()
 const mockSavePreference = vi.fn()
+const mockSavePreferencesBatch = vi.fn()
 const mockDeletePreference = vi.fn()
 
 const mockGetSuggestions = vi.fn()
@@ -22,6 +23,8 @@ vi.mock('@/services/api', () => ({
             search: (...args: unknown[]) => mockSearch(...args),
             getRelated: (...args: unknown[]) => mockGetRelated(...args),
             savePreference: (...args: unknown[]) => mockSavePreference(...args),
+            savePreferencesBatch: (...args: unknown[]) =>
+                mockSavePreferencesBatch(...args),
             deletePreference: (...args: unknown[]) =>
                 mockDeletePreference(...args),
             getSuggestions: (...args: unknown[]) => mockGetSuggestions(...args),
@@ -87,6 +90,9 @@ describe('PreferredArtistsPage', () => {
         mockGetRelated.mockResolvedValue({ data: { artists: [] } })
         mockSavePreference.mockResolvedValue({
             data: { preference: mockPreference },
+        })
+        mockSavePreferencesBatch.mockResolvedValue({
+            data: { preferences: [mockPreference] },
         })
         mockDeletePreference.mockResolvedValue({ data: { success: true } })
         mockGetSuggestions.mockResolvedValue({ data: { artists: [] } })
@@ -432,7 +438,7 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(saveBtn)
         })
         await waitFor(() => {
-            expect(mockSavePreference).toHaveBeenCalled()
+            expect(mockSavePreferencesBatch).toHaveBeenCalledOnce()
         })
     })
 
@@ -500,10 +506,14 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(saveBtn)
         })
         await waitFor(() => {
-            expect(mockSavePreference).toHaveBeenCalledWith(
+            expect(mockSavePreferencesBatch).toHaveBeenCalledWith(
                 expect.objectContaining({
                     guildId: 'guild-1',
-                    preference: 'prefer',
+                    items: expect.arrayContaining([
+                        expect.objectContaining({
+                            preference: 'prefer',
+                        }),
+                    ]),
                 }),
             )
         })
@@ -517,7 +527,7 @@ describe('PreferredArtistsPage', () => {
             data: { artists: [mockArtist] },
         })
         mockGetPreferences.mockResolvedValue({ data: { preferences: [] } })
-        mockSavePreference.mockRejectedValueOnce(
+        mockSavePreferencesBatch.mockRejectedValueOnce(
             new Error('Network error'),
         )
         renderPage()
@@ -544,7 +554,7 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(saveBtn)
         })
         await waitFor(() => {
-            expect(mockSavePreference).toHaveBeenCalled()
+            expect(mockSavePreferencesBatch).toHaveBeenCalledOnce()
         })
     })
 

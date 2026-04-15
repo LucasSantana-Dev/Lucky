@@ -7,6 +7,7 @@ function makeClient(data: unknown = {}, status = 200): AxiosInstance {
     return {
         get: vi.fn().mockResolvedValue(response),
         post: vi.fn().mockResolvedValue(response),
+        put: vi.fn().mockResolvedValue(response),
         delete: vi.fn().mockResolvedValue(response),
     } as unknown as AxiosInstance
 }
@@ -79,6 +80,94 @@ describe('createArtistsApi', () => {
                 '/users/me/preferred-artists',
                 data,
             )
+        })
+    })
+
+    describe('savePreferencesBatch', () => {
+        it('calls PUT /api/artists/preferences/batch with data', async () => {
+            const data = {
+                guildId: 'g1',
+                items: [
+                    {
+                        artistId: 'sp1',
+                        artistKey: 'thebeatles',
+                        artistName: 'The Beatles',
+                        imageUrl: 'http://img.example.com/a.jpg',
+                        preference: 'prefer' as const,
+                    },
+                    {
+                        artistId: 'sp2',
+                        artistKey: 'pinkfloyd',
+                        artistName: 'Pink Floyd',
+                        imageUrl: 'http://img.example.com/b.jpg',
+                        preference: 'block' as const,
+                    },
+                ],
+            }
+            await api.savePreferencesBatch(data)
+            expect(client.put).toHaveBeenCalledWith(
+                '/api/artists/preferences/batch',
+                data,
+            )
+        })
+
+        it('handles success response', async () => {
+            const mockPreferences = [
+                {
+                    id: 'p1',
+                    discordUserId: 'u1',
+                    guildId: 'g1',
+                    artistKey: 'thebeatles',
+                    artistName: 'The Beatles',
+                    spotifyId: 'sp1',
+                    imageUrl: 'http://img.example.com/a.jpg',
+                    preference: 'prefer' as const,
+                    createdAt: '2026-04-15T00:00:00Z',
+                    updatedAt: '2026-04-15T00:00:00Z',
+                },
+            ]
+            client = makeClient({ preferences: mockPreferences })
+            api = createArtistsApi(client)
+
+            const data = {
+                guildId: 'g1',
+                items: [
+                    {
+                        artistId: 'sp1',
+                        artistKey: 'thebeatles',
+                        artistName: 'The Beatles',
+                        imageUrl: 'http://img.example.com/a.jpg',
+                        preference: 'prefer' as const,
+                    },
+                ],
+            }
+            const result = await api.savePreferencesBatch(data)
+
+            expect(result.data).toEqual({ preferences: mockPreferences })
+        })
+
+        it('handles error response', async () => {
+            client = makeClient(
+                { error: 'Failed to save' },
+                500,
+            )
+            api = createArtistsApi(client)
+
+            const data = {
+                guildId: 'g1',
+                items: [
+                    {
+                        artistId: 'sp1',
+                        artistKey: 'thebeatles',
+                        artistName: 'The Beatles',
+                        imageUrl: null,
+                        preference: 'prefer' as const,
+                    },
+                ],
+            }
+            const result = await api.savePreferencesBatch(data)
+
+            expect(result.status).toBe(500)
         })
     })
 

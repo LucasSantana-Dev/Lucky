@@ -38,6 +38,7 @@ jest.mock('@lucky/shared/services', () => ({
 const mockApp = {
 	get: jest.fn(),
 	post: jest.fn(),
+	put: jest.fn(),
 	delete: jest.fn(),
 } as unknown as Express
 
@@ -518,6 +519,169 @@ describe('Artists Routes', () => {
 			await handler(req, res)
 
 			expect(res.status).toHaveBeenCalledWith(500)
+		})
+	})
+
+	describe('PUT /api/artists/preferences/batch', () => {
+		test('should save multiple artist preferences', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: 'guild-1',
+					items: [
+						{
+							artistId: 'spotify-1',
+							artistKey: 'drake',
+							artistName: 'Drake',
+							imageUrl: 'https://example.com/image.jpg',
+							preference: 'prefer',
+						},
+						{
+							artistId: 'spotify-2',
+							artistKey: 'weeknd',
+							artistName: 'The Weeknd',
+							imageUrl: 'https://example.com/weeknd.jpg',
+							preference: 'block',
+						},
+					],
+				},
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					upsert: jest.fn().mockResolvedValue(mockPreference),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(mockDb.userArtistPreference.upsert).toHaveBeenCalledTimes(2)
+			expect(res.json).toHaveBeenCalledWith({
+				preferences: expect.any(Array),
+			})
+		})
+
+		test('should handle empty items array', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: 'guild-1',
+					items: [],
+				},
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					upsert: jest.fn(),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(mockDb.userArtistPreference.upsert).toHaveBeenCalledTimes(0)
+			expect(res.json).toHaveBeenCalledWith({
+				preferences: [],
+			})
+		})
+
+		test('should return 400 on invalid request body', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: '',
+					items: [{ artistId: '' }],
+				},
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(400)
+			expect(res.json).toHaveBeenCalledWith(
+				expect.objectContaining({
+					error: expect.any(String),
+				}),
+			)
+		})
+
+		test('should return 401 when not authenticated', async () => {
+			const req = createMockRequest({
+				user: undefined,
+				body: {
+					guildId: 'guild-1',
+					items: [
+						{
+							artistId: 'spotify-1',
+							artistKey: 'drake',
+							artistName: 'Drake',
+							imageUrl: null,
+							preference: 'prefer',
+						},
+					],
+				},
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(401)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Not authenticated',
+			})
+		})
+
+		test('should return 500 on database error', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: 'guild-1',
+					items: [
+						{
+							artistId: 'spotify-1',
+							artistKey: 'drake',
+							artistName: 'Drake',
+							imageUrl: 'https://example.com/image.jpg',
+							preference: 'prefer',
+						},
+					],
+				},
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					upsert: jest
+						.fn()
+						.mockRejectedValue(new Error('Database error')),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(500)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Failed to save preferences',
+			})
 		})
 	})
 
