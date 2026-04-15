@@ -27,7 +27,7 @@ function ArtistAvatar({
     onClick,
 }: {
     artist: SpotifyArtist
-    size?: 'sm' | 'md' | 'lg'
+    size?: 'sm' | 'md' | 'lg' | 'xl'
     active?: boolean
     preference?: 'prefer' | 'block' | null
     onClick?: () => void
@@ -36,12 +36,14 @@ function ArtistAvatar({
         sm: 'w-14 h-14',
         md: 'w-20 h-20',
         lg: 'w-24 h-24',
+        xl: 'w-32 h-32',
     }
 
     const textSize = {
         sm: 'text-xs',
         md: 'text-sm',
         lg: 'text-base',
+        xl: 'text-base',
     }
 
     const initial = artist.name.charAt(0).toUpperCase()
@@ -518,7 +520,7 @@ export default function PreferredArtistsPage() {
                             )}
 
                         {!searching && displayArtists.length > 0 && (
-                            <div className='mt-4 flex flex-wrap gap-1'>
+                            <div className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'>
                                 {displayArtists.map((artist) => {
                                     const key = normalizeArtistKey(artist.name)
                                     const unsaved =
@@ -534,6 +536,7 @@ export default function PreferredArtistsPage() {
                                         >
                                             <ArtistAvatar
                                                 artist={artist}
+                                                size='xl'
                                                 active={
                                                     selectedArtist?.id ===
                                                     artist.id
@@ -566,13 +569,14 @@ export default function PreferredArtistsPage() {
                             <p className='mb-3 text-[10px] font-semibold uppercase tracking-wide text-lucky-text-subtle'>
                                 Blocked Artists
                             </p>
-                            <div className='flex flex-wrap gap-1'>
+                            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'>
                                 {blockedArtists.map((pref) => {
                                     const artist = prefToArtist(pref)
                                     return (
                                         <div key={pref.id} className='transition-opacity'>
                                             <ArtistAvatar
                                                 artist={artist}
+                                                size='xl'
                                                 active={
                                                     selectedArtist?.id ===
                                                         artist.id ||

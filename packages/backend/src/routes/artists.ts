@@ -58,7 +58,7 @@ export function setupArtistsRoutes(app: Express): void {
                 if (link) {
                     try {
                         const userTopRes = await fetch(
-                            'https://api.spotify.com/v1/me/top/artists?limit=12&time_range=medium_term',
+                            'https://api.spotify.com/v1/me/top/artists?limit=24&time_range=medium_term',
                             {
                                 headers: {
                                     Authorization: `Bearer ${link}`,
@@ -81,7 +81,7 @@ export function setupArtistsRoutes(app: Express): void {
                                     if (
                                         artist.id &&
                                         artist.name &&
-                                        suggestions.size < 12
+                                        suggestions.size < 24
                                     ) {
                                         suggestions.set(artist.id, {
                                             id: artist.id,
@@ -100,7 +100,7 @@ export function setupArtistsRoutes(app: Express): void {
                     }
                 }
 
-                if (suggestions.size < 12) {
+                if (suggestions.size < 24) {
                     const suggestQueries = [
                         'Drake',
                         'The Weeknd',
@@ -112,7 +112,7 @@ export function setupArtistsRoutes(app: Express): void {
                         'Ed Sheeran',
                     ]
                     for (const query of suggestQueries) {
-                        if (suggestions.size >= 12) break
+                        if (suggestions.size >= 24) break
                         try {
                             const artists = await searchSpotifyArtists(
                                 clientToken,
@@ -120,7 +120,7 @@ export function setupArtistsRoutes(app: Express): void {
                                 2,
                             )
                             for (const artist of artists) {
-                                if (suggestions.size >= 12) break
+                                if (suggestions.size >= 24) break
                                 if (!suggestions.has(artist.id)) {
                                     suggestions.set(artist.id, artist)
                                 }
