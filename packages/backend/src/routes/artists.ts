@@ -144,6 +144,7 @@ export function setupArtistsRoutes(app: Express): void {
                     }
                 }
 
+                res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
                 res.json({
                     artists: Array.from(suggestions.values()),
                 })
