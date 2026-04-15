@@ -5,6 +5,7 @@ import {
     getPrismaClient,
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
+    type SpotifyArtist,
 } from '@lucky/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import {
@@ -49,7 +50,7 @@ export function setupArtistsRoutes(app: Express): void {
                     return
                 }
 
-                const suggestions = new Map<string, any>()
+                const suggestions = new Map<string, SpotifyArtist>()
 
                 const link = await spotifyLinkService.getValidAccessToken(
                     discordUserId,
