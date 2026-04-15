@@ -1,4 +1,5 @@
 export * from './general/log'
+export * from './general/errorSanitizer'
 export * from './spotify/artistApi'
 export * from './errorHandler'
 export * from './error/errorHandler'

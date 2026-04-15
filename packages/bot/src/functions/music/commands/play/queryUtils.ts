@@ -13,7 +13,7 @@ import {
 } from '../../../../utils/music/buttonComponents'
 import { createErrorEmbed } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { createUserFriendlyError } from '@lucky/shared/utils'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 
 export const DISCORD_UNKNOWN_INTERACTION_CODE = 10062

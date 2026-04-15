@@ -27,7 +27,7 @@ jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     createUserFriendlyError: jest.fn((error) => 'User friendly error'),
 }))
 

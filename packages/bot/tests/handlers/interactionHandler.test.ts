@@ -33,7 +33,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
 }))
 
-jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     createUserFriendlyError: (...args: unknown[]) =>
         createUserFriendlyErrorMock(...args),
 }))

@@ -141,7 +141,7 @@ jest.mock('../../../../utils/music/buttonComponents', () => ({
         createMusicControlButtonsMock(queue),
 }))
 
-jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     createUserFriendlyError: (error: unknown) => 'User friendly error',
 }))
 

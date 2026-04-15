@@ -24,7 +24,7 @@ jest.mock('../utils/monitoring', () => ({
     monitorCommandExecution: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils', () => ({
     createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
 }))
 
@@ -32,7 +32,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { createUserFriendlyError } from '@lucky/shared/utils'
 
 function createMockCommand(overrides?: Partial<Command>): Command {
     return {
