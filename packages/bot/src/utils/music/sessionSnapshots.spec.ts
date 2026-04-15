@@ -421,3 +421,62 @@ describe('MusicSessionSnapshotService', () => {
         expect(delMock).not.toHaveBeenCalled()
     })
 })
+
+    it('skips current track when skipCurrentTrack option is true', async () => {
+        const service = new MusicSessionSnapshotService(300)
+        const snapshot = {
+            sessionSnapshotId: 'snap-skip-current',
+            guildId: 'guild-skip',
+            savedAt: Date.now(),
+            currentTrack: {
+                title: 'Same Song',
+                author: 'Artist',
+                url: 'https://example.com/same',
+                duration: '3:00',
+                source: 'youtube',
+            },
+            upcomingTracks: [
+                {
+                    title: 'Next Song',
+                    author: 'Next Artist',
+                    url: 'https://example.com/next',
+                    duration: '3:00',
+                    source: 'youtube',
+                },
+            ],
+        }
+        getMock.mockResolvedValue(JSON.stringify(snapshot))
+        delMock.mockResolvedValue(1)
+
+        const addTrack = jest.fn()
+        const queue = {
+            guild: { id: 'guild-skip' },
+            currentTrack: null,
+            tracks: { size: 0 },
+            addTrack,
+            node: {
+                isPlaying: () => false,
+                play: jest.fn().mockResolvedValue(undefined),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Next Song',
+                            author: 'Next Artist',
+                            url: 'https://example.com/next',
+                            metadata: null,
+                            setMetadata: jest.fn(),
+                        },
+                    ],
+                }),
+            },
+        } as unknown as GuildQueue
+
+        await service.restoreSnapshot(queue, undefined, { skipCurrentTrack: true })
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect(addTrack.mock.calls[0]?.[0]).toMatchObject({
+            title: 'Next Song',
+        })
+    })
