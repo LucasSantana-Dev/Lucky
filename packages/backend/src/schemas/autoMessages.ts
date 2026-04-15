@@ -1,8 +1,5 @@
 import { z } from 'zod'
-
-const guildIdParam = z.object({
-    guildId: z.string().regex(/^\d{17,20}$/, 'Invalid guild ID'),
-})
+import { guildIdParam } from './common'
 
 const messageIdParam = guildIdParam.extend({
     id: z.string().min(1).max(100),
