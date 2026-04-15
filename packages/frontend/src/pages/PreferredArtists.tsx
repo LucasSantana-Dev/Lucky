@@ -297,10 +297,12 @@ export default function PreferredArtistsPage() {
     const [searching, setSearching] = useState(false)
     const [searchError, setSearchError] = useState<string | null>(null)
 
+    const [suggestedArtists, setSuggestedArtists] = useState<SpotifyArtist[]>([])
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+
     const [savedPreferences, setSavedPreferences] = useState<
         Map<string, ArtistPreference>
     >(new Map())
-    const [prefsLoading, setPrefsLoading] = useState(false)
 
     const [selectedArtist, setSelectedArtist] = useState<SpotifyArtist | null>(
         null,
@@ -308,13 +310,15 @@ export default function PreferredArtistsPage() {
     const [relatedArtists, setRelatedArtists] = useState<SpotifyArtist[]>([])
     const [relatedLoading, setRelatedLoading] = useState(false)
 
-    const [savingKeys, setSavingKeys] = useState<Set<string>>(new Set())
+    const [unsavedChanges, setUnsavedChanges] = useState<
+        Map<string, { preference: 'prefer' | 'block'; artist: SpotifyArtist }>
+    >(new Map())
+    const [isSaving, setIsSaving] = useState(false)
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const loadPreferences = useCallback(async () => {
         if (!guildId) return
-        setPrefsLoading(true)
         try {
             const res = await api.artists.getPreferences(guildId)
             const map = new Map<string, ArtistPreference>()
@@ -324,14 +328,25 @@ export default function PreferredArtistsPage() {
             setSavedPreferences(map)
         } catch {
             // non-critical
-        } finally {
-            setPrefsLoading(false)
         }
     }, [guildId])
 
+    const loadSuggestions = useCallback(async () => {
+        setSuggestionsLoading(true)
+        try {
+            const res = await api.artists.getSuggestions()
+            setSuggestedArtists(res.data.artists)
+        } catch {
+            setSuggestedArtists([])
+        } finally {
+            setSuggestionsLoading(false)
+        }
+    }, [])
+
     useEffect(() => {
         loadPreferences()
-    }, [loadPreferences])
+        loadSuggestions()
+    }, [loadPreferences, loadSuggestions])
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -374,77 +389,62 @@ export default function PreferredArtistsPage() {
     }, [])
 
     const handleTogglePreference = useCallback(
-        async (artist: SpotifyArtist, pref: 'prefer' | 'block') => {
-            if (!guildId) return
+        (artist: SpotifyArtist, pref: 'prefer' | 'block') => {
             const key = normalizeArtistKey(artist.name)
-            setSavingKeys((prev) => new Set(prev).add(key))
-            try {
-                const res = await api.artists.savePreference({
+            setUnsavedChanges((prev) => {
+                const next = new Map(prev)
+                next.set(key, { preference: pref, artist })
+                return next
+            })
+        },
+        [],
+    )
+
+    const handleRemovePreference = useCallback((artist: SpotifyArtist) => {
+        const key = normalizeArtistKey(artist.name)
+        setUnsavedChanges((prev) => {
+            const next = new Map(prev)
+            next.delete(key)
+            return next
+        })
+    }, [])
+
+    const handleSavePreferences = useCallback(async () => {
+        if (!guildId || unsavedChanges.size === 0) return
+        setIsSaving(true)
+        try {
+            for (const [key, { preference, artist }] of unsavedChanges) {
+                await api.artists.savePreference({
                     guildId,
                     artistKey: key,
                     artistName: artist.name,
                     spotifyId: artist.id,
                     imageUrl: artist.imageUrl ?? undefined,
-                    preference: pref,
-                })
-                setSavedPreferences((prev) => {
-                    const next = new Map(prev)
-                    next.set(key, res.data.preference)
-                    return next
-                })
-            } catch {
-                // ignore
-            } finally {
-                setSavingKeys((prev) => {
-                    const next = new Set(prev)
-                    next.delete(key)
-                    return next
+                    preference,
                 })
             }
-        },
-        [guildId],
-    )
+            await loadPreferences()
+            setUnsavedChanges(new Map())
+        } catch {
+            // error handling could be improved with a toast
+        } finally {
+            setIsSaving(false)
+        }
+    }, [guildId, unsavedChanges, loadPreferences])
 
-    const handleRemovePreference = useCallback(
-        async (artist: SpotifyArtist) => {
-            if (!guildId) return
-            const key = normalizeArtistKey(artist.name)
-            setSavingKeys((prev) => new Set(prev).add(key))
-            try {
-                await api.artists.deletePreference(key, guildId)
-                setSavedPreferences((prev) => {
-                    const next = new Map(prev)
-                    next.delete(key)
-                    return next
-                })
-            } catch {
-                // ignore
-            } finally {
-                setSavingKeys((prev) => {
-                    const next = new Set(prev)
-                    next.delete(key)
-                    return next
-                })
-            }
-        },
-        [guildId],
-    )
-
-    const preferredArtists = [...savedPreferences.values()].filter(
-        (p) => p.preference === 'prefer',
-    )
     const blockedArtists = [...savedPreferences.values()].filter(
         (p) => p.preference === 'block',
     )
 
     const selectedPreference = selectedArtist
-        ? (savedPreferences.get(normalizeArtistKey(selectedArtist.name))
-              ?.preference ?? null)
+        ? (unsavedChanges.get(normalizeArtistKey(selectedArtist.name))
+                ?.preference ??
+            savedPreferences.get(normalizeArtistKey(selectedArtist.name))
+                ?.preference ??
+            null)
         : null
 
-    const displayArtists = query.trim()
-        ? searchResults
-        : preferredArtists.map(prefToArtist)
+    const displayArtists = query.trim() ? searchResults : suggestedArtists
 
     if (!selectedGuild) {
         return (
@@ -509,21 +509,28 @@ export default function PreferredArtistsPage() {
                                 </p>
                             )}
 
+                        {!searching &&
+                            !query.trim() &&
+                            suggestionsLoading && (
+                                <div className='flex items-center justify-center py-6'>
+                                    <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
+                                </div>
+                            )}
+
                         {!searching && displayArtists.length > 0 && (
                             <div className='mt-4 flex flex-wrap gap-1'>
                                 {displayArtists.map((artist) => {
                                     const key = normalizeArtistKey(artist.name)
+                                    const unsaved =
+                                        unsavedChanges.get(key)?.preference ?? null
                                     const pref =
+                                        unsaved ??
                                         savedPreferences.get(key)?.preference ??
                                         null
-                                    const isSaving = savingKeys.has(key)
                                     return (
                                         <div
                                             key={artist.id + key}
-                                            className={cn(
-                                                'transition-opacity',
-                                                isSaving && 'opacity-50',
-                                            )}
+                                            className='transition-opacity'
                                         >
                                             <ArtistAvatar
                                                 artist={artist}
@@ -543,21 +550,15 @@ export default function PreferredArtistsPage() {
                         )}
 
                         {!query.trim() &&
-                            preferredArtists.length === 0 &&
-                            !prefsLoading && (
+                            displayArtists.length === 0 &&
+                            !suggestionsLoading && (
                                 <div className='py-6 text-center'>
                                     <p className='type-body-sm text-lucky-text-tertiary'>
-                                        Search for artists above to add your
-                                        preferences
+                                        No suggestions available. Try searching
+                                        for artists above.
                                     </p>
                                 </div>
                             )}
-
-                        {prefsLoading && !query.trim() && (
-                            <div className='flex items-center justify-center py-6'>
-                                <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
-                            </div>
-                        )}
                     </div>
 
                     {blockedArtists.length > 0 && (
@@ -568,17 +569,8 @@ export default function PreferredArtistsPage() {
                             <div className='flex flex-wrap gap-1'>
                                 {blockedArtists.map((pref) => {
                                     const artist = prefToArtist(pref)
-                                    const isSaving = savingKeys.has(
-                                        pref.artistKey,
-                                    )
                                     return (
-                                        <div
-                                            key={pref.id}
-                                            className={cn(
-                                                'transition-opacity',
-                                                isSaving && 'opacity-50',
-                                            )}
-                                        >
+                                        <div key={pref.id} className='transition-opacity'>
                                             <ArtistAvatar
                                                 artist={artist}
                                                 active={
@@ -599,6 +591,29 @@ export default function PreferredArtistsPage() {
                                 })}
                             </div>
                         </div>
+                    )}
+
+                    {unsavedChanges.size > 0 && (
+                        <button
+                            type='button'
+                            onClick={handleSavePreferences}
+                            disabled={isSaving}
+                            className={cn(
+                                'lucky-focus-visible w-full rounded-lg px-4 py-2.5 type-body-sm font-medium transition-colors',
+                                isSaving
+                                    ? 'bg-lucky-brand/50 text-white'
+                                    : 'bg-lucky-brand text-white hover:bg-lucky-brand/90',
+                            )}
+                        >
+                            {isSaving ? (
+                                <div className='flex items-center justify-center gap-2'>
+                                    <Loader2 className='h-4 w-4 animate-spin' />
+                                    Saving...
+                                </div>
+                            ) : (
+                                `Save Preferences (${unsavedChanges.size})`
+                            )}
+                        </button>
                     )}
                 </div>
 

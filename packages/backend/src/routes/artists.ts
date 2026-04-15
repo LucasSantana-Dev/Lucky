@@ -5,12 +5,14 @@ import {
     getPrismaClient,
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
+    type SpotifyArtist,
 } from '@lucky/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import {
     getSpotifyClientToken,
     isSpotifyAuthConfigured,
 } from '../services/SpotifyAuthService'
+import { spotifyLinkService } from '@lucky/shared/services'
 
 const saveArtistBody = z.object({
     guildId: z.string().min(1),
@@ -26,6 +28,122 @@ function normalizeArtistKey(name: string): string {
 }
 
 export function setupArtistsRoutes(app: Express): void {
+    app.get(
+        '/api/artists/suggestions',
+        requireAuth,
+        async (req: AuthenticatedRequest, res: Response) => {
+            try {
+                const discordUserId = req.user?.id
+                if (!discordUserId) {
+                    res.status(401).json({ error: 'Not authenticated' })
+                    return
+                }
+                if (!isSpotifyAuthConfigured()) {
+                    res.status(503).json({ error: 'Spotify not configured' })
+                    return
+                }
+                const clientToken = await getSpotifyClientToken()
+                if (!clientToken) {
+                    res.status(503).json({
+                        error: 'Failed to get Spotify token',
+                    })
+                    return
+                }
+
+                const suggestions = new Map<string, SpotifyArtist>()
+
+                const link = await spotifyLinkService.getValidAccessToken(
+                    discordUserId,
+                )
+                if (link) {
+                    try {
+                        const userTopRes = await fetch(
+                            'https://api.spotify.com/v1/me/top/artists?limit=12&time_range=medium_term',
+                            {
+                                headers: {
+                                    Authorization: `Bearer ${link}`,
+                                },
+                            },
+                        )
+                        if (userTopRes.ok) {
+                            const data = (await userTopRes.json()) as {
+                                items?: unknown[]
+                            }
+                            if (Array.isArray(data.items)) {
+                                for (const item of data.items) {
+                                    const artist = item as {
+                                        id?: string
+                                        name?: string
+                                        images?: { url: string }[]
+                                        popularity?: number
+                                        genres?: string[]
+                                    }
+                                    if (
+                                        artist.id &&
+                                        artist.name &&
+                                        suggestions.size < 12
+                                    ) {
+                                        suggestions.set(artist.id, {
+                                            id: artist.id,
+                                            name: artist.name,
+                                            imageUrl:
+                                                artist.images?.[0]?.url ?? null,
+                                            popularity: artist.popularity ?? 0,
+                                            genres: artist.genres ?? [],
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    } catch {
+                        // Fall back to popular artists
+                    }
+                }
+
+                if (suggestions.size < 12) {
+                    const suggestQueries = [
+                        'Drake',
+                        'The Weeknd',
+                        'Dua Lipa',
+                        'Billie Eilish',
+                        'Bad Bunny',
+                        'Ariana Grande',
+                        'Taylor Swift',
+                        'Ed Sheeran',
+                    ]
+                    for (const query of suggestQueries) {
+                        if (suggestions.size >= 12) break
+                        try {
+                            const artists = await searchSpotifyArtists(
+                                clientToken,
+                                query,
+                                2,
+                            )
+                            for (const artist of artists) {
+                                if (suggestions.size >= 12) break
+                                if (!suggestions.has(artist.id)) {
+                                    suggestions.set(artist.id, artist)
+                                }
+                            }
+                        } catch {
+                            // continue to next query
+                        }
+                    }
+                }
+
+                res.json({
+                    artists: Array.from(suggestions.values()),
+                })
+            } catch (error) {
+                errorLog({
+                    message: 'Artist suggestions error',
+                    error,
+                })
+                res.status(500).json({ error: 'Failed to get suggestions' })
+            }
+        },
+    )
+
     app.get(
         '/api/artists/search',
         requireAuth,

@@ -23,6 +23,9 @@ export interface ArtistPreference {
 
 export function createArtistsApi(apiClient: AxiosInstance) {
     return {
+        getSuggestions: () =>
+            apiClient.get<{ artists: SpotifyArtist[] }>('/artists/suggestions'),
+
         search: (query: string) =>
             apiClient.get<{ artists: SpotifyArtist[] }>(
                 `/artists/search?q=${encodeURIComponent(query)}`,

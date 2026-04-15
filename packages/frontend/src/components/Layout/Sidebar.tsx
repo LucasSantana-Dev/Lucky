@@ -486,10 +486,12 @@ function Sidebar() {
 
     const isActive = (path: string) => {
         if (path === '/') return location.pathname === '/'
-        return (
-            location.pathname === path ||
-            location.pathname.startsWith(path + '/')
-        )
+        const exact = location.pathname === path
+        const withChild = location.pathname.startsWith(path + '/')
+        if (path === '/music' && location.pathname === '/music/artists') {
+            return false
+        }
+        return exact || withChild
     }
 
     const effectiveAccess =

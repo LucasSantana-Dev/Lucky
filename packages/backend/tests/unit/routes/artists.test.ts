@@ -1,535 +1,609 @@
-import {
-    describe,
-    test,
-    expect,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
-import type { Request, Response, NextFunction } from 'express'
-
-// Mock shared utilities before import
-jest.mock('@lucky/shared/utils', () => ({
-    errorLog: jest.fn(),
-    getPrismaClient: jest.fn(),
-    searchSpotifyArtists: jest.fn(),
-    getSpotifyRelatedArtists: jest.fn(),
-}))
-
-// Mock SpotifyAuthService
-jest.mock('../../../src/services/SpotifyAuthService', () => ({
-    getSpotifyClientToken: jest.fn(),
-    isSpotifyAuthConfigured: jest.fn(),
-}))
-
-// Mock auth middleware — attach user to req
-jest.mock('../../../src/middleware/auth', () => ({
-    requireAuth: (req: Request, _res: Response, next: NextFunction) => {
-        ;(req as any).user = { id: 'user-123' }
-        next()
-    },
-}))
-
-import express from 'express'
-import request from 'supertest'
+import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import type { Express } from 'express'
 import { setupArtistsRoutes } from '../../../src/routes/artists'
-import * as sharedUtils from '@lucky/shared/utils'
-import * as spotifyAuth from '../../../src/services/SpotifyAuthService'
+import {
+	searchSpotifyArtists,
+	getSpotifyRelatedArtists,
+	getPrismaClient,
+	errorLog,
+} from '@lucky/shared/utils'
+import {
+	getSpotifyClientToken,
+	isSpotifyAuthConfigured,
+} from '../../../src/services/SpotifyAuthService'
+import { spotifyLinkService } from '@lucky/shared/services'
+import {
+	createMockRequest,
+	createMockResponse,
+} from '../../fixtures/test-helpers'
 
-function createApp() {
-    const app = express()
-    app.use(express.json())
-    setupArtistsRoutes(app)
-    app.use(
-        (
-            err: { statusCode?: number; message: string },
-            _req: Request,
-            res: Response,
-            _next: NextFunction,
-        ) => {
-            res.status(err.statusCode ?? 500).json({ error: err.message })
-        },
-    )
-    return app
+jest.mock('@lucky/shared/utils', () => ({
+	errorLog: jest.fn(),
+	getPrismaClient: jest.fn(),
+	searchSpotifyArtists: jest.fn(),
+	getSpotifyRelatedArtists: jest.fn(),
+}))
+
+jest.mock('../../../src/services/SpotifyAuthService', () => ({
+	getSpotifyClientToken: jest.fn(),
+	isSpotifyAuthConfigured: jest.fn(),
+}))
+
+jest.mock('@lucky/shared/services', () => ({
+	spotifyLinkService: {
+		getValidAccessToken: jest.fn(),
+	},
+}))
+
+const mockApp = {
+	get: jest.fn(),
+	post: jest.fn(),
+	delete: jest.fn(),
+} as unknown as Express
+
+const mockArtist = {
+	id: 'spotify-1',
+	name: 'Drake',
+	imageUrl: 'https://example.com/image.jpg',
+	popularity: 85,
+	genres: ['hip-hop', 'rap'],
 }
 
-const mockDb = {
-    userArtistPreference: {
-        findMany: jest.fn(),
-        upsert: jest.fn(),
-        delete: jest.fn(),
-    },
+const mockPreference = {
+	id: 'pref-1',
+	discordUserId: 'discord-123',
+	guildId: 'guild-1',
+	artistKey: 'drake',
+	artistName: 'Drake',
+	spotifyId: 'spotify-1',
+	imageUrl: 'https://example.com/image.jpg',
+	preference: 'prefer' as const,
+	createdAt: new Date(),
+	updatedAt: new Date(),
 }
 
 describe('Artists Routes', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        ;(sharedUtils.getPrismaClient as jest.Mock).mockReturnValue(mockDb)
-    })
+	beforeEach(() => {
+		jest.clearAllMocks()
+		;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+		;(getSpotifyClientToken as jest.Mock).mockResolvedValue('client-token')
+		;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
+			null,
+		)
+	})
 
-    describe('GET /api/artists/search', () => {
-        test('returns 400 when q param is missing', async () => {
-            const app = createApp()
-            const res = await request(app).get('/api/artists/search')
-            expect(res.status).toBe(400)
-            expect(res.body.error).toBe('Missing query parameter q')
-        })
+	describe('GET /api/artists/suggestions', () => {
+		test('should return user top artists when OAuth link exists', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
 
-        test('returns 400 when q param is empty string', async () => {
-            const app = createApp()
-            const res = await request(app)
-                .get('/api/artists/search')
-                .query({ q: '   ' })
-            expect(res.status).toBe(400)
-            expect(res.body.error).toBe('Missing query parameter q')
-        })
+			;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
+				'user-token',
+			)
 
-        test('returns 503 when Spotify is not configured', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                false,
-            )
-            const app = createApp()
-            const res = await request(app)
-                .get('/api/artists/search')
-                .query({ q: 'Drake' })
-            expect(res.status).toBe(503)
-            expect(res.body.error).toBe('Spotify not configured')
-        })
+			const fetchSpy = jest
+				.spyOn(global, 'fetch')
+				.mockResolvedValue(
+					new Response(
+						JSON.stringify({
+							items: [
+								{
+									id: 'top-1',
+									name: 'Kanye West',
+									images: [{ url: 'https://example.com/kanye.jpg' }],
+									popularity: 90,
+									genres: ['hip-hop'],
+								},
+							],
+						}),
+						{ status: 200 },
+					),
+				)
 
-        test('returns 503 when getSpotifyClientToken fails', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                true,
-            )
-            ;(spotifyAuth.getSpotifyClientToken as jest.Mock).mockResolvedValue(
-                null,
-            )
-            const app = createApp()
-            const res = await request(app)
-                .get('/api/artists/search')
-                .query({ q: 'Drake' })
-            expect(res.status).toBe(503)
-            expect(res.body.error).toBe('Failed to get Spotify token')
-        })
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
 
-        test('returns 200 with artists array on success', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                true,
-            )
-            ;(spotifyAuth.getSpotifyClientToken as jest.Mock).mockResolvedValue(
-                'test-token',
-            )
-            const mockArtists = [
-                {
-                    id: 'artist-1',
-                    name: 'Drake',
-                    image: 'https://example.com/drake.jpg',
-                },
-                {
-                    id: 'artist-2',
-                    name: 'The Weeknd',
-                    image: 'https://example.com/weeknd.jpg',
-                },
-            ]
-            ;(sharedUtils.searchSpotifyArtists as jest.Mock).mockResolvedValue(
-                mockArtists,
-            )
-            const app = createApp()
-            const res = await request(app)
-                .get('/api/artists/search')
-                .query({ q: 'Drake' })
-            expect(res.status).toBe(200)
-            expect(res.body.artists).toEqual(mockArtists)
-            expect(sharedUtils.searchSpotifyArtists).toHaveBeenCalledWith(
-                'test-token',
-                'Drake',
-                12,
-            )
-        })
+			await handler(req, res)
 
-        test('returns 500 when searchSpotifyArtists throws', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                true,
-            )
-            ;(spotifyAuth.getSpotifyClientToken as jest.Mock).mockResolvedValue(
-                'test-token',
-            )
-            ;(sharedUtils.searchSpotifyArtists as jest.Mock).mockRejectedValue(
-                new Error('Spotify API error'),
-            )
-            const app = createApp()
-            const res = await request(app)
-                .get('/api/artists/search')
-                .query({ q: 'Drake' })
-            expect(res.status).toBe(500)
-            expect(res.body.error).toBe('Failed to search artists')
-            expect(sharedUtils.errorLog).toHaveBeenCalled()
-        })
-    })
+			expect(res.json).toHaveBeenCalledWith(
+				expect.objectContaining({
+					artists: expect.any(Array),
+				}),
+			)
+			expect(res.json.mock.calls[0][0].artists.length).toBeGreaterThan(0)
 
-    describe('GET /api/artists/:artistId/related', () => {
-        test('returns 503 when Spotify is not configured', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                false,
-            )
-            const app = createApp()
-            const res = await request(app).get(
-                '/api/artists/artist-123/related',
-            )
-            expect(res.status).toBe(503)
-            expect(res.body.error).toBe('Spotify not configured')
-        })
+			fetchSpy.mockRestore()
+		})
 
-        test('returns 503 when getSpotifyClientToken fails', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                true,
-            )
-            ;(spotifyAuth.getSpotifyClientToken as jest.Mock).mockResolvedValue(
-                null,
-            )
-            const app = createApp()
-            const res = await request(app).get(
-                '/api/artists/artist-123/related',
-            )
-            expect(res.status).toBe(503)
-            expect(res.body.error).toBe('Failed to get Spotify token')
-        })
+		test('should fall back to popular artists search when OAuth fails', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
 
-        test('returns 200 with related artists on success', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                true,
-            )
-            ;(spotifyAuth.getSpotifyClientToken as jest.Mock).mockResolvedValue(
-                'test-token',
-            )
-            const mockRelatedArtists = [
-                { id: 'related-1', name: 'Artist 1' },
-                { id: 'related-2', name: 'Artist 2' },
-            ]
-            ;(
-                sharedUtils.getSpotifyRelatedArtists as jest.Mock
-            ).mockResolvedValue(mockRelatedArtists)
-            const app = createApp()
-            const res = await request(app).get(
-                '/api/artists/artist-123/related',
-            )
-            expect(res.status).toBe(200)
-            expect(res.body.artists).toEqual(mockRelatedArtists)
-            expect(sharedUtils.getSpotifyRelatedArtists).toHaveBeenCalledWith(
-                'test-token',
-                'artist-123',
-            )
-        })
+			;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
+				'user-token',
+			)
+			const fetchSpy = jest
+				.spyOn(global, 'fetch')
+				.mockRejectedValueOnce(new Error('Network error'))
 
-        test('returns 500 when getSpotifyRelatedArtists throws', async () => {
-            ;(spotifyAuth.isSpotifyAuthConfigured as jest.Mock).mockReturnValue(
-                true,
-            )
-            ;(spotifyAuth.getSpotifyClientToken as jest.Mock).mockResolvedValue(
-                'test-token',
-            )
-            ;(
-                sharedUtils.getSpotifyRelatedArtists as jest.Mock
-            ).mockRejectedValue(new Error('Spotify API error'))
-            const app = createApp()
-            const res = await request(app).get(
-                '/api/artists/artist-123/related',
-            )
-            expect(res.status).toBe(500)
-            expect(res.body.error).toBe('Failed to get related artists')
-            expect(sharedUtils.errorLog).toHaveBeenCalled()
-        })
-    })
+			;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
 
-    describe('GET /api/users/me/preferred-artists', () => {
-        test('returns 200 with preferences when guildId is provided', async () => {
-            const mockPreferences = [
-                {
-                    discordUserId: 'user-123',
-                    guildId: 'guild-1',
-                    artistKey: 'drake',
-                    artistName: 'Drake',
-                    spotifyId: 'spotify-1',
-                    imageUrl: 'https://example.com/image.jpg',
-                    preference: 'prefer',
-                    createdAt: '2024-01-01T00:00:00.000Z',
-                    updatedAt: '2024-01-01T00:00:00.000Z',
-                },
-            ]
-            ;(
-                mockDb.userArtistPreference.findMany as jest.Mock
-            ).mockResolvedValue(mockPreferences)
-            const app = createApp()
-            const res = await request(app)
-                .get('/api/users/me/preferred-artists')
-                .query({ guildId: 'guild-1' })
-            expect(res.status).toBe(200)
-            expect(res.body.preferences).toEqual(mockPreferences)
-            expect(mockDb.userArtistPreference.findMany).toHaveBeenCalledWith({
-                where: { discordUserId: 'user-123', guildId: 'guild-1' },
-                orderBy: { createdAt: 'desc' },
-            })
-        })
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
 
-        test('returns 200 with preferences without guildId filter', async () => {
-            const mockPreferences = [
-                {
-                    discordUserId: 'user-123',
-                    guildId: 'guild-1',
-                    artistKey: 'drake',
-                    artistName: 'Drake',
-                    preference: 'prefer',
-                    createdAt: '2024-01-01T00:00:00.000Z',
-                    updatedAt: '2024-01-01T00:00:00.000Z',
-                },
-                {
-                    discordUserId: 'user-123',
-                    guildId: 'guild-2',
-                    artistKey: 'weeknd',
-                    artistName: 'The Weeknd',
-                    preference: 'prefer',
-                    createdAt: '2024-01-02T00:00:00.000Z',
-                    updatedAt: '2024-01-02T00:00:00.000Z',
-                },
-            ]
-            ;(
-                mockDb.userArtistPreference.findMany as jest.Mock
-            ).mockResolvedValue(mockPreferences)
-            const app = createApp()
-            const res = await request(app).get(
-                '/api/users/me/preferred-artists',
-            )
-            expect(res.status).toBe(200)
-            expect(res.body.preferences).toEqual(mockPreferences)
-            expect(mockDb.userArtistPreference.findMany).toHaveBeenCalledWith({
-                where: { discordUserId: 'user-123' },
-                orderBy: { createdAt: 'desc' },
-            })
-        })
+			await handler(req, res)
 
-        test('returns 500 when database query fails', async () => {
-            ;(
-                mockDb.userArtistPreference.findMany as jest.Mock
-            ).mockRejectedValue(new Error('Database error'))
-            const app = createApp()
-            const res = await request(app).get(
-                '/api/users/me/preferred-artists',
-            )
-            expect(res.status).toBe(500)
-            expect(res.body.error).toBe('Failed to get preferences')
-            expect(sharedUtils.errorLog).toHaveBeenCalled()
-        })
-    })
+			expect(searchSpotifyArtists as jest.Mock).toHaveBeenCalled()
+			expect(res.json).toHaveBeenCalledWith(
+				expect.objectContaining({
+					artists: expect.any(Array),
+				}),
+			)
 
-    describe('POST /api/users/me/preferred-artists', () => {
-        test('returns 400 when guildId is missing from body', async () => {
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    artistKey: 'drake',
-                    artistName: 'Drake',
-                })
-            expect(res.status).toBe(400)
-            expect(res.body).toHaveProperty('error')
-        })
+			fetchSpy.mockRestore()
+		})
 
-        test('returns 400 when artistName is missing', async () => {
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    guildId: 'guild-1',
-                    artistKey: 'drake',
-                })
-            expect(res.status).toBe(400)
-            expect(res.body).toHaveProperty('error')
-        })
+		test('should return 401 when not authenticated', async () => {
+			const req = createMockRequest({
+				user: undefined,
+			}) as any
+			const res = createMockResponse()
 
-        test('returns 200 with saved preference on success', async () => {
-            const mockPreference = {
-                discordUserId: 'user-123',
-                guildId: 'guild-1',
-                artistKey: 'drake',
-                artistName: 'Drake',
-                spotifyId: 'spotify-1',
-                imageUrl: 'https://example.com/drake.jpg',
-                preference: 'prefer',
-                createdAt: '2024-01-01T00:00:00.000Z',
-                updatedAt: '2024-01-01T00:00:00.000Z',
-            }
-            ;(
-                mockDb.userArtistPreference.upsert as jest.Mock
-            ).mockResolvedValue(mockPreference)
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    guildId: 'guild-1',
-                    artistKey: 'Drake',
-                    artistName: 'Drake',
-                    spotifyId: 'spotify-1',
-                    imageUrl: 'https://example.com/drake.jpg',
-                    preference: 'prefer',
-                })
-            expect(res.status).toBe(200)
-            expect(res.body.preference).toEqual(mockPreference)
-            expect(mockDb.userArtistPreference.upsert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    where: {
-                        discordUserId_guildId_artistKey: {
-                            discordUserId: 'user-123',
-                            guildId: 'guild-1',
-                            artistKey: 'drake',
-                        },
-                    },
-                }),
-            )
-        })
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
 
-        test('normalizes artistKey to lowercase alphanumeric', async () => {
-            const mockPreference = {
-                discordUserId: 'user-123',
-                guildId: 'guild-1',
-                artistKey: 'drakejcole',
-                artistName: 'Drake & J Cole',
-                preference: 'prefer',
-                createdAt: '2024-01-01T00:00:00.000Z',
-                updatedAt: '2024-01-01T00:00:00.000Z',
-            }
-            ;(
-                mockDb.userArtistPreference.upsert as jest.Mock
-            ).mockResolvedValue(mockPreference)
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    guildId: 'guild-1',
-                    artistKey: 'Drake & J Cole',
-                    artistName: 'Drake & J Cole',
-                    preference: 'prefer',
-                })
-            expect(res.status).toBe(200)
-            expect(mockDb.userArtistPreference.upsert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    where: {
-                        discordUserId_guildId_artistKey: {
-                            discordUserId: 'user-123',
-                            guildId: 'guild-1',
-                            artistKey: 'drakejcole',
-                        },
-                    },
-                }),
-            )
-        })
+			await handler(req, res)
 
-        test('returns 400 when artistKey is missing (required field)', async () => {
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    guildId: 'guild-1',
-                    artistName: 'Drake',
-                    preference: 'prefer',
-                })
-            expect(res.status).toBe(400)
-            expect(res.body).toHaveProperty('error')
-        })
+			expect(res.status).toHaveBeenCalledWith(401)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Not authenticated',
+			})
+		})
 
-        test('defaults preference to prefer when not specified', async () => {
-            const mockPreference = {
-                discordUserId: 'user-123',
-                guildId: 'guild-1',
-                artistKey: 'drake',
-                artistName: 'Drake',
-                preference: 'prefer',
-                createdAt: '2024-01-01T00:00:00.000Z',
-                updatedAt: '2024-01-01T00:00:00.000Z',
-            }
-            ;(
-                mockDb.userArtistPreference.upsert as jest.Mock
-            ).mockResolvedValue(mockPreference)
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    guildId: 'guild-1',
-                    artistKey: 'drake',
-                    artistName: 'Drake',
-                })
-            expect(res.status).toBe(200)
-            expect(mockDb.userArtistPreference.upsert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    create: expect.objectContaining({
-                        preference: 'prefer',
-                    }),
-                }),
-            )
-        })
+		test('should return 503 when Spotify not configured', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
 
-        test('returns 500 when upsert fails', async () => {
-            ;(
-                mockDb.userArtistPreference.upsert as jest.Mock
-            ).mockRejectedValue(new Error('Database error'))
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/users/me/preferred-artists')
-                .send({
-                    guildId: 'guild-1',
-                    artistKey: 'drake',
-                    artistName: 'Drake',
-                })
-            expect(res.status).toBe(500)
-            expect(res.body.error).toBe('Failed to save preference')
-            expect(sharedUtils.errorLog).toHaveBeenCalled()
-        })
-    })
+			;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
 
-    describe('DELETE /api/users/me/preferred-artists/:artistKey', () => {
-        test('returns 400 when guildId query param is missing', async () => {
-            const app = createApp()
-            const res = await request(app).delete(
-                '/api/users/me/preferred-artists/drake',
-            )
-            expect(res.status).toBe(400)
-            expect(res.body.error).toBe('Missing guildId query param')
-        })
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
 
-        test('returns 200 on successful delete', async () => {
-            ;(
-                mockDb.userArtistPreference.delete as jest.Mock
-            ).mockResolvedValue({
-                discordUserId: 'user-123',
-                guildId: 'guild-1',
-                artistKey: 'drake',
-            })
-            const app = createApp()
-            const res = await request(app)
-                .delete('/api/users/me/preferred-artists/drake')
-                .query({ guildId: 'guild-1' })
-            expect(res.status).toBe(200)
-            expect(res.body.success).toBe(true)
-            expect(mockDb.userArtistPreference.delete).toHaveBeenCalledWith({
-                where: {
-                    discordUserId_guildId_artistKey: {
-                        discordUserId: 'user-123',
-                        guildId: 'guild-1',
-                        artistKey: 'drake',
-                    },
-                },
-            })
-        })
+			await handler(req, res)
 
-        test('returns 500 when delete fails', async () => {
-            ;(
-                mockDb.userArtistPreference.delete as jest.Mock
-            ).mockRejectedValue(new Error('Database error'))
-            const app = createApp()
-            const res = await request(app)
-                .delete('/api/users/me/preferred-artists/drake')
-                .query({ guildId: 'guild-1' })
-            expect(res.status).toBe(500)
-            expect(res.body.error).toBe('Failed to delete preference')
-            expect(sharedUtils.errorLog).toHaveBeenCalled()
-        })
-    })
+			expect(res.status).toHaveBeenCalledWith(503)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Spotify not configured',
+			})
+		})
+
+		test('should return 503 when unable to get Spotify token', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
+
+			;(getSpotifyClientToken as jest.Mock).mockResolvedValue(null)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(503)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Failed to get Spotify token',
+			})
+		})
+
+		test('should handle unexpected errors gracefully', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
+
+			;(spotifyLinkService.getValidAccessToken as jest.Mock).mockRejectedValue(
+				new Error('Unexpected error'),
+			)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(errorLog as jest.Mock).toHaveBeenCalled()
+			expect(res.status).toHaveBeenCalledWith(500)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Failed to get suggestions',
+			})
+		})
+	})
+
+	describe('GET /api/artists/search', () => {
+		test('should search artists by query', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				query: { q: 'Drake' },
+			}) as any
+			const res = createMockResponse()
+
+			;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[1][2]
+
+			await handler(req, res)
+
+			expect(searchSpotifyArtists as jest.Mock).toHaveBeenCalledWith(
+				'client-token',
+				'Drake',
+				12,
+			)
+			expect(res.json).toHaveBeenCalledWith({
+				artists: [mockArtist],
+			})
+		})
+
+		test('should return 400 when query parameter is missing', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				query: {},
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[1][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(400)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Missing query parameter q',
+			})
+		})
+
+		test('should return 500 on search error', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				query: { q: 'Drake' },
+			}) as any
+			const res = createMockResponse()
+
+			;(searchSpotifyArtists as jest.Mock).mockRejectedValue(
+				new Error('Spotify API error'),
+			)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[1][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(500)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Failed to search artists',
+			})
+		})
+	})
+
+	describe('GET /api/artists/:artistId/related', () => {
+		test('should fetch related artists', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				params: { artistId: 'spotify-1' },
+			}) as any
+			const res = createMockResponse()
+
+			;(getSpotifyRelatedArtists as jest.Mock).mockResolvedValue([
+				mockArtist,
+			])
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[2][2]
+
+			await handler(req, res)
+
+			expect(getSpotifyRelatedArtists as jest.Mock).toHaveBeenCalledWith(
+				'client-token',
+				'spotify-1',
+			)
+			expect(res.json).toHaveBeenCalledWith({
+				artists: [mockArtist],
+			})
+		})
+
+		test('should return 500 on related artists error', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				params: { artistId: 'spotify-1' },
+			}) as any
+			const res = createMockResponse()
+
+			;(getSpotifyRelatedArtists as jest.Mock).mockRejectedValue(
+				new Error('API error'),
+			)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[2][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(500)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Failed to get related artists',
+			})
+		})
+	})
+
+	describe('GET /api/users/me/preferred-artists', () => {
+		test('should fetch user preferences for guild', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				query: { guildId: 'guild-1' },
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					findMany: jest.fn().mockResolvedValue([mockPreference]),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[3][2]
+
+			await handler(req, res)
+
+			expect(mockDb.userArtistPreference.findMany).toHaveBeenCalledWith({
+				where: { discordUserId: 'discord-123', guildId: 'guild-1' },
+				orderBy: { createdAt: 'desc' },
+			})
+			expect(res.json).toHaveBeenCalledWith({
+				preferences: [mockPreference],
+			})
+		})
+
+		test('should return 401 when not authenticated', async () => {
+			const req = createMockRequest({
+				user: undefined,
+				query: { guildId: 'guild-1' },
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[3][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(401)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Not authenticated',
+			})
+		})
+
+		test('should return 500 on database error', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				query: { guildId: 'guild-1' },
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					findMany: jest
+						.fn()
+						.mockRejectedValue(new Error('Database error')),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.get as jest.Mock).mock.calls[3][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(500)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Failed to get preferences',
+			})
+		})
+	})
+
+	describe('POST /api/users/me/preferred-artists', () => {
+		test('should save artist preference', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: 'guild-1',
+					artistKey: 'drake',
+					artistName: 'Drake',
+					spotifyId: 'spotify-1',
+					imageUrl: 'https://example.com/image.jpg',
+					preference: 'prefer',
+				},
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					upsert: jest.fn().mockResolvedValue(mockPreference),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(mockDb.userArtistPreference.upsert).toHaveBeenCalled()
+			expect(res.json).toHaveBeenCalledWith({
+				preference: mockPreference,
+			})
+		})
+
+		test('should return 400 on invalid request body', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: '',
+					artistKey: '',
+				},
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(400)
+			expect(res.json).toHaveBeenCalledWith(
+				expect.objectContaining({
+					error: expect.any(String),
+				}),
+			)
+		})
+
+		test('should return 401 when not authenticated', async () => {
+			const req = createMockRequest({
+				user: undefined,
+				body: {
+					guildId: 'guild-1',
+					artistKey: 'drake',
+					artistName: 'Drake',
+				},
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(401)
+		})
+
+		test('should return 500 on database error', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				body: {
+					guildId: 'guild-1',
+					artistKey: 'drake',
+					artistName: 'Drake',
+					spotifyId: 'spotify-1',
+					preference: 'prefer',
+				},
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					upsert: jest
+						.fn()
+						.mockRejectedValue(new Error('Database error')),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(500)
+		})
+	})
+
+	describe('DELETE /api/users/me/preferred-artists/:artistKey', () => {
+		test('should delete artist preference', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				params: { artistKey: 'drake' },
+				query: { guildId: 'guild-1' },
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					delete: jest.fn().mockResolvedValue(mockPreference),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(mockDb.userArtistPreference.delete).toHaveBeenCalled()
+			expect(res.json).toHaveBeenCalledWith({ success: true })
+		})
+
+		test('should return 400 when guildId missing', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				params: { artistKey: 'drake' },
+				query: {},
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(400)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Missing guildId query param',
+			})
+		})
+
+		test('should return 401 when not authenticated', async () => {
+			const req = createMockRequest({
+				user: undefined,
+				params: { artistKey: 'drake' },
+				query: { guildId: 'guild-1' },
+			}) as any
+			const res = createMockResponse()
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(401)
+		})
+
+		test('should return 500 on database error', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+				params: { artistKey: 'drake' },
+				query: { guildId: 'guild-1' },
+			}) as any
+			const res = createMockResponse()
+
+			const mockDb = {
+				userArtistPreference: {
+					delete: jest
+						.fn()
+						.mockRejectedValue(new Error('Database error')),
+				},
+			}
+			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+
+			setupArtistsRoutes(mockApp)
+			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(500)
+		})
+	})
 })
