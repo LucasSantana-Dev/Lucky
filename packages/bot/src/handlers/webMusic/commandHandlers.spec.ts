@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { handlePause, handleStop } from './commandHandlers'
+import { handlePause, handleStop, handleSkip } from './commandHandlers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
+const setReplenishSuppressedMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     musicControlService: {
@@ -18,6 +19,11 @@ jest.mock('./mappers', () => ({
 
 jest.mock('../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
+}))
+
+jest.mock('../../utils/music/replenishSuppressionStore', () => ({
+    setReplenishSuppressed: (...args: unknown[]) =>
+        setReplenishSuppressedMock(...args),
 }))
 
 describe('handleStop', () => {
@@ -45,10 +51,64 @@ describe('handleStop', () => {
         expect(result.success).toBe(true)
     })
 
+    it('suppresses autoplay replenish for 30 seconds', async () => {
+        const stop = jest.fn()
+        const clear = jest.fn()
+        const del = jest.fn()
+        resolveGuildQueueMock.mockReturnValue({
+            queue: { node: { stop }, clear, delete: del },
+        })
+
+        await handleStop(
+            {} as any,
+            { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(setReplenishSuppressedMock).toHaveBeenCalledWith('guild-1', 30_000)
+    })
+
     it('returns failure when no queue', async () => {
         resolveGuildQueueMock.mockReturnValue({ queue: null })
 
         const result = await handleStop(
+            {} as any,
+            { id: 'cmd-2', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('No active queue')
+    })
+})
+
+describe('handleSkip', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        buildQueueStateMock.mockResolvedValue({ guildId: 'guild-1' })
+    })
+
+    it('awaits queue.node.skip() before publishing state', async () => {
+        const skipAsync = jest.fn().mockResolvedValue(undefined)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: { node: { skip: skipAsync } },
+        })
+
+        const publishPromise = Promise.resolve()
+        publishStateMock.mockReturnValue(publishPromise)
+
+        const result = await handleSkip(
+            {} as any,
+            { id: 'cmd-1', guildId: 'guild-1', data: {} } as any,
+        )
+
+        expect(skipAsync).toHaveBeenCalled()
+        expect(publishStateMock).toHaveBeenCalled()
+        expect(result.success).toBe(true)
+    })
+
+    it('returns failure when no queue', async () => {
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+        const result = await handleSkip(
             {} as any,
             { id: 'cmd-2', guildId: 'guild-1', data: {} } as any,
         )

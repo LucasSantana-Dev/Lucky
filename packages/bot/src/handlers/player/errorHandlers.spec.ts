@@ -181,6 +181,83 @@ describe('setupErrorHandlers', () => {
         expect(recordSuccessMock).toHaveBeenCalledWith('youtube')
     })
 
+    it('skips without reinserting when alternative track has same URL', async () => {
+        const queueHandlers: Record<
+            string,
+            QueueErrorHandler | PlayerErrorHandler | DebugHandler
+        > = {}
+        const playerHandlers: Record<
+            string,
+            TopLevelErrorHandler | TopLevelDebugHandler
+        > = {}
+        const player = {
+            events: {
+                on: jest.fn(
+                    (
+                        event: string,
+                        handler:
+                            | QueueErrorHandler
+                            | PlayerErrorHandler
+                            | DebugHandler,
+                    ) => {
+                        queueHandlers[event] = handler
+                    },
+                ),
+            },
+            on: jest.fn(
+                (
+                    event: string,
+                    handler: TopLevelErrorHandler | TopLevelDebugHandler,
+                ) => {
+                    playerHandlers[event] = handler
+                },
+            ),
+        }
+        setupErrorHandlers(player as any)
+
+        const queue = {
+            guild: { name: 'Guild 1', id: 'guild-1' },
+            metadata: { requestedBy: { id: 'user-1' }, channel: null },
+            currentTrack: {
+                url: 'https://www.youtube.com/watch?v=abc123',
+                title: 'Song A',
+                requestedBy: { id: 'user-1' },
+            },
+            player: {
+                search: jest
+                    .fn()
+                    .mockResolvedValue({
+                        tracks: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc123',
+                                title: 'Song A',
+                            },
+                        ],
+                    }),
+            },
+            insertTrack: jest.fn(),
+            node: {
+                skip: jest.fn(),
+            },
+        }
+
+        ;(queueHandlers.playerError as PlayerErrorHandler)(
+            queue as any,
+            new Error('Could not extract stream'),
+        )
+        await flushPromises()
+
+        expect(queue.player.search).toHaveBeenCalled()
+        expect(queue.insertTrack).not.toHaveBeenCalled()
+        expect(queue.node.skip).toHaveBeenCalled()
+        expect(recordSuccessMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('same track alternative'),
+            }),
+        )
+    })
+
     it('skips track on parser errors when skip config is enabled', async () => {
         const queueHandlers: Record<
             string,

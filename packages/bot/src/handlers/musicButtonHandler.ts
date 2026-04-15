@@ -19,6 +19,7 @@ import { resolveGuildQueue } from '../utils/music/queueResolver'
 import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
+import { setReplenishSuppressed } from '../utils/music/replenishSuppressionStore'
 
 type NonNullQueue = GuildQueue
 
@@ -201,6 +202,7 @@ async function handleStop(
     queue: NonNullQueue,
 ): Promise<void> {
     queue.delete()
+    setReplenishSuppressed(queue.guild.id, 30_000)
     await interaction.editReply({
         embeds: [
             createErrorEmbed('Stopped', 'Playback stopped and queue cleared'),
@@ -215,6 +217,7 @@ async function handleClearQueue(
     queue: NonNullQueue,
 ): Promise<void> {
     queue.tracks.clear()
+    setReplenishSuppressed(queue.guild.id, 30_000)
     await interaction.followUp({
         content: '🗑️ Queue cleared',
         ephemeral: true,
