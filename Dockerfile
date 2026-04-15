@@ -127,7 +127,7 @@ COPY --from=build /app/prisma ./prisma
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S backend -u 1001 -G nodejs && \
-    chown -R backend:nodejs /app/dist /app/prisma
+    chown -R backend:nodejs /app/packages/backend/dist /app/prisma
 
 USER backend
 
