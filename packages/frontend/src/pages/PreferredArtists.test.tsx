@@ -461,4 +461,266 @@ describe('PreferredArtistsPage', () => {
             ).toBeInTheDocument()
         })
     })
+
+    test('saves preferences successfully and updates state', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        mockGetPreferences.mockResolvedValue({ data: { preferences: [] } })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        const beatlesBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        await act(async () => {
+            fireEvent.click(beatlesBtn)
+        })
+        await waitFor(() => {
+            expect(screen.getByText('Prefer')).toBeInTheDocument()
+        })
+        const preferBtn = screen.getByText('Prefer').closest('button')!
+        await act(async () => {
+            fireEvent.click(preferBtn)
+        })
+        await waitFor(() => {
+            expect(screen.getByText(/Save Preferences/)).toBeInTheDocument()
+        })
+        mockGetPreferences.mockResolvedValue({
+            data: { preferences: [mockPreference] },
+        })
+        const saveBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('Save Preferences'))!
+        await act(async () => {
+            fireEvent.click(saveBtn)
+        })
+        await waitFor(() => {
+            expect(mockSavePreference).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    guildId: 'guild-1',
+                    preference: 'prefer',
+                }),
+            )
+        })
+    })
+
+    test('handles save preference error gracefully', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        mockGetPreferences.mockResolvedValue({ data: { preferences: [] } })
+        mockSavePreference.mockRejectedValueOnce(
+            new Error('Network error'),
+        )
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        const beatlesBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        await act(async () => {
+            fireEvent.click(beatlesBtn)
+        })
+        await waitFor(() => {
+            expect(screen.getByText('Prefer')).toBeInTheDocument()
+        })
+        const preferBtn = screen.getByText('Prefer').closest('button')!
+        await act(async () => {
+            fireEvent.click(preferBtn)
+        })
+        const saveBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('Save Preferences'))!
+        await act(async () => {
+            fireEvent.click(saveBtn)
+        })
+        await waitFor(() => {
+            expect(mockSavePreference).toHaveBeenCalled()
+        })
+    })
+
+    test('renders artist with no genres gracefully', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const artistNoGenres = {
+            ...mockArtist,
+            genres: [],
+        }
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [artistNoGenres] },
+        })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+    })
+
+    test('handles related artists loading state', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        let resolveRelated!: (value: unknown) => void
+        mockGetRelated.mockReturnValue(
+            new Promise((res) => {
+                resolveRelated = res
+            }),
+        )
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        const beatlesBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        await act(async () => {
+            fireEvent.click(beatlesBtn)
+        })
+        await waitFor(() => {
+            const spinners = document.querySelectorAll('.animate-spin')
+            expect(spinners.length).toBeGreaterThan(0)
+        })
+        await act(async () => {
+            resolveRelated({ data: { artists: [] } })
+        })
+    })
+
+    test('removes unsaved changes when remove preference is clicked', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        const beatlesBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        await act(async () => {
+            fireEvent.click(beatlesBtn)
+        })
+        await waitFor(() => {
+            expect(screen.getByText('Prefer')).toBeInTheDocument()
+        })
+        const preferBtn = screen.getByText('Prefer').closest('button')!
+        await act(async () => {
+            fireEvent.click(preferBtn)
+        })
+        await waitFor(() => {
+            expect(screen.getByText('Preferred')).toBeInTheDocument()
+        })
+        const preferredBtn = screen.getByText('Preferred').closest('button')!
+        await act(async () => {
+            fireEvent.click(preferredBtn)
+        })
+        await waitFor(() => {
+            expect(
+                screen.queryByText(/Save Preferences/),
+            ).not.toBeInTheDocument()
+        })
+    })
+
+    test('handles duplicate artists in unsaved changes', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        const duplicateArtist = { ...mockArtist, id: 'different-id' }
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist, duplicateArtist] },
+        })
+        renderPage()
+        await waitFor(() => {
+            const beatlesButtons = screen
+                .getAllByRole('button')
+                .filter((b) => b.textContent?.includes('The Beatles'))
+            expect(beatlesButtons.length).toBeGreaterThan(0)
+        })
+    })
+
+    test('handles empty result from getRelated error', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        mockGetRelated.mockRejectedValueOnce(new Error('API error'))
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        const beatlesBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        await act(async () => {
+            fireEvent.click(beatlesBtn)
+        })
+        await waitFor(() => {
+            expect(
+                screen.getByText('No related artists found'),
+            ).toBeInTheDocument()
+        })
+    })
+
+    test('handles loadPreferences error gracefully', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetPreferences.mockRejectedValueOnce(new Error('Network error'))
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+    })
+
+    test('shows correct preference state in related artists panel', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        mockGetPreferences.mockResolvedValue({
+            data: { preferences: [mockPreference] },
+        })
+        const relatedArtist = {
+            id: 'related-1',
+            name: 'Led Zeppelin',
+            imageUrl: null,
+            popularity: 75,
+            genres: ['rock'],
+        }
+        mockGetRelated.mockResolvedValue({ data: { artists: [relatedArtist] } })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        const beatlesBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.includes('The Beatles'))!
+        await act(async () => {
+            fireEvent.click(beatlesBtn)
+        })
+        await waitFor(() => {
+            expect(screen.getByText('Led Zeppelin')).toBeInTheDocument()
+        })
+    })
 })
