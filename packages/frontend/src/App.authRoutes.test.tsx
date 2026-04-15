@@ -16,6 +16,10 @@ vi.mock('./components/Layout/Layout', () => ({
     ),
 }))
 
+vi.mock('./pages/Landing', () => ({
+    default: () => <h1>Landing Page</h1>,
+}))
+
 vi.mock('./pages/Login', () => ({
     default: () => <h1>Login Page</h1>,
 }))
@@ -118,27 +122,34 @@ describe('App authenticated routing', () => {
         mockGuildStore()
     })
 
-    test('renders login page for unauthenticated non-legal routes', async () => {
-        renderAt('/unknown')
+    test('renders landing page for unauthenticated root route', async () => {
+        renderAt('/')
+        expect(
+            await screen.findByRole('heading', { name: 'Landing Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('renders login page for unauthenticated /login route', async () => {
+        renderAt('/login')
         expect(
             await screen.findByRole('heading', { name: 'Login Page' }),
         ).toBeInTheDocument()
     })
 
-    test('renders login page when auth check rejects', async () => {
+    test('renders landing page when auth check rejects and navigating to /', async () => {
         const checkAuth = vi.fn().mockRejectedValue(new Error('auth failed'))
         mockAuthStore({
             checkAuth,
         })
 
-        renderAt('/unknown')
+        renderAt('/')
 
         await waitFor(() => {
             expect(checkAuth).toHaveBeenCalled()
         })
 
         expect(
-            await screen.findByRole('heading', { name: 'Login Page' }),
+            await screen.findByRole('heading', { name: 'Landing Page' }),
         ).toBeInTheDocument()
     })
 
