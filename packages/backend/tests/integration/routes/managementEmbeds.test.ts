@@ -133,17 +133,22 @@ describe('Embed Management Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const newTemplate = {
+            const requestBody = {
                 name: 'welcome',
-                title: 'Welcome Embed',
-                data: { color: 3447003 },
+                description: 'Welcome template',
+                embedData: { title: 'Welcome Embed', color: '#341503' },
+            }
+            const responseBody = {
+                name: 'welcome',
+                description: 'Welcome template',
+                embedData: { title: 'Welcome Embed', color: '#341503' },
             }
 
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.validateEmbedData.mockReturnValue(true)
-            mockEmbedService.createTemplate.mockResolvedValue(newTemplate)
+            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
+            mockEmbedService.createTemplate.mockResolvedValue(responseBody)
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
@@ -153,13 +158,16 @@ describe('Embed Management Routes Integration', () => {
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/embeds')
                 .set('Cookie', ['sessionId=valid_session_id'])
-                .send(newTemplate)
+                .send(requestBody)
                 .expect(201)
 
-            expect(response.body).toEqual(newTemplate)
+            expect(response.body).toEqual(responseBody)
             expect(mockEmbedService.createTemplate).toHaveBeenCalledWith(
                 '111111111111111111',
-                newTemplate,
+                'welcome',
+                { title: 'Welcome Embed', color: '#341503' },
+                'Welcome template',
+                MOCK_SESSION_DATA.userId,
             )
             expect(
                 mockServerLogService.logEmbedTemplateChange,
@@ -190,17 +198,21 @@ describe('Embed Management Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const updatedTemplate = {
+            const requestBody = {
+                description: 'Updated description',
+                embedData: { title: 'Updated Welcome' },
+            }
+            const responseBody = {
                 name: 'welcome',
-                title: 'Updated Welcome',
-                data: { color: 16711680 },
+                description: 'Updated description',
+                embedData: { title: 'Updated Welcome', color: '#ff0000' },
             }
 
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.validateEmbedData.mockReturnValue(true)
-            mockEmbedService.updateTemplate.mockResolvedValue(updatedTemplate)
+            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
+            mockEmbedService.updateTemplate.mockResolvedValue(responseBody)
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
@@ -210,14 +222,17 @@ describe('Embed Management Routes Integration', () => {
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/embeds/welcome')
                 .set('Cookie', ['sessionId=valid_session_id'])
-                .send(updatedTemplate)
+                .send(requestBody)
                 .expect(200)
 
-            expect(response.body).toEqual(updatedTemplate)
+            expect(response.body).toEqual(responseBody)
             expect(mockEmbedService.updateTemplate).toHaveBeenCalledWith(
                 '111111111111111111',
                 'welcome',
-                updatedTemplate,
+                {
+                    description: 'Updated description',
+                    embedData: { title: 'Updated Welcome' },
+                },
             )
             expect(
                 mockServerLogService.logEmbedTemplateChange,
