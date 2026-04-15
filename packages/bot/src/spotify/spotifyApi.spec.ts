@@ -12,6 +12,7 @@ import {
     getBatchAudioFeatures,
     getArtistPopularity,
     getSpotifyRecommendations,
+    getArtistGenres,
 } from './spotifyApi'
 
 type MockFetchResponse = {
@@ -576,3 +577,60 @@ describe('spotifyApi', () => {
         })
     })
 })
+
+    describe('getArtistGenres', () => {
+        it('returns empty array when response not ok', async () => {
+            fetchMock.mockResolvedValue({ ok: false })
+            expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+
+        it('returns empty array on network error', async () => {
+            fetchMock.mockRejectedValue(new Error('Network'))
+            expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+
+        it('returns empty array when no artists found', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ artists: { items: [] } }),
+            })
+            expect(await getArtistGenres('token', 'UnknownArtist')).toEqual([])
+        })
+
+        it('returns empty array on JSON parse error', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => { throw new Error('Parse error') },
+            })
+            expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+
+        it('handles missing genres field', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    artists: { items: [{ name: 'Artist' }] },
+                }),
+            })
+            expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+
+        it('handles null genres', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    artists: { items: [{ genres: null }] },
+                }),
+            })
+            expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+
+        it('handles undefined artists', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ artists: undefined }),
+            })
+            expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+    })
+}
