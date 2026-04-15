@@ -1,5 +1,6 @@
 export * from './errorWrapper'
 export * from './retryHandler'
+export * from './logAndRethrow'
 
 // Main error handler implementation
 import type { MusicError } from '../../types/errors/music'
