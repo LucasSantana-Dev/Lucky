@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.130] - 2026-04-15
+
+### Fixed
+- Dockerfile.frontend now builds `@lucky/shared` + runs `prisma generate` before frontend build — unblocks main CI `Build & Push Docker Images` and fixes `Cannot find module @lucky/shared/constants` TS error
+
 ## [2.6.129] - 2026-04-15
 
 ### Fixed

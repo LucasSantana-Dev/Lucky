@@ -1,6 +1,6 @@
 {
     "name": "@lucky/backend",
-    "version": "2.6.129",
+    "version": "2.6.130",
     "description": "Express API server for Lucky",
     "type": "module",
     "main": "./dist/index.js",
