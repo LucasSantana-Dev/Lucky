@@ -1439,7 +1439,7 @@ async function collectGenreCandidates(
     }
 }
 
-async function enrichWithAudioFeatures(
+export async function enrichWithAudioFeatures(
     tracks: ScoredTrack[],
     userId: string,
     currentFeatures: SpotifyAudioFeatures | null,
@@ -1860,7 +1860,7 @@ const GENRE_FAMILIES = {
     ambient_chill: ['lofi', 'chillwave', 'downtempo', 'ambient'],
 }
 
-function getGenreFamilies(genres: string[]): Set<string> {
+export function getGenreFamilies(genres: string[]): Set<string> {
     const families = new Set<string>()
     const lowerGenres = genres.map((g) => g.toLowerCase())
 
@@ -1876,7 +1876,7 @@ function getGenreFamilies(genres: string[]): Set<string> {
     return families
 }
 
-function calculateGenreFamilyPenalty(
+export function calculateGenreFamilyPenalty(
     currentGenres: string[],
     candidateGenres: string[],
 ): number {

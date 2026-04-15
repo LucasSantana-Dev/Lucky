@@ -147,7 +147,7 @@ export async function generateHistoryBasedRecommendations(
     }
 }
 
-function applySpanishLanguagePenalty(
+export function applySpanishLanguagePenalty(
     recommendations: RecommendationResult[],
     hasSpanishMarkers: boolean,
 ): RecommendationResult[] {
@@ -188,7 +188,7 @@ function applySpanishLanguagePenalty(
     })
 }
 
-async function blendRecommendations(
+export async function blendRecommendations(
     primaryRecommendations: RecommendationResult[],
     additionalSeeds: Track[],
     availableTracks: Track[],
