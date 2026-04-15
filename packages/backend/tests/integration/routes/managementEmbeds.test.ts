@@ -47,6 +47,11 @@ describe('Embed Management Routes Integration', () => {
         app.use(errorHandler)
         jest.clearAllMocks()
 
+        const mockSessionService = sessionService as jest.Mocked<
+            typeof sessionService
+        >
+        mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
         const mockGuildAccessService = guildAccessService as jest.Mocked<
             typeof guildAccessService
         >

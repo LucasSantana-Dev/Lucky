@@ -81,6 +81,11 @@ describe('Management Routes Integration', () => {
         app.use(errorHandler)
         jest.clearAllMocks()
 
+        const mockSessionService = sessionService as jest.Mocked<
+            typeof sessionService
+        >
+        mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
         const mockGuildAccessService = guildAccessService as jest.Mocked<
             typeof guildAccessService
         >
@@ -250,7 +255,7 @@ describe('Management Routes Integration', () => {
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/automod/settings')
                 .set('Cookie', ['sessionId=valid_session_id'])
-                .send({})
+                .send({ spamThreshold: 'not a number' })
                 .expect(400)
 
             expect(response.body).toHaveProperty('error')
@@ -675,7 +680,7 @@ describe('Management Routes Integration', () => {
 
             const response = await request(app)
                 .get(
-                    '/api/guilds/111111111111111111/logs/users/user-123',
+                    '/api/guilds/111111111111111111/logs/users/123456789012345678',
                 )
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
@@ -683,7 +688,7 @@ describe('Management Routes Integration', () => {
             expect(response.body).toEqual({ logs: mockLogs })
             expect(mockServerLogService.getUserLogs).toHaveBeenCalledWith(
                 '111111111111111111',
-                'user-123',
+                '123456789012345678',
             )
         })
 

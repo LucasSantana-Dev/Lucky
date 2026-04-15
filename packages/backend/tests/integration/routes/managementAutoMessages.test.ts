@@ -49,6 +49,11 @@ describe('Auto Message Routes Integration', () => {
         app.use(errorHandler)
         jest.clearAllMocks()
 
+        const mockSessionService = sessionService as jest.Mocked<
+            typeof sessionService
+        >
+        mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
         const mockGuildAccessService = guildAccessService as jest.Mocked<
             typeof guildAccessService
         >
@@ -156,7 +161,7 @@ describe('Auto Message Routes Integration', () => {
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual(welcomeMsg)
+            expect(response.body).toEqual({ messages: welcomeMsg })
             expect(
                 mockAutoMessageService.getMessagesByType,
             ).toHaveBeenCalledWith('111111111111111111', 'welcome')
@@ -324,8 +329,8 @@ describe('Auto Message Routes Integration', () => {
 
             expect(response.body).toEqual(toggledMessage)
             expect(mockAutoMessageService.toggleMessage).toHaveBeenCalledWith(
-                '111111111111111111',
                 '1',
+                true,
             )
             expect(
                 mockServerLogService.logAutoMessageChange,
@@ -375,7 +380,6 @@ describe('Auto Message Routes Integration', () => {
 
             expect(response.body).toEqual({ success: true })
             expect(mockAutoMessageService.deleteMessage).toHaveBeenCalledWith(
-                '111111111111111111',
                 '1',
             )
             expect(
