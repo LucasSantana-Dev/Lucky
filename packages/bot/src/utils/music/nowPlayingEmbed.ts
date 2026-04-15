@@ -1,7 +1,7 @@
 import { EmbedBuilder } from 'discord.js'
 import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
-import { COLOR } from '@lucky/shared'
+import { COLOR } from '@lucky/shared/constants'
 
 export type PlayResponseKind = 'nowPlaying' | 'addedToQueue' | 'playlistQueued'
 

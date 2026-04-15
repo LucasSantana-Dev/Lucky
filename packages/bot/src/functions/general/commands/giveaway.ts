@@ -1,4 +1,4 @@
-import { COLOR } from '@lucky/shared'
+import { COLOR } from '@lucky/shared/constants'
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
 import { PermissionFlagsBits, type TextChannel } from 'discord.js'
 import Command from '../../../models/Command'

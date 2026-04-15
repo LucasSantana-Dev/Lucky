@@ -1,4 +1,4 @@
-import { API_ROUTES } from '@lucky/shared'
+import { API_ROUTES } from '@lucky/shared/constants'
 import axios, { AxiosInstance } from 'axios'
 import type {
     User,

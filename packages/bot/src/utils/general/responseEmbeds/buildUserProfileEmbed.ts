@@ -1,4 +1,4 @@
-import { COLOR } from '@lucky/shared'
+import { COLOR } from '@lucky/shared/constants'
 import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 

@@ -1,4 +1,4 @@
-import { API_ROUTES } from '@lucky/shared'
+import { API_ROUTES } from '@lucky/shared/constants'
 import type { AxiosInstance } from 'axios'
 
 export interface SpotifyArtist {

@@ -1,4 +1,4 @@
-import { COLOR } from '@lucky/shared'
+import { COLOR } from '@lucky/shared/constants'
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { roleManagementService } from '@lucky/shared/services'
