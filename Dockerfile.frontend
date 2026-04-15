@@ -17,7 +17,11 @@ RUN --mount=type=cache,id=npm-frontend-builder,target=/root/.npm,sharing=locked 
 
 COPY packages/frontend ./packages/frontend
 COPY packages/shared ./packages/shared
+COPY prisma ./prisma
 
+RUN npx prisma generate
+
+RUN npm run build --workspace=packages/shared
 RUN npm run build --workspace=packages/frontend
 
 # NOSONAR: nginx requires root to bind port 80
