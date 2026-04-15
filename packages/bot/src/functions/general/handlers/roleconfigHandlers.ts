@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared/constants'
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { roleManagementService } from '@lucky/shared/services'
@@ -96,7 +97,7 @@ export async function handleListExclusive(
 
     const embed = new EmbedBuilder()
         .setTitle('Exclusive Role Rules')
-        .setColor(0x5865f2)
+        .setColor(COLOR.DISCORD_BLURPLE)
         .setDescription(
             (exclusions as Array<{ roleId: string; excludedRoleId: string }>)
                 .map(

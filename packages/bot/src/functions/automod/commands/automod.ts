@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared/constants'
 import {
     SlashCommandBuilder,
     PermissionFlagsBits,
@@ -156,7 +157,7 @@ export default new Command({
                 }
 
                 const embed = new EmbedBuilder()
-                    .setColor(0x5865f2)
+                    .setColor(COLOR.DISCORD_BLURPLE)
                     .setTitle('Auto-Moderation Settings')
                     .addFields(
                         {
@@ -221,7 +222,7 @@ export default new Command({
                 if (!presetName) {
                     const templates = await autoModService.listTemplates()
                     const embed = new EmbedBuilder()
-                        .setColor(0x5865f2)
+                        .setColor(COLOR.DISCORD_BLURPLE)
                         .setTitle('Auto-Moderation Presets')
                         .setDescription(
                             'Use `/automod preset name:<preset>` to apply one of these configurations.\n\nExisting settings are merged — exempt channels and roles are preserved.',
@@ -247,7 +248,7 @@ export default new Command({
                 )
 
                 const embed = new EmbedBuilder()
-                    .setColor(0x51cf66)
+                    .setColor(COLOR.ENABLED_GREEN)
                     .setTitle(`Preset Applied: ${template.name}`)
                     .setDescription(template.description)
                     .addFields(
@@ -334,7 +335,7 @@ export default new Command({
             )
 
             const embed = new EmbedBuilder()
-                .setColor(enabled ? 0x51cf66 : 0xc92a2a)
+                .setColor(enabled ? COLOR.ENABLED_GREEN : COLOR.DISABLED_RED)
                 .setTitle(
                     `Auto-Moderation ${enabled ? 'Enabled' : 'Disabled'}`,
                 )
