@@ -1,8 +1,6 @@
 name: Deploy to Homelab
 
 on:
-    push:
-        branches: [main]
     workflow_dispatch:
 
 jobs:
@@ -10,9 +8,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             actions: read
-        if: >
-            github.event_name == 'workflow_dispatch' ||
-            github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch'
 
         steps:
             - name: Validate secrets
