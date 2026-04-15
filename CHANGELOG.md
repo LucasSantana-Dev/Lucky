@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.126] - 2026-04-15
+
+### Fixed
+- Autoplay genre drift: added genre-family penalty that prevents rap/hip-hop sessions from picking electronic tracks (and other cross-genre drifts). 10 genre families (rap_hiphop, rnb_soul, electronic, rock_metal, pop, latin, country_folk, jazz_classical, world, ambient_chill) — candidates whose family doesn't overlap the current track's family receive -0.6 penalty (strong anchors: rap_hiphop, rock_metal, latin) or -0.3 (weak anchors), effectively dropping them below the selection threshold
+- Autoplay Spanish-language drift: hard-rejects Spanish/Latin candidates (-2.0 score) when the last 20 tracks of session history contain no Spanish markers (accents, Spanish stopwords, latin genres) — fixes cases where English/hip-hop sessions picked random Spanish tracks
+- Low-popularity + disjoint-genre belt-and-suspenders penalty (-0.4): rejects obscure tracks whose genres don't match session
+
 ## [2.6.125] - 2026-04-15
 
 ### Changed
