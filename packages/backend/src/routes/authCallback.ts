@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { timingSafeEqual } from 'node:crypto'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { discordOAuthService } from '../services/DiscordOAuthService'
 import { sessionService } from '../services/SessionService'
@@ -10,16 +11,64 @@ export async function handleOAuthCallback(
     res: Response,
 ): Promise<void> {
     try {
-        const { code, error } = req.query
+        const { code, error, state } = req.query
         const frontendUrl = getPrimaryFrontendUrl()
 
         if (error) {
-            errorLog({ message: 'Discord OAuth error', data: { error } })
+            errorLog({
+                message: 'Discord OAuth error',
+                data: { error: String(error) },
+            })
             res.redirect(
                 `${frontendUrl}/?error=auth_failed&message=${encodeURIComponent(String(error))}`,
             )
             return
         }
+
+        if (!state || typeof state !== 'string') {
+            errorLog({ message: 'OAuth state validation failed: missing state' })
+            res.redirect(`${frontendUrl}/?error=auth_failed&message=invalid_state`)
+            return
+        }
+
+        const sessionState = req.session.oauthState
+        if (!sessionState) {
+            errorLog({
+                message:
+                    'OAuth state validation failed: no state in session',
+            })
+            res.redirect(`${frontendUrl}/?error=auth_failed&message=invalid_state`)
+            return
+        }
+
+        try {
+            const stateBuffer = Buffer.from(state)
+            const sessionStateBuffer = Buffer.from(sessionState)
+
+            if (
+                stateBuffer.length !== sessionStateBuffer.length ||
+                !timingSafeEqual(stateBuffer, sessionStateBuffer)
+            ) {
+                errorLog({
+                    message: 'OAuth state validation failed: state mismatch',
+                })
+                res.redirect(
+                    `${frontendUrl}/?error=auth_failed&message=invalid_state`,
+                )
+                return
+            }
+        } catch (e) {
+            errorLog({
+                message: 'OAuth state validation failed: comparison error',
+                error: e,
+            })
+            res.redirect(
+                `${frontendUrl}/?error=auth_failed&message=invalid_state`,
+            )
+            return
+        }
+
+        delete req.session.oauthState
 
         if (!code || typeof code !== 'string') {
             res.redirect(`${frontendUrl}/?error=missing_code`)
