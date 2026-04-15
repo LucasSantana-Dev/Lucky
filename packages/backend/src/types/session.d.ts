@@ -6,5 +6,6 @@ declare module 'express-session' {
         userId?: string
         oauthInitiated?: boolean
         oauthRedirectUri?: string
+        oauthState?: string
     }
 }

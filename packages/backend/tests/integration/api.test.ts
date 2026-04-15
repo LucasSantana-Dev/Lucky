@@ -13,6 +13,7 @@ import {
     MOCK_DISCORD_USER,
     MOCK_AUTH_CODE,
     MOCK_DISCORD_GUILDS,
+    MOCK_OAUTH_STATE,
 } from '../fixtures/mock-data'
 
 jest.mock('../../src/services/SessionService', () => ({
@@ -84,10 +85,30 @@ describe('API Integration Flows', () => {
             mockSessionService.setSession.mockResolvedValue()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
-            const callbackResponse = await request(app)
+            const oauthApp = express()
+            setupSessionMiddleware(oauthApp)
+
+            oauthApp.use((req, _res, next) => {
+                if (req.path === '/api/auth/callback') {
+                    req.session.oauthState = MOCK_OAUTH_STATE
+                    req.session.save((err) => {
+                        if (err) next(err)
+                        else next()
+                    })
+                } else {
+                    next()
+                }
+            })
+
+            setupAuthRoutes(oauthApp)
+            setupGuildRoutes(oauthApp)
+            setupToggleRoutes(oauthApp)
+
+            const agent = request.agent(oauthApp)
+
+            const callbackResponse = await agent
                 .get('/api/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
-                .set('Cookie', ['sessionId=valid_session_id'])
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .expect(302)
 
             expect(callbackResponse.headers.location).toContain(
@@ -102,9 +123,8 @@ describe('API Integration Flows', () => {
             )
             expect(mockSessionService.setSession).toHaveBeenCalled()
 
-            const statusResponse = await request(app)
+            const statusResponse = await agent
                 .get('/api/auth/status')
-                .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
             expect(statusResponse.body.authenticated).toBe(true)

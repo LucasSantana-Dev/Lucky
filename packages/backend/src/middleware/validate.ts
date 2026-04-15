@@ -7,7 +7,7 @@ export function validateBody<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
         const result = schema.safeParse(req.body as unknown)
         if (!result.success) {
-            const errors = result.error.errors.map((e) => ({
+            const errors = result.error.issues.map((e) => ({
                 field: e.path.join('.'),
                 message: e.message,
             }))
@@ -23,7 +23,7 @@ export function validateQuery<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
         const result = schema.safeParse(req.query as unknown)
         if (!result.success) {
-            const errors = result.error.errors.map((e) => ({
+            const errors = result.error.issues.map((e) => ({
                 field: e.path.join('.'),
                 message: e.message,
             }))
@@ -38,7 +38,7 @@ export function validateParams<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
         const result = schema.safeParse(req.params as unknown)
         if (!result.success) {
-            const errors = result.error.errors.map((e) => ({
+            const errors = result.error.issues.map((e) => ({
                 field: e.path.join('.'),
                 message: e.message,
             }))

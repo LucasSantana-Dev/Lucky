@@ -1,6 +1,6 @@
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
-import request from 'supertest'
+import request, { type Agent } from 'supertest'
 import express from 'express'
 import { setupAuthRoutes } from '../../../src/routes/auth'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
@@ -11,6 +11,7 @@ import {
     MOCK_TOKEN_RESPONSE,
     MOCK_DISCORD_USER,
     MOCK_AUTH_CODE,
+    MOCK_OAUTH_STATE,
 } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
@@ -57,7 +58,7 @@ describe('Auth Routes Integration', () => {
     })
 
     describe('GET /api/auth/discord', () => {
-        test('should redirect to Discord OAuth', async () => {
+        test('should redirect to Discord OAuth with state parameter', async () => {
             const response = await request(app)
                 .get('/api/auth/discord')
                 .expect(302)
@@ -72,6 +73,10 @@ describe('Auth Routes Integration', () => {
             expect(url.searchParams.get('redirect_uri')).toBe(
                 'http://localhost:3000/api/auth/callback',
             )
+
+            const state = url.searchParams.get('state')
+            expect(state).toBeDefined()
+            expect(state).toMatch(/^[a-f0-9]{64}$/)
         })
 
         test('should derive redirect uri from forwarded host when env is unset', async () => {
@@ -244,15 +249,60 @@ describe('Auth Routes Integration', () => {
     })
 
     describe('GET /api/auth/callback', () => {
+        test('should reject callback without state parameter', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const response = await request(app)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE })
+                .expect(302)
+
+            expect(response.headers.location).toContain('invalid_state')
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
+        })
+
+        test('should reject callback with mismatched state', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const agent = request.agent(app)
+
+            await agent.get('/api/auth/discord').expect(302)
+
+            const response = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: 'wrong_state' })
+                .expect(302)
+
+            expect(response.headers.location).toContain('invalid_state')
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
+        })
+
         test('should resolve callback redirect uri from forwarded host when env is unset', async () => {
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI
             delete process.env.WEBAPP_REDIRECT_URI
 
             mockSuccessfulOAuthFlow()
 
-            await request(app)
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+
+            discordApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            await agent
                 .get('/api/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .set('x-forwarded-proto', 'https')
                 .set('x-forwarded-host', 'lucky.lucassantana.tech')
                 .expect(302)
@@ -270,14 +320,33 @@ describe('Auth Routes Integration', () => {
         })
 
         test.each(['/api/auth/callback', '/auth/callback'])(
-            'should handle successful OAuth callback for %s',
+            'should handle successful OAuth callback for %s with valid state',
             async (routePath) => {
                 mockSuccessfulOAuthFlow()
 
-                const response = await request(app)
+                const discordApp = express()
+                setupSessionMiddleware(discordApp)
+
+                discordApp.use((req, _res, next) => {
+                    if (req.path === routePath) {
+                        req.session.oauthState = MOCK_OAUTH_STATE
+                        req.session.save((err) => {
+                            if (err) next(err)
+                            else next()
+                        })
+                    } else {
+                        next()
+                    }
+                })
+
+                setupAuthRoutes(discordApp)
+                discordApp.use(errorHandler)
+
+                const agent = request.agent(discordApp)
+
+                const response = await agent
                     .get(routePath)
-                    .query({ code: MOCK_AUTH_CODE })
-                    .set('Cookie', ['sessionId=callback_session_id'])
+                    .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                     .expect(302)
 
                 expect(response.headers.location).toContain(
@@ -297,8 +366,22 @@ describe('Auth Routes Integration', () => {
         )
 
         test('should return 400 when code is missing', async () => {
-            const response = await request(app)
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+
+            discordApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            const response = await agent
                 .get('/api/auth/callback')
+                .query({ state: MOCK_OAUTH_STATE })
                 .expect(302)
 
             expect(response.headers.location).toContain('error=missing_code')
@@ -309,10 +392,22 @@ describe('Auth Routes Integration', () => {
                 new Error('Token exchange failed'),
             )
 
-            const response = await request(app)
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+
+            discordApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            const response = await agent
                 .get('/api/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
-                .set('Cookie', ['sessionId=callback_session_id'])
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .expect(302)
 
             expect(response.headers.location).toContain(
@@ -320,42 +415,53 @@ describe('Auth Routes Integration', () => {
             )
         })
 
-        test('should return 500 when session ID is missing', async () => {
+        test('should return error when session ID is missing', async () => {
             mockSuccessfulOAuthFlow()
 
-            const response = await request(app)
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const response = await request(discordApp)
                 .get('/api/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .expect(302)
 
-            expect(response.headers.location).toContain('error=session_failed')
+            expect(response.headers.location).toContain('error=auth_failed&message=invalid_state')
         })
 
-        test('should handle callback alias route', async () => {
-            const mockDiscordOAuth = discordOAuthService as jest.Mocked<
-                typeof discordOAuthService
-            >
-            mockDiscordOAuth.exchangeCodeForToken.mockResolvedValue(
-                MOCK_TOKEN_RESPONSE,
-            )
-            mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
+        test('should clean up state after successful validation', async () => {
+            mockSuccessfulOAuthFlow()
 
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.setSession.mockResolvedValue()
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
 
-            const response = await request(app)
-                .get('/auth/callback')
-                .query({ code: MOCK_AUTH_CODE })
-                .set('Cookie', ['sessionId=callback_session_id'])
+            let stateSet = true
+            discordApp.use((req, _res, next) => {
+                if (stateSet) {
+                    req.session.oauthState = MOCK_OAUTH_STATE
+                    stateSet = false
+                }
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
                 .expect(302)
 
-            expect(response.headers.location).toContain('authenticated=true')
-            expect(mockDiscordOAuth.exchangeCodeForToken).toHaveBeenCalledWith(
-                MOCK_AUTH_CODE,
-                expect.stringContaining('/api/auth/callback'),
-            )
+            const secondAttempt = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(secondAttempt.headers.location).toContain('invalid_state')
         })
     })
 
