@@ -3,7 +3,7 @@ import {
     sanitizeErrorMessage,
     sanitizeMessage,
     createUserFriendlyError,
-} from './errorSanitizer'
+} from './errorSanitizer.js'
 
 describe('sanitizeErrorMessage', () => {
     it('returns generic message for null', () => {

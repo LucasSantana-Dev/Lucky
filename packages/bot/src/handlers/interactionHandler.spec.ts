@@ -45,7 +45,7 @@ jest.mock('../utils/monitoring', () => ({
     monitorInteractionHandling: jest.fn(),
 }))
 
-jest.mock('../utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn(),
 }))
 
@@ -56,7 +56,7 @@ import { reactionRolesService } from '@lucky/shared/services'
 import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
-import { createUserFriendlyError } from '../utils/general/errorSanitizer'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
 function createMockClient(): CustomClient & {
     eventHandlers: Map<string, Function[]>

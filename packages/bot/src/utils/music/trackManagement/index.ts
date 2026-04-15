@@ -4,7 +4,7 @@ export type {
     TrackValidationResult, QueueOperationResult, TrackPriority, QueueManagementOptions,
 } from './types'
 
-export { getQueueState, getQueueStats, isQueueEmpty, isQueueFull, getNextTrack, getTrackAtPosition, isTrackInQueue, getTrackPosition } from './queueStateManager'
+export { getQueueState, getQueueStats, isQueueEmpty, isQueueFull, getNextTrack, getTrackAtPosition, isTrackInQueue, getTrackPosition } from '../queueStateManager'
 export { addTracksToQueue, addTrackToQueue, clearQueue, shuffleQueue, removeTrackFromQueue, moveTrackInQueue, replenishQueue } from '../queueOperations'
 export { validateTrack, validateTracks } from '../trackValidator'
 

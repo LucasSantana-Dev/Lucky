@@ -1,5 +1,5 @@
 import { downloadVideo, deleteDownloadedFile } from '../../utils/downloadUtils'
-import { formatDuration } from '../../utils/downloadHelpers'
+import { formatDuration } from '../../../../utils/download/downloadHelpers'
 import { errorLog, infoLog, successLog } from '@lucky/shared/utils'
 import type { DownloadOptions, DownloadResult } from './types'
 
