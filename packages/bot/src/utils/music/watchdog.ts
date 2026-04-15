@@ -303,7 +303,7 @@ export class MusicWatchdogService {
         }
 
         const restoreResult =
-            await musicSessionSnapshotService.restoreSnapshot(queue)
+            await musicSessionSnapshotService.restoreSnapshot(queue, undefined, { skipCurrentTrack: true })
         if (!restoreResult || restoreResult.restoredCount <= 0) {
             await musicSessionSnapshotService.deleteSnapshot(guildId)
 
