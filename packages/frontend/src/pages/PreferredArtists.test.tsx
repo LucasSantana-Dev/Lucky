@@ -438,7 +438,7 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(saveBtn)
         })
         await waitFor(() => {
-            expect(mockSavePreferencesBatch).toHaveBeenCalled()
+            expect(mockSavePreferencesBatch).toHaveBeenCalledOnce()
         })
     })
 
@@ -554,7 +554,7 @@ describe('PreferredArtistsPage', () => {
             fireEvent.click(saveBtn)
         })
         await waitFor(() => {
-            expect(mockSavePreferencesBatch).toHaveBeenCalled()
+            expect(mockSavePreferencesBatch).toHaveBeenCalledOnce()
         })
     })
 
