@@ -15,6 +15,10 @@ import {
     applyDiversityFilter,
     generateRecommendationReasons,
 } from './recommendationHelpers'
+import {
+    detectSpanishMarkers,
+    detectSessionLanguageMarkers,
+} from '../../utils/music/languageHeuristics'
 
 export async function generateRecommendations(
     seedTrack: Track,
@@ -96,6 +100,15 @@ export async function generateHistoryBasedRecommendations(
 ): Promise<RecommendationResult[]> {
     try {
         if (recentHistory.length === 0) return []
+
+        const sessionLanguageMarkers = detectSessionLanguageMarkers(
+            recentHistory.map((t) => ({
+                title: t.title,
+                author: t.author,
+                tags: t.metadata?.tags || [],
+            })),
+        )
+
         const primarySeed = recentHistory[0]
         const primaryRecommendations = await generateRecommendations(
             primarySeed,
@@ -104,16 +117,22 @@ export async function generateHistoryBasedRecommendations(
             excludeTrackIds,
         )
 
+        const filtered = applySpanishLanguagePenalty(
+            primaryRecommendations,
+            sessionLanguageMarkers.hasSpanish,
+        )
+
         if (recentHistory.length > 1) {
             return blendRecommendations(
-                primaryRecommendations,
+                filtered,
                 recentHistory.slice(1, 5),
                 availableTracks,
                 config,
                 excludeTrackIds,
+                sessionLanguageMarkers.hasSpanish,
             )
         }
-        return primaryRecommendations
+        return filtered
     } catch (error) {
         errorLog({
             message: 'Error generating history-based recommendations:',
@@ -123,12 +142,54 @@ export async function generateHistoryBasedRecommendations(
     }
 }
 
+function applySpanishLanguagePenalty(
+    recommendations: RecommendationResult[],
+    hasSpanishMarkers: boolean,
+): RecommendationResult[] {
+    return recommendations.map((rec) => {
+        const trackText = `${rec.track.title || ''} ${rec.track.author || ''}`
+        const candidateHasSpanish = detectSpanishMarkers(
+            trackText,
+            rec.track.metadata?.tags || [],
+        )
+
+        if (candidateHasSpanish && !hasSpanishMarkers) {
+            return {
+                ...rec,
+                score: -2.0,
+                reasons: [
+                    ...rec.reasons,
+                    'Rejected: Spanish track in non-Spanish session',
+                ],
+            }
+        }
+
+        if (
+            candidateHasSpanish &&
+            !hasSpanishMarkers &&
+            (rec.track.metadata?.popularity || 100) < 20
+        ) {
+            return {
+                ...rec,
+                score: rec.score - 0.4,
+                reasons: [
+                    ...rec.reasons,
+                    'Low popularity + disjoint genre',
+                ],
+            }
+        }
+
+        return rec
+    })
+}
+
 async function blendRecommendations(
     primaryRecommendations: RecommendationResult[],
     additionalSeeds: Track[],
     availableTracks: Track[],
     config: RecommendationConfig,
     excludeTrackIds: string[],
+    hasSpanishMarkers: boolean = false,
 ): Promise<RecommendationResult[]> {
     const allRecommendations = new Map<string, RecommendationResult>()
     for (const rec of primaryRecommendations) {
@@ -141,7 +202,8 @@ async function blendRecommendations(
             config,
             excludeTrackIds,
         )
-        for (const rec of seedRecs) {
+        const filtered = applySpanishLanguagePenalty(seedRecs, hasSpanishMarkers)
+        for (const rec of filtered) {
             const key = rec.track.id || rec.track.url
             const existing = allRecommendations.get(key)
             if (existing) {
