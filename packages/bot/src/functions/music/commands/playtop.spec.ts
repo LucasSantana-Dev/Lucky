@@ -27,10 +27,6 @@ jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/utils', () => ({
-    createUserFriendlyError: jest.fn((error) => 'User friendly error'),
-}))
-
 const requireDJRoleMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -44,9 +40,11 @@ jest.mock('../../../utils/command/commandValidations', () => ({
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     warnLog: jest.fn(),
+    createUserFriendlyError: jest.fn((error) => 'User friendly error'),
     createUserErrorMessage: jest.fn(),
     handleError: jest.fn(),
 }))

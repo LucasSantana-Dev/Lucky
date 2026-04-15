@@ -18,11 +18,9 @@ jest.mock('../../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     createUserFriendlyError: (...args: unknown[]) =>
         createUserFriendlyErrorMock(...args),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 

@@ -29,11 +29,9 @@ jest.mock('../../src/utils/monitoring', () => ({
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
     createUserFriendlyError: (...args: unknown[]) =>
         createUserFriendlyErrorMock(...args),
 }))

@@ -15,8 +15,10 @@ import {
 import type { CustomClient } from '../types'
 
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    createUserFriendlyError: jest.fn(),
 }))
 
 jest.mock('./commandsHandler', () => ({
@@ -43,10 +45,6 @@ jest.mock('../utils/general/interactionReply', () => ({
 
 jest.mock('../utils/monitoring', () => ({
     monitorInteractionHandling: jest.fn(),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
-    createUserFriendlyError: jest.fn(),
 }))
 
 import { debugLog, errorLog } from '@lucky/shared/utils'

@@ -6,8 +6,10 @@ import type { CustomClient } from '../types'
 import type Command from '../models/Command'
 
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
+    createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -22,10 +24,6 @@ jest.mock('../utils/general/interactionReply', () => ({
 
 jest.mock('../utils/monitoring', () => ({
     monitorCommandExecution: jest.fn(),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
-    createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
 }))
 
 import { debugLog, errorLog } from '@lucky/shared/utils'

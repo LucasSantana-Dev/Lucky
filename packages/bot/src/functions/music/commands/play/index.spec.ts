@@ -93,9 +93,11 @@ jest.mock('../../../../utils/command/commandValidations', () => ({
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     errorLog: (payload: unknown) => errorLogMock(payload),
     debugLog: (payload: unknown) => debugLogMock(payload),
     warnLog: (payload: unknown) => warnLogMock(payload),
+    createUserFriendlyError: (error: unknown) => 'User friendly error',
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -139,10 +141,6 @@ jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({
 jest.mock('../../../../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (queue: unknown) =>
         createMusicControlButtonsMock(queue),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
-    createUserFriendlyError: (error: unknown) => 'User friendly error',
 }))
 
 import playCommand from './index'

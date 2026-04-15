@@ -45,10 +45,9 @@ jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 jest.mock('@lucky/shared/utils', () => ({
+    ...jest.requireActual('@lucky/shared/utils'),
     createUserFriendlyError: (...args: unknown[]) =>
         createUserFriendlyErrorMock(...args),
-}))
-jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
