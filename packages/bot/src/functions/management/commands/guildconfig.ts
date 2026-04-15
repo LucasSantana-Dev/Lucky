@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared/constants'
 import {
     SlashCommandBuilder,
     PermissionFlagsBits,
@@ -20,7 +21,7 @@ function summaryEmbed(params: {
     const embed = new EmbedBuilder()
         .setTitle(params.title)
         .setDescription(params.description)
-        .setColor(params.color ?? 0x8b5cf6)
+        .setColor(params.color ?? COLOR.SETUP_PURPLE)
         .setFooter({ text: params.guildName })
         .setTimestamp()
 
@@ -145,7 +146,7 @@ export default new Command({
                                     inline: true,
                                 },
                             ],
-                            color: 0x22c55e,
+                            color: COLOR.INFO_GREEN,
                         }),
                     ],
                 })
@@ -268,7 +269,7 @@ export default new Command({
                                     inline: true,
                                 },
                             ],
-                            color: blockedByProtected ? 0xf59e0b : 0x22c55e,
+                            color: blockedByProtected ? 0xf59e0b : COLOR.INFO_GREEN,
                         }),
                     ],
                 })
@@ -399,7 +400,7 @@ export default new Command({
                             ],
                             color:
                                 result.status === 'completed'
-                                    ? 0x22c55e
+                                    ? COLOR.INFO_GREEN
                                     : 0xf59e0b,
                         }),
                     ],

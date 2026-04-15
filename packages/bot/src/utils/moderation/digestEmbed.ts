@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared/constants'
 import { EmbedBuilder } from 'discord.js'
 
 export type DigestStats = {
@@ -60,7 +61,7 @@ export function buildDigestEmbed({
         .join('\n')
 
     const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
+        .setColor(COLOR.DISCORD_BLURPLE)
         .setTitle(`📊 Moderation Digest — Last ${days} days`)
         .addFields(
             {
