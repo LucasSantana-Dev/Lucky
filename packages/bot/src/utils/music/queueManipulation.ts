@@ -55,10 +55,11 @@ const QUEUE_RESCUE_REFILL_THRESHOLD = Number.parseInt(
     10,
 )
 
-const audioFeatureCache = new LRUCache<
-    string,
-    SpotifyAudioFeatures | null
->({
+interface AudioFeatureEntry {
+    value: SpotifyAudioFeatures | null
+}
+
+const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
     max: 10000,
     ttl: 24 * 60 * 60 * 1000,
 })
@@ -71,12 +72,12 @@ async function getTrackAudioFeatures(
 
     const cached = audioFeatureCache.get(cacheKey)
     if (cached !== undefined) {
-        return cached
+        return cached.value
     }
 
     const token = await spotifyLinkService.getValidAccessToken(userId)
     if (!token) {
-        audioFeatureCache.set(cacheKey, null)
+        audioFeatureCache.set(cacheKey, { value: null })
         return null
     }
 
@@ -98,12 +99,12 @@ async function getTrackAudioFeatures(
     }
 
     if (!spotifyId) {
-        audioFeatureCache.set(cacheKey, null)
+        audioFeatureCache.set(cacheKey, { value: null })
         return null
     }
 
     const features = await getAudioFeatures(token, spotifyId).catch(() => null)
-    audioFeatureCache.set(cacheKey, features)
+    audioFeatureCache.set(cacheKey, { value: features })
     return features
 }
 
