@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import {
     validateBody,
     validateParams,
@@ -35,6 +36,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automod/settings',
         requireAuth,
+        requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const settings = await autoModService.getSettings(
@@ -47,6 +49,7 @@ export function setupManagementRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/automod/settings',
         requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.autoModSettingsBody),
@@ -72,6 +75,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automod/templates',
         requireAuth,
+        requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const templates = await autoModService.listTemplates()
@@ -82,6 +86,7 @@ export function setupManagementRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/automod/templates/:templateId/apply',
         requireAuth,
+        requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(s.autoModTemplateParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -122,6 +127,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/commands',
         requireAuth,
+        requireGuildModuleAccess('automation', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const commands = await customCommandService.listCommands(
@@ -134,6 +140,7 @@ export function setupManagementRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/commands',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.createCommandBody),
@@ -161,6 +168,7 @@ export function setupManagementRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/commands/:name',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.commandNameParam),
         validateBody(s.updateCommandBody),
@@ -187,6 +195,7 @@ export function setupManagementRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/commands/:name',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.commandNameParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -210,6 +219,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs',
         requireAuth,
+        requireGuildModuleAccess('overview', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(s.logsQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -241,6 +251,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/search',
         requireAuth,
+        requireGuildModuleAccess('overview', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(s.logsSearchQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -257,6 +268,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/users/:userId',
         requireAuth,
+        requireGuildModuleAccess('overview', 'view'),
         validateParams(s.userIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
@@ -269,6 +281,7 @@ export function setupManagementRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/logs/stats',
         requireAuth,
+        requireGuildModuleAccess('overview', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const stats = await serverLogService.getStats(p(req.params.guildId))

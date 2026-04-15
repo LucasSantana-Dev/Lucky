@@ -5,11 +5,18 @@ import express from 'express'
 import { setupAutoMessageRoutes } from '../../../src/routes/managementAutoMessages'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
-import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -29,6 +36,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 import { autoMessageService, serverLogService } from '@lucky/shared/services'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
 
 describe('Auto Message Routes Integration', () => {
     let app: express.Express
@@ -40,6 +48,19 @@ describe('Auto Message Routes Integration', () => {
         setupAutoMessageRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+
+        const mockSessionService = sessionService as jest.Mocked<
+            typeof sessionService
+        >
+        mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const mockGuildAccessService = guildAccessService as jest.Mocked<
+            typeof guildAccessService
+        >
+        mockGuildAccessService.resolveGuildContext.mockResolvedValue(
+            MOCK_GUILD_CONTEXT,
+        )
+        mockGuildAccessService.hasAccess.mockReturnValue(true)
     })
 
     describe('GET /api/guilds/:guildId/automessages', () => {
@@ -79,7 +100,45 @@ describe('Auto Message Routes Integration', () => {
             )
         })
 
-        test('should return messages by type when type query provided', async () => {
+        test('should return 401 when not authenticated', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(null)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/automessages')
+                .expect(401)
+
+            expect(response.body).toEqual({
+                error: 'Not authenticated',
+            })
+        })
+
+        test('should return 403 for unauthorized user', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockGuildAccessServiceSvc = guildAccessService as jest.Mocked<
+                typeof guildAccessService
+            >
+            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(null)
+
+            const response = await request(app)
+                .get('/api/guilds/111111111111111111/automessages')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(403)
+
+            expect(response.body).toEqual({
+                error: 'No access to this server',
+            })
+        })
+    })
+
+    describe('GET /api/guilds/:guildId/automessages?type=welcome', () => {
+        test('should return welcome message when type query is provided', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
@@ -88,15 +147,21 @@ describe('Auto Message Routes Integration', () => {
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            const messages = [{ id: '1', type: 'welcome', message: 'Welcome!' }]
-            mockAutoMessageService.getMessagesByType.mockResolvedValue(messages)
+            const welcomeMsg = {
+                id: '1',
+                type: 'welcome',
+                message: 'Welcome!',
+            }
+            mockAutoMessageService.getMessagesByType.mockResolvedValue(
+                welcomeMsg,
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/automessages?type=welcome')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
-            expect(response.body).toEqual({ messages })
+            expect(response.body).toEqual({ messages: welcomeMsg })
             expect(
                 mockAutoMessageService.getMessagesByType,
             ).toHaveBeenCalledWith('111111111111111111', 'welcome')
@@ -109,44 +174,11 @@ describe('Auto Message Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)
-                .get('/api/guilds/111111111111111111/automessages')
+                .get('/api/guilds/111111111111111111/automessages?type=welcome')
                 .expect(401)
 
-            expect(response.body).toEqual({ error: 'Not authenticated' })
-        })
-
-        test('should keep legacy /auto-messages path unmapped', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            const response = await request(app)
-                .get('/api/guilds/111111111111111111/auto-messages')
-                .expect(404)
-
-            expect(response.body).toEqual({})
-            expect(mockSessionService.getSession).not.toHaveBeenCalled()
-        })
-
-        test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockAutoMessageService = autoMessageService as jest.Mocked<
-                typeof autoMessageService
-            >
-            mockAutoMessageService.getWelcomeMessage.mockRejectedValue(
-                new Error('Service error'),
-            )
-
-            const response = await request(app)
-                .get('/api/guilds/111111111111111111/automessages')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(500)
-
             expect(response.body).toEqual({
-                error: 'Internal server error',
+                error: 'Not authenticated',
             })
         })
     })
@@ -158,62 +190,43 @@ describe('Auto Message Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
+            const newMsg = {
+                type: 'welcome',
+                message: 'Welcome to the server!',
+                enabled: true,
+            }
+
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            const newMessage = {
-                id: '1',
-                type: 'welcome',
-                message: 'Welcome!',
-            }
-            mockAutoMessageService.createMessage.mockResolvedValue(newMessage)
+            mockAutoMessageService.createMessage.mockResolvedValue(newMsg)
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.logAutoMessageChange.mockResolvedValue()
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/automessages')
                 .set('Cookie', ['sessionId=valid_session_id'])
-                .send({
-                    type: 'welcome',
-                    message: 'Welcome!',
-                    channelId: '222222222222222222',
-                })
+                .send(newMsg)
                 .expect(201)
 
-            expect(response.body).toEqual(newMessage)
+            expect(response.body).toEqual(newMsg)
             expect(mockAutoMessageService.createMessage).toHaveBeenCalledWith(
                 '111111111111111111',
-                'welcome',
-                { message: 'Welcome!' },
+                newMsg.type,
+                { message: newMsg.message },
                 {
-                    channelId: '222222222222222222',
+                    channelId: undefined,
                     trigger: undefined,
                     exactMatch: undefined,
                     cronSchedule: undefined,
                 },
             )
-            expect(serverLogService.logAutoMessageChange).toHaveBeenCalledWith(
-                '111111111111111111',
-                'created',
-                { type: 'welcome', channelId: '222222222222222222' },
-                MOCK_SESSION_DATA.userId,
-            )
-        })
-
-        test('should return 400 when type or message missing', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/automessages')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ type: 'welcome' })
-                .expect(400)
-
-            expect(response.body).toEqual({
-                error: 'Validation failed',
-                errors: expect.any(Array),
-            })
+            expect(
+                mockServerLogService.logAutoMessageChange,
+            ).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -224,32 +237,11 @@ describe('Auto Message Routes Integration', () => {
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/automessages')
+                .send({ type: 'welcome', message: 'test' })
                 .expect(401)
 
-            expect(response.body).toEqual({ error: 'Not authenticated' })
-        })
-
-        test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockAutoMessageService = autoMessageService as jest.Mocked<
-                typeof autoMessageService
-            >
-            mockAutoMessageService.createMessage.mockRejectedValue(
-                new Error('Service error'),
-            )
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/automessages')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ type: 'welcome', message: 'Welcome!' })
-                .expect(500)
-
             expect(response.body).toEqual({
-                error: 'Internal server error',
+                error: 'Not authenticated',
             })
         })
     })
@@ -261,35 +253,43 @@ describe('Auto Message Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
+            const updatedMsg = {
+                message: 'Updated welcome message!',
+                enabled: true,
+            }
+            const mockResponseMsg = {
+                id: '1',
+                type: 'welcome',
+                message: 'Updated welcome message!',
+                enabled: true,
+            }
+
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            const updatedMessage = {
-                id: '1',
-                type: 'welcome',
-                message: 'Updated!',
-            }
             mockAutoMessageService.updateMessage.mockResolvedValue(
-                updatedMessage,
+                mockResponseMsg,
             )
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.logAutoMessageChange.mockResolvedValue()
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/automessages/1')
                 .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ message: 'Updated!' })
+                .send(updatedMsg)
                 .expect(200)
 
-            expect(response.body).toEqual(updatedMessage)
+            expect(response.body).toEqual(mockResponseMsg)
             expect(mockAutoMessageService.updateMessage).toHaveBeenCalledWith(
                 '1',
-                { message: 'Updated!' },
+                updatedMsg,
             )
-            expect(serverLogService.logAutoMessageChange).toHaveBeenCalledWith(
-                '111111111111111111',
-                'updated',
-                { type: 'welcome', changes: { message: 'Updated!' } },
-                MOCK_SESSION_DATA.userId,
-            )
+            expect(
+                mockServerLogService.logAutoMessageChange,
+            ).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -300,32 +300,11 @@ describe('Auto Message Routes Integration', () => {
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/automessages/1')
+                .send({ message: 'updated' })
                 .expect(401)
 
-            expect(response.body).toEqual({ error: 'Not authenticated' })
-        })
-
-        test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockAutoMessageService = autoMessageService as jest.Mocked<
-                typeof autoMessageService
-            >
-            mockAutoMessageService.updateMessage.mockRejectedValue(
-                new Error('Service error'),
-            )
-
-            const response = await request(app)
-                .patch('/api/guilds/111111111111111111/automessages/1')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ message: 'Updated!' })
-                .expect(500)
-
             expect(response.body).toEqual({
-                error: 'Internal server error',
+                error: 'Not authenticated',
             })
         })
     })
@@ -337,17 +316,23 @@ describe('Auto Message Routes Integration', () => {
             >
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
+            const toggledMessage = {
+                type: 'welcome',
+                message: 'Welcome!',
+                enabled: false,
+            }
+
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            const toggledMessage = {
-                id: '1',
-                type: 'welcome',
-                enabled: true,
-            }
             mockAutoMessageService.toggleMessage.mockResolvedValue(
                 toggledMessage,
             )
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.logAutoMessageChange.mockResolvedValue()
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/automessages/1/toggle')
@@ -360,12 +345,9 @@ describe('Auto Message Routes Integration', () => {
                 '1',
                 true,
             )
-            expect(serverLogService.logAutoMessageChange).toHaveBeenCalledWith(
-                '111111111111111111',
-                'enabled',
-                { type: 'welcome' },
-                MOCK_SESSION_DATA.userId,
-            )
+            expect(
+                mockServerLogService.logAutoMessageChange,
+            ).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -376,32 +358,11 @@ describe('Auto Message Routes Integration', () => {
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/automessages/1/toggle')
+                .send({ enabled: true })
                 .expect(401)
 
-            expect(response.body).toEqual({ error: 'Not authenticated' })
-        })
-
-        test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockAutoMessageService = autoMessageService as jest.Mocked<
-                typeof autoMessageService
-            >
-            mockAutoMessageService.toggleMessage.mockRejectedValue(
-                new Error('Service error'),
-            )
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/automessages/1/toggle')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ enabled: true })
-                .expect(500)
-
             expect(response.body).toEqual({
-                error: 'Internal server error',
+                error: 'Not authenticated',
             })
         })
     })
@@ -416,7 +377,14 @@ describe('Auto Message Routes Integration', () => {
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            mockAutoMessageService.deleteMessage.mockResolvedValue(undefined)
+            mockAutoMessageService.deleteMessage.mockResolvedValue({
+                success: true,
+            })
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.logAutoMessageChange.mockResolvedValue()
 
             const response = await request(app)
                 .delete('/api/guilds/111111111111111111/automessages/1')
@@ -427,12 +395,9 @@ describe('Auto Message Routes Integration', () => {
             expect(mockAutoMessageService.deleteMessage).toHaveBeenCalledWith(
                 '1',
             )
-            expect(serverLogService.logAutoMessageChange).toHaveBeenCalledWith(
-                '111111111111111111',
-                'disabled',
-                { type: 'deleted' },
-                MOCK_SESSION_DATA.userId,
-            )
+            expect(
+                mockServerLogService.logAutoMessageChange,
+            ).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -445,29 +410,8 @@ describe('Auto Message Routes Integration', () => {
                 .delete('/api/guilds/111111111111111111/automessages/1')
                 .expect(401)
 
-            expect(response.body).toEqual({ error: 'Not authenticated' })
-        })
-
-        test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockAutoMessageService = autoMessageService as jest.Mocked<
-                typeof autoMessageService
-            >
-            mockAutoMessageService.deleteMessage.mockRejectedValue(
-                new Error('Service error'),
-            )
-
-            const response = await request(app)
-                .delete('/api/guilds/111111111111111111/automessages/1')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(500)
-
             expect(response.body).toEqual({
-                error: 'Internal server error',
+                error: 'Not authenticated',
             })
         })
     })

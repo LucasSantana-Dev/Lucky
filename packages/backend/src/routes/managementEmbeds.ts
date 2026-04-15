@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateBody, validateParams } from '../middleware/validate'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
@@ -27,6 +28,7 @@ export function setupEmbedRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/embeds',
         requireAuth,
+        requireGuildModuleAccess('automation', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const templates = await embedBuilderService.listTemplates(
@@ -39,6 +41,7 @@ export function setupEmbedRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/embeds',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.createEmbedBody),
@@ -75,6 +78,7 @@ export function setupEmbedRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/embeds/:name',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.embedNameParam),
         validateBody(s.updateEmbedBody),
@@ -104,6 +108,7 @@ export function setupEmbedRoutes(app: Express): void {
     app.delete(
         '/api/guilds/:guildId/embeds/:name',
         requireAuth,
+        requireGuildModuleAccess('automation', 'manage'),
         writeLimiter,
         validateParams(s.embedNameParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

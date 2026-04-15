@@ -3,6 +3,7 @@ import type {
     DiscordGuild,
 } from '../../src/services/DiscordOAuthService'
 import type { SessionData } from '../../src/services/SessionService'
+import type { GuildAccessContext } from '../../src/services/GuildAccessService'
 
 export const MOCK_DISCORD_USER: DiscordUser = {
     id: '123456789012345678',
@@ -60,3 +61,22 @@ export const MOCK_AUTH_CODE = 'mock_authorization_code_12345'
 export const MOCK_SESSION_ID = 'mock_session_id_12345'
 
 export const MOCK_OAUTH_STATE = 'a'.repeat(64)
+
+export const MOCK_GUILD_CONTEXT: GuildAccessContext = {
+    guildId: '111111111111111111',
+    owner: true,
+    isAdmin: true,
+    hasBot: true,
+    botPresenceChecked: true,
+    roleIds: [],
+    nickname: null,
+    effectiveAccess: {
+        overview: 'manage',
+        settings: 'manage',
+        moderation: 'manage',
+        automation: 'manage',
+        music: 'manage',
+        integrations: 'manage',
+    },
+    canManageRbac: true,
+}
