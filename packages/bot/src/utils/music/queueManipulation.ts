@@ -682,12 +682,14 @@ function buildExcludedUrls(
 ): Set<string> {
     const allHistoryTracks = getAllHistoryTracks(queue)
     const mostRecentHistoryUrl = allHistoryTracks[0]?.url
+    const mostRecentPersistentUrl = persistentHistory[0]?.url
     const allUrls = [
         currentTrack.url,
         ...historyTracks.map((t) => t.url),
         ...queue.tracks.toArray().map((t) => t.url),
         ...persistentHistory.map((e) => e.url).filter(Boolean),
         ...(mostRecentHistoryUrl ? [mostRecentHistoryUrl] : []),
+        ...(mostRecentPersistentUrl ? [mostRecentPersistentUrl] : []),
     ]
     const result = new Set<string>()
     for (const url of allUrls) {
