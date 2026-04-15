@@ -20,6 +20,11 @@ import {
     detectSessionLanguageMarkers,
 } from '../../utils/music/languageHeuristics'
 
+type TrackMetadata = {
+    tags?: string[]
+    popularity?: number
+}
+
 export async function generateRecommendations(
     seedTrack: Track,
     availableTracks: Track[],
@@ -105,7 +110,7 @@ export async function generateHistoryBasedRecommendations(
             recentHistory.map((t) => ({
                 title: t.title,
                 author: t.author,
-                tags: t.metadata?.tags || [],
+                tags: (t.metadata as TrackMetadata)?.tags || [],
             })),
         )
 
@@ -150,7 +155,7 @@ function applySpanishLanguagePenalty(
         const trackText = `${rec.track.title || ''} ${rec.track.author || ''}`
         const candidateHasSpanish = detectSpanishMarkers(
             trackText,
-            rec.track.metadata?.tags || [],
+            (rec.track.metadata as TrackMetadata)?.tags || [],
         )
 
         if (candidateHasSpanish && !hasSpanishMarkers) {
@@ -167,7 +172,7 @@ function applySpanishLanguagePenalty(
         if (
             candidateHasSpanish &&
             !hasSpanishMarkers &&
-            (rec.track.metadata?.popularity || 100) < 20
+            ((rec.track.metadata as TrackMetadata)?.popularity || 100) < 20
         ) {
             return {
                 ...rec,
