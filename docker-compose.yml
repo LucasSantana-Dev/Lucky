@@ -126,6 +126,7 @@ services:
         environment:
             - NODE_ENV=production
             - DISCORD_TOKEN=${DISCORD_TOKEN}
+            - LUCKY_NOTIFY_API_KEY=${LUCKY_NOTIFY_API_KEY:-}
             - CLIENT_ID=${CLIENT_ID}
             - CLIENT_SECRET=${CLIENT_SECRET}
             - SENTRY_DSN=${SENTRY_DSN:-}

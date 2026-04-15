@@ -20,6 +20,7 @@ const setupStarboardRoutes = jest.fn()
 const setupMusicRoutes = jest.fn()
 const setupSpotifyRoutes = jest.fn()
 const setupArtistsRoutes = jest.fn()
+const setupInternalNotifyRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
@@ -102,6 +103,10 @@ jest.mock('../../../src/routes/artists', () => ({
     setupArtistsRoutes,
 }))
 
+jest.mock("../../../src/routes/internalNotify", () => ({
+    setupInternalNotifyRoutes,
+}))
+
 jest.mock('../../../src/middleware/rateLimit', () => ({
     apiLimiter,
 }))
@@ -139,6 +144,7 @@ describe('setupRoutes', () => {
         const useCalls = app.use.mock.calls as unknown[][]
 
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
+        expect(setupInternalNotifyRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
 
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('moderation')
