@@ -1,12 +1,28 @@
 import type { Track } from 'discord-player'
+import { LRUCache } from 'lru-cache'
 import type { TrackHistoryEntry } from '@lucky/shared/services'
 import type { TrackMetadata } from '@lucky/shared/types'
 
 // Legacy in-memory maps for backward compatibility (fallback when Redis is unavailable)
-export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()
-export const trackIdSet = new Map<string, Set<string>>()
-export const lastPlayedTracks = new Map<string, Track>()
-export const artistGenreMap = new Map<string, TrackMetadata>()
+// Using LRU caches with guild-scoped TTL to prevent unbounded growth
+export const recentlyPlayedTracks = new LRUCache<string, TrackHistoryEntry[]>(
+    {
+        max: 1000,
+        ttl: 60 * 60 * 1000,
+    },
+)
+export const trackIdSet = new LRUCache<string, Set<string>>({
+    max: 1000,
+    ttl: 60 * 60 * 1000,
+})
+export const lastPlayedTracks = new LRUCache<string, Track>({
+    max: 1000,
+    ttl: 60 * 60 * 1000,
+})
+export const artistGenreMap = new LRUCache<string, TrackMetadata>({
+    max: 1000,
+    ttl: 60 * 60 * 1000,
+})
 
 export type { TrackHistoryEntry, TrackMetadata }
 
