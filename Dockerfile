@@ -93,7 +93,7 @@ COPY --from=build /app/prisma ./prisma
 RUN mkdir -p downloads logs && \
     addgroup -g 1001 -S nodejs && \
     adduser -S bot -u 1001 -G nodejs && \
-    chown -R bot:nodejs /app && \
+    chown -R bot:nodejs /app/downloads /app/logs && \
     chmod -R 755 /app/downloads
 
 USER bot
@@ -125,7 +125,7 @@ COPY --from=build /app/prisma ./prisma
 
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S backend -u 1001 -G nodejs && \
-    chown -R backend:nodejs /app
+    chown -R backend:nodejs /app/dist /app/prisma
 
 USER backend
 
