@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.128] - 2026-04-15
+
+### Fixed
+- Autoplay history race: `buildExcludedUrls` now also reads the most-recent URL from the freshly-fetched persistent (Redis) history, closing a race where `queue.history` (in-memory) lagged behind Redis and the just-played track could be re-selected
+- Bot leave-then-rejoin replaying the same song: watchdog orphan session recovery now passes `skipCurrentTrack: true` so the rejoin continues with the next queued track instead of restarting the last-playing one
+- Preferred Artists: related artists no longer empty — Spotify deprecated `/v1/artists/{id}/related-artists` (403 for new apps); replaced with `/v1/recommendations?seed_artists=<id>` fallback that dedupes recommended track artists
+- Preferred Artists detail panel now responsive: inline below grid on small viewports, sticky sidebar on `lg+`
+- Preferred Artists batch save: single `PUT /api/artists/preferences/batch` replaces the per-artist PUT fan-out when saving multiple preferences
+
 ## [2.6.127] - 2026-04-15
 
 ### Changed
