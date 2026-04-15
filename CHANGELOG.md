@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.123] - 2026-04-14
+
+### Added
+- `POST /api/internal/notify`: homelab-only endpoint for sending Discord notifications from the server (content + embeds, auth via `INTERNAL_API_KEY`)
+
+### Changed
+- Phase 1 dedupe: deleted 368 LOC of 95%-duplicate files — `queueStateManager.ts`, `downloadHelpers.ts`, and `errorSanitizer.ts` now have a single canonical location; `errorSanitizer` moved to `@lucky/shared`
+- Phase 2 memory hygiene: replaced 4 unbounded module-level Maps with LRU caches — `artistPopularityCache` (max 5000, 24h TTL), `audioFeatureCache` (max 10000, 24h TTL), duplicate-detection caches (max 1000, 1h TTL), and now-playing caches (max 500, 4h TTL); prevents long-running-bot memory growth
+
+### Fixed
+- CI: `Deploy to Homelab` workflow converted to manual-dispatch-only (no webhook listener was running on server — was failing silently on every push)
+
 ## [2.6.122] - 2026-04-14
 
 ### Fixed
