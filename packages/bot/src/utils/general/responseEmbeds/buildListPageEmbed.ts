@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared'
 import { EmbedBuilder } from 'discord.js'
 
 export type ListItem = {
@@ -13,7 +14,7 @@ export type ListPageConfig = {
     itemsPerPage?: number
 }
 
-const DEFAULT_COLOR = 0x5865f2
+const DEFAULT_COLOR = COLOR.DISCORD_BLURPLE
 const DEFAULT_ITEMS_PER_PAGE = 10
 
 export function buildListPageEmbed(

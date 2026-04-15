@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared'
 /**
  * Response handling utilities
  */
@@ -10,7 +11,7 @@ export function createSuccessResponse(
     query: string,
 ): { content: string; embeds: EmbedBuilder[] } {
     const embed = new EmbedBuilder()
-        .setColor(0x00ff00)
+        .setColor(COLOR.SUCCESS_GREEN)
         .setTitle('🎵 Track Added to Queue')
         .setDescription(`Successfully processed: **${query}**`)
         .setTimestamp()

@@ -1,7 +1,8 @@
+import { COLOR } from '@lucky/shared'
 import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 
-const PROFILE_COLOR = 0x5865f2
+const PROFILE_COLOR = COLOR.DISCORD_BLURPLE
 
 export type UserStats = {
     xp?: number

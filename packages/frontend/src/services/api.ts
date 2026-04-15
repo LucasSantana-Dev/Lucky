@@ -1,3 +1,4 @@
+import { API_ROUTES } from '@lucky/shared'
 import axios, { AxiosInstance } from 'axios'
 import type {
     User,
@@ -114,10 +115,10 @@ export const api = {
     auth: {
         checkStatus: () =>
             apiClient.get<{ authenticated: boolean; user?: User }>(
-                '/auth/status',
+                API_ROUTES.AUTH.status(),
             ),
         getUser: async () => {
-            const response = await apiClient.get<User>('/auth/user')
+            const response = await apiClient.get<User>(API_ROUTES.AUTH.user())
             return {
                 ...response,
                 data: {
@@ -125,14 +126,14 @@ export const api = {
                 },
             }
         },
-        logout: () => apiClient.get<{ success: boolean }>('/auth/logout'),
+        logout: () => apiClient.get<{ success: boolean }>(API_ROUTES.AUTH.logout()),
         getDiscordLoginUrl: () => `${NORMALIZED_API_BASE}/auth/discord`,
     },
 
     guilds: {
         list: async () => {
             const response = await apiClient.get<{ guilds: BackendGuild[] }>(
-                '/guilds',
+                API_ROUTES.GUILDS.list(),
             )
             return {
                 ...response,

@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared'
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
 import { PermissionFlagsBits, type TextChannel } from 'discord.js'
 import Command from '../../../models/Command'
@@ -77,7 +78,7 @@ async function endGiveaway(messageId: string, isReroll = false, client?: any): P
                 new EmbedBuilder()
                     .setTitle('🎉 Giveaway Ended 🎉')
                     .setDescription(`**${giveaway.prize}** - No valid entries!`)
-                    .setColor(0xff0000),
+                    .setColor(COLOR.ERROR_RED),
             ],
         })
         if (!isReroll) activeGiveaways.delete(messageId)
@@ -103,7 +104,7 @@ async function endGiveaway(messageId: string, isReroll = false, client?: any): P
             new EmbedBuilder()
                 .setTitle(`🎉 Giveaway ${isReroll ? 'Rerolled' : 'Ended'} 🎉`)
                 .setDescription(`**${giveaway.prize}**\n\nWinner${giveaway.winnersCount > 1 ? 's' : ''}: ${winnerMentions}`)
-                .setColor(0x00ff00)
+                .setColor(COLOR.SUCCESS_GREEN)
                 .setFooter({ text: `${giveaway.winnersCount} winner${giveaway.winnersCount > 1 ? 's' : ''}` }),
         ],
     })
@@ -201,7 +202,7 @@ export default new Command({
                         { name: 'Winners', value: `${winnersCount}`, inline: true },
                         { name: 'Ends', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: true },
                     )
-                    .setColor(0xffd700)
+                    .setColor(COLOR.WARNING_GOLD)
                     .setFooter({ text: 'React with 🎉 to enter' })
 
                 if (!interaction.channel || !interaction.channel.isTextBased()) {

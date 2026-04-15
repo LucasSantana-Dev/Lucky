@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared'
 import {
     EmbedBuilder,
     ButtonStyle,
@@ -62,7 +63,7 @@ export async function handleCreate(
     const embed = new EmbedBuilder()
         .setTitle(title)
         .setDescription(description)
-        .setColor(0x5865f2)
+        .setColor(COLOR.DISCORD_BLURPLE)
         .setTimestamp()
 
     const message = await reactionRolesService.createReactionRoleMessage({
@@ -130,7 +131,7 @@ export async function handleList(
 
     const embed = new EmbedBuilder()
         .setTitle('Reaction Role Messages')
-        .setColor(0x5865f2)
+        .setColor(COLOR.DISCORD_BLURPLE)
         .setDescription(
             (
                 messages as Array<{

@@ -1,11 +1,7 @@
 import { EmbedBuilder } from 'discord.js'
 import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
-
-// Lucky brand purple (same hex as EMBED_COLORS.MUSIC in @lucky/shared/utils,
-// inlined to avoid pulling the full shared utils barrel — it transitively
-// imports an ESM-only dep that breaks ts-jest on direct-import tests.)
-const LUCKY_MUSIC_COLOR = 0x9c27b0
+import { COLOR } from '@lucky/shared'
 
 export type PlayResponseKind = 'nowPlaying' | 'addedToQueue' | 'playlistQueued'
 
@@ -32,34 +28,34 @@ const SOURCE_BADGES: Record<string, SourceBadge> = {
     spotify: {
         label: 'Spotify',
         emoji: '🟢',
-        color: 0x1db954, // Spotify green
+        color: COLOR.SPOTIFY_GREEN,
     },
     youtube: {
         label: 'YouTube',
         emoji: '🔴',
-        color: 0xff0000, // YouTube red
+        color: COLOR.YOUTUBE_RED,
     },
     soundcloud: {
         label: 'SoundCloud',
         emoji: '🟠',
-        color: 0xff5500, // SoundCloud orange
+        color: COLOR.SOUNDCLOUD_ORANGE,
     },
     apple_music: {
         label: 'Apple Music',
         emoji: '🍎',
-        color: 0xfa2d48, // Apple Music red
+        color: COLOR.APPLE_MUSIC_RED,
     },
     vimeo: {
         label: 'Vimeo',
         emoji: '🔵',
-        color: 0x1ab7ea,
+        color: COLOR.TIDAL_BLUE,
     },
 }
 
 const DEFAULT_BADGE: SourceBadge = {
     label: 'Music',
     emoji: '🎵',
-    color: LUCKY_MUSIC_COLOR,
+    color: COLOR.LUCKY_PURPLE,
 }
 
 /**
