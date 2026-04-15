@@ -283,30 +283,24 @@ async function recoverFromStreamExtractionError(
     )
 
     if (alternativeTrack) {
-        if (isSameTrack(currentTrack, alternativeTrack)) {
-            warnLog({
-                message:
-                    'Stream failed, YouTube returned same track alternative — skipping instead of reinsert',
-                data: { title: currentTrack.title, guildId: queue.guild.id },
-            })
-            await notifyChannelStreamFailed(queue, currentTrack.title)
-            queue.node.skip()
-        } else {
-            queue.insertTrack(alternativeTrack, 0)
-            queue.node.skip()
-            providerHealthService.recordSuccess(providerFromTrack(currentTrack))
-            debugLog({
-                message: 'Successfully recovered from stream extraction error',
-                data: {
-                    title: currentTrack.title,
-                    alternativeUrl: alternativeTrack.url,
-                },
-            })
-        }
+        queue.insertTrack(alternativeTrack, 0)
+        queue.node.skip()
+        providerHealthService.recordSuccess(providerFromTrack(currentTrack))
+        debugLog({
+            message: 'Successfully recovered from stream extraction error',
+            data: {
+                title: currentTrack.title,
+                alternativeUrl: alternativeTrack.url,
+            },
+        })
     } else {
+        const allSameTrack = searchResult.tracks.some((track) =>
+            isSameTrack(currentTrack, track),
+        )
         warnLog({
-            message:
-                'Stream failed, all YouTube alternatives already in queue — skipping',
+            message: allSameTrack
+                ? 'Stream failed, YouTube returned same track alternative — skipping instead of reinsert'
+                : 'Stream failed, all YouTube alternatives already in queue — skipping',
             data: { title: currentTrack.title, guildId: queue.guild.id },
         })
         await notifyChannelStreamFailed(queue, currentTrack.title)
