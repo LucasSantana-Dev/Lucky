@@ -27,6 +27,60 @@ function normalizeArtistKey(name: string): string {
 
 export function setupArtistsRoutes(app: Express): void {
     app.get(
+        '/api/artists/suggestions',
+        requireAuth,
+        async (req: AuthenticatedRequest, res: Response) => {
+            try {
+                if (!isSpotifyAuthConfigured()) {
+                    res.status(503).json({ error: 'Spotify not configured' })
+                    return
+                }
+                const token = await getSpotifyClientToken()
+                if (!token) {
+                    res.status(503).json({
+                        error: 'Failed to get Spotify token',
+                    })
+                    return
+                }
+                const suggestQueries = [
+                    'Drake',
+                    'The Weeknd',
+                    'Dua Lipa',
+                    'Billie Eilish',
+                    'Bad Bunny',
+                    'Ariana Grande',
+                ]
+                const suggestions = new Map<string, any>()
+                for (const query of suggestQueries) {
+                    if (suggestions.size >= 12) break
+                    try {
+                        const artists = await searchSpotifyArtists(
+                            token,
+                            query,
+                            2,
+                        )
+                        for (const artist of artists) {
+                            if (suggestions.size >= 12) break
+                            suggestions.set(artist.id, artist)
+                        }
+                    } catch {
+                        // continue to next query
+                    }
+                }
+                res.json({
+                    artists: Array.from(suggestions.values()),
+                })
+            } catch (error) {
+                errorLog({
+                    message: 'Artist suggestions error',
+                    error,
+                })
+                res.status(500).json({ error: 'Failed to get suggestions' })
+            }
+        },
+    )
+
+    app.get(
         '/api/artists/search',
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
