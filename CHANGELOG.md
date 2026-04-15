@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.124] - 2026-04-15
+
+### Added
+- Preferred Artists page: default suggestions grid (replaces empty search state), click-to-expand related artists (Spotify API), and batch "Save Preferences" button that commits multiple prefer/block selections at once
+- Backend `GET /api/artists/suggestions`: returns 12 suggested artists from user's Spotify top artists (if OAuth linked) with fallback to popular artists search
+
+### Fixed
+- Sidebar active-link: `/music` no longer activates when navigating to `/music/artists` or other music sub-routes — uses exact match for /music specifically
+- Preferred Artists batch save preserves artist metadata from search results so preferences aren't lost when search is cleared before saving
+- Docker production image now includes workspace-local `node_modules` for bot and backend workspaces — root cause of v2.6.123 lru-cache ERR_MODULE_NOT_FOUND crash loop
+
 ## [2.6.123] - 2026-04-14
 
 ### Added
