@@ -215,7 +215,14 @@ describe('Auto Message Routes Integration', () => {
             expect(response.body).toEqual(newMsg)
             expect(mockAutoMessageService.createMessage).toHaveBeenCalledWith(
                 '111111111111111111',
-                newMsg,
+                newMsg.type,
+                { message: newMsg.message },
+                {
+                    channelId: undefined,
+                    trigger: undefined,
+                    exactMatch: undefined,
+                    cronSchedule: undefined,
+                },
             )
             expect(
                 mockServerLogService.logAutoMessageChange,
@@ -247,6 +254,11 @@ describe('Auto Message Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
             const updatedMsg = {
+                message: 'Updated welcome message!',
+                enabled: true,
+            }
+            const mockResponseMsg = {
+                id: '1',
                 type: 'welcome',
                 message: 'Updated welcome message!',
                 enabled: true,
@@ -255,7 +267,9 @@ describe('Auto Message Routes Integration', () => {
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            mockAutoMessageService.updateMessage.mockResolvedValue(updatedMsg)
+            mockAutoMessageService.updateMessage.mockResolvedValue(
+                mockResponseMsg,
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
@@ -268,9 +282,8 @@ describe('Auto Message Routes Integration', () => {
                 .send(updatedMsg)
                 .expect(200)
 
-            expect(response.body).toEqual(updatedMsg)
+            expect(response.body).toEqual(mockResponseMsg)
             expect(mockAutoMessageService.updateMessage).toHaveBeenCalledWith(
-                '111111111111111111',
                 '1',
                 updatedMsg,
             )
