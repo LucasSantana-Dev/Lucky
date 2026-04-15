@@ -113,6 +113,8 @@ export async function getSpotifyRecommendations(
     }
 }
 
+import { LRUCache } from 'lru-cache'
+
 export interface SpotifyAudioFeatures {
     energy: number
     valence: number
@@ -121,7 +123,10 @@ export interface SpotifyAudioFeatures {
     acousticness: number
 }
 
-const artistPopularityCache = new Map<string, number | null>()
+const artistPopularityCache = new LRUCache<string, number | null>({
+    max: 5000,
+    ttl: 24 * 60 * 60 * 1000,
+})
 
 export async function getAudioFeatures(
     accessToken: string,
