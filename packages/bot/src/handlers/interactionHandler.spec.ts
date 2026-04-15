@@ -45,7 +45,7 @@ jest.mock('../utils/monitoring', () => ({
     monitorInteractionHandling: jest.fn(),
 }))
 
-jest.mock('../utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn(),
 }))
 
