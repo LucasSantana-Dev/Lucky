@@ -6,6 +6,7 @@ import {
 } from '@lucky/shared/services'
 import { buildQueueState, repeatModeToEnum } from './mappers'
 import { resolveGuildQueue } from '../../utils/music/queueResolver'
+import { setReplenishSuppressed } from '../../utils/music/replenishSuppressionStore'
 
 type Result = MusicCommandResult
 
@@ -70,6 +71,7 @@ export async function handlePlay(
             'No active queue. Start playing from Discord first.',
         )
 
+    setReplenishSuppressed(cmd.guildId, 0)
     if (result.playlist) {
         for (const track of result.tracks) queue.addTrack(track)
     } else {
@@ -114,12 +116,8 @@ export async function handleSkip(
 ): Promise<Result> {
     const queue = getQueue(client, cmd.guildId)
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
-    queue.node.skip()
-    setTimeout(async () => {
-        const state = await buildQueueState(client, cmd.guildId)
-        await musicControlService.publishState(state)
-    }, 500)
-    return ok(cmd.id, cmd.guildId)
+    await queue.node.skip()
+    return publishAndOk(client, cmd)
 }
 
 export async function handleStop(
@@ -131,6 +129,7 @@ export async function handleStop(
     queue.node.stop()
     queue.clear()
     queue.delete()
+    setReplenishSuppressed(cmd.guildId, 30_000)
     return publishAndOk(client, cmd)
 }
 

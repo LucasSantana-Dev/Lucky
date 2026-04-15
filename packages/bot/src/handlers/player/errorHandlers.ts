@@ -12,6 +12,7 @@ import {
     providerHealthService,
 } from '../../utils/music/search/providerHealth'
 import type { QueueMetadata } from '../../types/QueueMetadata'
+import { cleanTitle, cleanAuthor } from '../../utils/music/searchQueryCleaner'
 
 type PlayerEvents = {
     events: {
@@ -77,6 +78,25 @@ function safeErrorLog(payload: {
     } catch (error) {
         debugLog({ message: 'errorHandlers: errorLog failed', error })
     }
+}
+
+function normalizeText(value?: string): string {
+    return (value ?? '')
+        .toLowerCase()
+        .replaceAll(/[^a-z0-9]+/g, '')
+        .trim()
+}
+
+function isSameTrack(
+    currentTrack: { title?: string; author?: string; url?: string },
+    alternativeTrack: { title?: string; author?: string; url?: string },
+): boolean {
+    if (currentTrack.url && alternativeTrack.url && currentTrack.url === alternativeTrack.url) {
+        return true
+    }
+    const currentNorm = normalizeText(cleanTitle(currentTrack.title ?? ''))
+    const altNorm = normalizeText(cleanTitle(alternativeTrack.title ?? ''))
+    return currentNorm.length > 3 && currentNorm === altNorm
 }
 
 function logHandlerFailure(message: string, error: unknown): void {
@@ -259,13 +279,10 @@ async function recoverFromStreamExtractionError(
     }
 
     const alternativeTrack = searchResult.tracks.find(
-        (track) => track.url !== currentTrack.url,
+        (track) => !isSameTrack(currentTrack, track),
     )
 
     if (alternativeTrack) {
-        // Insert at the front of the queue so the alternative plays immediately
-        // after we skip the failing current track. Using insertTrack(0) avoids
-        // accidentally removing a legitimately queued user track.
         queue.insertTrack(alternativeTrack, 0)
         queue.node.skip()
         providerHealthService.recordSuccess(providerFromTrack(currentTrack))
@@ -277,9 +294,13 @@ async function recoverFromStreamExtractionError(
             },
         })
     } else {
+        const allSameTrack = searchResult.tracks.some((track) =>
+            isSameTrack(currentTrack, track),
+        )
         warnLog({
-            message:
-                'Stream failed, all YouTube alternatives already in queue — skipping',
+            message: allSameTrack
+                ? 'Stream failed, YouTube returned same track alternative — skipping instead of reinsert'
+                : 'Stream failed, all YouTube alternatives already in queue — skipping',
             data: { title: currentTrack.title, guildId: queue.guild.id },
         })
         await notifyChannelStreamFailed(queue, currentTrack.title)

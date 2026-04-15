@@ -114,6 +114,7 @@ function createMockQueue(
         tracks: { size: 3 },
         repeatMode,
         setRepeatMode: jest.fn(),
+        guild: { id: 'guild-1' },
     }
 }
 

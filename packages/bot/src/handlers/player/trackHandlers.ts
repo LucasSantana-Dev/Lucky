@@ -22,6 +22,10 @@ import {
 import { clearVotes } from '../../utils/music/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { cleanTitle, cleanAuthor } from '../../utils/music/searchQueryCleaner'
+import {
+    isReplenishSuppressed,
+    setReplenishSuppressed,
+} from '../../utils/music/replenishSuppressionStore'
 
 const MAX_GUILD_ENTRIES = 500
 
@@ -223,6 +227,13 @@ async function replenishIfAutoplay(
     queue: GuildQueue,
     finishedTrack?: Track,
 ): Promise<void> {
+    if (isReplenishSuppressed(queue.guild.id)) {
+        debugLog({
+            message: 'Autoplay replenish suppressed after explicit stop/clear',
+            data: { guildId: queue.guild.id },
+        })
+        return
+    }
     const autoplayEnabled = await isAutoplayReplenishmentEnabled(queue)
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
         await replenishQueue(queue, finishedTrack)
@@ -288,7 +299,10 @@ const handlePlayerSkip = async (
                 currentTrack: queue.currentTrack?.title ?? 'none',
             },
         })
-        await scrobbleAndRecord(queue, track)
+        if (track) {
+            await addTrackToHistory(track, queue.guild.id)
+        }
+        await scrobbleCurrentTrackIfLastFm(queue, track)
 
         if (track) {
             const startTime = guildTrackStartTimes.get(queue.guild.id)
