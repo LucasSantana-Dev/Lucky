@@ -6,6 +6,7 @@ import {
 } from 'discord-player'
 import { randomInt } from 'node:crypto'
 import type { User } from 'discord.js'
+import { LRUCache } from 'lru-cache'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import {
@@ -54,7 +55,13 @@ const QUEUE_RESCUE_REFILL_THRESHOLD = Number.parseInt(
     10,
 )
 
-const audioFeatureCache = new Map<string, SpotifyAudioFeatures | null>()
+const audioFeatureCache = new LRUCache<
+    string,
+    SpotifyAudioFeatures | null
+>({
+    max: 10000,
+    ttl: 24 * 60 * 60 * 1000,
+})
 
 async function getTrackAudioFeatures(
     track: Track,
