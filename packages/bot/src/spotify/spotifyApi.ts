@@ -1,3 +1,5 @@
+import { logAndSwallow } from '@lucky/shared/utils/error'
+
 export interface SpotifyRecommendationTrack {
     id: string
     name: string
@@ -108,7 +110,8 @@ export async function getSpotifyRecommendations(
                 artists: (t.artists ?? []).map((a) => ({ name: a.name ?? '' })),
                 duration_ms: t.duration_ms ?? 0,
             }))
-    } catch {
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getRecommendations', { seedTrackIds: seedTrackIds.length })
         return []
     }
 }
@@ -179,7 +182,8 @@ export async function getAudioFeatures(
             tempo: data.tempo ?? 0,
             acousticness: data.acousticness ?? 0,
         }
-    } catch {
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getAudioFeatures', { spotifyTrackId })
         return null
     }
 }
@@ -237,7 +241,8 @@ export async function getBatchAudioFeatures(
         }
 
         return result
-    } catch {
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getBatchAudioFeatures', { count: spotifyIds.length })
         return new Map()
     }
 }
