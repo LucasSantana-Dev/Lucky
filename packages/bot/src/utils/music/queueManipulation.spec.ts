@@ -92,6 +92,7 @@ jest.mock('../../spotify/spotifyApi', () => ({
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
     getBatchAudioFeatures: jest.fn().mockResolvedValue(new Map()),
     getArtistPopularity: jest.fn().mockResolvedValue(null),
+    getArtistGenres: jest.fn().mockResolvedValue([]),
     getSpotifyRecommendations: jest.fn().mockResolvedValue([]),
 }))
 
@@ -4264,3 +4265,4 @@ describe('queueManipulation — diversity improvements', () => {
         }
     })
 })
+

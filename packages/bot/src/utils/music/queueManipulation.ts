@@ -20,6 +20,7 @@ import {
     searchSpotifyTrack,
     getBatchAudioFeatures,
     getArtistPopularity,
+    getArtistGenres,
     getSpotifyRecommendations,
     type SpotifyAudioFeatures,
 } from '../../spotify/spotifyApi'
@@ -560,6 +561,7 @@ async function _replenishQueue(
             selected,
             requestedBy?.id ?? '',
             currentAudioFeatures,
+            currentTrack.author,
         )
 
         if (
@@ -1441,6 +1443,7 @@ async function enrichWithAudioFeatures(
     tracks: ScoredTrack[],
     userId: string,
     currentFeatures: SpotifyAudioFeatures | null,
+    currentArtistName?: string,
 ): Promise<ScoredTrack[]> {
     if (!currentFeatures || !userId) return tracks
 
@@ -1468,6 +1471,13 @@ async function enrichWithAudioFeatures(
         () => new Map(),
     )
 
+    let currentGenres: string[] = []
+    if (currentArtistName) {
+        currentGenres = await getArtistGenres(token, currentArtistName).catch(
+            () => [],
+        )
+    }
+
     for (const [id, feature] of features) {
         const track = idToTrack.get(id)
         if (!track) continue
@@ -1481,6 +1491,23 @@ async function enrichWithAudioFeatures(
             track.score += 0.07
         } else if (energyDelta > 0.6) {
             track.score -= 0.1
+        }
+
+        if (currentGenres.length > 0) {
+            const candidateGenres = await getArtistGenres(
+                token,
+                track.track.author,
+            ).catch(() => [])
+            const genrePenalty = calculateGenreFamilyPenalty(
+                currentGenres,
+                candidateGenres,
+            )
+            if (genrePenalty !== 0) {
+                track.score += genrePenalty
+                if (genrePenalty < -0.3) {
+                    track.reason += ' • genre family drift'
+                }
+            }
         }
     }
 
@@ -1818,6 +1845,60 @@ function isDuplicateCandidate(
         }
     }
     return false
+}
+
+const GENRE_FAMILIES = {
+    rap_hiphop: ['hip hop', 'rap', 'trap', 'drill', 'gangster rap', 'g-funk'],
+    rnb_soul: ['r&b', 'soul', 'neo soul'],
+    electronic: ['edm', 'house', 'techno', 'trance', 'dubstep', 'drum and bass', 'electro', 'synthwave'],
+    rock_metal: ['rock', 'metal', 'punk', 'grunge', 'alternative'],
+    pop: ['pop', 'dance pop', 'latin pop', 'k-pop', 'indie pop'],
+    latin: ['reggaeton', 'forró', 'samba', 'bossa nova', 'latin trap', 'trap latino'],
+    country_folk: ['country', 'folk', 'bluegrass'],
+    jazz_classical: ['jazz', 'classical', 'orchestral'],
+    world: ['afrobeat', 'desi', 'bhangra'],
+    ambient_chill: ['lofi', 'chillwave', 'downtempo', 'ambient'],
+}
+
+function getGenreFamilies(genres: string[]): Set<string> {
+    const families = new Set<string>()
+    const lowerGenres = genres.map((g) => g.toLowerCase())
+
+    for (const [family, keywords] of Object.entries(GENRE_FAMILIES)) {
+        for (const keyword of keywords) {
+            if (lowerGenres.some((g) => g.includes(keyword))) {
+                families.add(family)
+                break
+            }
+        }
+    }
+
+    return families
+}
+
+function calculateGenreFamilyPenalty(
+    currentGenres: string[],
+    candidateGenres: string[],
+): number {
+    const currentFamilies = getGenreFamilies(currentGenres)
+    const candidateFamilies = getGenreFamilies(candidateGenres)
+
+    if (currentFamilies.size === 0 || candidateFamilies.size === 0) {
+        return -0.1
+    }
+
+    for (const family of currentFamilies) {
+        if (candidateFamilies.has(family)) {
+            return 0
+        }
+    }
+
+    const strongGenres = ['rap_hiphop', 'rock_metal', 'latin']
+    const isStrongGenre = Array.from(currentFamilies).some((f) =>
+        strongGenres.includes(f),
+    )
+
+    return isStrongGenre ? -0.6 : -0.3
 }
 
 function calculateRecommendationScore(
