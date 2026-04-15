@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.127] - 2026-04-15
+
+### Changed
+- Phase 4 code hygiene: consolidated duplicate Zod schemas (`guildIdParam`, `userIdParam`) into `packages/backend/src/schemas/common.ts`; extracted 17 Discord color constants + grouped API route builders into `@lucky/shared/constants` (subpath-only, no barrel pollution); added `logAndRethrow`/`logAndSwallow` error helpers and replaced 8 empty catch blocks across `lastFmApi` and `spotifyApi` with structured logging
+
 ## [2.6.126] - 2026-04-15
 
 ### Fixed
