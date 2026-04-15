@@ -3554,6 +3554,9 @@ describe('queueManipulation — multi-user VC blend', () => {
         spotifyMocks.getBatchAudioFeatures.mockResolvedValueOnce(
             candidateFeatureMap,
         )
+        spotifyMocks.getArtistGenres
+            .mockResolvedValueOnce(['hip-hop', 'rap'])
+            .mockResolvedValueOnce(['hip-hop', 'rap'])
 
         const addTrackMock = jest.fn()
         const queue = createQueueMock({
