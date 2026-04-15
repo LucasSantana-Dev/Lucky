@@ -25,7 +25,7 @@ jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
-jest.mock('../utils/general/errorSanitizer', () => ({
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: (...args: unknown[]) =>
         createUserFriendlyErrorMock(...args),
 }))
