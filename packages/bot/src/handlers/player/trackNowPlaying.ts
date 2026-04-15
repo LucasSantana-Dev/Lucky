@@ -1,5 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { ColorResolvable } from 'discord.js'
+import { LRUCache } from 'lru-cache'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
@@ -16,10 +17,13 @@ import {
     scrobble as lastFmScrobble,
 } from '../../lastfm'
 
-const songInfoMessages = new Map<
+const songInfoMessages = new LRUCache<
     string,
     { messageId: string; channelId: string }
->()
+>({
+    max: 500,
+    ttl: 4 * 60 * 60 * 1000,
+})
 
 /**
  * Register an existing message as the "now playing" display for a guild.
@@ -34,7 +38,10 @@ export function registerNowPlayingMessage(
 ): void {
     songInfoMessages.set(guildId, { messageId, channelId })
 }
-const lastFmTrackStartTime = new Map<string, number>()
+const lastFmTrackStartTime = new LRUCache<string, number>({
+    max: 500,
+    ttl: 4 * 60 * 60 * 1000,
+})
 
 function getLastFmRequesterId(
     queue: GuildQueue,

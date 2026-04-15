@@ -113,6 +113,8 @@ export async function getSpotifyRecommendations(
     }
 }
 
+import { LRUCache } from 'lru-cache'
+
 export interface SpotifyAudioFeatures {
     energy: number
     valence: number
@@ -121,7 +123,14 @@ export interface SpotifyAudioFeatures {
     acousticness: number
 }
 
-const artistPopularityCache = new Map<string, number | null>()
+interface PopularityEntry {
+    value: number | null
+}
+
+const artistPopularityCache = new LRUCache<string, PopularityEntry>({
+    max: 5000,
+    ttl: 24 * 60 * 60 * 1000,
+})
 
 export async function getAudioFeatures(
     accessToken: string,
@@ -229,7 +238,7 @@ export async function getArtistPopularity(
     artistName: string,
 ): Promise<number | null> {
     const cached = artistPopularityCache.get(artistName)
-    if (cached !== undefined) return cached
+    if (cached !== undefined) return cached.value
 
     try {
         const params = new URLSearchParams({
@@ -249,7 +258,7 @@ export async function getArtistPopularity(
         )
 
         if (!res.ok) {
-            artistPopularityCache.set(artistName, null)
+            artistPopularityCache.set(artistName, { value: null })
             return null
         }
 
@@ -258,10 +267,10 @@ export async function getArtistPopularity(
         }
 
         const popularity = data?.artists?.items?.[0]?.popularity ?? null
-        artistPopularityCache.set(artistName, popularity)
+        artistPopularityCache.set(artistName, { value: popularity })
         return popularity
     } catch {
-        artistPopularityCache.set(artistName, null)
+        artistPopularityCache.set(artistName, { value: null })
         return null
     }
 }
