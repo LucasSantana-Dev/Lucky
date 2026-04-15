@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.129] - 2026-04-15
+
+### Fixed
+- `/api/artists/suggestions` no longer returns empty 304 — added explicit `Cache-Control: no-cache, no-store, must-revalidate` header so browser refetches fresh suggestions instead of replaying a cached empty response
+
 ## [2.6.128] - 2026-04-15
 
 ### Fixed

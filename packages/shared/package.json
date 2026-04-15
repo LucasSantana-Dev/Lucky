@@ -1,6 +1,6 @@
 {
     "name": "@lucky/shared",
-    "version": "2.6.128",
+    "version": "2.6.129",
     "description": "Shared code for Lucky modular monolith",
     "type": "module",
     "main": "./dist/index.js",
