@@ -37,7 +37,7 @@ module.exports = {
             },
         ],
     },
-    transformIgnorePatterns: ['node_modules/(?!(?:@lucky)/)'],
+    transformIgnorePatterns: ['node_modules/(?!(?:@lucky|uuid)/)'],
     moduleFileExtensions: ['ts', 'js', 'json'],
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     verbose: true,
