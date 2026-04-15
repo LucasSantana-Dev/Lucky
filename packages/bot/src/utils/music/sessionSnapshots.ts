@@ -171,7 +171,7 @@ export class MusicSessionSnapshotService {
     async restoreSnapshot(
         queue: GuildQueue,
         requestedBy?: User,
-        options: { maxAgeMs?: number } = {},
+        options: { maxAgeMs?: number; skipCurrentTrack?: boolean } = {},
     ): Promise<SnapshotRestoreResult> {
         try {
             if (queue.currentTrack || queue.tracks.size > 0) {
@@ -205,8 +205,11 @@ export class MusicSessionSnapshotService {
             }
 
             // Build ordered track list: currentTrack first so it replays from the top.
+            // Unless skipCurrentTrack is true (used during orphan session recovery to avoid replaying the same song).
             const tracksToRestore: SnapshotTrack[] = [
-                ...(snapshot.currentTrack ? [snapshot.currentTrack] : []),
+                ...(snapshot.currentTrack && !options.skipCurrentTrack
+                    ? [snapshot.currentTrack]
+                    : []),
                 ...snapshot.upcomingTracks,
             ]
 

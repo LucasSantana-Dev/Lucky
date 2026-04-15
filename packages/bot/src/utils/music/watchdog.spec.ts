@@ -291,7 +291,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
 
         expect(nodes.create).toHaveBeenCalledWith(guild)
         expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
-        expect(restoreSnapshotMock).toHaveBeenCalledWith(queue)
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, { skipCurrentTrack: true })
         expect(service.getGuildState('guild-recover')).toEqual(
             expect.objectContaining({ lastRecoveryAction: 'rejoin' }),
         )
@@ -334,7 +334,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         await service.scanOrphanSessions(player)
 
         expect(nodes.create).not.toHaveBeenCalled()
-        expect(restoreSnapshotMock).toHaveBeenCalledWith(existingQueue)
+        expect(restoreSnapshotMock).toHaveBeenCalledWith(existingQueue, undefined, { skipCurrentTrack: true })
     })
 
     it('clears snapshot and marks failed when restore yields no tracks', async () => {
