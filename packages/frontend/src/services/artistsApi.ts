@@ -1,3 +1,4 @@
+import { API_ROUTES } from '@lucky/shared/constants'
 import type { AxiosInstance } from 'axios'
 
 export interface SpotifyArtist {
@@ -24,7 +25,7 @@ export interface ArtistPreference {
 export function createArtistsApi(apiClient: AxiosInstance) {
     return {
         getSuggestions: () =>
-            apiClient.get<{ artists: SpotifyArtist[] }>('/artists/suggestions'),
+            apiClient.get<{ artists: SpotifyArtist[] }>(API_ROUTES.ARTISTS.suggestions()),
 
         search: (query: string) =>
             apiClient.get<{ artists: SpotifyArtist[] }>(

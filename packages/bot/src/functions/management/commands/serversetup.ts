@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared/constants'
 import {
     SlashCommandBuilder,
     PermissionFlagsBits,
@@ -39,19 +40,19 @@ interface RoleDef {
 const FORGE_ROLES: RoleDef[] = [
     {
         name: 'Maintainer',
-        color: 0x8b5cf6,
+        color: COLOR.SETUP_PURPLE,
         hoist: true,
         mentionable: true,
     },
     {
         name: 'Contributor',
-        color: 0x22c55e,
+        color: COLOR.INFO_GREEN,
         hoist: true,
         mentionable: true,
     },
     {
         name: 'Community',
-        color: 0x6b7280,
+        color: COLOR.NEUTRAL_GRAY,
         hoist: false,
         mentionable: false,
     },
@@ -169,7 +170,7 @@ const WELCOME_EMBED = new EmbedBuilder()
             '4. Browse <#good-first-issues> to contribute',
         ].join('\n'),
     )
-    .setColor(0x8b5cf6)
+    .setColor(COLOR.SETUP_PURPLE)
     .setFooter({
         text: 'Forge Space — Ship with confidence',
     })

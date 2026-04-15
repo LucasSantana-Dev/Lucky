@@ -1,3 +1,4 @@
+import { COLOR } from '@lucky/shared/constants'
 import { EmbedBuilder } from 'discord.js'
 
 export type PlatformType = 'lastfm' | 'spotify' | 'youtube'
@@ -12,17 +13,17 @@ const PLATFORM_BRANDING: Record<PlatformType, PlatformBranding> = {
     lastfm: {
         label: 'Last.fm',
         emoji: '📊',
-        color: 0xd51007,
+        color: COLOR.TWITTER_RED,
     },
     spotify: {
         label: 'Spotify',
         emoji: '🟢',
-        color: 0x1db954,
+        color: COLOR.SPOTIFY_GREEN,
     },
     youtube: {
         label: 'YouTube',
         emoji: '🔴',
-        color: 0xff0000,
+        color: COLOR.YOUTUBE_RED,
     },
 }
 
