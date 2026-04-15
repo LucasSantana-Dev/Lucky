@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.122] - 2026-04-14
+
+### Fixed
+- Music controls: Skip and Stop buttons no longer replay the just-skipped track after a 10–20 s silence — four compounding issues addressed in one atomic change
+  - Autoplay replenish now respects explicit stop/clear: `handleStop`, `handleClear`, and web Stop/Clear actions set a 30 s per-guild suppression flag that short-circuits `replenishIfAutoplay` so autoplay cannot refill the queue with the just-played track
+  - `handlePlayerSkip` now awaits `addTrackToHistory` *before* invoking the autoplay replenish loop, eliminating a race where the recommendation engine read a stale exclusion set and returned the skipped track again
+  - Stream-error recovery (`recoverFromStreamExtractionError`) detects when YouTube returns the same track URL or title as the alternative and skips without reinsert, preventing the 10 s "find alternative → it's the same → replay" loop on broken stream URLs
+  - Web dashboard Skip no longer uses a fire-and-forget `setTimeout`; publishes state only after `queue.node.skip()` resolves, eliminating stale state visible to the frontend
+- `recoverFromStreamExtractionError` now surfaces the `same track alternative` warnLog consistently whether any or all YouTube results match the current track
+
+### Security
+- Session secret: `WEBAPP_SESSION_SECRET` is now required — bot refuses to boot with the `'fallback-secret-change-in-production'` fallback (#620)
+- OAuth CSRF: Discord OAuth callback now validates a cryptographically random `state` token generated at login (`crypto.randomBytes(32)`) via `crypto.timingSafeEqual`; mismatches are rejected and the token is deleted after a single use (#622)
+
 ## [2.6.121] - 2026-04-14
 
 ### Added
