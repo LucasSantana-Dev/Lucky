@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.125] - 2026-04-15
+
+### Changed
+- Preferred Artists: default suggestions bumped from 12 → 24 artists; grid layout is now 5 columns (desktop) / 4 (md) / 3 (sm) / 2 (mobile); artist circle images enlarged to 128px
+
+### Fixed
+- Backend: pass SPOTIFY_CLIENT_ID/SECRET/REDIRECT_URI/LINK_SECRET env vars to backend service in docker-compose so `/api/artists/suggestions` fallback can use Spotify client-credentials flow
+
 ## [2.6.124] - 2026-04-15
 
 ### Added
