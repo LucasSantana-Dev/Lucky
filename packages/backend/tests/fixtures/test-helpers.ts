@@ -30,6 +30,7 @@ export function createMockResponse(): Response {
         sendFile: jest.fn().mockReturnThis(),
         cookie: jest.fn().mockReturnThis(),
         clearCookie: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
     } as unknown as Response
 
     return res
