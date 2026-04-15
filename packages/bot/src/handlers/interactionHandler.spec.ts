@@ -56,7 +56,7 @@ import { reactionRolesService } from '@lucky/shared/services'
 import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
-import { createUserFriendlyError } from '/shared/utils/general/errorSanitizer'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
 function createMockClient(): CustomClient & {
     eventHandlers: Map<string, Function[]>

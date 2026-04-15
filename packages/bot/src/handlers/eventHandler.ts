@@ -12,7 +12,7 @@ import {
     captureException,
 } from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
-import { createUserFriendlyError } from '/shared/utils/general/errorSanitizer'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { handleMessageCreate } from './messageHandler'
 import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
