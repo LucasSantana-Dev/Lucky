@@ -5,7 +5,7 @@ import { searchContentOnYoutube } from '../../../../utils/music/search/searchCon
 import type { CustomClient } from '../../../../types'
 import { messages } from '../../../../utils/general/messages'
 import { interactionReply } from '../../../../utils/general/interactionReply'
-import { createUserFriendlyError } from '../../../../utils/general/errorSanitizer'
+import { createUserFriendlyError } from '/shared/utils/general/errorSanitizer'
 
 // interface ISearchResult {
 //     tracks: ISearchTrack[]

@@ -32,7 +32,7 @@ import { debugLog, errorLog } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
-import { createUserFriendlyError } from '../utils/general/errorSanitizer'
+import { createUserFriendlyError } from '/shared/utils/general/errorSanitizer'
 
 function createMockCommand(overrides?: Partial<Command>): Command {
     return {
