@@ -415,16 +415,19 @@ export default function PreferredArtistsPage() {
         if (!guildId || unsavedChanges.size === 0) return
         setIsSaving(true)
         try {
-            for (const [key, { preference, artist }] of unsavedChanges) {
-                await api.artists.savePreference({
-                    guildId,
-                    artistKey: key,
+            const items = Array.from(unsavedChanges.entries()).map(
+                ([_key, { preference, artist }]) => ({
+                    artistId: artist.id,
+                    artistKey: _key,
                     artistName: artist.name,
-                    spotifyId: artist.id,
-                    imageUrl: artist.imageUrl ?? undefined,
+                    imageUrl: artist.imageUrl,
                     preference,
-                })
-            }
+                }),
+            )
+            await api.artists.savePreferencesBatch({
+                guildId,
+                items,
+            })
             await loadPreferences()
             setUnsavedChanges(new Map())
         } catch {
@@ -467,7 +470,7 @@ export default function PreferredArtistsPage() {
                 actions={<Heart className='h-5 w-5 text-lucky-accent' />}
             />
 
-            <div className='flex gap-4 lg:items-start'>
+            <div className='flex flex-col gap-4 lg:flex-row lg:items-start'>
                 <div className='flex-1 space-y-4'>
                     <div className='surface-panel p-4'>
                         <div className='relative'>
@@ -622,7 +625,7 @@ export default function PreferredArtistsPage() {
                 </div>
 
                 {selectedArtist && (
-                    <div className='w-72 shrink-0'>
+                    <div className='w-full lg:w-72 lg:shrink-0'>
                         <ArtistDetailPanel
                             artist={selectedArtist}
                             preference={selectedPreference}

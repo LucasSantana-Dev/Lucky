@@ -23,6 +23,19 @@ const saveArtistBody = z.object({
     preference: z.enum(['prefer', 'block']).default('prefer'),
 })
 
+const saveArtistBatchBody = z.object({
+    guildId: z.string().min(1),
+    items: z.array(
+        z.object({
+            artistId: z.string().min(1),
+            artistKey: z.string().min(1),
+            artistName: z.string().min(1),
+            imageUrl: z.string().nullable(),
+            preference: z.enum(['prefer', 'block']),
+        }),
+    ),
+})
+
 function normalizeArtistKey(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
@@ -272,6 +285,62 @@ export function setupArtistsRoutes(app: Express): void {
             } catch (error) {
                 errorLog({ message: 'Save preferred artist error', error })
                 res.status(500).json({ error: 'Failed to save preference' })
+            }
+        },
+    )
+
+    app.put(
+        '/api/artists/preferences/batch',
+        requireAuth,
+        async (req: AuthenticatedRequest, res: Response) => {
+            try {
+                const discordUserId = req.user?.id
+                if (!discordUserId) {
+                    res.status(401).json({ error: 'Not authenticated' })
+                    return
+                }
+                const parsed = saveArtistBatchBody.safeParse(req.body)
+                if (!parsed.success) {
+                    res.status(400).json({ error: parsed.error.message })
+                    return
+                }
+                const { guildId, items } = parsed.data
+                const db = getPrismaClient()
+                const results: typeof items = []
+                for (const item of items) {
+                    const artistKey = normalizeArtistKey(
+                        item.artistKey || item.artistName,
+                    )
+                    const pref = await db.userArtistPreference.upsert({
+                        where: {
+                            discordUserId_guildId_artistKey: {
+                                discordUserId,
+                                guildId,
+                                artistKey,
+                            },
+                        },
+                        update: {
+                            artistName: item.artistName,
+                            spotifyId: item.artistId,
+                            imageUrl: item.imageUrl,
+                            preference: item.preference,
+                        },
+                        create: {
+                            discordUserId,
+                            guildId,
+                            artistKey,
+                            artistName: item.artistName,
+                            spotifyId: item.artistId,
+                            imageUrl: item.imageUrl,
+                            preference: item.preference,
+                        },
+                    })
+                    results.push(pref as unknown as typeof items[0])
+                }
+                res.json({ preferences: results })
+            } catch (error) {
+                errorLog({ message: 'Batch save preferences error', error })
+                res.status(500).json({ error: 'Failed to save preferences' })
             }
         },
     )

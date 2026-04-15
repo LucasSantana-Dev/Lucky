@@ -38,6 +38,7 @@ jest.mock('@lucky/shared/services', () => ({
 const mockApp = {
 	get: jest.fn(),
 	post: jest.fn(),
+	put: jest.fn(),
 	delete: jest.fn(),
 } as unknown as Express
 
