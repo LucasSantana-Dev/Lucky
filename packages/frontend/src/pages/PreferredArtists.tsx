@@ -311,7 +311,7 @@ export default function PreferredArtistsPage() {
     const [relatedLoading, setRelatedLoading] = useState(false)
 
     const [unsavedChanges, setUnsavedChanges] = useState<
-        Map<string, 'prefer' | 'block'>
+        Map<string, { preference: 'prefer' | 'block'; artist: SpotifyArtist }>
     >(new Map())
     const [isSaving, setIsSaving] = useState(false)
 
@@ -393,7 +393,7 @@ export default function PreferredArtistsPage() {
             const key = normalizeArtistKey(artist.name)
             setUnsavedChanges((prev) => {
                 const next = new Map(prev)
-                next.set(key, pref)
+                next.set(key, { preference: pref, artist })
                 return next
             })
         },
@@ -413,32 +413,15 @@ export default function PreferredArtistsPage() {
         if (!guildId || unsavedChanges.size === 0) return
         setIsSaving(true)
         try {
-            for (const [key, pref] of unsavedChanges) {
-                const artist = suggestedArtists.find(
-                    (a) => normalizeArtistKey(a.name) === key,
-                )
-                if (!artist) {
-                    const saved = savedPreferences.get(key)
-                    if (saved) {
-                        await api.artists.savePreference({
-                            guildId,
-                            artistKey: key,
-                            artistName: saved.artistName,
-                            spotifyId: saved.spotifyId ?? undefined,
-                            imageUrl: saved.imageUrl ?? undefined,
-                            preference: pref,
-                        })
-                    }
-                } else {
-                    await api.artists.savePreference({
-                        guildId,
-                        artistKey: key,
-                        artistName: artist.name,
-                        spotifyId: artist.id,
-                        imageUrl: artist.imageUrl ?? undefined,
-                        preference: pref,
-                    })
-                }
+            for (const [key, { preference, artist }] of unsavedChanges) {
+                await api.artists.savePreference({
+                    guildId,
+                    artistKey: key,
+                    artistName: artist.name,
+                    spotifyId: artist.id,
+                    imageUrl: artist.imageUrl ?? undefined,
+                    preference,
+                })
             }
             await loadPreferences()
             setUnsavedChanges(new Map())
@@ -447,14 +430,15 @@ export default function PreferredArtistsPage() {
         } finally {
             setIsSaving(false)
         }
-    }, [guildId, unsavedChanges, suggestedArtists, savedPreferences, loadPreferences])
+    }, [guildId, unsavedChanges, loadPreferences])
 
     const blockedArtists = [...savedPreferences.values()].filter(
         (p) => p.preference === 'block',
     )
 
     const selectedPreference = selectedArtist
-        ? (unsavedChanges.get(normalizeArtistKey(selectedArtist.name)) ??
+        ? (unsavedChanges.get(normalizeArtistKey(selectedArtist.name))
+                ?.preference ??
             savedPreferences.get(normalizeArtistKey(selectedArtist.name))
                 ?.preference ??
             null)
@@ -538,7 +522,7 @@ export default function PreferredArtistsPage() {
                                 {displayArtists.map((artist) => {
                                     const key = normalizeArtistKey(artist.name)
                                     const unsaved =
-                                        unsavedChanges.get(key) ?? null
+                                        unsavedChanges.get(key)?.preference ?? null
                                     const pref =
                                         unsaved ??
                                         savedPreferences.get(key)?.preference ??

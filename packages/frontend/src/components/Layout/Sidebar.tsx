@@ -488,6 +488,9 @@ function Sidebar() {
         if (path === '/') return location.pathname === '/'
         const exact = location.pathname === path
         const withChild = location.pathname.startsWith(path + '/')
+        if (path === '/music' && location.pathname === '/music/artists') {
+            return false
+        }
         return exact || withChild
     }
 
