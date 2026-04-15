@@ -17,6 +17,7 @@ import { setupLevelsRoutes } from './levels'
 import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
+import { setupInternalNotifyRoutes } from './internalNotify'
 import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
@@ -77,6 +78,7 @@ const routeSetups = [
 
 export function setupRoutes(app: Express): void {
     setupHealthRoutes(app)
+    setupInternalNotifyRoutes(app)
     app.use('/api/', apiLimiter)
 
     for (const config of guildGuardConfigs) {
