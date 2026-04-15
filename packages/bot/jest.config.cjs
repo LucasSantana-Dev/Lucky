@@ -22,6 +22,7 @@ module.exports = {
         '^@lucky/shared/types$': '<rootDir>/../shared/src/types/index',
         '^@lucky/shared/utils/database/prismaClient$':
             '<rootDir>/tests/__mocks__/prismaClient.ts',
+        '^@lucky/shared/utils/general/errorSanitizer(\\.js)?$': '<rootDir>/../shared/src/utils/general/errorSanitizer',
         '^@lucky/shared/(.*)$': '<rootDir>/../shared/src/$1',
     },
     transform: {

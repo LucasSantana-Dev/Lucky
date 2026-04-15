@@ -6,7 +6,7 @@ import { requireGuild } from '../../../utils/command/commandValidations'
 import { createSuccessEmbed, createErrorEmbed, createInfoEmbed } from '../../../utils/general/embeds'
 import { buildUserProfileEmbed, buildListPageEmbed } from '../../../utils/general/responseEmbeds'
 import { errorLog } from '@lucky/shared/utils'
-import { createUserFriendlyError } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer.js'
 import { levelService, xpNeededForLevel } from '@lucky/shared/services'
 import { createLeaderboardPaginationButtons } from '../../../utils/music/buttonComponents'
 

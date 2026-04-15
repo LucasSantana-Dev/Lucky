@@ -25,7 +25,7 @@ jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
-jest.mock('@lucky/shared/utils', () => ({
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: (...args: unknown[]) =>
         createUserFriendlyErrorMock(...args),
 }))
@@ -77,6 +77,8 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
+
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
 function createMockClient() {
     const onMock = jest.fn()

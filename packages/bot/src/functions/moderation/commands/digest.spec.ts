@@ -19,6 +19,11 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+    createUserFriendlyError: (...args: unknown[]) =>
+        createUserFriendlyErrorMock(...args),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -26,11 +31,6 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
-}))
-
-jest.mock('@lucky/shared/utils', () => ({
-    createUserFriendlyError: (...args: unknown[]) =>
-        createUserFriendlyErrorMock(...args),
 }))
 
 jest.mock('../../../utils/moderation/modDigestConfig', () => ({

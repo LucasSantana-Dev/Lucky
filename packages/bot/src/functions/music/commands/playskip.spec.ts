@@ -39,8 +39,11 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+    createUserFriendlyError: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
-    ...jest.requireActual('@lucky/shared/utils'),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     warnLog: jest.fn(),

@@ -10,7 +10,7 @@ import type { CustomClient } from '../types'
 import { errorEmbed } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorInteractionHandling } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer.js'
 import { reactionRolesService } from '@lucky/shared/services'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 

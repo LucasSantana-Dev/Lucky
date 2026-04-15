@@ -5,11 +5,17 @@ import { executeCommand, setCommands, groupCommands } from './commandsHandler'
 import type { CustomClient } from '../types'
 import type Command from '../models/Command'
 
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+    createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
-    ...jest.requireActual('@lucky/shared/utils'),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
-    createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
+    warnLog: jest.fn(),
+    infoLog: jest.fn(),
+    errorHandler: jest.fn(),
+    captureException: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -27,10 +33,10 @@ jest.mock('../utils/monitoring', () => ({
 }))
 
 import { debugLog, errorLog } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils'
 
 function createMockCommand(overrides?: Partial<Command>): Command {
     return {

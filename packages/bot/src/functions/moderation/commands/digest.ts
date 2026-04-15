@@ -9,7 +9,7 @@ import Command from '../../../models/Command.js'
 import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
-import { createUserFriendlyError } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer.js'
 import {
     buildDigestEmbed,
     resolveDigestPeriodDays,

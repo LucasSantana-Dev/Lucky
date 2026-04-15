@@ -7,7 +7,7 @@ import type Command from '../models/Command'
 import type { CommandCategory } from '../config/constants'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
-import { createUserFriendlyError } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer.js'
 
 const CATEGORY_FLAG_MAP: Partial<Record<CommandCategory, FeatureToggleName>> = {
     moderation: 'MODERATION',

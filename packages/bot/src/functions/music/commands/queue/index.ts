@@ -18,7 +18,7 @@ import {
     rescueQueue,
 } from '../../../../utils/music/queueManipulation'
 import { resolveGuildQueue } from '../../../../utils/music/queueResolver'
-import { createUserFriendlyError } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer.js'
 
 type QueueAction = 'show' | 'smartshuffle' | 'rescue'
 

@@ -28,8 +28,11 @@ jest.mock('../../src/utils/monitoring', () => ({
         monitorInteractionHandlingMock(...args),
 }))
 
+jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
+    createUserFriendlyError: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
-    ...jest.requireActual('@lucky/shared/utils'),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     createUserFriendlyError: (...args: unknown[]) =>
