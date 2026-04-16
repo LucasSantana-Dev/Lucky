@@ -1,25 +1,25 @@
 import {
     calculateTrackSimilarity,
-    calculateStringSimilarity,
     calculateDurationSimilarity,
     calculateTrackQuality,
 } from '../../../src/utils/music/trackSimilarity'
+import { jaccardSimilarity } from '@lucky/shared/utils/similarity'
 import { createMockTrack } from '../../__mocks__/discordPlayer'
 
 describe('trackSimilarity', () => {
-    describe('calculateStringSimilarity', () => {
+    describe('jaccardSimilarity integration', () => {
         it('returns 1 for identical strings', () => {
             expect(
-                calculateStringSimilarity('hello world', 'hello world'),
+                jaccardSimilarity('hello world', 'hello world'),
             ).toBe(1)
         })
 
         it('returns 0 for completely different strings', () => {
-            expect(calculateStringSimilarity('abc', 'xyz')).toBe(0)
+            expect(jaccardSimilarity('abc', 'xyz')).toBe(0)
         })
 
         it('returns partial similarity for overlapping words', () => {
-            const result = calculateStringSimilarity(
+            const result = jaccardSimilarity(
                 'bohemian rhapsody queen',
                 'bohemian rhapsody live',
             )
@@ -29,12 +29,12 @@ describe('trackSimilarity', () => {
 
         it('is case insensitive', () => {
             expect(
-                calculateStringSimilarity('Hello World', 'hello world'),
+                jaccardSimilarity('Hello World', 'hello world'),
             ).toBe(1)
         })
 
         it('handles empty strings', () => {
-            const result = calculateStringSimilarity('', 'test')
+            const result = jaccardSimilarity('', 'test')
             expect(result).toBeDefined()
         })
     })
