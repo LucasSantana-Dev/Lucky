@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, jest, test } from '@jest/globals'
 import type { Express } from 'express'
 
 const setupHealthRoutes = jest.fn()
+const setupStatsRoutes = jest.fn()
 const setupAuthRoutes = jest.fn()
 const setupToggleRoutes = jest.fn()
 const setupGuildRoutes = jest.fn()
@@ -29,6 +30,10 @@ const errorHandler = jest.fn()
 
 jest.mock('../../../src/routes/health', () => ({
     setupHealthRoutes,
+}))
+
+jest.mock('../../../src/routes/stats', () => ({
+    setupStatsRoutes,
 }))
 
 jest.mock('../../../src/routes/auth', () => ({
@@ -144,6 +149,7 @@ describe('setupRoutes', () => {
         const useCalls = app.use.mock.calls as unknown[][]
 
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
+        expect(setupStatsRoutes).toHaveBeenCalledWith(app)
         expect(setupInternalNotifyRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
 
