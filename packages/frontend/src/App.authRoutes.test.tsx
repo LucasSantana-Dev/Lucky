@@ -16,6 +16,10 @@ vi.mock('./components/Layout/Layout', () => ({
     ),
 }))
 
+vi.mock('./pages/Landing', () => ({
+    default: () => <h1>Landing Page</h1>,
+}))
+
 vi.mock('./pages/Login', () => ({
     default: () => <h1>Login Page</h1>,
 }))
@@ -118,27 +122,34 @@ describe('App authenticated routing', () => {
         mockGuildStore()
     })
 
-    test('renders login page for unauthenticated non-legal routes', async () => {
-        renderAt('/unknown')
+    test('renders landing page for unauthenticated root route', async () => {
+        renderAt('/')
+        expect(
+            await screen.findByRole('heading', { name: 'Landing Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('renders login page for unauthenticated /login route', async () => {
+        renderAt('/login')
         expect(
             await screen.findByRole('heading', { name: 'Login Page' }),
         ).toBeInTheDocument()
     })
 
-    test('renders login page when auth check rejects', async () => {
+    test('renders landing page when auth check rejects and navigating to /', async () => {
         const checkAuth = vi.fn().mockRejectedValue(new Error('auth failed'))
         mockAuthStore({
             checkAuth,
         })
 
-        renderAt('/unknown')
+        renderAt('/')
 
         await waitFor(() => {
             expect(checkAuth).toHaveBeenCalled()
         })
 
         expect(
-            await screen.findByRole('heading', { name: 'Login Page' }),
+            await screen.findByRole('heading', { name: 'Landing Page' }),
         ).toBeInTheDocument()
     })
 
@@ -318,5 +329,109 @@ describe('App authenticated routing', () => {
                 name: 'Guild Automation Page',
             }),
         ).toBeInTheDocument()
+    })
+
+    test('renders landing page for unauthenticated / with verified content', async () => {
+        renderAt('/')
+
+        const landingHeading = await screen.findByRole('heading', {
+            name: 'Landing Page',
+        })
+        expect(landingHeading).toBeInTheDocument()
+        expect(landingHeading).toBeVisible()
+    })
+
+    test('renders dashboard for authenticated / route', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: MANAGE_ACCESS,
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/')
+
+        expect(
+            await screen.findByTestId('layout'),
+        ).toBeInTheDocument()
+    })
+
+    test('redirects unauthenticated user accessing /dashboard to the landing page', async () => {
+        renderAt('/dashboard')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Landing Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('/login route is accessible when unauthenticated', async () => {
+        renderAt('/login')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Login Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('unauthenticated user accessing authenticated route redirects to landing', async () => {
+        renderAt('/moderation')
+
+        expect(
+            await screen.findByRole('heading', { name: 'Landing Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('handles auth check errors gracefully during init', async () => {
+        const checkAuth = vi.fn().mockRejectedValue(new Error('Connection failed'))
+        mockAuthStore({ checkAuth })
+        mockGuildStore()
+
+        renderAt('/servers')
+
+        await waitFor(() => {
+            expect(checkAuth).toHaveBeenCalled()
+        })
+
+        expect(
+            await screen.findByRole('heading', { name: 'Landing Page' }),
+        ).toBeInTheDocument()
+    })
+
+    test('shows page loader while auth is loading', async () => {
+        const checkAuth = vi.fn<() => Promise<void>>(() => new Promise(() => {}))
+        mockAuthStore({ isLoading: true, checkAuth })
+
+        renderAt('/')
+
+        expect(screen.getByRole('status')).toBeInTheDocument()
+        expect(screen.queryByRole('heading', { name: /Landing Page|Dashboard/ })).not.toBeInTheDocument()
+    })
+
+    test('authenticated user landing on wildcard route gets redirected to dashboard', async () => {
+        mockAuthStore({ isAuthenticated: true })
+        mockGuildStore({
+            selectedGuild: {
+                id: '123',
+                name: 'Guild',
+                effectiveAccess: MANAGE_ACCESS,
+            },
+            memberContextLoading: false,
+        })
+
+        renderAt('/unknown-route')
+
+        await waitFor(() => {
+            expect(screen.getByTestId('layout')).toBeInTheDocument()
+        })
+    })
+
+    test('legal routes (/terms, /privacy) work for unauthenticated users', async () => {
+        renderAt('/terms')
+
+        await waitFor(() => {
+            expect(screen.queryByRole('status')).not.toBeInTheDocument()
+        })
     })
 })
