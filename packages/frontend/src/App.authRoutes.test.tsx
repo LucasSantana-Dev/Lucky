@@ -400,7 +400,7 @@ describe('App authenticated routing', () => {
     })
 
     test('shows page loader while auth is loading', async () => {
-        const checkAuth = vi.fn(() => new Promise(() => {}))
+        const checkAuth = vi.fn<() => Promise<void>>(() => new Promise(() => {}))
         mockAuthStore({ isLoading: true, checkAuth })
 
         renderAt('/')
