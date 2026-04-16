@@ -2,7 +2,6 @@ import type { GuildQueue } from 'discord-player'
 import type { Client } from 'discord.js'
 import { infoLog, debugLog } from '@lucky/shared/utils'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
-import * as musicPresence from '../../services/MusicPresenceService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
@@ -65,7 +64,6 @@ export const setupLifecycleHandlers = (player: {
         })
 
         await voiceStatus.clearStatus(queue)
-        musicPresence.clearMusicPresence(queue.guild.id)
         await musicSessionSnapshotService.saveSnapshot(queue)
         // Queue was explicitly deleted — never attempt recovery here.
     })
@@ -73,7 +71,6 @@ export const setupLifecycleHandlers = (player: {
     player.events.on('emptyChannel', async (queue: GuildQueue) => {
         infoLog({ message: `Channel is empty in ${queue.guild.name}` })
         await voiceStatus.clearStatus(queue)
-        musicPresence.clearMusicPresence(queue.guild.id)
         await musicSessionSnapshotService.saveSnapshot(queue)
         musicWatchdogService.clear(queue.guild.id)
     })
@@ -88,7 +85,6 @@ export const setupLifecycleHandlers = (player: {
         })
 
         await voiceStatus.clearStatus(queue)
-        musicPresence.clearMusicPresence(queue.guild.id)
         await musicSessionSnapshotService.saveSnapshot(queue)
         if (!musicWatchdogService.isIntentionalStop(queue.guild.id)) {
             await musicWatchdogService.checkAndRecover(queue)
