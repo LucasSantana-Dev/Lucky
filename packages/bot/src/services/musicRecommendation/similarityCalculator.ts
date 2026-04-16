@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { tokenOverlapRatio } from '@lucky/shared/utils'
+import { tokenOverlapRatio } from '@lucky/shared/utils/similarity'
 import type { RecommendationConfig } from './types'
 
 export function calculateTrackSimilarity(

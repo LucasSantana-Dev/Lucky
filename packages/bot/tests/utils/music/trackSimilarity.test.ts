@@ -3,7 +3,7 @@ import {
     calculateDurationSimilarity,
     calculateTrackQuality,
 } from '../../../src/utils/music/trackSimilarity'
-import { jaccardSimilarity } from '@lucky/shared/utils'
+import { jaccardSimilarity } from '@lucky/shared/utils/similarity'
 import { createMockTrack } from '../../__mocks__/discordPlayer'
 
 describe('trackSimilarity', () => {

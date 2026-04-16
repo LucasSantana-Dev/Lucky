@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 import type { TrackHistoryEntry } from '@lucky/shared/services'
-import { levenshteinSimilarity } from '@lucky/shared/utils'
+import { levenshteinSimilarity } from '@lucky/shared/utils/similarity'
 import type { SimilarityConfig } from './types'
 
 /**

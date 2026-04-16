@@ -1,4 +1,4 @@
-import { levenshteinSimilarity } from '@lucky/shared/utils'
+import { levenshteinSimilarity } from '@lucky/shared/utils/similarity'
 
 export function applyPatterns(
     input: string,

@@ -1,5 +1,5 @@
 import type { Track } from 'discord-player'
-import { jaccardSimilarity } from '@lucky/shared/utils'
+import { jaccardSimilarity } from '@lucky/shared/utils/similarity'
 
 export function calculateTrackSimilarity(trackA: Track, trackB: Track): number {
     let similarity = 0
