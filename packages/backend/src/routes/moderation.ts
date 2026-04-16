@@ -1,5 +1,6 @@
 import type { Express, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import {
     validateBody,
     validateParams,
@@ -27,6 +28,7 @@ export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/cases',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'view'),
         validateParams(s.guildIdParam),
         validateQuery(s.casesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -43,6 +45,7 @@ export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/cases/:caseNumber',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'view'),
         validateParams(s.caseNumberParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const modCase = await moderationService.getCase(
@@ -59,6 +62,7 @@ export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/users/:userId/cases',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'view'),
         validateParams(s.userCasesParam),
         validateQuery(s.userCasesQuery),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -76,6 +80,7 @@ export function setupModerationRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/moderation/cases/:caseNumber/reason',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'manage'),
         writeLimiter,
         validateParams(s.caseNumberParam),
         validateBody(s.updateReasonBody),
@@ -107,6 +112,7 @@ export function setupModerationRoutes(app: Express): void {
     app.post(
         '/api/guilds/:guildId/moderation/cases/:caseId/deactivate',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'manage'),
         writeLimiter,
         validateParams(s.caseIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -129,6 +135,7 @@ export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/settings',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const settings = await moderationService.getSettings(
@@ -141,6 +148,7 @@ export function setupModerationRoutes(app: Express): void {
     app.patch(
         '/api/guilds/:guildId/moderation/settings',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'manage'),
         writeLimiter,
         validateParams(s.guildIdParam),
         validateBody(s.updateSettingsBody),
@@ -164,6 +172,7 @@ export function setupModerationRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/moderation/stats',
         requireAuth,
+        requireGuildModuleAccess('moderation', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const stats = await moderationService.getStats(
