@@ -23,6 +23,7 @@ import { requireAuth } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { errorHandler } from '../middleware/errorHandler'
 import { setupHealthRoutes } from './health'
+import { setupStatsRoutes } from './stats'
 
 type GuildGuardConfig = {
     path: string
@@ -78,6 +79,7 @@ const routeSetups = [
 
 export function setupRoutes(app: Express): void {
     setupHealthRoutes(app)
+    setupStatsRoutes(app)
     setupInternalNotifyRoutes(app)
     app.use('/api/', apiLimiter)
 

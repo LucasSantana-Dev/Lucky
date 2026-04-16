@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import { useCountUp } from '@/hooks/useCountUp'
 import Button from '@/components/ui/Button'
 import { useReducedMotion } from 'framer-motion'
+import { api } from '@/services/api'
 
 const CLIENT_ID = '999088926074396732'
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot%20applications.commands&permissions=8`
@@ -12,6 +15,37 @@ const HERO_GRADIENT_ANIMATED = `${HERO_GRADIENT} bg-[length:200%_200%] animate-[
 export default function Landing() {
     const login = useAuthStore((state) => state.login)
     const prefersReducedMotion = useReducedMotion()
+    const [stats, setStats] = useState<{
+        totalGuilds: number
+        totalUsers: number
+        uptimeSeconds: number
+        serversOnline: number
+    } | null>(null)
+    const [statsLoading, setStatsLoading] = useState(true)
+
+    const { value: guildCount } = useCountUp(stats?.totalGuilds ?? 0, {
+        duration: 1500,
+        delay: 300,
+    })
+    const { value: userCount } = useCountUp(stats?.totalUsers ?? 0, {
+        duration: 1500,
+        delay: 500,
+    })
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const response = await api.stats.getPublic()
+                setStats(response.data)
+            } catch (error) {
+                console.error('Failed to fetch stats:', error)
+            } finally {
+                setStatsLoading(false)
+            }
+        }
+
+        fetchStats()
+    }, [])
 
     usePageMetadata({
         title: 'Lucky — Discord Bot with Music, Moderation & Dashboard',
@@ -107,21 +141,27 @@ export default function Landing() {
                 </div>
             </section>
 
-            {/* Stats Strip (Phase 4 - Placeholder) */}
+            {/* Stats Strip (Phase 4 - Live Data) */}
             <section className='bg-indigo-950 px-4 py-16 md:px-8'>
                 <div className='mx-auto max-w-6xl'>
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-8 text-center'>
                         <div>
-                            <p className='text-4xl font-bold text-indigo-300 mb-2'>50+</p>
+                            <p className='text-4xl font-bold text-indigo-300 mb-2'>
+                                {statsLoading ? '---' : `${guildCount.toLocaleString()}${stats?.totalGuilds ? '+' : ''}`}
+                            </p>
                             <p className='text-gray-300'>Servers</p>
                         </div>
                         <div>
-                            <p className='text-4xl font-bold text-indigo-300 mb-2'>10k+</p>
-                            <p className='text-gray-300'>Tracks Played</p>
+                            <p className='text-4xl font-bold text-indigo-300 mb-2'>
+                                {statsLoading ? '---' : `${userCount.toLocaleString()}+`}
+                            </p>
+                            <p className='text-gray-300'>Users</p>
                         </div>
                         <div>
-                            <p className='text-4xl font-bold text-indigo-300 mb-2'>99.9%</p>
-                            <p className='text-gray-300'>Uptime</p>
+                            <p className='text-4xl font-bold text-indigo-300 mb-2'>
+                                {stats?.serversOnline ? '✓ Online' : statsLoading ? '---' : '✗ Offline'}
+                            </p>
+                            <p className='text-gray-300'>Status</p>
                         </div>
                     </div>
                 </div>
