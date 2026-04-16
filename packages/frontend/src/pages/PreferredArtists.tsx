@@ -471,7 +471,7 @@ export default function PreferredArtistsPage() {
             />
 
             <div className='flex flex-col gap-4 lg:flex-row lg:items-start'>
-                <div className='flex-1 space-y-4'>
+                <div className='min-w-0 flex-1 space-y-4'>
                     <div className='surface-panel p-4'>
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lucky-text-subtle' />
@@ -523,7 +523,7 @@ export default function PreferredArtistsPage() {
                             )}
 
                         {!searching && displayArtists.length > 0 && (
-                            <div className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'>
+                            <div className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
                                 {displayArtists.map((artist) => {
                                     const key = normalizeArtistKey(artist.name)
                                     const unsaved =
@@ -572,7 +572,7 @@ export default function PreferredArtistsPage() {
                             <p className='mb-3 text-[10px] font-semibold uppercase tracking-wide text-lucky-text-subtle'>
                                 Blocked Artists
                             </p>
-                            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'>
+                            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
                                 {blockedArtists.map((pref) => {
                                     const artist = prefToArtist(pref)
                                     return (
@@ -625,7 +625,7 @@ export default function PreferredArtistsPage() {
                 </div>
 
                 {selectedArtist && (
-                    <div className='w-full lg:w-72 lg:shrink-0'>
+                    <div className='w-full lg:w-80 xl:w-72 xl:shrink-0 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto'>
                         <ArtistDetailPanel
                             artist={selectedArtist}
                             preference={selectedPreference}
