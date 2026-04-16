@@ -17,6 +17,7 @@ import EmptyState from './components/ui/EmptyState'
 import { hasModuleAccess } from './lib/rbac'
 import type { AccessMode, ModuleKey } from './types'
 
+const LandingPage = lazy(() => import('./pages/Landing'))
 const LoginPage = lazy(() => import('./pages/Login'))
 const ServersPage = lazy(() => import('./pages/ServersPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardOverview'))
@@ -266,7 +267,8 @@ function App() {
                 <ErrorBoundary>
                     <Suspense fallback={<PageLoader />}>
                         <Routes>
-                            <Route path='/' element={<LoginPage />} />
+                            <Route path='/' element={<LandingPage />} />
+                            <Route path='/login' element={<LoginPage />} />
                             <Route
                                 path='*'
                                 element={<Navigate to='/' replace />}
