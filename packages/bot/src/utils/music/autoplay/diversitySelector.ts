@@ -16,7 +16,7 @@ const MAX_TRACKS_PER_SOURCE = 3
 const FUZZY_TITLE_THRESHOLD = 0.82
 
 function randomJitter(max: number): number {
-    return Math.random() * max
+    return Math.random() * max // NOSONAR - non-cryptographic jitter for diversity selection
 }
 
 function extractYouTubeVideoId(url: string): string | null {
@@ -56,8 +56,8 @@ function normalizeTitleOnly(title?: string): string {
 
 function stripFeaturing(author: string): string {
     return author
-        .split(/\s+(?:feat|ft)\.?(?:\s|$)/i)[0]
-        .replace(/\s*\([^)]*feat[^)]*\)\s*/gi, '')
+        .split(/\s+(?:feat|ft)\.?(?:\s|$)/i)[0] // NOSONAR - bounded alternation, no catastrophic backtracking
+        .replace(/\s*\([^)]*feat[^)]*\)\s*/gi, '') // NOSONAR - [^)]* bounded by paren close, no backtracking
 }
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
