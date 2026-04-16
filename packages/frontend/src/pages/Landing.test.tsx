@@ -5,17 +5,23 @@ import Landing from './Landing'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useReducedMotion } from 'framer-motion'
+import { api } from '@/services/api'
 
 vi.mock('@/stores/authStore')
 vi.mock('@/hooks/usePageMetadata')
 vi.mock('framer-motion')
+vi.mock('@/services/api')
 
 const mockLogin = vi.fn()
 
 function setupMocks(overrides?: {
     prefersReducedMotion?: boolean
+    statsData?: { totalGuilds: number; totalUsers: number; uptimeSeconds: number; serversOnline: number }
 }) {
-    const { prefersReducedMotion = false } = overrides || {}
+    const {
+        prefersReducedMotion = false,
+        statsData = { totalGuilds: 100, totalUsers: 500, uptimeSeconds: 86400, serversOnline: 1 }
+    } = overrides || {}
 
     vi.mocked(useAuthStore).mockImplementation(
         ((selector?: (value: unknown) => unknown) => {
@@ -26,6 +32,10 @@ function setupMocks(overrides?: {
 
     vi.mocked(usePageMetadata).mockImplementation(() => undefined)
     vi.mocked(useReducedMotion).mockReturnValue(prefersReducedMotion)
+
+    vi.mocked(api).stats = {
+        getPublic: vi.fn().mockResolvedValue({ data: statsData })
+    } as any
 }
 
 describe('Landing', () => {
@@ -87,16 +97,18 @@ describe('Landing', () => {
         })
     })
 
-    test('renders stats strip with 3 counters', () => {
+    test('renders stats strip with live data', async () => {
         render(<Landing />)
 
-        expect(screen.getByText('50+')).toBeInTheDocument()
-        expect(screen.getByText('10k+')).toBeInTheDocument()
-        expect(screen.getByText('99.9%')).toBeInTheDocument()
+        // Wait for the stats labels to be rendered
+        await waitFor(() => {
+            expect(screen.getByText('Servers')).toBeInTheDocument()
+            expect(screen.getByText('Users')).toBeInTheDocument()
+            expect(screen.getByText('Status')).toBeInTheDocument()
+        })
 
-        expect(screen.getByText('Servers')).toBeInTheDocument()
-        expect(screen.getByText('Tracks Played')).toBeInTheDocument()
-        expect(screen.getByText('Uptime')).toBeInTheDocument()
+        // Check that the API was called
+        expect(api.stats.getPublic).toHaveBeenCalled()
     })
 
     test('renders FAQ section with all questions and answers', () => {
