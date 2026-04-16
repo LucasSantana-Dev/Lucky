@@ -5,11 +5,19 @@ import express from 'express'
 import { setupRolesRoutes } from '../../../src/routes/roles'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -41,8 +49,17 @@ describe('Roles Routes', () => {
     const GUILD_ID = '111111111111111111'
 
     function authed() {
-        const mock = sessionService as jest.Mocked<typeof sessionService>
-        mock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+        const sessionMock = sessionService as jest.Mocked<typeof sessionService>
+        sessionMock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const accessMock = guildAccessService as jest.Mocked<typeof guildAccessService>
+        accessMock.resolveGuildContext.mockResolvedValue({
+            guildId: GUILD_ID,
+            userId: MOCK_SESSION_DATA.userId,
+            roles: [],
+            permissions: new Set(),
+        } as any)
+        accessMock.hasAccess.mockReturnValue(true)
     }
 
     describe('GET /api/guilds/:guildId/reaction-roles', () => {

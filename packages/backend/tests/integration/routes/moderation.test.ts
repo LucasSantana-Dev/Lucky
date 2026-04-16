@@ -5,11 +5,19 @@ import express from 'express'
 import { setupModerationRoutes } from '../../../src/routes/moderation'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
+import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
         getSession: jest.fn(),
+    },
+}))
+
+jest.mock('../../../src/services/GuildAccessService', () => ({
+    guildAccessService: {
+        resolveGuildContext: jest.fn(),
+        hasAccess: jest.fn(),
     },
 }))
 
@@ -51,6 +59,22 @@ jest.mock('@lucky/shared/services', () => ({
 import { moderationService, serverLogService } from '@lucky/shared/services'
 
 describe('Moderation Routes Integration', () => {
+    const GUILD_ID = '111111111111111111'
+
+    function setupAuth() {
+        const sessionMock = sessionService as jest.Mocked<typeof sessionService>
+        sessionMock.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+        const accessMock = guildAccessService as jest.Mocked<typeof guildAccessService>
+        accessMock.resolveGuildContext.mockResolvedValue({
+            guildId: GUILD_ID,
+            userId: MOCK_SESSION_DATA.userId,
+            roles: [],
+            permissions: new Set(),
+        } as any)
+        accessMock.hasAccess.mockReturnValue(true)
+    }
+
     let app: express.Express
 
     beforeEach(() => {
@@ -64,10 +88,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('GET /api/guilds/:guildId/moderation/cases', () => {
         test('should return recent cases with default limit', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockCases = [
                 {
@@ -99,10 +120,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return recent cases with custom limit', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -134,10 +152,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -159,10 +174,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('GET /api/guilds/:guildId/moderation/cases/:caseNumber', () => {
         test('should return specific case', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockCase = {
                 id: 'case1',
@@ -193,10 +205,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 404 when case not found', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -225,10 +234,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -248,10 +254,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('GET /api/guilds/:guildId/moderation/users/:userId/cases', () => {
         test('should return user cases with activeOnly=false', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockCases = [
                 {
@@ -287,10 +290,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return user cases with activeOnly=true', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -327,10 +327,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -354,10 +351,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('PATCH /api/guilds/:guildId/moderation/cases/:caseNumber/reason', () => {
         test('should update case reason', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockCase = {
                 id: 'case1',
@@ -406,10 +400,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 400 when reason is missing', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const response = await request(app)
                 .patch(
@@ -427,10 +418,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 404 when case not found', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -465,10 +453,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -493,10 +478,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('POST /api/guilds/:guildId/moderation/cases/:caseId/deactivate', () => {
         test('should deactivate case', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockUpdatedCase = {
                 id: 'case1',
@@ -558,10 +540,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -585,10 +564,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('GET /api/guilds/:guildId/moderation/settings', () => {
         test('should return moderation settings', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockSettings = {
                 guildId: '111111111111111111',
@@ -627,10 +603,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -652,10 +625,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('PATCH /api/guilds/:guildId/moderation/settings', () => {
         test('should update moderation settings', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockSettings = {
                 guildId: '111111111111111111',
@@ -719,10 +689,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
@@ -745,10 +712,7 @@ describe('Moderation Routes Integration', () => {
 
     describe('GET /api/guilds/:guildId/moderation/stats', () => {
         test('should return moderation stats', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockStats = {
                 totalCases: 42,
@@ -790,10 +754,7 @@ describe('Moderation Routes Integration', () => {
         })
 
         test('should return 500 on service error', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            setupAuth()
 
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
