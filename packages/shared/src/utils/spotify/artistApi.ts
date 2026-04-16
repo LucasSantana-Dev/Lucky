@@ -66,7 +66,10 @@ export async function getSpotifyRelatedArtists(
             `https://api.spotify.com/v1/recommendations?${params.toString()}`,
             { headers: { Authorization: `Bearer ${accessToken}` } },
         )
-        if (!res.ok) return []
+        if (!res.ok) {
+            console.warn(`[Spotify] recommendations API returned ${res.status} for artist ${artistId}`)
+            return []
+        }
         const data = (await res.json().catch(() => null)) as {
             tracks?: Array<{ artists?: unknown[] }>
         }
@@ -85,8 +88,12 @@ export async function getSpotifyRelatedArtists(
                 }
             }
         }
+        if (artists.length === 0) {
+            console.warn(`[Spotify] getSpotifyRelatedArtists returned empty array for artist ${artistId}. Tracks count: ${data?.tracks?.length ?? 0}`)
+        }
         return artists
-    } catch {
+    } catch (error) {
+        console.error(`[Spotify] getSpotifyRelatedArtists error for artist ${artistId}:`, error)
         return []
     }
 }
