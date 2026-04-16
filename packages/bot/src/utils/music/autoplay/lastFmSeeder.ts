@@ -166,7 +166,7 @@ export async function collectLastFmCandidates(
     }
 }
 
-async function searchLastFmQuery(
+export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
     requestedBy: User,

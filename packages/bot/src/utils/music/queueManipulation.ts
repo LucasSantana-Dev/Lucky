@@ -41,7 +41,7 @@ import {
     addSelectedTracks,
     purgeDuplicatesOfCurrentTrack,
 } from './autoplay/diversitySelector'
-import { collectLastFmCandidates } from './autoplay/lastFmSeeder'
+import { collectLastFmCandidates, searchLastFmQuery } from './autoplay/lastFmSeeder'
 import { getSimilarTracks, getTagTopTracks } from '../../lastfm'
 import {
     cleanSearchQuery,
