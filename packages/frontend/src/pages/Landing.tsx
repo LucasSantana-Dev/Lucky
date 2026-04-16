@@ -6,6 +6,9 @@ import { useReducedMotion } from 'framer-motion'
 const CLIENT_ID = '999088926074396732'
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot%20applications.commands&permissions=8`
 
+const HERO_GRADIENT = 'bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950'
+const HERO_GRADIENT_ANIMATED = `${HERO_GRADIENT} bg-[length:200%_200%] animate-[gradient_15s_ease_infinite]`
+
 export default function Landing() {
     const login = useAuthStore((state) => state.login)
     const prefersReducedMotion = useReducedMotion()
@@ -15,9 +18,7 @@ export default function Landing() {
         description: 'The all-in-one Discord bot for your community. Music, moderation, custom commands, auto-mod, and a full web dashboard. Free forever.',
     })
 
-    const containerClass = prefersReducedMotion
-        ? 'bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950'
-        : 'bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950'
+    const containerClass = prefersReducedMotion ? HERO_GRADIENT : HERO_GRADIENT_ANIMATED
 
     return (
         <div className='lucky-shell min-h-screen dark text-white'>
