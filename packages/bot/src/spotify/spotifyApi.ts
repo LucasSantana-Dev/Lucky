@@ -1,4 +1,5 @@
 import { logAndSwallow } from '@lucky/shared/utils/error'
+import { debugLog } from '@lucky/shared/utils/general/log'
 
 export interface SpotifyRecommendationTrack {
     id: string
@@ -252,7 +253,18 @@ export async function getArtistPopularity(
     artistName: string,
 ): Promise<number | null> {
     const cached = artistPopularityCache.get(artistName)
-    if (cached !== undefined) return cached.value
+    if (cached !== undefined) {
+        debugLog({
+            message: 'Artist popularity cache hit',
+            data: { artistName, hasValue: cached.value !== null },
+        })
+        return cached.value
+    }
+
+    debugLog({
+        message: 'Artist popularity cache miss',
+        data: { artistName, cacheSize: artistPopularityCache.size },
+    })
 
     try {
         const params = new URLSearchParams({
@@ -294,7 +306,18 @@ export async function getArtistGenres(
     artistName: string,
 ): Promise<string[]> {
     const cached = artistGenresCache.get(artistName)
-    if (cached !== undefined) return cached.value ?? []
+    if (cached !== undefined) {
+        debugLog({
+            message: 'Artist genres cache hit',
+            data: { artistName, genreCount: cached.value?.length ?? 0 },
+        })
+        return cached.value ?? []
+    }
+
+    debugLog({
+        message: 'Artist genres cache miss',
+        data: { artistName, cacheSize: artistGenresCache.size },
+    })
 
     try {
         const params = new URLSearchParams({
