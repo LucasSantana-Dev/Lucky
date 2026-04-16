@@ -1,4 +1,5 @@
 import type { Track } from 'discord-player'
+import { tokenOverlapRatio } from '@lucky/shared/utils'
 import type { RecommendationConfig } from './types'
 
 export function calculateTrackSimilarity(
@@ -7,7 +8,7 @@ export function calculateTrackSimilarity(
   config: RecommendationConfig,
 ): number {
   const similarity = {
-    title: calculateTitleSimilarity(trackA.title, trackB.title),
+    title: tokenOverlapRatio(trackA.title, trackB.title),
     artist: calculateArtistSimilarity(trackA.author, trackB.author),
     genre: calculateGenreSimilarity(trackA, trackB),
     duration: calculateDurationSimilarity(
@@ -24,26 +25,6 @@ export function calculateTrackSimilarity(
     similarity.duration * config.durationWeight +
     similarity.tags * config.tagWeight
   )
-}
-
-function calculateTitleSimilarity(titleA: string, titleB: string): number {
-  const normalizedA = titleA.toLowerCase().trim()
-  const normalizedB = titleB.toLowerCase().trim()
-
-  if (normalizedA === normalizedB) {
-    return 1.0
-  }
-
-  const wordsA = normalizedA.split(/\s+/)
-  const wordsB = normalizedB.split(/\s+/)
-  const commonWords = wordsA.filter((word) => wordsB.includes(word))
-
-  if (commonWords.length === 0) {
-    return 0.0
-  }
-
-  const union = new Set([...wordsA, ...wordsB])
-  return commonWords.length / union.size
 }
 
 function calculateArtistSimilarity(artistA: string, artistB: string): number {
