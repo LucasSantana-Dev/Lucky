@@ -28,6 +28,7 @@ import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
 } from './autoplay/lastFmSeeds'
+import { collectLastFmCandidates } from './autoplay/lastFmSeeder.js'
 import { detectSessionMood, type SessionMood } from './autoplay/sessionMood'
 import {
     buildExcludedUrls,
@@ -1114,141 +1115,7 @@ function upsertScoredCandidate(
     }
 }
 
-async function collectLastFmCandidates(
-    queue: GuildQueue,
-    requestedBy: User,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    currentTrack: Track,
-    recentArtists: Set<string>,
-    candidates: Map<string, ScoredTrack>,
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    sessionMood: SessionMood | null = null,
-    contributionWeights?: Map<string, number>,
-): Promise<void> {
-    const metadata = queue.metadata as QueueMetadata
-    const vcMemberIds = metadata?.vcMemberIds ?? []
-
-    const otherUserIds = vcMemberIds.filter((id) => id !== requestedBy.id)
-
-    let seedSlice: { artist: string; title: string }[] = []
-    if (otherUserIds.length > 0) {
-        const linkedUsers = await Promise.all(
-            [requestedBy.id, ...otherUserIds].map(async (id) => {
-                const link = await lastFmLinkService.getByDiscordId(id)
-                return link?.lastFmUsername ? id : null
-            }),
-        )
-        const linkedUserIds = linkedUsers.filter(
-            (id) => id !== null,
-        ) as string[]
-
-        if (linkedUserIds.length > 1) {
-            seedSlice = await consumeBlendedSeedSlice(
-                linkedUserIds,
-                LASTFM_SEED_COUNT,
-                contributionWeights,
-            )
-        } else if (linkedUserIds.length === 1) {
-            seedSlice = await consumeLastFmSeedSlice(
-                linkedUserIds[0],
-                LASTFM_SEED_COUNT,
-            )
-        }
-    } else {
-        seedSlice = await consumeLastFmSeedSlice(
-            requestedBy.id,
-            LASTFM_SEED_COUNT,
-        )
-    }
-
-    if (seedSlice.length === 0) return
-
-    for (const seed of seedSlice) {
-        const query = cleanSearchQuery(seed.title, seed.artist)
-        const tracks = await searchLastFmQuery(queue, query, requestedBy)
-        for (const track of tracks) {
-            if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
-                continue
-            const normalizedKey = normalizeTrackKey(track.title, track.author)
-            const dislikedWeight = dislikedWeights.get(normalizedKey)
-            if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-            const rec = calculateRecommendationScore(
-                track,
-                currentTrack,
-                recentArtists,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                dislikedWeights,
-                sessionMood,
-                true,
-            )
-            if (rec.score === -Infinity) continue
-            upsertScoredCandidate(candidates, track, {
-                score: rec.score + LASTFM_SCORE_BOOST,
-                reason: rec.reason
-                    ? `${rec.reason} • last.fm taste`
-                    : 'last.fm taste',
-            })
-        }
-
-        const similar = await getSimilarTracks(
-            seed.artist,
-            cleanTitle(seed.title),
-        )
-        for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
-            const query = cleanSearchQuery(s.title, s.artist)
-            const tracks = await searchLastFmQuery(queue, query, requestedBy)
-            for (const track of tracks) {
-                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
-                    continue
-                const normalizedKey = normalizeTrackKey(
-                    track.title,
-                    track.author,
-                )
-                const dislikedWeight = dislikedWeights.get(normalizedKey)
-                if (dislikedWeight !== undefined && dislikedWeight > 0.5)
-                    continue
-                const rec = calculateRecommendationScore(
-                    track,
-                    currentTrack,
-                    recentArtists,
-                    likedWeights,
-                    preferredArtistKeys,
-                    blockedArtistKeys,
-                    autoplayMode,
-                    artistFrequency,
-                    implicitDislikeKeys,
-                    implicitLikeKeys,
-                    dislikedWeights,
-                    null,
-                    true,
-                )
-                upsertScoredCandidate(candidates, track, {
-                    score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
-                    reason: rec.reason
-                        ? `${rec.reason} • similar to your taste`
-                        : 'similar to your taste',
-                })
-            }
-            if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-        }
-    }
-}
-
-async function searchLastFmQuery(
+export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
     requestedBy: User,
@@ -1701,7 +1568,7 @@ export function calculateGenreFamilyPenalty(
     return isStrongGenre ? -0.6 : -0.3
 }
 
-function calculateRecommendationScore(
+export function calculateRecommendationScore(
     candidate: Track,
     currentTrack: Track,
     recentArtists: Set<string>,
