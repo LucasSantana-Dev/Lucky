@@ -73,7 +73,7 @@ interface AudioFeatureEntry {
 }
 
 const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
-    max: 10000,
+    max: 5000,
     ttl: 24 * 60 * 60 * 1000,
 })
 
@@ -85,8 +85,17 @@ async function getTrackAudioFeatures(
 
     const cached = audioFeatureCache.get(cacheKey)
     if (cached !== undefined) {
+        debugLog({
+            message: 'Audio feature cache hit',
+            data: { cacheKey, hasValue: cached.value !== null },
+        })
         return cached.value
     }
+
+    debugLog({
+        message: 'Audio feature cache miss',
+        data: { cacheKey, cacheSize: audioFeatureCache.size },
+    })
 
     const token = await spotifyLinkService.getValidAccessToken(userId)
     if (!token) {
