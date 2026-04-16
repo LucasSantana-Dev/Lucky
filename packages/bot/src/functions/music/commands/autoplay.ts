@@ -11,7 +11,7 @@ import {
 } from '../../../utils/general/embeds'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { replenishQueue } from '../../../utils/music/trackManagement/queueOperations'
+import { replenishQueue } from '../../../utils/music/queueOperations'
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { trackHistoryService } from '@lucky/shared/services'
 import type { ColorResolvable, ChatInputCommandInteraction } from 'discord.js'

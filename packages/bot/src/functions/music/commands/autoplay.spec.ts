@@ -34,7 +34,7 @@ jest.mock('../../../utils/general/embeds', () => ({
     },
 }))
 
-jest.mock('../../../utils/music/trackManagement/queueOperations', () => ({
+jest.mock('../../../utils/music/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
