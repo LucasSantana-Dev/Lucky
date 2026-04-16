@@ -14,7 +14,6 @@ import {
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
 import * as voiceStatus from '../../services/VoiceChannelStatusService'
-import * as musicPresence from '../../services/MusicPresenceService'
 import {
     scheduleIdleDisconnect,
     clearIdleTimer,
@@ -211,7 +210,6 @@ const handlePlayerStart = async (
             await sendNowPlayingEmbed(queue, track, isAutoplay)
             await updateLastFmNowPlaying(queue, track)
             await voiceStatus.setTrackStatus(queue)
-            musicPresence.setNowPlaying(queue.guild.id, track)
         } catch (error) {
             errorLog({ message: 'Error sending now playing message:', error })
         }
@@ -276,7 +274,6 @@ const handlePlayerFinish = async (
             musicWatchdogService.arm(queue)
         } else {
             await voiceStatus.clearStatus(queue)
-            musicPresence.clearMusicPresence(queue.guild.id)
             musicWatchdogService.clear(queue.guild.id)
         }
     } catch (error) {
@@ -323,7 +320,6 @@ const handlePlayerSkip = async (
             musicWatchdogService.arm(queue)
         } else {
             await voiceStatus.clearStatus(queue)
-            musicPresence.clearMusicPresence(queue.guild.id)
             musicWatchdogService.clear(queue.guild.id)
         }
     } catch (error) {
