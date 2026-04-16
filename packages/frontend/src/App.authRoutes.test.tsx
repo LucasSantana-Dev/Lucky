@@ -359,7 +359,7 @@ describe('App authenticated routing', () => {
         ).toBeInTheDocument()
     })
 
-    test('redirects unauthenticated user accessing /dashboard to /login', async () => {
+    test('redirects unauthenticated user accessing /dashboard to the landing page', async () => {
         renderAt('/dashboard')
 
         expect(

@@ -184,7 +184,7 @@ export default function Landing() {
                         <div>
                             <h4 className='font-semibold mb-4'>Links</h4>
                             <nav className='space-y-2'>
-                                <a href='/terms' className='text-sm text-gray-400 hover:text-gray-200'>Terms of Service</a>
+                                <a href='/terms' className='text-sm text-gray-400 hover:text-gray-200 block'>Terms of Service</a>
                                 <a href='/privacy' className='text-sm text-gray-400 hover:text-gray-200 block'>Privacy Policy</a>
                                 <a href='https://github.com/LucasSantana-Dev/Lucky' target='_blank' rel='noreferrer' className='text-sm text-gray-400 hover:text-gray-200 block'>GitHub</a>
                             </nav>
