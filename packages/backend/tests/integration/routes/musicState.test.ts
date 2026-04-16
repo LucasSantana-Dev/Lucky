@@ -237,5 +237,51 @@ describe('Music State Routes', () => {
                 }, 1000)
             })
         }, 5000)
+
+        test('does not write heartbeat after client disconnect', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                let writeCallCount = 0
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        res.on('data', () => {
+                            writeCallCount++
+                        })
+                        // Close immediately after headers received
+                        setTimeout(() => req.destroy(), 10)
+                    },
+                )
+
+                req.on('close', () => {
+                    // Wait longer than heartbeat interval to ensure no further writes
+                    setTimeout(() => {
+                        server.close(() => {
+                            // Should only have header writes, no heartbeat data
+                            done()
+                        })
+                    }, 100)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
     })
 })
