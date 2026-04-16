@@ -23,8 +23,6 @@ const watchdogArmMock = jest.fn()
 const watchdogClearMock = jest.fn()
 const saveSnapshotMock = jest.fn()
 const clearStatusMock = jest.fn()
-const setNowPlayingPresenceMock = jest.fn()
-const clearMusicPresenceMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -85,10 +83,6 @@ jest.mock('../../services/VoiceChannelStatusService', () => ({
     setTrackStatus: jest.fn(),
 }))
 
-jest.mock('../../services/MusicPresenceService', () => ({
-    setNowPlaying: (...args: unknown[]) => setNowPlayingPresenceMock(...args),
-    clearMusicPresence: (...args: unknown[]) => clearMusicPresenceMock(...args),
-}))
 
 jest.mock('@lucky/shared/config', () => ({
     constants: { VOLUME: 50 },
@@ -373,7 +367,6 @@ describe('trackHandlers autoplay replenishment', () => {
         await playerFinish(queue, finishedTrack)
 
         expect(clearStatusMock).toHaveBeenCalledWith(queue)
-        expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
         expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
         expect(watchdogArmMock).not.toHaveBeenCalled()
     })
@@ -435,7 +428,6 @@ describe('trackHandlers autoplay replenishment', () => {
         await playerSkip(queue, skippedTrack)
 
         expect(clearStatusMock).toHaveBeenCalledWith(queue)
-        expect(clearMusicPresenceMock).toHaveBeenCalledWith('guild-1')
         expect(watchdogClearMock).toHaveBeenCalledWith('guild-1')
         expect(watchdogArmMock).not.toHaveBeenCalled()
     })

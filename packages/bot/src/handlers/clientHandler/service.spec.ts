@@ -23,9 +23,6 @@ jest.mock('./presence', () => ({
     }),
 }))
 
-jest.mock('../../services/MusicPresenceService', () => ({
-    initMusicPresence: jest.fn(),
-}))
 
 jest.mock('../../utils/moderation/modDigestScheduler', () => ({
     modDigestSchedulerService: {
