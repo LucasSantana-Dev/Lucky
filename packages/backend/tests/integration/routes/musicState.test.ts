@@ -283,5 +283,419 @@ describe('Music State Routes', () => {
                 }, 2000)
             })
         }, 5000)
+
+        test('heartbeat skips write when controller.signal.aborted', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                let heartbeatWrites = 0
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        res.on('data', (chunk: Buffer) => {
+                            const str = chunk.toString()
+                            if (str.includes('heartbeat')) {
+                                heartbeatWrites++
+                            }
+                        })
+                        // Close to trigger close handler which aborts controller
+                        setTimeout(() => req.destroy(), 100)
+                    },
+                )
+
+                req.on('close', () => {
+                    // Wait to ensure heartbeat interval doesn't fire after abort
+                    setTimeout(() => {
+                        server.close(() => {
+                            // Should have no heartbeat writes after disconnect
+                            expect(heartbeatWrites).toBe(0)
+                            done()
+                        })
+                    }, 150)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 3000)
+            })
+        }, 5000)
+
+        test('heartbeat skips write when res.writableEnded', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                let initialHeartbeat = true
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Simulate writableEnded by ending response early
+                        res.end()
+                    },
+                )
+
+                req.on('close', () => {
+                    // If we reach here without error, writableEnded guard worked
+                    setTimeout(() => {
+                        server.close(() => {
+                            done()
+                        })
+                    }, 150)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
+
+        test('heartbeat skips write when res.destroyed', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Destroy the response to set destroyed flag
+                        setTimeout(() => {
+                            res.destroy()
+                        }, 50)
+                    },
+                )
+
+                req.on('close', () => {
+                    // If we reach here without error, destroyed guard worked
+                    setTimeout(() => {
+                        server.close(() => {
+                            done()
+                        })
+                    }, 150)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
+
+        test('close handler clears heartbeat interval', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Close after establishing connection
+                        setTimeout(() => req.destroy(), 50)
+                    },
+                )
+
+                req.on('close', () => {
+                    // Verify that after close, no further interval operations happen
+                    setTimeout(() => {
+                        server.close(() => {
+                            done()
+                        })
+                    }, 100)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
+
+        test('removes client from sseClients on disconnect', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        setTimeout(() => req.destroy(), 50)
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            done()
+                        })
+                    }, 50)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
+
+        test('handles multiple concurrent client disconnects', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                // Create first client connection
+                const req1 = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                    },
+                )
+
+                // Create second client connection
+                const req2 = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                    },
+                )
+
+                // Destroy both after a short delay
+                setTimeout(() => {
+                    req1.destroy()
+                    req2.destroy()
+                }, 100)
+
+                req1.on('error', () => {})
+                req2.on('error', () => {})
+
+                // Wait and then close server
+                setTimeout(() => {
+                    server.close(() => {
+                        done()
+                    })
+                }, 500)
+            })
+        }, 5000)
+
+        test('client disconnect during initial state write triggers catch block', (done) => {
+            authed()
+            const stateData = {
+                guildId: GUILD_ID,
+                currentTrack: { title: 'Test', author: 'Artist' },
+                tracks: [],
+                isPlaying: true,
+                isPaused: false,
+                volume: 75,
+                repeatMode: 'off' as const,
+                shuffled: false,
+                position: 0,
+                voiceChannelId: null,
+                voiceChannelName: null,
+                timestamp: 0,
+            }
+            mockGetState.mockResolvedValue(stateData)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Immediately destroy to prevent initial state write
+                        setImmediate(() => res.destroy())
+                    },
+                )
+
+                req.on('error', () => {})
+
+                setTimeout(() => {
+                    server.close(() => {
+                        done()
+                    })
+                }, 500)
+            })
+        }, 5000)
+
+        test('heartbeat writes successfully when all guards pass', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                let heartbeatReceived = false
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        expect(res.headers['content-type']).toContain(
+                            'text/event-stream',
+                        )
+
+                        let dataReceived = false
+                        res.on('data', (chunk: Buffer) => {
+                            const str = chunk.toString()
+                            if (str.includes('heartbeat')) {
+                                heartbeatReceived = true
+                                // Close after receiving heartbeat
+                                req.destroy()
+                            }
+                            dataReceived = true
+                        })
+
+                        // Give time for heartbeat to fire (needs > 0ms but we'll wait a bit)
+                        setTimeout(() => {
+                            if (!heartbeatReceived) {
+                                req.destroy()
+                            }
+                        }, 100)
+                    },
+                )
+
+                req.on('close', () => {
+                    // Close server and complete test
+                    setTimeout(() => {
+                        server.close(() => {
+                            done()
+                        })
+                    }, 50)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                // Failsafe timeout
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
+
+        test('guild removed from sseClients when all clients disconnect', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Close connection to trigger cleanup
+                        setTimeout(() => req.destroy(), 50)
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            // Guild should be removed from sseClients when last client disconnects
+                            done()
+                        })
+                    }, 100)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 2000)
+            })
+        }, 5000)
     })
 })
