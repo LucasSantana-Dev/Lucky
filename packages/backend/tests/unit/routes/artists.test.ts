@@ -33,7 +33,26 @@ jest.mock('@lucky/shared/services', () => ({
 	spotifyLinkService: {
 		getValidAccessToken: jest.fn(),
 	},
+})
+
+jest.mock('../../../src/middleware/rateLimit', () => ({
+	apiLimiter: (_req: any, _res: any, next: any) => next?.(),
+	writeLimiter: (_req: any, _res: any, next: any) => next?.(),
 }))
+
+jest.mock('../../../src/middleware/auth', () => ({
+	requireAuth: (_req: any, _res: any, next: any) => next?.(),
+})))
+
+// Helper to extract handler from mocked Express app route registration
+// Routes now have middleware, so handler is at the last index
+function getRouteHandler(mockMethod: any, index = 0): any {
+	const call = mockMethod.mock.calls[index]
+	// Find the last argument which should be the handler function
+	return call[call.length - 1]
+}
+
+
 
 const mockApp = {
 	get: jest.fn(),
@@ -104,7 +123,7 @@ describe('Artists Routes', () => {
 				)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -134,7 +153,7 @@ describe('Artists Routes', () => {
 			;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -155,7 +174,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -174,7 +193,7 @@ describe('Artists Routes', () => {
 			;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -193,7 +212,7 @@ describe('Artists Routes', () => {
 			;(getSpotifyClientToken as jest.Mock).mockResolvedValue(null)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -214,7 +233,7 @@ describe('Artists Routes', () => {
 			)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -237,7 +256,7 @@ describe('Artists Routes', () => {
 			;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[1][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 1)
 
 			await handler(req, res)
 
@@ -259,7 +278,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[1][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 1)
 
 			await handler(req, res)
 
@@ -281,7 +300,7 @@ describe('Artists Routes', () => {
 			)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[1][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 1)
 
 			await handler(req, res)
 
@@ -305,7 +324,7 @@ describe('Artists Routes', () => {
 			])
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[2][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 2)
 
 			await handler(req, res)
 
@@ -330,7 +349,7 @@ describe('Artists Routes', () => {
 			)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[2][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 2)
 
 			await handler(req, res)
 
@@ -357,7 +376,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[3][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 3)
 
 			await handler(req, res)
 
@@ -378,7 +397,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[3][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 3)
 
 			await handler(req, res)
 
@@ -405,7 +424,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.get as jest.Mock).mock.calls[3][2]
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 3)
 
 			await handler(req, res)
 
@@ -439,7 +458,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.post as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -460,7 +479,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.post as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -484,7 +503,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.post as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -514,7 +533,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.post as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.post as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -556,7 +575,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -584,7 +603,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -605,7 +624,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -636,7 +655,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -674,7 +693,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.put as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -702,7 +721,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.delete as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -719,7 +738,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.delete as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -738,7 +757,7 @@ describe('Artists Routes', () => {
 			const res = createMockResponse()
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.delete as jest.Mock, 0)
 
 			await handler(req, res)
 
@@ -763,7 +782,7 @@ describe('Artists Routes', () => {
 			;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
 
 			setupArtistsRoutes(mockApp)
-			const handler = (mockApp.delete as jest.Mock).mock.calls[0][2]
+			const handler = getRouteHandler(mockApp.delete as jest.Mock, 0)
 
 			await handler(req, res)
 

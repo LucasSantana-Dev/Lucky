@@ -12,6 +12,7 @@ import {
     requireAuth,
     type AuthenticatedRequest,
 } from '../middleware/auth'
+import { apiLimiter } from '../middleware/rateLimit'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
@@ -193,7 +194,7 @@ export function setupLastFmRoutes(app: Express): void {
         },
     )
 
-    app.get('/api/lastfm/callback', async (req: Request, res: Response) => {
+    app.get('/api/lastfm/callback', apiLimiter, async (req: Request, res: Response) => {
         const frontendUrl = getFrontendUrl()
         try {
             const cookies = req.cookies as Record<string, unknown> | undefined

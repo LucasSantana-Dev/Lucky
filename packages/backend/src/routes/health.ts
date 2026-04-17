@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express'
+import { apiLimiter } from '../middleware/rateLimit'
 import { redisClient } from '@lucky/shared/services'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
@@ -50,7 +51,7 @@ const resolveRuntimeVersion = (): string | null => {
 }
 
 export function setupHealthRoutes(app: Express): void {
-    app.get('/api/health', (_req: Request, res: Response) => {
+    app.get('/api/health', apiLimiter, (_req: Request, res: Response) => {
         res.json({
             status: 'ok',
             redis: redisClient.isHealthy(),
@@ -58,14 +59,14 @@ export function setupHealthRoutes(app: Express): void {
         })
     })
 
-    app.get('/api/health/version', (_req: Request, res: Response) => {
+    app.get('/api/health/version', apiLimiter, (_req: Request, res: Response) => {
         res.json({
             commitSha: process.env.COMMIT_SHA ?? null,
             version: resolveRuntimeVersion(),
         })
     })
 
-    app.get('/api/health/cache', (_req: Request, res: Response) => {
+    app.get('/api/health/cache', apiLimiter, (_req: Request, res: Response) => {
         const metrics = redisClient.getMetrics()
         res.json({
             redis: redisClient.isHealthy(),
@@ -76,7 +77,7 @@ export function setupHealthRoutes(app: Express): void {
         })
     })
 
-    app.get('/api/health/auth-config', (req: Request, res: Response) => {
+    app.get('/api/health/auth-config', apiLimiter, (req: Request, res: Response) => {
         const redirectUri = getOAuthRedirectUri(req)
         const requestOrigin = resolveRequestOrigin(req)
         const frontendOrigins = getFrontendOrigins()
