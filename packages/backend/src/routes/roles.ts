@@ -9,10 +9,6 @@ import {
     roleManagementService,
 } from '@lucky/shared/services'
 
-function p(val: string | string[]): string {
-    return typeof val === 'string' ? val : val[0]
-}
-
 export function setupRolesRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/reaction-roles',
@@ -20,9 +16,8 @@ export function setupRolesRoutes(app: Express): void {
         requireGuildModuleAccess('overview', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = p(req.params.guildId)
-            const messages =
-                await reactionRolesService.listReactionRoleMessages(guildId)
+            const { guildId } = req.params as ReturnType<typeof s.guildIdParam.parse>
+            const messages = await reactionRolesService.listReactionRoleMessages(guildId) as unknown
             res.json({ messages })
         }),
     )
@@ -33,9 +28,8 @@ export function setupRolesRoutes(app: Express): void {
         requireGuildModuleAccess('overview', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = p(req.params.guildId)
-            const exclusions =
-                await roleManagementService.listExclusiveRoles(guildId)
+            const { guildId } = req.params as ReturnType<typeof s.guildIdParam.parse>
+            const exclusions = await roleManagementService.listExclusiveRoles(guildId) as unknown
             res.json({ exclusions })
         }),
     )
