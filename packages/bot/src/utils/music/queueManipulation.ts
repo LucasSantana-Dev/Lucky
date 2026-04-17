@@ -34,6 +34,12 @@ import {
     searchSeedCandidates,
 } from './autoplay/spotifyRecommender'
 import {
+    collectRecommendationCandidates,
+    shouldIncludeCandidate,
+    upsertScoredCandidate,
+    type ScoredTrack,
+} from './autoplay/candidateCollector'
+import {
     buildExcludedUrls,
     buildExcludedKeys,
     isDuplicateCandidate,
@@ -130,16 +136,18 @@ async function getTrackAudioFeatures(
     return features
 }
 
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
-
 export type QueueRescueResult = {
     removedTracks: number
     keptTracks: number
     addedTracks: number
+}
+
+// Re-export from candidateCollector for backward compatibility
+export {
+    collectRecommendationCandidates,
+    shouldIncludeCandidate,
+    upsertScoredCandidate,
+    type ScoredTrack,
 }
 
 export async function clearQueue(queue: GuildQueue): Promise<boolean> {
@@ -713,92 +721,6 @@ export function extractSpotifyTrackId(track: Track): string | null {
 }
 
 
-async function collectRecommendationCandidates(
-    queue: GuildQueue,
-    seedTracks: Track[],
-    requestedBy: User | null,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    currentTrack: Track,
-    recentArtists: Set<string>,
-    replenishCount = 0,
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    sessionMood: SessionMood | null = null,
-    currentFeatures: SpotifyAudioFeatures | null = null,
-): Promise<Map<string, ScoredTrack>> {
-    const candidates = new Map<string, ScoredTrack>()
-
-    await collectSpotifyRecommendationCandidates(
-        queue,
-        seedTracks,
-        requestedBy,
-        excludedUrls,
-        excludedKeys,
-        dislikedWeights,
-        likedWeights,
-        preferredArtistKeys,
-        blockedArtistKeys,
-        currentTrack,
-        recentArtists,
-        candidates,
-        autoplayMode,
-        artistFrequency,
-        implicitDislikeKeys,
-        implicitLikeKeys,
-        sessionMood,
-        currentFeatures,
-    )
-
-    for (const seed of seedTracks) {
-        const seedCandidates = await searchSeedCandidates(
-            queue,
-            seed,
-            requestedBy,
-            replenishCount,
-        )
-        for (const candidate of seedCandidates) {
-            if (
-                !shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)
-            ) {
-                continue
-            }
-            const normalizedKey = normalizeTrackKey(
-                candidate.title,
-                candidate.author,
-            )
-            const dislikedWeight = dislikedWeights.get(normalizedKey)
-            if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
-                continue
-            }
-            const rec = calculateRecommendationScore(
-                candidate,
-                currentTrack,
-                recentArtists,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                dislikedWeights,
-                sessionMood,
-            )
-            if (rec.score !== -Infinity) {
-                upsertScoredCandidate(candidates, candidate, rec)
-            }
-        }
-    }
-
-    return candidates
-}
 
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 
@@ -878,32 +800,6 @@ async function collectBroadFallbackCandidates(
     }
 }
 
-export function shouldIncludeCandidate(
-    track: Track,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-): boolean {
-    return !isDuplicateCandidate(track, excludedUrls, excludedKeys)
-}
-
-export function upsertScoredCandidate(
-    candidates: Map<string, ScoredTrack>,
-    candidate: Track,
-    recommendation: { score: number; reason: string },
-): void {
-    const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
-    const candidateKey =
-        normalizedKey !== '::' ? normalizedKey : getTrackKey(candidate)
-    const existing = candidates.get(candidateKey)
-
-    if (!existing || recommendation.score > existing.score) {
-        candidates.set(candidateKey, {
-            track: candidate,
-            score: recommendation.score,
-            reason: recommendation.reason,
-        })
-    }
-}
 
 async function collectLastFmCandidates(
     queue: GuildQueue,
