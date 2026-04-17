@@ -101,11 +101,11 @@ export class GuildAutomationExecutionError extends Error {
     }
 }
 
-function normalizeName(value: string): string {
+export function normalizeName(value: string): string {
     return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function asObject(value: unknown): Record<string, unknown> | null {
+export function asObject(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
         return null
     }
@@ -113,7 +113,7 @@ function asObject(value: unknown): Record<string, unknown> | null {
     return value as Record<string, unknown>
 }
 
-function toAutoModPayload(
+export function toAutoModPayload(
     value: GuildAutomationManifestDocument['moderation'] extends {
         automod?: infer T
     }
@@ -123,7 +123,7 @@ function toAutoModPayload(
     return asObject(value) ? (value as AutoModUpdatePayload) : null
 }
 
-function toModerationPayload(
+export function toModerationPayload(
     value: GuildAutomationManifestDocument['moderation'] extends {
         moderationSettings?: infer T
     }
@@ -133,7 +133,7 @@ function toModerationPayload(
     return asObject(value) ? (value as ModerationUpdatePayload) : null
 }
 
-function isExpectedDeleteError(error: unknown): boolean {
+export function isExpectedDeleteError(error: unknown): boolean {
     if (!(error instanceof GuildAutomationExecutionError)) {
         return false
     }
@@ -141,7 +141,7 @@ function isExpectedDeleteError(error: unknown): boolean {
     return error.statusCode === 403 || error.statusCode === 404
 }
 
-function isOnboardingUnavailable(error: unknown): boolean {
+export function isOnboardingUnavailable(error: unknown): boolean {
     if (!(error instanceof GuildAutomationExecutionError)) {
         return false
     }
@@ -149,7 +149,7 @@ function isOnboardingUnavailable(error: unknown): boolean {
     return error.statusCode === 403 || error.statusCode === 404
 }
 
-function mapChannelType(type: number): string {
+export function mapChannelType(type: number): string {
     switch (type) {
         case 4:
             return 'GuildCategory'
@@ -166,7 +166,7 @@ function mapChannelType(type: number): string {
     }
 }
 
-function toDiscordChannelType(type: string): number {
+export function toDiscordChannelType(type: string): number {
     switch (type) {
         case 'GuildCategory':
             return 4

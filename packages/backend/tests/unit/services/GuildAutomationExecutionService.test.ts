@@ -37,7 +37,18 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
 
-import { guildAutomationExecutionService } from '../../../src/services/GuildAutomationExecutionService'
+import {
+    guildAutomationExecutionService,
+    GuildAutomationExecutionError,
+    normalizeName,
+    asObject,
+    toAutoModPayload,
+    toModerationPayload,
+    isExpectedDeleteError,
+    isOnboardingUnavailable,
+    mapChannelType,
+    toDiscordChannelType,
+} from '../../../src/services/GuildAutomationExecutionService'
 import {
     autoMessageService,
     autoModService,
@@ -1810,6 +1821,93 @@ describe('GuildAutomationExecutionService', () => {
                 channelId: CHANNEL_ID_1,
                 message: 'Goodbye!',
             })
+        })
+    })
+
+    describe('GuildAutomationExecutionError', () => {
+        it('should create error with default status code', () => {
+            const error = new GuildAutomationExecutionError('Test error')
+            expect(error.message).toBe('Test error')
+            expect(error.statusCode).toBe(500)
+            expect(error.name).toBe('GuildAutomationExecutionError')
+        })
+
+        it('should create error with custom status code', () => {
+            const error = new GuildAutomationExecutionError('Not found', 404)
+            expect(error.statusCode).toBe(404)
+        })
+    })
+
+    describe('utility functions', () => {
+        it('mapChannelType should convert Discord channel types to type names', () => {
+            expect(mapChannelType(0)).toBe('GuildText')
+            expect(mapChannelType(2)).toBe('GuildVoice')
+            expect(mapChannelType(4)).toBe('GuildCategory')
+            expect(mapChannelType(5)).toBe('GuildAnnouncement')
+            expect(mapChannelType(13)).toBe('GuildStageVoice')
+            expect(mapChannelType(15)).toBe('GuildForum')
+            expect(mapChannelType(999)).toBe('GuildText')
+        })
+
+        it('toDiscordChannelType should convert type names to Discord channel types', () => {
+            expect(toDiscordChannelType('GuildText')).toBe(0)
+            expect(toDiscordChannelType('GuildVoice')).toBe(2)
+            expect(toDiscordChannelType('GuildCategory')).toBe(4)
+            expect(toDiscordChannelType('GuildAnnouncement')).toBe(5)
+            expect(toDiscordChannelType('GuildStageVoice')).toBe(13)
+            expect(toDiscordChannelType('GuildForum')).toBe(15)
+            expect(toDiscordChannelType('Unknown')).toBe(0)
+        })
+
+        it('isExpectedDeleteError should identify forbidden and not found errors', () => {
+            const err403 = new GuildAutomationExecutionError('Forbidden', 403)
+            const err404 = new GuildAutomationExecutionError('Not found', 404)
+            const err500 = new GuildAutomationExecutionError('Server error', 500)
+            const nonError = new Error('Regular error')
+
+            expect(isExpectedDeleteError(err403)).toBe(true)
+            expect(isExpectedDeleteError(err404)).toBe(true)
+            expect(isExpectedDeleteError(err500)).toBe(false)
+            expect(isExpectedDeleteError(nonError)).toBe(false)
+            expect(isExpectedDeleteError(null)).toBe(false)
+        })
+
+        it('isOnboardingUnavailable should identify forbidden and not found errors', () => {
+            const err403 = new GuildAutomationExecutionError('Forbidden', 403)
+            const err404 = new GuildAutomationExecutionError('Not found', 404)
+            const err400 = new GuildAutomationExecutionError('Bad request', 400)
+
+            expect(isOnboardingUnavailable(err403)).toBe(true)
+            expect(isOnboardingUnavailable(err404)).toBe(true)
+            expect(isOnboardingUnavailable(err400)).toBe(false)
+        })
+
+        it('normalizeName should trim and normalize strings', () => {
+            expect(normalizeName('  Hello  ')).toBe('hello')
+            expect(normalizeName('Test   Name')).toBe('test name')
+            expect(normalizeName('UPPER')).toBe('upper')
+        })
+
+        it('asObject should convert values to objects', () => {
+            expect(asObject({})).toEqual({})
+            expect(asObject({ key: 'value' })).toEqual({ key: 'value' })
+            expect(asObject(null)).toBeNull()
+            expect(asObject([])).toBeNull()
+            expect(asObject('string')).toBeNull()
+            expect(asObject(123)).toBeNull()
+        })
+
+        it('toAutoModPayload should convert to payload or null', () => {
+            expect(toAutoModPayload({ test: true })).toEqual({ test: true })
+            expect(toAutoModPayload(null)).toBeNull()
+            expect(toAutoModPayload('string')).toBeNull()
+            expect(toAutoModPayload([])).toBeNull()
+        })
+
+        it('toModerationPayload should convert to payload or null', () => {
+            expect(toModerationPayload({ test: true })).toEqual({ test: true })
+            expect(toModerationPayload(null)).toBeNull()
+            expect(toModerationPayload([])).toBeNull()
         })
     })
 })
