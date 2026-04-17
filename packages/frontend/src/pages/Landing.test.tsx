@@ -204,18 +204,17 @@ describe('Landing', () => {
     })
 
     test('renders Add to Discord button with correct href when clicked', async () => {
+        const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
         render(<Landing />)
 
         const addToDiscordBtn = screen.getByRole('button', { name: /Add to Discord/i })
         expect(addToDiscordBtn).toBeInTheDocument()
 
-        vi.spyOn(window, 'open').mockReturnValue(null)
-
         const user = userEvent.setup()
         await user.click(addToDiscordBtn)
 
         await waitFor(() => {
-            expect(window.open).toHaveBeenCalledWith(
+            expect(openSpy).toHaveBeenCalledWith(
                 expect.stringContaining('discord.com/oauth2/authorize'),
                 '_blank'
             )
