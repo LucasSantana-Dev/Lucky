@@ -1513,4 +1513,303 @@ describe('GuildAutomationExecutionService', () => {
             )
         })
     })
+
+    describe('captureGuildAutomationState - reaction roles and exclusive roles coverage', () => {
+        test('should capture reaction role messages with complete mappings', async () => {
+            const mockGuild = { id: GUILD_ID, name: 'Test Guild' }
+            const mockRoles = [
+                { id: GUILD_ID, name: '@everyone', color: 0 },
+                { id: ROLE_ID_1, name: 'Member', color: 3066993 },
+                { id: ROLE_ID_2, name: 'Moderator', color: 15158332 },
+            ]
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => mockGuild,
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => mockRoles,
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [],
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    text: async () => 'Not Found',
+                })
+            ;(
+                guildAutomationService.getManifest as jest.Mock
+            ).mockResolvedValue(null)
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(null)
+            ;(getModerationSettings as jest.Mock).mockResolvedValue(null)
+            ;(
+                autoMessageService.getWelcomeMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(
+                autoMessageService.getLeaveMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(
+                reactionRolesService.listReactionRoleMessages as jest.Mock
+            ).mockResolvedValue([
+                {
+                    id: 'rrm1',
+                    messageId: 'msg-discord-1',
+                    channelId: CHANNEL_ID_1,
+                    mappings: [
+                        {
+                            roleId: ROLE_ID_1,
+                            label: 'Member Role',
+                            emoji: '👤',
+                            style: 'primary',
+                        },
+                        {
+                            roleId: ROLE_ID_2,
+                            label: 'Moderator Role',
+                            emoji: '👮',
+                            style: 'danger',
+                        },
+                    ],
+                },
+            ])
+            ;(
+                roleManagementService.listExclusiveRoles as jest.Mock
+            ).mockResolvedValue([
+                {
+                    roleId: ROLE_ID_1,
+                    excludedRoleId: ROLE_ID_2,
+                },
+            ])
+            ;(
+                guildRoleAccessService.listRoleGrants as jest.Mock
+            ).mockResolvedValue([])
+
+            const result =
+                await guildAutomationExecutionService.captureGuildAutomationState(
+                    GUILD_ID,
+                )
+
+            expect(result.reactionroles?.messages).toHaveLength(1)
+            expect(result.reactionroles?.messages[0].id).toBe('rrm1')
+            expect(result.reactionroles?.messages[0].mappings).toHaveLength(2)
+            expect(result.reactionroles?.messages[0].mappings[0]).toEqual({
+                roleId: ROLE_ID_1,
+                label: 'Member Role',
+                emoji: '👤',
+                style: 'primary',
+            })
+            expect(result.reactionroles?.exclusiveRoles).toHaveLength(1)
+            expect(result.reactionroles?.exclusiveRoles[0]).toEqual({
+                roleId: ROLE_ID_1,
+                excludedRoleId: ROLE_ID_2,
+            })
+        })
+
+        test('should handle reaction role mappings with missing optional fields', async () => {
+            const mockGuild = { id: GUILD_ID, name: 'Test Guild' }
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => mockGuild,
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [{ id: GUILD_ID, name: '@everyone' }, { id: ROLE_ID_1, name: 'Member' }],
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [],
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    text: async () => 'Not Found',
+                })
+            ;(
+                guildAutomationService.getManifest as jest.Mock
+            ).mockResolvedValue(null)
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(null)
+            ;(getModerationSettings as jest.Mock).mockResolvedValue(null)
+            ;(
+                autoMessageService.getWelcomeMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(
+                autoMessageService.getLeaveMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(
+                reactionRolesService.listReactionRoleMessages as jest.Mock
+            ).mockResolvedValue([
+                {
+                    id: 'rrm2',
+                    messageId: 'msg-2',
+                    channelId: CHANNEL_ID_1,
+                    mappings: [
+                        {
+                            roleId: ROLE_ID_1,
+                        },
+                    ],
+                },
+            ])
+            ;(
+                roleManagementService.listExclusiveRoles as jest.Mock
+            ).mockResolvedValue([])
+            ;(
+                guildRoleAccessService.listRoleGrants as jest.Mock
+            ).mockResolvedValue([])
+
+            const result =
+                await guildAutomationExecutionService.captureGuildAutomationState(
+                    GUILD_ID,
+                )
+
+            expect(result.reactionroles?.messages[0].mappings[0]).toEqual({
+                roleId: ROLE_ID_1,
+                label: ROLE_ID_1,
+                emoji: undefined,
+                style: undefined,
+            })
+        })
+
+        test('should capture command access grants', async () => {
+            const mockGuild = { id: GUILD_ID, name: 'Test Guild' }
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => mockGuild,
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [{ id: GUILD_ID, name: '@everyone' }, { id: ROLE_ID_1, name: 'Admin' }],
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [],
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    text: async () => 'Not Found',
+                })
+            ;(
+                guildAutomationService.getManifest as jest.Mock
+            ).mockResolvedValue(null)
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(null)
+            ;(getModerationSettings as jest.Mock).mockResolvedValue(null)
+            ;(
+                autoMessageService.getWelcomeMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(
+                autoMessageService.getLeaveMessage as jest.Mock
+            ).mockResolvedValue(null)
+            ;(
+                reactionRolesService.listReactionRoleMessages as jest.Mock
+            ).mockResolvedValue([])
+            ;(
+                roleManagementService.listExclusiveRoles as jest.Mock
+            ).mockResolvedValue([])
+            ;(
+                guildRoleAccessService.listRoleGrants as jest.Mock
+            ).mockResolvedValue([
+                {
+                    roleId: ROLE_ID_1,
+                    module: 'music',
+                    mode: 'view',
+                },
+                {
+                    roleId: ROLE_ID_1,
+                    module: 'settings',
+                    mode: 'manage',
+                },
+            ])
+
+            const result =
+                await guildAutomationExecutionService.captureGuildAutomationState(
+                    GUILD_ID,
+                )
+
+            expect(result.commandaccess?.grants).toHaveLength(2)
+            expect(result.commandaccess?.grants[0]).toEqual({
+                roleId: ROLE_ID_1,
+                module: 'music',
+                mode: 'view',
+            })
+            expect(result.commandaccess?.grants[1]).toEqual({
+                roleId: ROLE_ID_1,
+                module: 'settings',
+                mode: 'manage',
+            })
+        })
+
+        test('should handle automessages with null values', async () => {
+            const mockGuild = { id: GUILD_ID, name: 'Test Guild' }
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => mockGuild,
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [{ id: GUILD_ID, name: '@everyone' }],
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => [],
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 404,
+                    text: async () => 'Not Found',
+                })
+            ;(
+                guildAutomationService.getManifest as jest.Mock
+            ).mockResolvedValue(null)
+            ;(autoModService.getSettings as jest.Mock).mockResolvedValue(null)
+            ;(getModerationSettings as jest.Mock).mockResolvedValue(null)
+            ;(
+                autoMessageService.getWelcomeMessage as jest.Mock
+            ).mockResolvedValue({
+                enabled: true,
+                channelId: null,
+                message: null,
+            })
+            ;(
+                autoMessageService.getLeaveMessage as jest.Mock
+            ).mockResolvedValue({
+                enabled: false,
+                channelId: CHANNEL_ID_1,
+                message: 'Goodbye!',
+            })
+            ;(
+                reactionRolesService.listReactionRoleMessages as jest.Mock
+            ).mockResolvedValue([])
+            ;(
+                roleManagementService.listExclusiveRoles as jest.Mock
+            ).mockResolvedValue([])
+            ;(
+                guildRoleAccessService.listRoleGrants as jest.Mock
+            ).mockResolvedValue([])
+
+            const result =
+                await guildAutomationExecutionService.captureGuildAutomationState(
+                    GUILD_ID,
+                )
+
+            expect(result.automessages?.welcome).toEqual({
+                enabled: true,
+                channelId: undefined,
+                message: undefined,
+            })
+            expect(result.automessages?.leave).toEqual({
+                enabled: false,
+                channelId: CHANNEL_ID_1,
+                message: 'Goodbye!',
+            })
+        })
+    })
 })
