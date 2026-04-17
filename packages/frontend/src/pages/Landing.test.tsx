@@ -9,7 +9,21 @@ import { api } from '@/services/api'
 
 vi.mock('@/stores/authStore')
 vi.mock('@/hooks/usePageMetadata')
-vi.mock('framer-motion')
+vi.mock('framer-motion', async () => {
+    const React = await import('react')
+    const passthrough = (tag: string) =>
+        React.forwardRef(({ children, ...props }: any, ref: any) =>
+            React.createElement(tag, { ...props, ref }, children),
+        )
+    return {
+        motion: new Proxy(
+            {},
+            { get: (_t, prop: string) => passthrough(prop) },
+        ),
+        AnimatePresence: ({ children }: any) => children,
+        useReducedMotion: vi.fn(() => false),
+    }
+})
 vi.mock('@/services/api')
 
 const mockLogin = vi.fn()
