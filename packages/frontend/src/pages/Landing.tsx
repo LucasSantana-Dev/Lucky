@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import { useReducedMotion } from 'framer-motion'
 import { api } from '@/services/api'
 
-const CLIENT_ID = '999088926074396732'
+const CLIENT_ID = '962198089161134131'
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot%20applications.commands&permissions=8`
 
 const HERO_GRADIENT = 'bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950'
