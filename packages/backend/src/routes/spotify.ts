@@ -192,7 +192,7 @@ export function setupSpotifyRoutes(app: Express): void {
         },
     )
 
-    app.get('/api/spotify/callback', async (req: Request, res: Response) => {
+    app.get('/api/spotify/callback', apiLimiter, async (req: Request, res: Response) => {
         const frontendUrl = getFrontendUrl()
         try {
             const cookies = req.cookies as Record<string, unknown> | undefined
