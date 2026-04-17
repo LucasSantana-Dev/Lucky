@@ -153,6 +153,30 @@ describe('trackNowPlaying handlers', () => {
             const call = debugLogMock.mock.calls[0][0]
             expect(call.data.guildId).toBe(guildId)
         })
+
+        it('cleans up both song info and lastFm track start time', () => {
+            const guildId = 'guild-789'
+            registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
+
+            cleanupGuildState(guildId)
+
+            expect(getSongInfoMessage(guildId)).toBeUndefined()
+            expect(debugLogMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('TrackNowPlayingState - LastFm track timing', () => {
+        it('cleans up lastFm track start time on guild cleanup', () => {
+            const guildId = 'guild-111'
+
+            cleanupGuildState(guildId)
+
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Cleaned up now-playing state for guild',
+                })
+            )
+        })
     })
 
     describe('sendNowPlayingEmbed', () => {
