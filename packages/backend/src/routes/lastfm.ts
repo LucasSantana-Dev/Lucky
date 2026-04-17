@@ -193,7 +193,7 @@ export function setupLastFmRoutes(app: Express): void {
         },
     )
 
-    app.get('/api/lastfm/callback', async (req: Request, res: Response) => {
+    app.get('/api/lastfm/callback', apiLimiter, async (req: Request, res: Response) => {
         const frontendUrl = getFrontendUrl()
         try {
             const cookies = req.cookies as Record<string, unknown> | undefined
