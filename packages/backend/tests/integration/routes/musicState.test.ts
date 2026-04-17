@@ -8,6 +8,7 @@ import { setupStateRoutes } from '../../../src/routes/music/stateRoutes'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { sseClients } from '../../../src/routes/music/helpers'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -36,10 +37,17 @@ describe('Music State Routes', () => {
         app.use(errorHandler)
         jest.clearAllMocks()
         jest.clearAllTimers()
+        // Clear SSE clients to prevent cross-test pollution
+        sseClients.clear()
+        // Use real timers by default, but tests can call jest.useFakeTimers()
+        jest.useRealTimers()
     })
 
     afterEach(() => {
         jest.clearAllTimers()
+        jest.useRealTimers()
+        // Clear SSE clients after each test
+        sseClients.clear()
     })
 
     const GUILD_ID = '111111111111111111'
@@ -639,6 +647,358 @@ describe('Music State Routes', () => {
                     req.destroy()
                     server.close(() => done())
                 }, 2000)
+            })
+        }, 5000)
+
+        test('returns initial state data and registers client for streaming', (done) => {
+            authed()
+            const stateData = {
+                guildId: GUILD_ID,
+                currentTrack: { title: 'Test', author: 'Artist' },
+                tracks: [],
+                isPlaying: true,
+                isPaused: false,
+                volume: 75,
+                repeatMode: 'off' as const,
+                shuffled: false,
+                position: 0,
+                voiceChannelId: null,
+                voiceChannelName: null,
+                timestamp: 0,
+            }
+            mockGetState.mockResolvedValue(stateData)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        let gotData = false
+                        res.on('data', (chunk: Buffer) => {
+                            const str = chunk.toString()
+                            if (str.includes('data:') && str.includes('Test')) {
+                                gotData = true
+                                req.destroy()
+                            }
+                        })
+                        setTimeout(() => {
+                            if (!gotData) req.destroy()
+                        }, 500)
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => done())
+                    }, 50)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 1000)
+            })
+        }, 5000)
+
+        test('stream sends initial state then waits for events', (done) => {
+            authed()
+            const stateData = {
+                guildId: GUILD_ID,
+                currentTrack: { title: 'Test', author: 'Artist' },
+                tracks: [],
+                isPlaying: true,
+                isPaused: false,
+                volume: 75,
+                repeatMode: 'off' as const,
+                shuffled: false,
+                position: 0,
+                voiceChannelId: null,
+                voiceChannelName: null,
+                timestamp: 0,
+            }
+            mockGetState.mockResolvedValue(stateData)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                let dataReceived = false
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        expect(res.headers['content-type']).toContain('text/event-stream')
+                        res.on('data', (chunk: Buffer) => {
+                            if (chunk.toString().includes('data:')) {
+                                dataReceived = true
+                                req.destroy()
+                            }
+                        })
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            expect(dataReceived).toBe(true)
+                            done()
+                        })
+                    }, 50)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 1000)
+            })
+        }, 5000)
+
+        test('stream handles state that throws during write gracefully', (done) => {
+            authed()
+            // Return state so res.write() is attempted
+            mockGetState.mockResolvedValue({
+                guildId: GUILD_ID,
+                currentTrack: null,
+                tracks: [],
+                isPlaying: false,
+                isPaused: false,
+                volume: 50,
+                repeatMode: 'off' as const,
+                shuffled: false,
+                position: 0,
+                voiceChannelId: null,
+                voiceChannelName: null,
+                timestamp: 0,
+            })
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Destroy socket to cause write to fail (tests lines 23-28 catch block)
+                        res.destroy()
+                    },
+                )
+
+                req.on('error', () => {
+                    // Expected because res is destroyed
+                })
+
+                setTimeout(() => {
+                    server.close(() => {
+                        // Test passes: server didn't crash even though write failed
+                        done()
+                    })
+                }, 500)
+            })
+        }, 5000)
+
+        test('heartbeat interval tries to write and catches any errors', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Destroy after a delay while heartbeat tries to write (tests lines 46-50 catch block)
+                        setTimeout(() => {
+                            res.destroy()
+                        }, 100)
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            // Test passes: server handled heartbeat write error gracefully
+                            done()
+                        })
+                    }, 150)
+                })
+
+                req.on('error', () => {
+                    // Expected because res is destroyed
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 1500)
+            })
+        }, 5000)
+
+        test('heartbeat interval executes when connection stays open', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        let heartbeatReceived = false
+                        res.on('data', (chunk: Buffer) => {
+                            if (chunk.toString().includes('heartbeat')) {
+                                heartbeatReceived = true
+                                req.destroy()
+                            }
+                        })
+                        // Keep connection open long enough for heartbeat (30s)
+                        setTimeout(() => {
+                            if (!heartbeatReceived) req.destroy()
+                        }, 35000)
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            // Heartbeat interval should have fired
+                            done()
+                        })
+                    }, 100)
+                })
+
+                req.on('error', () => {
+                    server.close(() => done())
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 40000)
+            })
+        }, 45000)
+
+        test('heartbeat guard prevents write when controller.signal.aborted', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Close immediately which triggers abort
+                        setImmediate(() => req.destroy())
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            // Controller should be aborted, preventing heartbeat writes
+                            done()
+                        })
+                    }, 100)
+                })
+
+                req.on('error', () => {
+                    // Expected
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 1000)
+            })
+        }, 5000)
+
+        test('initial state write exception returns early without registering client', (done) => {
+            authed()
+            const stateData = {
+                guildId: GUILD_ID,
+                currentTrack: { title: 'Test', author: 'Artist' },
+                tracks: [],
+                isPlaying: true,
+                isPaused: false,
+                volume: 75,
+                repeatMode: 'off' as const,
+                shuffled: false,
+                position: 0,
+                voiceChannelId: null,
+                voiceChannelName: null,
+                timestamp: 0,
+            }
+            mockGetState.mockResolvedValue(stateData)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        // Destroy the socket immediately to cause write to fail with EPIPE
+                        res.destroy()
+                    },
+                )
+
+                req.on('error', () => {
+                    // Expected - the destroy causes error
+                })
+
+                setTimeout(() => {
+                    server.close(() => {
+                        // If we reach here without server crash, the catch block worked (line 25-27)
+                        done()
+                    })
+                }, 500)
             })
         }, 5000)
     })

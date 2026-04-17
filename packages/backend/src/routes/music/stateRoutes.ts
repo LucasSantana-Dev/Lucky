@@ -23,7 +23,7 @@ export function setupStateRoutes(app: Express): void {
                 try {
                     res.write(`data: ${JSON.stringify(currentState)}\n\n`)
                 } catch {
-                    // Client disconnected before we could send initial state
+                    // NOSONAR: Intentionally swallowing exception — client disconnected before initial state send. This is expected and handled by close event.
                     return
                 }
             }
@@ -46,7 +46,7 @@ export function setupStateRoutes(app: Express): void {
                     try {
                         res.write(': heartbeat\n\n')
                     } catch {
-                        // Client disconnected, will be cleaned up by close handler
+                        // NOSONAR: Intentionally swallowing heartbeat write exceptions — client disconnected mid-send. The close event handler will clean up the connection.
                     }
                 }, 30000)
             } finally {
