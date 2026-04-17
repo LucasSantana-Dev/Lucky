@@ -23,11 +23,11 @@ export interface AuthenticatedRequest extends Request {
     }
 }
 
-export function requireAuth(
+export async function requireAuth(
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction,
-): void {
+): Promise<void> {
     const sessionId = req.sessionID
 
     if (!sessionId) {
@@ -35,30 +35,28 @@ export function requireAuth(
         return
     }
 
-    sessionService
-        .getSession(sessionId)
-        .then((sessionData) => {
-            if (!sessionData) {
-                res.status(401).json({ error: 'Session expired or invalid' })
-                return
-            }
+    try {
+        const sessionData = await sessionService.getSession(sessionId)
+        if (!sessionData) {
+            res.status(401).json({ error: 'Session expired or invalid' })
+            return
+        }
 
-            req.sessionId = sessionId
-            req.userId = sessionData.userId
-            req.user = {
-                id: sessionData.user.id,
-                username: sessionData.user.username,
-                discriminator: sessionData.user.discriminator,
-                globalName: sessionData.user.global_name,
-                avatar: sessionData.user.avatar,
-            }
+        req.sessionId = sessionId
+        req.userId = sessionData.userId
+        req.user = {
+            id: sessionData.user.id,
+            username: sessionData.user.username,
+            discriminator: sessionData.user.discriminator,
+            globalName: sessionData.user.global_name,
+            avatar: sessionData.user.avatar,
+        }
 
-            next()
-        })
-        .catch((error) => {
-            errorLog({ message: 'Error validating session:', error })
-            res.status(500).json({ error: 'Internal server error' })
-        })
+        next()
+    } catch (error) {
+        errorLog({ message: 'Error validating session:', error })
+        res.status(500).json({ error: 'Internal server error' })
+    }
 }
 
 export function optionalAuth(
