@@ -60,8 +60,6 @@ export default function Landing() {
               transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
           }
 
-    const containerAnimation = prefersReducedMotion ? {} : { bg: 'motion' }
-
     return (
         <div className='lucky-shell min-h-screen dark text-white'>
             {/* Hero Section with Neon Logo */}
@@ -245,8 +243,6 @@ function FeatureSection() {
 
 // Stats Strip with Neon Numbers
 function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: any) {
-    const prefersReducedMotion = useReducedMotion()
-
     const stats = [
         {
             label: 'Servers',
@@ -305,7 +301,6 @@ function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: an
 
 // FAQ Section with Smooth Accordions
 function FAQSection() {
-    const prefersReducedMotion = useReducedMotion()
     const [openIdx, setOpenIdx] = useState<number | null>(null)
 
     const faqs = [
