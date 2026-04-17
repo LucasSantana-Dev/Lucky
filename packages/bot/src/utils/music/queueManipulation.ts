@@ -57,6 +57,9 @@ import {
 } from './searchQueryCleaner'
 import { calculateStringSimilarity } from './duplicateDetection/similarityChecker'
 import type { QueueMetadata } from '../../types/QueueMetadata'
+import { replenishQueue } from './autoplay/replenisher'
+
+export { replenishQueue }
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const HISTORY_SEED_LIMIT = 3
@@ -84,7 +87,7 @@ const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
     ttl: 24 * 60 * 60 * 1000,
 })
 
-async function getTrackAudioFeatures(
+export async function getTrackAudioFeatures(
     track: Track,
     userId: string,
 ): Promise<SpotifyAudioFeatures | null> {
@@ -297,379 +300,6 @@ export async function moveTrackInQueue(
     }
 }
 
-// Per-guild mutex: serializes concurrent replenishQueue calls so two events
-// firing within milliseconds (playerStart + playerFinish) cannot both read
-// the same exclusion sets and independently select the same track.
-const replenishLocks = new Map<string, Promise<void>>()
-
-// Per-guild counter for query diversity across multiple replenish calls.
-const replenishCounters = new Map<string, number>()
-
-export function replenishQueue(
-    queue: GuildQueue,
-    finishedTrack?: Track,
-): Promise<void> {
-    const guildId = queue.guild.id
-    const prev = replenishLocks.get(guildId) ?? Promise.resolve()
-    const next = prev.then(() => _replenishQueue(queue, finishedTrack))
-    replenishLocks.set(
-        guildId,
-        next.catch(() => {}),
-    )
-    return next
-}
-
-async function _replenishQueue(
-    queue: GuildQueue,
-    finishedTrack?: Track,
-): Promise<void> {
-    try {
-        debugLog({
-            message: 'Replenishing queue',
-            data: { guildId: queue.guild.id, queueSize: queue.tracks.size },
-        })
-
-        const currentTrack = queue.currentTrack ?? finishedTrack ?? null
-        if (!currentTrack) return
-
-        purgeDuplicatesOfCurrentTrack(queue, currentTrack)
-
-        const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
-        if (missingTracks <= 0) return
-
-        const allHistoryTracks = getAllHistoryTracks(queue)
-        const sessionMood = detectSessionMood(allHistoryTracks)
-        const historyTracks = allHistoryTracks.slice(0, HISTORY_SEED_LIMIT)
-        const seedTracks = [currentTrack, ...historyTracks].slice(
-            0,
-            HISTORY_SEED_LIMIT + 1,
-        )
-        const requestedBy = getRequestedBy(queue, currentTrack)
-        const metadata = queue.metadata as QueueMetadata | undefined
-        const vcMemberIds = metadata?.vcMemberIds ?? []
-        const allMemberIds = Array.from(
-            new Set([
-                ...(requestedBy?.id ? [requestedBy.id] : []),
-                ...vcMemberIds,
-            ]),
-        )
-
-        const [
-            likedWeights,
-            dislikedWeights,
-            persistentHistory,
-            guildSettings,
-            implicitDislikeKeys,
-            implicitLikeKeys,
-            allPreferredSets,
-            allBlockedSets,
-        ] = await Promise.all([
-            recommendationFeedbackService.getLikedTrackWeights(
-                requestedBy?.id ?? '',
-            ),
-            recommendationFeedbackService.getDislikedTrackWeights(
-                requestedBy?.id ?? '',
-            ),
-            trackHistoryService.getTrackHistory(queue.guild.id, 150),
-            guildSettingsService.getGuildSettings(queue.guild.id),
-            recommendationFeedbackService.getImplicitDislikeKeys(
-                requestedBy?.id ?? '',
-            ),
-            recommendationFeedbackService.getImplicitLikeKeys(
-                requestedBy?.id ?? '',
-            ),
-            Promise.all(
-                allMemberIds.map((id) =>
-                    recommendationFeedbackService.getPreferredArtistKeys(
-                        queue.guild.id,
-                        id,
-                    ),
-                ),
-            ),
-            Promise.all(
-                allMemberIds.map((id) =>
-                    recommendationFeedbackService.getBlockedArtistKeys(
-                        queue.guild.id,
-                        id,
-                    ),
-                ),
-            ),
-        ])
-
-        const preferredArtistKeys = new Set(
-            allPreferredSets.flatMap((s) => [...s]),
-        )
-        const blockedArtistKeys = new Set(allBlockedSets.flatMap((s) => [...s]))
-        const contributionWeights =
-            vcMemberIds.length > 1
-                ? buildVcContributionWeights(allHistoryTracks, vcMemberIds)
-                : new Map<string, number>()
-        const autoplayMode = guildSettings?.autoplayMode ?? 'similar'
-        if (persistentHistory.length === 0) {
-            warnLog({
-                message:
-                    'Autoplay: persistent history empty — Redis may be unavailable',
-                data: { guildId: queue.guild.id },
-            })
-        }
-        const excludedUrls = buildExcludedUrls(
-            queue,
-            currentTrack,
-            allHistoryTracks,
-            persistentHistory,
-        )
-        const excludedKeys = buildExcludedKeys(
-            queue,
-            currentTrack,
-            allHistoryTracks,
-            persistentHistory,
-        )
-        debugLog({
-            message: 'Autoplay: exclusion sets built',
-            data: {
-                guildId: queue.guild.id,
-                excludedUrlCount: excludedUrls.size,
-                excludedKeyCount: excludedKeys.size,
-                queueHistoryTracks: allHistoryTracks.length,
-                seedHistoryTracks: historyTracks.length,
-                persistentHistory: persistentHistory.length,
-            },
-        })
-        const recentArtists = buildRecentArtists(currentTrack, historyTracks)
-        const artistFrequency = buildArtistFrequency(persistentHistory)
-        const currentFeatures = requestedBy?.id
-            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
-                  () => null,
-              )
-            : null
-        const guildId = queue.guild.id
-        const replenishCount = replenishCounters.get(guildId) ?? 0
-        const candidates = await collectRecommendationCandidates(
-            queue,
-            seedTracks,
-            requestedBy,
-            excludedUrls,
-            excludedKeys,
-            dislikedWeights,
-            likedWeights,
-            preferredArtistKeys,
-            blockedArtistKeys,
-            currentTrack,
-            recentArtists,
-            replenishCount,
-            autoplayMode,
-            artistFrequency,
-            implicitDislikeKeys,
-            implicitLikeKeys,
-            sessionMood,
-            currentFeatures,
-        )
-        debugLog({
-            message: 'Autoplay: recommendation candidates',
-            data: { guildId, count: candidates.size, source: 'recommendation' },
-        })
-
-        if (requestedBy?.id) {
-            const beforeLastFm = candidates.size
-            await collectLastFmCandidates(
-                queue,
-                requestedBy,
-                excludedUrls,
-                excludedKeys,
-                dislikedWeights,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                currentTrack,
-                recentArtists,
-                candidates,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                sessionMood,
-                contributionWeights,
-            )
-            debugLog({
-                message: 'Autoplay: last.fm candidates',
-                data: {
-                    guildId,
-                    added: candidates.size - beforeLastFm,
-                    total: candidates.size,
-                    source: 'lastfm',
-                },
-            })
-        }
-        if (requestedBy && guildSettings?.autoplayGenres?.length) {
-            const beforeGenre = candidates.size
-            await collectGenreCandidates(
-                queue,
-                guildSettings.autoplayGenres,
-                requestedBy,
-                {
-                    candidates,
-                    recentArtists,
-                    likedTrackKeys: likedWeights,
-                    dislikedTrackKeys: dislikedWeights,
-                    currentTrack,
-                    excludedUrls,
-                    excludedKeys,
-                    preferredArtistKeys,
-                    blockedArtistKeys,
-                    autoplayMode,
-                    artistFrequency,
-                    implicitDislikeKeys,
-                    implicitLikeKeys,
-                    sessionMood,
-                },
-            )
-            debugLog({
-                message: 'Autoplay: genre candidates',
-                data: {
-                    guildId,
-                    added: candidates.size - beforeGenre,
-                    total: candidates.size,
-                    genres: guildSettings.autoplayGenres,
-                    source: 'genre',
-                },
-            })
-        }
-        if (candidates.size === 0 && currentTrack) {
-            await collectBroadFallbackCandidates(
-                queue,
-                currentTrack,
-                requestedBy,
-                excludedUrls,
-                excludedKeys,
-                dislikedWeights,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                recentArtists,
-                candidates,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                sessionMood,
-            )
-            debugLog({
-                message: 'Autoplay: broad fallback candidates',
-                data: { guildId, count: candidates.size, source: 'fallback' },
-            })
-        }
-
-        debugLog({
-            message: 'Autoplay: candidate pool ready',
-            data: {
-                guildId: queue.guild.id,
-                candidateCount: candidates.size,
-                missingTracks,
-                autoplayMode,
-                currentTrack: currentTrack.title,
-            },
-        })
-
-        const seedArtistKey = currentTrack.author.toLowerCase()
-        const selected = interleaveByArtist(
-            selectDiverseCandidates(
-                candidates,
-                missingTracks,
-                MAX_TRACKS_PER_ARTIST,
-                MAX_TRACKS_PER_SOURCE,
-                seedArtistKey,
-            ),
-        )
-
-        const currentAudioFeatures = await getTrackAudioFeatures(
-            currentTrack,
-            requestedBy?.id ?? '',
-        )
-        const enriched = await enrichWithAudioFeatures(
-            selected,
-            requestedBy?.id ?? '',
-            currentAudioFeatures,
-            currentTrack.author,
-        )
-
-        if (
-            (autoplayMode === 'discover' || autoplayMode === 'popular') &&
-            requestedBy?.id
-        ) {
-            const token = await Promise.resolve(
-                spotifyLinkService.getValidAccessToken(requestedBy.id),
-            ).catch(() => null)
-            if (token) {
-                await Promise.all(
-                    enriched.slice(0, 3).map(async (track) => {
-                        const popularity = await getArtistPopularity(
-                            token,
-                            track.track.author,
-                        ).catch(() => null)
-                        if (popularity === null) return
-                        if (autoplayMode === 'popular' && popularity >= 70) {
-                            track.score += 0.12
-                        } else if (
-                            autoplayMode === 'discover' &&
-                            popularity <= 40
-                        ) {
-                            track.score += 0.12
-                        }
-                    }),
-                )
-                enriched.sort((a, b) => b.score - a.score)
-            }
-        }
-
-        if (enriched.length === 0) {
-            warnLog({
-                message: 'Autoplay: no candidates selected — queue may stall',
-                data: {
-                    guildId: queue.guild.id,
-                    candidatePoolSize: candidates.size,
-                },
-            })
-            replenishCounters.set(guildId, replenishCount + 1)
-            return
-        }
-
-        debugLog({
-            message: 'Autoplay: tracks selected for queue',
-            data: {
-                guildId: queue.guild.id,
-                tracks: enriched.map((s) => ({
-                    title: s.track.title,
-                    author: s.track.author,
-                    score: s.score.toFixed(3),
-                    reason: s.reason,
-                    url: s.track.url,
-                })),
-            },
-        })
-
-        await addSelectedTracks(
-            queue,
-            enriched,
-            excludedUrls,
-            excludedKeys,
-            requestedBy?.id,
-        )
-
-        // Increment replenish counter for next call's query variation
-        replenishCounters.set(guildId, replenishCount + 1)
-
-        debugLog({
-            message: 'Autoplay: queue replenished successfully',
-            data: {
-                guildId: queue.guild.id,
-                addedCount: selected.length,
-                newQueueSize: queue.tracks.size,
-            },
-        })
-    } catch (error) {
-        errorLog({ message: 'Error replenishing queue:', error })
-    }
-}
 
 function randomIndex(maxExclusive: number): number {
     if (maxExclusive <= 1) return 0
@@ -679,39 +309,6 @@ function randomIndex(maxExclusive: number): number {
 function randomJitter(max: number): number {
     if (max <= 0) return 0
     return (randomInt(10_000) / 10_000) * max
-}
-
-function getRequestedBy(queue: GuildQueue, currentTrack: Track): User | null {
-    const metadata = queue.metadata as QueueMetadata | undefined
-    return currentTrack.requestedBy ?? metadata?.requestedBy ?? null
-}
-
-function buildRecentArtists(
-    currentTrack: Track,
-    historyTracks: Track[],
-): Set<string> {
-    return new Set<string>(
-        [currentTrack.author, ...historyTracks.map((track) => track.author)]
-            .filter(Boolean)
-            .map((artist) => artist.toLowerCase()),
-    )
-}
-
-function buildArtistFrequency(
-    history: { author?: string; isAutoplay?: boolean }[],
-): Map<string, number> {
-    const freq = new Map<string, number>()
-    for (const entry of history) {
-        if (!entry.isAutoplay && entry.author) {
-            const key = cleanAuthor(entry.author)
-                .toLowerCase()
-                .replaceAll(/[^a-z0-9]+/g, '')
-            if (key) {
-                freq.set(key, (freq.get(key) ?? 0) + 1)
-            }
-        }
-    }
-    return freq
 }
 
 export function extractSpotifyTrackId(track: Track): string | null {
@@ -726,7 +323,7 @@ export function extractSpotifyTrackId(track: Track): string | null {
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 
 
-async function collectBroadFallbackCandidates(
+export async function collectBroadFallbackCandidates(
     queue: GuildQueue,
     currentTrack: Track,
     requestedBy: User | null,
@@ -802,6 +399,171 @@ async function collectBroadFallbackCandidates(
 }
 
 
+export async function collectLastFmCandidates(
+    queue: GuildQueue,
+    requestedBy: User,
+    excludedUrls: Set<string>,
+    excludedKeys: Set<string>,
+    dislikedWeights: Map<string, number>,
+    likedWeights: Map<string, number>,
+    preferredArtistKeys: Set<string>,
+    blockedArtistKeys: Set<string>,
+    currentTrack: Track,
+    recentArtists: Set<string>,
+    candidates: Map<string, ScoredTrack>,
+    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
+    artistFrequency: Map<string, number> = new Map(),
+    implicitDislikeKeys: Set<string> = new Set(),
+    implicitLikeKeys: Set<string> = new Set(),
+    sessionMood: SessionMood | null = null,
+    contributionWeights?: Map<string, number>,
+): Promise<void> {
+    const metadata = queue.metadata as QueueMetadata
+    const vcMemberIds = metadata?.vcMemberIds ?? []
+
+    const otherUserIds = vcMemberIds.filter((id) => id !== requestedBy.id)
+
+    let seedSlice: { artist: string; title: string }[] = []
+    if (otherUserIds.length > 0) {
+        const linkedUsers = await Promise.all(
+            [requestedBy.id, ...otherUserIds].map(async (id) => {
+                const link = await lastFmLinkService.getByDiscordId(id)
+                return link?.lastFmUsername ? id : null
+            }),
+        )
+        const linkedUserIds = linkedUsers.filter(
+            (id) => id !== null,
+        ) as string[]
+
+        if (linkedUserIds.length > 1) {
+            seedSlice = await consumeBlendedSeedSlice(
+                linkedUserIds,
+                LASTFM_SEED_COUNT,
+                contributionWeights,
+            )
+        } else if (linkedUserIds.length === 1) {
+            seedSlice = await consumeLastFmSeedSlice(
+                linkedUserIds[0],
+                LASTFM_SEED_COUNT,
+            )
+        }
+    } else {
+        seedSlice = await consumeLastFmSeedSlice(
+            requestedBy.id,
+            LASTFM_SEED_COUNT,
+        )
+    }
+
+    if (seedSlice.length === 0) return
+
+    for (const seed of seedSlice) {
+        const query = cleanSearchQuery(seed.title, seed.artist)
+        const tracks = await searchLastFmQuery(queue, query, requestedBy)
+        for (const track of tracks) {
+            if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                continue
+            const normalizedKey = normalizeTrackKey(track.title, track.author)
+            const dislikedWeight = dislikedWeights.get(normalizedKey)
+            if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
+            const rec = calculateRecommendationScore(
+                track,
+                currentTrack,
+                recentArtists,
+                likedWeights,
+                preferredArtistKeys,
+                blockedArtistKeys,
+                autoplayMode,
+                artistFrequency,
+                implicitDislikeKeys,
+                implicitLikeKeys,
+                dislikedWeights,
+                sessionMood,
+                true,
+            )
+            if (rec.score === -Infinity) continue
+            upsertScoredCandidate(candidates, track, {
+                score: rec.score + LASTFM_SCORE_BOOST,
+                reason: rec.reason
+                    ? `${rec.reason} • last.fm taste`
+                    : 'last.fm taste',
+            })
+        }
+
+        const similar = await getSimilarTracks(
+            seed.artist,
+            cleanTitle(seed.title),
+        )
+        for (const s of similar.slice(0, MAX_SIMILAR_LOOKUPS)) {
+            const query = cleanSearchQuery(s.title, s.artist)
+            const tracks = await searchLastFmQuery(queue, query, requestedBy)
+            for (const track of tracks) {
+                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                    continue
+                const normalizedKey = normalizeTrackKey(
+                    track.title,
+                    track.author,
+                )
+                const dislikedWeight = dislikedWeights.get(normalizedKey)
+                if (dislikedWeight !== undefined && dislikedWeight > 0.5)
+                    continue
+                const rec = calculateRecommendationScore(
+                    track,
+                    currentTrack,
+                    recentArtists,
+                    likedWeights,
+                    preferredArtistKeys,
+                    blockedArtistKeys,
+                    autoplayMode,
+                    artistFrequency,
+                    implicitDislikeKeys,
+                    implicitLikeKeys,
+                    dislikedWeights,
+                    null,
+                    true,
+                )
+                upsertScoredCandidate(candidates, track, {
+                    score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
+                    reason: rec.reason
+                        ? `${rec.reason} • similar to your taste`
+                        : 'similar to your taste',
+                })
+            }
+            if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+        }
+    }
+}
+
+async function searchLastFmQuery(
+    queue: GuildQueue,
+    query: string,
+    requestedBy: User,
+): Promise<Track[]> {
+    const engines: QueryType[] = [
+        QueryType.SPOTIFY_SEARCH,
+        QueryType.YOUTUBE_SEARCH,
+        QueryType.AUTO,
+    ]
+    for (const engine of engines) {
+        try {
+            const result = await queue.player.search(query, {
+                requestedBy,
+                searchEngine: engine,
+            })
+            const tracks = result.tracks
+                .filter(
+                    (t) =>
+                        !t.durationMS ||
+                        t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                )
+                .slice(0, SEARCH_RESULTS_LIMIT)
+            if (tracks.length > 0) return tracks
+        } catch {
+            continue
+        }
+    }
+    return []
+}
+
 const GENRE_SCORE_BOOST = 0.1
 const MAX_GENRES = 3
 const MAX_TRACKS_PER_GENRE = 20
@@ -853,7 +615,7 @@ function addGenreTrackCandidate(
     })
 }
 
-async function collectGenreCandidates(
+export async function collectGenreCandidates(
     queue: GuildQueue,
     genres: string[],
     requestedBy: User,
@@ -949,7 +711,7 @@ export async function enrichWithAudioFeatures(
     return tracks.sort((a, b) => b.score - a.score)
 }
 
-function interleaveByArtist(tracks: ScoredTrack[]): ScoredTrack[] {
+export function interleaveByArtist(tracks: ScoredTrack[]): ScoredTrack[] {
     const groups = new Map<string, ScoredTrack[]>()
     for (const t of tracks) {
         const key = cleanAuthor(t.track.author).toLowerCase()
@@ -1591,5 +1353,3 @@ export async function blendAutoplayTracks(
 
     await replenishQueue(queue)
 }
-
-export { collectLastFmCandidates }
