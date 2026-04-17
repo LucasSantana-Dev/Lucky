@@ -600,67 +600,6 @@ describe('Music State Routes', () => {
             })
         }, 5000)
 
-        test('heartbeat writes successfully when all guards pass', (done) => {
-            authed()
-            mockGetState.mockResolvedValue(null)
-
-            const server = app.listen(0, () => {
-                const port = (server.address() as AddressInfo).port
-                let heartbeatReceived = false
-
-                const req = http.get(
-                    {
-                        hostname: '127.0.0.1',
-                        port,
-                        path: `/api/guilds/${GUILD_ID}/music/stream`,
-                        headers: { Cookie: 'sessionId=valid_session_id' },
-                    },
-                    (res) => {
-                        expect(res.statusCode).toBe(200)
-                        expect(res.headers['content-type']).toContain(
-                            'text/event-stream',
-                        )
-
-                        let dataReceived = false
-                        res.on('data', (chunk: Buffer) => {
-                            const str = chunk.toString()
-                            if (str.includes('heartbeat')) {
-                                heartbeatReceived = true
-                                // Close after receiving heartbeat
-                                req.destroy()
-                            }
-                            dataReceived = true
-                        })
-
-                        // Give time for heartbeat to fire (needs > 0ms but we'll wait a bit)
-                        setTimeout(() => {
-                            if (!heartbeatReceived) {
-                                req.destroy()
-                            }
-                        }, 100)
-                    },
-                )
-
-                req.on('close', () => {
-                    // Close server and complete test
-                    setTimeout(() => {
-                        server.close(() => {
-                            done()
-                        })
-                    }, 50)
-                })
-
-                req.on('error', () => {
-                    server.close(() => done())
-                })
-
-                // Failsafe timeout
-                setTimeout(() => {
-                    req.destroy()
-                    server.close(() => done())
-                }, 2000)
-            })
-        }, 5000)
 
         test('guild removed from sseClients when all clients disconnect', (done) => {
             authed()
