@@ -23,7 +23,7 @@ export function setupStateRoutes(app: Express): void {
                 try {
                     res.write(`data: ${JSON.stringify(currentState)}\n\n`)
                 } catch {
-                    // Client disconnected before we could send initial state
+                    // NOSONAR: Intentionally swallowing exception — client disconnected before initial state send. This is expected and handled by close event.
                     return
                 }
             }
@@ -35,23 +35,34 @@ export function setupStateRoutes(app: Express): void {
             }
             clients.add(res)
 
-            const heartbeat = setInterval(() => {
-                try {
-                    res.write(': heartbeat\n\n')
-                } catch {
-                    // Client disconnected, will be cleaned up by close handler
-                }
-            }, 30000)
+            const controller = new AbortController()
+            let heartbeat: ReturnType<typeof setInterval> | null = null
 
-            req.on('close', () => {
-                clearInterval(heartbeat)
-                const guildClients = sseClients.get(guildId)
-                guildClients?.delete(res)
+            try {
+                heartbeat = setInterval(() => {
+                    if (controller.signal.aborted || res.writableEnded || res.destroyed) {
+                        return
+                    }
+                    try {
+                        res.write(': heartbeat\n\n')
+                    } catch {
+                        // NOSONAR: Intentionally swallowing heartbeat write exceptions — client disconnected mid-send. The close event handler will clean up the connection.
+                    }
+                }, 30000)
+            } finally {
+                req.on('close', () => {
+                    controller.abort()
+                    if (heartbeat) {
+                        clearInterval(heartbeat)
+                    }
+                    const guildClients = sseClients.get(guildId)
+                    guildClients?.delete(res)
 
-                if (guildClients && guildClients.size === 0) {
-                    sseClients.delete(guildId)
-                }
-            })
+                    if (guildClients && guildClients.size === 0) {
+                        sseClients.delete(guildId)
+                    }
+                })
+            }
         },
     )
 
