@@ -57,5 +57,18 @@ describe('replenishSuppressionStore', () => {
             setReplenishSuppressed(guildId, 30_000)
             expect(isReplenishSuppressed(guildId)).toBe(true)
         })
+
+        it('should suppress multiple guilds independently', () => {
+            const guildId2 = 'test-guild-456'
+            setReplenishSuppressed(guildId, 5000)
+            setReplenishSuppressed(guildId2, 5000)
+
+            expect(isReplenishSuppressed(guildId)).toBe(true)
+            expect(isReplenishSuppressed(guildId2)).toBe(true)
+
+            setReplenishSuppressed(guildId, 0)
+            expect(isReplenishSuppressed(guildId)).toBe(false)
+            expect(isReplenishSuppressed(guildId2)).toBe(true)
+        })
     })
 })
