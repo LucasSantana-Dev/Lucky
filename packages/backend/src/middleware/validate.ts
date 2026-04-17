@@ -3,6 +3,16 @@ import { z } from 'zod'
 
 type Schema<TOutput> = z.ZodType<TOutput, z.ZodTypeDef, unknown>
 
+declare global {
+    namespace Express {
+        interface Request {
+            body: unknown
+            query: unknown
+            params: unknown
+        }
+    }
+}
+
 export function validateBody<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
         const result = schema.safeParse(req.body as unknown)
@@ -14,7 +24,7 @@ export function validateBody<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
-        req.body = result.data
+        req.body = result.data as TOutput
         next()
     }
 }
@@ -30,6 +40,7 @@ export function validateQuery<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
+        req.query = result.data as TOutput
         next()
     }
 }
@@ -45,6 +56,7 @@ export function validateParams<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
+        req.params = result.data as TOutput
         next()
     }
 }

@@ -553,10 +553,9 @@ class GuildAutomationExecutionService {
             return
         }
 
-        const existing =
-            type === 'welcome'
-                ? await autoMessageService.getWelcomeMessage(guildId)
-                : await autoMessageService.getLeaveMessage(guildId)
+        const existing = (type === "welcome"
+            ? await autoMessageService.getWelcomeMessage(guildId)
+                : await autoMessageService.getLeaveMessage(guildId)) as unknown
 
         if (!existing) {
             await autoMessageService.createMessage(
@@ -808,12 +807,12 @@ class GuildAutomationExecutionService {
         const existing = await roleManagementService.listExclusiveRoles(guildId)
 
         for (const item of existing) {
-            const key = `${item.roleId}:${item.excludedRoleId}`
+            const key = `${(item as Record<string, unknown>).roleId}:${(item as Record<string, unknown>).excludedRoleId}`
             if (!nextPairs.has(key)) {
                 await roleManagementService.removeExclusiveRole(
                     guildId,
-                    item.roleId,
-                    item.excludedRoleId,
+                    (item as Record<string, unknown>).roleId as string,
+                    (item as Record<string, unknown>).excludedRoleId as string,
                 )
             }
         }
@@ -872,26 +871,26 @@ class GuildAutomationExecutionService {
         const manifestRoles = roles
             .filter((role) => role.id !== guildId)
             .map((role) => ({
-                id: role.id,
-                name: role.name,
-                color: role.color,
-                hoist: role.hoist,
-                mentionable: role.mentionable,
-                permissions: role.permissions,
+                id: (role as Record<string, unknown>).id,
+                name: (role as Record<string, unknown>).name,
+                color: (role as Record<string, unknown>).color,
+                hoist: (role as Record<string, unknown>).hoist,
+                mentionable: (role as Record<string, unknown>).mentionable,
+                permissions: (role as Record<string, unknown>).permissions,
             }))
 
         const manifestChannels = channels
             .filter((channel) => SUPPORTED_CHANNEL_TYPES.has(channel.type))
             .map((channel) => ({
-                id: channel.id,
-                name: channel.name,
-                type: mapChannelType(channel.type),
-                parentId: channel.parent_id ?? null,
-                topic: channel.topic ?? null,
+                id: (channel as Record<string, unknown>).id,
+                name: (channel as Record<string, unknown>).name,
+                type: mapChannelType((channel as Record<string, unknown>).type as number),
+                parentId: ((channel as Record<string, unknown>).parent_id as string | null) ?? null,
+                topic: ((channel as Record<string, unknown>).topic as string | null) ?? null,
                 readonly: false,
             }))
 
-        const parity = manifest?.manifest.parity ?? {
+        const parity = ((manifest?.manifest as Record<string, unknown> | undefined)?.parity as typeof parity | undefined) ?? {
             shadowMode: true,
             externalBots: [],
             checklist: defaultParityChecklist(),
@@ -944,20 +943,20 @@ class GuildAutomationExecutionService {
                     id: message.id,
                     messageId: message.messageId,
                     channelId: message.channelId,
-                    mappings: message.mappings.map((mapping) => ({
+                    mappings: ((message.mappings as unknown) as Array<Record<string, unknown>>).map((mapping) => ({
                         roleId: mapping.roleId,
                         label: mapping.label ?? mapping.roleId,
                         emoji: mapping.emoji ?? undefined,
                         style: mapping.style ?? undefined,
                     })),
                 })),
-                exclusiveRoles: exclusiveRoles.map((item) => ({
+                exclusiveRoles: (exclusiveRoles as unknown as Array<Record<string, unknown>>).map((item) => ({
                     roleId: item.roleId,
                     excludedRoleId: item.excludedRoleId,
                 })),
             },
             commandaccess: {
-                grants: roleGrants.map((grant) => ({
+                grants: (roleGrants as unknown as Array<Record<string, unknown>>).map((grant) => ({
                     roleId: grant.roleId,
                     module: grant.module,
                     mode: grant.mode,
