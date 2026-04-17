@@ -75,7 +75,7 @@ describe('validateQuery', () => {
         const { req, res, next } = setup({ limit: '20', extra: 'ignored' }, 'query')
         validateQuery(schema)(req, res, next)
         expect(next).toHaveBeenCalled()
-        expect(req.query).toEqual({ limit: '20', extra: 'ignored' })
+        expect(req.query).toEqual({ limit: '20' })
     })
 
     test('should handle optional query fields correctly', () => {
@@ -137,6 +137,6 @@ describe('validateParams', () => {
         )
         validateParams(schema)(req, res, next)
         expect(next).toHaveBeenCalled()
-        expect(req.params).toEqual({ guildId: '123456789012345678', extra: 'ignored' })
+        expect(req.params).toEqual({ guildId: '123456789012345678' })
     })
 })
