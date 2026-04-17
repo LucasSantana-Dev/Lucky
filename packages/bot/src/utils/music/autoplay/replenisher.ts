@@ -21,12 +21,12 @@ import {
     addSelectedTracks,
     purgeDuplicatesOfCurrentTrack,
 } from './diversitySelector'
+import { collectLastFmCandidates } from './lastFmSeeder'
 import { cleanAuthor } from '../searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
     collectGenreCandidates,
-    collectLastFmCandidates,
     enrichWithAudioFeatures,
     getTrackAudioFeatures,
     interleaveByArtist,
