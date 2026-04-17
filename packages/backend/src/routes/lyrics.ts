@@ -1,5 +1,4 @@
 import type { Express, Response } from 'express'
-import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { validateQuery } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'

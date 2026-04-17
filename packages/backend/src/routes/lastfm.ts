@@ -12,6 +12,7 @@ import {
     requireAuth,
     type AuthenticatedRequest,
 } from '../middleware/auth'
+import { apiLimiter } from '../middleware/rateLimit'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 
