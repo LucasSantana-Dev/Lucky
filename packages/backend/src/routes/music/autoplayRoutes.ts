@@ -23,7 +23,7 @@ export function setupAutoplayRoutes(app: Express): void {
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = param(req.params.guildId)
-            const { genres } = req.body
+            const { genres } = req.body as Record<string, unknown>
 
             if (!Array.isArray(genres)) {
                 res.status(400).json({
