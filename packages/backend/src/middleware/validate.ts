@@ -30,6 +30,12 @@ export function validateQuery<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
+        Object.keys(req.query).forEach((key) => {
+            if (!(key in result.data)) {
+                delete req.query[key]
+            }
+        })
+        Object.assign(req.query, result.data)
         next()
     }
 }
@@ -45,6 +51,12 @@ export function validateParams<TOutput>(schema: Schema<TOutput>) {
             return res.status(400).json({ error: 'Validation failed', errors })
         }
 
+        Object.keys(req.params).forEach((key) => {
+            if (!(key in result.data)) {
+                delete req.params[key]
+            }
+        })
+        Object.assign(req.params, result.data)
         next()
     }
 }
