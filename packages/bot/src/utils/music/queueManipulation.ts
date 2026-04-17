@@ -49,6 +49,7 @@ import {
 } from './autoplay/diversitySelector'
 import { collectLastFmCandidates, searchLastFmQuery } from './autoplay/lastFmSeeder'
 import { getSimilarTracks, getTagTopTracks } from '../../lastfm'
+export { collectLastFmCandidates }
 import {
     cleanSearchQuery,
     cleanTitle,
@@ -154,7 +155,6 @@ export {
     type ScoredTrack,
 }
 
-export { collectLastFmCandidates }
 
 export async function clearQueue(queue: GuildQueue): Promise<boolean> {
     try {
