@@ -6,6 +6,7 @@ import NowPlaying from '@/components/Music/NowPlaying'
 import SearchBar from '@/components/Music/SearchBar'
 import ImportPlaylist from '@/components/Music/ImportPlaylist'
 import QueueList from '@/components/Music/QueueList'
+import AutoplayGenres from '@/components/Music/AutoplayGenres'
 import EmptyState from '@/components/ui/EmptyState'
 
 export default function MusicPage() {
@@ -96,6 +97,8 @@ export default function MusicPage() {
                     }}
                 />
             </div>
+
+            {guildId && <AutoplayGenres guildId={guildId} />}
 
             <QueueList
                 tracks={player.state.tracks}
