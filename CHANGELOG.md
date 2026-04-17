@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.136] - 2026-04-17
+
+### Fixed
+- fix(artists): replace dead Spotify recommendations API with Last.fm `artist.getSimilar` fallback for Related Artists — Spotify deprecated `/v1/recommendations` and `/v1/artists/{id}/related-artists` for new apps in 2024 (404), so we fetch the artist name from Spotify, query Last.fm for similar artist names, then look each back up via Spotify search to recover image/popularity/genres for the UI (#696)
+
 ## [2.6.135] - 2026-04-17
 
 ### Added
