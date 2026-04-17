@@ -11,6 +11,7 @@ import {
     getSpotifyRecommendations,
     type SpotifyAudioFeatures,
 } from '../../../spotify/spotifyApi'
+import { getUserSpotifySeeds } from '../../../spotify/spotifyUserSeeds'
 import {
     cleanTitle,
     cleanAuthor,
@@ -62,6 +63,10 @@ export async function collectSpotifyRecommendationCandidates(
         spotifyLinkService.getValidAccessToken(requestedBy.id),
     ).catch(() => null)
     if (!token) return
+
+    const userSpotifySeeds = await Promise.resolve(
+        getUserSpotifySeeds(requestedBy.id),
+    ).catch(() => null)
 
     const seedIds = seedTracks
         .map(extractSpotifyTrackId)
@@ -140,9 +145,20 @@ export async function collectSpotifyRecommendationCandidates(
             sessionMood,
         )
         if (rec.score === -Infinity) continue
+        let score = rec.score + 0.3
+        let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
+
+        if (userSpotifySeeds !== null) {
+            const trackArtistLower = track.author.toLowerCase()
+            if (userSpotifySeeds.artistNames.has(trackArtistLower)) {
+                score += 0.08
+                reason += ' • spotify taste'
+            }
+        }
+
         upsertScoredCandidate(candidates, track, {
-            score: rec.score + 0.3,
-            reason: rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec',
+            score,
+            reason,
         })
     }
 }
