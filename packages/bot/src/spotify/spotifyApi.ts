@@ -390,3 +390,77 @@ export async function searchSpotifyTrack(
         return null
     }
 }
+
+export interface SpotifyTopArtist {
+    id: string
+    name: string
+    genres: string[]
+}
+
+export interface SpotifyTopTrack {
+    id: string
+    name: string
+    artist: string
+}
+
+export async function getUserTopArtistsAndTracks(
+    accessToken: string,
+): Promise<{ artists: SpotifyTopArtist[]; tracks: SpotifyTopTrack[] } | null> {
+    try {
+        const topArtistsRes = await fetch(
+            'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term',
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        )
+
+        const topTracksRes = await fetch(
+            'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term',
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        )
+
+        if (!topArtistsRes.ok || !topTracksRes.ok) {
+            return null
+        }
+
+        const artistsData = (await topArtistsRes.json().catch(() => null)) as {
+            items?: Array<{ id?: string; name?: string; genres?: string[] }>
+        }
+        const tracksData = (await topTracksRes.json().catch(() => null)) as {
+            items?: Array<{ id?: string; name?: string; artists?: Array<{ name?: string }> }>
+        }
+
+        if (!artistsData?.items || !tracksData?.items) {
+            return null
+        }
+
+        const artists: SpotifyTopArtist[] = (artistsData.items ?? [])
+            .filter((a) => a.id && a.name)
+            .map((a) => ({
+                id: a.id!,
+                name: a.name!,
+                genres: a.genres ?? [],
+            }))
+
+        const tracks: SpotifyTopTrack[] = (tracksData.items ?? [])
+            .filter((t) => t.id && t.name)
+            .map((t) => ({
+                id: t.id!,
+                name: t.name!,
+                artist: t.artists?.[0]?.name ?? 'Unknown',
+            }))
+
+        return { artists, tracks }
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getUserTopArtistsAndTracks')
+        return null
+    }
+}
