@@ -31,11 +31,11 @@ export function validateQuery<TOutput>(schema: Schema<TOutput>) {
         }
 
         Object.keys(req.query).forEach((key) => {
-            if (!(key in result.data)) {
+            if (!(key in (result.data as any))) {
                 delete req.query[key]
             }
         })
-        Object.assign(req.query, result.data)
+        Object.assign(req.query, result.data as any)
         next()
     }
 }
@@ -52,11 +52,11 @@ export function validateParams<TOutput>(schema: Schema<TOutput>) {
         }
 
         Object.keys(req.params).forEach((key) => {
-            if (!(key in result.data)) {
+            if (!(key in (result.data as any))) {
                 delete req.params[key]
             }
         })
-        Object.assign(req.params, result.data)
+        Object.assign(req.params, result.data as any)
         next()
     }
 }
