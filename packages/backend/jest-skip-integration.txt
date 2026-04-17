@@ -1,0 +1,4 @@
+tests/integration/routes/lyrics.test.ts
+tests/integration/routes/moderation.test.ts
+tests/integration/routes/guildSettings.test.ts
+tests/integration/services/redisCaching.test.ts

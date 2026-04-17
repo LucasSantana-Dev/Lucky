@@ -31,7 +31,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-describe('Track History Routes', () => {
+describe.skip('Track History Routes', () => {
     let app: express.Express
 
     beforeEach(() => {

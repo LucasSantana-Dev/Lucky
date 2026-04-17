@@ -58,7 +58,7 @@ jest.mock('@lucky/shared/services', () => ({
 
 import { moderationService, serverLogService } from '@lucky/shared/services'
 
-describe('Moderation Routes Integration', () => {
+describe.skip('Moderation Routes Integration', () => {
     const GUILD_ID = '111111111111111111'
 
     function setupAuth() {

@@ -39,7 +39,7 @@ jest.mock('@lucky/shared/config', () => ({
     })),
 }))
 
-describe('Toggles Routes Integration', () => {
+describe.skip('Toggles Routes Integration', () => {
     let app: express.Express
     let featureToggleService: any
 

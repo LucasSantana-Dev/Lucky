@@ -39,9 +39,9 @@ export function setupManagementRoutes(app: Express): void {
         requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const settings = (await autoModService.getSettings(
+            const settings = await autoModService.getSettings(
                 p(req.params.guildId),
-            )) as unknown
+            )
             res.json(settings)
         }),
     )
@@ -57,7 +57,7 @@ export function setupManagementRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const body = s.autoModSettingsBody.parse(req.body)
-            const settings = (await autoModService.updateSettings(guildId, body)) as unknown
+            const settings = await autoModService.updateSettings(guildId, body)
 
             await serverLogService.logAutoModSettingsChange(
                 guildId,
@@ -78,7 +78,7 @@ export function setupManagementRoutes(app: Express): void {
         requireGuildModuleAccess('settings', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const templates = (await autoModService.listTemplates()) as unknown
+            const templates = await autoModService.listTemplates()
             res.json({ templates })
         }),
     )
@@ -95,24 +95,24 @@ export function setupManagementRoutes(app: Express): void {
             const userId = requireUserId(req)
 
             try {
-                const result = (await autoModService.applyTemplate(
+                const result = await autoModService.applyTemplate(
                     guildId,
                     templateId,
-                )) as unknown as { template: Record<string, unknown>; settings: Record<string, unknown> }
+                )
                 await serverLogService.logAutoModSettingsChange(
                     guildId,
                     {
                         module: 'general',
-                        enabled: Boolean((result.settings as Record<string, unknown>).enabled),
+                        enabled: Boolean(result.settings.enabled),
                         changes: {
-                            templateId: (result.template as Record<string, unknown>).id,
+                            templateId: result.template.id,
                             settings: result.settings,
                         },
                     },
                     userId,
                 )
                 res.json({
-                    templateId: (result.template as Record<string, unknown>).id,
+                    templateId: result.template.id,
                     settings: result.settings,
                 })
             } catch (error) {
@@ -130,9 +130,9 @@ export function setupManagementRoutes(app: Express): void {
         requireGuildModuleAccess('automation', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const commands = (await customCommandService.listCommands(
+            const commands = await customCommandService.listCommands(
                 p(req.params.guildId),
-            )) as unknown
+            )
             res.json({ commands })
         }),
     )
@@ -149,12 +149,12 @@ export function setupManagementRoutes(app: Express): void {
             const userId = requireUserId(req)
             const body = s.createCommandBody.parse(req.body)
             const { name, response, description } = body
-            const command = (await customCommandService.createCommand(
+            const command = await customCommandService.createCommand(
                 guildId,
                 name,
                 response,
                 { description, createdBy: userId },
-            )) as unknown
+            )
             await serverLogService.logCustomCommandChange(
                 guildId,
                 'created',
@@ -177,11 +177,11 @@ export function setupManagementRoutes(app: Express): void {
             const userId = requireUserId(req)
             const name = p(req.params.name)
             const body = s.updateCommandBody.parse(req.body)
-            const command = (await customCommandService.updateCommand(
+            const command = await customCommandService.updateCommand(
                 guildId,
                 name,
                 body,
-            )) as unknown
+            )
             await serverLogService.logCustomCommandChange(
                 guildId,
                 'updated',
@@ -229,21 +229,21 @@ export function setupManagementRoutes(app: Express): void {
             const type = query.type
 
             if (type) {
-                const logs = (await serverLogService.getLogsByType(
+                const logs = await serverLogService.getLogsByType(
                     guildId,
                     type as LogType,
                     limit,
-                )) as unknown
-                const total = (await serverLogService.countLogsByType(
+                )
+                const total = await serverLogService.countLogsByType(
                     guildId,
                     type as LogType,
-                )) as unknown
+                )
                 res.json({ logs, total })
                 return
             }
 
-            const logs = (await serverLogService.getRecentLogs(guildId, limit)) as unknown
-            const total = (await serverLogService.countRecentLogs(guildId)) as unknown
+            const logs = await serverLogService.getRecentLogs(guildId, limit)
+            const total = await serverLogService.countRecentLogs(guildId)
             res.json({ logs, total })
         }),
     )
@@ -257,10 +257,10 @@ export function setupManagementRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const query = s.logsSearchQuery.parse(req.query)
-            const logs = (await serverLogService.searchLogs(guildId, {
+            const logs = await serverLogService.searchLogs(guildId, {
                 type: query.type as LogType | undefined,
                 userId: query.userId,
-            })) as unknown
+            })
             res.json({ logs })
         }),
     )
@@ -273,7 +273,7 @@ export function setupManagementRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const userId = p(req.params.userId)
-            const logs = (await serverLogService.getUserLogs(guildId, userId)) as unknown
+            const logs = await serverLogService.getUserLogs(guildId, userId)
             res.json({ logs })
         }),
     )
@@ -284,7 +284,7 @@ export function setupManagementRoutes(app: Express): void {
         requireGuildModuleAccess('overview', 'view'),
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const stats = (await serverLogService.getStats(p(req.params.guildId))) as unknown
+            const stats = await serverLogService.getStats(p(req.params.guildId))
             res.json(stats)
         }),
     )

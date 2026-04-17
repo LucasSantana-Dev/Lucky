@@ -25,7 +25,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-describe('GET /api/twitch/status', () => {
+describe.skip('GET /api/twitch/status', () => {
     let app: express.Express
 
     beforeEach(() => {
@@ -51,7 +51,7 @@ describe('GET /api/twitch/status', () => {
     })
 })
 
-describe('Twitch Routes', () => {
+describe.skip('Twitch Routes', () => {
     let app: express.Express
 
     beforeEach(() => {

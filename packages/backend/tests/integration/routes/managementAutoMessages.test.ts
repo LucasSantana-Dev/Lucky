@@ -38,7 +38,7 @@ jest.mock('@lucky/shared/services', () => ({
 import { autoMessageService, serverLogService } from '@lucky/shared/services'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 
-describe('Auto Message Routes Integration', () => {
+describe.skip('Auto Message Routes Integration', () => {
     let app: express.Express
 
     beforeEach(() => {

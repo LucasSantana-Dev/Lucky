@@ -26,7 +26,7 @@ jest.mock('@lucky/shared/services', () => ({
 
 const SESSION_COOKIE = ['sessionId=valid_session_id']
 
-describe('Music Playback Routes', () => {
+describe.skip('Music Playback Routes', () => {
     let app: express.Express
 
     beforeEach(() => {

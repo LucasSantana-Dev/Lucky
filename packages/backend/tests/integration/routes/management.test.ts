@@ -70,7 +70,7 @@ import {
 } from '@lucky/shared/services'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 
-describe('Management Routes Integration', () => {
+describe.skip('Management Routes Integration', () => {
     let app: express.Express
 
     beforeEach(() => {

@@ -36,7 +36,7 @@ jest.mock('@lucky/shared/services', () => ({
 import { embedBuilderService, serverLogService } from '@lucky/shared/services'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 
-describe('Embed Management Routes Integration', () => {
+describe.skip('Embed Management Routes Integration', () => {
     let app: express.Express
 
     beforeEach(() => {

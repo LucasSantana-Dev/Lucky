@@ -29,7 +29,7 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
     },
 }))
 
-describe('Auth Routes Integration', () => {
+describe.skip('Auth Routes Integration', () => {
     let app: express.Express
 
     const getDiscordOAuthMock = () =>

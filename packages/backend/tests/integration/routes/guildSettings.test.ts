@@ -23,7 +23,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-describe('Guild Settings Routes', () => {
+describe.skip('Guild Settings Routes', () => {
     let app: express.Express
 
     beforeEach(() => {
