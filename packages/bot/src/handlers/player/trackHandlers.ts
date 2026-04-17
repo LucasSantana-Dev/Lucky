@@ -25,6 +25,7 @@ import {
     isReplenishSuppressed,
     setReplenishSuppressed,
 } from '../../utils/music/replenishSuppressionStore'
+import { handleQueueExhaustion } from './queueExhaustion'
 
 const MAX_GUILD_ENTRIES = 500
 
@@ -266,18 +267,7 @@ const handlePlayerFinish = async (
             guildTrackStartTimes.delete(queue.guild.id)
         }
 
-        if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
-        await replenishIfAutoplay(queue, track)
-        await musicSessionSnapshotService.saveSnapshot(queue)
-
-        if (queue.currentTrack || queue.tracks.size > 0) {
-            musicWatchdogService.arm(queue)
-        } else {
-            await voiceStatus.clearStatus(queue)
-            musicWatchdogService.clear(queue.guild.id)
-            setReplenishSuppressed(queue.guild.id, 35_000)
-            await musicSessionSnapshotService.clearSnapshotIfStale(queue)
-        }
+        await handleQueueExhaustion(queue, (q, t) => replenishIfAutoplay(q, t ?? track))
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
     }
@@ -314,18 +304,7 @@ const handlePlayerSkip = async (
             guildTrackStartTimes.delete(queue.guild.id)
         }
 
-        if (musicWatchdogService.isIntentionalStop(queue.guild.id)) return
-        await replenishIfAutoplay(queue, track)
-        await musicSessionSnapshotService.saveSnapshot(queue)
-
-        if (queue.currentTrack || queue.tracks.size > 0) {
-            musicWatchdogService.arm(queue)
-        } else {
-            await voiceStatus.clearStatus(queue)
-            musicWatchdogService.clear(queue.guild.id)
-            setReplenishSuppressed(queue.guild.id, 35_000)
-            await musicSessionSnapshotService.clearSnapshotIfStale(queue)
-        }
+        await handleQueueExhaustion(queue, (q, t) => replenishIfAutoplay(q, t ?? track))
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })
     }
