@@ -4,24 +4,24 @@ import type { TrackHistoryEntry } from '@lucky/shared/services'
 import type { TrackMetadata } from '@lucky/shared/types'
 
 // Legacy in-memory maps for backward compatibility (fallback when Redis is unavailable)
-// Using LRU caches with guild-scoped TTL to prevent unbounded growth
+// Using LRU caches with TTL to prevent unbounded memory growth on long-running bot
 export const recentlyPlayedTracks = new LRUCache<string, TrackHistoryEntry[]>(
     {
-        max: 1000,
-        ttl: 60 * 60 * 1000,
+        max: 5000,
+        ttl: 30 * 60 * 1000, // 30 minutes
     },
 )
 export const trackIdSet = new LRUCache<string, Set<string>>({
-    max: 1000,
-    ttl: 60 * 60 * 1000,
+    max: 5000,
+    ttl: 30 * 60 * 1000, // 30 minutes
 })
 export const lastPlayedTracks = new LRUCache<string, Track>({
-    max: 1000,
-    ttl: 60 * 60 * 1000,
+    max: 5000,
+    ttl: 30 * 60 * 1000, // 30 minutes
 })
 export const artistGenreMap = new LRUCache<string, TrackMetadata>({
-    max: 1000,
-    ttl: 60 * 60 * 1000,
+    max: 2000,
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
 })
 
 export type { TrackHistoryEntry, TrackMetadata }
