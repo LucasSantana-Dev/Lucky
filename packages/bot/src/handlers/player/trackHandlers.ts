@@ -275,6 +275,8 @@ const handlePlayerFinish = async (
         } else {
             await voiceStatus.clearStatus(queue)
             musicWatchdogService.clear(queue.guild.id)
+            setReplenishSuppressed(queue.guild.id, 35_000)
+            await musicSessionSnapshotService.clearSnapshotIfStale(queue)
         }
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
@@ -321,6 +323,8 @@ const handlePlayerSkip = async (
         } else {
             await voiceStatus.clearStatus(queue)
             musicWatchdogService.clear(queue.guild.id)
+            setReplenishSuppressed(queue.guild.id, 35_000)
+            await musicSessionSnapshotService.clearSnapshotIfStale(queue)
         }
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })

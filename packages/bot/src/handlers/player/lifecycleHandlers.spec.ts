@@ -10,6 +10,7 @@ const watchdogCheckRecoverMock = jest.fn()
 const watchdogClearMock = jest.fn()
 const watchdogMarkIntentionalStopMock = jest.fn()
 const watchdogIsIntentionalStopMock = jest.fn(() => false)
+const replenishQueueMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -32,6 +33,10 @@ jest.mock('../../utils/music/watchdog', () => ({
         isIntentionalStop: watchdogIsIntentionalStopMock,
         markIntentionalStop: watchdogMarkIntentionalStopMock,
     },
+}))
+
+jest.mock('../../utils/music/queueOperations', () => ({
+    replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
 }))
 
 import {
@@ -148,7 +153,32 @@ describe('setupLifecycleHandlers', () => {
         expect(watchdogCheckRecoverMock).not.toHaveBeenCalled()
     })
 
-    it('marks intentional stop on emptyQueue', async () => {
+    it('replenishes queue on emptyQueue when autoplay is enabled', async () => {
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+
+        setupLifecycleHandlers(player)
+
+        const track = { id: 'track-1', title: 'Test' }
+        const queue = {
+            guild: { id: 'guild-5', name: 'Guild 5' },
+            repeatMode: 3,
+            currentTrack: track,
+        } as unknown as GuildQueue
+
+        await handlers.emptyQueue(queue)
+
+        expect(replenishQueueMock).toHaveBeenCalledWith(queue)
+        expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+
+    it('marks intentional stop on emptyQueue when autoplay is disabled', async () => {
         const handlers: Record<string, PlayerEventHandler> = {}
         const player = {
             events: {
@@ -162,11 +192,14 @@ describe('setupLifecycleHandlers', () => {
 
         const queue = {
             guild: { id: 'guild-5', name: 'Guild 5' },
+            repeatMode: 2,
+            currentTrack: null,
         } as unknown as GuildQueue
 
         await handlers.emptyQueue(queue)
 
         expect(watchdogMarkIntentionalStopMock).toHaveBeenCalledWith('guild-5')
+        expect(replenishQueueMock).not.toHaveBeenCalled()
     })
 })
 
