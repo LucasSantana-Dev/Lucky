@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.134] - 2026-04-17
+
+### Added
+- feat(frontend): Lucky neon-brand landing page redesign — prominent glowing maneki-neko hero, Sora/Manrope typography, lucide icons in colored orbs, pink/orange/purple neon palette, framer-motion micro-interactions with reduced-motion support, monospace stats with pulsing online dot (#693)
+- feat(autoplay): genre preferences Wave A — per-guild genre seeds influence autoplay recommendations (#679)
+- test(backend): comprehensive validate middleware unit tests (#689)
+
+### Fixed
+- fix(frontend): correct Discord application `client_id` on Add-to-Discord button — invite now opens the real Lucky bot authorize flow instead of showing "Unknown Application" (#692)
+
 ## [2.6.133] - 2026-04-17
 
 ### Added
