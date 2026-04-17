@@ -20,6 +20,7 @@ module.exports = {
     '!src/routes/music/**',
     'src/routes/music/playbackRoutes.ts',
     'src/routes/music/stateRoutes.ts',
+    'src/routes/music/autoplayRoutes.ts',
     'src/routes/music/index.ts'
   ],
   coverageDirectory: 'coverage',
