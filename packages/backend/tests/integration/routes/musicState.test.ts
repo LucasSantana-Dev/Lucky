@@ -1001,5 +1001,55 @@ describe('Music State Routes', () => {
                 }, 500)
             })
         }, 5000)
+
+        test('heartbeat writes periodically to maintain connection', (done) => {
+            authed()
+            mockGetState.mockResolvedValue(null)
+
+            const server = app.listen(0, () => {
+                const port = (server.address() as AddressInfo).port
+                let heartbeatCount = 0
+
+                const req = http.get(
+                    {
+                        hostname: '127.0.0.1',
+                        port,
+                        path: `/api/guilds/${GUILD_ID}/music/stream`,
+                        headers: { Cookie: 'sessionId=valid_session_id' },
+                    },
+                    (res) => {
+                        expect(res.statusCode).toBe(200)
+                        res.on('data', (chunk: Buffer) => {
+                            if (chunk.toString().includes('heartbeat')) {
+                                heartbeatCount++
+                                // After first heartbeat, close to test guard
+                                if (heartbeatCount === 1) {
+                                    req.destroy()
+                                }
+                            }
+                        })
+                    },
+                )
+
+                req.on('close', () => {
+                    setTimeout(() => {
+                        server.close(() => {
+                            // At least one heartbeat should have been sent
+                            expect(heartbeatCount).toBeGreaterThan(0)
+                            done()
+                        })
+                    }, 100)
+                })
+
+                req.on('error', () => {
+                    // Expected
+                })
+
+                setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 32000)
+            })
+        }, 35000)
     })
 })
