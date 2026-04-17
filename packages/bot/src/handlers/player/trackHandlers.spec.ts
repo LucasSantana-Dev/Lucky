@@ -75,7 +75,13 @@ jest.mock('../../utils/music/watchdog', () => ({
 jest.mock('../../utils/music/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
+        clearSnapshotIfStale: jest.fn().mockResolvedValue(undefined),
     },
+}))
+
+jest.mock('../../utils/music/replenishSuppressionStore', () => ({
+    isReplenishSuppressed: jest.fn(() => false),
+    setReplenishSuppressed: jest.fn(),
 }))
 
 jest.mock('../../services/VoiceChannelStatusService', () => ({

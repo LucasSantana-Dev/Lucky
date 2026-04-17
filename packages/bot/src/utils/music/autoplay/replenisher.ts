@@ -371,6 +371,14 @@ async function _replenishQueue(
                 },
             })
             replenishCounters.set(guildId, replenishCount + 1)
+            debugLog({
+                message: 'Autoplay replenish exhausted: all candidate sources returned empty',
+                data: {
+                    guildId,
+                    currentTrack: currentTrack?.title,
+                    autoplayMode,
+                },
+            })
             return
         }
 

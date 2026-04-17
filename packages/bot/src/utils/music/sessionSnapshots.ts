@@ -137,6 +137,27 @@ export class MusicSessionSnapshotService {
         }
     }
 
+    /**
+     * Clears the snapshot for a guild when only the current track exists.
+     * Used to prevent watchdog from re-enqueuing the same song on orphan recovery.
+     */
+    async clearSnapshotIfStale(queue: GuildQueue): Promise<void> {
+        if (!queue.currentTrack || queue.tracks.size > 0) {
+            return
+        }
+
+        const snapshot = await this.getSnapshot(queue.guild.id)
+        if (!snapshot || snapshot.upcomingTracks.length > 0) {
+            return
+        }
+
+        await this.deleteSnapshot(queue.guild.id)
+        debugLog({
+            message: 'Cleared stale snapshot (only current track)',
+            data: { guildId: queue.guild.id },
+        })
+    }
+
     async getSnapshot(guildId: string): Promise<QueueSessionSnapshot | null> {
         try {
             const raw = await redisClient.get(this.getKey(guildId))
