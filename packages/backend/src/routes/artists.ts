@@ -36,6 +36,15 @@ const saveArtistBatchBody = z.object({
     ),
 })
 
+
+function getStringParam(param: unknown): string {
+    return typeof param === 'string' ? param : ''
+}
+
+function getStringQuery(q: unknown): string {
+    return typeof q === 'string' ? q : ''
+}
+
 function normalizeArtistKey(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
@@ -164,7 +173,7 @@ export function setupArtistsRoutes(app: Express): void {
         async (req: AuthenticatedRequest, res: Response) => {
             try {
                 const query =
-                    typeof req.query.q === 'string' ? req.query.q.trim() : ''
+                    getStringQuery(req.query.q).trim()
                 if (!query) {
                     res.status(400).json({ error: 'Missing query parameter q' })
                     return
@@ -194,7 +203,7 @@ export function setupArtistsRoutes(app: Express): void {
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const artistId = req.params.artistId as string
+                const artistId = getStringParam(req.params.artistId)
                 if (!isSpotifyAuthConfigured()) {
                     res.status(503).json({ error: 'Spotify not configured' })
                     return
@@ -226,14 +235,12 @@ export function setupArtistsRoutes(app: Express): void {
                     return
                 }
                 const guildId =
-                    typeof req.query.guildId === 'string'
-                        ? req.query.guildId
-                        : undefined
+                    getStringQuery(req.query.guildId) || undefined
                 const db = getPrismaClient()
                 const prefs = await db.userArtistPreference.findMany({
                     where: { discordUserId, ...(guildId ? { guildId } : {}) },
                     orderBy: { createdAt: 'desc' },
-                })
+                }) as unknown
                 res.json({ preferences: prefs })
             } catch (error) {
                 errorLog({ message: 'Get preferred artists error', error })
@@ -281,7 +288,7 @@ export function setupArtistsRoutes(app: Express): void {
                         imageUrl,
                         preference,
                     },
-                })
+                }) as unknown
                 res.json({ preference: pref })
             } catch (error) {
                 errorLog({ message: 'Save preferred artist error', error })
@@ -335,8 +342,8 @@ export function setupArtistsRoutes(app: Express): void {
                             imageUrl: item.imageUrl,
                             preference: item.preference,
                         },
-                    })
-                    results.push(pref as unknown as typeof items[0])
+                    }) as unknown
+                    results.push(pref as typeof items[0])
                 }
                 res.json({ preferences: results })
             } catch (error) {
@@ -356,11 +363,9 @@ export function setupArtistsRoutes(app: Express): void {
                     res.status(401).json({ error: 'Not authenticated' })
                     return
                 }
-                const artistKey = req.params.artistKey as string
+                const artistKey = getStringParam(req.params.artistKey)
                 const guildId =
-                    typeof req.query.guildId === 'string'
-                        ? req.query.guildId
-                        : undefined
+                    getStringQuery(req.query.guildId) || undefined
                 if (!guildId) {
                     res.status(400).json({
                         error: 'Missing guildId query param',
