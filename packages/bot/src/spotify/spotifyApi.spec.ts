@@ -765,5 +765,75 @@ describe('spotifyApi', () => {
 
             expect(result).toBeNull()
         })
+
+        it('builds full payload with mixed artist + track shapes', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                console.log('fetch call', callCount)
+                if (callCount === 1) {
+                    return {
+                        ok: true,
+                        json: () =>
+                            Promise.resolve({
+                                items: [
+                                    { id: 'a1', name: 'Artist 1', genres: ['rock', 'pop'] },
+                                    { id: 'a2', name: 'Artist 2' },
+                                    { id: 'a3', name: 'Artist 3', genres: null },
+                                    { id: '', name: 'No Id' },
+                                    { id: 'a5' },
+                                ],
+                            }),
+                    }
+                }
+                return {
+                    ok: true,
+                    json: () =>
+                        Promise.resolve({
+                            items: [
+                                { id: 't1', name: 'Track 1', artists: [{ name: 'Main' }] },
+                                { id: 't2', name: 'Track 2' },
+                                { id: 't3', name: 'Track 3', artists: [] },
+                                { id: 't4', name: 'Track 4', artists: [{}] },
+                                { name: 'No Id Track' },
+                            ],
+                        }),
+                }
+            })
+
+            ;(globalThis as { fetch: unknown }).fetch = fetchMock
+            const result = await getUserTopArtistsAndTracks('token')
+
+            expect(result).not.toBeNull()
+            expect(result?.artists).toHaveLength(3)
+            expect(result?.artists[0]).toEqual({
+                id: 'a1',
+                name: 'Artist 1',
+                genres: ['rock', 'pop'],
+            })
+            expect(result?.artists[1].genres).toEqual([])
+            expect(result?.artists[2].genres).toEqual([])
+            expect(result?.tracks).toHaveLength(4)
+            expect(result?.tracks[0].artist).toBe('Main')
+            expect(result?.tracks[1].artist).toBe('Unknown')
+            expect(result?.tracks[2].artist).toBe('Unknown')
+            expect(result?.tracks[3].artist).toBe('Unknown')
+        })
+
+        it('returns null when artists json is null', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    return { ok: true, json: () => Promise.resolve(null) }
+                }
+                return { ok: true, json: () => Promise.resolve({ items: [] }) }
+            })
+
+            ;(globalThis as { fetch: unknown }).fetch = fetchMock
+            const result = await getUserTopArtistsAndTracks('token')
+
+            expect(result).toBeNull()
+        })
     })
 })
