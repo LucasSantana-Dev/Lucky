@@ -13,6 +13,7 @@ import {
     getArtistPopularity,
     getSpotifyRecommendations,
     getArtistGenres,
+    getUserTopArtistsAndTracks,
 } from './spotifyApi'
 
 type MockFetchResponse = {
@@ -631,6 +632,53 @@ describe('spotifyApi', () => {
                 json: async () => ({ artists: undefined }),
             })
             expect(await getArtistGenres('token', 'Artist')).toEqual([])
+        })
+    })
+
+    describe('getUserTopArtistsAndTracks', () => {
+        it('returns null on 401 unauthorized', async () => {
+            fetchMock.mockResolvedValue({ ok: false })
+
+            const result = await getUserTopArtistsAndTracks('expired-token')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null on 429 rate limit', async () => {
+            fetchMock.mockResolvedValue({ ok: false })
+
+            const result = await getUserTopArtistsAndTracks('test-token')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null on network error', async () => {
+            fetchMock.mockRejectedValue(new Error('Network error'))
+
+            const result = await getUserTopArtistsAndTracks('test-token')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when artists response is not ok', async () => {
+            fetchMock.mockResolvedValue({ ok: false })
+
+            const result = await getUserTopArtistsAndTracks('test-token')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null on malformed JSON response', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => {
+                    throw new Error('JSON parse error')
+                },
+            })
+
+            const result = await getUserTopArtistsAndTracks('test-token')
+
+            expect(result).toBeNull()
         })
     })
 }
