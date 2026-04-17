@@ -10,6 +10,11 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
+import {
+    type GuildAutomationRole,
+    type GuildAutomationChannel,
+    type GuildAutomationParity,
+} from '@lucky/shared/services/guildAutomation/types'
 import { debugLog } from '@lucky/shared/utils'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
@@ -809,12 +814,13 @@ class GuildAutomationExecutionService {
         const existing = (await roleManagementService.listExclusiveRoles(guildId)) as unknown[]
 
         for (const item of existing as unknown[]) {
-            const key = `${(item as unknown & { roleId: string }).roleId}:${(item as unknown & { excludedRoleId: string }).excludedRoleId}`
+            const typedItem = item as unknown & { roleId: string; excludedRoleId: string }
+            const key = `${typedItem.roleId}:${typedItem.excludedRoleId}`
             if (!nextPairs.has(key)) {
                 await roleManagementService.removeExclusiveRole(
                     guildId,
-                    item.roleId,
-                    item.excludedRoleId,
+                    typedItem.roleId,
+                    typedItem.excludedRoleId,
                 )
             }
         }
@@ -877,10 +883,10 @@ class GuildAutomationExecutionService {
                 id: guild.id,
                 name: guild.name,
             },
-            onboarding: this.toOnboardingManifest(onboarding as unknown),
+            onboarding: this.toOnboardingManifest(onboarding as DiscordOnboardingResponse | null),
             roles: {
-                roles: manifestRoles as unknown[],
-                channels: manifestChannels as unknown[],
+                roles: manifestRoles as GuildAutomationRole[],
+                channels: manifestChannels as GuildAutomationChannel[],
             },
             moderation: {
                 automod:
@@ -912,7 +918,7 @@ class GuildAutomationExecutionService {
                         messageId: msg.messageId,
                         channelId: msg.channelId,
                         mappings: (msg.mappings ?? []).map((mapping) => {
-                            const map = mapping as unknown & { roleId: string; label?: string; emoji?: unknown; style?: unknown };
+                            const map = mapping as unknown & { roleId: string; label?: string; emoji?: string; style?: string };
                             return {
                                 roleId: map.roleId,
                                 label: map.label ?? map.roleId,
@@ -932,7 +938,7 @@ class GuildAutomationExecutionService {
             },
             commandaccess: {
                 grants: roleGrants.map((grant) => {
-                    const g = grant as unknown & { roleId: string; module: string; mode: string };
+                    const g = grant as unknown & { roleId: string; module: 'overview' | 'settings' | 'moderation' | 'automation' | 'music' | 'integrations'; mode: 'view' | 'manage' };
                     return {
                         roleId: g.roleId,
                         module: g.module,
@@ -940,7 +946,7 @@ class GuildAutomationExecutionService {
                     };
                 }),
             },
-            parity: parity as unknown,
+            parity: parity as GuildAutomationParity | undefined,
             source: DEFAULT_SOURCE,
             capturedAt: new Date().toISOString(),
         };
