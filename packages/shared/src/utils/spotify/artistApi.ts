@@ -53,47 +53,85 @@ export async function searchSpotifyArtists(
     }
 }
 
+async function fetchSpotifyArtistName(
+    accessToken: string,
+    artistId: string,
+): Promise<string | null> {
+    try {
+        const res = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!res.ok) return null
+        const data = (await res.json().catch(() => null)) as { name?: string }
+        return data?.name ?? null
+    } catch {
+        return null
+    }
+}
+
+async function fetchLastFmSimilarArtists(
+    artistName: string,
+    limit: number,
+): Promise<string[]> {
+    const apiKey = process.env.LASTFM_API_KEY
+    if (!apiKey) return []
+    try {
+        const params = new URLSearchParams({
+            method: 'artist.getSimilar',
+            artist: artistName,
+            api_key: apiKey,
+            format: 'json',
+            limit: String(limit),
+            autocorrect: '1',
+        })
+        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?${params.toString()}`)
+        if (!res.ok) return []
+        const data = (await res.json().catch(() => null)) as {
+            similarartists?: { artist?: Array<{ name?: string }> }
+        }
+        return (data?.similarartists?.artist ?? [])
+            .map((a) => a.name)
+            .filter((n): n is string => typeof n === 'string' && n.length > 0)
+    } catch {
+        return []
+    }
+}
+
 export async function getSpotifyRelatedArtists(
     accessToken: string,
     artistId: string,
 ): Promise<SpotifyArtist[]> {
+    // Spotify deprecated /v1/recommendations and /v1/artists/{id}/related-artists
+    // for new apps in 2024 (404/403). Use Last.fm artist.getSimilar to find
+    // similar artist NAMES, then look each up via Spotify search to get full
+    // artist data (image, popularity, genres).
     try {
-        const params = new URLSearchParams({
-            seed_artists: artistId,
-            limit: '20',
-        })
-        const res = await fetch(
-            `https://api.spotify.com/v1/recommendations?${params.toString()}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
-        )
-        if (!res.ok) {
-            console.warn(`[Spotify] recommendations API returned ${res.status} for artist ${artistId}`)
+        const seedName = await fetchSpotifyArtistName(accessToken, artistId)
+        if (!seedName) {
+            console.warn(`[Spotify] Could not fetch artist name for ${artistId}`)
             return []
         }
-        const data = (await res.json().catch(() => null)) as {
-            tracks?: Array<{ artists?: unknown[] }>
+        const similarNames = await fetchLastFmSimilarArtists(seedName, 24)
+        if (similarNames.length === 0) {
+            console.warn(`[Spotify] Last.fm returned no similar artists for "${seedName}"`)
+            return []
         }
+        const lookups = await Promise.all(
+            similarNames.slice(0, 12).map((name) =>
+                searchSpotifyArtists(accessToken, name, 1).then((r) => r[0] ?? null),
+            ),
+        )
         const seenIds = new Set<string>()
         const artists: SpotifyArtist[] = []
-        for (const track of data?.tracks ?? []) {
-            if (artists.length >= 12) break
-            for (const artist of track.artists ?? []) {
-                if (artists.length >= 12) break
-                const mapped = mapSpotifyArtist(
-                    artist as Parameters<typeof mapSpotifyArtist>[0],
-                )
-                if (mapped && !seenIds.has(mapped.id)) {
-                    seenIds.add(mapped.id)
-                    artists.push(mapped)
-                }
+        for (const a of lookups) {
+            if (a && !seenIds.has(a.id)) {
+                seenIds.add(a.id)
+                artists.push(a)
             }
-        }
-        if (artists.length === 0) {
-            console.warn(`[Spotify] getSpotifyRelatedArtists returned empty array for artist ${artistId}. Tracks count: ${data?.tracks?.length ?? 0}`)
         }
         return artists
     } catch (error) {
-        console.error(`[Spotify] getSpotifyRelatedArtists error for artist ${artistId}:`, error)
+        console.error(`[Spotify] getSpotifyRelatedArtists error for ${artistId}:`, error)
         return []
     }
 }
