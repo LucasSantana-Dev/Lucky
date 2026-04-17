@@ -9,6 +9,7 @@ import {
     updateModerationSettings,
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
+    type RoleGrant,
 } from '@lucky/shared/services'
 import { debugLog } from '@lucky/shared/utils'
 
@@ -83,6 +84,35 @@ type ChannelRemap = Map<string, string>
 type ManifestRoles = NonNullable<GuildAutomationManifestDocument['roles']>
 type ManifestRole = ManifestRoles['roles'][number]
 type ManifestChannel = ManifestRoles['channels'][number]
+
+type ReactionRoleMessageMapping = {
+    type: string
+    id: string
+    messageId: string
+    roleId: string
+    emoji: string | null
+    buttonId: string | null
+    label: string | null
+    style: string | null
+}
+
+type ReactionRoleMessage = {
+    id: string
+    guildId: string
+    messageId: string
+    channelId: string
+    createdAt: Date
+    updatedAt: Date
+    mappings: ReactionRoleMessageMapping[]
+}
+
+type RoleExclusion = {
+    id: string
+    guildId: string
+    roleId: string
+    excludedRoleId: string
+    createdAt: Date
+}
 
 const SUPPORTED_CHANNEL_TYPES = new Set([0, 2, 4, 5, 13, 15])
 
@@ -940,24 +970,24 @@ class GuildAutomationExecutionService {
                     : undefined,
             },
             reactionroles: {
-                messages: reactionRoleMessages.map((message) => ({
+                messages: reactionRoleMessages.map((message: ReactionRoleMessage) => ({
                     id: message.id,
                     messageId: message.messageId,
                     channelId: message.channelId,
-                    mappings: message.mappings.map((mapping) => ({
+                    mappings: message.mappings.map((mapping: ReactionRoleMessageMapping) => ({
                         roleId: mapping.roleId,
                         label: mapping.label ?? mapping.roleId,
                         emoji: mapping.emoji ?? undefined,
                         style: mapping.style ?? undefined,
                     })),
                 })),
-                exclusiveRoles: exclusiveRoles.map((item) => ({
+                exclusiveRoles: exclusiveRoles.map((item: RoleExclusion) => ({
                     roleId: item.roleId,
                     excludedRoleId: item.excludedRoleId,
                 })),
             },
             commandaccess: {
-                grants: roleGrants.map((grant) => ({
+                grants: roleGrants.map((grant: RoleGrant) => ({
                     roleId: grant.roleId,
                     module: grant.module,
                     mode: grant.mode,

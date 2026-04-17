@@ -31,6 +31,7 @@ jest.mock('../../../src/routes/music/helpers', () => ({
 jest.mock('../../../src/routes/music/playbackRoutes', () => ({ setupPlaybackRoutes: jest.fn() }))
 jest.mock('../../../src/routes/music/queueRoutes', () => ({ setupQueueRoutes: jest.fn() }))
 jest.mock('../../../src/routes/music/stateRoutes', () => ({ setupStateRoutes: jest.fn() }))
+jest.mock('../../../src/routes/music/autoplayRoutes', () => ({ setupAutoplayRoutes: jest.fn() }))
 
 describe('music SSE bridge (initMusicSSEBridge)', () => {
     beforeEach(() => {

@@ -4,12 +4,14 @@ import { infoLog, errorLog } from '@lucky/shared/utils'
 import { setupPlaybackRoutes } from './playbackRoutes'
 import { setupQueueRoutes } from './queueRoutes'
 import { setupStateRoutes } from './stateRoutes'
+import { setupAutoplayRoutes } from './autoplayRoutes'
 import { sseClients } from './helpers'
 
 export function setupMusicRoutes(app: Express): void {
     setupPlaybackRoutes(app)
     setupQueueRoutes(app)
     setupStateRoutes(app)
+    setupAutoplayRoutes(app)
     initMusicSSEBridge()
 }
 
