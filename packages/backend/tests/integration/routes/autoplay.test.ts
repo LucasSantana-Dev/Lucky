@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import request from 'supertest'
-import type { Express } from 'express'
+import type { Express, Request, Response, NextFunction } from 'express'
 import express from 'express'
+import type { AuthenticatedRequest } from '../../../src/middleware/auth'
 
-const mockGuildSettingsService = {
-    getGuildSettings: jest.fn() as any,
-    updateGuildSettings: jest.fn() as any,
+interface MockGuildSettingsService {
+    getGuildSettings: jest.Mock<Promise<unknown>>
+    updateGuildSettings: jest.Mock<Promise<boolean>>
+}
+
+const mockGuildSettingsService: MockGuildSettingsService = {
+    getGuildSettings: jest.fn(),
+    updateGuildSettings: jest.fn(),
 }
 
 jest.mock('@lucky/shared/services', () => ({
@@ -13,8 +19,8 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 jest.mock('../../../src/middleware/auth', () => ({
-    requireAuth: (req: any, _res: any, next: any) => {
-        req.user = { id: 'test-discord-id' }
+    requireAuth: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+        req.user = { id: 'test-discord-id', username: 'test', discriminator: '0000', avatar: null }
         next()
     },
 }))
