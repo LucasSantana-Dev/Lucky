@@ -480,3 +480,97 @@ describe('MusicSessionSnapshotService', () => {
             title: 'Next Song',
         })
     })
+
+    it('returns null on save error and logs', async () => {
+        setexMock.mockRejectedValue(new Error('redis down'))
+        const service = new MusicSessionSnapshotService(300)
+        const queue = {
+            guild: { id: 'guild-err' },
+            currentTrack: {
+                title: 't',
+                author: 'a',
+                url: 'u',
+                duration: '1',
+                source: 'youtube',
+            },
+            tracks: { toArray: () => [] },
+        } as unknown as GuildQueue
+
+        const result = await service.saveSnapshot(queue)
+        expect(result).toBeNull()
+    })
+
+    it('returns null on getSnapshot redis read error', async () => {
+        getMock.mockRejectedValue(new Error('redis down'))
+        const service = new MusicSessionSnapshotService(300)
+        const result = await service.getSnapshot('g')
+        expect(result).toBeNull()
+    })
+
+    it('returns null on getSnapshot when key missing', async () => {
+        getMock.mockResolvedValue(null)
+        const service = new MusicSessionSnapshotService(300)
+        const result = await service.getSnapshot('g')
+        expect(result).toBeNull()
+    })
+
+    it('swallows deleteSnapshot redis errors', async () => {
+        delMock.mockRejectedValue(new Error('redis down'))
+        const service = new MusicSessionSnapshotService(300)
+        await expect(service.deleteSnapshot('g')).resolves.toBeUndefined()
+    })
+
+    it('clearSnapshotIfStale is no-op when queue has upcoming tracks', async () => {
+        const service = new MusicSessionSnapshotService(300)
+        const queue = {
+            guild: { id: 'g' },
+            currentTrack: { title: 't' },
+            tracks: { size: 3 },
+        } as unknown as GuildQueue
+        await service.clearSnapshotIfStale(queue)
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('clearSnapshotIfStale is no-op when no current track', async () => {
+        const service = new MusicSessionSnapshotService(300)
+        const queue = {
+            guild: { id: 'g' },
+            currentTrack: null,
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+        await service.clearSnapshotIfStale(queue)
+        expect(getMock).not.toHaveBeenCalled()
+    })
+
+    it('clearSnapshotIfStale skips when snapshot has upcoming tracks', async () => {
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                sessionSnapshotId: 's',
+                guildId: 'g',
+                savedAt: Date.now(),
+                currentTrack: null,
+                upcomingTracks: [{ title: 'x', author: 'y', url: 'z', duration: '1', source: 's' }],
+            }),
+        )
+        const service = new MusicSessionSnapshotService(300)
+        const queue = {
+            guild: { id: 'g' },
+            currentTrack: { title: 't' },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+        await service.clearSnapshotIfStale(queue)
+        expect(delMock).not.toHaveBeenCalled()
+    })
+
+    it('restoreSnapshot returns 0 when queue already has tracks', async () => {
+        const service = new MusicSessionSnapshotService(300)
+        const queue = {
+            guild: { id: 'g' },
+            currentTrack: { title: 't' },
+            tracks: { size: 5 },
+        } as unknown as GuildQueue
+        const result = await service.restoreSnapshot(queue)
+        expect(result.restoredCount).toBe(0)
+        expect(result.sessionSnapshotId).toBeNull()
+    })
+})
