@@ -680,5 +680,90 @@ describe('spotifyApi', () => {
 
             expect(result).toBeNull()
         })
+
+        it('returns artists and tracks with valid response', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    return {
+                        ok: true,
+                        json: () =>
+                            Promise.resolve({
+                                items: [{ id: 'a1', name: 'Artist 1', genres: [] }],
+                            }),
+                    }
+                }
+                return {
+                    ok: true,
+                    json: () =>
+                        Promise.resolve({
+                            items: [
+                                { id: 't1', name: 'Track 1', artists: [{ name: 'Artist 1' }] },
+                            ],
+                        }),
+                }
+            })
+
+            const result = await getUserTopArtistsAndTracks('token')
+
+            if (result !== null) {
+                expect(result.artists).toHaveLength(1)
+                expect(result.tracks).toHaveLength(1)
+                expect(result.artists[0].id).toBe('a1')
+            }
+        })
+
+        it('handles tracks without artist field', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    return {
+                        ok: true,
+                        json: async () => ({ items: [] }),
+                    }
+                }
+                return {
+                    ok: true,
+                    json: async () => ({
+                        items: [{ id: 't1', name: 'Track 1' }],
+                    }),
+                }
+            })
+
+            const result = await getUserTopArtistsAndTracks('token')
+
+            if (result !== null) {
+                expect(result.tracks).toHaveLength(1)
+                expect(result.tracks[0].artist).toBe('Unknown')
+            }
+        })
+
+        it('returns null when artists response not ok but tracks ok', async () => {
+            fetchMock
+                .mockResolvedValueOnce({ ok: false })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ items: [] }),
+                })
+
+            const result = await getUserTopArtistsAndTracks('token')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when tracks response not ok but artists ok', async () => {
+            fetchMock
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ items: [] }),
+                })
+                .mockResolvedValueOnce({ ok: false })
+
+            const result = await getUserTopArtistsAndTracks('token')
+
+            expect(result).toBeNull()
+        })
     })
-}
+})
