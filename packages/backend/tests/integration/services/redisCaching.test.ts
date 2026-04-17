@@ -41,10 +41,6 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
     warnLog: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/generated/prisma/client', () => ({
-    Prisma: { JsonNull: null },
-}))
-
 jest.mock('@lucky/shared/services/embedValidation', () => ({}))
 
 jest.mock('@lucky/shared/services/ModerationService', () => ({}))

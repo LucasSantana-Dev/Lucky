@@ -64,6 +64,26 @@ describe('validateQuery', () => {
         expect(res.status).toHaveBeenCalledWith(400)
         expect(next).not.toHaveBeenCalled()
     })
+
+    test('should assign validated query to req.query', () => {
+        const { req, res, next } = setup({ limit: '10' }, 'query')
+        validateQuery(schema)(req, res, next)
+        expect(req.query).toEqual({ limit: '10' })
+    })
+
+    test('should strip unknown query fields', () => {
+        const { req, res, next } = setup({ limit: '20', extra: 'ignored' }, 'query')
+        validateQuery(schema)(req, res, next)
+        expect(next).toHaveBeenCalled()
+        expect(req.query).toEqual({ limit: '20' })
+    })
+
+    test('should handle optional query fields correctly', () => {
+        const { req, res, next } = setup({}, 'query')
+        validateQuery(schema)(req, res, next)
+        expect(next).toHaveBeenCalled()
+        expect(req.query).toEqual({})
+    })
 })
 
 describe('validateParams', () => {
@@ -99,5 +119,24 @@ describe('validateParams', () => {
         const response = res.json.mock.calls[0][0]
         expect(response.errors[0]).toHaveProperty('field')
         expect(response.errors[0]).toHaveProperty('message')
+    })
+
+    test('should assign validated params to req.params', () => {
+        const { req, res, next } = setup(
+            { guildId: '123456789012345678' },
+            'params',
+        )
+        validateParams(schema)(req, res, next)
+        expect(req.params).toEqual({ guildId: '123456789012345678' })
+    })
+
+    test('should strip unknown params fields', () => {
+        const { req, res, next } = setup(
+            { guildId: '123456789012345678', extra: 'ignored' },
+            'params',
+        )
+        validateParams(schema)(req, res, next)
+        expect(next).toHaveBeenCalled()
+        expect(req.params).toEqual({ guildId: '123456789012345678' })
     })
 })

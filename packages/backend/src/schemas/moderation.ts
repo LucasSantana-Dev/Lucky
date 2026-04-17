@@ -9,7 +9,9 @@ const caseIdParam = guildIdParam.extend({
     caseId: z.string().min(1).max(100),
 })
 
-const userCasesParam = commonUserIdParam
+const userCasesParam = guildIdParam.extend({
+    userId: commonUserIdParam.shape.userId,
+})
 
 const casesQuery = z.object({
     limit: z.coerce.number().int().min(1).max(500).optional(),

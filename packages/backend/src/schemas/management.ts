@@ -69,7 +69,9 @@ const logsSearchQuery = z.object({
         .optional(),
 })
 
-const userIdParam = commonUserIdParam
+const userIdParam = guildIdParam.extend({
+    userId: commonUserIdParam.shape.userId,
+})
 
 export const managementSchemas = {
     guildIdParam,
