@@ -35,6 +35,11 @@ describe('Music State Routes', () => {
         setupStateRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+        jest.clearAllTimers()
+    })
+
+    afterEach(() => {
+        jest.clearAllTimers()
     })
 
     const GUILD_ID = '111111111111111111'
