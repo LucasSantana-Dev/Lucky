@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Landing from './Landing'
 import { useAuthStore } from '@/stores/authStore'
@@ -9,7 +9,21 @@ import { api } from '@/services/api'
 
 vi.mock('@/stores/authStore')
 vi.mock('@/hooks/usePageMetadata')
-vi.mock('framer-motion')
+vi.mock('framer-motion', async () => {
+    const React = await import('react')
+    const passthrough = (tag: string) =>
+        React.forwardRef(({ children, ...props }: any, ref: any) =>
+            React.createElement(tag, { ...props, ref }, children),
+        )
+    return {
+        motion: new Proxy(
+            {},
+            { get: (_t, prop: string) => passthrough(prop) },
+        ),
+        AnimatePresence: ({ children }: any) => children,
+        useReducedMotion: vi.fn(() => false),
+    }
+})
 vi.mock('@/services/api')
 
 const mockLogin = vi.fn()
@@ -49,20 +63,27 @@ describe('Landing', () => {
 
         render(<Landing />)
 
-        const container = screen.getByText(/The all-in-one Discord bot for your community/i)
+        const container = screen.getByText(/All-in-one Discord bot/i)
             .closest('.lucky-shell')
 
         expect(container).toBeInTheDocument()
     })
 
-    test('renders hero section with headline and CTA buttons', () => {
+    test('renders hero section with logo, headline and CTA buttons', () => {
         render(<Landing />)
 
-        const headline = screen.getByRole('heading', {
-            name: /The all-in-one Discord bot for your community/i,
-        })
+        // Check for logo
+        const logo = screen.getByAltText('Lucky Bot')
+        expect(logo).toBeInTheDocument()
+
+        // Check for headline
+        const headline = screen.getByText(/All-in-one Discord bot/i)
         expect(headline).toBeInTheDocument()
 
+        const subheadline = screen.getByText(/for your community/i)
+        expect(subheadline).toBeInTheDocument()
+
+        // Check for CTA buttons
         const addToDiscordBtn = screen.getByRole('button', { name: /Add to Discord/i })
         const openDashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i })
 
@@ -70,12 +91,12 @@ describe('Landing', () => {
         expect(openDashboardBtn).toBeInTheDocument()
     })
 
-    test('displays hero subtitle', () => {
+    test('displays hero subtitle with "Built for vibes" tagline', () => {
         render(<Landing />)
 
         expect(
             screen.getByText(
-                /Music, moderation, custom commands, auto-mod, and a full web dashboard./i
+                /Music, moderation, custom commands, auto-mod, and a full web dashboard\. Built for vibes\./i
             )
         ).toBeInTheDocument()
     })
@@ -97,7 +118,7 @@ describe('Landing', () => {
         })
     })
 
-    test('renders stats strip with live data', async () => {
+    test('renders stats strip with live data and icons', async () => {
         render(<Landing />)
 
         // Wait for the stats labels to be rendered
@@ -129,26 +150,32 @@ describe('Landing', () => {
         })
     })
 
-    test('FAQ accordion contains expandable details elements', () => {
+    test('FAQ items are expandable via button clicks', async () => {
         render(<Landing />)
 
-        const faqSection = screen.getByText(/Frequently Asked Questions/)
-        expect(faqSection).toBeInTheDocument()
+        const user = userEvent.setup()
 
+        // Get the first FAQ button
         const firstQuestion = screen.getByText('Is Lucky free?')
-        const detailsElement = firstQuestion.closest('details')
+        const firstButton = firstQuestion.closest('button')
 
-        expect(detailsElement).toBeInTheDocument()
-        expect(detailsElement).toHaveClass('rounded-lg', 'border', 'border-lucky-border')
+        expect(firstButton).toBeInTheDocument()
 
+        // Click to expand
+        await user.click(firstButton!)
+
+        // Answer should be visible
         const answer = screen.getByText('Yes, Lucky is completely free with no premium tier.')
         expect(answer).toBeInTheDocument()
     })
 
-    test('renders footer with all link sections', () => {
+    test('renders footer with logo and all link sections', () => {
         render(<Landing />)
 
-        expect(screen.getByText('Lucky')).toBeInTheDocument()
+        // Check for footer logo
+        const footerLogo = screen.getAllByAltText('Lucky').find(el => el.closest('footer'))
+        expect(footerLogo).toBeInTheDocument()
+
         expect(screen.getByText('Links')).toBeInTheDocument()
         expect(screen.getByText('Support')).toBeInTheDocument()
     })
@@ -177,18 +204,16 @@ describe('Landing', () => {
     })
 
     test('renders Add to Discord button with correct href when clicked', async () => {
+        const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
         render(<Landing />)
 
         const addToDiscordBtn = screen.getByRole('button', { name: /Add to Discord/i })
         expect(addToDiscordBtn).toBeInTheDocument()
 
-        vi.spyOn(window, 'open').mockReturnValue(null)
-
-        const user = userEvent.setup()
-        await user.click(addToDiscordBtn)
+        fireEvent.click(addToDiscordBtn)
 
         await waitFor(() => {
-            expect(window.open).toHaveBeenCalledWith(
+            expect(openSpy).toHaveBeenCalledWith(
                 expect.stringContaining('discord.com/oauth2/authorize'),
                 '_blank'
             )
@@ -199,9 +224,7 @@ describe('Landing', () => {
         render(<Landing />)
 
         const openDashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i })
-
-        const user = userEvent.setup()
-        await user.click(openDashboardBtn)
+        fireEvent.click(openDashboardBtn)
 
         await waitFor(() => {
             expect(mockLogin).toHaveBeenCalled()
@@ -242,10 +265,24 @@ describe('Landing', () => {
     test('renders all footer columns with proper hierarchy', () => {
         render(<Landing />)
 
-        const footerText = screen.getByText('Discord bot with music, moderation, and more.')
+        const footerText = screen.getByText('Discord bot with music, moderation, and more. Built for vibes.')
         expect(footerText).toBeInTheDocument()
 
         const needHelpText = screen.getByText(/Need help\? Join our Discord community\./)
         expect(needHelpText).toBeInTheDocument()
+    })
+
+    test('renders Powerful Features heading', () => {
+        render(<Landing />)
+
+        const featuresHeading = screen.getByRole('heading', { name: /Powerful Features/i })
+        expect(featuresHeading).toBeInTheDocument()
+    })
+
+    test('renders Frequently Asked Questions heading', () => {
+        render(<Landing />)
+
+        const faqHeading = screen.getByRole('heading', { name: /Frequently Asked Questions/i })
+        expect(faqHeading).toBeInTheDocument()
     })
 })
