@@ -1,9 +1,26 @@
 import { ensureEnvironment } from '@lucky/shared/config'
 import { setupErrorHandlers } from '@lucky/shared/utils'
 import { flushSentry, initializeSentry } from '@lucky/shared/utils'
-import { initializeBot } from './bot/start'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { initializeBot, shutdown } from './bot/start'
+import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { dependencyCheckService } from './services/DependencyCheckService'
+
+function setupSignalHandlers(): void {
+    const signals = ['SIGTERM', 'SIGINT']
+    signals.forEach((signal) => {
+        process.on(signal, async () => {
+            infoLog({ message: `Received ${signal}, initiating graceful shutdown...` })
+            try {
+                await shutdown()
+                await flushSentry(3000)
+                process.exit(0)
+            } catch (error) {
+                errorLog({ message: `Error during ${signal} shutdown:`, error })
+                process.exit(1)
+            }
+        })
+    })
+}
 
 async function main(): Promise<void> {
     await ensureEnvironment()
@@ -27,6 +44,8 @@ async function main(): Promise<void> {
     debugLog({
         message: `Starting bot in environment: ${process.env.NODE_ENV ?? 'default'}`,
     })
+
+    setupSignalHandlers()
     await initializeBot()
 }
 

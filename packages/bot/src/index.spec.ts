@@ -13,7 +13,9 @@ const initializeSentryMock = jest.fn()
 const flushSentryMock = jest.fn<(timeout?: number) => Promise<boolean>>()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const infoLogMock = jest.fn()
 const initializeBotMock = jest.fn<() => Promise<void>>()
+const shutdownMock = jest.fn<() => Promise<void>>()
 const dependencyCheckStartMock = jest.fn()
 
 jest.mock('@lucky/shared/config', () => ({
@@ -26,10 +28,12 @@ jest.mock('@lucky/shared/utils', () => ({
     flushSentry: (...args: unknown[]) => flushSentryMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    infoLog: (...args: unknown[]) => infoLogMock(...args),
 }))
 
 jest.mock('./bot/start', () => ({
     initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+    shutdown: (...args: unknown[]) => shutdownMock(...args),
 }))
 
 jest.mock('./services/DependencyCheckService', () => ({
@@ -56,6 +60,7 @@ describe('bot entrypoint', () => {
         flushSentryMock.mockResolvedValue(true)
         ensureEnvironmentMock.mockResolvedValue()
         initializeBotMock.mockResolvedValue()
+        shutdownMock.mockResolvedValue()
         process.exit = jest.fn() as unknown as typeof process.exit
     })
 
@@ -104,5 +109,80 @@ describe('bot entrypoint', () => {
         })
         expect(flushSentryMock).toHaveBeenCalledWith(3000)
         expect(process.exit).toHaveBeenCalledWith(1)
+    })
+
+    it('handles SIGTERM signal with graceful shutdown', async () => {
+        let signalHandlers: Record<string, Function> = {}
+        const originalOn = process.on.bind(process)
+        process.on = jest.fn((signal: string, handler: Function) => {
+            signalHandlers[signal] = handler
+            return process as any
+        }) as any
+
+        await import('./index')
+
+        expect(process.on).toHaveBeenCalledWith(
+            'SIGTERM',
+            expect.any(Function),
+        )
+        expect(process.on).toHaveBeenCalledWith(
+            'SIGINT',
+            expect.any(Function),
+        )
+
+        await signalHandlers['SIGTERM']()
+
+        expect(infoLogMock).toHaveBeenCalledWith({
+            message: 'Received SIGTERM, initiating graceful shutdown...',
+        })
+        expect(shutdownMock).toHaveBeenCalled()
+        expect(flushSentryMock).toHaveBeenCalledWith(3000)
+        expect(process.exit).toHaveBeenCalledWith(0)
+
+        process.on = originalOn
+    })
+
+    it('handles SIGINT signal with graceful shutdown', async () => {
+        let signalHandlers: Record<string, Function> = {}
+        const originalOn = process.on.bind(process)
+        process.on = jest.fn((signal: string, handler: Function) => {
+            signalHandlers[signal] = handler
+            return process as any
+        }) as any
+
+        await import('./index')
+
+        await signalHandlers['SIGINT']()
+
+        expect(infoLogMock).toHaveBeenCalledWith({
+            message: 'Received SIGINT, initiating graceful shutdown...',
+        })
+        expect(shutdownMock).toHaveBeenCalled()
+        expect(flushSentryMock).toHaveBeenCalledWith(3000)
+        expect(process.exit).toHaveBeenCalledWith(0)
+
+        process.on = originalOn
+    })
+
+    it('exits with error code if signal handler fails', async () => {
+        const shutdownError = new Error('shutdown failed')
+        shutdownMock.mockRejectedValue(shutdownError)
+        let signalHandlers: Record<string, Function> = {}
+        const originalOn = process.on.bind(process)
+        process.on = jest.fn((signal: string, handler: Function) => {
+            signalHandlers[signal] = handler
+            return process as any
+        }) as any
+
+        await import('./index')
+        await signalHandlers['SIGTERM']()
+
+        expect(errorLogMock).toHaveBeenCalledWith({
+            message: 'Error during SIGTERM shutdown:',
+            error: shutdownError,
+        })
+        expect(process.exit).toHaveBeenCalledWith(1)
+
+        process.on = originalOn
     })
 })

@@ -143,7 +143,12 @@ export class BotInitializer {
     async shutdown(): Promise<void> {
         if (this.client) {
             try {
+                infoLog({ message: 'Starting graceful bot shutdown...' })
+
+                this.client.removeAllListeners()
                 await this.client.destroy()
+                await redisClient.disconnect()
+
                 this.client = null
                 this.isInitialized = false
                 this.state = {
