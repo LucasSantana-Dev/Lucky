@@ -143,6 +143,7 @@ export class BotInitializer {
     async shutdown(): Promise<void> {
         if (this.client) {
             try {
+                this.client.removeAllListeners()
                 await this.client.destroy()
                 this.client = null
                 this.isInitialized = false

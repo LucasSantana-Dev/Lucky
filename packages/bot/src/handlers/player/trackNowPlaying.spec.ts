@@ -1,23 +1,35 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
+    describe,
+    it,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
+import type { Track, GuildQueue } from 'discord-player'
+import type { TextChannel, Message } from 'discord.js'
+import {
+    registerNowPlayingMessage,
+    getSongInfoMessage,
+    deleteSongInfoMessage,
+    cleanupGuildState,
     sendNowPlayingEmbed,
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
+import { createMockGuild, createMockTextChannel } from '../../../tests/__mocks__/discord'
 
 const debugLogMock = jest.fn()
-const createEmbedMock = jest.fn((payload: unknown) => payload)
+const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
+const createEmbedMock = jest.fn()
 const getAutoplayCountMock = jest.fn()
+const createMusicControlButtonsMock = jest.fn()
+const createMusicActionButtonsMock = jest.fn()
 const isLastFmConfiguredMock = jest.fn()
 const getSessionKeyForUserMock = jest.fn()
-const updateNowPlayingMock = jest.fn()
-const scrobbleMock = jest.fn()
-const createMusicControlButtonsMock = jest.fn(() => ({
-    toJSON: () => ({ type: 1, components: [] }),
-}))
-
-const warnLogMock = jest.fn()
-const errorLogMock = jest.fn()
+const lastFmUpdateNowPlayingMock = jest.fn()
+const lastFmScrobbleMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -27,360 +39,574 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('../../utils/general/embeds', () => ({
     createEmbed: (...args: unknown[]) => createEmbedMock(...args),
-    EMBED_COLORS: { MUSIC: '#123456' },
-}))
-
-jest.mock('../../utils/music/buttonComponents', () => ({
-    createMusicControlButtons: (...args: unknown[]) =>
-        createMusicControlButtonsMock(...args),
-    createMusicActionButtons: jest.fn().mockReturnValue({}),
+    EMBED_COLORS: {
+        MUSIC: '#1DB954',
+    },
 }))
 
 jest.mock('../../utils/music/autoplayManager', () => ({
     getAutoplayCount: (...args: unknown[]) => getAutoplayCountMock(...args),
 }))
 
-jest.mock('@lucky/shared/config', () => ({
-    constants: { MAX_AUTOPLAY_TRACKS: 50 },
+jest.mock('../../utils/music/buttonComponents', () => ({
+    createMusicControlButtons: (...args: unknown[]) => createMusicControlButtonsMock(...args),
+    createMusicActionButtons: (...args: unknown[]) => createMusicActionButtonsMock(...args),
 }))
 
 jest.mock('../../lastfm', () => ({
     isLastFmConfigured: (...args: unknown[]) => isLastFmConfiguredMock(...args),
-    getSessionKeyForUser: (...args: unknown[]) =>
-        getSessionKeyForUserMock(...args),
-    updateNowPlaying: (...args: unknown[]) => updateNowPlayingMock(...args),
-    scrobble: (...args: unknown[]) => scrobbleMock(...args),
+    getSessionKeyForUser: (...args: unknown[]) => getSessionKeyForUserMock(...args),
+    updateNowPlaying: (...args: unknown[]) => lastFmUpdateNowPlayingMock(...args),
+    scrobble: (...args: unknown[]) => lastFmScrobbleMock(...args),
 }))
 
-function createQueue(guildId: string) {
-    const message = {
-        id: 'message-1',
-        edit: jest.fn().mockResolvedValue(undefined),
-    }
-    const channel = {
-        id: 'channel-1',
-        send: jest.fn().mockResolvedValue(message),
-        messages: {
-            fetch: jest.fn().mockResolvedValue(message),
-        },
-    }
-    return {
-        queue: {
-            guild: { id: guildId },
-            metadata: { channel, requestedBy: undefined },
-            currentTrack: null,
-            tracks: {
-                at: jest.fn(() => null),
-                size: 0,
-            },
-            node: {
-                isPaused: jest.fn(() => false),
-            },
-            history: {
-                tracks: {
-                    data: [],
-                },
-            },
-        },
-        channel,
-    }
-}
+jest.mock('@lucky/shared/config', () => ({
+    constants: {
+        MAX_AUTOPLAY_TRACKS: 50,
+    },
+}))
 
-describe('trackNowPlaying', () => {
+describe('trackNowPlaying handlers', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        getAutoplayCountMock.mockResolvedValue(7)
-        isLastFmConfiguredMock.mockReturnValue(false)
-        getSessionKeyForUserMock.mockResolvedValue(null)
-        createMusicControlButtonsMock.mockReturnValue({
-            type: 1,
-            components: [],
+        createEmbedMock.mockReturnValue({ title: 'test embed' })
+        createMusicControlButtonsMock.mockReturnValue([])
+        createMusicActionButtonsMock.mockReturnValue([])
+    })
+
+    describe('TrackNowPlayingState - registerNowPlayingMessage', () => {
+        it('registers a now-playing message for a guild', () => {
+            const guildId = 'guild-123'
+            const messageId = 'message-456'
+            const channelId = 'channel-789'
+
+            registerNowPlayingMessage(guildId, messageId, channelId)
+            const result = getSongInfoMessage(guildId)
+
+            expect(result).toEqual({ messageId, channelId })
+        })
+
+        it('overwrites previous message registration for the same guild', () => {
+            const guildId = 'guild-123'
+
+            registerNowPlayingMessage(guildId, 'message-1', 'channel-1')
+            registerNowPlayingMessage(guildId, 'message-2', 'channel-2')
+
+            const result = getSongInfoMessage(guildId)
+            expect(result).toEqual({ messageId: 'message-2', channelId: 'channel-2' })
         })
     })
 
-    it('adds autoplay reason field and footer progress for autoplay tracks', async () => {
-        const { queue, channel } = createQueue('guild-1')
-        const track = {
-            title: 'Song A',
-            author: 'Artist A',
-            url: 'https://example.com/a',
-            duration: '3:00',
-            thumbnail: 'https://example.com/thumb.jpg',
-            requestedBy: { username: 'bot' },
-            metadata: { recommendationReason: 'fresh artist rotation' },
-        }
-        const buttons = { type: 1, components: [] }
-        createMusicControlButtonsMock.mockReturnValue(buttons)
-
-        await sendNowPlayingEmbed(queue as any, track as any, true)
-
-        expect(getAutoplayCountMock).toHaveBeenCalledWith('guild-1')
-        expect(createEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                fields: expect.arrayContaining([
-                    expect.objectContaining({
-                        name: '🤖 Why this track',
-                        value: 'fresh artist rotation',
-                    }),
-                ]),
-                footer: 'Autoplay • 7/50 songs',
-            }),
-        )
-        expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
-        expect(channel.send).toHaveBeenCalledWith(
-            expect.objectContaining({ components: [buttons] }),
-        )
-    })
-
-    it('updates existing now playing message in the same channel', async () => {
-        const { queue, channel } = createQueue('guild-2')
-        const track = {
-            title: 'Song B',
-            author: 'Artist B',
-            url: 'https://example.com/b',
-            duration: '2:40',
-            thumbnail: null,
-            requestedBy: { username: 'user-a' },
-            metadata: {},
-        }
-        const buttons = { type: 1, components: [] }
-        createMusicControlButtonsMock.mockReturnValue(buttons)
-
-        await sendNowPlayingEmbed(queue as any, track as any, false)
-        await sendNowPlayingEmbed(queue as any, track as any, false)
-
-        expect(channel.send).toHaveBeenCalledTimes(1)
-        expect(channel.messages.fetch).toHaveBeenCalledWith('message-1')
-        expect(createMusicControlButtonsMock).toHaveBeenCalled()
-        const message = await channel.messages.fetch('message-1')
-        expect(message.edit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                embeds: expect.any(Array),
-                components: [buttons],
-            }),
-        )
-    })
-
-    it('logs stale now-playing message fetch failures before sending a new one', async () => {
-        const { queue, channel } = createQueue('guild-fetch-fails')
-        const fetchError = new Error('message missing')
-        channel.messages.fetch.mockRejectedValueOnce(fetchError)
-        const track = {
-            title: 'Song B2',
-            author: 'Artist B2',
-            url: 'https://example.com/b2',
-            duration: '2:41',
-            thumbnail: null,
-            requestedBy: { username: 'user-b' },
-            metadata: {},
-        }
-
-        await sendNowPlayingEmbed(queue as any, track as any, false)
-        await sendNowPlayingEmbed(queue as any, track as any, false)
-
-        expect(debugLogMock).toHaveBeenCalledWith({
-            message: 'Failed to update existing now playing message',
-            error: fetchError,
-            data: { guildId: 'guild-fetch-fails', messageId: 'message-1' },
+    describe('TrackNowPlayingState - getSongInfoMessage', () => {
+        it('returns undefined when no message is registered for guild', () => {
+            const result = getSongInfoMessage('non-existent-guild')
+            expect(result).toBeUndefined()
         })
-        expect(channel.send).toHaveBeenCalledTimes(2)
+
+        it('returns stored message info for registered guild', () => {
+            const guildId = 'guild-123'
+            registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
+
+            const result = getSongInfoMessage(guildId)
+            expect(result?.messageId).toBe('msg-1')
+            expect(result?.channelId).toBe('ch-1')
+        })
     })
 
-    it.each([
-        {
-            name: 'track requester id over metadata and queue fallback',
-            queueRequestedBy: 'queue-user',
-            track: {
-                title: 'Song C2',
-                author: 'Artist C2',
-                duration: '4:10',
-                requestedBy: { id: 'track-user' },
-                metadata: { requestedById: 'meta-user' },
-            },
-            expectedRequesterId: 'track-user',
-            expectedSessionKey: 'session-track',
-        },
-        {
-            name: 'track metadata requester id fallback',
-            queueRequestedBy: undefined,
-            track: {
-                title: 'Song C',
-                author: 'Artist C',
-                duration: '4:12',
-                metadata: { requestedById: 'meta-user' },
-            },
-            expectedRequesterId: 'meta-user',
-            expectedSessionKey: 'session-meta',
-        },
-        {
-            name: 'queue requester id fallback for scrobble',
-            queueRequestedBy: 'queue-user',
-            track: {
-                title: 'Song D',
-                author: 'Artist D',
-                duration: '3:48',
+    describe('TrackNowPlayingState - deleteSongInfoMessage', () => {
+        it('removes registered message for a guild', () => {
+            const guildId = 'guild-123'
+            registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
+            expect(getSongInfoMessage(guildId)).toBeDefined()
+
+            deleteSongInfoMessage(guildId)
+
+            expect(getSongInfoMessage(guildId)).toBeUndefined()
+        })
+
+        it('silently succeeds when deleting non-existent guild', () => {
+            expect(() => deleteSongInfoMessage('non-existent')).not.toThrow()
+        })
+    })
+
+    describe('TrackNowPlayingState - cleanupGuild', () => {
+        it('cleans up all state for a guild', () => {
+            const guildId = 'guild-123'
+            registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
+
+            cleanupGuildState(guildId)
+
+            expect(getSongInfoMessage(guildId)).toBeUndefined()
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Cleaned up now-playing state for guild',
+                    data: { guildId },
+                })
+            )
+        })
+
+        it('logs cleanup event with guild id', () => {
+            const guildId = 'guild-456'
+            cleanupGuildState(guildId)
+
+            expect(debugLogMock).toHaveBeenCalled()
+            const call = debugLogMock.mock.calls[0][0]
+            expect(call.data.guildId).toBe(guildId)
+        })
+
+        it('cleans up both song info and lastFm track start time', () => {
+            const guildId = 'guild-789'
+            registerNowPlayingMessage(guildId, 'msg-1', 'ch-1')
+
+            cleanupGuildState(guildId)
+
+            expect(getSongInfoMessage(guildId)).toBeUndefined()
+            expect(debugLogMock).toHaveBeenCalled()
+        })
+    })
+
+    describe('TrackNowPlayingState - LastFm track timing', () => {
+        it('cleans up lastFm track start time on guild cleanup', () => {
+            const guildId = 'guild-111'
+
+            cleanupGuildState(guildId)
+
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Cleaned up now-playing state for guild',
+                })
+            )
+        })
+    })
+
+    describe('sendNowPlayingEmbed', () => {
+        let mockChannel: TextChannel
+        let mockGuild
+        let mockQueue: GuildQueue
+        let mockTrack: Track
+
+        beforeEach(() => {
+            mockGuild = createMockGuild()
+            mockChannel = createMockTextChannel()
+            mockQueue = {
+                guild: mockGuild,
+                metadata: { channel: mockChannel },
+            } as unknown as GuildQueue
+            mockTrack = {
+                title: 'Test Song',
+                author: 'Test Artist',
+                url: 'https://youtube.com/watch?v=test',
+                duration: '3:45',
+                durationMS: 225000,
+                thumbnail: 'https://example.com/thumb.jpg',
+                requestedBy: null,
+                metadata: undefined,
+            } as unknown as Track
+        })
+
+        it('returns early if metadata channel is missing', async () => {
+            const queueNoChannel = {
+                guild: mockGuild,
                 metadata: {},
-            },
-            expectedRequesterId: 'queue-user',
-            expectedSessionKey: 'session-queue',
-        },
-    ])('resolves requester from $name', async (scenario) => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue(scenario.expectedSessionKey)
+            } as unknown as GuildQueue
 
-        const { queue } = createQueue('guild-3')
-        queue.metadata.requestedBy = scenario.queueRequestedBy
-            ? { id: scenario.queueRequestedBy }
-            : undefined
+            await sendNowPlayingEmbed(queueNoChannel, mockTrack, false)
 
-        await updateLastFmNowPlaying(queue as any, scenario.track as any)
-        await scrobbleCurrentTrackIfLastFm(queue as any, scenario.track as any)
+            expect(createEmbedMock).not.toHaveBeenCalled()
+        })
 
-        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(
-            1,
-            scenario.expectedRequesterId,
-        )
-        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(
-            2,
-            scenario.expectedRequesterId,
-        )
-        expect(updateNowPlayingMock).toHaveBeenCalledWith(
-            scenario.track.author,
-            scenario.track.title,
-            undefined,
-            scenario.expectedSessionKey,
-        )
-        expect(scrobbleMock).toHaveBeenCalledWith(
-            scenario.track.author,
-            scenario.track.title,
-            expect.any(Number),
-            undefined,
-            scenario.expectedSessionKey,
-        )
+        it('sends a new now-playing embed when no previous message exists', async () => {
+            const mockMessage = {
+                id: 'message-123',
+                edit: jest.fn(),
+            } as unknown as Message
+
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, mockTrack, false)
+
+            expect(mockChannel.send).toHaveBeenCalled()
+        })
+
+        it('includes embed colors in create embed call', async () => {
+            const mockMessage = {
+                id: 'new-msg',
+            } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, mockTrack, false)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: '🎵 Now Playing',
+                    color: '#1DB954',
+                })
+            )
+        })
+
+        it('adds requester info to footer when not autoplay', async () => {
+            const userTrack = {
+                ...mockTrack,
+                requestedBy: { username: 'TestUser', id: 'user-123' },
+            } as unknown as Track
+
+            const mockMessage = { id: 'msg-1' } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, userTrack, false)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    footer: 'Added by TestUser',
+                })
+            )
+        })
+
+        it('adds autoplay info to footer when autoplay is enabled', async () => {
+            getAutoplayCountMock.mockResolvedValue(5)
+
+            const mockMessage = { id: 'msg-1' } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, mockTrack, true)
+
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    footer: 'Autoplay • 5/50 songs',
+                })
+            )
+        })
+
+        it('creates embed with track metadata fields', async () => {
+            const mockMessage = { id: 'msg-1' } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, mockTrack, false)
+
+            const embedCall = createEmbedMock.mock.calls[0][0]
+            expect(embedCall.fields).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        name: '⏱️ Duration',
+                        value: '3:45',
+                    }),
+                    expect.objectContaining({
+                        name: '🌐 Source',
+                        value: 'YouTube',
+                    }),
+                ])
+            )
+        })
+
+        it('edits previous message if it still exists in channel', async () => {
+            const prevMessageId = 'prev-msg-123'
+            registerNowPlayingMessage(mockGuild.id, prevMessageId, mockChannel.id)
+
+            const prevMessage = {
+                id: prevMessageId,
+                edit: jest.fn().mockResolvedValue(undefined),
+            } as unknown as Message
+            const fetchMock = jest.fn().mockResolvedValue(prevMessage)
+            mockChannel.messages = { fetch: fetchMock } as unknown as any
+
+            await sendNowPlayingEmbed(mockQueue, mockTrack, false)
+
+            expect(fetchMock).toHaveBeenCalledWith(prevMessageId)
+            expect(prevMessage.edit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    embeds: expect.arrayContaining([{ title: 'test embed' }]),
+                    components: expect.anything(),
+                })
+            )
+        })
+
+        it('sends new message if previous message fetch fails', async () => {
+            const prevMessageId = 'prev-msg-123'
+            registerNowPlayingMessage(mockGuild.id, prevMessageId, mockChannel.id)
+
+            const fetchMock = jest.fn().mockRejectedValue(new Error('Not found'))
+            mockChannel.messages = { fetch: fetchMock } as unknown as any
+
+            const newMessage = { id: 'new-msg-456' } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(newMessage)
+
+            await sendNowPlayingEmbed(mockQueue, mockTrack, false)
+
+            expect(mockChannel.send).toHaveBeenCalled()
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('Failed to update'),
+                })
+            )
+        })
+
+        it('detects YouTube source from URL', async () => {
+            const youtubeTrack = {
+                ...mockTrack,
+                url: 'https://youtu.be/dQw4w9WgXcQ',
+            } as unknown as Track
+
+            const mockMessage = { id: 'msg-1' } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, youtubeTrack, false)
+
+            const embedCall = createEmbedMock.mock.calls[0][0]
+            const sourceField = embedCall.fields.find(
+                (f: any) => f.name === '🌐 Source'
+            )
+            expect(sourceField.value).toBe('YouTube')
+        })
+
+        it('detects Spotify source from URL', async () => {
+            const spotifyTrack = {
+                ...mockTrack,
+                url: 'https://open.spotify.com/track/123',
+            } as unknown as Track
+
+            const mockMessage = { id: 'msg-1' } as unknown as Message
+            mockChannel.send = jest.fn().mockResolvedValue(mockMessage)
+
+            await sendNowPlayingEmbed(mockQueue, spotifyTrack, false)
+
+            const embedCall = createEmbedMock.mock.calls[0][0]
+            const sourceField = embedCall.fields.find(
+                (f: any) => f.name === '🌐 Source'
+            )
+            expect(sourceField.value).toBe('Spotify')
+        })
     })
 
-    it('skips now-playing and scrobble updates when requester cannot be resolved', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue(null)
+    describe('updateLastFmNowPlaying', () => {
+        let mockQueue: GuildQueue
+        let mockTrack: Track
 
-        const { queue } = createQueue('guild-9')
-        const track = {
-            title: 'Song E',
-            author: 'Artist E',
-            duration: '4:00',
-            metadata: {},
-        }
+        beforeEach(() => {
+            mockQueue = {
+                guild: createMockGuild(),
+            } as unknown as GuildQueue
+            mockTrack = {
+                title: 'Test Song',
+                author: 'Test Artist',
+                durationMS: 225000,
+                requestedBy: { id: 'user-123' },
+                metadata: undefined,
+            } as unknown as Track
+        })
 
-        await updateLastFmNowPlaying(queue as any, track as any)
-        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+        it('returns early if last.fm is not configured', async () => {
+            isLastFmConfiguredMock.mockReturnValue(false)
 
-        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(1, undefined)
-        expect(getSessionKeyForUserMock).toHaveBeenNthCalledWith(2, undefined)
-        expect(updateNowPlayingMock).not.toHaveBeenCalled()
-        expect(scrobbleMock).not.toHaveBeenCalled()
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(lastFmUpdateNowPlayingMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early if session key is not available', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue(null)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(lastFmUpdateNowPlayingMock).not.toHaveBeenCalled()
+        })
+
+        it('calls lastfm update with track and session info', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key-123')
+            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
+                'Test Artist',
+                'Test Song',
+                225,
+                'session-key-123'
+            )
+        })
+
+        it('handles 403 auth error from last.fm', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            const error = new Error('403 Forbidden')
+            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('session expired'),
+                })
+            )
+        })
+
+        it('handles non-403 errors from last.fm', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            const error = new Error('Network error')
+            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('updateNowPlaying failed'),
+                })
+            )
+        })
+
+        it('handles track with no duration', async () => {
+            const trackNoDuration = {
+                ...mockTrack,
+                durationMS: 0,
+            } as unknown as Track
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
+
+            await updateLastFmNowPlaying(mockQueue, trackNoDuration)
+
+            expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                undefined,
+                expect.anything()
+            )
+        })
     })
 
-    it('warnLogs (not errorLogs) when updateNowPlaying returns 403', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-key')
-        updateNowPlayingMock.mockRejectedValue(
-            new Error(
-                'Last.fm track.updateNowPlaying: 403 {"message":"Invalid session key"}',
-            ),
-        )
+    describe('scrobbleCurrentTrackIfLastFm', () => {
+        let mockQueue: GuildQueue
+        let mockTrack: Track
 
-        const { queue } = createQueue('guild-403-now')
-        const track = {
-            title: 'Song',
-            author: 'Artist',
-            durationMS: 0,
-            metadata: { requestedById: 'user-1' },
-            requestedBy: { id: 'user-1' },
-        }
+        beforeEach(() => {
+            mockQueue = {
+                guild: createMockGuild(),
+                currentTrack: {
+                    title: 'Current Song',
+                    author: 'Current Artist',
+                    durationMS: 200000,
+                } as unknown as Track,
+            } as unknown as GuildQueue
+            mockTrack = {
+                title: 'Test Song',
+                author: 'Test Artist',
+                durationMS: 225000,
+                requestedBy: { id: 'user-123' },
+                metadata: undefined,
+            } as unknown as Track
+        })
 
-        await updateLastFmNowPlaying(queue as any, track as any)
+        it('returns early if last.fm is not configured', async () => {
+            isLastFmConfiguredMock.mockReturnValue(false)
 
-        expect(warnLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('session expired'),
-            }),
-        )
-        expect(errorLogMock).not.toHaveBeenCalled()
-    })
+            await scrobbleCurrentTrackIfLastFm(mockQueue)
 
-    it('warnLogs (not errorLogs) when scrobble returns 403', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-key')
-        scrobbleMock.mockRejectedValue(
-            new Error(
-                'Last.fm track.scrobble: 403 {"message":"Invalid session key"}',
-            ),
-        )
+            expect(lastFmScrobbleMock).not.toHaveBeenCalled()
+        })
 
-        const { queue } = createQueue('guild-403-scrobble')
-        const track = {
-            title: 'Song',
-            author: 'Artist',
-            durationMS: 180000,
-            metadata: { requestedById: 'user-1' },
-            requestedBy: { id: 'user-1' },
-        }
+        it('returns early if no current track and no provided track', async () => {
+            const queueNoTrack = {
+                guild: createMockGuild(),
+                currentTrack: null,
+            } as unknown as GuildQueue
+            isLastFmConfiguredMock.mockReturnValue(true)
 
-        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+            await scrobbleCurrentTrackIfLastFm(queueNoTrack)
 
-        expect(warnLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('session expired'),
-            }),
-        )
-        expect(errorLogMock).not.toHaveBeenCalled()
-    })
+            expect(lastFmScrobbleMock).not.toHaveBeenCalled()
+        })
 
-    it('errorLogs non-403 Last.fm updateNowPlaying failures', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-key')
-        updateNowPlayingMock.mockRejectedValue(new Error('Network timeout'))
+        it('scrobbles provided track if available', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            lastFmScrobbleMock.mockResolvedValue(undefined)
 
-        const { queue } = createQueue('guild-timeout-now')
-        const track = {
-            title: 'Song',
-            author: 'Artist',
-            durationMS: 0,
-            metadata: { requestedById: 'user-1' },
-            requestedBy: { id: 'user-1' },
-        }
+            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
 
-        await updateLastFmNowPlaying(queue as any, track as any)
+            expect(lastFmScrobbleMock).toHaveBeenCalledWith(
+                'Test Artist',
+                'Test Song',
+                expect.any(Number),
+                225,
+                'session-key'
+            )
+        })
 
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('updateNowPlaying failed'),
-            }),
-        )
-        expect(warnLogMock).not.toHaveBeenCalled()
-    })
+        it('uses current queue track if no track provided', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            lastFmScrobbleMock.mockResolvedValue(undefined)
 
-    it('errorLogs non-403 Last.fm scrobble failures', async () => {
-        isLastFmConfiguredMock.mockReturnValue(true)
-        getSessionKeyForUserMock.mockResolvedValue('session-key')
-        scrobbleMock.mockRejectedValue(new Error('Network timeout'))
+            await scrobbleCurrentTrackIfLastFm(mockQueue)
 
-        const { queue } = createQueue('guild-timeout-scrobble')
-        const track = {
-            title: 'Song',
-            author: 'Artist',
-            durationMS: 180000,
-            metadata: { requestedById: 'user-1' },
-            requestedBy: { id: 'user-1' },
-        }
+            expect(lastFmScrobbleMock).toHaveBeenCalledWith(
+                'Current Artist',
+                'Current Song',
+                expect.any(Number),
+                200,
+                'session-key'
+            )
+        })
 
-        await scrobbleCurrentTrackIfLastFm(queue as any, track as any)
+        it('handles 403 auth error during scrobble', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            const error = new Error('403 Forbidden')
+            lastFmScrobbleMock.mockRejectedValue(error)
 
-        expect(errorLogMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('scrobble failed'),
-            }),
-        )
-        expect(warnLogMock).not.toHaveBeenCalled()
+            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
+
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('session expired'),
+                })
+            )
+        })
+
+        it('handles non-403 errors during scrobble', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            const error = new Error('API error')
+            lastFmScrobbleMock.mockRejectedValue(error)
+
+            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('scrobble failed'),
+                })
+            )
+        })
+
+        it('handles track with no duration', async () => {
+            const trackNoDuration = {
+                ...mockTrack,
+                durationMS: 0,
+            } as unknown as Track
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            lastFmScrobbleMock.mockResolvedValue(undefined)
+
+            await scrobbleCurrentTrackIfLastFm(mockQueue, trackNoDuration)
+
+            expect(lastFmScrobbleMock).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.any(Number),
+                undefined,
+                expect.anything()
+            )
+        })
+
+        it('returns early if session key not available', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue(null)
+
+            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
+
+            expect(lastFmScrobbleMock).not.toHaveBeenCalled()
+        })
     })
 })

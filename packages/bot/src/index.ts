@@ -1,9 +1,36 @@
 import { ensureEnvironment } from '@lucky/shared/config'
 import { setupErrorHandlers } from '@lucky/shared/utils'
 import { flushSentry, initializeSentry } from '@lucky/shared/utils'
-import { initializeBot } from './bot/start'
+import { initializeBot, shutdown as shutdownBot } from './bot/start'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { dependencyCheckService } from './services/DependencyCheckService'
+
+let isShuttingDown = false
+
+async function gracefulShutdown(signal: string): Promise<void> {
+    if (isShuttingDown) {
+        debugLog({ message: `${signal} already in progress, ignoring` })
+        return
+    }
+
+    isShuttingDown = true
+    debugLog({ message: `Received ${signal}, initiating graceful shutdown...` })
+
+    try {
+        await shutdownBot()
+        debugLog({ message: 'Bot shutdown completed' })
+    } catch (error) {
+        errorLog({ message: `Error during ${signal} shutdown:`, error })
+    }
+
+    try {
+        await flushSentry(3000)
+    } catch (error) {
+        errorLog({ message: 'Error flushing Sentry:', error })
+    }
+
+    process.exit(0)
+}
 
 async function main(): Promise<void> {
     await ensureEnvironment()
@@ -27,6 +54,10 @@ async function main(): Promise<void> {
     debugLog({
         message: `Starting bot in environment: ${process.env.NODE_ENV ?? 'default'}`,
     })
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+
     await initializeBot()
 }
 

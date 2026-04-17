@@ -17,13 +17,65 @@ import {
     scrobble as lastFmScrobble,
 } from '../../lastfm'
 
-const songInfoMessages = new LRUCache<
-    string,
-    { messageId: string; channelId: string }
->({
-    max: 5000,
-    ttl: 30 * 60 * 1000, // 30 minutes
-})
+/**
+ * Manages per-guild now-playing state with automatic TTL + explicit cleanup
+ * on guild lifecycle events (guildDelete, channelDelete).
+ */
+class TrackNowPlayingState {
+    private songInfoMessages = new LRUCache<
+        string,
+        { messageId: string; channelId: string }
+    >({
+        max: 5000,
+        ttl: 30 * 60 * 1000,
+    })
+
+    private lastFmTrackStartTime = new LRUCache<string, number>({
+        max: 5000,
+        ttl: 30 * 60 * 1000,
+    })
+
+    registerNowPlayingMessage(
+        guildId: string,
+        messageId: string,
+        channelId: string,
+    ): void {
+        this.songInfoMessages.set(guildId, { messageId, channelId })
+    }
+
+    getSongInfoMessage(
+        guildId: string,
+    ): { messageId: string; channelId: string } | undefined {
+        return this.songInfoMessages.get(guildId)
+    }
+
+    deleteSongInfoMessage(guildId: string): void {
+        this.songInfoMessages.delete(guildId)
+    }
+
+    getLastFmTrackStartTime(guildId: string): number | undefined {
+        return this.lastFmTrackStartTime.get(guildId)
+    }
+
+    setLastFmTrackStartTime(guildId: string, timestamp: number): void {
+        this.lastFmTrackStartTime.set(guildId, timestamp)
+    }
+
+    deleteLastFmTrackStartTime(guildId: string): void {
+        this.lastFmTrackStartTime.delete(guildId)
+    }
+
+    cleanupGuild(guildId: string): void {
+        this.songInfoMessages.delete(guildId)
+        this.lastFmTrackStartTime.delete(guildId)
+        debugLog({
+            message: 'Cleaned up now-playing state for guild',
+            data: { guildId },
+        })
+    }
+}
+
+const trackNowPlayingState = new TrackNowPlayingState()
 
 /**
  * Register an existing message as the "now playing" display for a guild.
@@ -36,12 +88,22 @@ export function registerNowPlayingMessage(
     messageId: string,
     channelId: string,
 ): void {
-    songInfoMessages.set(guildId, { messageId, channelId })
+    trackNowPlayingState.registerNowPlayingMessage(guildId, messageId, channelId)
 }
-const lastFmTrackStartTime = new LRUCache<string, number>({
-    max: 5000,
-    ttl: 30 * 60 * 1000, // 30 minutes
-})
+
+export function getSongInfoMessage(
+    guildId: string,
+): { messageId: string; channelId: string } | undefined {
+    return trackNowPlayingState.getSongInfoMessage(guildId)
+}
+
+export function deleteSongInfoMessage(guildId: string): void {
+    trackNowPlayingState.deleteSongInfoMessage(guildId)
+}
+
+export function cleanupGuildState(guildId: string): void {
+    trackNowPlayingState.cleanupGuild(guildId)
+}
 
 function getLastFmRequesterId(
     queue: GuildQueue,
@@ -120,7 +182,7 @@ export async function sendNowPlayingEmbed(
         footer,
     })
 
-    const previousMessage = songInfoMessages.get(queue.guild.id)
+    const previousMessage = getSongInfoMessage(queue.guild.id)
     if (previousMessage && previousMessage.channelId === metadata.channel.id) {
         try {
             const message = await metadata.channel.messages.fetch(
@@ -152,7 +214,7 @@ export async function sendNowPlayingEmbed(
                     messageId: previousMessage.messageId,
                 },
             })
-            songInfoMessages.delete(queue.guild.id)
+            deleteSongInfoMessage(queue.guild.id)
         }
     }
 
@@ -164,10 +226,7 @@ export async function sendNowPlayingEmbed(
         ],
     })
 
-    songInfoMessages.set(queue.guild.id, {
-        messageId: message.id,
-        channelId: metadata.channel.id,
-    })
+    registerNowPlayingMessage(queue.guild.id, message.id, metadata.channel.id)
 
     debugLog({
         message: 'Sent now playing message to channel',
@@ -192,7 +251,10 @@ export async function updateLastFmNowPlaying(
             durationSec,
             sessionKey,
         )
-        lastFmTrackStartTime.set(queue.guild.id, Math.floor(Date.now() / 1000))
+        trackNowPlayingState.setLastFmTrackStartTime(
+            queue.guild.id,
+            Math.floor(Date.now() / 1000),
+        )
     } catch (err) {
         const is403 = err instanceof Error && err.message.includes('403')
         if (is403) {
@@ -216,8 +278,10 @@ export async function scrobbleCurrentTrackIfLastFm(
     const requesterId = getLastFmRequesterId(queue, trackToScrobble)
     const sessionKey = await getSessionKeyForUser(requesterId)
     if (!sessionKey) return
-    const startedAt = lastFmTrackStartTime.get(queue.guild.id)
-    lastFmTrackStartTime.delete(queue.guild.id)
+    const startedAt = trackNowPlayingState.getLastFmTrackStartTime(
+        queue.guild.id,
+    )
+    trackNowPlayingState.deleteLastFmTrackStartTime(queue.guild.id)
     const timestamp = startedAt ?? Math.floor(Date.now() / 1000)
     const durationSec =
         trackToScrobble.durationMS > 0
