@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 
 @import 'tailwindcss';
 
@@ -54,18 +54,23 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  /* Discord blurple accent palette */
+  /* Neon Lucky brand palette (neon pink/orange) */
+  --color-lucky-neon-pink: #ec4899;
+  --color-lucky-neon-orange: #fb923c;
+  --color-lucky-neon-purple: #8b5cf6;
+
+  /* Discord blurple accent palette (legacy) */
   --color-lucky-blurple-700: #4752c4;
   --color-lucky-blurple-600: #5865f2;
   --color-lucky-blurple-500: #6d7af4;
   --color-lucky-blurple-400: #8891f6;
   --color-lucky-blurple-200: #c0c5fb;
 
-  /* Semantic brand tokens (for bg-lucky-brand, text-lucky-brand, etc.) */
-  --color-lucky-brand: #5865f2;
-  --color-lucky-brand-strong: #4752c4;
-  --color-lucky-accent: #5865f2;
-  --color-lucky-accent-soft: #6d7af4;
+  /* Semantic brand tokens (now using neon pink) */
+  --color-lucky-brand: #ec4899;
+  --color-lucky-brand-strong: #db2777;
+  --color-lucky-accent: #fb923c;
+  --color-lucky-accent-soft: #fdba74;
 
   /* Status colors */
   --color-lucky-success: #23a55a;
@@ -118,8 +123,8 @@
   --color-lucky-blue: #5865f2;
   --color-lucky-purple: #5865f2;
 
-  --font-lucky-display: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --font-lucky-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-lucky-display: 'Sora', 'Segoe UI', system-ui, sans-serif;
+  --font-lucky-body: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   --font-lucky-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
     'Liberation Mono', 'Courier New', monospace;
   --font-sans: var(--font-lucky-body);
@@ -372,8 +377,8 @@
     --lucky-warning: var(--color-lucky-warning);
     --lucky-info: var(--color-lucky-info);
 
-    --lucky-gradient-brand: linear-gradient(135deg, #5865f2 0%, #4752c4 100%);
-    --lucky-gradient-brand-soft: linear-gradient(135deg, rgb(88 101 242 / 0.15) 0%, rgb(71 82 196 / 0.05) 100%);
+    --lucky-gradient-brand: linear-gradient(135deg, #ec4899 0%, #fb923c 100%);
+    --lucky-gradient-brand-soft: linear-gradient(135deg, rgb(236 72 153 / 0.15) 0%, rgb(251 146 60 / 0.05) 100%);
 
     --lucky-red: var(--lucky-brand);
     --lucky-bg-primary: var(--lucky-surface-canvas);
