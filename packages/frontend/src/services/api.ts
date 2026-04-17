@@ -112,6 +112,16 @@ apiClient.interceptors.response.use(
 )
 
 export const api = {
+    stats: {
+        getPublic: () =>
+            apiClient.get<{
+                totalGuilds: number
+                totalUsers: number
+                uptimeSeconds: number
+                serversOnline: number
+            }>('/stats/public'),
+    },
+
     auth: {
         checkStatus: () =>
             apiClient.get<{ authenticated: boolean; user?: User }>(
