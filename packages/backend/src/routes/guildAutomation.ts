@@ -31,7 +31,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            const manifest = await guildAutomationService.getManifest(guildId)
+            const manifest = (await guildAutomationService.getManifest(guildId)) as unknown
 
             if (!manifest) {
                 res.status(404).json({ error: 'Automation manifest not found' })
@@ -52,16 +52,16 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const manifest = validateGuildAutomationManifest(req.body)
-            const saved = await guildAutomationService.saveManifest(
+            const saved = (await guildAutomationService.saveManifest(
                 guildId,
                 manifest,
                 { createdBy: userId },
-            )
+            )) as unknown
 
             res.json({
-                guildId: saved.guildId,
-                version: saved.version,
-                updatedAt: saved.updatedAt,
+                guildId: ((saved as Record<string, unknown>).guildId as string),
+                version: ((saved as Record<string, unknown>).version as number),
+                updatedAt: ((saved as Record<string, unknown>).updatedAt as string),
             })
         }),
     )
@@ -76,11 +76,11 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const captured = validateGuildAutomationManifest(req.body)
-            const result = await guildAutomationService.recordCapture(
+            const result = (await guildAutomationService.recordCapture(
                 guildId,
                 captured,
                 userId,
-            )
+            )) as unknown
 
             res.status(201).json(result)
         }),
@@ -99,11 +99,11 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
                 : undefined
-            const plan = await guildAutomationService.createPlan(guildId, {
+            const plan = (await guildAutomationService.createPlan(guildId, {
                 actualState,
                 initiatedBy: userId,
                 runType: 'plan',
-            })
+            })) as unknown
 
             res.json(plan)
         }),
@@ -122,7 +122,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
                 : undefined
-            const result = await guildAutomationService.createApplyRun(
+            const result = (await guildAutomationService.createApplyRun(
                 guildId,
                 {
                     actualState,
@@ -130,7 +130,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
                     allowProtected: body.allowProtected === true,
                     runType: 'apply',
                 },
-            )
+            )) as unknown
 
             res.json(result)
         }),
@@ -149,7 +149,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const actualState = body.actualState
                 ? validateGuildAutomationManifest(body.actualState)
                 : undefined
-            const result = await guildAutomationService.createApplyRun(
+            const result = (await guildAutomationService.createApplyRun(
                 guildId,
                 {
                     actualState,
@@ -157,7 +157,7 @@ export function setupGuildAutomationRoutes(app: Express): void {
                     allowProtected: body.allowProtected === true,
                     runType: 'reconcile',
                 },
-            )
+            )) as unknown
 
             res.json(result)
         }),
@@ -170,9 +170,9 @@ export function setupGuildAutomationRoutes(app: Express): void {
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const [status, runs] = await Promise.all([
-                guildAutomationService.getStatus(guildId),
-                guildAutomationService.listRuns(guildId),
-            ])
+                guildAutomationService.getStatus(guildId) as unknown,
+                guildAutomationService.listRuns(guildId) as unknown,
+            ]) as [unknown, unknown]
 
             res.json({ status, runs })
         }),
@@ -188,10 +188,10 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const body = s.guildAutomationRunBody.parse(req.body)
-            const result = await guildAutomationService.runCutover(guildId, {
+            const result = (await guildAutomationService.runCutover(guildId, {
                 initiatedBy: userId,
                 completeChecklist: body.completeChecklist === true,
-            })
+            })) as unknown
 
             res.json(result)
         }),
@@ -207,23 +207,23 @@ export function setupGuildAutomationRoutes(app: Express): void {
             const userId = requireUserId(req)
 
             const preset = buildCriativariaPreset(guildId)
-            const saved = await guildAutomationService.saveManifest(
+            const saved = (await guildAutomationService.saveManifest(
                 guildId,
                 preset,
                 { createdBy: userId },
-            )
+            )) as unknown
 
-            const run = await guildAutomationService.createApplyRun(guildId, {
+            const run = (await guildAutomationService.createApplyRun(guildId, {
                 actualState: preset,
                 initiatedBy: userId,
                 allowProtected: false,
                 runType: 'reconcile',
-            })
+            })) as unknown
 
             res.json({
                 success: true,
                 preset: 'criativaria',
-                manifestVersion: saved.version,
+                manifestVersion: ((saved as Record<string, unknown>).version as number),
                 run,
             })
         }),

@@ -37,6 +37,15 @@ const saveArtistBatchBody = z.object({
     ),
 })
 
+
+function getStringParam(param: unknown): string {
+    return typeof param === 'string' ? param : ''
+}
+
+function getStringQuery(q: unknown): string {
+    return typeof q === 'string' ? q : ''
+}
+
 function normalizeArtistKey(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
@@ -167,7 +176,7 @@ export function setupArtistsRoutes(app: Express): void {
         async (req: AuthenticatedRequest, res: Response) => {
             try {
                 const query =
-                    typeof req.query.q === 'string' ? req.query.q.trim() : ''
+                    getStringQuery(req.query.q).trim()
                 if (!query) {
                     res.status(400).json({ error: 'Missing query parameter q' })
                     return
@@ -198,7 +207,7 @@ export function setupArtistsRoutes(app: Express): void {
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
-                const artistId = req.params.artistId as string
+                const artistId = getStringParam(req.params.artistId)
                 if (!isSpotifyAuthConfigured()) {
                     res.status(503).json({ error: 'Spotify not configured' })
                     return
@@ -231,11 +240,11 @@ export function setupArtistsRoutes(app: Express): void {
                     return
                 }
                 const guildId =
-                    typeof req.query.guildId === 'string'
-                        ? req.query.guildId
-                        : undefined
-                const db = getPrismaClient()
-                const prefs = await db.userArtistPreference.findMany({
+                    getStringQuery(req.query.guildId) || undefined
+                const db = getPrismaClient() as unknown
+                const prefs = await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                    findMany: (opts: unknown) => Promise<unknown>
+                }).findMany({
                     where: { discordUserId, ...(guildId ? { guildId } : {}) },
                     orderBy: { createdAt: 'desc' },
                 })
@@ -268,8 +277,10 @@ export function setupArtistsRoutes(app: Express): void {
                 const artistKey = normalizeArtistKey(
                     parsed.data.artistKey || artistName,
                 )
-                const db = getPrismaClient()
-                const pref = await db.userArtistPreference.upsert({
+                const db = getPrismaClient() as unknown
+                const pref = await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                    upsert: (opts: unknown) => Promise<unknown>
+                }).upsert({
                     where: {
                         discordUserId_guildId_artistKey: {
                             discordUserId,
@@ -313,13 +324,15 @@ export function setupArtistsRoutes(app: Express): void {
                     return
                 }
                 const { guildId, items } = parsed.data
-                const db = getPrismaClient()
+                const db = getPrismaClient() as unknown
                 const results: typeof items = []
                 for (const item of items) {
                     const artistKey = normalizeArtistKey(
                         item.artistKey || item.artistName,
                     )
-                    const pref = await db.userArtistPreference.upsert({
+                    const pref = await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                        upsert: (opts: unknown) => Promise<unknown>
+                    }).upsert({
                         where: {
                             discordUserId_guildId_artistKey: {
                                 discordUserId,
@@ -342,8 +355,8 @@ export function setupArtistsRoutes(app: Express): void {
                             imageUrl: item.imageUrl,
                             preference: item.preference,
                         },
-                    })
-                    results.push(pref as unknown as typeof items[0])
+                    }) as unknown
+                    results.push(pref as typeof items[0])
                 }
                 res.json({ preferences: results })
             } catch (error) {
@@ -364,19 +377,19 @@ export function setupArtistsRoutes(app: Express): void {
                     res.status(401).json({ error: 'Not authenticated' })
                     return
                 }
-                const artistKey = req.params.artistKey as string
+                const artistKey = getStringParam(req.params.artistKey)
                 const guildId =
-                    typeof req.query.guildId === 'string'
-                        ? req.query.guildId
-                        : undefined
+                    getStringQuery(req.query.guildId) || undefined
                 if (!guildId) {
                     res.status(400).json({
                         error: 'Missing guildId query param',
                     })
                     return
                 }
-                const db = getPrismaClient()
-                await db.userArtistPreference.delete({
+                const db = getPrismaClient() as unknown
+                await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                    delete: (opts: unknown) => Promise<unknown>
+                }).delete({
                     where: {
                         discordUserId_guildId_artistKey: {
                             discordUserId,

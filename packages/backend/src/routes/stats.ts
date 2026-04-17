@@ -19,13 +19,17 @@ export function setupStatsRoutes(app: Express): void {
         '/api/stats/public',
         apiLimiter,
         asyncHandler(async (_req: Request, res: Response) => {
-            const prisma = getPrismaClient()
+            const prisma = getPrismaClient() as unknown
 
             // Fetch guild count from database
-            const totalGuilds = await prisma.guild.count()
+            const totalGuilds = await ((prisma as Record<string, unknown>).guild as unknown as {
+                count: () => Promise<number>
+            }).count()
 
             // Fetch user count from database
-            const totalUsers = await prisma.user.count()
+            const totalUsers = await ((prisma as Record<string, unknown>).user as unknown as {
+                count: () => Promise<number>
+            }).count()
 
             // Get backend uptime in seconds
             const uptimeSeconds = process.uptime()
