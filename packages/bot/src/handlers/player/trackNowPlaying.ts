@@ -26,13 +26,13 @@ class TrackNowPlayingState {
         string,
         { messageId: string; channelId: string }
     >({
-        max: 500,
-        ttl: 4 * 60 * 60 * 1000,
+        max: 5000,
+        ttl: 30 * 60 * 1000,
     })
 
     private lastFmTrackStartTime = new LRUCache<string, number>({
-        max: 500,
-        ttl: 4 * 60 * 60 * 1000,
+        max: 5000,
+        ttl: 30 * 60 * 1000,
     })
 
     registerNowPlayingMessage(
