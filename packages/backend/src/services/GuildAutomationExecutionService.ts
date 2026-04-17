@@ -892,12 +892,13 @@ class GuildAutomationExecutionService {
 
         const manifestRecord = (manifest as unknown) as Record<string, unknown> | null
         const manifestManifest = (manifestRecord?.manifest as Record<string, unknown> | undefined) ?? {}
-        const parity = ((manifestManifest?.parity as unknown) as typeof parity | undefined) ?? {
+        const defaultParity = {
             shadowMode: true,
             externalBots: [],
             checklist: defaultParityChecklist(),
             cutoverReady: false,
-        }
+        } as unknown
+        const parity = ((manifestManifest?.parity as unknown) ?? defaultParity) as unknown
 
         return {
             version: (manifestManifest?.version as number | undefined) ?? 1,

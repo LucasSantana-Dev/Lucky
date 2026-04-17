@@ -236,11 +236,13 @@ export function setupArtistsRoutes(app: Express): void {
                 }
                 const guildId =
                     getStringQuery(req.query.guildId) || undefined
-                const db = getPrismaClient()
-                const prefs = await db.userArtistPreference.findMany({
+                const db = getPrismaClient() as unknown
+                const prefs = await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                    findMany: (opts: unknown) => Promise<unknown>
+                }).findMany({
                     where: { discordUserId, ...(guildId ? { guildId } : {}) },
                     orderBy: { createdAt: 'desc' },
-                }) as unknown
+                })
                 res.json({ preferences: prefs })
             } catch (error) {
                 errorLog({ message: 'Get preferred artists error', error })
@@ -269,8 +271,10 @@ export function setupArtistsRoutes(app: Express): void {
                 const artistKey = normalizeArtistKey(
                     parsed.data.artistKey || artistName,
                 )
-                const db = getPrismaClient()
-                const pref = await db.userArtistPreference.upsert({
+                const db = getPrismaClient() as unknown
+                const pref = await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                    upsert: (opts: unknown) => Promise<unknown>
+                }).upsert({
                     where: {
                         discordUserId_guildId_artistKey: {
                             discordUserId,
@@ -288,7 +292,7 @@ export function setupArtistsRoutes(app: Express): void {
                         imageUrl,
                         preference,
                     },
-                }) as unknown
+                })
                 res.json({ preference: pref })
             } catch (error) {
                 errorLog({ message: 'Save preferred artist error', error })
@@ -313,13 +317,15 @@ export function setupArtistsRoutes(app: Express): void {
                     return
                 }
                 const { guildId, items } = parsed.data
-                const db = getPrismaClient()
+                const db = getPrismaClient() as unknown
                 const results: typeof items = []
                 for (const item of items) {
                     const artistKey = normalizeArtistKey(
                         item.artistKey || item.artistName,
                     )
-                    const pref = await db.userArtistPreference.upsert({
+                    const pref = await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                        upsert: (opts: unknown) => Promise<unknown>
+                    }).upsert({
                         where: {
                             discordUserId_guildId_artistKey: {
                                 discordUserId,
@@ -372,8 +378,10 @@ export function setupArtistsRoutes(app: Express): void {
                     })
                     return
                 }
-                const db = getPrismaClient()
-                await db.userArtistPreference.delete({
+                const db = getPrismaClient() as unknown
+                await ((db as Record<string, unknown>).userArtistPreference as unknown as {
+                    delete: (opts: unknown) => Promise<unknown>
+                }).delete({
                     where: {
                         discordUserId_guildId_artistKey: {
                             discordUserId,
