@@ -37,18 +37,18 @@ export function setupAutoMessageRoutes(app: Express): void {
             const type = query.type
 
             if (type) {
-                const messages = await autoMessageService.getMessagesByType(
+                const messages = (await autoMessageService.getMessagesByType(
                     guildId,
                     type as 'welcome' | 'leave',
-                )
+                )) as unknown
                 res.json({ messages })
                 return
             }
 
             const [welcome, leave] = await Promise.all([
-                autoMessageService.getWelcomeMessage(guildId),
-                autoMessageService.getLeaveMessage(guildId),
-            ])
+                autoMessageService.getWelcomeMessage(guildId) as unknown,
+                autoMessageService.getLeaveMessage(guildId) as unknown,
+            ]) as [unknown, unknown]
 
             const messages = [welcome, leave].filter(
                 (message): message is NonNullable<typeof message> =>
@@ -78,12 +78,12 @@ export function setupAutoMessageRoutes(app: Express): void {
                 exactMatch,
                 cronSchedule,
             } = body
-            const autoMsg = await autoMessageService.createMessage(
+            const autoMsg = (await autoMessageService.createMessage(
                 guildId,
                 type,
                 { message },
                 { channelId, trigger, exactMatch, cronSchedule },
-            )
+            )) as unknown
             await serverLogService.logAutoMessageChange(
                 guildId,
                 'created',
@@ -106,11 +106,11 @@ export function setupAutoMessageRoutes(app: Express): void {
             const userId = requireUserId(req)
             const id = p(req.params.id)
             const body = s.updateMessageBody.parse(req.body)
-            const updated = await autoMessageService.updateMessage(id, body)
+            const updated = (await autoMessageService.updateMessage(id, body)) as unknown
             await serverLogService.logAutoMessageChange(
                 guildId,
                 'updated',
-                { type: updated.type, changes: body },
+                { type: ((updated as Record<string, unknown>).type as string), changes: body },
                 userId,
             )
             res.json(updated)
@@ -129,11 +129,11 @@ export function setupAutoMessageRoutes(app: Express): void {
             const userId = requireUserId(req)
             const id = p(req.params.id)
             const { enabled } = s.toggleBody.parse(req.body)
-            const updated = await autoMessageService.toggleMessage(id, enabled)
+            const updated = (await autoMessageService.toggleMessage(id, enabled)) as unknown
             await serverLogService.logAutoMessageChange(
                 guildId,
                 enabled ? 'enabled' : 'disabled',
-                { type: updated.type },
+                { type: ((updated as Record<string, unknown>).type as string) },
                 userId,
             )
             res.json(updated)
