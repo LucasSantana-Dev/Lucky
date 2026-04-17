@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.135] - 2026-04-17
+
+### Added
+- feat(spotify): `getUserTopArtistsAndTracks` API wrapper for user-top artists/tracks (#686)
+- feat(spotify): user-seeds — extract + cache top artists/tracks/genres for autoplay (#687)
+- feat(autoplay): spotify-taste-blend — candidate scoring with user taste boost (#688)
+
+### Fixed
+- fix(autoplay): replenish queue on exhaustion + suppress recovery on stale snapshot (30 min staleness guard) (#691)
+- chore(backend): eliminate lint errors in GuildAutomationExecutionService via typed Prisma model casts (#690)
+
 ## [2.6.134] - 2026-04-17
 
 ### Added
