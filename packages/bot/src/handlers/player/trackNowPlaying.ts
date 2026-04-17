@@ -21,8 +21,8 @@ const songInfoMessages = new LRUCache<
     string,
     { messageId: string; channelId: string }
 >({
-    max: 500,
-    ttl: 4 * 60 * 60 * 1000,
+    max: 5000,
+    ttl: 30 * 60 * 1000, // 30 minutes
 })
 
 /**
@@ -39,8 +39,8 @@ export function registerNowPlayingMessage(
     songInfoMessages.set(guildId, { messageId, channelId })
 }
 const lastFmTrackStartTime = new LRUCache<string, number>({
-    max: 500,
-    ttl: 4 * 60 * 60 * 1000,
+    max: 5000,
+    ttl: 30 * 60 * 1000, // 30 minutes
 })
 
 function getLastFmRequesterId(
