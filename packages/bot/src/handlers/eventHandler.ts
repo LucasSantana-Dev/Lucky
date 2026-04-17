@@ -22,6 +22,7 @@ import { handleMusicButtonInteraction } from './musicButtonHandler'
 import { reactionRolesService } from '@lucky/shared/services'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../utils/music/namedSessions'
+import { cleanupGuildState } from './player/trackNowPlaying'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -203,9 +204,24 @@ function handleGuildDelete(client: Client): void {
                 }
             duplicateDetection.clearHistory(guild.id)
             duplicateDetection.clearAllGuildCaches(guild.id)
+            cleanupGuildState(guild.id)
         } catch (err) {
             errorLog({
                 message: 'Error clearing history on guild delete:',
+                error: err,
+            })
+        }
+    })
+}
+
+function handleChannelDelete(client: Client): void {
+    client.on(Events.ChannelDelete, (channel) => {
+        try {
+            if (channel.isDMBased()) return
+            cleanupGuildState(channel.guildId)
+        } catch (err) {
+            errorLog({
+                message: 'Error clearing state on channel delete:',
                 error: err,
             })
         }
@@ -228,4 +244,5 @@ export default function handleEvents(client: Client) {
     handleWarn(client)
     handleDebug(client)
     handleGuildDelete(client)
+    handleChannelDelete(client)
 }
