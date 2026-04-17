@@ -940,24 +940,24 @@ class GuildAutomationExecutionService {
                     : undefined,
             },
             reactionroles: {
-                messages: reactionRoleMessages.map((message) => ({
+                messages: reactionRoleMessages.map((message: any) => ({
                     id: message.id,
                     messageId: message.messageId,
                     channelId: message.channelId,
-                    mappings: message.mappings.map((mapping) => ({
+                    mappings: message.mappings.map((mapping: any) => ({
                         roleId: mapping.roleId,
                         label: mapping.label ?? mapping.roleId,
                         emoji: mapping.emoji ?? undefined,
                         style: mapping.style ?? undefined,
                     })),
                 })),
-                exclusiveRoles: exclusiveRoles.map((item) => ({
+                exclusiveRoles: exclusiveRoles.map((item: any) => ({
                     roleId: item.roleId,
                     excludedRoleId: item.excludedRoleId,
                 })),
             },
             commandaccess: {
-                grants: roleGrants.map((grant) => ({
+                grants: roleGrants.map((grant: any) => ({
                     roleId: grant.roleId,
                     module: grant.module,
                     mode: grant.mode,
