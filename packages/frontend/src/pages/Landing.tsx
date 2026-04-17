@@ -7,7 +7,7 @@ import { useReducedMotion, motion } from 'framer-motion'
 import { api } from '@/services/api'
 import { Music, Shield, Zap, BarChart3, Palette, Sparkles, ChevronDown, Server, Users, Radio } from 'lucide-react'
 
-const CLIENT_ID = '999088926074396732'
+const CLIENT_ID = '962198089161134131'
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot%20applications.commands&permissions=8`
 
 // Neon glow backdrop gradients
