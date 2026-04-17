@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Landing from './Landing'
 import { useAuthStore } from '@/stores/authStore'
@@ -210,8 +210,7 @@ describe('Landing', () => {
         const addToDiscordBtn = screen.getByRole('button', { name: /Add to Discord/i })
         expect(addToDiscordBtn).toBeInTheDocument()
 
-        const user = userEvent.setup()
-        await user.click(addToDiscordBtn)
+        fireEvent.click(addToDiscordBtn)
 
         await waitFor(() => {
             expect(openSpy).toHaveBeenCalledWith(
@@ -225,9 +224,7 @@ describe('Landing', () => {
         render(<Landing />)
 
         const openDashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i })
-
-        const user = userEvent.setup()
-        await user.click(openDashboardBtn)
+        fireEvent.click(openDashboardBtn)
 
         await waitFor(() => {
             expect(mockLogin).toHaveBeenCalled()
