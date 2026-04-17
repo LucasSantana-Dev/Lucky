@@ -5,6 +5,7 @@ import * as voiceStatus from '../../services/VoiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../utils/music/watchdog'
 import { musicSessionSnapshotService } from '../../utils/music/sessionSnapshots'
+import { replenishQueue } from '../../utils/music/queueOperations'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
 export const setupVoiceKickDetection = (client: Client): void => {
@@ -76,7 +77,12 @@ export const setupLifecycleHandlers = (player: {
     })
 
     player.events.on('emptyQueue', async (queue: GuildQueue) => {
-        musicWatchdogService.markIntentionalStop(queue.guild.id)
+        const isAutoplayEnabled = queue.repeatMode === 3
+        if (isAutoplayEnabled && queue.currentTrack) {
+            await replenishQueue(queue)
+        } else {
+            musicWatchdogService.markIntentionalStop(queue.guild.id)
+        }
     })
 
     player.events.on('disconnect', async (queue: GuildQueue) => {
