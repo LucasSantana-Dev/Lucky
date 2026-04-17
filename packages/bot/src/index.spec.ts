@@ -105,4 +105,201 @@ describe('bot entrypoint', () => {
         expect(flushSentryMock).toHaveBeenCalledWith(3000)
         expect(process.exit).toHaveBeenCalledWith(1)
     })
+
+    it('handles SIGTERM signal for graceful shutdown', async () => {
+        const shutdownBotMock = jest.fn<() => Promise<void>>()
+        jest.mock('./bot/start', () => ({
+            initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+            shutdown: (...args: unknown[]) => shutdownBotMock(...args),
+        }))
+
+        let sigTermHandler: (() => void) | null = null
+        const originalOn = process.on
+        process.on = jest.fn((signal: string, handler: any) => {
+            if (signal === 'SIGTERM') {
+                sigTermHandler = handler
+            }
+            return process as any
+        })
+
+        await import('./index')
+
+        expect(sigTermHandler).not.toBeNull()
+        if (sigTermHandler) {
+            sigTermHandler()
+            await new Promise((resolve) => setImmediate(resolve))
+        }
+
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('Received SIGTERM'),
+            })
+        )
+
+        process.on = originalOn
+    })
+
+    it('handles SIGINT signal for graceful shutdown', async () => {
+        const shutdownBotMock = jest.fn<() => Promise<void>>()
+        jest.mock('./bot/start', () => ({
+            initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+            shutdown: (...args: unknown[]) => shutdownBotMock(...args),
+        }))
+
+        let sigIntHandler: (() => void) | null = null
+        const originalOn = process.on
+        process.on = jest.fn((signal: string, handler: any) => {
+            if (signal === 'SIGINT') {
+                sigIntHandler = handler
+            }
+            return process as any
+        })
+
+        await import('./index')
+
+        expect(sigIntHandler).not.toBeNull()
+        if (sigIntHandler) {
+            sigIntHandler()
+            await new Promise((resolve) => setImmediate(resolve))
+        }
+
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('Received SIGINT'),
+            })
+        )
+
+        process.on = originalOn
+    })
+
+    it('prevents concurrent shutdown operations', async () => {
+        const shutdownBotMock = jest.fn<() => Promise<void>>()
+        shutdownBotMock.mockResolvedValue()
+
+        jest.mock('./bot/start', () => ({
+            initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+            shutdown: (...args: unknown[]) => shutdownBotMock(...args),
+        }))
+
+        let sigTermHandler: (() => void) | null = null
+        const originalOn = process.on
+        process.on = jest.fn((signal: string, handler: any) => {
+            if (signal === 'SIGTERM') {
+                sigTermHandler = handler
+            }
+            return process as any
+        })
+
+        await import('./index')
+
+        if (sigTermHandler) {
+            sigTermHandler()
+            sigTermHandler()
+            await new Promise((resolve) => setImmediate(resolve))
+        }
+
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('already in progress'),
+            })
+        )
+
+        process.on = originalOn
+    })
+
+    it('flushes sentry on shutdown', async () => {
+        const shutdownBotMock = jest.fn<() => Promise<void>>()
+        shutdownBotMock.mockResolvedValue()
+
+        jest.mock('./bot/start', () => ({
+            initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+            shutdown: (...args: unknown[]) => shutdownBotMock(...args),
+        }))
+
+        let sigTermHandler: (() => void) | null = null
+        const originalOn = process.on
+        process.on = jest.fn((signal: string, handler: any) => {
+            if (signal === 'SIGTERM') {
+                sigTermHandler = handler
+            }
+            return process as any
+        })
+
+        await import('./index')
+
+        if (sigTermHandler) {
+            sigTermHandler()
+            await new Promise((resolve) => setImmediate(resolve))
+        }
+
+        expect(flushSentryMock).toHaveBeenCalledWith(3000)
+        expect(process.exit).toHaveBeenCalledWith(0)
+
+        process.on = originalOn
+    })
+
+    it('exits with code 0 after successful shutdown', async () => {
+        const shutdownBotMock = jest.fn<() => Promise<void>>()
+        shutdownBotMock.mockResolvedValue()
+
+        jest.mock('./bot/start', () => ({
+            initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+            shutdown: (...args: unknown[]) => shutdownBotMock(...args),
+        }))
+
+        let sigTermHandler: (() => void) | null = null
+        const originalOn = process.on
+        process.on = jest.fn((signal: string, handler: any) => {
+            if (signal === 'SIGTERM') {
+                sigTermHandler = handler
+            }
+            return process as any
+        })
+
+        await import('./index')
+
+        if (sigTermHandler) {
+            sigTermHandler()
+            await new Promise((resolve) => setImmediate(resolve))
+        }
+
+        expect(process.exit).toHaveBeenCalledWith(0)
+
+        process.on = originalOn
+    })
+
+    it('handles error during shutdown gracefully', async () => {
+        const shutdownBotMock = jest.fn<() => Promise<void>>()
+        const shutdownError = new Error('shutdown failed')
+        shutdownBotMock.mockRejectedValue(shutdownError)
+
+        jest.mock('./bot/start', () => ({
+            initializeBot: (...args: unknown[]) => initializeBotMock(...args),
+            shutdown: (...args: unknown[]) => shutdownBotMock(...args),
+        }))
+
+        let sigTermHandler: (() => void) | null = null
+        const originalOn = process.on
+        process.on = jest.fn((signal: string, handler: any) => {
+            if (signal === 'SIGTERM') {
+                sigTermHandler = handler
+            }
+            return process as any
+        })
+
+        await import('./index')
+
+        if (sigTermHandler) {
+            sigTermHandler()
+            await new Promise((resolve) => setImmediate(resolve))
+        }
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('Error during'),
+            })
+        )
+
+        process.on = originalOn
+    })
 })

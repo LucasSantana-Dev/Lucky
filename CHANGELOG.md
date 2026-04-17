@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.133] - 2026-04-17
+
+### Added
+- feat(music): voice channel status updates on track start (#660)
+- feat(stats): public `/api/stats/public` endpoint + animated countup on landing page (#667)
+- feat(autoplay): refactor — queueManipulation split into 6 autoplay modules (candidateScorer, diversitySelector, spotifyRecommender, lastFmSeeder, candidateCollector, replenisher) (#658, #659, #662, #668, #669, #670)
+
+### Fixed
+- fix(backend): SSE heartbeat leak on client disconnect — AbortController guard prevents writes to dead sockets (#666)
+- fix(bot): LRU+TTL on audio-feature cache — prevents unbounded memory growth (#663)
+- fix(bot): LRU+TTL on duplicate-detection caches — 4 module-level Maps now bounded (#672)
+- fix(bot): LRU+TTL on trackNowPlaying state — class wrapper with cleanupGuild() hook (#675, #676)
+- fix(bot): cleanup Discord listeners and connections on SIGTERM/SIGINT (#676)
+- fix(music): skip/stop controls — compounding fixes verified (#677)
+- fix(security): require `guildModuleAccess` middleware on roles + moderation routes (#664)
+- fix(security): apiLimiter on 7 backend routes, writeLimiter on mutations (#673)
+- fix(security): follow-redirects CVE-2024-45590 bumped via pnpm.overrides (#673)
+- fix(security): TruffleHog action SHA-pinned to v3.94.3 (#673)
+- test(backend): fix Express 5 integration test breakage (#681)
+
+### Changed
+- chore(sonar): exclude bot entry point + event handler glue from coverage measurement
+
+## [2.6.132] - 2026-04-16
+
+### Added
+- Intermediate release bundling Phase 3 refactor completion and first wave of memory hygiene
+
 ## [2.6.131] - 2026-04-16
 
 - feat(landing): marketing landing page at `/` with hero, feature grid, stats strip, FAQ, footer
