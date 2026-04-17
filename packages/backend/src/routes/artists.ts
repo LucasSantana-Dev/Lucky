@@ -8,6 +8,7 @@ import {
     type SpotifyArtist,
 } from '@lucky/shared/utils'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
+import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
 import {
     getSpotifyClientToken,
     isSpotifyAuthConfigured,
@@ -52,6 +53,7 @@ function normalizeArtistKey(name: string): string {
 export function setupArtistsRoutes(app: Express): void {
     app.get(
         '/api/artists/suggestions',
+        apiLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
@@ -169,6 +171,7 @@ export function setupArtistsRoutes(app: Express): void {
 
     app.get(
         '/api/artists/search',
+        apiLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
@@ -200,6 +203,7 @@ export function setupArtistsRoutes(app: Express): void {
 
     app.get(
         '/api/artists/:artistId/related',
+        apiLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
@@ -226,6 +230,7 @@ export function setupArtistsRoutes(app: Express): void {
 
     app.get(
         '/api/users/me/preferred-artists',
+        apiLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
@@ -253,6 +258,7 @@ export function setupArtistsRoutes(app: Express): void {
 
     app.post(
         '/api/users/me/preferred-artists',
+        writeLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
@@ -303,6 +309,7 @@ export function setupArtistsRoutes(app: Express): void {
 
     app.put(
         '/api/artists/preferences/batch',
+        writeLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
@@ -361,6 +368,7 @@ export function setupArtistsRoutes(app: Express): void {
 
     app.delete(
         '/api/users/me/preferred-artists/:artistKey',
+        writeLimiter,
         requireAuth,
         async (req: AuthenticatedRequest, res: Response) => {
             try {
