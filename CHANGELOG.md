@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.137] - 2026-04-18
+
+### Added
+- feat(artists): YouTube Music-style Related Artists with horizontal carousel, larger circular avatars, scroll-snap, and 30-artist fetch limit (#699)
+
+### Fixed
+- fix(artists): filter already-preferred artists out of Related view to prevent re-adding (#699)
+- fix(frontend): drop double `/api` prefix on Save Preferences batch URL (was hitting `/api/api/...` → 404) (#698)
+
 ## [2.6.136] - 2026-04-17
 
 ### Fixed
