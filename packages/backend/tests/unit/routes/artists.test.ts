@@ -33,6 +33,10 @@ jest.mock('@lucky/shared/services', () => ({
 	spotifyLinkService: {
 		getValidAccessToken: jest.fn(),
 	},
+	redisClient: {
+		get: jest.fn().mockResolvedValue(null),
+		setex: jest.fn().mockResolvedValue('OK'),
+	},
 })
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
