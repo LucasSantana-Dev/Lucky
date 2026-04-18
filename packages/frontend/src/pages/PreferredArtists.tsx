@@ -6,32 +6,38 @@ import {
     Search,
     UserX,
     X,
+    Check,
 } from 'lucide-react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
 import type { SpotifyArtist, ArtistPreference } from '@/services/artistsApi'
 import SectionHeader from '@/components/ui/SectionHeader'
 import EmptyState from '@/components/ui/EmptyState'
-import { RelatedArtistsCarousel } from '@/components/RelatedArtistsCarousel'
 import { cn } from '@/lib/utils'
 
 function normalizeArtistKey(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-function ArtistAvatar({
-    artist,
-    size = 'md',
-    active = false,
-    preference,
-    onClick,
-}: {
+interface ArtistTileProps {
     artist: SpotifyArtist
     size?: 'sm' | 'md' | 'lg' | 'xl'
     active?: boolean
     preference?: 'prefer' | 'block' | null
     onClick?: () => void
-}) {
+}
+
+function ArtistTile({
+    artist,
+    size = 'md',
+    active = false,
+    preference,
+    onClick,
+}: ArtistTileProps) {
+    const [isHovered, setIsHovered] = useState(false)
+    const prefersReducedMotion = useReducedMotion()
+
     const sizeClasses = {
         sm: 'w-14 h-14',
         md: 'w-20 h-20',
@@ -48,13 +54,23 @@ function ArtistAvatar({
 
     const initial = artist.name.charAt(0).toUpperCase()
 
+    // Determine ring color based on hover state and preference
+    const getRingColor = () => {
+        if (active) return 'ring-lucky-brand'
+        if (preference === 'prefer') return 'ring-lucky-success'
+        if (preference === 'block') return 'ring-lucky-error'
+        return isHovered ? 'ring-lucky-brand' : 'ring-lucky-border'
+    }
+
     return (
         <button
             type='button'
             onClick={onClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             className={cn(
-                'group flex flex-col items-center gap-2 rounded-xl p-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand',
-                active ? 'bg-lucky-bg-active' : 'hover:bg-lucky-bg-tertiary',
+                'flex flex-col items-center gap-2 rounded-xl p-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand',
+                active ? 'bg-lucky-bg-active' : isHovered ? 'bg-lucky-bg-tertiary' : 'hover:bg-lucky-bg-tertiary',
                 !onClick && 'cursor-default',
             )}
         >
@@ -62,13 +78,8 @@ function ArtistAvatar({
                 className={cn(
                     'relative shrink-0 rounded-full overflow-hidden ring-2 transition-all duration-150',
                     sizeClasses[size],
-                    active
-                        ? 'ring-lucky-brand'
-                        : preference === 'prefer'
-                          ? 'ring-lucky-success'
-                          : preference === 'block'
-                            ? 'ring-lucky-error'
-                            : 'ring-lucky-border group-hover:ring-lucky-border-strong',
+                    getRingColor(),
+                    !prefersReducedMotion && isHovered && 'scale-105',
                 )}
             >
                 {artist.imageUrl ? (
@@ -76,6 +87,7 @@ function ArtistAvatar({
                         src={artist.imageUrl}
                         alt={artist.name}
                         className='w-full h-full object-cover'
+                        loading='lazy'
                     />
                 ) : (
                     <div className='w-full h-full bg-lucky-bg-active flex items-center justify-center'>
@@ -84,15 +96,20 @@ function ArtistAvatar({
                         </span>
                     </div>
                 )}
+                {/* Already-preferred indicator overlay */}
                 {preference === 'prefer' && (
-                    <span className='absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-lucky-success'>
-                        <Heart className='h-2.5 w-2.5 fill-white text-white' />
-                    </span>
+                    <>
+                        <div className='absolute inset-0 bg-white/20 flex items-center justify-center'>
+                            <Check className='h-8 w-8 text-white drop-shadow-lg' />
+                        </div>
+                    </>
                 )}
                 {preference === 'block' && (
-                    <span className='absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-lucky-error'>
-                        <X className='h-2.5 w-2.5 text-white' />
-                    </span>
+                    <>
+                        <div className='absolute inset-0 bg-red-500/20 flex items-center justify-center'>
+                            <X className='h-8 w-8 text-white drop-shadow-lg' />
+                        </div>
+                    </>
                 )}
             </div>
             <span
@@ -101,7 +118,8 @@ function ArtistAvatar({
                     textSize[size],
                     active
                         ? 'text-lucky-text-primary'
-                        : 'text-lucky-text-secondary group-hover:text-lucky-text-primary',
+                        : 'text-lucky-text-secondary transition-colors duration-150',
+                    isHovered && 'text-lucky-text-primary',
                 )}
             >
                 {artist.name}
@@ -110,129 +128,102 @@ function ArtistAvatar({
     )
 }
 
-interface ArtistDetailPanelProps {
-    artist: SpotifyArtist
-    preference: 'prefer' | 'block' | null
+interface RelatedArtistsRowProps {
+    selectedArtist: SpotifyArtist
     relatedArtists: SpotifyArtist[]
     relatedLoading: boolean
     savedPreferences: Map<string, ArtistPreference>
-    onTogglePreference: (
-        artist: SpotifyArtist,
-        pref: 'prefer' | 'block',
-    ) => void
-    onRemovePreference: (artist: SpotifyArtist) => void
+    unsavedChanges: Map<string, { preference: 'prefer' | 'block'; artist: SpotifyArtist }>
     onSelectRelated: (artist: SpotifyArtist) => void
     onClose: () => void
 }
 
-function ArtistDetailPanel({
-    artist,
-    preference,
+function RelatedArtistsRow({
+    selectedArtist,
     relatedArtists,
     relatedLoading,
     savedPreferences,
-    onTogglePreference,
-    onRemovePreference,
+    unsavedChanges,
     onSelectRelated,
     onClose,
-}: ArtistDetailPanelProps) {
+}: RelatedArtistsRowProps) {
+    const prefersReducedMotion = useReducedMotion()
+
+    if (!selectedArtist) return null
+
     return (
-        <div className='surface-panel flex flex-col gap-4 p-5'>
-            <div className='flex items-start justify-between gap-3'>
-                <div className='flex items-center gap-3'>
-                    <div className='h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-lucky-border'>
-                        {artist.imageUrl ? (
-                            <img
-                                src={artist.imageUrl}
-                                alt={artist.name}
-                                className='h-full w-full object-cover'
-                            />
-                        ) : (
-                            <div className='flex h-full w-full items-center justify-center bg-lucky-bg-active'>
-                                <span className='text-sm font-semibold text-lucky-text-secondary'>
-                                    {artist.name.charAt(0).toUpperCase()}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <p className='type-title text-lucky-text-primary'>
-                            {artist.name}
-                        </p>
-                        {artist.genres.length > 0 && (
-                            <p className='type-body-sm text-lucky-text-tertiary capitalize'>
-                                {artist.genres.slice(0, 2).join(' · ')}
-                            </p>
-                        )}
-                    </div>
+        <motion.div
+            layout
+            initial={prefersReducedMotion ? false : { opacity: 0, height: 0 }}
+            animate={prefersReducedMotion ? false : { opacity: 1, height: 'auto' }}
+            exit={prefersReducedMotion ? false : { opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className='col-span-full'
+        >
+            <div className='surface-panel p-4 space-y-4'>
+                <div className='flex items-center justify-between gap-3'>
+                    <p className='text-sm font-medium text-lucky-text-secondary'>
+                        Fans of <span className='text-lucky-text-primary font-semibold'>{selectedArtist.name}</span> also like
+                    </p>
+                    <button
+                        type='button'
+                        onClick={onClose}
+                        className='lucky-focus-visible rounded-md p-1 text-lucky-text-subtle transition-colors hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
+                        aria-label='Close related artists'
+                        aria-live='polite'
+                    >
+                        <X className='h-4 w-4' />
+                    </button>
                 </div>
-                <button
-                    type='button'
-                    onClick={onClose}
-                    className='lucky-focus-visible rounded-md p-1 text-lucky-text-subtle transition-colors hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
-                    aria-label='Close panel'
-                >
-                    <X className='h-4 w-4' />
-                </button>
-            </div>
 
-            <div className='flex gap-2'>
-                <button
-                    type='button'
-                    onClick={() =>
-                        preference === 'prefer'
-                            ? onRemovePreference(artist)
-                            : onTogglePreference(artist, 'prefer')
-                    }
-                    className={cn(
-                        'lucky-focus-visible inline-flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 type-body-sm font-medium transition-colors',
-                        preference === 'prefer'
-                            ? 'border-lucky-success/40 bg-lucky-success/20 text-lucky-success hover:bg-lucky-success/30'
-                            : 'border-lucky-border bg-lucky-bg-tertiary text-lucky-text-secondary hover:border-lucky-success/40 hover:bg-lucky-success/10 hover:text-lucky-success',
-                    )}
-                >
-                    <Heart
-                        className={cn(
-                            'h-4 w-4',
-                            preference === 'prefer' && 'fill-lucky-success',
-                        )}
-                    />
-                    {preference === 'prefer' ? 'Preferred' : 'Prefer'}
-                </button>
-                <button
-                    type='button'
-                    onClick={() =>
-                        preference === 'block'
-                            ? onRemovePreference(artist)
-                            : onTogglePreference(artist, 'block')
-                    }
-                    className={cn(
-                        'lucky-focus-visible inline-flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 type-body-sm font-medium transition-colors',
-                        preference === 'block'
-                            ? 'border-lucky-error/40 bg-lucky-error/20 text-lucky-error hover:bg-lucky-error/30'
-                            : 'border-lucky-border bg-lucky-bg-tertiary text-lucky-text-secondary hover:border-lucky-error/40 hover:bg-lucky-error/10 hover:text-lucky-error',
-                    )}
-                >
-                    <UserX className='h-4 w-4' />
-                    {preference === 'block' ? 'Blocked' : 'Block'}
-                </button>
-            </div>
+                {relatedLoading && (
+                    <div className='flex items-center justify-center py-8'>
+                        <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
+                    </div>
+                )}
 
-            <RelatedArtistsCarousel
-                title='Fans also like'
-                artists={relatedArtists}
-                loading={relatedLoading}
-                savedPreferences={savedPreferences}
-                onSelectArtist={onSelectRelated}
-                normalizeArtistKey={normalizeArtistKey}
-            />
-        </div>
+                {!relatedLoading && relatedArtists.length === 0 && (
+                    <p className='text-sm text-lucky-text-tertiary py-4 text-center'>
+                        No related artists found
+                    </p>
+                )}
+
+                {!relatedLoading && relatedArtists.length > 0 && (
+                    <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
+                        {relatedArtists.map((artist, idx) => {
+                            const key = normalizeArtistKey(artist.name)
+                            const unsaved = unsavedChanges.get(key)?.preference ?? null
+                            const pref =
+                                unsaved ??
+                                savedPreferences.get(key)?.preference ??
+                                null
+                            return (
+                                <motion.div
+                                    key={artist.id + key}
+                                    initial={prefersReducedMotion ? false : { opacity: 0, y: -10 }}
+                                    animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
+                                    transition={prefersReducedMotion ? {} : { duration: 0.2, delay: idx * 0.05 }}
+                                >
+                                    <ArtistTile
+                                        artist={artist}
+                                        size='xl'
+                                        preference={pref}
+                                        onClick={() => onSelectRelated(artist)}
+                                    />
+                                </motion.div>
+                            )
+                        })}
+                    </div>
+                )}
+            </div>
+        </motion.div>
     )
 }
 
 export default function PreferredArtistsPage() {
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
+    const prefersReducedMotion = useReducedMotion()
 
     const [query, setQuery] = useState('')
     const [searchResults, setSearchResults] = useState<SpotifyArtist[]>([])
@@ -290,6 +281,17 @@ export default function PreferredArtistsPage() {
         loadSuggestions()
     }, [loadPreferences, loadSuggestions])
 
+    // Handle ESC key to close inline expansion
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && selectedArtist) {
+                setSelectedArtist(null)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [selectedArtist])
+
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current)
         const trimmed = query.trim()
@@ -322,10 +324,10 @@ export default function PreferredArtistsPage() {
         setRelatedLoading(true)
         try {
             const res = await api.artists.getRelated(artist.id)
-            // Filter out artists already in user's preferences
+            // Filter out artists already in user's saved preferences or unsaved changes
             const filteredArtists = res.data.artists.filter((relatedArtist) => {
                 const key = normalizeArtistKey(relatedArtist.name)
-                return !savedPreferences.has(key)
+                return !savedPreferences.has(key) && !unsavedChanges.has(key)
             })
             setRelatedArtists(filteredArtists)
         } catch {
@@ -333,7 +335,7 @@ export default function PreferredArtistsPage() {
         } finally {
             setRelatedLoading(false)
         }
-    }, [savedPreferences])
+    }, [savedPreferences, unsavedChanges])
 
     const handleTogglePreference = useCallback(
         (artist: SpotifyArtist, pref: 'prefer' | 'block') => {
@@ -415,8 +417,7 @@ export default function PreferredArtistsPage() {
                 actions={<Heart className='h-5 w-5 text-lucky-accent' />}
             />
 
-            <div className='flex flex-col gap-4 lg:flex-row lg:items-start'>
-                <div className='min-w-0 flex-1 space-y-4'>
+            <div className='space-y-4'>
                     <div className='surface-panel p-4'>
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lucky-text-subtle' />
@@ -468,36 +469,57 @@ export default function PreferredArtistsPage() {
                             )}
 
                         {!searching && displayArtists.length > 0 && (
-                            <div className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
-                                {displayArtists.map((artist) => {
-                                    const key = normalizeArtistKey(artist.name)
-                                    const unsaved =
-                                        unsavedChanges.get(key)?.preference ?? null
-                                    const pref =
-                                        unsaved ??
-                                        savedPreferences.get(key)?.preference ??
-                                        null
-                                    return (
-                                        <div
-                                            key={artist.id + key}
-                                            className='transition-opacity'
-                                        >
-                                            <ArtistAvatar
-                                                artist={artist}
-                                                size='xl'
-                                                active={
-                                                    selectedArtist?.id ===
-                                                    artist.id
-                                                }
-                                                preference={pref}
-                                                onClick={() =>
-                                                    selectArtist(artist)
-                                                }
-                                            />
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                            <motion.div
+                                layout
+                                className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'
+                            >
+                                <AnimatePresence mode='popLayout'>
+                                    {displayArtists.map((artist, idx) => {
+                                        const key = normalizeArtistKey(artist.name)
+                                        const unsaved =
+                                            unsavedChanges.get(key)?.preference ?? null
+                                        const pref =
+                                            unsaved ??
+                                            savedPreferences.get(key)?.preference ??
+                                            null
+                                        const isSelected = selectedArtist?.id === artist.id
+
+                                        return (
+                                            <motion.div
+                                                key={artist.id + key}
+                                                layout
+                                                initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
+                                                animate={prefersReducedMotion ? false : { opacity: 1, scale: 1 }}
+                                                exit={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
+                                                transition={prefersReducedMotion ? {} : { duration: 0.2 }}
+                                            >
+                                                <ArtistTile
+                                                    artist={artist}
+                                                    size='xl'
+                                                    active={isSelected}
+                                                    preference={pref}
+                                                    onClick={() =>
+                                                        selectArtist(artist)
+                                                    }
+                                                />
+                                            </motion.div>
+                                        )
+                                    })}
+
+                                    {selectedArtist && (
+                                        <RelatedArtistsRow
+                                            key='related-row'
+                                            selectedArtist={selectedArtist}
+                                            relatedArtists={relatedArtists}
+                                            relatedLoading={relatedLoading}
+                                            savedPreferences={savedPreferences}
+                                            unsavedChanges={unsavedChanges}
+                                            onSelectRelated={selectArtist}
+                                            onClose={() => setSelectedArtist(null)}
+                                        />
+                                    )}
+                                </AnimatePresence>
+                            </motion.div>
                         )}
 
                         {!query.trim() &&
@@ -522,7 +544,7 @@ export default function PreferredArtistsPage() {
                                     const artist = prefToArtist(pref)
                                     return (
                                         <div key={pref.id} className='transition-opacity'>
-                                            <ArtistAvatar
+                                            <ArtistTile
                                                 artist={artist}
                                                 size='xl'
                                                 active={
@@ -567,23 +589,6 @@ export default function PreferredArtistsPage() {
                             )}
                         </button>
                     )}
-                </div>
-
-                {selectedArtist && (
-                    <div className='w-full lg:w-80 xl:w-72 xl:shrink-0 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto'>
-                        <ArtistDetailPanel
-                            artist={selectedArtist}
-                            preference={selectedPreference}
-                            relatedArtists={relatedArtists}
-                            relatedLoading={relatedLoading}
-                            savedPreferences={savedPreferences}
-                            onTogglePreference={handleTogglePreference}
-                            onRemovePreference={handleRemovePreference}
-                            onSelectRelated={selectArtist}
-                            onClose={() => setSelectedArtist(null)}
-                        />
-                    </div>
-                )}
             </div>
         </div>
     )
