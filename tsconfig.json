@@ -20,7 +20,8 @@
         "allowJs": true,
         "incremental": true,
         "tsBuildInfoFile": "./dist/.tsbuildinfo",
-        "assumeChangesOnlyAffectDirectDependencies": true
+        "assumeChangesOnlyAffectDirectDependencies": true,
+        "ignoreDeprecations": "6.0"
     },
     "include": ["src/**/*", "src/register.ts"],
     "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "src/webapp/frontend.backup/**"],
