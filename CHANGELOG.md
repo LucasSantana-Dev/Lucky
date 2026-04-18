@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.141] - 2026-04-18
+
+### Added
+- feat(artists): Musical Taste page now uses 3 tabs (Discover · Preferred · Blocked) with URL-synced state via `?tab=`. Each artist tile in Discover gets explicit hover Prefer (♥) and Block (✕) action buttons, separating the prefer/block intent from the related-artist expand. Sidebar label renamed "Preferred Artists" → "Musical Taste" (#711)
+
+### Fixed
+- fix(artists): suggestions grid now shows a loading spinner on first paint instead of briefly flashing "No suggestions available" (#711)
+
+### Changed
+- chore: rename sidebar entry to "Musical Taste" to match the redesigned page (#711)
+
 ## [2.6.140] - 2026-04-18
 
 ### Added
