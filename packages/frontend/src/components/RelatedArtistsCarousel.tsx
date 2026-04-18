@@ -81,7 +81,16 @@ export function RelatedArtistsCarousel({
     }
 
     if (artists.length === 0) {
-        return null
+        return (
+            <div className='space-y-3'>
+                <h3 className='text-sm font-semibold text-lucky-text-primary'>
+                    {title}
+                </h3>
+                <p className='text-sm text-lucky-text-tertiary'>
+                    No related artists found
+                </p>
+            </div>
+        )
     }
 
     return (
