@@ -13,7 +13,10 @@ import {
     getSpotifyClientToken,
     isSpotifyAuthConfigured,
 } from '../services/SpotifyAuthService'
-import { spotifyLinkService } from '@lucky/shared/services'
+import { spotifyLinkService, redisClient } from '@lucky/shared/services'
+
+const FALLBACK_SUGGESTIONS_CACHE_KEY = 'artist:suggestions:fallback:v1'
+const FALLBACK_SUGGESTIONS_TTL_SECONDS = 60 * 60 // 1 hour
 
 const saveArtistBody = z.object({
     guildId: z.string().min(1),
@@ -116,32 +119,73 @@ export function setupArtistsRoutes(app: Express): void {
                 }
 
                 if (suggestions.size < 24) {
-                    const suggestQueries = [
-                        'Drake',
-                        'The Weeknd',
-                        'Dua Lipa',
-                        'Billie Eilish',
-                        'Bad Bunny',
-                        'Ariana Grande',
-                        'Taylor Swift',
-                        'Ed Sheeran',
-                    ]
-                    for (const query of suggestQueries) {
-                        if (suggestions.size >= 24) break
-                        try {
-                            const artists = await searchSpotifyArtists(
-                                clientToken,
-                                query,
-                                2,
-                            )
-                            for (const artist of artists) {
-                                if (suggestions.size >= 24) break
-                                if (!suggestions.has(artist.id)) {
-                                    suggestions.set(artist.id, artist)
+                    // Cached fallback: avoid hammering Spotify search (429s on
+                    // every page load otherwise). Cache the popular-artists
+                    // bundle in Redis for 1h.
+                    let fallback: SpotifyArtist[] = []
+                    try {
+                        const cached = await redisClient.get(
+                            FALLBACK_SUGGESTIONS_CACHE_KEY,
+                        )
+                        if (cached) {
+                            fallback = JSON.parse(cached) as SpotifyArtist[]
+                        }
+                    } catch {
+                        // Redis miss/error — fall through to live fetch
+                    }
+
+                    if (fallback.length === 0) {
+                        const suggestQueries = [
+                            'Drake',
+                            'The Weeknd',
+                            'Dua Lipa',
+                            'Billie Eilish',
+                            'Bad Bunny',
+                            'Ariana Grande',
+                            'Taylor Swift',
+                            'Ed Sheeran',
+                            'Bruno Mars',
+                            'Olivia Rodrigo',
+                            'Sabrina Carpenter',
+                            'Kendrick Lamar',
+                        ]
+                        const seen = new Set<string>()
+                        for (const query of suggestQueries) {
+                            if (fallback.length >= 24) break
+                            try {
+                                const artists = await searchSpotifyArtists(
+                                    clientToken,
+                                    query,
+                                    2,
+                                )
+                                for (const artist of artists) {
+                                    if (fallback.length >= 24) break
+                                    if (!seen.has(artist.id)) {
+                                        seen.add(artist.id)
+                                        fallback.push(artist)
+                                    }
                                 }
+                            } catch {
+                                // continue to next query
                             }
-                        } catch {
-                            // continue to next query
+                        }
+                        if (fallback.length > 0) {
+                            try {
+                                await redisClient.setex(
+                                    FALLBACK_SUGGESTIONS_CACHE_KEY,
+                                    FALLBACK_SUGGESTIONS_TTL_SECONDS,
+                                    JSON.stringify(fallback),
+                                )
+                            } catch {
+                                // Cache write failure is non-fatal
+                            }
+                        }
+                    }
+
+                    for (const artist of fallback) {
+                        if (suggestions.size >= 24) break
+                        if (!suggestions.has(artist.id)) {
+                            suggestions.set(artist.id, artist)
                         }
                     }
                 }
