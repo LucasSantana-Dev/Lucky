@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.139] - 2026-04-18
+
+### Fixed
+- fix(artists): cache popular-artists fallback in Redis (1h) — Spotify search API was returning 429 (rate-limited) for every page load, causing `/api/artists/suggestions` to return empty `{artists:[]}` and the Preferred Artists page to show "No suggestions available". Cached fallback bundle bypasses Spotify entirely after first request (#707)
+
 ## [2.6.138] - 2026-04-18
 
 ### Changed
