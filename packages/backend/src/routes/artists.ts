@@ -15,7 +15,8 @@ import {
 } from '../services/SpotifyAuthService'
 import { spotifyLinkService, redisClient } from '@lucky/shared/services'
 
-const FALLBACK_SUGGESTIONS_CACHE_KEY = 'artist:suggestions:fallback:v1'
+const MAX_SUGGESTIONS = 150
+const FALLBACK_SUGGESTIONS_CACHE_KEY = 'artist:suggestions:fallback:v2'
 const FALLBACK_SUGGESTIONS_TTL_SECONDS = 60 * 60 // 1 hour
 
 const saveArtistBody = z.object({
@@ -75,40 +76,47 @@ export function setupArtistsRoutes(app: Express): void {
                 )
                 if (link) {
                     try {
-                        const userTopRes = await fetch(
-                            'https://api.spotify.com/v1/me/top/artists?limit=24&time_range=medium_term',
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${link}`,
+                        // Fetch top artists across 3 time ranges in parallel
+                        const timeRanges = ['short_term', 'medium_term', 'long_term'] as const
+                        const promises = timeRanges.map((range) =>
+                            fetch(
+                                `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${link}`,
+                                    },
                                 },
-                            },
+                            )
                         )
-                        if (userTopRes.ok) {
-                            const data = (await userTopRes.json()) as {
-                                items?: unknown[]
-                            }
-                            if (Array.isArray(data.items)) {
-                                for (const item of data.items) {
-                                    const artist = item as {
-                                        id?: string
-                                        name?: string
-                                        images?: { url: string }[]
-                                        popularity?: number
-                                        genres?: string[]
-                                    }
-                                    if (
-                                        artist.id &&
-                                        artist.name &&
-                                        suggestions.size < 24
-                                    ) {
-                                        suggestions.set(artist.id, {
-                                            id: artist.id,
-                                            name: artist.name,
-                                            imageUrl:
-                                                artist.images?.[0]?.url ?? null,
-                                            popularity: artist.popularity ?? 0,
-                                            genres: artist.genres ?? [],
-                                        })
+                        const responses = await Promise.all(promises)
+                        for (const res of responses) {
+                            if (res.ok) {
+                                const data = (await res.json()) as {
+                                    items?: unknown[]
+                                }
+                                if (Array.isArray(data.items)) {
+                                    for (const item of data.items) {
+                                        const artist = item as {
+                                            id?: string
+                                            name?: string
+                                            images?: { url: string }[]
+                                            popularity?: number
+                                            genres?: string[]
+                                        }
+                                        if (
+                                            artist.id &&
+                                            artist.name &&
+                                            suggestions.size < MAX_SUGGESTIONS
+                                        ) {
+                                            suggestions.set(artist.id, {
+                                                id: artist.id,
+                                                name: artist.name,
+                                                imageUrl:
+                                                    artist.images?.[0]?.url ?? null,
+                                                popularity: artist.popularity ?? 0,
+                                                genres: artist.genres ?? [],
+                                            })
+                                        }
                                     }
                                 }
                             }
@@ -118,7 +126,7 @@ export function setupArtistsRoutes(app: Express): void {
                     }
                 }
 
-                if (suggestions.size < 24) {
+                if (suggestions.size < MAX_SUGGESTIONS) {
                     // Cached fallback: avoid hammering Spotify search (429s on
                     // every page load otherwise). Cache the popular-artists
                     // bundle in Redis for 1h.
@@ -136,30 +144,94 @@ export function setupArtistsRoutes(app: Express): void {
 
                     if (fallback.length === 0) {
                         const suggestQueries = [
-                            'Drake',
-                            'The Weeknd',
-                            'Dua Lipa',
-                            'Billie Eilish',
-                            'Bad Bunny',
-                            'Ariana Grande',
+                            // Pop
                             'Taylor Swift',
-                            'Ed Sheeran',
-                            'Bruno Mars',
+                            'Dua Lipa',
+                            'Ariana Grande',
                             'Olivia Rodrigo',
                             'Sabrina Carpenter',
+                            'Billie Eilish',
+                            'The Weeknd',
+                            // Hip-hop
+                            'Drake',
                             'Kendrick Lamar',
+                            'Travis Scott',
+                            'J. Cole',
+                            'Tyler The Creator',
+                            'Future',
+                            'Nicki Minaj',
+                            // Rock
+                            'Foo Fighters',
+                            'Red Hot Chili Peppers',
+                            'Arctic Monkeys',
+                            'Radiohead',
+                            'The Strokes',
+                            'Tame Impala',
+                            // R&B
+                            'SZA',
+                            'Frank Ocean',
+                            'Bruno Mars',
+                            'H.E.R.',
+                            'Daniel Caesar',
+                            // Electronic
+                            'Daft Punk',
+                            'Calvin Harris',
+                            'Flume',
+                            'ODESZA',
+                            'Disclosure',
+                            'Skrillex',
+                            // Latin
+                            'Bad Bunny',
+                            'Anitta',
+                            'Karol G',
+                            'J Balvin',
+                            'Rosalía',
+                            'Peso Pluma',
+                            // Country
+                            'Morgan Wallen',
+                            'Luke Combs',
+                            'Kacey Musgraves',
+                            'Zach Bryan',
+                            // Indie
+                            'Phoebe Bridgers',
+                            'Arcade Fire',
+                            'Vampire Weekend',
+                            'Mac DeMarco',
+                            // K-pop
+                            'BTS',
+                            'BLACKPINK',
+                            'NewJeans',
+                            'Stray Kids',
+                            // Classic rock
+                            'The Beatles',
+                            'Queen',
+                            'Pink Floyd',
+                            'Led Zeppelin',
+                            // Jazz
+                            'Miles Davis',
+                            'John Coltrane',
+                            'Nina Simone',
+                            // Metal
+                            'Metallica',
+                            'Tool',
+                            'System of a Down',
+                            // Brazilian
+                            'Matuê',
+                            'Tim Bernardes',
+                            'Racionais',
+                            'Djonga',
                         ]
                         const seen = new Set<string>()
                         for (const query of suggestQueries) {
-                            if (fallback.length >= 24) break
+                            if (fallback.length >= MAX_SUGGESTIONS) break
                             try {
                                 const artists = await searchSpotifyArtists(
                                     clientToken,
                                     query,
-                                    2,
+                                    6,
                                 )
                                 for (const artist of artists) {
-                                    if (fallback.length >= 24) break
+                                    if (fallback.length >= MAX_SUGGESTIONS) break
                                     if (!seen.has(artist.id)) {
                                         seen.add(artist.id)
                                         fallback.push(artist)
@@ -183,7 +255,7 @@ export function setupArtistsRoutes(app: Express): void {
                     }
 
                     for (const artist of fallback) {
-                        if (suggestions.size >= 24) break
+                        if (suggestions.size >= MAX_SUGGESTIONS) break
                         if (!suggestions.has(artist.id)) {
                             suggestions.set(artist.id, artist)
                         }
