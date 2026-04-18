@@ -93,3 +93,7 @@ cloudflared/config.yml
 .DS_Store
 .vercel
 .cache_ggshield
+
+# Local Claude Code spec scratch + worktrees (not part of repo)
+.wt-specs/
+worktrees/
