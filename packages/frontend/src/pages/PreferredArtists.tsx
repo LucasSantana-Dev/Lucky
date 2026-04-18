@@ -127,97 +127,6 @@ function ArtistTile({
     )
 }
 
-interface RelatedArtistsRowProps {
-    selectedArtist: SpotifyArtist
-    relatedArtists: SpotifyArtist[]
-    relatedLoading: boolean
-    savedPreferences: Map<string, ArtistPreference>
-    unsavedChanges: Map<string, { preference: 'prefer' | 'block'; artist: SpotifyArtist }>
-    onSelectRelated: (artist: SpotifyArtist) => void
-    onClose: () => void
-}
-
-function RelatedArtistsRow({
-    selectedArtist,
-    relatedArtists,
-    relatedLoading,
-    savedPreferences,
-    unsavedChanges,
-    onSelectRelated,
-    onClose,
-}: RelatedArtistsRowProps) {
-    const prefersReducedMotion = useReducedMotion()
-
-    if (!selectedArtist) return null
-
-    return (
-        <motion.div
-            layout
-            initial={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
-            animate={prefersReducedMotion ? undefined : { opacity: 1, height: 'auto' }}
-            exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className='col-span-full'
-        >
-            <div className='surface-panel p-4 space-y-4'>
-                <div className='flex items-center justify-between gap-3'>
-                    <p className='text-sm font-medium text-lucky-text-secondary'>
-                        Fans of <span className='text-lucky-text-primary font-semibold'>{selectedArtist.name}</span> also like
-                    </p>
-                    <button
-                        type='button'
-                        onClick={onClose}
-                        className='lucky-focus-visible rounded-md p-1 text-lucky-text-subtle transition-colors hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
-                        aria-label='Close related artists'
-                        aria-live='polite'
-                    >
-                        <X className='h-4 w-4' />
-                    </button>
-                </div>
-
-                {relatedLoading && (
-                    <div className='flex items-center justify-center py-8'>
-                        <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
-                    </div>
-                )}
-
-                {!relatedLoading && relatedArtists.length === 0 && (
-                    <p className='text-sm text-lucky-text-tertiary py-4 text-center'>
-                        No related artists found
-                    </p>
-                )}
-
-                {!relatedLoading && relatedArtists.length > 0 && (
-                    <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
-                        {relatedArtists.map((artist, idx) => {
-                            const key = normalizeArtistKey(artist.name)
-                            const unsaved = unsavedChanges.get(key)?.preference ?? null
-                            const pref =
-                                unsaved ??
-                                savedPreferences.get(key)?.preference ??
-                                null
-                            return (
-                                <motion.div
-                                    key={artist.id + key}
-                                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
-                                    animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                                    transition={prefersReducedMotion ? {} : { duration: 0.2, delay: idx * 0.05 }}
-                                >
-                                    <ArtistTile
-                                        artist={artist}
-                                        size='xl'
-                                        preference={pref}
-                                        onClick={() => onSelectRelated(artist)}
-                                    />
-                                </motion.div>
-                            )
-                        })}
-                    </div>
-                )}
-            </div>
-        </motion.div>
-    )
-}
 
 export default function PreferredArtistsPage() {
     const { selectedGuild } = useGuildSelection()
@@ -229,18 +138,17 @@ export default function PreferredArtistsPage() {
     const [searching, setSearching] = useState(false)
     const [searchError, setSearchError] = useState<string | null>(null)
 
-    const [suggestedArtists, setSuggestedArtists] = useState<SpotifyArtist[]>([])
     const [suggestionsLoading, setSuggestionsLoading] = useState(false)
 
     const [savedPreferences, setSavedPreferences] = useState<
         Map<string, ArtistPreference>
     >(new Map())
 
-    const [selectedArtist, setSelectedArtist] = useState<SpotifyArtist | null>(
-        null,
-    )
-    const [relatedArtists, setRelatedArtists] = useState<SpotifyArtist[]>([])
-    const [relatedLoading, setRelatedLoading] = useState(false)
+    // Flat feed model: feedArtists contains all artists (suggestions + expanded children)
+    const [feedArtists, setFeedArtists] = useState<SpotifyArtist[]>([])
+    const [feedChildren, setFeedChildren] = useState<Map<string, string[]>>(new Map())
+    const [expanded, setExpanded] = useState<Set<string>>(new Set())
+    const [loadingId, setLoadingId] = useState<string | null>(null)
 
     const [unsavedChanges, setUnsavedChanges] = useState<
         Map<string, { preference: 'prefer' | 'block'; artist: SpotifyArtist }>
@@ -267,9 +175,9 @@ export default function PreferredArtistsPage() {
         setSuggestionsLoading(true)
         try {
             const res = await api.artists.getSuggestions()
-            setSuggestedArtists(res.data.artists)
+            setFeedArtists(res.data.artists)
         } catch {
-            setSuggestedArtists([])
+            setFeedArtists([])
         } finally {
             setSuggestionsLoading(false)
         }
@@ -279,17 +187,6 @@ export default function PreferredArtistsPage() {
         loadPreferences()
         loadSuggestions()
     }, [loadPreferences, loadSuggestions])
-
-    // Handle ESC key to close inline expansion
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && selectedArtist) {
-                setSelectedArtist(null)
-            }
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [selectedArtist])
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -317,37 +214,103 @@ export default function PreferredArtistsPage() {
         }
     }, [query])
 
-    const selectArtist = useCallback(async (artist: SpotifyArtist) => {
-        const key = normalizeArtistKey(artist.name)
-        // Toggle 'prefer' on the clicked tile (cycle: none → prefer → none).
-        // Block is reserved for the explicit Block button on the tile (future).
-        setUnsavedChanges((prev) => {
+    // Recursively collapse an expanded artist and its descendants
+    const collapse = useCallback((parentId: string) => {
+        const toRemove = new Set<string>([parentId])
+        const queue = [parentId]
+        while (queue.length > 0) {
+            const id = queue.shift()!
+            const childIds = feedChildren.get(id) ?? []
+            for (const childId of childIds) {
+                toRemove.add(childId)
+                queue.push(childId)
+            }
+        }
+        setFeedArtists((prev) => prev.filter((a) => !toRemove.has(a.id)))
+        setExpanded((prev) => {
+            const next = new Set(prev)
+            next.delete(parentId)
+            return next
+        })
+        setFeedChildren((prev) => {
             const next = new Map(prev)
-            const current = next.get(key)?.preference
-            if (current === 'prefer') {
-                next.delete(key)
-            } else {
-                next.set(key, { preference: 'prefer', artist })
+            for (const id of toRemove) {
+                next.delete(id)
             }
             return next
         })
-        setSelectedArtist(artist)
-        setRelatedArtists([])
-        setRelatedLoading(true)
-        try {
-            const res = await api.artists.getRelated(artist.id)
-            // Filter out artists already in saved or unsaved preferences.
-            const filteredArtists = res.data.artists.filter((relatedArtist) => {
-                const k = normalizeArtistKey(relatedArtist.name)
-                return !savedPreferences.has(k) && !unsavedChanges.has(k)
+    }, [feedChildren])
+
+    const selectArtist = useCallback(
+        async (artist: SpotifyArtist) => {
+            const key = normalizeArtistKey(artist.name)
+
+            // If already expanded, collapse it
+            if (expanded.has(artist.id)) {
+                collapse(artist.id)
+                return
+            }
+
+            // Toggle prefer in unsaved changes
+            setUnsavedChanges((prev) => {
+                const next = new Map(prev)
+                const current = next.get(key)?.preference
+                if (current === 'prefer') {
+                    next.delete(key)
+                } else {
+                    next.set(key, { preference: 'prefer', artist })
+                }
+                return next
             })
-            setRelatedArtists(filteredArtists)
-        } catch {
-            setRelatedArtists([])
-        } finally {
-            setRelatedLoading(false)
-        }
-    }, [savedPreferences, unsavedChanges])
+
+            // Load and insert related artists
+            setLoadingId(artist.id)
+            try {
+                const res = await api.artists.getRelated(artist.id)
+
+                // Build set of existing artist keys
+                const existingKeys = new Set<string>()
+                for (const a of feedArtists) {
+                    existingKeys.add(normalizeArtistKey(a.name))
+                }
+                for (const key of savedPreferences.keys()) {
+                    existingKeys.add(key)
+                }
+                for (const key of unsavedChanges.keys()) {
+                    existingKeys.add(key)
+                }
+
+                // Filter related artists
+                const filteredArtists = res.data.artists.filter((relatedArtist) => {
+                    const k = normalizeArtistKey(relatedArtist.name)
+                    return !existingKeys.has(k)
+                })
+
+                // Find artist index in feedArtists and splice in children
+                const artistIndex = feedArtists.findIndex((a) => a.id === artist.id)
+                if (artistIndex >= 0 && filteredArtists.length > 0) {
+                    setFeedArtists((prev) => {
+                        const next = [...prev]
+                        next.splice(artistIndex + 1, 0, ...filteredArtists)
+                        return next
+                    })
+
+                    setFeedChildren((prev) => {
+                        const next = new Map(prev)
+                        next.set(artist.id, filteredArtists.map((a) => a.id))
+                        return next
+                    })
+                }
+
+                setExpanded((prev) => new Set(prev).add(artist.id))
+            } catch {
+                // silently fail - user can try again
+            } finally {
+                setLoadingId(null)
+            }
+        },
+        [feedArtists, expanded, savedPreferences, unsavedChanges, collapse],
+    )
 
     const handleSavePreferences = useCallback(async () => {
         if (!guildId || unsavedChanges.size === 0) return
@@ -379,7 +342,11 @@ export default function PreferredArtistsPage() {
         (p) => p.preference === 'block',
     )
 
-    const displayArtists = query.trim() ? searchResults : suggestedArtists
+    const preferredArtists = [...savedPreferences.values()].filter(
+        (p) => p.preference === 'prefer',
+    )
+
+    const displayArtists = query.trim() ? searchResults : feedArtists
 
     if (!selectedGuild) {
         return (
@@ -401,6 +368,39 @@ export default function PreferredArtistsPage() {
             />
 
             <div className='space-y-4'>
+                    {preferredArtists.length > 0 && (
+                        <div className='surface-panel p-4'>
+                            <div className='flex items-center gap-2 mb-3'>
+                                <p className='text-[10px] font-semibold uppercase tracking-wide text-lucky-text-subtle'>
+                                    Preferred Artists
+                                </p>
+                                <span className='inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-lucky-brand/20 text-lucky-brand text-xs font-medium'>
+                                    {preferredArtists.length}
+                                </span>
+                            </div>
+                            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
+                                {preferredArtists.map((pref) => {
+                                    const artist = prefToArtist(pref)
+                                    return (
+                                        <div key={pref.id} className='transition-opacity'>
+                                            <ArtistTile
+                                                artist={artist}
+                                                size='lg'
+                                                preference='prefer'
+                                                onClick={async () => {
+                                                    if (!guildId) return
+                                                    const artistKey = normalizeArtistKey(pref.artistName)
+                                                    await api.artists.deletePreference(artistKey, guildId)
+                                                    await loadPreferences()
+                                                }}
+                                            />
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     <div className='surface-panel p-4'>
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lucky-text-subtle' />
@@ -465,7 +465,8 @@ export default function PreferredArtistsPage() {
                                             unsaved ??
                                             savedPreferences.get(key)?.preference ??
                                             null
-                                        const isSelected = selectedArtist?.id === artist.id
+                                        const isExpanded = expanded.has(artist.id)
+                                        const isLoading = loadingId === artist.id
 
                                         return (
                                             <motion.div
@@ -479,7 +480,7 @@ export default function PreferredArtistsPage() {
                                                 <ArtistTile
                                                     artist={artist}
                                                     size='xl'
-                                                    active={isSelected}
+                                                    active={isExpanded || isLoading}
                                                     preference={pref}
                                                     onClick={() =>
                                                         selectArtist(artist)
@@ -488,19 +489,6 @@ export default function PreferredArtistsPage() {
                                             </motion.div>
                                         )
                                     })}
-
-                                    {selectedArtist && (
-                                        <RelatedArtistsRow
-                                            key='related-row'
-                                            selectedArtist={selectedArtist}
-                                            relatedArtists={relatedArtists}
-                                            relatedLoading={relatedLoading}
-                                            savedPreferences={savedPreferences}
-                                            unsavedChanges={unsavedChanges}
-                                            onSelectRelated={selectArtist}
-                                            onClose={() => setSelectedArtist(null)}
-                                        />
-                                    )}
                                 </AnimatePresence>
                             </motion.div>
                         )}
@@ -530,14 +518,6 @@ export default function PreferredArtistsPage() {
                                             <ArtistTile
                                                 artist={artist}
                                                 size='xl'
-                                                active={
-                                                    selectedArtist?.id ===
-                                                        artist.id ||
-                                                    (selectedArtist === null &&
-                                                        normalizeArtistKey(
-                                                            artist.name,
-                                                        ) === pref.artistKey)
-                                                }
                                                 preference='block'
                                                 onClick={() =>
                                                     selectArtist(artist)
