@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.138] - 2026-04-18
+
+### Changed
+- feat(artists): Related Artists now expand INLINE in the main grid (Spotify-style) — clicking an artist inserts a "Fans of X also like" row directly below; replaces the side carousel. Filter excludes already-preferred / blocked artists. Per-tile hover state (no more shared pink-border bug). Preferred tiles show a clear white-wash + check overlay; blocked tiles show red-wash + X overlay (#701)
+
 ## [2.6.137] - 2026-04-18
 
 ### Added
