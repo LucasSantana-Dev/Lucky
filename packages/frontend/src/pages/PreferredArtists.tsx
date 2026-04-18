@@ -189,7 +189,7 @@ function RelatedArtistsRow({
 
                 {!relatedLoading && relatedArtists.length > 0 && (
                     <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
-                        {relatedArtists.map((artist) => {
+                        {relatedArtists.map((artist, idx) => {
                             const key = normalizeArtistKey(artist.name)
                             const unsaved = unsavedChanges.get(key)?.preference ?? null
                             const pref =
