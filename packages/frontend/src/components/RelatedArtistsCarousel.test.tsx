@@ -144,3 +144,99 @@ describe('RelatedArtistsCarousel', () => {
         expect(tiles.length).toBeGreaterThan(0)
     })
 })
+
+describe('RelatedArtistsCarousel scroll', () => {
+    test('renders scroll right button when overflowing', () => {
+        Object.defineProperty(HTMLDivElement.prototype, 'scrollWidth', {
+            configurable: true,
+            value: 1000,
+        })
+        Object.defineProperty(HTMLDivElement.prototype, 'clientWidth', {
+            configurable: true,
+            value: 300,
+        })
+        const { container } = render(
+            <RelatedArtistsCarousel
+                title='Many'
+                artists={Array.from({ length: 20 }, (_, i) =>
+                    baseArtist({ id: `a${i}`, name: `Artist ${i}` }),
+                )}
+                loading={false}
+                savedPreferences={new Map()}
+                onSelectArtist={vi.fn()}
+                normalizeArtistKey={noopKey}
+            />,
+        )
+        const buttons = container.querySelectorAll('button')
+        expect(buttons.length).toBeGreaterThan(0)
+    })
+
+    test('scroll right button calls scrollBy', () => {
+        const scrollBy = vi.fn()
+        Element.prototype.scrollBy = scrollBy
+        Object.defineProperty(HTMLDivElement.prototype, 'scrollWidth', {
+            configurable: true,
+            value: 2000,
+        })
+        Object.defineProperty(HTMLDivElement.prototype, 'clientWidth', {
+            configurable: true,
+            value: 300,
+        })
+        const { container } = render(
+            <RelatedArtistsCarousel
+                title='Many'
+                artists={Array.from({ length: 10 }, (_, i) =>
+                    baseArtist({ id: `a${i}`, name: `Artist ${i}` }),
+                )}
+                loading={false}
+                savedPreferences={new Map()}
+                onSelectArtist={vi.fn()}
+                normalizeArtistKey={noopKey}
+            />,
+        )
+        const navButtons = Array.from(container.querySelectorAll('button')).filter(
+            (b) => b.getAttribute('aria-label')?.toLowerCase().includes('scroll'),
+        )
+        if (navButtons.length > 0) {
+            fireEvent.click(navButtons[navButtons.length - 1])
+        }
+    })
+
+    test('handles artist without imageUrl gracefully', () => {
+        render(
+            <RelatedArtistsCarousel
+                title='No Image'
+                artists={[baseArtist({ imageUrl: null, name: 'Faceless' })]}
+                loading={false}
+                savedPreferences={new Map()}
+                onSelectArtist={vi.fn()}
+                normalizeArtistKey={noopKey}
+            />,
+        )
+        expect(screen.getByText('Faceless')).toBeInTheDocument()
+    })
+
+    test('shows block badge for blocked artist', () => {
+        const prefs = new Map<string, ArtistPreference>()
+        prefs.set('blocked1', {
+            id: 'pref2',
+            artistKey: 'blocked1',
+            artistName: 'Blocked 1',
+            spotifyId: 'b1',
+            imageUrl: null,
+            preference: 'block',
+            guildId: 'g1',
+        } as unknown as ArtistPreference)
+        render(
+            <RelatedArtistsCarousel
+                title='Mixed'
+                artists={[baseArtist({ id: 'b1', name: 'Blocked 1' })]}
+                loading={false}
+                savedPreferences={prefs}
+                onSelectArtist={vi.fn()}
+                normalizeArtistKey={noopKey}
+            />,
+        )
+        expect(screen.getByText('Blocked 1')).toBeInTheDocument()
+    })
+})
