@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
     Heart,
     Loader2,
@@ -25,6 +26,8 @@ interface ArtistTileProps {
     active?: boolean
     preference?: 'prefer' | 'block' | null
     onClick?: () => void
+    onPrefer?: () => void
+    onBlock?: () => void
 }
 
 function ArtistTile({
@@ -33,6 +36,8 @@ function ArtistTile({
     active = false,
     preference,
     onClick,
+    onPrefer,
+    onBlock,
 }: ArtistTileProps) {
     const [isHovered, setIsHovered] = useState(false)
     const prefersReducedMotion = useReducedMotion()
@@ -110,6 +115,37 @@ function ArtistTile({
                         </div>
                     </>
                 )}
+                {/* Hover action buttons */}
+                {(onPrefer || onBlock) && isHovered && (
+                    <>
+                        {onPrefer && (
+                            <button
+                                type='button'
+                                aria-label='Prefer'
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onPrefer()
+                                }}
+                                className='absolute top-2 left-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-brand transition-colors'
+                            >
+                                <Heart className='h-4 w-4 text-lucky-brand' />
+                            </button>
+                        )}
+                        {onBlock && (
+                            <button
+                                type='button'
+                                aria-label='Block'
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onBlock()
+                                }}
+                                className='absolute top-2 right-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-error transition-colors'
+                            >
+                                <X className='h-4 w-4 text-lucky-error' />
+                            </button>
+                        )}
+                    </>
+                )}
             </div>
             <span
                 className={cn(
@@ -132,13 +168,15 @@ export default function PreferredArtistsPage() {
     const { selectedGuild } = useGuildSelection()
     const guildId = selectedGuild?.id
     const prefersReducedMotion = useReducedMotion()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const currentTab = (searchParams.get('tab') || 'discover') as 'discover' | 'preferred' | 'blocked'
 
     const [query, setQuery] = useState('')
     const [searchResults, setSearchResults] = useState<SpotifyArtist[]>([])
     const [searching, setSearching] = useState(false)
     const [searchError, setSearchError] = useState<string | null>(null)
 
-    const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+    const [suggestionsLoading, setSuggestionsLoading] = useState(true)
 
     const [savedPreferences, setSavedPreferences] = useState<
         Map<string, ArtistPreference>
@@ -241,27 +279,13 @@ export default function PreferredArtistsPage() {
         })
     }, [feedChildren])
 
-    const selectArtist = useCallback(
+    const expandArtist = useCallback(
         async (artist: SpotifyArtist) => {
-            const key = normalizeArtistKey(artist.name)
-
             // If already expanded, collapse it
             if (expanded.has(artist.id)) {
                 collapse(artist.id)
                 return
             }
-
-            // Toggle prefer in unsaved changes
-            setUnsavedChanges((prev) => {
-                const next = new Map(prev)
-                const current = next.get(key)?.preference
-                if (current === 'prefer') {
-                    next.delete(key)
-                } else {
-                    next.set(key, { preference: 'prefer', artist })
-                }
-                return next
-            })
 
             // Load and insert related artists
             setLoadingId(artist.id)
@@ -310,6 +334,25 @@ export default function PreferredArtistsPage() {
             }
         },
         [feedArtists, expanded, savedPreferences, unsavedChanges, collapse],
+    )
+
+    const togglePreference = useCallback(
+        (artist: SpotifyArtist, preference: 'prefer' | 'block') => {
+            const key = normalizeArtistKey(artist.name)
+            setUnsavedChanges((prev) => {
+                const next = new Map(prev)
+                const current = next.get(key)?.preference
+                if (current === preference) {
+                    // Remove if same preference already pending
+                    next.delete(key)
+                } else {
+                    // Set new preference (overwrites opposite)
+                    next.set(key, { preference, artist })
+                }
+                return next
+            })
+        },
+        [],
     )
 
     const handleSavePreferences = useCallback(async () => {
@@ -362,46 +405,50 @@ export default function PreferredArtistsPage() {
         <div className='space-y-6'>
             <SectionHeader
                 eyebrow='Music personalization'
-                title='Preferred Artists'
+                title='Musical Taste'
                 description="Choose artists to guide autoplay recommendations. When multiple people are in voice, Lucky blends everyone's preferences."
                 actions={<Heart className='h-5 w-5 text-lucky-accent' />}
             />
 
-            <div className='space-y-4'>
-                    {preferredArtists.length > 0 && (
-                        <div className='surface-panel p-4'>
-                            <div className='flex items-center gap-2 mb-3'>
-                                <p className='text-[10px] font-semibold uppercase tracking-wide text-lucky-text-subtle'>
-                                    Preferred Artists
-                                </p>
-                                <span className='inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-lucky-brand/20 text-lucky-brand text-xs font-medium'>
-                                    {preferredArtists.length}
+            {/* Tab Buttons */}
+            <div className='surface-panel p-4'>
+                <div className='flex gap-2'>
+                    {(['discover', 'preferred', 'blocked'] as const).map((tab) => {
+                        const counts = {
+                            discover: feedArtists.length,
+                            preferred: preferredArtists.length,
+                            blocked: blockedArtists.length,
+                        }
+                        return (
+                            <button
+                                key={tab}
+                                type='button'
+                                onClick={() => setSearchParams({ tab })}
+                                className={cn(
+                                    'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2',
+                                    currentTab === tab
+                                        ? 'bg-lucky-brand text-white'
+                                        : 'bg-lucky-bg-tertiary text-lucky-text-secondary hover:bg-lucky-bg-active',
+                                )}
+                            >
+                                <span className='capitalize'>
+                                    {tab === 'discover' && 'Discover'}
+                                    {tab === 'preferred' && 'Preferred'}
+                                    {tab === 'blocked' && 'Blocked'}
                                 </span>
-                            </div>
-                            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
-                                {preferredArtists.map((pref) => {
-                                    const artist = prefToArtist(pref)
-                                    return (
-                                        <div key={pref.id} className='transition-opacity'>
-                                            <ArtistTile
-                                                artist={artist}
-                                                size='lg'
-                                                preference='prefer'
-                                                onClick={async () => {
-                                                    if (!guildId) return
-                                                    const artistKey = normalizeArtistKey(pref.artistName)
-                                                    await api.artists.deletePreference(artistKey, guildId)
-                                                    await loadPreferences()
-                                                }}
-                                            />
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )}
+                                <span className='inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-lucky-brand/20 text-lucky-brand text-xs font-medium'>
+                                    {counts[tab]}
+                                </span>
+                            </button>
+                        )
+                    })}
+                </div>
+            </div>
 
-                    <div className='surface-panel p-4'>
+            <div className='space-y-4'>
+                    {/* Discover Tab */}
+                    {currentTab === 'discover' && (
+                        <div className='surface-panel p-4'>
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lucky-text-subtle' />
                             <input
@@ -483,8 +530,10 @@ export default function PreferredArtistsPage() {
                                                     active={isExpanded || isLoading}
                                                     preference={pref}
                                                     onClick={() =>
-                                                        selectArtist(artist)
+                                                        expandArtist(artist)
                                                     }
+                                                    onPrefer={() => togglePreference(artist, 'prefer')}
+                                                    onBlock={() => togglePreference(artist, 'block')}
                                                 />
                                             </motion.div>
                                         )
@@ -503,30 +552,74 @@ export default function PreferredArtistsPage() {
                                     </p>
                                 </div>
                             )}
-                    </div>
+                        </div>
+                    )}
 
-                    {blockedArtists.length > 0 && (
+                    {/* Preferred Tab */}
+                    {currentTab === 'preferred' && (
                         <div className='surface-panel p-4'>
-                            <p className='mb-3 text-[10px] font-semibold uppercase tracking-wide text-lucky-text-subtle'>
-                                Blocked Artists
-                            </p>
-                            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
-                                {blockedArtists.map((pref) => {
-                                    const artist = prefToArtist(pref)
-                                    return (
-                                        <div key={pref.id} className='transition-opacity'>
-                                            <ArtistTile
-                                                artist={artist}
-                                                size='xl'
-                                                preference='block'
-                                                onClick={() =>
-                                                    selectArtist(artist)
-                                                }
-                                            />
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                            {preferredArtists.length === 0 ? (
+                                <EmptyState
+                                    icon={<Heart className='h-10 w-10' aria-hidden='true' />}
+                                    title='No preferred artists yet'
+                                    description='Add some from Discover.'
+                                />
+                            ) : (
+                                <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
+                                    {preferredArtists.map((pref) => {
+                                        const artist = prefToArtist(pref)
+                                        return (
+                                            <div key={pref.id} className='transition-opacity'>
+                                                <ArtistTile
+                                                    artist={artist}
+                                                    size='lg'
+                                                    preference='prefer'
+                                                    onClick={async () => {
+                                                        if (!guildId) return
+                                                        const artistKey = normalizeArtistKey(pref.artistName)
+                                                        await api.artists.deletePreference(artistKey, guildId)
+                                                        await loadPreferences()
+                                                    }}
+                                                />
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Blocked Tab */}
+                    {currentTab === 'blocked' && (
+                        <div className='surface-panel p-4'>
+                            {blockedArtists.length === 0 ? (
+                                <EmptyState
+                                    icon={<X className='h-10 w-10' aria-hidden='true' />}
+                                    title='No blocked artists'
+                                    description="Block artists you don't want Lucky to autoplay."
+                                />
+                            ) : (
+                                <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
+                                    {blockedArtists.map((pref) => {
+                                        const artist = prefToArtist(pref)
+                                        return (
+                                            <div key={pref.id} className='transition-opacity'>
+                                                <ArtistTile
+                                                    artist={artist}
+                                                    size='lg'
+                                                    preference='block'
+                                                    onClick={async () => {
+                                                        if (!guildId) return
+                                                        const artistKey = normalizeArtistKey(pref.artistName)
+                                                        await api.artists.deletePreference(artistKey, guildId)
+                                                        await loadPreferences()
+                                                    }}
+                                                />
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
 

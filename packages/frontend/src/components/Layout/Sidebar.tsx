@@ -180,7 +180,7 @@ const navSections: NavSection[] = [
             },
             {
                 path: '/music/artists',
-                label: 'Preferred Artists',
+                label: 'Musical Taste',
                 icon: Heart,
                 module: 'music',
             },
