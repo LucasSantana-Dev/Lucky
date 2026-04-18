@@ -343,7 +343,11 @@ describe('PreferredArtistsPage', () => {
         })
         await waitFor(() => {
             expect(screen.getByText('Led Zeppelin')).toBeInTheDocument()
-            expect(screen.getByText(/Fans of The Beatles also like/)).toBeInTheDocument()
+            expect(
+                screen.getByText((_, el) =>
+                    el?.textContent?.replace(/\s+/g, ' ').includes('Fans of The Beatles also like') ?? false,
+                ),
+            ).toBeInTheDocument()
         })
     })
 

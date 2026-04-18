@@ -318,15 +318,28 @@ export default function PreferredArtistsPage() {
     }, [query])
 
     const selectArtist = useCallback(async (artist: SpotifyArtist) => {
+        const key = normalizeArtistKey(artist.name)
+        // Toggle 'prefer' on the clicked tile (cycle: none → prefer → none).
+        // Block is reserved for the explicit Block button on the tile (future).
+        setUnsavedChanges((prev) => {
+            const next = new Map(prev)
+            const current = next.get(key)?.preference
+            if (current === 'prefer') {
+                next.delete(key)
+            } else {
+                next.set(key, { preference: 'prefer', artist })
+            }
+            return next
+        })
         setSelectedArtist(artist)
         setRelatedArtists([])
         setRelatedLoading(true)
         try {
             const res = await api.artists.getRelated(artist.id)
-            // Filter out artists already in user's saved preferences or unsaved changes
+            // Filter out artists already in saved or unsaved preferences.
             const filteredArtists = res.data.artists.filter((relatedArtist) => {
-                const key = normalizeArtistKey(relatedArtist.name)
-                return !savedPreferences.has(key) && !unsavedChanges.has(key)
+                const k = normalizeArtistKey(relatedArtist.name)
+                return !savedPreferences.has(k) && !unsavedChanges.has(k)
             })
             setRelatedArtists(filteredArtists)
         } catch {
