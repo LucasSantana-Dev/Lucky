@@ -100,6 +100,7 @@ async function fetchLastFmSimilarArtists(
 export async function getSpotifyRelatedArtists(
     accessToken: string,
     artistId: string,
+    limit = 30,
 ): Promise<SpotifyArtist[]> {
     // Spotify deprecated /v1/recommendations and /v1/artists/{id}/related-artists
     // for new apps in 2024 (404/403). Use Last.fm artist.getSimilar to find
@@ -111,13 +112,15 @@ export async function getSpotifyRelatedArtists(
             console.warn(`[Spotify] Could not fetch artist name for ${artistId}`)
             return []
         }
-        const similarNames = await fetchLastFmSimilarArtists(seedName, 24)
+        const lastFmLimit = Math.min(limit, 50)
+        const similarNames = await fetchLastFmSimilarArtists(seedName, lastFmLimit)
         if (similarNames.length === 0) {
             console.warn(`[Spotify] Last.fm returned no similar artists for "${seedName}"`)
             return []
         }
+        const lookupCount = Math.max(limit, 30)
         const lookups = await Promise.all(
-            similarNames.slice(0, 12).map((name) =>
+            similarNames.slice(0, lookupCount).map((name) =>
                 searchSpotifyArtists(accessToken, name, 1).then((r) => r[0] ?? null),
             ),
         )
