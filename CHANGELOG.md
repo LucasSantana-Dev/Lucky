@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.140] - 2026-04-18
+
+### Added
+- feat(artists): YouTube Music-style Preferred Artists experience — 150-artist seed with multi-time-range Spotify top-artists merge (short/medium/long term), flat-feed inline expansion with recursive splice/collapse, new Preferred Artists section in the UI (click-to-delete), already-preferred artists filtered from related expansions (#709)
+
 ## [2.6.139] - 2026-04-18
 
 ### Fixed
