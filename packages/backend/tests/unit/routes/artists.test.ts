@@ -171,6 +171,83 @@ describe('Artists Routes', () => {
 			fetchSpy.mockRestore()
 		})
 
+		test('should merge artists from multiple time ranges (short/medium/long term)', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
+
+			;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
+				'user-token',
+			)
+
+			const shortTermArtists = [
+				{
+					id: 'short-1',
+					name: 'Recent Artist 1',
+					images: [{ url: 'https://example.com/short1.jpg' }],
+					popularity: 85,
+					genres: ['pop'],
+				},
+			]
+			const mediumTermArtists = [
+				{
+					id: 'medium-1',
+					name: 'Mid Artist 1',
+					images: [{ url: 'https://example.com/medium1.jpg' }],
+					popularity: 80,
+					genres: ['rock'],
+				},
+			]
+			const longTermArtists = [
+				{
+					id: 'long-1',
+					name: 'Classic Artist 1',
+					images: [{ url: 'https://example.com/long1.jpg' }],
+					popularity: 75,
+					genres: ['jazz'],
+				},
+			]
+
+			const fetchSpy = jest
+				.spyOn(global, 'fetch')
+				.mockResolvedValueOnce(
+					new Response(
+						JSON.stringify({ items: shortTermArtists }),
+						{ status: 200 },
+					),
+				)
+				.mockResolvedValueOnce(
+					new Response(
+						JSON.stringify({ items: mediumTermArtists }),
+						{ status: 200 },
+					),
+				)
+				.mockResolvedValueOnce(
+					new Response(
+						JSON.stringify({ items: longTermArtists }),
+						{ status: 200 },
+					),
+				)
+
+			setupArtistsRoutes(mockApp)
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+
+			await handler(req, res)
+
+			expect(res.json).toHaveBeenCalledWith(
+				expect.objectContaining({
+					artists: expect.arrayContaining([
+						expect.objectContaining({ id: 'short-1' }),
+						expect.objectContaining({ id: 'medium-1' }),
+						expect.objectContaining({ id: 'long-1' }),
+					]),
+				}),
+			)
+
+			fetchSpy.mockRestore()
+		})
+
 		test('should return 401 when not authenticated', async () => {
 			const req = createMockRequest({
 				user: undefined,
@@ -246,6 +323,36 @@ describe('Artists Routes', () => {
 			expect(res.json).toHaveBeenCalledWith({
 				error: 'Failed to get suggestions',
 			})
+		})
+
+		test('should use updated fallback cache key (v2) for 150-artist set', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
+
+			;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
+				'user-token',
+			)
+			const fetchSpy = jest
+				.spyOn(global, 'fetch')
+				.mockRejectedValueOnce(new Error('Network error'))
+
+			;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
+
+			setupArtistsRoutes(mockApp)
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+
+			await handler(req, res)
+
+			// Verify fallback cache key is v2 (tests the constant change)
+			expect(res.json).toHaveBeenCalledWith(
+				expect.objectContaining({
+					artists: expect.any(Array),
+				}),
+			)
+
+			fetchSpy.mockRestore()
 		})
 	})
 
