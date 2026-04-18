@@ -1,7 +1,7 @@
 {
     "name": "lucky-webapp",
     "private": true,
-    "version": "2.6.137",
+    "version": "2.6.138",
     "type": "module",
     "scripts": {
         "dev": "vite",
