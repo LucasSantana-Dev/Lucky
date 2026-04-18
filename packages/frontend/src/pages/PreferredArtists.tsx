@@ -6,13 +6,13 @@ import {
     Search,
     UserX,
     X,
-    ChevronRight,
 } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
 import type { SpotifyArtist, ArtistPreference } from '@/services/artistsApi'
 import SectionHeader from '@/components/ui/SectionHeader'
 import EmptyState from '@/components/ui/EmptyState'
+import { RelatedArtistsCarousel } from '@/components/RelatedArtistsCarousel'
 import { cn } from '@/lib/utils'
 
 function normalizeArtistKey(name: string): string {
@@ -218,74 +218,14 @@ function ArtistDetailPanel({
                 </button>
             </div>
 
-            <div>
-                <p className='mb-3 type-body-sm font-semibold text-lucky-text-secondary uppercase tracking-wide text-[10px]'>
-                    Related Artists
-                </p>
-                {relatedLoading ? (
-                    <div className='flex justify-center py-6'>
-                        <Loader2 className='h-5 w-5 animate-spin text-lucky-text-tertiary' />
-                    </div>
-                ) : relatedArtists.length === 0 ? (
-                    <p className='type-body-sm text-lucky-text-tertiary'>
-                        No related artists found
-                    </p>
-                ) : (
-                    <div className='space-y-1'>
-                        {relatedArtists.slice(0, 8).map((related) => {
-                            const relKey = normalizeArtistKey(related.name)
-                            const relPref = savedPreferences.get(relKey)
-                            return (
-                                <button
-                                    key={related.id}
-                                    type='button'
-                                    onClick={() => onSelectRelated(related)}
-                                    className='lucky-focus-visible group flex w-full items-center gap-3 rounded-lg p-2 transition-colors hover:bg-lucky-bg-tertiary'
-                                >
-                                    <div className='h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-lucky-border'>
-                                        {related.imageUrl ? (
-                                            <img
-                                                src={related.imageUrl}
-                                                alt={related.name}
-                                                className='h-full w-full object-cover'
-                                            />
-                                        ) : (
-                                            <div className='flex h-full w-full items-center justify-center bg-lucky-bg-active text-xs font-semibold text-lucky-text-secondary'>
-                                                {related.name
-                                                    .charAt(0)
-                                                    .toUpperCase()}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className='min-w-0 flex-1 text-left'>
-                                        <p className='type-body-sm truncate font-medium text-lucky-text-primary'>
-                                            {related.name}
-                                        </p>
-                                        {related.genres.length > 0 && (
-                                            <p className='text-[11px] truncate capitalize text-lucky-text-tertiary'>
-                                                {related.genres[0]}
-                                            </p>
-                                        )}
-                                    </div>
-                                    {relPref && (
-                                        <span
-                                            className={cn(
-                                                'text-[10px] font-semibold uppercase',
-                                                relPref.preference === 'prefer'
-                                                    ? 'text-lucky-success'
-                                                    : 'text-lucky-error',
-                                            )}
-                                        >
-                                            {relPref.preference}
-                                        </span>
-                                    )}
-                                    <ChevronRight className='h-3.5 w-3.5 shrink-0 text-lucky-text-subtle opacity-0 transition-opacity group-hover:opacity-100' />
-                                </button>
-                            )
-                        })}
-                    </div>
-                )}
-            </div>
+            <RelatedArtistsCarousel
+                title='Fans also like'
+                artists={relatedArtists}
+                loading={relatedLoading}
+                savedPreferences={savedPreferences}
+                onSelectArtist={onSelectRelated}
+                normalizeArtistKey={normalizeArtistKey}
+            />
         </div>
     )
 }
@@ -382,13 +322,18 @@ export default function PreferredArtistsPage() {
         setRelatedLoading(true)
         try {
             const res = await api.artists.getRelated(artist.id)
-            setRelatedArtists(res.data.artists)
+            // Filter out artists already in user's preferences
+            const filteredArtists = res.data.artists.filter((relatedArtist) => {
+                const key = normalizeArtistKey(relatedArtist.name)
+                return !savedPreferences.has(key)
+            })
+            setRelatedArtists(filteredArtists)
         } catch {
             setRelatedArtists([])
         } finally {
             setRelatedLoading(false)
         }
-    }, [])
+    }, [savedPreferences])
 
     const handleTogglePreference = useCallback(
         (artist: SpotifyArtist, pref: 'prefer' | 'block') => {
