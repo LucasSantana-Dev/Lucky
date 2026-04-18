@@ -66,7 +66,7 @@ export function createArtistsApi(apiClient: AxiosInstance) {
             }>
         }) =>
             apiClient.put<{ preferences: ArtistPreference[] }>(
-                '/api/artists/preferences/batch',
+                '/artists/preferences/batch',
                 data,
             ),
 
