@@ -4,7 +4,6 @@ import {
     Loader2,
     Music2,
     Search,
-    UserX,
     X,
     Check,
 } from 'lucide-react'
@@ -154,9 +153,9 @@ function RelatedArtistsRow({
     return (
         <motion.div
             layout
-            initial={prefersReducedMotion ? false : { opacity: 0, height: 0 }}
-            animate={prefersReducedMotion ? false : { opacity: 1, height: 'auto' }}
-            exit={prefersReducedMotion ? false : { opacity: 0, height: 0 }}
+            initial={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
+            animate={prefersReducedMotion ? undefined : { opacity: 1, height: 'auto' }}
+            exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
             className='col-span-full'
         >
@@ -190,7 +189,7 @@ function RelatedArtistsRow({
 
                 {!relatedLoading && relatedArtists.length > 0 && (
                     <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'>
-                        {relatedArtists.map((artist, idx) => {
+                        {relatedArtists.map((artist) => {
                             const key = normalizeArtistKey(artist.name)
                             const unsaved = unsavedChanges.get(key)?.preference ?? null
                             const pref =
@@ -200,8 +199,8 @@ function RelatedArtistsRow({
                             return (
                                 <motion.div
                                     key={artist.id + key}
-                                    initial={prefersReducedMotion ? false : { opacity: 0, y: -10 }}
-                                    animate={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
+                                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
+                                    animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                                     transition={prefersReducedMotion ? {} : { duration: 0.2, delay: idx * 0.05 }}
                                 >
                                     <ArtistTile
@@ -337,27 +336,6 @@ export default function PreferredArtistsPage() {
         }
     }, [savedPreferences, unsavedChanges])
 
-    const handleTogglePreference = useCallback(
-        (artist: SpotifyArtist, pref: 'prefer' | 'block') => {
-            const key = normalizeArtistKey(artist.name)
-            setUnsavedChanges((prev) => {
-                const next = new Map(prev)
-                next.set(key, { preference: pref, artist })
-                return next
-            })
-        },
-        [],
-    )
-
-    const handleRemovePreference = useCallback((artist: SpotifyArtist) => {
-        const key = normalizeArtistKey(artist.name)
-        setUnsavedChanges((prev) => {
-            const next = new Map(prev)
-            next.delete(key)
-            return next
-        })
-    }, [])
-
     const handleSavePreferences = useCallback(async () => {
         if (!guildId || unsavedChanges.size === 0) return
         setIsSaving(true)
@@ -387,14 +365,6 @@ export default function PreferredArtistsPage() {
     const blockedArtists = [...savedPreferences.values()].filter(
         (p) => p.preference === 'block',
     )
-
-    const selectedPreference = selectedArtist
-        ? (unsavedChanges.get(normalizeArtistKey(selectedArtist.name))
-                ?.preference ??
-            savedPreferences.get(normalizeArtistKey(selectedArtist.name))
-                ?.preference ??
-            null)
-        : null
 
     const displayArtists = query.trim() ? searchResults : suggestedArtists
 
@@ -474,7 +444,7 @@ export default function PreferredArtistsPage() {
                                 className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'
                             >
                                 <AnimatePresence mode='popLayout'>
-                                    {displayArtists.map((artist, idx) => {
+                                    {displayArtists.map((artist) => {
                                         const key = normalizeArtistKey(artist.name)
                                         const unsaved =
                                             unsavedChanges.get(key)?.preference ?? null
@@ -488,9 +458,9 @@ export default function PreferredArtistsPage() {
                                             <motion.div
                                                 key={artist.id + key}
                                                 layout
-                                                initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
-                                                animate={prefersReducedMotion ? false : { opacity: 1, scale: 1 }}
-                                                exit={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
+                                                initial={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.8 }}
+                                                animate={prefersReducedMotion ? undefined : { opacity: 1, scale: 1 }}
+                                                exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.8 }}
                                                 transition={prefersReducedMotion ? {} : { duration: 0.2 }}
                                             >
                                                 <ArtistTile
