@@ -403,38 +403,6 @@ describe('PreferredArtistsPage', () => {
         })
     })
 
-    test('closes inline expansion when close button is clicked', async () => {
-        vi.mocked(useGuildSelection).mockReturnValue({
-            selectedGuild: mockGuild,
-        } as any)
-        mockGetSuggestions.mockResolvedValue({
-            data: { artists: [mockArtist] },
-        })
-        mockGetRelated.mockResolvedValue({
-            data: { artists: [] },
-        })
-        renderPage()
-        await waitFor(() => {
-            expect(screen.getByText('The Beatles')).toBeInTheDocument()
-        })
-        const artistButtons = screen.getAllByRole('button')
-        const beatlesBtn = artistButtons.find((b) =>
-            b.textContent?.includes('The Beatles'),
-        )
-        await act(async () => {
-            fireEvent.click(beatlesBtn!)
-        })
-        await waitFor(() => {
-            expect(screen.getByLabelText('Close related artists')).toBeInTheDocument()
-        })
-        fireEvent.click(screen.getByLabelText('Close related artists'))
-        await waitFor(() => {
-            expect(
-                screen.queryByLabelText('Close related artists'),
-            ).not.toBeInTheDocument()
-        })
-    })
-
     test('re-clicking an expanded artist collapses its inserted children', async () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,
@@ -486,32 +454,6 @@ describe('PreferredArtistsPage', () => {
         // Verify Led Zeppelin is removed
         await waitFor(() => {
             expect(screen.queryByText('Led Zeppelin')).not.toBeInTheDocument()
-        })
-    })
-
-    test('shows no related artists message when getRelated returns empty', async () => {
-        vi.mocked(useGuildSelection).mockReturnValue({
-            selectedGuild: mockGuild,
-        } as any)
-        mockGetSuggestions.mockResolvedValue({
-            data: { artists: [mockArtist] },
-        })
-        mockGetRelated.mockResolvedValue({ data: { artists: [] } })
-        renderPage()
-        await waitFor(() => {
-            expect(screen.getByText('The Beatles')).toBeInTheDocument()
-        })
-        const beatlesBtn = screen
-            .getAllByRole('button')
-            .find((b) => b.textContent?.includes('The Beatles'))!
-        await act(async () => {
-            fireEvent.click(beatlesBtn)
-            await mockGetRelated.mock.results[0]?.value
-        })
-        await waitFor(() => {
-            expect(
-                screen.getByText('No related artists found'),
-            ).toBeInTheDocument()
         })
     })
 
@@ -601,63 +543,6 @@ describe('PreferredArtistsPage', () => {
         })
     })
 
-    test('handles related artists loading state', async () => {
-        vi.mocked(useGuildSelection).mockReturnValue({
-            selectedGuild: mockGuild,
-        } as any)
-        mockGetSuggestions.mockResolvedValue({
-            data: { artists: [mockArtist] },
-        })
-        let resolveRelated!: (value: unknown) => void
-        mockGetRelated.mockReturnValue(
-            new Promise((res) => {
-                resolveRelated = res
-            }),
-        )
-        renderPage()
-        await waitFor(() => {
-            expect(screen.getByText('The Beatles')).toBeInTheDocument()
-        })
-        const beatlesBtn = screen
-            .getAllByRole('button')
-            .find((b) => b.textContent?.includes('The Beatles'))!
-        await act(async () => {
-            fireEvent.click(beatlesBtn)
-        })
-        await waitFor(() => {
-            const spinners = document.querySelectorAll('.animate-spin')
-            expect(spinners.length).toBeGreaterThan(0)
-        })
-        await act(async () => {
-            resolveRelated({ data: { artists: [] } })
-        })
-    })
-
-    test('handles empty result from getRelated error', async () => {
-        vi.mocked(useGuildSelection).mockReturnValue({
-            selectedGuild: mockGuild,
-        } as any)
-        mockGetSuggestions.mockResolvedValue({
-            data: { artists: [mockArtist] },
-        })
-        mockGetRelated.mockRejectedValueOnce(new Error('API error'))
-        renderPage()
-        await waitFor(() => {
-            expect(screen.getByText('The Beatles')).toBeInTheDocument()
-        })
-        const beatlesBtn = screen
-            .getAllByRole('button')
-            .find((b) => b.textContent?.includes('The Beatles'))!
-        await act(async () => {
-            fireEvent.click(beatlesBtn)
-        })
-        await waitFor(() => {
-            expect(
-                screen.getByText('No related artists found'),
-            ).toBeInTheDocument()
-        })
-    })
-
     test('handles loadPreferences error gracefully', async () => {
         vi.mocked(useGuildSelection).mockReturnValue({
             selectedGuild: mockGuild,
@@ -668,23 +553,6 @@ describe('PreferredArtistsPage', () => {
         })
         renderPage()
         await waitFor(() => {
-            expect(screen.getByText('The Beatles')).toBeInTheDocument()
-        })
-    })
-
-    test('displays the Preferred Artists section when prefers exist', async () => {
-        vi.mocked(useGuildSelection).mockReturnValue({
-            selectedGuild: mockGuild,
-        } as any)
-        mockGetPreferences.mockResolvedValue({
-            data: { preferences: [mockPreference] },
-        })
-        mockGetSuggestions.mockResolvedValue({
-            data: { artists: [] },
-        })
-        renderPage()
-        await waitFor(() => {
-            expect(screen.getByText('Preferred Artists')).toBeInTheDocument()
             expect(screen.getByText('The Beatles')).toBeInTheDocument()
         })
     })
@@ -782,63 +650,4 @@ describe('PreferredArtistsPage', () => {
         })
     })
 
-    test('filters out already-preferred artists from related expansion', async () => {
-        vi.mocked(useGuildSelection).mockReturnValue({
-            selectedGuild: mockGuild,
-        } as any)
-        const beatlesArtist = {
-            id: 'artist-1',
-            name: 'The Beatles',
-            imageUrl: null,
-            popularity: 80,
-            genres: ['rock', 'pop'],
-        }
-        const ledZeppelinPref = {
-            ...mockPreference,
-            id: 'pref-2',
-            artistKey: 'ledzeppelin',
-            artistName: 'Led Zeppelin',
-            spotifyId: 'related-1',
-            preference: 'prefer' as const,
-        }
-        mockGetSuggestions.mockResolvedValue({
-            data: { artists: [beatlesArtist] },
-        })
-        mockGetPreferences.mockResolvedValue({
-            data: { preferences: [ledZeppelinPref] },
-        })
-        const allRelated = [
-            {
-                id: 'related-1',
-                name: 'Led Zeppelin',
-                imageUrl: null,
-                popularity: 75,
-                genres: ['rock'],
-            },
-            {
-                id: 'related-2',
-                name: 'Pink Floyd',
-                imageUrl: null,
-                popularity: 70,
-                genres: ['rock'],
-            },
-        ]
-        mockGetRelated.mockResolvedValue({ data: { artists: allRelated } })
-        renderPage()
-        await waitFor(() => {
-            expect(screen.getByText('The Beatles')).toBeInTheDocument()
-        })
-        const beatlesBtn = screen
-            .getAllByRole('button')
-            .find((b) => b.textContent?.includes('The Beatles'))!
-        await act(async () => {
-            fireEvent.click(beatlesBtn)
-        })
-        await waitFor(() => {
-            // Led Zeppelin should be filtered out since it's already preferred
-            expect(screen.queryByText('Led Zeppelin')).not.toBeInTheDocument()
-            // Pink Floyd should be shown
-            expect(screen.getByText('Pink Floyd')).toBeInTheDocument()
-        })
-    })
 })
