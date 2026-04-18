@@ -84,7 +84,7 @@ describe('createArtistsApi', () => {
     })
 
     describe('savePreferencesBatch', () => {
-        it('calls PUT /api/artists/preferences/batch with data', async () => {
+        it('calls PUT /artists/preferences/batch with data', async () => {
             const data = {
                 guildId: 'g1',
                 items: [
@@ -106,7 +106,7 @@ describe('createArtistsApi', () => {
             }
             await api.savePreferencesBatch(data)
             expect(client.put).toHaveBeenCalledWith(
-                '/api/artists/preferences/batch',
+                '/artists/preferences/batch',
                 data,
             )
         })
