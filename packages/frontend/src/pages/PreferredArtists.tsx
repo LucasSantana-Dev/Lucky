@@ -138,7 +138,6 @@ export default function PreferredArtistsPage() {
     const [searching, setSearching] = useState(false)
     const [searchError, setSearchError] = useState<string | null>(null)
 
-    const [suggestedArtists, setSuggestedArtists] = useState<SpotifyArtist[]>([])
     const [suggestionsLoading, setSuggestionsLoading] = useState(false)
 
     const [savedPreferences, setSavedPreferences] = useState<
@@ -176,10 +175,8 @@ export default function PreferredArtistsPage() {
         setSuggestionsLoading(true)
         try {
             const res = await api.artists.getSuggestions()
-            setSuggestedArtists(res.data.artists)
             setFeedArtists(res.data.artists)
         } catch {
-            setSuggestedArtists([])
             setFeedArtists([])
         } finally {
             setSuggestionsLoading(false)
@@ -391,6 +388,7 @@ export default function PreferredArtistsPage() {
                                                 size='lg'
                                                 preference='prefer'
                                                 onClick={async () => {
+                                                    if (!guildId) return
                                                     const artistKey = normalizeArtistKey(pref.artistName)
                                                     await api.artists.deletePreference(artistKey, guildId)
                                                     await loadPreferences()
