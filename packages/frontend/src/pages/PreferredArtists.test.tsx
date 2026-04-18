@@ -6,6 +6,18 @@ import { useGuildSelection } from '@/hooks/useGuildSelection'
 
 vi.mock('@/hooks/useGuildSelection')
 vi.mock('@/hooks/usePageMetadata', () => ({ usePageMetadata: vi.fn() }))
+vi.mock('framer-motion', async () => {
+    const React = await import('react')
+    const passthrough = (tag: string) =>
+        React.forwardRef(({ children, layout, initial, animate, exit, transition, whileHover, whileTap, ...props }: any, ref: any) =>
+            React.createElement(tag, { ...props, ref }, children),
+        )
+    return {
+        motion: new Proxy({}, { get: (_t, prop: string) => passthrough(prop) }),
+        AnimatePresence: ({ children }: any) => children,
+        useReducedMotion: vi.fn(() => false),
+    }
+})
 
 const mockGetPreferences = vi.fn()
 const mockSearch = vi.fn()
@@ -343,11 +355,12 @@ describe('PreferredArtistsPage', () => {
         })
         await waitFor(() => {
             expect(screen.getByText('Led Zeppelin')).toBeInTheDocument()
-            expect(
-                screen.getByText((_, el) =>
-                    el?.textContent?.replace(/\s+/g, ' ').includes('Fans of The Beatles also like') ?? false,
-                ),
-            ).toBeInTheDocument()
+            const heading = screen
+                .getAllByText((_, el) =>
+                    (el?.tagName === 'P' || el?.tagName === 'SPAN') &&
+                    (el.textContent?.replace(/\s+/g, ' ').includes('Fans of The Beatles also like') ?? false),
+                )[0]
+            expect(heading).toBeInTheDocument()
         })
     })
 
