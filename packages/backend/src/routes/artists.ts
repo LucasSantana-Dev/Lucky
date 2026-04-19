@@ -21,6 +21,20 @@ const FALLBACK_SUGGESTIONS_TTL_SECONDS = 60 * 60 // 1 hour
 const USER_TOP_ARTISTS_CACHE_PREFIX = 'artist:user:top:v1:'
 const USER_TOP_ARTISTS_TTL_SECONDS = 15 * 60 // 15 minutes
 
+const STATIC_FALLBACK_ARTISTS = [
+    'Taylor Swift', 'Drake', 'The Weeknd', 'Bad Bunny', 'Billie Eilish',
+    'Dua Lipa', 'Ariana Grande', 'Kendrick Lamar', 'SZA', 'Sabrina Carpenter',
+    'Olivia Rodrigo', 'Travis Scott', 'Bruno Mars', 'Frank Ocean', 'Tyler The Creator',
+    'Karol G', 'Anitta', 'Rosalía', 'Peso Pluma', 'J Balvin',
+    'Arctic Monkeys', 'Tame Impala', 'The Strokes', 'Radiohead', 'Foo Fighters',
+    'Red Hot Chili Peppers', 'Daft Punk', 'Calvin Harris', 'ODESZA', 'Disclosure',
+    'BTS', 'BLACKPINK', 'NewJeans', 'Stray Kids',
+    'The Beatles', 'Queen', 'Pink Floyd', 'Led Zeppelin', 'Metallica',
+    'Miles Davis', 'Nina Simone', 'Phoebe Bridgers', 'Vampire Weekend', 'Mac DeMarco',
+    'Morgan Wallen', 'Luke Combs', 'Kacey Musgraves', 'Zach Bryan',
+    'Matuê', 'Tim Bernardes', 'Racionais', 'Djonga',
+] as const
+
 const saveArtistBody = z.object({
     guildId: z.string().min(1),
     artistKey: z.string().min(1),
@@ -295,6 +309,24 @@ export function setupArtistsRoutes(app: Express): void {
                         if (!suggestions.has(artist.id)) {
                             suggestions.set(artist.id, artist)
                         }
+                    }
+                }
+
+                // Last-resort static fallback: when Spotify is rate-limiting
+                // every path (user-top-read 403, popular search 429) and
+                // the Redis cache is cold, the user would otherwise see an
+                // empty grid. Seed with name-only entries; the tile UI shows
+                // the artist's initial when imageUrl is null.
+                if (suggestions.size === 0) {
+                    for (const name of STATIC_FALLBACK_ARTISTS) {
+                        const id = `static:${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`
+                        suggestions.set(id, {
+                            id,
+                            name,
+                            imageUrl: null,
+                            popularity: 0,
+                            genres: [],
+                        })
                     }
                 }
 
