@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.143] - 2026-04-18
+
+### Fixed
+- fix(artists): cache the per-user merged top-artists (3 time-ranges) in Redis under `artist:user:top:v1:<discordUserId>` for 15 min — the suggestions endpoint was taking 9.8–10s on every page load (Spotify multi-time-range fetch + popular fallback) and tripping the frontend's 10s axios timeout (#715)
+- fix(artists): bump axios timeout for `getSuggestions` to 30s as a cold-cache safety net (#715)
+
 ## [2.6.142] - 2026-04-18
 
 ### Fixed
