@@ -22,13 +22,12 @@ import {
     purgeDuplicatesOfCurrentTrack,
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
+import { collectPreferredArtistCandidates } from './preferredArtistSeeder'
 import { cleanAuthor } from '../searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
     collectGenreCandidates,
-    enrichWithAudioFeatures,
-    getTrackAudioFeatures,
     interleaveByArtist,
     buildVcContributionWeights,
 } from '../queueManipulation'
@@ -104,6 +103,7 @@ async function _replenishQueue(
             implicitLikeKeys,
             allPreferredSets,
             allBlockedSets,
+            allPreferredArtistNames,
         ] = await Promise.all([
             recommendationFeedbackService.getLikedTrackWeights(
                 requestedBy?.id ?? '',
@@ -135,10 +135,22 @@ async function _replenishQueue(
                     ),
                 ),
             ),
+            Promise.all(
+                allMemberIds.map((id) =>
+                    recommendationFeedbackService.getPreferredArtistNames(
+                        queue.guild.id,
+                        id,
+                    ),
+                ),
+            ),
         ])
 
         const preferredArtistKeys = new Set(
             allPreferredSets.flatMap((s) => [...s]),
+        )
+        const allPreferredArtistNameSets = allPreferredArtistNames.map((set) => new Set(set))
+        const preferredArtistNamesUnion = new Set<string>(
+            allPreferredArtistNameSets.flatMap((s) => [...s]),
         )
         const blockedArtistKeys = new Set(allBlockedSets.flatMap((s) => [...s]))
         const contributionWeights =
@@ -178,11 +190,6 @@ async function _replenishQueue(
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
-        const currentFeatures = requestedBy?.id
-            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
-                  () => null,
-              )
-            : null
         const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
         const candidates = await collectRecommendationCandidates(
@@ -209,6 +216,38 @@ async function _replenishQueue(
             message: 'Autoplay: recommendation candidates',
             data: { guildId, count: candidates.size, source: 'recommendation' },
         })
+
+        if (requestedBy?.id && preferredArtistNamesUnion.size > 0) {
+            const beforePreferred = candidates.size
+            await collectPreferredArtistCandidates(
+                queue,
+                requestedBy,
+                excludedUrls,
+                excludedKeys,
+                dislikedWeights,
+                likedWeights,
+                preferredArtistKeys,
+                blockedArtistKeys,
+                currentTrack,
+                recentArtists,
+                candidates,
+                autoplayMode,
+                artistFrequency,
+                implicitDislikeKeys,
+                implicitLikeKeys,
+                sessionMood,
+                Array.from(preferredArtistNamesUnion),
+            )
+            debugLog({
+                message: 'Autoplay: preferred artist candidates',
+                data: {
+                    guildId,
+                    added: candidates.size - beforePreferred,
+                    total: candidates.size,
+                    source: 'preferred_artist',
+                },
+            })
+        }
 
         if (requestedBy?.id) {
             const beforeLastFm = candidates.size
@@ -322,45 +361,7 @@ async function _replenishQueue(
             ),
         )
 
-        const currentAudioFeatures = await getTrackAudioFeatures(
-            currentTrack,
-            requestedBy?.id ?? '',
-        )
-        const enriched = await enrichWithAudioFeatures(
-            selected,
-            requestedBy?.id ?? '',
-            currentAudioFeatures,
-            currentTrack.author,
-        )
-
-        if (
-            (autoplayMode === 'discover' || autoplayMode === 'popular') &&
-            requestedBy?.id
-        ) {
-            const token = await Promise.resolve(
-                spotifyLinkService.getValidAccessToken(requestedBy.id),
-            ).catch(() => null)
-            if (token) {
-                await Promise.all(
-                    enriched.slice(0, 3).map(async (track) => {
-                        const popularity = await getArtistPopularity(
-                            token,
-                            track.track.author,
-                        ).catch(() => null)
-                        if (popularity === null) return
-                        if (autoplayMode === 'popular' && popularity >= 70) {
-                            track.score += 0.12
-                        } else if (
-                            autoplayMode === 'discover' &&
-                            popularity <= 40
-                        ) {
-                            track.score += 0.12
-                        }
-                    }),
-                )
-                enriched.sort((a, b) => b.score - a.score)
-            }
-        }
+        const enriched = selected
 
         if (enriched.length === 0) {
             warnLog({

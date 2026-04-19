@@ -472,6 +472,22 @@ export class RecommendationFeedbackService {
     }
 }
 
+    async getPreferredArtistNames(
+        guildId: string,
+        userId: string,
+    ): Promise<Set<string>> {
+        try {
+            const db = getPrismaClient()
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId, guildId, preference: 'prefer' },
+                select: { artistName: true },
+            })
+            return new Set(prefs.map((p) => p.artistName.trim()).filter(Boolean))
+        } catch {
+            return new Set<string>()
+        }
+    }
+
 export const recommendationFeedbackService = new RecommendationFeedbackService(
     parseInt(process.env.AUTOPLAY_FEEDBACK_TTL_DAYS ?? '30', 10),
 )

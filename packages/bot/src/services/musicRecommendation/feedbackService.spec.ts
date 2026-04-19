@@ -491,6 +491,72 @@ describe('implicit feedback', () => {
         const bigMap: Record<string, { type: string; updatedAt: number }> = {}
         for (let i = 0; i < 201; i++) {
             bigMap[`track${i}::artist`] = { type: 'implicit_like', updatedAt: i }
+
+    describe('getPreferredArtistNames', () => {
+        it('returns preferred artist names from Prisma', async () => {
+            const mockDb = {
+                userArtistPreference: {
+                    findMany: jest.fn().mockResolvedValue([
+                        { artistName: 'Artist A' },
+                        { artistName: 'Artist B' },
+                    ]),
+                },
+            }
+            jest.spyOn(module, 'getPrismaClient').mockReturnValue(mockDb as any)
+
+            const result = await service.getPreferredArtistNames('guild-1', 'user-1')
+
+            expect(result).toEqual(new Set(['Artist A', 'Artist B']))
+            expect(mockDb.userArtistPreference.findMany).toHaveBeenCalledWith({
+                where: { discordUserId: 'user-1', guildId: 'guild-1', preference: 'prefer' },
+                select: { artistName: true },
+            })
+        })
+
+        it('returns empty set when no preferences found', async () => {
+            const mockDb = {
+                userArtistPreference: {
+                    findMany: jest.fn().mockResolvedValue([]),
+                },
+            }
+            jest.spyOn(module, 'getPrismaClient').mockReturnValue(mockDb as any)
+
+            const result = await service.getPreferredArtistNames('guild-1', 'user-1')
+
+            expect(result).toEqual(new Set())
+        })
+
+        it('trims artist names and filters empty values', async () => {
+            const mockDb = {
+                userArtistPreference: {
+                    findMany: jest.fn().mockResolvedValue([
+                        { artistName: '  Artist A  ' },
+                        { artistName: '   ' },
+                        { artistName: 'Artist B' },
+                    ]),
+                },
+            }
+            jest.spyOn(module, 'getPrismaClient').mockReturnValue(mockDb as any)
+
+            const result = await service.getPreferredArtistNames('guild-1', 'user-1')
+
+            expect(result).toEqual(new Set(['Artist A', 'Artist B']))
+        })
+
+        it('returns empty set on Prisma error', async () => {
+            const mockDb = {
+                userArtistPreference: {
+                    findMany: jest.fn().mockRejectedValue(new Error('DB error')),
+                },
+            }
+            jest.spyOn(module, 'getPrismaClient').mockReturnValue(mockDb as any)
+
+            const result = await service.getPreferredArtistNames('guild-1', 'user-1')
+
+            expect(result).toEqual(new Set())
+        })
+    })
+
         }
         getMock.mockResolvedValue(JSON.stringify(bigMap))
         setexMock.mockResolvedValue('OK')

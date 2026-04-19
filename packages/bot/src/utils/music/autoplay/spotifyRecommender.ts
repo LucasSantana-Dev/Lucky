@@ -4,164 +4,20 @@ import {
     type GuildQueue,
 } from 'discord-player'
 import type { User } from 'discord.js'
-import { debugLog, warnLog } from '@lucky/shared/utils'
-import { spotifyLinkService } from '@lucky/shared/services'
-import {
-    searchSpotifyTrack,
-    getSpotifyRecommendations,
-    type SpotifyAudioFeatures,
-} from '../../../spotify/spotifyApi'
-import { getUserSpotifySeeds } from '../../../spotify/spotifyUserSeeds'
+import { warnLog } from '@lucky/shared/utils'
 import {
     cleanTitle,
     cleanAuthor,
     extractSongCore,
     cleanSearchQuery,
 } from '../searchQueryCleaner'
-import type { SessionMood } from './sessionMood'
 import {
-    shouldIncludeCandidate,
-    calculateRecommendationScore,
-    upsertScoredCandidate,
-    normalizeTrackKey,
     normalizeText,
-    extractSpotifyTrackId,
 } from '../queueManipulation'
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
 const QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
-
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
-
-export async function collectSpotifyRecommendationCandidates(
-    queue: GuildQueue,
-    seedTracks: Track[],
-    requestedBy: User | null,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    currentTrack: Track,
-    recentArtists: Set<string>,
-    candidates: Map<string, ScoredTrack>,
-    autoplayMode: 'similar' | 'discover' | 'popular',
-    artistFrequency: Map<string, number>,
-    implicitDislikeKeys: Set<string>,
-    implicitLikeKeys: Set<string>,
-    sessionMood: SessionMood | null,
-    currentFeatures: SpotifyAudioFeatures | null,
-): Promise<void> {
-    if (!requestedBy) return
-    const token = await Promise.resolve(
-        spotifyLinkService.getValidAccessToken(requestedBy.id),
-    ).catch(() => null)
-    if (!token) return
-
-    const userSpotifySeeds = await Promise.resolve(
-        getUserSpotifySeeds(requestedBy.id),
-    ).catch(() => null)
-
-    const seedIds = seedTracks
-        .map(extractSpotifyTrackId)
-        .filter((id): id is string => id !== null)
-        .slice(0, 5)
-
-    if (seedIds.length === 0) {
-        const resolved = await Promise.allSettled(
-            seedTracks.slice(0, 3).map((s) => {
-                const core = extractSongCore(s.title ?? '', s.author)
-                return searchSpotifyTrack(
-                    token,
-                    core ?? cleanTitle(s.title ?? ''),
-                    cleanAuthor(s.author),
-                )
-            }),
-        )
-        resolved.forEach((r) => {
-            if (r.status === 'fulfilled' && r.value) seedIds.push(r.value)
-        })
-    }
-
-    if (seedIds.length === 0) return
-    const audioConstraints = currentFeatures
-        ? {
-              energy: currentFeatures.energy,
-              valence: currentFeatures.valence,
-              danceability: currentFeatures.danceability,
-          }
-        : undefined
-    const recs = await getSpotifyRecommendations(
-        token,
-        seedIds,
-        15,
-        audioConstraints,
-    )
-    if (recs.length === 0) return
-
-    debugLog({
-        message: 'Autoplay: Spotify recommendations fetched',
-        data: { count: recs.length, seedCount: seedIds.length },
-    })
-
-    const searchResults = await Promise.allSettled(
-        recs.map((rec) => {
-            const spotifyUrl = `https://open.spotify.com/track/${rec.id}`
-            return queue.player.search(spotifyUrl, {
-                requestedBy: requestedBy ?? undefined,
-                searchEngine: QueryType.SPOTIFY_SEARCH,
-            })
-        }),
-    )
-
-    for (const result of searchResults) {
-        if (result.status !== 'fulfilled') continue
-        const track = result.value.tracks.find(
-            (t) => !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
-        )
-        if (!track) continue
-        if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys)) continue
-        const normalizedKey = normalizeTrackKey(track.title, track.author)
-        const dislikedWeight = dislikedWeights.get(normalizedKey)
-        if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-        const rec = calculateRecommendationScore(
-            track,
-            currentTrack,
-            recentArtists,
-            likedWeights,
-            preferredArtistKeys,
-            blockedArtistKeys,
-            autoplayMode,
-            artistFrequency,
-            implicitDislikeKeys,
-            implicitLikeKeys,
-            dislikedWeights,
-            sessionMood,
-        )
-        if (rec.score === -Infinity) continue
-        let score = rec.score + 0.3
-        let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
-
-        if (userSpotifySeeds !== null) {
-            const trackArtistLower = track.author.toLowerCase()
-            if (userSpotifySeeds.artistNames.has(trackArtistLower)) {
-                score += 0.08
-                reason += ' • spotify taste'
-            }
-        }
-
-        upsertScoredCandidate(candidates, track, {
-            score,
-            reason,
-        })
-    }
-}
 
 export async function searchSeedCandidates(
     queue: GuildQueue,

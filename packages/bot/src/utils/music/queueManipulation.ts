@@ -16,13 +16,9 @@ import {
     spotifyLinkService,
 } from '@lucky/shared/services'
 import {
-    getAudioFeatures,
     searchSpotifyTrack,
-    getBatchAudioFeatures,
     getArtistPopularity,
     getArtistGenres,
-    getSpotifyRecommendations,
-    type SpotifyAudioFeatures,
 } from '../../spotify/spotifyApi'
 import {
     consumeLastFmSeedSlice,
@@ -79,14 +75,7 @@ const QUEUE_RESCUE_REFILL_THRESHOLD = Number.parseInt(
     10,
 )
 
-interface AudioFeatureEntry {
-    value: SpotifyAudioFeatures | null
-}
 
-const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
-    max: 5000,
-    ttl: 24 * 60 * 60 * 1000,
-})
 
 export async function getTrackAudioFeatures(
     track: Track,
