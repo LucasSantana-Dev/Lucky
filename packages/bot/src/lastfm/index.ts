@@ -6,6 +6,7 @@ export {
     getSimilarTracks,
     getTagTopTracks,
     getLovedTracks,
+    getArtistTopTracks,
     isLastFmInvalidSessionError,
     normalizeLastFmArtist,
     normalizeLastFmTitle,

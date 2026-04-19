@@ -1,10 +1,8 @@
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { SessionMood } from './sessionMood'
 import {
-    collectSpotifyRecommendationCandidates,
     searchSeedCandidates,
 } from './spotifyRecommender'
 import {
@@ -56,10 +54,9 @@ export function upsertScoredCandidate(
 
 /**
  * Collect recommendation candidates from multiple sources:
- * - Spotify Recommendations API (based on seed tracks)
  * - Seed track similar searches (YouTube, Spotify)
  *
- * This is the main aggregator that orchestrates Spotify + LastFm + YouTube sourcing.
+ * This is the main aggregator that orchestrates LastFm + YouTube sourcing.
  * Last.fm is handled separately by collectLastFmCandidates in _replenishQueue.
  */
 export async function collectRecommendationCandidates(
@@ -80,31 +77,8 @@ export async function collectRecommendationCandidates(
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
-    currentFeatures: SpotifyAudioFeatures | null = null,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
-
-    // Collect from Spotify Recommendations API
-    await collectSpotifyRecommendationCandidates(
-        queue,
-        seedTracks,
-        requestedBy,
-        excludedUrls,
-        excludedKeys,
-        dislikedWeights,
-        likedWeights,
-        preferredArtistKeys,
-        blockedArtistKeys,
-        currentTrack,
-        recentArtists,
-        candidates,
-        autoplayMode,
-        artistFrequency,
-        implicitDislikeKeys,
-        implicitLikeKeys,
-        sessionMood,
-        currentFeatures,
-    )
 
     // Collect from seed track searches (YouTube, Spotify similar)
     for (const seed of seedTracks) {

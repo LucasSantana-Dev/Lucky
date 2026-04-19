@@ -320,3 +320,31 @@ export async function getLovedTracks(
         return []
     }
 }
+
+export async function getArtistTopTracks(
+    artist: string,
+    limit = 10,
+): Promise<{ artist: string; title: string }[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=artist.getTopTracks&artist=${encodeURIComponent(artist)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
+        )
+        const data = (await response.json()) as {
+            toptracks?: {
+                track?: Array<{
+                    name: string
+                    artist: { name: string }
+                }>
+            }
+        }
+        return (data.toptracks?.track ?? []).map((t) => ({
+            artist: t.artist.name,
+            title: t.name,
+        }))
+    } catch (err) {
+        logAndSwallow(err, 'lastfm.getArtistTopTracks', { artist })
+        return []
+    }
+}
