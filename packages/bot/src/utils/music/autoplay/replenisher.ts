@@ -22,13 +22,12 @@ import {
     purgeDuplicatesOfCurrentTrack,
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
+import { collectPreferredArtistCandidates } from './preferredArtistSeeder'
 import { cleanAuthor } from '../searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
     collectGenreCandidates,
-    enrichWithAudioFeatures,
-    getTrackAudioFeatures,
     interleaveByArtist,
     buildVcContributionWeights,
 } from '../queueManipulation'
@@ -104,6 +103,7 @@ async function _replenishQueue(
             implicitLikeKeys,
             allPreferredSets,
             allBlockedSets,
+            allPreferredNames,
         ] = await Promise.all([
             recommendationFeedbackService.getLikedTrackWeights(
                 requestedBy?.id ?? '',
@@ -130,6 +130,15 @@ async function _replenishQueue(
             Promise.all(
                 allMemberIds.map((id) =>
                     recommendationFeedbackService.getBlockedArtistKeys(
+                        queue.guild.id,
+                        id,
+                    ),
+                ),
+            ),
+        ],
+            Promise.all(
+                allMemberIds.map((id) =>
+                    recommendationFeedbackService.getPreferredArtistNames(
                         queue.guild.id,
                         id,
                     ),
@@ -178,11 +187,6 @@ async function _replenishQueue(
         })
         const recentArtists = buildRecentArtists(currentTrack, historyTracks)
         const artistFrequency = buildArtistFrequency(persistentHistory)
-        const currentFeatures = requestedBy?.id
-            ? await getTrackAudioFeatures(currentTrack, requestedBy.id).catch(
-                  () => null,
-              )
-            : null
         const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
         const candidates = await collectRecommendationCandidates(
@@ -203,7 +207,7 @@ async function _replenishQueue(
             implicitDislikeKeys,
             implicitLikeKeys,
             sessionMood,
-            currentFeatures,
+            
         )
         debugLog({
             message: 'Autoplay: recommendation candidates',
@@ -322,16 +326,7 @@ async function _replenishQueue(
             ),
         )
 
-        const currentAudioFeatures = await getTrackAudioFeatures(
-            currentTrack,
-            requestedBy?.id ?? '',
-        )
-        const enriched = await enrichWithAudioFeatures(
-            selected,
-            requestedBy?.id ?? '',
-            currentAudioFeatures,
-            currentTrack.author,
-        )
+                const enriched = selected
 
         if (
             (autoplayMode === 'discover' || autoplayMode === 'popular') &&

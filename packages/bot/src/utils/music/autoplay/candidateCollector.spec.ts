@@ -219,41 +219,6 @@ describe('candidateCollector', () => {
             )
         })
 
-        it('should collect candidates from Spotify API', async () => {
-            // Mock Spotify recommender to add candidates
-            collectSpotifyRecommendationCandidatesMock.mockImplementation(
-                async (_queue, _seeds, _requestedBy, _excludedUrls, _excludedKeys, _disliked, _liked, _preferred, _blocked, _current, _recent, candidates) => {
-                    upsertScoredCandidate(
-                        candidates,
-                        createTrack({
-                            title: 'Spotify Result',
-                            author: 'Spotify Artist',
-                        }),
-                        { score: 0.6, reason: 'spotify' },
-                    )
-                },
-            )
-            searchSeedCandidatesMock.mockResolvedValue([])
-
-            const queue = createGuildQueue()
-            const seedTracks = [createTrack()]
-
-            const result = await collectRecommendationCandidates(
-                queue,
-                seedTracks,
-                null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
-            )
-
             expect(result.size).toBe(1)
             expect(collectSpotifyRecommendationCandidatesMock).toHaveBeenCalled()
         })

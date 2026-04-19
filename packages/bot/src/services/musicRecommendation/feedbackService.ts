@@ -470,8 +470,31 @@ export class RecommendationFeedbackService {
     async getImplicitLikeKeys(userId: string): Promise<Set<string>> {
         return this.getImplicitKeysByType(userId, 'implicit_like')
     }
-}
+
+    async getPreferredArtistNames(
+        guildId: string,
+        userId: string | undefined,
+    ): Promise<Set<string>> {
+        if (!userId) return new Set<string>()
+
+        try {
+            const db = getPrismaClient()
+            const prefs = await db.userArtistPreference.findMany({
+                where: { discordUserId: userId, guildId, preference: 'prefer' },
+                select: { artistName: true },
+            })
+            return new Set(
+                prefs
+                    .map((p) => p.artistName.trim())
+                    .filter((name) => name.length > 0),
+            )
+        } catch {
+            return new Set<string>()
+        }
+    }
 
 export const recommendationFeedbackService = new RecommendationFeedbackService(
     parseInt(process.env.AUTOPLAY_FEEDBACK_TTL_DAYS ?? '30', 10),
 )
+
+}

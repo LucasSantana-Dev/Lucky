@@ -1,41 +1,11 @@
 import { LRUCache } from 'lru-cache'
 import type { Track } from 'discord-player'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import {
-    getBatchAudioFeatures,
     getArtistGenres,
 } from '../../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
-
-interface AudioFeatureEntry {
-    value: SpotifyAudioFeatures | null
-}
-
-const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
-    max: 10000,
-    ttl: 24 * 60 * 60 * 1000,
-})
-
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
-
-const GENRE_FAMILIES = {
-    rap_hiphop: ['hip hop', 'rap', 'trap', 'drill', 'gangster rap', 'g-funk'],
-    rnb_soul: ['r&b', 'soul', 'neo soul'],
-    electronic: ['edm', 'house', 'techno', 'trance', 'dubstep', 'drum and bass', 'electro', 'synthwave'],
-    rock_metal: ['rock', 'metal', 'punk', 'grunge', 'alternative'],
-    pop: ['pop', 'dance pop', 'latin pop', 'k-pop', 'indie pop'],
-    latin: ['reggaeton', 'forró', 'samba', 'bossa nova', 'latin trap', 'trap latino'],
-    country_folk: ['country', 'folk', 'bluegrass'],
-    jazz_classical: ['jazz', 'classical', 'orchestral'],
-    world: ['afrobeat', 'desi', 'bhangra'],
-    ambient_chill: ['lofi', 'chillwave', 'downtempo', 'ambient'],
-}
 
 const AMBIENT_NOISE_RE =
     /\b(?:rain sounds?|rain for sleep|ocean waves?|waves? sounds?|nature sounds?|forest sounds?|thunder sounds?|white noise|brown noise|pink noise|asmr|sleep sounds?|sleep music|relaxing rain|ambient sounds?|binaural beats?|solfeggio|healing frequ|528 ?hz|432 ?hz|963 ?hz|chakra healing|spa music|massage music|yoga music|deep sleep|baby sleep|guided meditation|meditation music)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
@@ -59,6 +29,35 @@ function normalizeTrackKey(title?: string, author?: string): string {
         ? author.split(',')[0]?.trim() ?? ''
         : ''
     return `${normalizeText(title)}::${normalizeText(cleanedAuthor)}`
+}
+
+const GENRE_FAMILIES = {
+    rap_hiphop: ['hip hop', 'rap', 'trap', 'drill', 'gangster rap', 'g-funk'],
+    rnb_soul: ['r&b', 'soul', 'neo soul'],
+    electronic: [
+        'edm',
+        'house',
+        'techno',
+        'trance',
+        'dubstep',
+        'drum and bass',
+        'electro',
+        'synthwave',
+    ],
+    rock_metal: ['rock', 'metal', 'punk', 'grunge', 'alternative'],
+    pop: ['pop', 'dance pop', 'latin pop', 'k-pop', 'indie pop'],
+    latin: [
+        'reggaeton',
+        'forró',
+        'samba',
+        'bossa nova',
+        'latin trap',
+        'trap latino',
+    ],
+    country_folk: ['country', 'folk', 'bluegrass'],
+    jazz_classical: ['jazz', 'classical', 'orchestral'],
+    world: ['afrobeat', 'desi', 'bhangra'],
+    ambient_chill: ['lofi', 'chillwave', 'downtempo', 'ambient'],
 }
 
 export function getGenreFamilies(genres: string[]): Set<string> {
@@ -342,77 +341,3 @@ function splitTokens(value: string): string[] {
         .filter((token) => token.length > 2)
 }
 
-export async function enrichWithAudioFeatures(
-    tracks: ScoredTrack[],
-    userId: string,
-    currentFeatures: SpotifyAudioFeatures | null,
-    currentArtistName?: string,
-): Promise<ScoredTrack[]> {
-    if (!currentFeatures || !userId) return tracks
-
-    const token = await Promise.resolve(
-        spotifyLinkService.getValidAccessToken(userId),
-    ).catch(() => null)
-    if (!token) return tracks
-
-    const spotifyIds: string[] = []
-    const idToTrack = new Map<string, ScoredTrack>()
-
-    for (const track of tracks) {
-        if (track.track.url?.includes('open.spotify.com/track/')) {
-            const match = track.track.url.match(/track\/([a-zA-Z0-9]+)/)
-            if (match?.[1]) {
-                spotifyIds.push(match[1])
-                idToTrack.set(match[1], track)
-            }
-        }
-    }
-
-    if (spotifyIds.length === 0) return tracks
-
-    const features = await getBatchAudioFeatures(token, spotifyIds).catch(
-        () => new Map(),
-    )
-
-    let currentGenres: string[] = []
-    if (currentArtistName) {
-        currentGenres = await getArtistGenres(token, currentArtistName).catch(
-            () => [],
-        )
-    }
-
-    for (const [id, feature] of features) {
-        const track = idToTrack.get(id)
-        if (!track) continue
-
-        const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
-        const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
-
-        if (energyDelta < 0.15 && valenceDelta < 0.2) {
-            track.score += 0.15
-        } else if (energyDelta < 0.3 || valenceDelta < 0.35) {
-            track.score += 0.07
-        } else if (energyDelta > 0.6) {
-            track.score -= 0.1
-        }
-
-        if (currentGenres.length > 0) {
-            const candidateGenres = await getArtistGenres(
-                token,
-                track.track.author,
-            ).catch(() => [])
-            const genrePenalty = calculateGenreFamilyPenalty(
-                currentGenres,
-                candidateGenres,
-            )
-            if (genrePenalty !== 0) {
-                track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
-                }
-            }
-        }
-    }
-
-    return tracks.sort((a, b) => b.score - a.score)
-}
