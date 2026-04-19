@@ -25,7 +25,10 @@ export interface ArtistPreference {
 export function createArtistsApi(apiClient: AxiosInstance) {
     return {
         getSuggestions: () =>
-            apiClient.get<{ artists: SpotifyArtist[] }>(API_ROUTES.ARTISTS.suggestions()),
+            apiClient.get<{ artists: SpotifyArtist[] }>(
+                API_ROUTES.ARTISTS.suggestions(),
+                { timeout: 30000 },
+            ),
 
         search: (query: string) =>
             apiClient.get<{ artists: SpotifyArtist[] }>(
