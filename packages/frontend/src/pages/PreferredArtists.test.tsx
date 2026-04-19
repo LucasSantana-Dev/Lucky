@@ -749,4 +749,54 @@ describe('PreferredArtistsPage', () => {
         })
     })
 
+    test('active tab badge uses white text; inactive badges use brand text', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions.mockResolvedValue({
+            data: { artists: [mockArtist] },
+        })
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+
+        const discoverBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.toLowerCase().includes('discover'))!
+        const preferredBtn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.toLowerCase().includes('preferred'))!
+
+        const activeBadge = discoverBtn.querySelector('span.rounded-full')
+        const inactiveBadge = preferredBtn.querySelector('span.rounded-full')
+        expect(activeBadge?.className).toContain('text-white')
+        expect(inactiveBadge?.className).toContain('text-lucky-brand')
+    })
+
+    test('shows error + Try again on suggestions failure; retry re-fetches', async () => {
+        vi.mocked(useGuildSelection).mockReturnValue({
+            selectedGuild: mockGuild,
+        } as any)
+        mockGetSuggestions
+            .mockRejectedValueOnce(new Error('Network error'))
+            .mockResolvedValueOnce({ data: { artists: [mockArtist] } })
+
+        renderPage()
+        await waitFor(() => {
+            expect(
+                screen.getByText('Failed to load suggestions'),
+            ).toBeInTheDocument()
+        })
+
+        const retryBtn = screen.getByRole('button', { name: /try again/i })
+        await act(async () => {
+            fireEvent.click(retryBtn)
+        })
+
+        await waitFor(() => {
+            expect(screen.getByText('The Beatles')).toBeInTheDocument()
+        })
+        expect(mockGetSuggestions).toHaveBeenCalledTimes(2)
+    })
 })
