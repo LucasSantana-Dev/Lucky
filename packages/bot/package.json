@@ -1,6 +1,6 @@
 {
     "name": "@lucky/bot",
-    "version": "2.6.143",
+    "version": "2.6.144",
     "description": "Discord bot application",
     "type": "module",
     "main": "./dist/index.js",
