@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.146] - 2026-04-19
+
+### Fixed
+- fix(artists): pre-warm popular-artists Redis cache at backend startup so `/api/artists/suggestions` doesn't take 9s and 503 every time on a cold cache. Sentry LUCKY-35 was firing post-v2.6.145 because users without `user-top-read` OAuth scope hit the empty 503 path consistently. Now the route serves popular artists from Redis within milliseconds (#724)
+
 ## [2.6.145] - 2026-04-19
 
 ### Fixed
