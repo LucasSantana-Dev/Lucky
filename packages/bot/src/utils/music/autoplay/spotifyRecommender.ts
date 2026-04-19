@@ -4,7 +4,7 @@ import {
     type GuildQueue,
 } from 'discord-player'
 import type { User } from 'discord.js'
-import { warnLog } from '@lucky/shared/utils'
+import { warnLog, debugLog } from '@lucky/shared/utils'
 import {
     cleanTitle,
     cleanAuthor,

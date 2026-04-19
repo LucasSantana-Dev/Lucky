@@ -210,7 +210,6 @@ async function _replenishQueue(
             implicitDislikeKeys,
             implicitLikeKeys,
             sessionMood,
-            currentFeatures,
         )
         debugLog({
             message: 'Autoplay: recommendation candidates',

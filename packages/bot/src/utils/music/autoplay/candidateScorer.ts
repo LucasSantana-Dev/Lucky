@@ -1,22 +1,9 @@
-import { LRUCache } from 'lru-cache'
 import type { Track } from 'discord-player'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import {
-    getBatchAudioFeatures,
     getArtistGenres,
 } from '../../../spotify/spotifyApi'
-import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
-
-interface AudioFeatureEntry {
-    value: SpotifyAudioFeatures | null
-}
-
-const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
-    max: 10000,
-    ttl: 24 * 60 * 60 * 1000,
-})
 
 type ScoredTrack = {
     track: Track
@@ -342,77 +329,3 @@ function splitTokens(value: string): string[] {
         .filter((token) => token.length > 2)
 }
 
-export async function enrichWithAudioFeatures(
-    tracks: ScoredTrack[],
-    userId: string,
-    currentFeatures: SpotifyAudioFeatures | null,
-    currentArtistName?: string,
-): Promise<ScoredTrack[]> {
-    if (!currentFeatures || !userId) return tracks
-
-    const token = await Promise.resolve(
-        spotifyLinkService.getValidAccessToken(userId),
-    ).catch(() => null)
-    if (!token) return tracks
-
-    const spotifyIds: string[] = []
-    const idToTrack = new Map<string, ScoredTrack>()
-
-    for (const track of tracks) {
-        if (track.track.url?.includes('open.spotify.com/track/')) {
-            const match = track.track.url.match(/track\/([a-zA-Z0-9]+)/)
-            if (match?.[1]) {
-                spotifyIds.push(match[1])
-                idToTrack.set(match[1], track)
-            }
-        }
-    }
-
-    if (spotifyIds.length === 0) return tracks
-
-    const features = await getBatchAudioFeatures(token, spotifyIds).catch(
-        () => new Map(),
-    )
-
-    let currentGenres: string[] = []
-    if (currentArtistName) {
-        currentGenres = await getArtistGenres(token, currentArtistName).catch(
-            () => [],
-        )
-    }
-
-    for (const [id, feature] of features) {
-        const track = idToTrack.get(id)
-        if (!track) continue
-
-        const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
-        const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
-
-        if (energyDelta < 0.15 && valenceDelta < 0.2) {
-            track.score += 0.15
-        } else if (energyDelta < 0.3 || valenceDelta < 0.35) {
-            track.score += 0.07
-        } else if (energyDelta > 0.6) {
-            track.score -= 0.1
-        }
-
-        if (currentGenres.length > 0) {
-            const candidateGenres = await getArtistGenres(
-                token,
-                track.track.author,
-            ).catch(() => [])
-            const genrePenalty = calculateGenreFamilyPenalty(
-                currentGenres,
-                candidateGenres,
-            )
-            if (genrePenalty !== 0) {
-                track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
-                }
-            }
-        }
-    }
-
-    return tracks.sort((a, b) => b.score - a.score)
-}

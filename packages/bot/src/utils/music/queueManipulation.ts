@@ -25,10 +25,7 @@ import {
     consumeBlendedSeedSlice,
 } from './autoplay/lastFmSeeds'
 import { detectSessionMood, type SessionMood } from './autoplay/sessionMood'
-import {
-    collectSpotifyRecommendationCandidates,
-    searchSeedCandidates,
-} from './autoplay/spotifyRecommender'
+import { searchSeedCandidates } from './autoplay/spotifyRecommender'
 import {
     collectRecommendationCandidates,
     shouldIncludeCandidate,
@@ -76,59 +73,6 @@ const QUEUE_RESCUE_REFILL_THRESHOLD = Number.parseInt(
 )
 
 
-
-export async function getTrackAudioFeatures(
-    track: Track,
-    userId: string,
-): Promise<SpotifyAudioFeatures | null> {
-    const cacheKey = normalizeTrackKey(track.title, track.author)
-
-    const cached = audioFeatureCache.get(cacheKey)
-    if (cached !== undefined) {
-        debugLog({
-            message: 'Audio feature cache hit',
-            data: { cacheKey, hasValue: cached.value !== null },
-        })
-        return cached.value
-    }
-
-    debugLog({
-        message: 'Audio feature cache miss',
-        data: { cacheKey, cacheSize: audioFeatureCache.size },
-    })
-
-    const token = await spotifyLinkService.getValidAccessToken(userId)
-    if (!token) {
-        audioFeatureCache.set(cacheKey, { value: null })
-        return null
-    }
-
-    let spotifyId: string | null = null
-
-    if (track.url && track.url.includes('open.spotify.com/track/')) {
-        const match = track.url.match(/track\/([a-zA-Z0-9]+)/)
-        if (match) {
-            spotifyId = match[1]
-        }
-    }
-
-    if (!spotifyId) {
-        spotifyId = await searchSpotifyTrack(
-            token,
-            cleanTitle(track.title ?? ''),
-            cleanAuthor(track.author ?? ''),
-        )
-    }
-
-    if (!spotifyId) {
-        audioFeatureCache.set(cacheKey, { value: null })
-        return null
-    }
-
-    const features = await getAudioFeatures(token, spotifyId).catch(() => null)
-    audioFeatureCache.set(cacheKey, { value: features })
-    return features
-}
 
 export type QueueRescueResult = {
     removedTracks: number
@@ -463,80 +407,6 @@ export async function collectGenreCandidates(
     }
 }
 
-export async function enrichWithAudioFeatures(
-    tracks: ScoredTrack[],
-    userId: string,
-    currentFeatures: SpotifyAudioFeatures | null,
-    currentArtistName?: string,
-): Promise<ScoredTrack[]> {
-    if (!currentFeatures || !userId) return tracks
-
-    const token = await Promise.resolve(
-        spotifyLinkService.getValidAccessToken(userId),
-    ).catch(() => null)
-    if (!token) return tracks
-
-    const spotifyIds: string[] = []
-    const idToTrack = new Map<string, ScoredTrack>()
-
-    for (const track of tracks) {
-        if (track.track.url?.includes('open.spotify.com/track/')) {
-            const match = track.track.url.match(/track\/([a-zA-Z0-9]+)/)
-            if (match?.[1]) {
-                spotifyIds.push(match[1])
-                idToTrack.set(match[1], track)
-            }
-        }
-    }
-
-    if (spotifyIds.length === 0) return tracks
-
-    const features = await getBatchAudioFeatures(token, spotifyIds).catch(
-        () => new Map(),
-    )
-
-    let currentGenres: string[] = []
-    if (currentArtistName) {
-        currentGenres = await getArtistGenres(token, currentArtistName).catch(
-            () => [],
-        )
-    }
-
-    for (const [id, feature] of features) {
-        const track = idToTrack.get(id)
-        if (!track) continue
-
-        const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
-        const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
-
-        if (energyDelta < 0.15 && valenceDelta < 0.2) {
-            track.score += 0.15
-        } else if (energyDelta < 0.3 || valenceDelta < 0.35) {
-            track.score += 0.07
-        } else if (energyDelta > 0.6) {
-            track.score -= 0.1
-        }
-
-        if (currentGenres.length > 0) {
-            const candidateGenres = await getArtistGenres(
-                token,
-                track.track.author,
-            ).catch(() => [])
-            const genrePenalty = calculateGenreFamilyPenalty(
-                currentGenres,
-                candidateGenres,
-            )
-            if (genrePenalty !== 0) {
-                track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
-                }
-            }
-        }
-    }
-
-    return tracks.sort((a, b) => b.score - a.score)
-}
 
 export function interleaveByArtist(tracks: ScoredTrack[]): ScoredTrack[] {
     const groups = new Map<string, ScoredTrack[]>()

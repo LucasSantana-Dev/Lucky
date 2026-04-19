@@ -319,6 +319,7 @@ export async function getLovedTracks(
         logAndSwallow(err, 'lastfm.getLovedTracks', { username })
         return []
     }
+}
 
 export async function getArtistTopTracks(
     artist: string,
@@ -348,4 +349,3 @@ export async function getArtistTopTracks(
     }
 }
 
-}

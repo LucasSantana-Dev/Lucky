@@ -1,9 +1,8 @@
 import { jest } from '@jest/globals'
 import {
-    replenishQueue,,
-    enrichWithAudioFeatures,
+    replenishQueue,
     getGenreFamilies,
-    calculateGenreFamilyPenalty
+    calculateGenreFamilyPenalty,
     shuffleQueue,
     smartShuffleQueue,
     removeTrackFromQueue,
@@ -4345,52 +4344,6 @@ describe('queueManipulation — diversity improvements', () => {
 
         it('treats latin as strong', () => {
             expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(-0.6)
-        })
-    })
-
-    describe('enrichWithAudioFeatures', () => {
-        it('returns unchanged when features null', async () => {
-            const tracks = [
-                {
-                    track: { title: 'T', author: 'A', url: 'https://spotify.com' },
-                    score: 1,
-                    reason: 'test',
-                },
-            ]
-            const result = await enrichWithAudioFeatures(tracks, 'u1', null)
-            expect(result).toEqual(tracks)
-        })
-
-        it('returns unchanged when userId empty', async () => {
-            const tracks = [
-                {
-                    track: { title: 'T', author: 'A', url: 'https://spotify.com' },
-                    score: 1,
-                    reason: 'test',
-                },
-            ]
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                '',
-                { energy: 0.7, valence: 0.6 } as any,
-            )
-            expect(result).toEqual(tracks)
-        })
-
-        it('returns unchanged when no Spotify links', async () => {
-            const tracks = [
-                {
-                    track: { title: 'T', author: 'A', url: 'https://youtube.com' },
-                    score: 1,
-                    reason: 'test',
-                },
-            ]
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'u1',
-                { energy: 0.7, valence: 0.6 } as any,
-            )
-            expect(result).toEqual(tracks)
         })
     })
 })
