@@ -47,7 +47,89 @@ function normalizeArtistKey(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
+const POPULAR_SUGGEST_QUERIES = [
+    // Pop
+    'Taylor Swift', 'Dua Lipa', 'Ariana Grande', 'Olivia Rodrigo',
+    'Sabrina Carpenter', 'Billie Eilish', 'The Weeknd',
+    // Hip-hop
+    'Drake', 'Kendrick Lamar', 'Travis Scott', 'J. Cole',
+    'Tyler The Creator', 'Future', 'Nicki Minaj',
+    // Rock
+    'Foo Fighters', 'Red Hot Chili Peppers', 'Arctic Monkeys',
+    'Radiohead', 'The Strokes', 'Tame Impala',
+    // R&B
+    'SZA', 'Frank Ocean', 'Bruno Mars', 'H.E.R.', 'Daniel Caesar',
+    // Electronic
+    'Daft Punk', 'Calvin Harris', 'Flume', 'ODESZA', 'Disclosure', 'Skrillex',
+    // Latin
+    'Bad Bunny', 'Anitta', 'Karol G', 'J Balvin', 'Rosalía', 'Peso Pluma',
+    // Country
+    'Morgan Wallen', 'Luke Combs', 'Kacey Musgraves', 'Zach Bryan',
+    // Indie
+    'Phoebe Bridgers', 'Arcade Fire', 'Vampire Weekend', 'Mac DeMarco',
+    // K-pop
+    'BTS', 'BLACKPINK', 'NewJeans', 'Stray Kids',
+    // Classic rock
+    'The Beatles', 'Queen', 'Pink Floyd', 'Led Zeppelin',
+    // Jazz
+    'Miles Davis', 'John Coltrane', 'Nina Simone',
+    // Metal
+    'Metallica', 'Tool', 'System of a Down',
+    // Brazilian
+    'Matuê', 'Tim Bernardes', 'Racionais', 'Djonga',
+]
+
+async function fetchPopularFallback(clientToken: string): Promise<SpotifyArtist[]> {
+    const out: SpotifyArtist[] = []
+    const seen = new Set<string>()
+    for (const query of POPULAR_SUGGEST_QUERIES) {
+        if (out.length >= MAX_SUGGESTIONS) break
+        try {
+            const artists = await searchSpotifyArtists(clientToken, query, 6)
+            for (const artist of artists) {
+                if (out.length >= MAX_SUGGESTIONS) break
+                if (!seen.has(artist.id)) {
+                    seen.add(artist.id)
+                    out.push(artist)
+                }
+            }
+        } catch {
+            // continue to next query
+        }
+    }
+    return out
+}
+
+// Fire-and-forget at startup: warm the popular-artists cache so the
+// suggestions endpoint never returns 503 just because Redis was cold.
+// Only runs if cache is empty AND Spotify is reachable. Errors are
+// non-fatal — the next user request can also warm the cache.
+export async function prewarmSuggestionsCache(): Promise<void> {
+    try {
+        if (!isSpotifyAuthConfigured()) return
+        const cached = await redisClient.get(FALLBACK_SUGGESTIONS_CACHE_KEY).catch(() => null)
+        if (cached) return // already warm
+        const token = await getSpotifyClientToken()
+        if (!token) return
+        const artists = await fetchPopularFallback(token)
+        if (artists.length > 0) {
+            await redisClient
+                .setex(
+                    FALLBACK_SUGGESTIONS_CACHE_KEY,
+                    FALLBACK_SUGGESTIONS_TTL_SECONDS,
+                    JSON.stringify(artists),
+                )
+                .catch(() => undefined)
+        }
+    } catch (error) {
+        errorLog({ message: 'Failed to prewarm suggestions cache', error })
+    }
+}
+
 export function setupArtistsRoutes(app: Express): void {
+    // Warm the cache asynchronously on startup; don't block route registration.
+    void prewarmSuggestionsCache()
+
     app.get(
         '/api/artists/suggestions',
         apiLimiter,
@@ -179,114 +261,15 @@ export function setupArtistsRoutes(app: Express): void {
                     }
 
                     if (fallback.length === 0) {
-                        const suggestQueries = [
-                            // Pop
-                            'Taylor Swift',
-                            'Dua Lipa',
-                            'Ariana Grande',
-                            'Olivia Rodrigo',
-                            'Sabrina Carpenter',
-                            'Billie Eilish',
-                            'The Weeknd',
-                            // Hip-hop
-                            'Drake',
-                            'Kendrick Lamar',
-                            'Travis Scott',
-                            'J. Cole',
-                            'Tyler The Creator',
-                            'Future',
-                            'Nicki Minaj',
-                            // Rock
-                            'Foo Fighters',
-                            'Red Hot Chili Peppers',
-                            'Arctic Monkeys',
-                            'Radiohead',
-                            'The Strokes',
-                            'Tame Impala',
-                            // R&B
-                            'SZA',
-                            'Frank Ocean',
-                            'Bruno Mars',
-                            'H.E.R.',
-                            'Daniel Caesar',
-                            // Electronic
-                            'Daft Punk',
-                            'Calvin Harris',
-                            'Flume',
-                            'ODESZA',
-                            'Disclosure',
-                            'Skrillex',
-                            // Latin
-                            'Bad Bunny',
-                            'Anitta',
-                            'Karol G',
-                            'J Balvin',
-                            'Rosalía',
-                            'Peso Pluma',
-                            // Country
-                            'Morgan Wallen',
-                            'Luke Combs',
-                            'Kacey Musgraves',
-                            'Zach Bryan',
-                            // Indie
-                            'Phoebe Bridgers',
-                            'Arcade Fire',
-                            'Vampire Weekend',
-                            'Mac DeMarco',
-                            // K-pop
-                            'BTS',
-                            'BLACKPINK',
-                            'NewJeans',
-                            'Stray Kids',
-                            // Classic rock
-                            'The Beatles',
-                            'Queen',
-                            'Pink Floyd',
-                            'Led Zeppelin',
-                            // Jazz
-                            'Miles Davis',
-                            'John Coltrane',
-                            'Nina Simone',
-                            // Metal
-                            'Metallica',
-                            'Tool',
-                            'System of a Down',
-                            // Brazilian
-                            'Matuê',
-                            'Tim Bernardes',
-                            'Racionais',
-                            'Djonga',
-                        ]
-                        const seen = new Set<string>()
-                        for (const query of suggestQueries) {
-                            if (fallback.length >= MAX_SUGGESTIONS) break
-                            try {
-                                const artists = await searchSpotifyArtists(
-                                    clientToken,
-                                    query,
-                                    6,
-                                )
-                                for (const artist of artists) {
-                                    if (fallback.length >= MAX_SUGGESTIONS) break
-                                    if (!seen.has(artist.id)) {
-                                        seen.add(artist.id)
-                                        fallback.push(artist)
-                                    }
-                                }
-                            } catch {
-                                // continue to next query
-                            }
-                        }
+                        fallback = await fetchPopularFallback(clientToken)
                         if (fallback.length > 0) {
-                            try {
-                                await redisClient.setex(
+                            await redisClient
+                                .setex(
                                     FALLBACK_SUGGESTIONS_CACHE_KEY,
                                     FALLBACK_SUGGESTIONS_TTL_SECONDS,
                                     JSON.stringify(fallback),
                                 )
-                            } catch {
-                                // Cache write failure is non-fatal
-                            }
+                                .catch(() => undefined)
                         }
                     }
 
