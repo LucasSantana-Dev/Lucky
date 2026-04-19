@@ -470,7 +470,6 @@ export class RecommendationFeedbackService {
     async getImplicitLikeKeys(userId: string): Promise<Set<string>> {
         return this.getImplicitKeysByType(userId, 'implicit_like')
     }
-}
 
     async getPreferredArtistNames(
         guildId: string,
@@ -487,6 +486,7 @@ export class RecommendationFeedbackService {
             return new Set<string>()
         }
     }
+}
 
 export const recommendationFeedbackService = new RecommendationFeedbackService(
     parseInt(process.env.AUTOPLAY_FEEDBACK_TTL_DAYS ?? '30', 10),
