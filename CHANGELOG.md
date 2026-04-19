@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.144] - 2026-04-18
+
+### Fixed
+- fix(artists): static last-resort fallback when Spotify rate-limits every path (user-top-read scope missing on stale tokens + popular-search 429s + Redis cache cold) — adds 52 hardcoded artist names so the suggestions grid is never blank (#717)
+
 ## [2.6.143] - 2026-04-18
 
 ### Fixed
