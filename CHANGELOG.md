@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.142] - 2026-04-18
+
+### Fixed
+- fix(artists): active tab's count badge now uses bg-white/20 + text-white so the count stays readable on the brand-colored button (was previously brand-on-brand → invisible) (#713)
+- fix(artists): suggestions errors now show the actual error message + a "Try again" button; previously every failure (503, 500, network) was silently masked as the generic "No suggestions available" empty state (#713)
+
 ## [2.6.141] - 2026-04-18
 
 ### Added
