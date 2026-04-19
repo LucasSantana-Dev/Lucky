@@ -119,14 +119,16 @@ export class GuildSettingsService {
         updates: Partial<GuildSettings>,
     ): Promise<boolean> {
         try {
-            const currentSettings = await this.getGuildSettings(guildId)
-            if (!currentSettings) {
-                return false
-            }
+            const currentSettings =
+                (await this.getGuildSettings(guildId)) ?? {
+                    ...this.getDefaultSettings(),
+                    guildId,
+                }
 
             const updatedSettings = {
                 ...currentSettings,
                 ...updates,
+                guildId,
                 updatedAt: new Date(),
             }
 
