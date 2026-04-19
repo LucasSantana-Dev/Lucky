@@ -18,6 +18,8 @@ import { spotifyLinkService, redisClient } from '@lucky/shared/services'
 const MAX_SUGGESTIONS = 150
 const FALLBACK_SUGGESTIONS_CACHE_KEY = 'artist:suggestions:fallback:v2'
 const FALLBACK_SUGGESTIONS_TTL_SECONDS = 60 * 60 // 1 hour
+const USER_TOP_ARTISTS_CACHE_PREFIX = 'artist:user:top:v1:'
+const USER_TOP_ARTISTS_TTL_SECONDS = 15 * 60 // 15 minutes
 
 const saveArtistBody = z.object({
     guildId: z.string().min(1),
@@ -75,54 +77,88 @@ export function setupArtistsRoutes(app: Express): void {
                     discordUserId,
                 )
                 if (link) {
+                    const userCacheKey = `${USER_TOP_ARTISTS_CACHE_PREFIX}${discordUserId}`
+                    let cachedTop: SpotifyArtist[] | null = null
                     try {
-                        // Fetch top artists across 3 time ranges in parallel
-                        const timeRanges = ['short_term', 'medium_term', 'long_term'] as const
-                        const promises = timeRanges.map((range) =>
-                            fetch(
-                                `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
-                                {
-                                    headers: {
-                                        Authorization: `Bearer ${link}`,
+                        const cached = await redisClient.get(userCacheKey)
+                        if (cached) {
+                            cachedTop = JSON.parse(cached) as SpotifyArtist[]
+                        }
+                    } catch {
+                        // Redis miss/error — fall through to Spotify
+                    }
+
+                    if (cachedTop && cachedTop.length > 0) {
+                        for (const artist of cachedTop) {
+                            if (suggestions.size >= MAX_SUGGESTIONS) break
+                            suggestions.set(artist.id, artist)
+                        }
+                    } else {
+                        try {
+                            // Fetch top artists across 3 time ranges in parallel
+                            const timeRanges = ['short_term', 'medium_term', 'long_term'] as const
+                            const promises = timeRanges.map((range) =>
+                                fetch(
+                                    `https://api.spotify.com/v1/me/top/artists?limit=50&time_range=${range}`,
+                                    {
+                                        headers: {
+                                            Authorization: `Bearer ${link}`,
+                                        },
                                     },
-                                },
+                                )
                             )
-                        )
-                        const responses = await Promise.all(promises)
-                        for (const res of responses) {
-                            if (res.ok) {
-                                const data = (await res.json()) as {
-                                    items?: unknown[]
-                                }
-                                if (Array.isArray(data.items)) {
-                                    for (const item of data.items) {
-                                        const artist = item as {
-                                            id?: string
-                                            name?: string
-                                            images?: { url: string }[]
-                                            popularity?: number
-                                            genres?: string[]
-                                        }
-                                        if (
-                                            artist.id &&
-                                            artist.name &&
-                                            suggestions.size < MAX_SUGGESTIONS
-                                        ) {
-                                            suggestions.set(artist.id, {
-                                                id: artist.id,
-                                                name: artist.name,
-                                                imageUrl:
-                                                    artist.images?.[0]?.url ?? null,
-                                                popularity: artist.popularity ?? 0,
-                                                genres: artist.genres ?? [],
-                                            })
+                            const responses = await Promise.all(promises)
+                            const collected: SpotifyArtist[] = []
+                            for (const res of responses) {
+                                if (res.ok) {
+                                    const data = (await res.json()) as {
+                                        items?: unknown[]
+                                    }
+                                    if (Array.isArray(data.items)) {
+                                        for (const item of data.items) {
+                                            const artist = item as {
+                                                id?: string
+                                                name?: string
+                                                images?: { url: string }[]
+                                                popularity?: number
+                                                genres?: string[]
+                                            }
+                                            if (
+                                                artist.id &&
+                                                artist.name &&
+                                                suggestions.size < MAX_SUGGESTIONS
+                                            ) {
+                                                const entry: SpotifyArtist = {
+                                                    id: artist.id,
+                                                    name: artist.name,
+                                                    imageUrl:
+                                                        artist.images?.[0]?.url ?? null,
+                                                    popularity: artist.popularity ?? 0,
+                                                    genres: artist.genres ?? [],
+                                                }
+                                                if (!suggestions.has(artist.id)) {
+                                                    collected.push(entry)
+                                                }
+                                                suggestions.set(artist.id, entry)
+                                            }
                                         }
                                     }
                                 }
                             }
+                            if (collected.length > 0) {
+                                try {
+                                    await redisClient.setex(
+                                        userCacheKey,
+                                        USER_TOP_ARTISTS_TTL_SECONDS,
+                                        JSON.stringify(collected),
+                                    )
+                                } catch {
+                                    // Cache write failure is non-fatal
+                                }
+                            }
+                        } catch {
+                            // Fall back to popular artists
                         }
-                    } catch {
-                        // Fall back to popular artists
                     }
                 }
 
