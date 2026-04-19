@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 import type { SpotifyArtist, ArtistPreference } from '@/services/artistsApi'
 import SectionHeader from '@/components/ui/SectionHeader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -177,6 +178,7 @@ export default function PreferredArtistsPage() {
     const [searchError, setSearchError] = useState<string | null>(null)
 
     const [suggestionsLoading, setSuggestionsLoading] = useState(true)
+    const [suggestionsError, setSuggestionsError] = useState<string | null>(null)
 
     const [savedPreferences, setSavedPreferences] = useState<
         Map<string, ArtistPreference>
@@ -211,11 +213,17 @@ export default function PreferredArtistsPage() {
 
     const loadSuggestions = useCallback(async () => {
         setSuggestionsLoading(true)
+        setSuggestionsError(null)
         try {
             const res = await api.artists.getSuggestions()
             setFeedArtists(res.data.artists)
-        } catch {
+        } catch (err) {
             setFeedArtists([])
+            setSuggestionsError(
+                err instanceof ApiError
+                    ? err.message
+                    : 'Failed to load suggestions',
+            )
         } finally {
             setSuggestionsLoading(false)
         }
@@ -436,7 +444,14 @@ export default function PreferredArtistsPage() {
                                     {tab === 'preferred' && 'Preferred'}
                                     {tab === 'blocked' && 'Blocked'}
                                 </span>
-                                <span className='inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-lucky-brand/20 text-lucky-brand text-xs font-medium'>
+                                <span
+                                    className={cn(
+                                        'inline-flex items-center justify-center h-5 px-1.5 rounded-full text-xs font-medium',
+                                        currentTab === tab
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-lucky-brand/20 text-lucky-brand',
+                                    )}
+                                >
                                     {counts[tab]}
                                 </span>
                             </button>
@@ -542,9 +557,28 @@ export default function PreferredArtistsPage() {
                             </motion.div>
                         )}
 
+                        {!searching &&
+                            !query.trim() &&
+                            suggestionsError &&
+                            !suggestionsLoading && (
+                                <div className='py-6 text-center space-y-3'>
+                                    <p className='type-body-sm text-lucky-error'>
+                                        {suggestionsError}
+                                    </p>
+                                    <button
+                                        type='button'
+                                        onClick={loadSuggestions}
+                                        className='lucky-focus-visible rounded-lg bg-lucky-brand px-4 py-2 type-body-sm font-medium text-white hover:bg-lucky-brand/90'
+                                    >
+                                        Try again
+                                    </button>
+                                </div>
+                            )}
+
                         {!query.trim() &&
                             displayArtists.length === 0 &&
-                            !suggestionsLoading && (
+                            !suggestionsLoading &&
+                            !suggestionsError && (
                                 <div className='py-6 text-center'>
                                     <p className='type-body-sm text-lucky-text-tertiary'>
                                         No suggestions available. Try searching
