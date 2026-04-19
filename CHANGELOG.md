@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.145] - 2026-04-19
+
+### Fixed
+- fix(artists): Discover tab no longer shows letter-only placeholders when Spotify is silent — drops the image-less STATIC_FALLBACK_ARTISTS path, returns 503 instead, and lets the existing frontend retry UI handle it (#721)
+- fix(settings): saving an autoplay genre on a fresh guild no longer silently 500s — `updateGuildSettings` now upserts (mirrors `setGuildSettings`) so it seeds defaults on first write. Also unblocks every bot `/autoplay` subcommand for first-time guilds (#721)
+
 ## [2.6.144] - 2026-04-18
 
 ### Fixed
