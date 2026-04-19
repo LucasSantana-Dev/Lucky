@@ -354,6 +354,28 @@ describe('Artists Routes', () => {
 
 			fetchSpy.mockRestore()
 		})
+
+		test('should return 503 when every Spotify path produces zero artists', async () => {
+			const req = createMockRequest({
+				user: { id: 'discord-123' },
+			}) as any
+			const res = createMockResponse()
+
+			;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
+				null,
+			)
+			;(searchSpotifyArtists as jest.Mock).mockResolvedValue([])
+
+			setupArtistsRoutes(mockApp)
+			const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+
+			await handler(req, res)
+
+			expect(res.status).toHaveBeenCalledWith(503)
+			expect(res.json).toHaveBeenCalledWith({
+				error: 'Artist suggestions temporarily unavailable',
+			})
+		})
 	})
 
 	describe('GET /api/artists/search', () => {
