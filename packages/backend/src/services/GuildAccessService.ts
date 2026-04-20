@@ -7,7 +7,7 @@ import {
     type EffectiveAccessMap,
     type ModuleKey,
 } from '@lucky/shared/services'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, infoLog } from '@lucky/shared/utils'
 import {
     DiscordApiError,
     discordOAuthService,
@@ -174,7 +174,11 @@ class GuildAccessService {
                     (statusCode === 429 ||
                         (statusCode !== null && statusCode >= 500))
                 ) {
-                    errorLog({
+                    // Graceful degradation — Discord 429/5xx is expected
+                    // during rate-limit windows; cache fallback works as
+                    // designed. Log at info level so Sentry doesn't surface
+                    // it as a recurring error.
+                    infoLog({
                         message:
                             'Using cached guild list after Discord guild fetch failure',
                         data: {
