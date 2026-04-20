@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/lucky-social-preview.png" alt="Lucky — Verified Discord Bot" width="720" />
+  <picture>
+    <source srcset="assets/lucky-social-preview.webp" type="image/webp" />
+    <img src="assets/lucky-social-preview.png" alt="Lucky — Verified Discord Bot" width="720" />
+  </picture>
 </p>
 
 <p align="center">
