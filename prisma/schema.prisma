@@ -132,6 +132,9 @@ model GuildSettings {
   commandCooldown  Int @default(3) // seconds
   downloadCooldown Int @default(10) // seconds
 
+  // Birthday announcement channel — if null, the scheduler skips the guild.
+  birthdayChannelId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

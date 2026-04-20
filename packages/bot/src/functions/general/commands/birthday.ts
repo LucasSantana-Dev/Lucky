@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
+import { ChannelType, PermissionFlagsBits } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
 import { getPrismaClient, infoLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
@@ -74,6 +75,21 @@ export default new Command({
             sub
                 .setName('clear')
                 .setDescription('Remove your birthday from this server.'),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('channel')
+                .setDescription(
+                    'Set the channel where birthday announcements post (Manage Server only).',
+                )
+                .addChannelOption((opt) =>
+                    opt
+                        .setName('channel')
+                        .setDescription(
+                            'Text channel for announcements, or leave empty to disable.',
+                        )
+                        .addChannelTypes(ChannelType.GuildText),
+                ),
         ),
     category: 'general',
     execute: async ({ interaction }) => {
@@ -138,6 +154,44 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: { embeds: [embed.toJSON()] },
+                })
+                return
+            }
+
+            if (subcommand === 'channel') {
+                const member = interaction.member
+                const hasPerm =
+                    typeof member?.permissions === 'object' &&
+                    'has' in member.permissions &&
+                    (
+                        member.permissions as {
+                            has: (p: bigint) => boolean
+                        }
+                    ).has(PermissionFlagsBits.ManageGuild)
+                if (!hasPerm) {
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            content:
+                                '❌ You need the **Manage Server** permission to configure the birthday channel.',
+                        },
+                    })
+                    return
+                }
+                const channel = interaction.options.getChannel('channel')
+                const channelId = channel?.id ?? null
+                await prisma.guildSettings.upsert({
+                    where: { guildId: guild.id },
+                    create: { guildId: guild.id, birthdayChannelId: channelId },
+                    update: { birthdayChannelId: channelId },
+                })
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: channelId
+                            ? `✅ Birthday announcements will post to <#${channelId}>.`
+                            : '🔕 Birthday announcements disabled (no channel set).',
+                    },
                 })
                 return
             }
