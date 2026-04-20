@@ -8,6 +8,8 @@ const pipelineMock = {
     set: jest.fn().mockReturnThis(),
     incr: jest.fn().mockReturnThis(),
     expire: jest.fn().mockReturnThis(),
+    get: jest.fn().mockReturnThis(),
+    ttl: jest.fn().mockReturnThis(),
     exec: pipelineExec,
 }
 
@@ -41,16 +43,20 @@ function buildApp(): express.Express {
 
 beforeEach(() => {
     process.env.TOPGG_AUTH_TOKEN = 'valid-token'
+    process.env.LUCKY_NOTIFY_API_KEY = 'internal-key'
     process.env.REDIS_HOST = 'localhost'
     process.env.REDIS_PORT = '6379'
-    pipelineExec.mockClear()
+    pipelineExec.mockClear().mockResolvedValue([])
     pipelineMock.set.mockClear()
     pipelineMock.incr.mockClear()
     pipelineMock.expire.mockClear()
+    pipelineMock.get.mockClear()
+    pipelineMock.ttl.mockClear()
 })
 
 afterEach(() => {
     delete process.env.TOPGG_AUTH_TOKEN
+    delete process.env.LUCKY_NOTIFY_API_KEY
     delete process.env.REDIS_HOST
     delete process.env.REDIS_PORT
 })
@@ -95,6 +101,37 @@ describe('POST /webhooks/topgg-votes', () => {
             .post('/webhooks/topgg-votes')
             .set('authorization', 'valid-token')
             .send({ type: 'upvote' })
+        expect(res.status).toBe(400)
+    })
+
+    it('responds to GET /api/internal/votes/:userId with current state', async () => {
+        pipelineExec.mockResolvedValueOnce([
+            [null, '1700000000000'],
+            [null, '7'],
+            [null, 3600],
+        ])
+        const res = await request(buildApp())
+            .get('/api/internal/votes/123')
+            .set('x-notify-key', 'internal-key')
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({
+            hasVoted: true,
+            streak: 7,
+            nextVoteInSeconds: 3600,
+        })
+    })
+
+    it('rejects GET with wrong internal key', async () => {
+        const res = await request(buildApp())
+            .get('/api/internal/votes/123')
+            .set('x-notify-key', 'wrong')
+        expect(res.status).toBe(401)
+    })
+
+    it('rejects GET with non-numeric userId', async () => {
+        const res = await request(buildApp())
+            .get('/api/internal/votes/abc')
+            .set('x-notify-key', 'internal-key')
         expect(res.status).toBe(400)
     })
 
