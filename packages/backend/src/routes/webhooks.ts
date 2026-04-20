@@ -3,7 +3,23 @@ import Redis from 'ioredis'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
+import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { debugLog, errorLog } from '@lucky/shared/utils'
+
+// Vote tier thresholds — kept in sync with the bot's /voterewards command.
+const VOTE_TIERS = [
+    { threshold: 30, label: 'Lucky Legend' },
+    { threshold: 14, label: 'Lucky Regular' },
+    { threshold: 7, label: 'Lucky Fan' },
+    { threshold: 1, label: 'Lucky Supporter' },
+] as const
+
+function tierFor(streak: number): { label: string; threshold: number } | null {
+    for (const t of VOTE_TIERS) {
+        if (streak >= t.threshold) return t
+    }
+    return null
+}
 
 // Vote window: top.gg allows one upvote every 12 hours.
 const VOTE_TTL_SECONDS = 60 * 60 * 12
@@ -91,6 +107,30 @@ export function setupWebhookRoutes(app: Express): void {
             }
             const state = await readVoteState(getRedis(), userId)
             res.status(200).json(state)
+        }),
+    )
+
+    app.get(
+        '/api/me/vote-status',
+        requireAuth,
+        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+            const userId = req.user?.id
+            if (!userId) {
+                throw AppError.unauthorized('not authenticated')
+            }
+            const state = await readVoteState(getRedis(), userId)
+            const tier = tierFor(state.streak)
+            const nextTier = [...VOTE_TIERS]
+                .reverse()
+                .find((t) => t.threshold > state.streak)
+            res.status(200).json({
+                ...state,
+                tier: tier ? { label: tier.label, threshold: tier.threshold } : null,
+                nextTier: nextTier
+                    ? { label: nextTier.label, threshold: nextTier.threshold }
+                    : null,
+                voteUrl: 'https://top.gg/bot/962198089161134131/vote',
+            })
         }),
     )
 

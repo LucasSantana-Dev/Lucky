@@ -19,6 +19,23 @@ jest.mock('ioredis', () => {
     }))
 })
 
+// Mock auth middleware to inject a configurable user. The actual middleware
+// reads from session; for unit tests we short-circuit with a header.
+jest.mock('../../../src/middleware/auth', () => ({
+    requireAuth: (
+        req: { header: (n: string) => string | undefined; user?: unknown },
+        res: { status: (n: number) => { json: (b: unknown) => void } },
+        next: () => void,
+    ) => {
+        const testUser = req.header('x-test-user')
+        if (!testUser) {
+            return res.status(401).json({ error: 'not authenticated' })
+        }
+        req.user = { id: testUser }
+        next()
+    },
+}))
+
 import { setupWebhookRoutes } from '../../../src/routes/webhooks'
 
 function buildApp(): express.Express {
@@ -133,6 +150,66 @@ describe('POST /webhooks/topgg-votes', () => {
             .get('/api/internal/votes/abc')
             .set('x-notify-key', 'internal-key')
         expect(res.status).toBe(400)
+    })
+
+    describe('GET /api/me/vote-status', () => {
+        it('returns 401 when not authenticated', async () => {
+            const res = await request(buildApp()).get('/api/me/vote-status')
+            expect(res.status).toBe(401)
+        })
+
+        it('returns state + tier + nextTier + voteUrl for a streak-14 voter', async () => {
+            pipelineExec.mockResolvedValueOnce([
+                [null, '1700000000000'],
+                [null, '14'],
+                [null, 7200],
+            ])
+            const res = await request(buildApp())
+                .get('/api/me/vote-status')
+                .set('x-test-user', '555')
+            expect(res.status).toBe(200)
+            expect(res.body).toEqual({
+                hasVoted: true,
+                streak: 14,
+                nextVoteInSeconds: 7200,
+                tier: { label: 'Lucky Regular', threshold: 14 },
+                nextTier: { label: 'Lucky Legend', threshold: 30 },
+                voteUrl: 'https://top.gg/bot/962198089161134131/vote',
+            })
+        })
+
+        it('returns tier=null for a 0-streak user', async () => {
+            pipelineExec.mockResolvedValueOnce([
+                [null, null],
+                [null, null],
+                [null, -2],
+            ])
+            const res = await request(buildApp())
+                .get('/api/me/vote-status')
+                .set('x-test-user', '777')
+            expect(res.status).toBe(200)
+            expect(res.body.tier).toBeNull()
+            expect(res.body.nextTier).toEqual({
+                label: 'Lucky Supporter',
+                threshold: 1,
+            })
+            expect(res.body.streak).toBe(0)
+            expect(res.body.hasVoted).toBe(false)
+        })
+
+        it('returns nextTier=null when user is at max tier (30+)', async () => {
+            pipelineExec.mockResolvedValueOnce([
+                [null, '1700000000000'],
+                [null, '45'],
+                [null, 100],
+            ])
+            const res = await request(buildApp())
+                .get('/api/me/vote-status')
+                .set('x-test-user', '999')
+            expect(res.status).toBe(200)
+            expect(res.body.tier.label).toBe('Lucky Legend')
+            expect(res.body.nextTier).toBeNull()
+        })
     })
 
     it('records a valid upvote in redis via pipeline', async () => {
