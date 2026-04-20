@@ -8,10 +8,10 @@ set -euo pipefail
 #   ASSET_DIR defaults to "assets" relative to the repo root.
 #
 # Pipeline:
-#   PNG  -> oxipng -o max --strip safe --alpha (lossless)
+#   PNG  -> oxipng -o max --strip safe (lossless, reverts if output grows)
 #   SVG  -> svgo --multipass
-#   JPG  -> mozjpeg/jpegoptim fallback via ImageMagick -strip -quality 85
-#   *    -> also emit .webp via cwebp -q 85 -m 6 -mt
+#   JPG  -> ImageMagick -strip -quality 85 (kept only if smaller)
+#   *    -> also emit .webp via cwebp -q 85 -m 6 -mt (kept only if smaller than source)
 #
 # Skips: .DS_Store, already-compressed .webp, animated .gif (kept as-is).
 
@@ -33,6 +33,29 @@ WEBP_COUNT=0; WEBP_TOTAL=0
 
 bytes() { wc -c <"$1" | tr -d ' '; }
 
+# Emit a .webp sibling only if it's smaller than the source PNG/JPG.
+# Args: source_path, reference_size
+emit_webp() {
+  local src="$1" ref_size="$2"
+  local webp="${src%.*}.webp"
+  local tmp="${webp}.tmp"
+  if ! cwebp -quiet -q 85 -m 6 -mt "$src" -o "$tmp"; then
+    rm -f "$tmp"
+    echo "warn: cwebp failed on $src" >&2
+    return
+  fi
+  local wsize
+  wsize=$(bytes "$tmp")
+  if [[ "$wsize" -lt "$ref_size" ]]; then
+    mv "$tmp" "$webp"
+    WEBP_COUNT=$((WEBP_COUNT + 1))
+    WEBP_TOTAL=$((WEBP_TOTAL + wsize))
+  else
+    rm -f "$tmp" "$webp"
+    printf '  webp skipped (%d ≥ %d bytes) for %s\n' "$wsize" "$ref_size" "$src"
+  fi
+}
+
 echo "▶ scanning $ASSET_DIR"
 
 while IFS= read -r -d '' file; do
@@ -44,18 +67,25 @@ while IFS= read -r -d '' file; do
   case "$lc_ext" in
     png)
       before=$(bytes "$file")
-      oxipng -o max --strip safe --alpha --quiet "$file" || true
+      backup="${file}.orig"
+      cp -p "$file" "$backup"
+      if oxipng -o max --strip safe --quiet "$file"; then
+        new_size=$(bytes "$file")
+        if [[ "$new_size" -gt "$before" ]]; then
+          mv "$backup" "$file"
+        else
+          rm -f "$backup"
+        fi
+      else
+        mv "$backup" "$file"
+        echo "warn: oxipng failed on $file — reverted" >&2
+      fi
       after=$(bytes "$file")
       PNG_BEFORE=$((PNG_BEFORE + before))
       PNG_AFTER=$((PNG_AFTER + after))
       PNG_COUNT=$((PNG_COUNT + 1))
       printf '  png  %6d → %6d bytes  %s\n' "$before" "$after" "$file"
-
-      webp="${file%.*}.webp"
-      cwebp -quiet -q 85 -m 6 -mt "$file" -o "$webp"
-      wsize=$(bytes "$webp")
-      WEBP_COUNT=$((WEBP_COUNT + 1))
-      WEBP_TOTAL=$((WEBP_TOTAL + wsize))
+      emit_webp "$file" "$after"
       ;;
 
     svg)
@@ -78,12 +108,7 @@ while IFS= read -r -d '' file; do
       JPG_AFTER=$((JPG_AFTER + after))
       JPG_COUNT=$((JPG_COUNT + 1))
       printf '  jpg  %6d → %6d bytes  %s\n' "$before" "$after" "$file"
-
-      webp="${file%.*}.webp"
-      cwebp -quiet -q 85 -m 6 -mt "$file" -o "$webp"
-      wsize=$(bytes "$webp")
-      WEBP_COUNT=$((WEBP_COUNT + 1))
-      WEBP_TOTAL=$((WEBP_TOTAL + wsize))
+      emit_webp "$file" "$after"
       ;;
 
     webp|gif|pbm)
