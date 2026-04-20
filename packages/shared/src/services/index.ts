@@ -1,4 +1,5 @@
 export * from './FeatureToggleService'
+export * from './PremiumService'
 export * from './database/DatabaseService.js'
 export {
     MusicControlService,
