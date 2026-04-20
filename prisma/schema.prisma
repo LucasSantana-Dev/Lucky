@@ -134,6 +134,10 @@ model GuildSettings {
 
   // Birthday announcement channel — if null, the scheduler skips the guild.
   birthdayChannelId String?
+  // Optional role granted for the day. Scheduler reconciles membership each
+  // tick against today's birthday set, so revocation is automatic when the
+  // clock rolls over.
+  birthdayRoleId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
