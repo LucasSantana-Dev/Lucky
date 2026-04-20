@@ -695,3 +695,20 @@ model AutoRole {
   @@index([guildId])
   @@map("auto_roles")
 }
+
+// Birthdays — month + day only (no year) to avoid storing age / DOB.
+// Used by a daily scheduler (follow-up PR) to post celebrations on the
+// configured guild channel.
+model MemberBirthday {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  month     Int // 1-12
+  day       Int // 1-31
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, month, day])
+  @@map("member_birthdays")
+}
