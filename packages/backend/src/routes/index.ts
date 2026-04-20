@@ -18,6 +18,8 @@ import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
+import { setupBillingRoutes } from './billing'
+import { setupStripeWebhookRoutes } from './stripeWebhook'
 import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
@@ -75,6 +77,8 @@ const routeSetups = [
     setupStarboardRoutes,
     setupMusicRoutes,
     setupArtistsRoutes,
+    setupBillingRoutes,
+    setupStripeWebhookRoutes,
 ]
 
 export function setupRoutes(app: Express): void {
