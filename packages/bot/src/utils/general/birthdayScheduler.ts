@@ -91,23 +91,27 @@ export class BirthdayScheduler {
                 select: { userId: true, guildId: true },
             })) as BirthdayRow[]
 
+            const byGuild = new Map<string, Set<string>>()
+            for (const row of rows) {
+                const set = byGuild.get(row.guildId) ?? new Set<string>()
+                set.add(row.userId)
+                byGuild.set(row.guildId, set)
+            }
+
+            // Announce + grant for guilds with matches today
+            for (const [guildId, userIds] of byGuild) {
+                const userIdArr = [...userIds]
+                if (this.lastAnnouncedPerGuild.get(guildId) !== todayKey) {
+                    await this.announceForGuild(guildId, userIdArr, todayKey)
+                }
+                await this.reconcileBirthdayRole(guildId, userIds)
+            }
+
+            // Reconcile role for guilds with no matches today (revocation only)
+            await this.reconcileGuildsWithoutMatches(byGuild)
+
             if (rows.length === 0) {
                 debugLog({ message: `birthday tick: no matches for ${todayKey}` })
-                return
-            }
-
-            const byGuild = new Map<string, string[]>()
-            for (const row of rows) {
-                const list = byGuild.get(row.guildId) ?? []
-                list.push(row.userId)
-                byGuild.set(row.guildId, list)
-            }
-
-            for (const [guildId, userIds] of byGuild) {
-                if (this.lastAnnouncedPerGuild.get(guildId) === todayKey) {
-                    continue
-                }
-                await this.announceForGuild(guildId, userIds, todayKey)
             }
         } catch (error) {
             errorLog({
@@ -116,6 +120,93 @@ export class BirthdayScheduler {
             })
         } finally {
             this.tickInProgress = false
+        }
+    }
+
+    private async reconcileGuildsWithoutMatches(
+        byGuild: Map<string, Set<string>>,
+    ): Promise<void> {
+        if (!this.client) return
+        // Find guilds that have a role configured but aren't in today's match
+        // set — those need role revocation from any stale holders.
+        const prisma = getPrismaClient()
+        const guildsWithRole = (await prisma.guildSettings.findMany({
+            where: { birthdayRoleId: { not: null } },
+            select: { guildId: true, birthdayRoleId: true },
+        })) as Array<{ guildId: string; birthdayRoleId: string | null }>
+
+        for (const row of guildsWithRole) {
+            if (byGuild.has(row.guildId)) continue // handled above
+            if (!row.birthdayRoleId) continue
+            await this.reconcileBirthdayRole(row.guildId, new Set())
+        }
+    }
+
+    private async reconcileBirthdayRole(
+        guildId: string,
+        todaysUserIds: Set<string>,
+    ): Promise<void> {
+        if (!this.client) return
+        try {
+            const prisma = getPrismaClient()
+            const settings = await prisma.guildSettings.findUnique({
+                where: { guildId },
+                select: { birthdayRoleId: true },
+            })
+            const roleId = settings?.birthdayRoleId
+            if (!roleId) return
+
+            const guild = await this.client.guilds
+                .fetch(guildId)
+                .catch(() => null)
+            if (!guild) return
+            const role = await guild.roles.fetch(roleId).catch(() => null)
+            if (!role) {
+                errorLog({
+                    message: 'birthday role missing — admin must reconfigure',
+                    data: { guildId, roleId },
+                })
+                return
+            }
+
+            // Grant to today's celebrators who don't already have it
+            for (const userId of todaysUserIds) {
+                const member = await guild.members
+                    .fetch(userId)
+                    .catch(() => null)
+                if (!member) continue
+                if (!member.roles.cache.has(roleId)) {
+                    await member.roles
+                        .add(roleId, 'Birthday auto-grant')
+                        .catch((err) =>
+                            errorLog({
+                                message: 'birthday role grant failed',
+                                data: { guildId, userId, roleId },
+                                error: err as Error,
+                            }),
+                        )
+                }
+            }
+
+            // Revoke from any member holding the role who isn't on today's list
+            for (const [memberId, member] of role.members) {
+                if (todaysUserIds.has(memberId)) continue
+                await member.roles
+                    .remove(roleId, 'Birthday role expired')
+                    .catch((err) =>
+                        errorLog({
+                            message: 'birthday role revoke failed',
+                            data: { guildId, memberId, roleId },
+                            error: err as Error,
+                        }),
+                    )
+            }
+        } catch (error) {
+            errorLog({
+                message: 'birthday role reconcile failed',
+                data: { guildId },
+                error: error as Error,
+            })
         }
     }
 
