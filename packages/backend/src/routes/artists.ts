@@ -2,6 +2,8 @@ import type { Express, Response } from 'express'
 import { z } from 'zod'
 import {
     errorLog,
+    infoLog,
+    warnLog,
     getPrismaClient,
     searchSpotifyArtists,
     getSpotifyRelatedArtists,
@@ -106,21 +108,42 @@ async function fetchPopularFallback(clientToken: string): Promise<SpotifyArtist[
 // non-fatal — the next user request can also warm the cache.
 export async function prewarmSuggestionsCache(): Promise<void> {
     try {
-        if (!isSpotifyAuthConfigured()) return
-        const cached = await redisClient.get(FALLBACK_SUGGESTIONS_CACHE_KEY).catch(() => null)
-        if (cached) return // already warm
-        const token = await getSpotifyClientToken()
-        if (!token) return
-        const artists = await fetchPopularFallback(token)
-        if (artists.length > 0) {
-            await redisClient
-                .setex(
-                    FALLBACK_SUGGESTIONS_CACHE_KEY,
-                    FALLBACK_SUGGESTIONS_TTL_SECONDS,
-                    JSON.stringify(artists),
-                )
-                .catch(() => undefined)
+        // Wait up to 30s for Redis to become healthy. Without this,
+        // the call fires at module import time and silently no-ops
+        // because the redis client hasn't finished its handshake yet.
+        const start = Date.now()
+        while (!redisClient.isHealthy() && Date.now() - start < 30_000) {
+            await new Promise((r) => setTimeout(r, 500))
         }
+        if (!redisClient.isHealthy()) {
+            warnLog({ message: 'Prewarm: Redis not ready after 30s, skipping' })
+            return
+        }
+        if (!isSpotifyAuthConfigured()) {
+            infoLog({ message: 'Prewarm: Spotify not configured, skipping' })
+            return
+        }
+        const cached = await redisClient.get(FALLBACK_SUGGESTIONS_CACHE_KEY).catch(() => null)
+        if (cached) {
+            infoLog({ message: 'Prewarm: cache already warm, skipping' })
+            return
+        }
+        const token = await getSpotifyClientToken()
+        if (!token) {
+            warnLog({ message: 'Prewarm: no Spotify client token, skipping' })
+            return
+        }
+        const artists = await fetchPopularFallback(token)
+        if (artists.length === 0) {
+            warnLog({ message: 'Prewarm: Spotify returned 0 artists, cache not written' })
+            return
+        }
+        await redisClient.setex(
+            FALLBACK_SUGGESTIONS_CACHE_KEY,
+            FALLBACK_SUGGESTIONS_TTL_SECONDS,
+            JSON.stringify(artists),
+        )
+        infoLog({ message: `Prewarm: cached ${artists.length} popular artists` })
     } catch (error) {
         errorLog({ message: 'Failed to prewarm suggestions cache', error })
     }
