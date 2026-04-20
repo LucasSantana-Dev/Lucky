@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import VoteBadge from './VoteBadge'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronDown } from 'lucide-react'
@@ -177,7 +178,10 @@ function Layout({ children }: LayoutProps) {
                                 {routeCopy.subtitle}
                             </p>
                         </div>
-                        <GuildChip />
+                        <div className='flex items-center gap-2'>
+                            <VoteBadge />
+                            <GuildChip />
+                        </div>
                     </div>
                     <div className='lucky-header-accent-line' aria-hidden='true' />
                 </header>
