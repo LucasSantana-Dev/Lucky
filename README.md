@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=8"><b>→ Invite Lucky</b></a> ·
+  <a href="https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496"><b>→ Invite Lucky</b></a> ·
   <a href="https://lucky.lucassantana.tech"><b>Dashboard</b></a> ·
   <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="./CHANGELOG.md">Changelog</a> ·
@@ -29,7 +29,7 @@
 
 Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music player with autoplay + recommendations, full moderation suite, auto-mod presets, and a React 19 dashboard — all self-hostable via Docker.
 
-**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=8)
+**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496)
 
 ---
 

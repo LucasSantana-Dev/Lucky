@@ -16,7 +16,7 @@ Copy-paste artifacts for filing Lucky on https://top.gg. Launch sequence in `~/.
 
 ## 2. Short description (120 char cap)
 
-```
+```text
 Self-hosted Discord music bot with autoplay, dashboard, and moderation. TypeScript, open source, 2500+ tests.
 ```
 
@@ -66,7 +66,7 @@ Secondary (add up to 5): `typescript`, `open-source`, `self-hosted`, `autoplay`,
 
 Once the listing is live, get your top.gg API token from https://top.gg/bot/962198089161134131/webhooks and add this to `.env`:
 
-```
+```env
 TOPGG_AUTH_TOKEN=<top.gg-provided token>
 ```
 
@@ -75,7 +75,7 @@ Then create the endpoint in `packages/backend/src/routes/`. Stub shape:
 ```ts
 // packages/backend/src/routes/webhooks.ts
 import { Router } from 'express'
-import { redis } from '@lucky/shared/redis'
+import { redisClient } from '@lucky/shared/services'
 
 const router = Router()
 
@@ -90,12 +90,12 @@ router.post('/webhooks/topgg-votes', async (req, res) => {
 
     // 12h vote window — top.gg allows one vote every 12h
     const key = `votes:${userId}`
-    await redis.set(key, Date.now().toString(), 'EX', 60 * 60 * 12)
+    await redisClient.set(key, Date.now().toString(), 'EX', 60 * 60 * 12)
 
     // Streak tracking: increment a counter with 36h expiry (give 12h grace)
     const streakKey = `votes:streak:${userId}`
-    await redis.incr(streakKey)
-    await redis.expire(streakKey, 60 * 60 * 36)
+    await redisClient.incr(streakKey)
+    await redisClient.expire(streakKey, 60 * 60 * 36)
 
     return res.status(200).send('ok')
 })
@@ -103,7 +103,15 @@ router.post('/webhooks/topgg-votes', async (req, res) => {
 export default router
 ```
 
-Then in `packages/bot/src/functions/general/commands/`, add `/voterewards` that reads `votes:streak:<user>` and grants tier (e.g. 7+ votes → custom autoplay weighting, 30+ → dashboard badge).
+Then register this router in `packages/backend/src/routes/index.ts` (or similar central route registration) by importing and mounting it:
+
+```ts
+import webhooksRouter from './webhooks'
+// ... in your Express app setup
+app.use(webhooksRouter)
+```
+
+Finally, in `packages/bot/src/functions/general/commands/`, add `/voterewards` that reads `votes:streak:<user>` and grants tier (e.g. 7+ votes → custom autoplay weighting, 30+ → dashboard badge).
 
 **Security**: the `authorization` header check is the ONLY guard — top.gg sends the token as a plain header. Never log the raw header body.
 
