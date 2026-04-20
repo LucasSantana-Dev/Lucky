@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.147] - 2026-04-20
+
+### Fixed
+- fix(artists): suggestions cache pre-warm now waits up to 30s for Redis client `isHealthy()` before doing work — without it the call fired at module import time before redis finished its handshake and silently no-op'd. Adds infoLog/warnLog at every branch so cache state is visible in logs (#734)
+
 ## [2.6.146] - 2026-04-19
 
 ### Fixed
