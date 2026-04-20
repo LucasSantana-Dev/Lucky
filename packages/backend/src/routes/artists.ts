@@ -178,6 +178,31 @@ export function setupArtistsRoutes(app: Express): void {
 
                 const suggestions = new Map<string, SpotifyArtist>()
 
+                // PRIORITY 1: user's saved preferred artists (Musical Taste page).
+                // These come first in Discover so the user always sees what they
+                // explicitly favorited before any algorithmic suggestion.
+                try {
+                    const db = getPrismaClient()
+                    const preferred = await db.userArtistPreference.findMany({
+                        where: { discordUserId, preference: 'prefer' },
+                        orderBy: { createdAt: 'desc' },
+                    })
+                    for (const pref of preferred) {
+                        if (suggestions.size >= MAX_SUGGESTIONS) break
+                        const id = pref.spotifyId ?? `pref:${pref.artistKey}`
+                        if (suggestions.has(id)) continue
+                        suggestions.set(id, {
+                            id,
+                            name: pref.artistName,
+                            imageUrl: pref.imageUrl,
+                            popularity: 0,
+                            genres: [],
+                        })
+                    }
+                } catch (error) {
+                    errorLog({ message: 'Failed to load preferred artists for suggestions', error })
+                }
+
                 const link = await spotifyLinkService.getValidAccessToken(
                     discordUserId,
                 )
