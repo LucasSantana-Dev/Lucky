@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.148] - 2026-04-20
+
 ### Added
 - feat(bot): `/social` — 6 roleplay subcommands (hug, pat, kiss, dance, bonk, wave) with deterministic GIF rotation by (sender, target, action, day). Targets other users or falls back to self-phrase. No Tenor API dependency, no env vars, auto-discovered (#731)
 - feat(bot): `/leaderboard tracks|artists [limit]` — top N music plays per guild via the existing `trackHistoryService.getTopTracks/getTopArtists` aggregation. Medal emojis for top 3, padded rank for 4–10, empty-state handling (#733)
