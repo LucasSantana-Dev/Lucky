@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- feat(bot): `/social` — 6 roleplay subcommands (hug, pat, kiss, dance, bonk, wave) with deterministic GIF rotation by (sender, target, action, day). Targets other users or falls back to self-phrase. No Tenor API dependency, no env vars, auto-discovered (#731)
+- feat(bot): `/leaderboard tracks|artists [limit]` — top N music plays per guild via the existing `trackHistoryService.getTopTracks/getTopArtists` aggregation. Medal emojis for top 3, padded rank for 4–10, empty-state handling (#733)
+- feat(bot): `/birthday set|clear` — month + day only (no year, no age), new `MemberBirthday` Prisma model with `@@unique([guildId, userId])` + `@@index([guildId, month, day])`. Validates Feb 30 rejected, Feb 29 accepted (#738)
+
+### Fixed
+- fix(ci): force `npm ci` in `preactjs/compressed-size-action` — defaulted to pnpm when both lockfiles existed, breaking every PR with frontend changes (#726)
+
+### Changed
+- chore(backend): downgrade cached-guild fallback log from warn to info — the event is expected steady-state, not a problem (#741)
+
 ## [2.6.147] - 2026-04-20
 
 ### Fixed
