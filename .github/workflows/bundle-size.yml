@@ -31,14 +31,23 @@ jobs:
                   node-version: '22'
                   cache: 'npm'
 
+            # preactjs/compressed-size-action@v3 auto-detects pnpm on the runner
+            # and runs `<pm> run <build-script>`. This repo is npm-managed
+            # (package-lock.json only), but pnpm is pre-installed on newer
+            # ubuntu-latest images. Install pnpm explicitly so it can actually
+            # run the npm script; pnpm executes `package.json#scripts.build`
+            # natively without needing a pnpm-lock.yaml.
+            - name: Setup pnpm (shim for compressed-size-action pm detection)
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 9
+                  run_install: false
+
             - name: Compressed Size Diff
               uses: preactjs/compressed-size-action@66325aad6443cb7cf89c4bfcd414aea2367cda94 # v3
               with:
-                  # v3 auto-detects pnpm even without pnpm-lock.yaml; force npm
-                  # both for install and build since this project is npm-managed.
-                  package-manager: 'npm'
                   install-script: 'npm ci'
-                  build-script: 'npm run build'
+                  build-script: 'build'
                   pattern: 'packages/frontend/dist/**/*.{js,css}'
                   strip-hash: '\\b\\w{8}\\.'
                   minimum-change-threshold: 100
