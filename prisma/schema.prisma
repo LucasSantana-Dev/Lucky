@@ -695,3 +695,53 @@ model AutoRole {
   @@index([guildId])
   @@map("auto_roles")
 }
+
+// Birthdays — month + day only (no year) to avoid storing age / DOB.
+// Used by a daily scheduler (follow-up PR) to post celebrations on the
+// configured guild channel.
+model MemberBirthday {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  month     Int // 1-12
+  day       Int // 1-31
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId])
+  @@index([guildId, month, day])
+  @@map("member_birthdays")
+}
+
+// Premium subscription — mirrors Stripe lifecycle. One row per guild.
+// status is authoritative (active|trialing|past_due|canceled|incomplete).
+// currentPeriodEnd is informational only.
+model GuildSubscription {
+  id                   String    @id @default(cuid())
+  guildId              String    @unique
+  stripeCustomerId     String?
+  stripeSubscriptionId String?   @unique
+  status               String
+  currentPeriodEnd     DateTime?
+  priceId              String?
+  canceledAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([guildId])
+  @@index([status])
+  @@map("guild_subscriptions")
+}
+
+// Stripe webhook dedupe — events are idempotent by Stripe event.id.
+// Prevents double-processing on Stripe's automatic retries.
+model StripeWebhookEvent {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@map("stripe_webhook_events")
+}
