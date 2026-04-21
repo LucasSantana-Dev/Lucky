@@ -106,7 +106,7 @@ npm run test:e2e        # Playwright smoke tests
 
 **Auto-mod** — `/automod` (word filter, link filter, spam detection, presets)
 
-**Engagement** — `/level` `/starboard` `/lastfm`
+**Engagement** — `/level` `/starboard` `/lastfm` `/social` (hug · pat · kiss · dance · bonk · wave)
 
 **Twitch** — `/twitch add` `/twitch remove` `/twitch list`
 
