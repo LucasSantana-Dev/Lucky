@@ -1,0 +1,81 @@
+name: Vercel Deploy Watch
+
+on:
+  schedule:
+    # Every 15 minutes — GitHub free tier is 2000 min/mo, this uses ~30/day.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-deploy-watch
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    if: github.repository == 'LucasSantana-Dev/Lucky'
+    steps:
+      - name: Scan Vercel projects for ERROR deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_ALERT_WEBHOOK }}
+          # Comma-separated project IDs to monitor. Discover via `vercel projects ls --json`.
+          PROJECT_IDS: >-
+            prj_ILW1nAjuVfyFfpxfe9hm5gfQCnkt,prj_2XcjG9xAWA7XTWrp2GLhki5VXrxF,prj_OGMBqswlIdcZYCtN7pobeaAnsZyr,prj_3NBVHR7IAZ5KUuc3Oc8j36OhEkYu
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${VERCEL_TOKEN:-}" || -z "${VERCEL_TEAM_ID:-}" || -z "${DISCORD_WEBHOOK_URL:-}" ]]; then
+            echo "::warning::Missing VERCEL_TOKEN / VERCEL_TEAM_ID / DISCORD_DEPLOY_ALERT_WEBHOOK — skipping"
+            exit 0
+          fi
+
+          # Only look back 30 min so we don't re-alert on the same failure forever.
+          SINCE=$(( $(date +%s) * 1000 - 30 * 60 * 1000 ))
+
+          any_alert=0
+          IFS=',' read -ra IDS <<< "$PROJECT_IDS"
+          for pid in "${IDS[@]}"; do
+            pid="${pid// /}"
+            resp=$(curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&projectId=${pid}&limit=20&since=${SINCE}" \
+              || echo '{"deployments":[]}')
+
+            # Filter: state == ERROR (CANCELED is not a real failure — it means superseded)
+            errors=$(echo "$resp" | jq -c '[.deployments[]? | select(.state == "ERROR")]')
+            count=$(echo "$errors" | jq 'length')
+            [[ "$count" -eq 0 ]] && continue
+
+            any_alert=1
+            echo "::error::$count ERROR deployment(s) on $pid"
+
+            # Build a Discord embed per failed deployment
+            payload=$(echo "$errors" | jq --arg pid "$pid" '
+              {
+                username: "Vercel Deploy Watch",
+                embeds: [ .[] | {
+                  title: ("❌ " + (.name // "unknown") + " — " + (.meta.githubCommitRef // "unknown branch")),
+                  description: ((.meta.githubCommitMessage // "") | .[0:500]),
+                  url: .inspectorUrl,
+                  color: 15158332,
+                  fields: [
+                    {name: "Commit", value: ((.meta.githubCommitSha // "—") | .[0:7]), inline: true},
+                    {name: "Author", value: (.meta.githubCommitAuthorName // "—"), inline: true},
+                    {name: "PR", value: (if .meta.githubPrId then ("#" + .meta.githubPrId) else "—" end), inline: true}
+                  ],
+                  timestamp: (.created / 1000 | todate)
+                } ]
+              }
+            ')
+
+            curl -fsS -X POST -H 'Content-Type: application/json' \
+              --data "$payload" "$DISCORD_WEBHOOK_URL" >/dev/null
+          done
+
+          if [[ "$any_alert" -eq 0 ]]; then
+            echo "✓ No ERROR deployments in the last 30 min across $(echo "$PROJECT_IDS" | tr ',' '\n' | wc -l | tr -d ' ') projects"
+          fi
