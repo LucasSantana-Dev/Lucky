@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express'
+import { timingSafeEqual } from 'node:crypto'
 import Redis from 'ioredis'
 import { writeLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
@@ -43,7 +44,20 @@ function getRedis(): Redis {
         lazyConnect: true,
         maxRetriesPerRequest: 1,
     })
+    // ioredis raises uncaughtException if no 'error' listener is attached
+    // while the connection is retrying. Log and swallow — calls will error
+    // per-request via maxRetriesPerRequest, so we don't need to crash.
+    redisClient.on('error', (err) => {
+        errorLog({ message: 'webhooks redis error', data: { error: String(err) } })
+    })
     return redisClient
+}
+
+function safeEqualString(a: string, b: string): boolean {
+    const ab = Buffer.from(a)
+    const bb = Buffer.from(b)
+    if (ab.length !== bb.length) return false
+    return timingSafeEqual(ab, bb)
 }
 
 type TopggVotePayload = {
@@ -60,7 +74,7 @@ function verifyTopggAuth(req: Request): void {
         throw new AppError(503, 'TOPGG_AUTH_TOKEN not configured')
     }
     const provided = req.header('authorization')
-    if (!provided || provided !== expected) {
+    if (!provided || !safeEqualString(provided, expected)) {
         throw AppError.unauthorized('invalid top.gg webhook token')
     }
 }
@@ -68,7 +82,7 @@ function verifyTopggAuth(req: Request): void {
 function verifyInternalKey(req: Request): void {
     const expected = process.env.LUCKY_NOTIFY_API_KEY
     const provided = req.header('x-notify-key')
-    if (!expected || !provided || provided !== expected) {
+    if (!expected || !provided || !safeEqualString(provided, expected)) {
         throw AppError.unauthorized('invalid internal key')
     }
 }
@@ -148,6 +162,13 @@ export function setupWebhookRoutes(app: Express): void {
                 return
             }
 
+            // Only persist genuine upvotes. Unknown/future event types
+            // (e.g. downvotes, if top.gg ever adds them) must not bump the
+            // streak counter.
+            if (payload.type !== 'upvote') {
+                throw AppError.badRequest('unsupported vote type')
+            }
+
             const userId = payload.user
             if (!userId || typeof userId !== 'string') {
                 throw AppError.badRequest('user id missing or invalid')
@@ -158,8 +179,28 @@ export function setupWebhookRoutes(app: Express): void {
             const streakKey = `votes:streak:${userId}`
 
             try {
+                // Idempotency gate: top.gg retries on handler failure/timeout.
+                // SET NX means only the first call within the 12h vote window
+                // lands a vote; subsequent retries return 200 without touching
+                // the streak counter.
+                const firstWrite = await redis.set(
+                    voteKey,
+                    Date.now().toString(),
+                    'EX',
+                    VOTE_TTL_SECONDS,
+                    'NX',
+                )
+
+                if (firstWrite !== 'OK') {
+                    debugLog({
+                        message: 'top.gg vote already recorded — skipping streak increment',
+                        data: { userId },
+                    })
+                    res.status(200).json({ ok: true, duplicate: true })
+                    return
+                }
+
                 const pipeline = redis.pipeline()
-                pipeline.set(voteKey, Date.now().toString(), 'EX', VOTE_TTL_SECONDS)
                 pipeline.incr(streakKey)
                 pipeline.expire(streakKey, STREAK_TTL_SECONDS)
                 await pipeline.exec()

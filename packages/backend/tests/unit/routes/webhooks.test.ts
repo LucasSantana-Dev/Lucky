@@ -12,10 +12,14 @@ const pipelineMock = {
     ttl: jest.fn().mockReturnThis(),
     exec: pipelineExec,
 }
+const redisSet = jest.fn<() => Promise<string | null>>().mockResolvedValue('OK')
+const redisOn = jest.fn()
 
 jest.mock('ioredis', () => {
     return jest.fn().mockImplementation(() => ({
         pipeline: () => pipelineMock,
+        set: redisSet,
+        on: redisOn,
     }))
 })
 
@@ -69,6 +73,8 @@ beforeEach(() => {
     pipelineMock.expire.mockClear()
     pipelineMock.get.mockClear()
     pipelineMock.ttl.mockClear()
+    redisSet.mockClear().mockResolvedValue('OK')
+    redisOn.mockClear()
 })
 
 afterEach(() => {
@@ -119,6 +125,15 @@ describe('POST /webhooks/topgg-votes', () => {
             .set('authorization', 'valid-token')
             .send({ type: 'upvote' })
         expect(res.status).toBe(400)
+    })
+
+    it('rejects unsupported vote type (not upvote/test)', async () => {
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({ user: '1', type: 'downvote' })
+        expect(res.status).toBe(400)
+        expect(redisSet).not.toHaveBeenCalled()
     })
 
     it('responds to GET /api/internal/votes/:userId with current state', async () => {
@@ -212,18 +227,19 @@ describe('POST /webhooks/topgg-votes', () => {
         })
     })
 
-    it('records a valid upvote in redis via pipeline', async () => {
+    it('records a valid upvote via SET NX + streak pipeline', async () => {
         const res = await request(buildApp())
             .post('/webhooks/topgg-votes')
             .set('authorization', 'valid-token')
             .send({ user: '123', type: 'upvote', bot: '962198089161134131' })
         expect(res.status).toBe(200)
         expect(res.body).toEqual({ ok: true })
-        expect(pipelineMock.set).toHaveBeenCalledWith(
+        expect(redisSet).toHaveBeenCalledWith(
             'votes:123',
             expect.any(String),
             'EX',
             60 * 60 * 12,
+            'NX',
         )
         expect(pipelineMock.incr).toHaveBeenCalledWith('votes:streak:123')
         expect(pipelineMock.expire).toHaveBeenCalledWith(
@@ -232,4 +248,18 @@ describe('POST /webhooks/topgg-votes', () => {
         )
         expect(pipelineExec).toHaveBeenCalledTimes(1)
     })
+
+    it('is idempotent — duplicate vote within TTL skips streak increment', async () => {
+        redisSet.mockResolvedValueOnce(null) // SET NX returns null when key exists
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({ user: '123', type: 'upvote' })
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ ok: true, duplicate: true })
+        expect(redisSet).toHaveBeenCalledTimes(1)
+        expect(pipelineMock.incr).not.toHaveBeenCalled()
+        expect(pipelineMock.expire).not.toHaveBeenCalled()
+    })
+
 })
