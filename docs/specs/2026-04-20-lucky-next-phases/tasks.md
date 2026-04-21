@@ -20,13 +20,20 @@
 - [ ] Polls & Giveaways module (S) — viral growth lever, not started
 - [ ] Roleplay Phase 1 counter extension
 
-## Phase 2 — Premium Tier Surfacing (in progress)
-- [x] **PR 1**: `GuildSubscription` + `StripeWebhookEvent` Prisma models + `PremiumService.isPremium() / .getSubscription()` with fail-closed DB semantics (PR #746)
-- [x] **PR 2 env prep**: `STRIPE_*` placeholders in `.env.example` (PR #747)
-- [x] **PR 2 skeleton**: `/api/billing/{status,checkout,portal}` + `DELETE /api/billing/subscription` + `POST /webhooks/stripe` returning 503 when `STRIPE_ENABLED` unset (PR #749)
-- [x] **PR 3 — first gate**: premium autoplay buffer 8 → 16 (PR #750)
-- [ ] **PR 2 real**: `npm i stripe`, replace 4 `AppError(501)` stubs with real Stripe session creation, wire `express.raw()` before global JSON parser for `/webhooks/stripe`, signature verification via `stripe.webhooks.constructEvent`, idempotent dedupe on `StripeWebhookEvent.id` (see handoff file)
-- [ ] **PR 4**: dashboard `/settings/billing` route (Next.js), premium embed-color gate, leaderboard row-limit gate
+## Phase 2 — Premium Tier Surfacing (⏸ DEFERRED 2026-04-20)
+> Stripe-billing work paused. `premiumService.isPremium(guildId)` stays as the feature toggle — returns `false` for every guild without a subscription row, so all premium-adjacent code paths (e.g. autoplay buffer #750) behave as if premium is off. Revisit after Phase 1 engagement metrics + GitHub ⭐ gate hits 15.
+- [x] **PR 1**: `GuildSubscription` + `StripeWebhookEvent` Prisma models + `PremiumService.isPremium() / .getSubscription()` with fail-closed DB semantics (PR #746, merged — schema is harmless no-op until Stripe work resumes)
+- [x] **PR 3 — first gate (feature toggle)**: premium autoplay buffer 8 → 16 (PR #750, queued)
+- [ ] ~~PR 2 env prep (Stripe placeholders)~~ — **closed** (#747, 2026-04-20)
+- [ ] ~~PR 2 skeleton (billing routes)~~ — **closed** (#749, 2026-04-20)
+- [ ] ~~PR 2 real (Stripe SDK)~~ — **deferred**
+- [ ] ~~PR 4 (dashboard /settings/billing + palette + leaderboard gate)~~ — **deferred**
+
+### When resuming Phase 2
+1. Re-open or recreate PRs #747/#749 as starting points (skeleton still correct)
+2. Install `stripe` SDK in `packages/backend`
+3. Follow the handoff at `~/.claude/handoffs/lucassantana-lucky/latest.md` (pre-dated but architecturally still valid)
+4. Raw-body middleware caveat still applies: `/webhooks/stripe` needs `express.raw()` BEFORE global `express.json()`
 
 ### Gate inventory (audited 2026-04-20)
 Surfaces that are premium-ready vs. need wiring:
