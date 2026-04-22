@@ -123,6 +123,24 @@
   --color-lucky-blue: #5865f2;
   --color-lucky-purple: #5865f2;
 
+  /* Short-form aliases for the 2026-04-21 redesign port.
+     Values match the existing --color-lucky-* tokens. Keep both during
+     migration; the --lucky-* aliases will be dropped in a later cleanup PR
+     after every page has been ported. Decision: docs/decisions/2026-04-21-redesign-port-target.md */
+  --color-canvas: #0f1117;
+  --color-sidebar: #161b22;
+  --color-panel: #1c2129;
+  --color-elevated: #222831;
+  --color-highlight: #2a3140;
+  --color-brand-discord: #5865f2;
+  --color-brand-accent: #ec4899;
+  --color-text-strong: #e6edf3;
+  --color-text-body: #adbac7;
+  --color-text-muted: #768390;
+  --color-text-subtle: #545d68;
+  --shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
+  --shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
+
   --font-lucky-display: 'Sora', 'Segoe UI', system-ui, sans-serif;
   --font-lucky-body: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   --font-lucky-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
@@ -307,6 +325,21 @@
   border-radius: var(--radius-lg);
   background-color: var(--lucky-bg-secondary);
   box-shadow: var(--lucky-shadow-soft);
+}
+
+@utility discord-gradient {
+  background: linear-gradient(135deg, #ec4899 0%, #fb923c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@utility lucky-focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(88 101 242 / 0.4);
+  }
 }
 
 @layer base {
