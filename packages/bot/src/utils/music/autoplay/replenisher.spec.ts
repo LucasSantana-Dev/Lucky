@@ -30,6 +30,9 @@ jest.mock('@lucky/shared/services', () => ({
     spotifyLinkService: {
         getValidAccessToken: jest.fn(() => Promise.resolve(null)),
     },
+    premiumService: {
+        isPremium: jest.fn(() => Promise.resolve(false)),
+    },
 }))
 
 jest.mock('./sessionMood', () => ({

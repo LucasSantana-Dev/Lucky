@@ -6,6 +6,7 @@ import {
     trackHistoryService,
     guildSettingsService,
     spotifyLinkService,
+    premiumService,
 } from '@lucky/shared/services'
 import {
     getArtistPopularity,
@@ -33,7 +34,11 @@ import {
     buildVcContributionWeights,
 } from '../queueManipulation'
 
+// Autoplay backfill target. Non-premium guilds keep the existing 8-song
+// runway; premium guilds get 2× (16) so large listening sessions rarely
+// run out of queued tracks between bot cycles. See PremiumService.isPremium.
 const AUTOPLAY_BUFFER_SIZE = 8
+const AUTOPLAY_BUFFER_SIZE_PREMIUM = 16
 const HISTORY_SEED_LIMIT = 3
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
@@ -75,7 +80,10 @@ async function _replenishQueue(
 
         purgeDuplicatesOfCurrentTrack(queue, currentTrack)
 
-        const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
+        const bufferSize = (await premiumService.isPremium(queue.guild.id))
+            ? AUTOPLAY_BUFFER_SIZE_PREMIUM
+            : AUTOPLAY_BUFFER_SIZE
+        const missingTracks = bufferSize - queue.tracks.size
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)

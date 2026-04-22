@@ -70,6 +70,9 @@ jest.mock('@lucky/shared/services', () => ({
     spotifyLinkService: {
         getValidAccessToken: jest.fn().mockResolvedValue(null),
     },
+    premiumService: {
+        isPremium: jest.fn(() => Promise.resolve(false)),
+    },
 }))
 
 const consumeLastFmSeedSliceMock = jest.fn()
