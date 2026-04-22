@@ -42,6 +42,7 @@ attached_assets/
 dist
 build
 *.tsbuildinfo
+packages/*/*.zip
 
 # Session data
 .worktrees/
