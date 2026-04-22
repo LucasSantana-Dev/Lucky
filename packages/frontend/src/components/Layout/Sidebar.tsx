@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
     ChevronsUpDown,
     GitBranch,
@@ -43,7 +45,7 @@ import type {
 
 interface NavItem {
     path: string
-    label: string
+    labelKey: string
     icon: React.ComponentType<{ className?: string }>
     module: ModuleKey
     requiredMode?: AccessMode
@@ -51,7 +53,7 @@ interface NavItem {
 }
 
 interface NavSection {
-    title: string
+    titleKey: string
     items: NavItem[]
 }
 
@@ -65,75 +67,75 @@ function getUserAvatarUrl(userId: string, avatarHash: string): string {
 
 const navSections: NavSection[] = [
     {
-        title: 'Overview',
+        titleKey: 'sidebar.sections.overview',
         items: [
             {
                 path: '/',
-                label: 'Dashboard',
+                labelKey: 'sidebar.nav.dashboard',
                 icon: LayoutDashboard,
                 module: 'overview',
             },
             {
                 path: '/settings',
-                label: 'Server Settings',
+                labelKey: 'sidebar.nav.serverSettings',
                 icon: Settings,
                 module: 'settings',
             },
         ],
     },
     {
-        title: 'Moderation',
+        titleKey: 'sidebar.sections.moderation',
         items: [
             {
                 path: '/moderation',
-                label: 'Mod Cases',
+                labelKey: 'sidebar.nav.modCases',
                 icon: Shield,
                 module: 'moderation',
             },
             {
                 path: '/automod',
-                label: 'Auto-Moderation',
+                labelKey: 'sidebar.nav.autoModeration',
                 icon: ShieldAlert,
                 module: 'moderation',
             },
             {
                 path: '/logs',
-                label: 'Server Logs',
+                labelKey: 'sidebar.nav.serverLogs',
                 icon: ScrollText,
                 module: 'moderation',
             },
         ],
     },
     {
-        title: 'Automation',
+        titleKey: 'sidebar.sections.automation',
         items: [
             {
                 path: '/commands',
-                label: 'Custom Commands',
+                labelKey: 'sidebar.nav.customCommands',
                 icon: Terminal,
                 module: 'automation',
             },
             {
                 path: '/automessages',
-                label: 'Auto Messages',
+                labelKey: 'sidebar.nav.autoMessages',
                 icon: MessageSquare,
                 module: 'automation',
             },
             {
                 path: '/embed-builder',
-                label: 'Embed Builder',
+                labelKey: 'sidebar.nav.embedBuilder',
                 icon: Layers,
                 module: 'automation',
             },
             {
                 path: '/reaction-roles',
-                label: 'Reaction Roles',
+                labelKey: 'sidebar.nav.reactionRoles',
                 icon: Link2,
                 module: 'automation',
             },
             {
                 path: '/guild-automation',
-                label: 'Guild Automation',
+                labelKey: 'sidebar.nav.guildAutomation',
                 icon: GitBranch,
                 module: 'settings',
                 requiredMode: 'manage',
@@ -141,69 +143,69 @@ const navSections: NavSection[] = [
         ],
     },
     {
-        title: 'Community',
+        titleKey: 'sidebar.sections.community',
         items: [
             {
                 path: '/levels',
-                label: 'Level System',
+                labelKey: 'sidebar.nav.levelSystem',
                 icon: Trophy,
                 module: 'settings',
             },
             {
                 path: '/starboard',
-                label: 'Starboard',
+                labelKey: 'sidebar.nav.starboard',
                 icon: Star,
                 module: 'settings',
             },
         ],
     },
     {
-        title: 'Media',
+        titleKey: 'sidebar.sections.media',
         items: [
             {
                 path: '/music',
-                label: 'Music Player',
+                labelKey: 'sidebar.nav.musicPlayer',
                 icon: Music,
                 module: 'music',
             },
             {
                 path: '/music/history',
-                label: 'Track History',
+                labelKey: 'sidebar.nav.trackHistory',
                 icon: History,
                 module: 'music',
             },
             {
                 path: '/lyrics',
-                label: 'Lyrics',
+                labelKey: 'sidebar.nav.lyrics',
                 icon: MicVocal,
                 module: 'music',
             },
             {
                 path: '/music/artists',
-                label: 'Musical Taste',
+                labelKey: 'sidebar.nav.musicalTaste',
                 icon: Heart,
                 module: 'music',
             },
         ],
     },
     {
-        title: 'Integrations',
+        titleKey: 'sidebar.sections.integrations',
         items: [
             {
                 path: '/lastfm',
-                label: 'Last.fm',
+                labelKey: 'sidebar.nav.lastFm',
                 icon: Disc3,
                 module: 'integrations',
             },
             {
                 path: '/twitch',
-                label: 'Twitch',
+                labelKey: 'sidebar.nav.twitch',
                 icon: Tv,
                 module: 'integrations',
             },
             {
                 path: '/features',
-                label: 'Features',
+                labelKey: 'sidebar.nav.features',
                 icon: ToggleLeft,
                 module: 'automation',
             },
@@ -218,27 +220,27 @@ interface GuildHeaderProps {
     showMobileClose: boolean
 }
 
-function getGuildStatus(selectedGuild: Guild | null) {
+function getGuildStatus(selectedGuild: Guild | null, t: TFunction) {
     if (!selectedGuild) {
         return {
-            label: 'Select a server',
+            label: t('sidebar.status.selectServer'),
             tone: 'text-lucky-text-subtle bg-lucky-bg-tertiary border-lucky-border',
-            subtitle: 'Choose a community to unlock guild tools.',
+            subtitle: t('sidebar.subtitle.selectServer'),
         }
     }
 
     if (selectedGuild.botAdded === false) {
         return {
-            label: 'Needs setup',
+            label: t('sidebar.status.needsSetup'),
             tone: 'text-amber-200 bg-amber-500/10 border-amber-500/30',
-            subtitle: 'Lucky is not installed in this server yet.',
+            subtitle: t('sidebar.subtitle.needsSetup'),
         }
     }
 
     return {
-        label: 'Ready',
+        label: t('sidebar.status.ready'),
         tone: 'text-emerald-200 bg-emerald-500/10 border-emerald-500/30',
-        subtitle: 'Guild command center is ready for operations.',
+        subtitle: t('sidebar.subtitle.ready'),
     }
 }
 
@@ -248,6 +250,7 @@ function GuildHeader({
     onMobileClose,
     showMobileClose,
 }: GuildHeaderProps) {
+    const { t } = useTranslation()
     const guildIconSrc = selectedGuild?.icon
         ? getGuildIconUrl(selectedGuild.id, selectedGuild.icon)
         : undefined
@@ -255,7 +258,7 @@ function GuildHeader({
     const guildFallback = selectedGuild?.name
         ? selectedGuild.name.substring(0, 2).toUpperCase()
         : 'NS'
-    const status = getGuildStatus(selectedGuild)
+    const status = getGuildStatus(selectedGuild, t)
 
     return (
         <div className='border-b border-lucky-border px-4 py-4'>
@@ -263,7 +266,7 @@ function GuildHeader({
                 <div className='mb-2 flex items-start justify-between gap-3'>
                     <div className='min-w-0'>
                         <p className='type-meta text-[10px] font-semibold uppercase tracking-[0.24em] text-lucky-text-subtle'>
-                            Active guild
+                            {t('sidebar.activeGuild')}
                         </p>
                     </div>
                     {showMobileClose && (
@@ -271,7 +274,7 @@ function GuildHeader({
                             type='button'
                             className='lucky-focus-visible flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-lucky-text-tertiary transition-colors hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary lg:hidden'
                             onClick={onMobileClose}
-                            aria-label='Close sidebar'
+                            aria-label={t('common.closeSidebar')}
                         >
                             <X className='h-4 w-4' />
                         </button>
@@ -313,18 +316,18 @@ function GuildHeader({
                         type='button'
                         className='lucky-focus-visible inline-flex min-h-[36px] items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-tertiary px-3 py-1.5 text-[12px] font-medium text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-active hover:text-lucky-text-primary'
                         onClick={onSwitchClick}
-                        aria-label='Switch server'
-                        title='Switch server'
+                        aria-label={t('sidebar.switchServer')}
+                        title={t('sidebar.switchServer')}
                     >
                         <ChevronsUpDown
                             className='h-3.5 w-3.5'
                             aria-hidden='true'
                         />
-                        <span>Switch server</span>
+                        <span>{t('sidebar.switchServer')}</span>
                     </button>
 
                     <p className='text-[11px] text-lucky-text-subtle'>
-                        Command center
+                        {t('sidebar.commandCenter')}
                     </p>
                 </div>
             </div>
@@ -338,12 +341,13 @@ interface NavSectionsProps {
 }
 
 function NavSections({ isActive, canViewModule }: NavSectionsProps) {
+    const { t } = useTranslation()
     return (
         <ScrollArea className='flex-1 py-3'>
             <nav aria-label='Main navigation' className='space-y-4 px-2'>
                 {navSections.map((section, index) => (
                     <div
-                        key={section.title}
+                        key={section.titleKey}
                         className={cn(
                             index > 0 && 'border-t border-lucky-border/70 pt-4',
                         )}
@@ -352,7 +356,7 @@ function NavSections({ isActive, canViewModule }: NavSectionsProps) {
                             className='type-meta mb-2 px-2 text-lucky-text-subtle uppercase tracking-[0.22em] text-[10px] font-semibold'
                             aria-hidden='true'
                         >
-                            {section.title}
+                            {t(section.titleKey)}
                         </p>
                         <ul className='space-y-0.5' role='list'>
                             {section.items
@@ -364,6 +368,7 @@ function NavSections({ isActive, canViewModule }: NavSectionsProps) {
                                 )
                                 .map((item) => {
                                     const active = isActive(item.path)
+                                    const label = t(item.labelKey)
                                     return (
                                         <li key={item.path}>
                                             <Link
@@ -400,7 +405,7 @@ function NavSections({ isActive, canViewModule }: NavSectionsProps) {
                                                     aria-hidden='true'
                                                 />
                                                 <span className='type-body-sm truncate font-medium'>
-                                                    {item.label}
+                                                    {label}
                                                 </span>
                                                 {item.badge !== undefined &&
                                                     item.badge > 0 && (
@@ -432,6 +437,7 @@ interface UserFooterProps {
 }
 
 function UserFooter({ user, memberContext, onLogout }: UserFooterProps) {
+    const { t } = useTranslation()
     const profileName =
         memberContext?.nickname || user?.globalName || user?.username || 'User'
     const profileSubtitle = user?.username ? `@${user.username}` : 'Online'
@@ -461,8 +467,8 @@ function UserFooter({ user, memberContext, onLogout }: UserFooterProps) {
                     type='button'
                     onClick={onLogout}
                     className='lucky-focus-visible flex min-h-[32px] min-w-[32px] items-center justify-center rounded-md text-lucky-text-subtle transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
-                    aria-label='Log out'
-                    title='Log out'
+                    aria-label={t('common.logout')}
+                    title={t('common.logout')}
                 >
                     <LogOut className='h-3.5 w-3.5' aria-hidden='true' />
                 </button>
