@@ -6,6 +6,7 @@ import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
 import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
+import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 
 let presenceControls: { stop: () => void; pause: () => void; resume: () => void } | null = null
 
@@ -93,6 +94,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start mod digest scheduler',
+                    error,
+                })
+            }
+
+            try {
+                birthdayScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start birthday scheduler',
                     error,
                 })
             }

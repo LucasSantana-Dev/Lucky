@@ -1,5 +1,6 @@
 node_modules
 packages/*/package-lock.json
+packages/*/pnpm-lock.yaml
 
 # Environment files
 .env
@@ -41,6 +42,7 @@ attached_assets/
 dist
 build
 *.tsbuildinfo
+packages/*/*.zip
 
 # Session data
 .worktrees/
@@ -73,6 +75,7 @@ coverage/
 # Playwright
 packages/frontend/playwright-report/
 packages/frontend/test-results/
+.playwright-mcp/
 
 # Secrets and keys
 *.pem

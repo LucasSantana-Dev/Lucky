@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { Bell } from 'lucide-react'
+import { Activity, Bell, ShieldCheck } from 'lucide-react'
 import Shell from './Shell'
 import SectionHeader from './SectionHeader'
 import EmptyState from './EmptyState'
@@ -32,6 +32,35 @@ describe('Design primitives', () => {
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
         expect(screen.getByText('Control panel')).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument()
+    })
+
+    test('renders section header with eyebrow icon + status band', () => {
+        render(
+            <SectionHeader
+                eyebrow='Server analytics'
+                eyebrowIcon={<Activity data-testid='eyebrow-icon' />}
+                title='Dashboard'
+                statusBand={[
+                    {
+                        label: 'Moderation',
+                        status: 'Healthy',
+                        tone: 'success',
+                        icon: <ShieldCheck data-testid='band-icon' />,
+                    },
+                    { label: 'Automation', status: '3 Active', tone: 'brand' },
+                ]}
+            />,
+        )
+
+        expect(screen.getByText('Server analytics')).toBeInTheDocument()
+        expect(screen.getByTestId('eyebrow-icon')).toBeInTheDocument()
+        const band = screen.getByRole('list', { name: 'Module status' })
+        expect(band).toBeInTheDocument()
+        expect(screen.getByText('Moderation')).toBeInTheDocument()
+        expect(screen.getByText('Healthy')).toBeInTheDocument()
+        expect(screen.getByText('Automation')).toBeInTheDocument()
+        expect(screen.getByText('3 Active')).toBeInTheDocument()
+        expect(screen.getByTestId('band-icon')).toBeInTheDocument()
     })
 
     test('renders empty state with action', () => {
