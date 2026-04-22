@@ -25,15 +25,21 @@ export function setupToggleRoutes(app: Express): void {
 
             const toggles = featureToggleService.getAllToggles()
             const result: Record<string, boolean> = {}
+            const sources: Record<string, string> = {}
 
             for (const [name] of toggles) {
-                result[name] = await featureToggleService.isEnabledGlobal(
-                    name,
-                    userId,
-                )
+                const state =
+                    await featureToggleService.getGlobalToggleStatus(name)
+                result[name] = state.enabled
+                sources[name] = state.provider
             }
 
-            res.json({ toggles: result })
+            res.json({
+                toggles: result,
+                provider: featureToggleService.getGlobalToggleProvider(),
+                writable: false,
+                sources,
+            })
         }),
     )
 
@@ -58,12 +64,16 @@ export function setupToggleRoutes(app: Express): void {
                 throw AppError.badRequest('Invalid toggle name')
             }
 
-            const enabled = await featureToggleService.isEnabledGlobal(
+            const state = await featureToggleService.getGlobalToggleStatus(
                 toggleName as FeatureToggleName,
-                userId,
             )
 
-            res.json({ name: toggleName, enabled })
+            res.json({
+                name: toggleName,
+                enabled: state.enabled,
+                provider: state.provider,
+                writable: state.writable,
+            })
         }),
     )
 
@@ -77,6 +87,11 @@ export function setupToggleRoutes(app: Express): void {
                 typeof req.params.name === 'string'
                     ? req.params.name
                     : req.params.name[0]
+            const { enabled } = req.body as { enabled?: unknown }
+
+            if (typeof enabled !== 'boolean') {
+                throw AppError.badRequest('Enabled must be a boolean')
+            }
 
             if (
                 !toggleName ||
@@ -87,10 +102,11 @@ export function setupToggleRoutes(app: Express): void {
                 throw AppError.badRequest('Invalid toggle name')
             }
 
-            res.json({
-                success: true,
-                message: 'Toggle updated via Unleash admin API',
-                note: 'Use Unleash admin API to update global toggles',
+            res.status(409).json({
+                error: 'Global feature flags are managed in Vercel',
+                provider: featureToggleService.getGlobalToggleProvider(),
+                writable: false,
+                requested: { name: toggleName, enabled },
             })
         }),
     )
@@ -129,7 +145,6 @@ export function setupToggleRoutes(app: Express): void {
                 const enabled = await featureToggleService.isEnabledForGuild(
                     name,
                     guildId,
-                    req.userId,
                 )
                 result[name] = enabled
             }
