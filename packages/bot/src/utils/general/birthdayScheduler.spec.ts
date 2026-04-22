@@ -287,4 +287,153 @@ describe('BirthdayScheduler.tick', () => {
         await expect(scheduler.tick()).resolves.toBeUndefined()
         expect(sent).toHaveLength(0)
     })
+
+    test('prevents concurrent ticks', async () => {
+        dbMocks.findMany.mockImplementation(
+            () =>
+                new Promise((resolve) =>
+                    setTimeout(
+                        () => resolve([{ guildId: 'g1', userId: 'u1' }]),
+                        10,
+                    ),
+                ),
+        )
+        dbMocks.settingsFindUnique.mockResolvedValue({
+            birthdayChannelId: 'chan-1',
+        })
+        const sent: Array<{ channelId: string; payload: unknown }> = []
+        const client = makeClient(sent) as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        // Fire two ticks concurrently
+        const p1 = scheduler.tick()
+        const p2 = scheduler.tick()
+        await Promise.all([p1, p2])
+        // Second tick should be skipped due to tickInProgress flag
+        expect(sent).toHaveLength(1)
+    })
+
+    test('handles missing channel gracefully', async () => {
+        dbMocks.findMany.mockResolvedValue([
+            { guildId: 'g1', userId: 'u1' },
+        ])
+        dbMocks.settingsFindUnique.mockResolvedValue({
+            birthdayChannelId: 'chan-missing',
+        })
+        const sent: Array<{ channelId: string; payload: unknown }> = []
+        const client = {
+            channels: {
+                fetch: jest.fn(() => Promise.resolve(null)),
+            },
+        } as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        // should not throw
+        await expect(scheduler.tick()).resolves.toBeUndefined()
+        expect(sent).toHaveLength(0)
+    })
+
+    test('handles multiple birthdays in same guild', async () => {
+        dbMocks.findMany.mockResolvedValue([
+            { guildId: 'g1', userId: 'u1' },
+            { guildId: 'g1', userId: 'u2' },
+            { guildId: 'g1', userId: 'u3' },
+        ])
+        dbMocks.settingsFindUnique.mockResolvedValue({
+            birthdayChannelId: 'chan-1',
+        })
+        const sent: Array<{ channelId: string; payload: unknown }> = []
+        const client = makeClient(sent) as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        await scheduler.tick()
+        expect(sent).toHaveLength(1)
+        const payload = sent[0].payload as {
+            content: string
+        }
+        expect(payload.content).toContain('<@u1>')
+        expect(payload.content).toContain('<@u2>')
+        expect(payload.content).toContain('<@u3>')
+    })
+
+    test('handles birthdays across multiple guilds', async () => {
+        dbMocks.findMany.mockResolvedValue([
+            { guildId: 'g1', userId: 'u1' },
+            { guildId: 'g2', userId: 'u2' },
+        ])
+        dbMocks.settingsFindUnique.mockImplementation((where: unknown) => {
+            const w = where as { where: { guildId: string } }
+            if (w.where.guildId === 'g1') {
+                return Promise.resolve({ birthdayChannelId: 'chan-1' })
+            }
+            if (w.where.guildId === 'g2') {
+                return Promise.resolve({ birthdayChannelId: 'chan-2' })
+            }
+            return Promise.resolve({ birthdayChannelId: null })
+        })
+        const sent: Array<{ channelId: string; payload: unknown }> = []
+        const client = makeClient(sent) as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        await scheduler.tick()
+        expect(sent).toHaveLength(2)
+        const channels = sent.map((s) => s.channelId)
+        expect(channels).toContain('chan-1')
+        expect(channels).toContain('chan-2')
+    })
+
+    test('start() runs tick immediately then on interval', async () => {
+        dbMocks.findMany.mockResolvedValue([])
+        dbMocks.settingsFindMany.mockResolvedValue([])
+        const tickSpy = jest.spyOn(BirthdayScheduler.prototype, 'tick')
+        const client = {
+            channels: { fetch: jest.fn() },
+            guilds: { fetch: jest.fn() },
+        } as never
+        const scheduler = new BirthdayScheduler({ tickIntervalMs: 100 })
+        scheduler.start(client)
+        // First tick happens immediately
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        expect(tickSpy).toHaveBeenCalled()
+        scheduler.stop()
+        tickSpy.mockRestore()
+    })
+
+    test('stop() clears the timer', async () => {
+        const clearIntervalSpy = jest.spyOn(global, 'clearInterval')
+        const client = {
+            channels: { fetch: jest.fn() },
+        } as never
+        const scheduler = new BirthdayScheduler({ tickIntervalMs: 100 })
+        dbMocks.findMany.mockResolvedValue([])
+        dbMocks.settingsFindMany.mockResolvedValue([])
+        scheduler.start(client)
+        scheduler.stop()
+        expect(clearIntervalSpy).toHaveBeenCalled()
+        clearIntervalSpy.mockRestore()
+    })
+
+    test('handles settings.findUnique returning null gracefully', async () => {
+        dbMocks.findMany.mockResolvedValue([
+            { guildId: 'g1', userId: 'u1' },
+        ])
+        dbMocks.settingsFindUnique.mockResolvedValue(null)
+        const sent: Array<{ channelId: string; payload: unknown }> = []
+        const client = makeClient(sent) as never
+        const scheduler = new BirthdayScheduler({
+            clock: () => new Date('2026-04-20T00:00:00Z'),
+        })
+        scheduler['client'] = client
+        await scheduler.tick()
+        // No channel configured, so no announcement
+        expect(sent).toHaveLength(0)
+    })
 })
