@@ -181,7 +181,9 @@ The web interface supports two types of feature toggles:
 ### Global Developer Toggles
 
 - System-wide toggles that affect all servers
-- Only visible/editable by developers (users in `DEVELOPER_USER_IDS`)
+- Only visible to developers (users in `DEVELOPER_USER_IDS`)
+- Managed in Vercel Flags when `FLAGS` is configured
+- Read-only in Lucky; update global values in Vercel
 - API endpoints: `/api/toggles/global`
 
 ### Per-Server Toggles
@@ -213,7 +215,7 @@ The web interface supports two types of feature toggles:
 
 - `GET /api/toggles/global` - List all global toggles
 - `GET /api/toggles/global/:name` - Get specific global toggle
-- `POST /api/toggles/global/:name` - Update global toggle
+- `POST /api/toggles/global/:name` - Rejected; global toggles are Vercel-managed
 
 **Per-Server:**
 

@@ -10,6 +10,7 @@ interface FeatureCardProps {
     enabled: boolean
     onToggle: (enabled: boolean) => void
     isGlobal?: boolean
+    readOnly?: boolean
 }
 
 const formatFeatureName = (name: string): string => {
@@ -24,11 +25,15 @@ function FeatureCard({
     enabled,
     onToggle,
     isGlobal = false,
+    readOnly = false,
 }: FeatureCardProps) {
     const [isUpdating, setIsUpdating] = useState(false)
 
     const handleToggle = useCallback(
         async (checked: boolean) => {
+            if (readOnly) {
+                return
+            }
             setIsUpdating(true)
             try {
                 await onToggle(checked)
@@ -43,7 +48,7 @@ function FeatureCard({
                 setIsUpdating(false)
             }
         },
-        [feature.name, onToggle],
+        [feature.name, onToggle, readOnly],
     )
 
     const featureName = formatFeatureName(feature.name)
@@ -59,9 +64,11 @@ function FeatureCard({
                         <Badge
                             className={cn(
                                 'text-xs',
-                                isGlobal
+                                isGlobal && !readOnly
                                     ? 'bg-lucky-purple/20 text-lucky-purple'
-                                    : 'bg-lucky-blue/20 text-lucky-blue',
+                                    : isGlobal
+                                      ? 'bg-lucky-bg-tertiary text-lucky-text-secondary'
+                                      : 'bg-lucky-blue/20 text-lucky-blue',
                             )}
                             aria-label={
                                 isGlobal
@@ -69,7 +76,11 @@ function FeatureCard({
                                     : 'Per-server feature'
                             }
                         >
-                            {isGlobal ? 'Global' : 'Per-Server'}
+                            {readOnly
+                                ? 'Managed'
+                                : isGlobal
+                                  ? 'Global'
+                                  : 'Per-Server'}
                         </Badge>
                     </div>
                     <p className='text-sm text-lucky-text-secondary'>
@@ -91,7 +102,7 @@ function FeatureCard({
                     <Switch
                         checked={enabled}
                         onCheckedChange={handleToggle}
-                        disabled={isUpdating}
+                        disabled={isUpdating || readOnly}
                         aria-label={`Toggle ${featureName}`}
                     />
                 </div>

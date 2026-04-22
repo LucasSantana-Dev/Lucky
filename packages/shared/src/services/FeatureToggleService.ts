@@ -1,21 +1,21 @@
-import { unleash, isUnleashEnabled } from '../config/unleash'
-import type { FeatureToggleName } from '../types/featureToggle'
+import {
+    getVercelFlagsClient,
+    isVercelFlagsConfigured,
+} from '../config/vercelFlags'
+import type {
+    FeatureToggleName,
+    GlobalFeatureToggleProvider,
+    GlobalFeatureToggleState,
+} from '../types/featureToggle'
 import { getFeatureToggleConfig } from '../config/featureToggles'
 import { debugLog } from '../utils/general/log'
 import { getPrismaClient } from '../utils/database/prismaClient'
 
-const DEVELOPER_USER_IDS = (process.env.DEVELOPER_USER_IDS ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean)
-
 class FeatureToggleService {
     private fallbackToggles: Map<FeatureToggleName, boolean> = new Map()
-    private unleashReady: boolean = false
 
     constructor() {
         this.loadFallbackToggles()
-        this.initializeUnleash()
     }
 
     private loadFallbackToggles(): void {
@@ -28,26 +28,8 @@ class FeatureToggleService {
         }
     }
 
-    private initializeUnleash(): void {
-        if (!isUnleashEnabled() || unleash === null) {
-            debugLog({ message: 'Unleash disabled, using fallback toggles' })
-            this.unleashReady = true
-            return
-        }
-
-        unleash.on('ready', () => {
-            this.unleashReady = true
-            debugLog({ message: 'Unleash ready for feature toggle checks' })
-        })
-    }
-
     private getFallbackValue(name: FeatureToggleName): boolean {
         return this.fallbackToggles.get(name) ?? true
-    }
-
-    private isDeveloper(userId?: string): boolean {
-        if (!userId) return false
-        return DEVELOPER_USER_IDS.includes(userId)
     }
 
     private get db() {
@@ -81,70 +63,82 @@ class FeatureToggleService {
         })
     }
 
-    async isEnabledGlobal(
+    private async getVercelValue(
         name: FeatureToggleName,
-        userId?: string,
-    ): Promise<boolean> {
-        if (!isUnleashEnabled() || !this.unleashReady || unleash === null) {
-            return this.getFallbackValue(name)
+        fallbackValue: boolean,
+    ): Promise<boolean | null> {
+        const client = getVercelFlagsClient()
+
+        if (client === null) {
+            return null
         }
 
         try {
-            const unleashContext = userId
-                ? {
-                      userId,
-                      properties: {},
-                  }
-                : undefined
-
-            const enabled = unleash.isEnabled(name, unleashContext)
-            return enabled || this.getFallbackValue(name)
+            const result = await client.evaluate<boolean>(name, fallbackValue)
+            if (result.reason === 'error') {
+                debugLog({
+                    message: `Vercel flag ${name} unavailable, using fallback`,
+                    error: result.errorMessage,
+                })
+                return null
+            }
+            if (typeof result.value !== 'boolean') {
+                debugLog({
+                    message: `Vercel flag ${name} returned a non-boolean value`,
+                })
+                return null
+            }
+            return result.value
         } catch (error) {
             debugLog({
-                message: `Error checking global toggle ${name}, using fallback:`,
+                message: `Error checking Vercel flag ${name}, using fallback`,
                 error,
             })
-            return this.getFallbackValue(name)
+            return null
         }
+    }
+
+    getGlobalToggleProvider(): GlobalFeatureToggleProvider {
+        return isVercelFlagsConfigured() ? 'vercel' : 'environment'
+    }
+
+    async getGlobalToggleStatus(
+        name: FeatureToggleName,
+    ): Promise<GlobalFeatureToggleState> {
+        const fallbackValue = this.getFallbackValue(name)
+        const vercelValue = await this.getVercelValue(name, fallbackValue)
+
+        if (vercelValue !== null) {
+            return {
+                enabled: vercelValue,
+                provider: 'vercel',
+                writable: false,
+            }
+        }
+
+        return {
+            enabled: fallbackValue,
+            provider: 'environment',
+            writable: false,
+        }
+    }
+
+    async isEnabledGlobal(name: FeatureToggleName): Promise<boolean> {
+        const status = await this.getGlobalToggleStatus(name)
+        return status.enabled
     }
 
     async isEnabledForGuild(
         name: FeatureToggleName,
         guildId: string,
-        userId?: string,
     ): Promise<boolean> {
         const dbOverride = await this.getDbOverride(guildId, name)
+
         if (dbOverride !== null) {
             return dbOverride
         }
 
-        if (!isUnleashEnabled() || !this.unleashReady || unleash === null) {
-            return this.getFallbackValue(name)
-        }
-
-        try {
-            const globalEnabled = await this.isEnabled(name, {
-                userId,
-                guildId: undefined,
-            })
-
-            const unleashContext = {
-                userId,
-                properties: {
-                    guildId,
-                },
-            }
-
-            const perServerEnabled = unleash.isEnabled(name, unleashContext)
-
-            return perServerEnabled || globalEnabled
-        } catch (error) {
-            debugLog({
-                message: `Error checking per-server toggle ${name} for guild ${guildId}, using fallback:`,
-                error,
-            })
-            return this.getFallbackValue(name)
-        }
+        return this.isEnabledGlobal(name)
     }
 
     async isEnabled(
@@ -152,37 +146,10 @@ class FeatureToggleService {
         context?: { userId?: string; guildId?: string },
     ): Promise<boolean> {
         if (context?.guildId) {
-            return this.isEnabledForGuild(name, context.guildId, context.userId)
+            return this.isEnabledForGuild(name, context.guildId)
         }
 
-        if (!isUnleashEnabled() || !this.unleashReady || unleash === null) {
-            return this.getFallbackValue(name)
-        }
-
-        try {
-            const unleashContext = context
-                ? {
-                      userId: context.userId,
-                      properties: {
-                          guildId: context.guildId,
-                      },
-                  }
-                : undefined
-
-            const enabled = unleash.isEnabled(name, unleashContext)
-
-            if (!enabled) {
-                return this.getFallbackValue(name)
-            }
-
-            return enabled
-        } catch (error) {
-            debugLog({
-                message: `Error checking Unleash toggle ${name}, using fallback:`,
-                error,
-            })
-            return this.getFallbackValue(name)
-        }
+        return this.isEnabledGlobal(name)
     }
 
     getAllToggles(): Map<FeatureToggleName, boolean> {

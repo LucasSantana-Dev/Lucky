@@ -8,13 +8,13 @@ with `npm run verify` before merging.
 
 ## Current stack summary
 
-| Area     | Key deps                                                                                    | Notes                                                              |
-| -------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Root     | @prisma/client ^7.4.2, Prisma ^7.4.2, ESLint 9, Jest 30, Prettier 3.8, TypeScript 5.9       | `npm run verify` is the canonical local validation gate            |
-| Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                             |                                                                    |
-| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                         | High `undici` exposure mitigated via override on `main`            |
-| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                              | Zod 4 remains deferred because resolver compatibility is not ready |
-| Shared   | @prisma/client 7.4.2, Sentry 10, ioredis, unleash-client, Zod 3.25, optional @infisical/sdk |                                                                    |
+| Area     | Key deps                                                                                        | Notes                                                              |
+| -------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Root     | @prisma/client ^7.4.2, Prisma ^7.4.2, ESLint 9, Jest 30, Prettier 3.8, TypeScript 5.9           | `npm run verify` is the canonical local validation gate            |
+| Backend  | Express 5, connect-redis 9, tsx, TypeScript 5.9                                                 |                                                                    |
+| Bot      | discord.js 14, discord-player 7, youtubei.js 16, play-dl, Sentry 10                             | High `undici` exposure mitigated via override on `main`            |
+| Frontend | Vite 7, React 19, Tailwind 4, Radix, Zod 3.25, Playwright 1.57                                  | Zod 4 remains deferred because resolver compatibility is not ready |
+| Shared   | @prisma/client 7.4.2, Sentry 10, ioredis, @vercel/flags-core, Zod 3.25, optional @infisical/sdk |                                                                    |
 
 ## Phase 1: Safe patch/minor and audit fixes
 

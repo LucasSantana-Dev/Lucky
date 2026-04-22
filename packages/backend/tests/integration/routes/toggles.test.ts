@@ -19,6 +19,8 @@ const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
         getAllToggles: jest.fn(),
+        getGlobalToggleProvider: jest.fn(),
+        getGlobalToggleStatus: jest.fn(),
         isEnabledGlobal: jest.fn(),
         isEnabledForGuild: jest.fn(),
         setGuildFeatureToggle: (...args: any[]) =>
@@ -68,6 +70,12 @@ describe('Toggles Routes Integration', () => {
 
         const sharedServices = await import('@lucky/shared/services')
         featureToggleService = sharedServices.featureToggleService
+        featureToggleService.getGlobalToggleProvider.mockReturnValue('vercel')
+        featureToggleService.getGlobalToggleStatus.mockResolvedValue({
+            enabled: true,
+            provider: 'vercel',
+            writable: false,
+        })
     })
 
     describe('GET /api/toggles/global', () => {
@@ -98,7 +106,13 @@ describe('Toggles Routes Integration', () => {
                 .expect(200)
 
             expect(response.body).toHaveProperty('toggles')
+            expect(response.body).toHaveProperty('provider', 'vercel')
+            expect(response.body).toHaveProperty('writable', false)
+            expect(response.body).toHaveProperty('sources')
             expect(mockFeatureToggleService.getAllToggles).toHaveBeenCalled()
+            expect(
+                mockFeatureToggleService.getGlobalToggleStatus,
+            ).toHaveBeenCalledWith('DOWNLOAD_VIDEO')
         })
 
         test('should return 403 for non-developer', async () => {
@@ -167,6 +181,8 @@ describe('Toggles Routes Integration', () => {
             expect(response.body).toEqual({
                 name: 'DOWNLOAD_VIDEO',
                 enabled: true,
+                provider: 'vercel',
+                writable: false,
             })
         })
 
@@ -223,7 +239,7 @@ describe('Toggles Routes Integration', () => {
             expect(response.body).toEqual({ error: 'Invalid toggle name' })
         })
 
-        test('should return success message for developer', async () => {
+        test('should reject writes because global toggles are Vercel-managed', async () => {
             const developerSession = {
                 ...MOCK_SESSION_DATA,
                 userId: '123456789',
@@ -246,10 +262,39 @@ describe('Toggles Routes Integration', () => {
                 .post('/api/toggles/global/DOWNLOAD_VIDEO')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({ enabled: true })
-                .expect(200)
+                .expect(409)
 
-            expect(response.body).toHaveProperty('success', true)
-            expect(response.body).toHaveProperty('message')
+            expect(response.body).toEqual({
+                error: 'Global feature flags are managed in Vercel',
+                provider: 'vercel',
+                writable: false,
+                requested: {
+                    name: 'DOWNLOAD_VIDEO',
+                    enabled: true,
+                },
+            })
+        })
+
+        test('should return 400 when enabled is missing', async () => {
+            const developerSession = {
+                ...MOCK_SESSION_DATA,
+                userId: '123456789',
+            }
+
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(developerSession)
+
+            const response = await request(app)
+                .post('/api/toggles/global/DOWNLOAD_VIDEO')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({})
+                .expect(400)
+
+            expect(response.body).toEqual({
+                error: 'Enabled must be a boolean',
+            })
         })
     })
 
