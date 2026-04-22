@@ -1,9 +1,21 @@
 <p align="center">
-  <img src="assets/lucky-social-preview.png" alt="Lucky — Verified Discord Bot" width="720" />
+  <picture>
+    <source srcset="assets/lucky-social-preview.webp" type="image/webp" />
+    <img src="assets/lucky-social-preview.png" alt="Lucky — Verified Discord Bot" width="720" />
+  </picture>
 </p>
 
 <p align="center">
-  <b>Verified Discord Bot</b> — Music, moderation, and a full web dashboard. All in one.
+  <b>Self-hosted Discord music bot + React dashboard.</b><br>
+  TypeScript monorepo · Discord.js 14 · Prisma 7 · ~2500 tests · Zero prod incidents.
+</p>
+
+<p align="center">
+  <a href="https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496"><b>→ Invite Lucky</b></a> ·
+  <a href="https://lucky.lucassantana.tech"><b>Dashboard</b></a> ·
+  <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="./CHANGELOG.md">Changelog</a> ·
+  <a href="https://github.com/LucasSantana-Dev/Lucky/issues">Issues</a>
 </p>
 
 <p align="center">
@@ -18,9 +30,9 @@
 
 ## What is Lucky?
 
-Lucky is a production-grade Discord bot built as a TypeScript monorepo. It ships with a music player, full moderation suite, auto-mod presets, and a React dashboard — all self-hostable via Docker.
+Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music player with autoplay + recommendations, full moderation suite, auto-mod presets, and a React 19 dashboard — all self-hostable via Docker.
 
-**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech)
+**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496)
 
 ---
 

@@ -1,6 +1,6 @@
 {
     "name": "@lucky/bot",
-    "version": "2.6.147",
+    "version": "2.6.148",
     "description": "Discord bot application",
     "type": "module",
     "main": "./dist/index.js",
@@ -42,6 +42,6 @@
         "ts-jest": "^29.4.9",
         "tsup": "^8.5.1",
         "tsx": "^4.21.0",
-        "typescript": "^5.9.3"
+        "typescript": "^6.0.3"
     }
 }

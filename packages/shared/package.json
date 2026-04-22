@@ -1,6 +1,6 @@
 {
     "name": "@lucky/shared",
-    "version": "2.6.147",
+    "version": "2.6.148",
     "description": "Shared code for Lucky modular monolith",
     "type": "module",
     "main": "./dist/index.js",
@@ -75,9 +75,9 @@
     },
     "devDependencies": {
         "@swc/cli": "^0.8.1",
-        "@swc/core": "^1.15.24",
+        "@swc/core": "^1.15.30",
         "@types/node": "^25.6.0",
         "glob": "^13.0.6",
-        "typescript": "^6.0.2"
+        "typescript": "^6.0.3"
     }
 }

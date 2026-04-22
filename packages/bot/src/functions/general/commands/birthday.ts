@@ -26,6 +26,27 @@ function formatBirthday(month: number, day: number): string {
     return `${MONTHS[month - 1]} ${day}`
 }
 
+// Days from `from` to the next occurrence of (month, day). 0 = today, 1 =
+// tomorrow, ..., 365/366 on the same date next year.
+export function daysUntilBirthday(
+    from: Date,
+    month: number,
+    day: number,
+): number {
+    const year = from.getUTCFullYear()
+    const todayUtc = Date.UTC(
+        year,
+        from.getUTCMonth(),
+        from.getUTCDate(),
+    )
+    let target = Date.UTC(year, month - 1, day)
+    if (target < todayUtc) {
+        target = Date.UTC(year + 1, month - 1, day)
+    }
+    const ms = target - todayUtc
+    return Math.round(ms / (24 * 60 * 60 * 1000))
+}
+
 function validateDate(
     month: number,
     day: number,
@@ -104,6 +125,13 @@ export default new Command({
                             'Role to grant for the day. Leave empty to disable.',
                         ),
                 ),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('list')
+                .setDescription(
+                    'Show the next upcoming birthdays in this server.',
+                ),
         ),
     category: 'general',
     execute: async ({ interaction }) => {
@@ -172,6 +200,46 @@ export default new Command({
                 return
             }
 
+<<<<<<< HEAD
+            if (subcommand === 'channel') {
+                const member = interaction.member
+                const hasPerm =
+                    typeof member?.permissions === 'object' &&
+                    'has' in member.permissions &&
+                    (
+                        member.permissions as {
+                            has: (p: bigint) => boolean
+                        }
+                    ).has(PermissionFlagsBits.ManageGuild)
+                if (!hasPerm) {
+                    await interactionReply({
+                        interaction,
+                        content: {
+                            content:
+                                '❌ You need the **Manage Server** permission to configure the birthday channel.',
+                        },
+                    })
+                    return
+                }
+                const channel = interaction.options.getChannel('channel')
+                const channelId = channel?.id ?? null
+                await prisma.guildSettings.upsert({
+                    where: { guildId: guild.id },
+                    create: { guildId: guild.id, birthdayChannelId: channelId },
+                    update: { birthdayChannelId: channelId },
+                })
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: channelId
+                            ? `✅ Birthday announcements will post to <#${channelId}>.`
+                            : '🔕 Birthday announcements disabled (no channel set).',
+                        allowedMentions: { parse: [] },
+                    },
+                })
+                return
+            }
+
             if (subcommand === 'role') {
                 const member = interaction.member
                 const hasPerm =
@@ -211,39 +279,55 @@ export default new Command({
                 return
             }
 
-            if (subcommand === 'channel') {
-                const member = interaction.member
-                const hasPerm =
-                    typeof member?.permissions === 'object' &&
-                    'has' in member.permissions &&
-                    (
-                        member.permissions as {
-                            has: (p: bigint) => boolean
-                        }
-                    ).has(PermissionFlagsBits.ManageGuild)
-                if (!hasPerm) {
+            if (subcommand === 'list') {
+                const rows = (await prisma.memberBirthday.findMany({
+                    where: { guildId: guild.id },
+                    select: { userId: true, month: true, day: true },
+                })) as Array<{ userId: string; month: number; day: number }>
+
+                if (rows.length === 0) {
                     await interactionReply({
                         interaction,
                         content: {
                             content:
-                                '❌ You need the **Manage Server** permission to configure the birthday channel.',
+                                'No birthdays set yet. Use `/birthday set` to add yours.',
                         },
                     })
                     return
                 }
-                const channel = interaction.options.getChannel('channel')
-                const channelId = channel?.id ?? null
-                await prisma.guildSettings.upsert({
-                    where: { guildId: guild.id },
-                    create: { guildId: guild.id, birthdayChannelId: channelId },
-                    update: { birthdayChannelId: channelId },
+
+                const now = new Date()
+                const annotated = rows
+                    .map((r) => ({
+                        ...r,
+                        daysUntil: daysUntilBirthday(now, r.month, r.day),
+                    }))
+                    .sort((a, b) => a.daysUntil - b.daysUntil)
+                    .slice(0, 5)
+
+                const lines = annotated.map((r) => {
+                    const label =
+                        r.daysUntil === 0
+                            ? '**today**'
+                            : r.daysUntil === 1
+                              ? 'tomorrow'
+                              : `in ${r.daysUntil} days`
+                    return `• <@${r.userId}> — ${formatBirthday(r.month, r.day)} (${label})`
                 })
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎂 Upcoming Birthdays')
+                    .setDescription(lines.join('\n'))
+                    .setColor(COLOR.LUCKY_PURPLE)
+                    .setFooter({
+                        text: `Showing ${annotated.length} of ${rows.length} · ${guild.name}`,
+                    })
+
                 await interactionReply({
                     interaction,
                     content: {
-                        content: channelId
-                            ? `✅ Birthday announcements will post to <#${channelId}>.`
-                            : '🔕 Birthday announcements disabled (no channel set).',
+                        embeds: [embed.toJSON()],
+                        allowedMentions: { parse: [] },
                     },
                 })
                 return
