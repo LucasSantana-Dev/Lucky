@@ -17,23 +17,28 @@ export function useCountUp(
     const [isComplete, setIsComplete] = useState(false)
 
     useEffect(() => {
-        let animationFrameId: number
+        let animationFrameId: number | undefined
         let timeoutId: ReturnType<typeof setTimeout> | undefined
+        let cancelled = false
+
+        setValue(0)
+        setIsComplete(false)
 
         const animate = () => {
+            if (cancelled) {
+                return
+            }
+
             const startTime = Date.now()
-            const delayedStartTime = startTime + delay
 
             const step = () => {
-                const now = Date.now()
-
-                if (now < delayedStartTime) {
-                    // Still in delay period
-                    animationFrameId = requestAnimationFrame(step)
+                if (cancelled) {
                     return
                 }
 
-                const elapsed = now - delayedStartTime
+                const now = Date.now()
+
+                const elapsed = now - startTime
                 const progress = Math.min(elapsed / duration, 1)
 
                 // Easing function: ease-out cubic
@@ -64,8 +69,12 @@ export function useCountUp(
         }
 
         return () => {
-            cancelAnimationFrame(animationFrameId)
-            if (timeoutId) {
+            cancelled = true
+
+            if (animationFrameId !== undefined) {
+                cancelAnimationFrame(animationFrameId)
+            }
+            if (timeoutId !== undefined) {
                 clearTimeout(timeoutId)
             }
         }
