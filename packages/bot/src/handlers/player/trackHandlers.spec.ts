@@ -89,7 +89,6 @@ jest.mock('../../services/VoiceChannelStatusService', () => ({
     setTrackStatus: jest.fn(),
 }))
 
-
 jest.mock('@lucky/shared/config', () => ({
     constants: { VOLUME: 50 },
 }))
@@ -462,6 +461,16 @@ describe('trackHandlers autoplay replenishment', () => {
                 createTrack(`listener-${index}`),
             )
         }
+        for (let index = 0; index < 501; index += 1) {
+            recentlyPlayedTracks.set(`history-guild-${index}`, [
+                {
+                    url: `https://example.com/history/${index}`,
+                    title: `History Song ${index}`,
+                    author: 'Artist',
+                    timestamp: index,
+                },
+            ])
+        }
         recentlyPlayedTracks.set(
             'guild-1',
             Array.from({ length: 501 }, (_, index) => ({
@@ -480,6 +489,8 @@ describe('trackHandlers autoplay replenishment', () => {
 
         expect(lastPlayedTracks.size).toBe(500)
         expect(lastPlayedTracks.has('guild-0')).toBe(false)
+        expect(recentlyPlayedTracks.size).toBe(500)
+        expect(recentlyPlayedTracks.has('history-guild-0')).toBe(false)
         expect(recentlyPlayedTracks.get('guild-1')).toHaveLength(500)
     })
 
