@@ -21,35 +21,40 @@
 
 ## Color System
 
-**Single accent**: Discord Blurple `#5865f2` and its strong variant `#4752c4`.
+**Dual accent** (resolved 2026-04-21, see `docs/decisions/2026-04-21-redesign-port-target.md`):
+- **Primary** (CTAs, active nav, focus rings): Discord Blurple `#5865f2`, hover `#4752c4`.
+- **Secondary** (live pings, highlights, gradient accents): Neon Pink `#ec4899`.
 
-No gold accent. No purple gradient backgrounds. The old purple family (`#8b5cf6`, etc.) and gold family (`#d4a017`, etc.) are no longer part of the brand palette.
+Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) — not part of the brand palette.
 
 | Purpose | Color |
 |---|---|
 | Primary accent / CTAs | `#5865f2` (blurple) |
-| Accent hover | `#4752c4` (blurple-strong) |
+| Primary hover | `#4752c4` (blurple-strong) |
+| Secondary accent | `#ec4899` (neon pink) |
+| Landing gradient end | `#fb923c` (neon orange — landing only) |
 | Success | `#23a55a` |
 | Error | `#f23f42` |
 | Warning | `#f0b232` |
-| Page background | `#0f1117` |
+| Page background (canvas) | `#0f1117` |
 | Sidebar | `#161b22` |
 | Panel | `#1c2129` |
+| Elevated | `#222831` |
+| Highlight (active) | `#2a3140` |
 
 ## Typography
 
-- **Display/UI font**: Inter
-    - Use for all headings, UI labels, body copy, controls.
-- **Mono font**: JetBrains Mono
-    - Use for command snippets, IDs, technical metadata only.
-- No Sora, no Manrope.
+- **Display font**: `Sora` — used for all headings (`h1`–`h4`, `type-display`, `type-title`).
+- **Body font**: `Manrope` — used for body copy, UI labels, controls.
+- **Mono font**: `JetBrains Mono` — used for command snippets, IDs, case numbers, technical metadata.
 
 ## Typography Rules
 
 - Keep body text at `14–15px` for dashboard readability.
-- Use sentence case for labels; avoid all-caps except for `type-meta` eyebrows.
+- Use sentence case for labels; avoid all-caps except for `type-meta` eyebrows (0.07em tracking).
 - No extreme letter-spacing or display-style tracking in UI text.
-- Headings use Inter with moderate negative tracking (`-0.01em` to `-0.02em`).
+- Headings use Sora with moderate negative tracking (`-0.01em` to `-0.02em`).
+- Mono eyebrows (`text-[10px] font-mono uppercase tracking-widest`) are the redesign's operational-console pattern — use for section/status labels.
 
 ## Voice and Copy
 
