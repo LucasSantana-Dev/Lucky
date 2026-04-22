@@ -41,4 +41,7 @@ export const API_ROUTES = {
     related: (id: string) => `/artists/${id}/related`,
     suggestions: () => '/artists/suggestions',
   },
+  ME: {
+    voteStatus: () => '/me/vote-status',
+  },
 } as const;
