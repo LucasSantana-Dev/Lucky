@@ -6,21 +6,11 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { debugLog, errorLog } from '@lucky/shared/utils'
-
-// Vote tier thresholds — kept in sync with the bot's /voterewards command.
-const VOTE_TIERS = [
-    { threshold: 30, label: 'Lucky Legend' },
-    { threshold: 14, label: 'Lucky Regular' },
-    { threshold: 7, label: 'Lucky Fan' },
-    { threshold: 1, label: 'Lucky Supporter' },
-] as const
-
-function tierFor(streak: number): { label: string; threshold: number } | null {
-    for (const t of VOTE_TIERS) {
-        if (streak >= t.threshold) return t
-    }
-    return null
-}
+import {
+    TOP_GG_VOTE_TIERS,
+    TOP_GG_VOTE_URL,
+    tierForVoteStreak,
+} from '@lucky/shared/constants'
 
 // Vote window: top.gg allows one upvote every 12 hours.
 const VOTE_TTL_SECONDS = 60 * 60 * 12
@@ -48,7 +38,10 @@ function getRedis(): Redis {
     // while the connection is retrying. Log and swallow — calls will error
     // per-request via maxRetriesPerRequest, so we don't need to crash.
     redisClient.on('error', (err) => {
-        errorLog({ message: 'webhooks redis error', data: { error: String(err) } })
+        errorLog({
+            message: 'webhooks redis error',
+            data: { error: String(err) },
+        })
     })
     return redisClient
 }
@@ -110,13 +103,17 @@ async function readVoteState(
     }
 }
 
-export function setupWebhookRoutes(app: Express): void {
+export function setupWebhookApiRoutes(app: Express): void {
     app.get(
         '/api/internal/votes/:userId',
         asyncHandler(async (req: Request, res: Response) => {
             verifyInternalKey(req)
             const { userId } = req.params
-            if (!userId || typeof userId !== 'string' || !/^\d+$/.test(userId)) {
+            if (
+                !userId ||
+                typeof userId !== 'string' ||
+                !/^\d+$/.test(userId)
+            ) {
                 throw AppError.badRequest('invalid userId')
             }
             const state = await readVoteState(getRedis(), userId)
@@ -133,21 +130,25 @@ export function setupWebhookRoutes(app: Express): void {
                 throw AppError.unauthorized('not authenticated')
             }
             const state = await readVoteState(getRedis(), userId)
-            const tier = tierFor(state.streak)
-            const nextTier = [...VOTE_TIERS]
+            const tier = tierForVoteStreak(state.streak)
+            const nextTier = [...TOP_GG_VOTE_TIERS]
                 .reverse()
                 .find((t) => t.threshold > state.streak)
             res.status(200).json({
                 ...state,
-                tier: tier ? { label: tier.label, threshold: tier.threshold } : null,
+                tier: tier
+                    ? { label: tier.label, threshold: tier.threshold }
+                    : null,
                 nextTier: nextTier
                     ? { label: nextTier.label, threshold: nextTier.threshold }
                     : null,
-                voteUrl: 'https://top.gg/bot/962198089161134131/vote',
+                voteUrl: TOP_GG_VOTE_URL,
             })
         }),
     )
+}
 
+export function setupWebhookPublicRoutes(app: Express): void {
     app.post(
         '/webhooks/topgg-votes',
         writeLimiter,
@@ -193,7 +194,8 @@ export function setupWebhookRoutes(app: Express): void {
 
                 if (firstWrite !== 'OK') {
                     debugLog({
-                        message: 'top.gg vote already recorded — skipping streak increment',
+                        message:
+                            'top.gg vote already recorded — skipping streak increment',
                         data: { userId },
                     })
                     res.status(200).json({ ok: true, duplicate: true })
@@ -222,4 +224,9 @@ export function setupWebhookRoutes(app: Express): void {
             }
         }),
     )
+}
+
+export function setupWebhookRoutes(app: Express): void {
+    setupWebhookApiRoutes(app)
+    setupWebhookPublicRoutes(app)
 }

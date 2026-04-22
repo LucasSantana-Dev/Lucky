@@ -1,11 +1,14 @@
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
-import { COLOR } from '@lucky/shared/constants'
+import {
+    COLOR,
+    TOP_GG_VOTE_TIERS,
+    TOP_GG_VOTE_URL,
+    tierForVoteStreak,
+    type TopggVoteTier,
+} from '@lucky/shared/constants'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
-
-const TOP_GG_BOT_ID = '962198089161134131'
-const TOP_GG_VOTE_URL = `https://top.gg/bot/${TOP_GG_BOT_ID}/vote`
 
 type VoteState = {
     hasVoted: boolean
@@ -14,36 +17,22 @@ type VoteState = {
 }
 
 type VoteTier = {
-    threshold: number
-    label: string
+    threshold: TopggVoteTier['threshold']
+    label: TopggVoteTier['label']
     perk: string
 }
 
-const TIERS: VoteTier[] = [
-    {
-        threshold: 30,
-        label: 'Lucky Legend',
-        perk: 'Dashboard badge + custom autoplay weighting + priority support',
-    },
-    {
-        threshold: 14,
-        label: 'Lucky Regular',
-        perk: 'Custom autoplay weighting + early access to new commands',
-    },
-    {
-        threshold: 7,
-        label: 'Lucky Fan',
-        perk: 'Early access to new commands',
-    },
-    { threshold: 1, label: 'Lucky Supporter', perk: 'Our thanks 💛' },
-]
-
-function tierFor(streak: number): VoteTier | null {
-    for (const t of TIERS) {
-        if (streak >= t.threshold) return t
-    }
-    return null
+const PERKS_BY_THRESHOLD: Record<TopggVoteTier['threshold'], string> = {
+    30: 'Dashboard badge + custom autoplay weighting + priority support',
+    14: 'Custom autoplay weighting + early access to new commands',
+    7: 'Early access to new commands',
+    1: 'Our thanks 💛',
 }
+
+const TIERS: VoteTier[] = TOP_GG_VOTE_TIERS.map((tier) => ({
+    ...tier,
+    perk: PERKS_BY_THRESHOLD[tier.threshold],
+}))
 
 function getBackendOrigin(): string | null {
     const raw = process.env.WEBAPP_BACKEND_URL?.trim()
@@ -66,7 +55,10 @@ async function fetchVoteState(userId: string): Promise<VoteState | null> {
     try {
         const resp = await fetch(
             `${origin}/api/internal/votes/${encodeURIComponent(userId)}`,
-            { headers: { 'x-notify-key': key } },
+            {
+                headers: { 'x-notify-key': key },
+                signal: AbortSignal.timeout(2500),
+            },
         )
         if (!resp.ok) return null
         return (await resp.json()) as VoteState
@@ -122,7 +114,10 @@ export default new Command({
             return
         }
 
-        const tier = tierFor(state.streak)
+        const tierBase = tierForVoteStreak(state.streak)
+        const tier = tierBase
+            ? { ...tierBase, perk: PERKS_BY_THRESHOLD[tierBase.threshold] }
+            : null
         const voteLine = state.hasVoted
             ? `🗳️ You voted recently — next vote ${formatNextVoteIn(state.nextVoteInSeconds)}`
             : `🗳️ You can [vote now](${TOP_GG_VOTE_URL}) to start or extend your streak`
