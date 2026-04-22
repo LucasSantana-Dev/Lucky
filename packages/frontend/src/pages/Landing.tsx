@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
@@ -36,19 +36,38 @@ export default function Landing() {
         delay: 500,
     })
 
+    const displayGuildCount = prefersReducedMotion ? stats?.totalGuilds ?? 0 : guildCount
+    const displayUserCount = prefersReducedMotion ? stats?.totalUsers ?? 0 : userCount
+
     useEffect(() => {
+        let isActive = true
+
         const fetchStats = async () => {
             try {
                 const response = await api.stats.getPublic()
+                if (!isActive) {
+                    return
+                }
+
                 setStats(response.data)
             } catch (error) {
+                if (!isActive) {
+                    return
+                }
+
                 console.error('Failed to fetch stats:', error)
             } finally {
-                setStatsLoading(false)
+                if (isActive) {
+                    setStatsLoading(false)
+                }
             }
         }
 
         fetchStats()
+
+        return () => {
+            isActive = false
+        }
     }, [])
 
     usePageMetadata({
@@ -56,12 +75,16 @@ export default function Landing() {
         description: t('landing.meta.description'),
     })
 
-    const logoAnimation = prefersReducedMotion
-        ? {}
-        : {
-              animate: { scale: [1, 1.03, 1] },
-              transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
-          }
+    const logoAnimation = useMemo(
+        () =>
+            prefersReducedMotion
+                ? {}
+                : {
+                      animate: { scale: [1, 1.03, 1] },
+                      transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+                  },
+        [prefersReducedMotion],
+    )
 
     return (
         <div className='lucky-shell min-h-screen dark text-white'>
@@ -72,7 +95,12 @@ export default function Landing() {
             <FeatureSection />
 
             {/* Stats Strip */}
-            <StatsSection statsLoading={statsLoading} guildCount={guildCount} userCount={userCount} serversOnline={stats?.serversOnline} />
+            <StatsSection
+                statsLoading={statsLoading}
+                guildCount={displayGuildCount}
+                userCount={displayUserCount}
+                serversOnline={stats?.serversOnline}
+            />
 
             {/* FAQ */}
             <FAQSection />
@@ -84,7 +112,12 @@ export default function Landing() {
 }
 
 // Hero Section with Animated Logo
-function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: () => void }) {
+type HeroSectionProps = {
+    logoAnimation: Record<string, unknown>
+    onLogin: () => void
+}
+
+function HeroSection({ logoAnimation, onLogin }: HeroSectionProps) {
     const prefersReducedMotion = useReducedMotion()
     const { t } = useTranslation()
 
@@ -114,7 +147,11 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
                         src='/lucky-logo.png'
                         alt='Lucky Bot'
                         className='h-32 w-32 mx-auto drop-shadow-2xl filter saturate-150'
-                        loading='lazy'
+                        width='128'
+                        height='128'
+                        loading='eager'
+                        fetchPriority='high'
+                        decoding='async'
                     />
                 </motion.div>
 
@@ -161,50 +198,53 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
 function FeatureSection() {
     const { t } = useTranslation()
 
-    const features = [
-        {
-            icon: Music,
-            titleKey: 'landing.features.music.title',
-            descKey: 'landing.features.music.description',
-            color: 'from-pink-500/20 to-pink-600/10',
-            iconColor: 'text-pink-400',
-        },
-        {
-            icon: Shield,
-            titleKey: 'landing.features.autoMod.title',
-            descKey: 'landing.features.autoMod.description',
-            color: 'from-orange-500/20 to-orange-600/10',
-            iconColor: 'text-orange-400',
-        },
-        {
-            icon: Zap,
-            titleKey: 'landing.features.customCommands.title',
-            descKey: 'landing.features.customCommands.description',
-            color: 'from-purple-500/20 to-purple-600/10',
-            iconColor: 'text-purple-400',
-        },
-        {
-            icon: BarChart3,
-            titleKey: 'landing.features.webDashboard.title',
-            descKey: 'landing.features.webDashboard.description',
-            color: 'from-blue-500/20 to-blue-600/10',
-            iconColor: 'text-blue-400',
-        },
-        {
-            icon: Palette,
-            titleKey: 'landing.features.embedBuilder.title',
-            descKey: 'landing.features.embedBuilder.description',
-            color: 'from-cyan-500/20 to-cyan-600/10',
-            iconColor: 'text-cyan-400',
-        },
-        {
-            icon: Sparkles,
-            titleKey: 'landing.features.artistPreferences.title',
-            descKey: 'landing.features.artistPreferences.description',
-            color: 'from-amber-500/20 to-amber-600/10',
-            iconColor: 'text-amber-400',
-        },
-    ]
+    const features = useMemo(
+        () => [
+            {
+                icon: Music,
+                titleKey: 'landing.features.music.title',
+                descKey: 'landing.features.music.description',
+                color: 'from-pink-500/20 to-pink-600/10',
+                iconColor: 'text-pink-400',
+            },
+            {
+                icon: Shield,
+                titleKey: 'landing.features.autoMod.title',
+                descKey: 'landing.features.autoMod.description',
+                color: 'from-orange-500/20 to-orange-600/10',
+                iconColor: 'text-orange-400',
+            },
+            {
+                icon: Zap,
+                titleKey: 'landing.features.customCommands.title',
+                descKey: 'landing.features.customCommands.description',
+                color: 'from-purple-500/20 to-purple-600/10',
+                iconColor: 'text-purple-400',
+            },
+            {
+                icon: BarChart3,
+                titleKey: 'landing.features.webDashboard.title',
+                descKey: 'landing.features.webDashboard.description',
+                color: 'from-blue-500/20 to-blue-600/10',
+                iconColor: 'text-blue-400',
+            },
+            {
+                icon: Palette,
+                titleKey: 'landing.features.embedBuilder.title',
+                descKey: 'landing.features.embedBuilder.description',
+                color: 'from-cyan-500/20 to-cyan-600/10',
+                iconColor: 'text-cyan-400',
+            },
+            {
+                icon: Sparkles,
+                titleKey: 'landing.features.artistPreferences.title',
+                descKey: 'landing.features.artistPreferences.description',
+                color: 'from-amber-500/20 to-amber-600/10',
+                iconColor: 'text-amber-400',
+            },
+        ],
+        [],
+    )
 
     return (
         <section className='bg-gradient-to-b from-slate-900 to-slate-950 px-4 py-20 md:px-8 relative overflow-hidden'>
@@ -250,7 +290,14 @@ function FeatureSection() {
 }
 
 // Stats Strip with Neon Numbers
-function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: any) {
+type StatsSectionProps = {
+    statsLoading: boolean
+    guildCount: number
+    userCount: number
+    serversOnline?: number
+}
+
+function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: StatsSectionProps) {
     const { t, i18n } = useTranslation()
     const locale = i18n.resolvedLanguage ?? i18n.language
     const stats = [
@@ -314,11 +361,13 @@ function FAQSection() {
     const { t } = useTranslation()
     const [openIdx, setOpenIdx] = useState<number | null>(null)
 
-    const faqKeys = ['free', 'commands', 'autoplay', 'selfHost', 'spam', 'support'] as const
-    const faqs = faqKeys.map((key) => ({
-        q: t(`landing.faq.items.${key}.question`),
-        a: t(`landing.faq.items.${key}.answer`),
-    }))
+    const faqs = useMemo(() => {
+        const faqKeys = ['free', 'commands', 'autoplay', 'selfHost', 'spam', 'support'] as const
+        return faqKeys.map((key) => ({
+            q: t(`landing.faq.items.${key}.question`),
+            a: t(`landing.faq.items.${key}.answer`),
+        }))
+    }, [t])
 
     return (
         <section className='bg-gradient-to-b from-slate-950 to-slate-900 px-4 py-20 md:px-8'>
