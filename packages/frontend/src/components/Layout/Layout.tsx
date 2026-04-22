@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
+import VoteBadge from './VoteBadge'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
@@ -124,6 +125,7 @@ function Layout({ children }: LayoutProps) {
                             </p>
                         </div>
                         <div className='flex items-center gap-2'>
+                            <VoteBadge />
                             <LanguageSwitcher />
                             <GuildChip />
                         </div>
