@@ -1,5 +1,5 @@
 import { Player } from 'discord-player'
-import type { Track } from 'discord-player'
+import type { BaseExtractor, Track } from 'discord-player'
 import {
     SoundCloudExtractor,
     AppleMusicExtractor,
@@ -129,10 +129,16 @@ const initPlayDlSoundCloud = async (): Promise<void> => {
     }
 }
 
+type YoutubeExtractorModule = {
+    YoutubeExtractor?: typeof BaseExtractor<object>
+    YoutubeiExtractor?: typeof BaseExtractor<object>
+}
+
 const loadYoutubeExtractor = async (player: Player): Promise<void> => {
     try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mod = (await import('discord-player-youtubei')) as any
+        const mod = (await import(
+            'discord-player-youtubei'
+        )) as YoutubeExtractorModule
 
         // v3 renamed YoutubeiExtractor → YoutubeExtractor
         const YoutubeExtractor = mod.YoutubeExtractor ?? mod.YoutubeiExtractor
