@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - img "Icon for claude.ai" [ref=e5]
+        - heading "claude.ai" [level=1] [ref=e6]
+      - heading "Performing security verification" [level=2] [ref=e7]
+      - paragraph [ref=e8]: This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot.
+  - contentinfo [ref=e15]:
+    - generic [ref=e17]:
+      - generic [ref=e19]:
+        - text: "Ray ID:"
+        - code [ref=e20]: 9ef1659adcc21446
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - text: Performance and Security by
+          - link "Cloudflare" [ref=e23] [cursor=pointer]:
+            - /url: https://www.cloudflare.com?utm_source=challenge&utm_campaign=m
+        - link "Privacy" [ref=e25] [cursor=pointer]:
+          - /url: https://www.cloudflare.com/privacypolicy/
