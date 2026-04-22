@@ -133,6 +133,25 @@ describe('voterewards command', () => {
         )
     })
 
+    it('rounds sub-minute vote countdowns up to one minute', async () => {
+        fetchMock.mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+                hasVoted: true,
+                streak: 1,
+                nextVoteInSeconds: 59,
+            }),
+        } as Response)
+
+        await voterewardsCommand.execute({
+            interaction: makeInteraction(),
+        } as never)
+
+        expect(latestReply().content.embeds[0].description).toContain(
+            'next vote in 1m',
+        )
+    })
+
     it('falls back to the vote CTA when the backend request fails', async () => {
         fetchMock.mockRejectedValueOnce(new Error('network down'))
 

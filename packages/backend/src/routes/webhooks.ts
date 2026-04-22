@@ -19,13 +19,23 @@ const VOTE_TTL_SECONDS = 60 * 60 * 12
 // doesn't lose their streak due to timezone or minor scheduling drift.
 const STREAK_TTL_SECONDS = 60 * 60 * 36
 
+const RECORD_VOTE_SCRIPT = `
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  return 0
+end
+redis.call('INCR', KEYS[2])
+redis.call('EXPIRE', KEYS[2], tonumber(ARGV[3]))
+redis.call('SET', KEYS[1], ARGV[1], 'EX', tonumber(ARGV[2]))
+return 1
+`
+
 let redisClient: Redis | null = null
 
 function getRedis(): Redis {
     if (redisClient) return redisClient
     const host = process.env.REDIS_HOST
     if (!host) {
-        throw new AppError(500, 'REDIS_HOST is not configured')
+        throw AppError.serviceUnavailable('REDIS_HOST is not configured')
     }
     redisClient = new Redis({
         host,
@@ -61,6 +71,10 @@ type TopggVotePayload = {
     query?: string
 }
 
+function isDiscordSnowflake(value: string): boolean {
+    return /^\d{17,20}$/.test(value)
+}
+
 function verifyTopggAuth(req: Request): void {
     const expected = process.env.TOPGG_AUTH_TOKEN
     if (!expected) {
@@ -86,16 +100,37 @@ async function readVoteState(
 ): Promise<{ hasVoted: boolean; streak: number; nextVoteInSeconds: number }> {
     const voteKey = `votes:${userId}`
     const streakKey = `votes:streak:${userId}`
-    const [[, voteTs], [, streakRaw], [, ttl]] = (await redis
+    const replies = (await redis
         .pipeline()
         .get(voteKey)
         .get(streakKey)
         .ttl(voteKey)
-        .exec()) as [
-        [Error | null, string | null],
-        [Error | null, string | null],
-        [Error | null, number],
-    ]
+        .exec()) as
+        | [
+              [Error | null, string | null],
+              [Error | null, string | null],
+              [Error | null, number],
+          ]
+        | null
+
+    if (!replies) {
+        throw new AppError(500, 'failed to read vote state')
+    }
+
+    const [voteResult, streakResult, ttlResult] = replies
+    const commandError =
+        voteResult[0] ?? streakResult[0] ?? ttlResult[0] ?? null
+    if (commandError) {
+        errorLog({
+            message: 'vote state redis read failed',
+            data: { voteKey, streakKey, error: String(commandError) },
+        })
+        throw new AppError(500, 'failed to read vote state')
+    }
+
+    const voteTs = voteResult[1]
+    const streakRaw = streakResult[1]
+    const ttl = ttlResult[1]
     return {
         hasVoted: voteTs !== null,
         streak: streakRaw ? Number(streakRaw) : 0,
@@ -103,19 +138,45 @@ async function readVoteState(
     }
 }
 
+async function recordVote(
+    redis: Redis,
+    voteKey: string,
+    streakKey: string,
+): Promise<'recorded' | 'duplicate'> {
+    const result = await redis.eval(
+        RECORD_VOTE_SCRIPT,
+        2,
+        voteKey,
+        streakKey,
+        Date.now().toString(),
+        String(VOTE_TTL_SECONDS),
+        String(STREAK_TTL_SECONDS),
+    )
+    if (result === 1 || result === '1') return 'recorded'
+    if (result === 0 || result === '0') return 'duplicate'
+    throw new AppError(500, 'unexpected vote record result')
+}
+
+function validateVoteUserId(userId: unknown): string {
+    if (typeof userId !== 'string' || !isDiscordSnowflake(userId)) {
+        throw AppError.badRequest('user id missing or invalid')
+    }
+    return userId
+}
+
+function validateRouteUserId(userId: unknown): string {
+    if (typeof userId !== 'string' || !isDiscordSnowflake(userId)) {
+        throw AppError.badRequest('invalid userId')
+    }
+    return userId
+}
+
 export function setupWebhookApiRoutes(app: Express): void {
     app.get(
         '/api/internal/votes/:userId',
         asyncHandler(async (req: Request, res: Response) => {
             verifyInternalKey(req)
-            const { userId } = req.params
-            if (
-                !userId ||
-                typeof userId !== 'string' ||
-                !/^\d+$/.test(userId)
-            ) {
-                throw AppError.badRequest('invalid userId')
-            }
+            const userId = validateRouteUserId(req.params.userId)
             const state = await readVoteState(getRedis(), userId)
             res.status(200).json(state)
         }),
@@ -170,29 +231,16 @@ export function setupWebhookPublicRoutes(app: Express): void {
                 throw AppError.badRequest('unsupported vote type')
             }
 
-            const userId = payload.user
-            if (!userId || typeof userId !== 'string') {
-                throw AppError.badRequest('user id missing or invalid')
-            }
+            const userId = validateVoteUserId(payload.user)
 
             const redis = getRedis()
             const voteKey = `votes:${userId}`
             const streakKey = `votes:streak:${userId}`
 
             try {
-                // Idempotency gate: top.gg retries on handler failure/timeout.
-                // SET NX means only the first call within the 12h vote window
-                // lands a vote; subsequent retries return 200 without touching
-                // the streak counter.
-                const firstWrite = await redis.set(
-                    voteKey,
-                    Date.now().toString(),
-                    'EX',
-                    VOTE_TTL_SECONDS,
-                    'NX',
-                )
+                const recordResult = await recordVote(redis, voteKey, streakKey)
 
-                if (firstWrite !== 'OK') {
+                if (recordResult === 'duplicate') {
                     debugLog({
                         message:
                             'top.gg vote already recorded — skipping streak increment',
@@ -201,11 +249,6 @@ export function setupWebhookPublicRoutes(app: Express): void {
                     res.status(200).json({ ok: true, duplicate: true })
                     return
                 }
-
-                const pipeline = redis.pipeline()
-                pipeline.incr(streakKey)
-                pipeline.expire(streakKey, STREAK_TTL_SECONDS)
-                await pipeline.exec()
 
                 debugLog({
                     message: 'top.gg vote recorded',

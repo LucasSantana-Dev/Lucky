@@ -73,8 +73,12 @@ async function fetchVoteState(userId: string): Promise<VoteState | null> {
 
 function formatNextVoteIn(seconds: number): string {
     if (seconds <= 0) return 'now'
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
+    let hours = Math.floor(seconds / 3600)
+    let minutes = Math.ceil((seconds - hours * 3600) / 60)
+    if (minutes === 60) {
+        hours += 1
+        minutes = 0
+    }
     if (hours > 0) return `in ${hours}h ${minutes}m`
     return `in ${minutes}m`
 }

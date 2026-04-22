@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 import express from 'express'
 import request from 'supertest'
 
@@ -12,13 +19,13 @@ const pipelineMock = {
     ttl: jest.fn().mockReturnThis(),
     exec: pipelineExec,
 }
-const redisSet = jest.fn<() => Promise<string | null>>().mockResolvedValue('OK')
+const redisEval = jest.fn<() => Promise<unknown>>().mockResolvedValue(1)
 const redisOn = jest.fn()
 
 jest.mock('ioredis', () => {
     return jest.fn().mockImplementation(() => ({
         pipeline: () => pipelineMock,
-        set: redisSet,
+        eval: redisEval,
         on: redisOn,
     }))
 })
@@ -73,7 +80,7 @@ beforeEach(() => {
     pipelineMock.expire.mockClear()
     pipelineMock.get.mockClear()
     pipelineMock.ttl.mockClear()
-    redisSet.mockClear().mockResolvedValue('OK')
+    redisEval.mockClear().mockResolvedValue(1)
     redisOn.mockClear()
 })
 
@@ -133,9 +140,11 @@ describe('POST /webhooks/topgg-votes', () => {
             .set('authorization', 'valid-token')
             .send({ user: '1', type: 'downvote' })
         expect(res.status).toBe(400)
-        expect(redisSet).not.toHaveBeenCalled()
+        expect(redisEval).not.toHaveBeenCalled()
     })
+})
 
+describe('GET /api/internal/votes/:userId', () => {
     it('responds to GET /api/internal/votes/:userId with current state', async () => {
         pipelineExec.mockResolvedValueOnce([
             [null, '1700000000000'],
@@ -143,7 +152,7 @@ describe('POST /webhooks/topgg-votes', () => {
             [null, 3600],
         ])
         const res = await request(buildApp())
-            .get('/api/internal/votes/123')
+            .get('/api/internal/votes/123456789012345678')
             .set('x-notify-key', 'internal-key')
         expect(res.status).toBe(200)
         expect(res.body).toEqual({
@@ -155,7 +164,7 @@ describe('POST /webhooks/topgg-votes', () => {
 
     it('rejects GET with wrong internal key', async () => {
         const res = await request(buildApp())
-            .get('/api/internal/votes/123')
+            .get('/api/internal/votes/123456789012345678')
             .set('x-notify-key', 'wrong')
         expect(res.status).toBe(401)
     })
@@ -167,99 +176,139 @@ describe('POST /webhooks/topgg-votes', () => {
         expect(res.status).toBe(400)
     })
 
-    describe('GET /api/me/vote-status', () => {
-        it('returns 401 when not authenticated', async () => {
-            const res = await request(buildApp()).get('/api/me/vote-status')
-            expect(res.status).toBe(401)
-        })
+    it('rejects GET with numeric non-snowflake userId', async () => {
+        const res = await request(buildApp())
+            .get('/api/internal/votes/123')
+            .set('x-notify-key', 'internal-key')
+        expect(res.status).toBe(400)
+    })
 
-        it('returns state + tier + nextTier + voteUrl for a streak-14 voter', async () => {
-            pipelineExec.mockResolvedValueOnce([
-                [null, '1700000000000'],
-                [null, '14'],
-                [null, 7200],
-            ])
-            const res = await request(buildApp())
-                .get('/api/me/vote-status')
-                .set('x-test-user', '555')
-            expect(res.status).toBe(200)
-            expect(res.body).toEqual({
-                hasVoted: true,
-                streak: 14,
-                nextVoteInSeconds: 7200,
-                tier: { label: 'Lucky Regular', threshold: 14 },
-                nextTier: { label: 'Lucky Legend', threshold: 30 },
-                voteUrl: 'https://top.gg/bot/962198089161134131/vote',
-            })
-        })
+    it('returns 500 when a Redis read command fails', async () => {
+        pipelineExec.mockResolvedValueOnce([
+            [new Error('get failed'), null],
+            [null, null],
+            [null, -2],
+        ])
+        const res = await request(buildApp())
+            .get('/api/internal/votes/123456789012345678')
+            .set('x-notify-key', 'internal-key')
+        expect(res.status).toBe(500)
+    })
+})
 
-        it('returns tier=null for a 0-streak user', async () => {
-            pipelineExec.mockResolvedValueOnce([
-                [null, null],
-                [null, null],
-                [null, -2],
-            ])
-            const res = await request(buildApp())
-                .get('/api/me/vote-status')
-                .set('x-test-user', '777')
-            expect(res.status).toBe(200)
-            expect(res.body.tier).toBeNull()
-            expect(res.body.nextTier).toEqual({
-                label: 'Lucky Supporter',
-                threshold: 1,
-            })
-            expect(res.body.streak).toBe(0)
-            expect(res.body.hasVoted).toBe(false)
-        })
+describe('GET /api/me/vote-status', () => {
+    it('returns 401 when not authenticated', async () => {
+        const res = await request(buildApp()).get('/api/me/vote-status')
+        expect(res.status).toBe(401)
+    })
 
-        it('returns nextTier=null when user is at max tier (30+)', async () => {
-            pipelineExec.mockResolvedValueOnce([
-                [null, '1700000000000'],
-                [null, '45'],
-                [null, 100],
-            ])
-            const res = await request(buildApp())
-                .get('/api/me/vote-status')
-                .set('x-test-user', '999')
-            expect(res.status).toBe(200)
-            expect(res.body.tier.label).toBe('Lucky Legend')
-            expect(res.body.nextTier).toBeNull()
+    it('returns state + tier + nextTier + voteUrl for a streak-14 voter', async () => {
+        pipelineExec.mockResolvedValueOnce([
+            [null, '1700000000000'],
+            [null, '14'],
+            [null, 7200],
+        ])
+        const res = await request(buildApp())
+            .get('/api/me/vote-status')
+            .set('x-test-user', '555')
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({
+            hasVoted: true,
+            streak: 14,
+            nextVoteInSeconds: 7200,
+            tier: { label: 'Lucky Regular', threshold: 14 },
+            nextTier: { label: 'Lucky Legend', threshold: 30 },
+            voteUrl: 'https://top.gg/bot/962198089161134131/vote',
         })
     })
 
-    it('records a valid upvote via SET NX + streak pipeline', async () => {
+    it('returns tier=null for a 0-streak user', async () => {
+        pipelineExec.mockResolvedValueOnce([
+            [null, null],
+            [null, null],
+            [null, -2],
+        ])
+        const res = await request(buildApp())
+            .get('/api/me/vote-status')
+            .set('x-test-user', '777')
+        expect(res.status).toBe(200)
+        expect(res.body.tier).toBeNull()
+        expect(res.body.nextTier).toEqual({
+            label: 'Lucky Supporter',
+            threshold: 1,
+        })
+        expect(res.body.streak).toBe(0)
+        expect(res.body.hasVoted).toBe(false)
+    })
+
+    it('returns nextTier=null when user is at max tier (30+)', async () => {
+        pipelineExec.mockResolvedValueOnce([
+            [null, '1700000000000'],
+            [null, '45'],
+            [null, 100],
+        ])
+        const res = await request(buildApp())
+            .get('/api/me/vote-status')
+            .set('x-test-user', '999')
+        expect(res.status).toBe(200)
+        expect(res.body.tier.label).toBe('Lucky Legend')
+        expect(res.body.nextTier).toBeNull()
+    })
+})
+
+describe('POST /webhooks/topgg-votes persistence', () => {
+    it('records a valid upvote with one atomic Redis script', async () => {
         const res = await request(buildApp())
             .post('/webhooks/topgg-votes')
             .set('authorization', 'valid-token')
-            .send({ user: '123', type: 'upvote', bot: '962198089161134131' })
+            .send({
+                user: '123456789012345678',
+                type: 'upvote',
+                bot: '962198089161134131',
+            })
         expect(res.status).toBe(200)
         expect(res.body).toEqual({ ok: true })
-        expect(redisSet).toHaveBeenCalledWith(
-            'votes:123',
+        expect(redisEval).toHaveBeenCalledWith(
+            expect.stringContaining("redis.call('INCR', KEYS[2])"),
+            2,
+            'votes:123456789012345678',
+            'votes:streak:123456789012345678',
             expect.any(String),
-            'EX',
-            60 * 60 * 12,
-            'NX',
+            String(60 * 60 * 12),
+            String(60 * 60 * 36),
         )
-        expect(pipelineMock.incr).toHaveBeenCalledWith('votes:streak:123')
-        expect(pipelineMock.expire).toHaveBeenCalledWith(
-            'votes:streak:123',
-            60 * 60 * 36,
-        )
-        expect(pipelineExec).toHaveBeenCalledTimes(1)
-    })
-
-    it('is idempotent — duplicate vote within TTL skips streak increment', async () => {
-        redisSet.mockResolvedValueOnce(null) // SET NX returns null when key exists
-        const res = await request(buildApp())
-            .post('/webhooks/topgg-votes')
-            .set('authorization', 'valid-token')
-            .send({ user: '123', type: 'upvote' })
-        expect(res.status).toBe(200)
-        expect(res.body).toEqual({ ok: true, duplicate: true })
-        expect(redisSet).toHaveBeenCalledTimes(1)
         expect(pipelineMock.incr).not.toHaveBeenCalled()
         expect(pipelineMock.expire).not.toHaveBeenCalled()
     })
 
+    it('is idempotent — duplicate vote within TTL skips streak increment', async () => {
+        redisEval.mockResolvedValueOnce(0)
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({ user: '123456789012345678', type: 'upvote' })
+        expect(res.status).toBe(200)
+        expect(res.body).toEqual({ ok: true, duplicate: true })
+        expect(redisEval).toHaveBeenCalledTimes(1)
+        expect(pipelineMock.incr).not.toHaveBeenCalled()
+        expect(pipelineMock.expire).not.toHaveBeenCalled()
+    })
+
+    it('rejects unsafe non-snowflake user ids before writing to Redis', async () => {
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({ user: 'streak:123', type: 'upvote' })
+        expect(res.status).toBe(400)
+        expect(redisEval).not.toHaveBeenCalled()
+    })
+
+    it('returns 500 when the Redis script returns an unexpected value', async () => {
+        redisEval.mockResolvedValueOnce('unexpected')
+        const res = await request(buildApp())
+            .post('/webhooks/topgg-votes')
+            .set('authorization', 'valid-token')
+            .send({ user: '123456789012345678', type: 'upvote' })
+        expect(res.status).toBe(500)
+    })
 })
