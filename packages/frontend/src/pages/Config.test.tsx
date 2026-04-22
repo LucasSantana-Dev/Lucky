@@ -67,10 +67,8 @@ describe('ConfigPage', () => {
             </MemoryRouter>,
         )
 
-        const musicCard = screen
-            .getByText('Music Module')
-            .closest('[role="button"]')
-        await user.click(musicCard!)
+        const musicCard = screen.getByRole('button', { name: /Music Module/i })
+        await user.click(musicCard)
 
         expect(screen.getByText('← Back')).toBeInTheDocument()
     })
@@ -86,10 +84,8 @@ describe('ConfigPage', () => {
             </MemoryRouter>,
         )
 
-        const musicCard = screen
-            .getByText('Music Module')
-            .closest('[role="button"]')
-        await user.click(musicCard!)
+        const musicCard = screen.getByRole('button', { name: /Music Module/i })
+        await user.click(musicCard)
 
         const backButton = screen.getByText('← Back')
         await user.click(backButton)
