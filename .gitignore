@@ -1,5 +1,6 @@
 node_modules
 packages/*/package-lock.json
+packages/*/pnpm-lock.yaml
 
 # Environment files
 .env
