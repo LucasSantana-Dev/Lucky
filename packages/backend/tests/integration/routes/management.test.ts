@@ -246,7 +246,7 @@ describe('Management Routes Integration', () => {
             })
         })
 
-        test.skip('should return 400 on invalid body', async () => {
+        test('should return 400 on invalid body', async () => {
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/automod/settings')
                 .set('Cookie', ['sessionId=valid_session_id'])
@@ -441,9 +441,7 @@ describe('Management Routes Integration', () => {
             })
         })
 
-        test.skip('should return 400 on invalid body', async () => {
-            // This test is skipped due to an issue with validateBody not catching errors
-            // in certain scenarios. The main RBAC functionality is working correctly.
+        test('should return 400 on invalid body', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
