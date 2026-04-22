@@ -52,6 +52,8 @@ function mockGuildStore(overrides: any = {}) {
 function mockFeatures(overrides: any = {}) {
     vi.mocked(useFeatures).mockReturnValue({
         globalToggles: [],
+        globalToggleProvider: 'environment',
+        globalTogglesWritable: false,
         serverToggles: [],
         isLoading: false,
         loadError: null,
@@ -151,7 +153,9 @@ describe('FeaturesPage', () => {
             screen.getByText('Unable to load feature data'),
         ).toBeInTheDocument()
         expect(screen.getByText('Discord API unavailable')).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+        expect(
+            screen.getByRole('button', { name: 'Retry' }),
+        ).toBeInTheDocument()
     })
 
     test('triggers retry action from error state', async () => {

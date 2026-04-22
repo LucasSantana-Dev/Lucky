@@ -27,6 +27,14 @@ export type FeatureToggleSource = 'environment' | 'redis' | 'default'
 
 export type FeatureToggleScope = 'global' | 'guild'
 
+export type GlobalFeatureToggleProvider = 'vercel' | 'environment'
+
+export type GlobalFeatureToggleState = {
+    enabled: boolean
+    provider: GlobalFeatureToggleProvider
+    writable: boolean
+}
+
 export interface FeatureToggleContext {
     userId?: string
     guildId?: string

@@ -8,6 +8,7 @@ import type {
     ServerSettings,
     ServerListing,
     Feature,
+    GlobalFeatureToggleResponse,
     FeatureToggleState,
     GuildMemberContext,
     GuildRoleOption,
@@ -136,7 +137,8 @@ export const api = {
                 },
             }
         },
-        logout: () => apiClient.get<{ success: boolean }>(API_ROUTES.AUTH.logout()),
+        logout: () =>
+            apiClient.get<{ success: boolean }>(API_ROUTES.AUTH.logout()),
         getDiscordLoginUrl: () => `${NORMALIZED_API_BASE}/auth/discord`,
     },
 
@@ -280,12 +282,15 @@ export const api = {
             }
         },
         getGlobalToggles: () =>
-            apiClient.get<{ toggles: FeatureToggleState }>('/toggles/global'),
+            apiClient.get<GlobalFeatureToggleResponse>('/toggles/global'),
         updateGlobalToggle: (name: string, enabled: boolean) =>
             apiClient.post<{
-                success: boolean
+                success?: boolean
+                error?: string
                 message?: string
                 note?: string
+                provider?: GlobalFeatureToggleResponse['provider']
+                writable?: boolean
             }>(`/toggles/global/${name}`, {
                 enabled,
             }),
