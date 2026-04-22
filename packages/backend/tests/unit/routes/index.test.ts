@@ -22,6 +22,8 @@ const setupMusicRoutes = jest.fn()
 const setupSpotifyRoutes = jest.fn()
 const setupArtistsRoutes = jest.fn()
 const setupInternalNotifyRoutes = jest.fn()
+const setupWebhookApiRoutes = jest.fn()
+const setupWebhookPublicRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
@@ -108,8 +110,13 @@ jest.mock('../../../src/routes/artists', () => ({
     setupArtistsRoutes,
 }))
 
-jest.mock("../../../src/routes/internalNotify", () => ({
+jest.mock('../../../src/routes/internalNotify', () => ({
     setupInternalNotifyRoutes,
+}))
+
+jest.mock('../../../src/routes/webhooks', () => ({
+    setupWebhookApiRoutes,
+    setupWebhookPublicRoutes,
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
@@ -151,7 +158,9 @@ describe('setupRoutes', () => {
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
         expect(setupStatsRoutes).toHaveBeenCalledWith(app)
         expect(setupInternalNotifyRoutes).toHaveBeenCalledWith(app)
+        expect(setupWebhookPublicRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
+        expect(setupWebhookApiRoutes).toHaveBeenCalledWith(app)
 
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('moderation')
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('automation')
@@ -195,6 +204,14 @@ describe('setupRoutes', () => {
         expect(app.use).toHaveBeenCalledWith(errorHandler)
         expect(useCalls[0]).toEqual(['/api/', apiLimiter])
         expect(useCalls[useCalls.length - 1]).toEqual([errorHandler])
+
+        const apiLimiterOrder = app.use.mock.invocationCallOrder[0]
+        expect(
+            setupWebhookPublicRoutes.mock.invocationCallOrder[0],
+        ).toBeLessThan(apiLimiterOrder)
+        expect(
+            setupWebhookApiRoutes.mock.invocationCallOrder[0],
+        ).toBeGreaterThan(apiLimiterOrder)
 
         const rbacGuardIndex = useCalls.findIndex(
             (call) => call[0] === '/api/guilds/:guildId/rbac',
