@@ -115,7 +115,7 @@
     "@smithy/config-resolver": ">=4.4.10",
     "@aws-sdk/client-sso": ">=3.726.0",
     "@hono/node-server": ">=1.19.13",
-    "hono": ">=4.12.12",
+    "hono": ">=4.12.14",
     "lodash": ">=4.17.22",
     "file-type": ">=21.3.2",
     "yauzl": ">=3.2.1",
