@@ -200,7 +200,6 @@ export default new Command({
                 return
             }
 
-<<<<<<< HEAD
             if (subcommand === 'channel') {
                 const member = interaction.member
                 const hasPerm =
