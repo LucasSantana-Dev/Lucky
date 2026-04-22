@@ -3,7 +3,7 @@
 ## Open
 
 - [ ] Security: refresh npm lock state for `follow-redirects >=1.15.12` and `hono >=4.12.14`.
-- [ ] Release process: restore GitHub release/tag flow for package version `2.6.148` (latest tag stuck at `v2.6.132`). **Production-visible — needs user confirmation before tagging.**
+- [ ] Release process: restore GitHub release/tag flow for package version `v2.6.148` (latest tag stuck at `v2.6.132`). **Production-visible — needs user confirmation before tagging.**
 - [ ] Autoplay diversity: start artist/album dedup in the existing `docs/specs/2026-04-15-autoplay-diversity/` spec (do not open a new spec).
 - [ ] Music debt: extract a pure scoring/enrichment slice from `queueManipulation.ts` (1,193 LOC, high-churn).
 - [ ] Redesign B-R4: collapse `/twitch` + `/lastfm` + `/spotify` into one `/integrations` page with legacy redirects.
