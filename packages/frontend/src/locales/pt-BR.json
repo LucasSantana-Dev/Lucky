@@ -21,6 +21,14 @@
         "en": "English",
         "pt-BR": "Português (Brasil)"
     },
+    "modules": {
+        "overview": "visão geral",
+        "settings": "configurações",
+        "moderation": "moderação",
+        "automation": "automação",
+        "music": "música",
+        "integrations": "integrações"
+    },
     "sidebar": {
         "activeGuild": "Servidor ativo",
         "switchServer": "Trocar servidor",
@@ -142,6 +150,14 @@
             "music": {
                 "title": "Player de música",
                 "subtitle": "Gerencie fila, autoplay e controles de reprodução em tempo real."
+            },
+            "preferredArtists": {
+                "title": "Gosto musical",
+                "subtitle": "Ajuste preferências de autoplay e prioridade de artistas."
+            },
+            "spotify": {
+                "title": "Spotify",
+                "subtitle": "Vincule ou desvincule o Spotify para alimentar o autoplay."
             },
             "fallback": {
                 "title": "Painel Lucky",

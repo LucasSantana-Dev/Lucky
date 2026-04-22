@@ -23,6 +23,8 @@ void i18n
             order: ['localStorage', 'navigator'],
             lookupLocalStorage: 'lucky-language',
             caches: ['localStorage'],
+            convertDetectedLanguage: (lng: string) =>
+                lng.toLowerCase().startsWith('pt') ? 'pt-BR' : lng,
         },
         returnNull: false,
     })

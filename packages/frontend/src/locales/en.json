@@ -21,6 +21,14 @@
         "en": "English",
         "pt-BR": "Português (Brasil)"
     },
+    "modules": {
+        "overview": "overview",
+        "settings": "settings",
+        "moderation": "moderation",
+        "automation": "automation",
+        "music": "music",
+        "integrations": "integrations"
+    },
     "sidebar": {
         "activeGuild": "Active guild",
         "switchServer": "Switch server",
@@ -142,6 +150,14 @@
             "music": {
                 "title": "Music Player",
                 "subtitle": "Manage queue, autoplay, and real-time playback controls."
+            },
+            "preferredArtists": {
+                "title": "Musical Taste",
+                "subtitle": "Tune autoplay taste preferences and artist priorities."
+            },
+            "spotify": {
+                "title": "Spotify",
+                "subtitle": "Link or unlink Spotify to power autoplay matching."
             },
             "fallback": {
                 "title": "Lucky Dashboard",

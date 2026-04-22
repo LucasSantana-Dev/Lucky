@@ -25,6 +25,7 @@ export default function LanguageSwitcher({
 }: LanguageSwitcherProps) {
     const { t, i18n } = useTranslation()
     const active = resolveLanguage(i18n.resolvedLanguage ?? i18n.language)
+    const activeLabel = t(`languages.${active}`)
 
     const triggerClass =
         variant === 'compact'
@@ -35,14 +36,12 @@ export default function LanguageSwitcher({
         <DropdownMenu>
             <DropdownMenuTrigger
                 className={cn(triggerClass, className)}
-                aria-label={t('common.language')}
+                aria-label={`${t('common.language')}: ${activeLabel}`}
                 title={t('common.language')}
             >
                 <Languages className='h-3.5 w-3.5 shrink-0' aria-hidden='true' />
                 {variant === 'header' && (
-                    <span className='type-body-sm'>
-                        {t(`languages.${active}`)}
-                    </span>
+                    <span className='type-body-sm'>{activeLabel}</span>
                 )}
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -52,6 +51,8 @@ export default function LanguageSwitcher({
                 {SUPPORTED_LANGUAGES.map((lng) => (
                     <DropdownMenuItem
                         key={lng}
+                        role='menuitemradio'
+                        aria-checked={active === lng}
                         onSelect={() => {
                             void i18n.changeLanguage(lng)
                         }}

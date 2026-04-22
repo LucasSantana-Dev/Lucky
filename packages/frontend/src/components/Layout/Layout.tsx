@@ -32,6 +32,7 @@ const ROUTE_KEYS: Record<string, string> = {
     '/starboard': 'starboard',
     '/lyrics': 'lyrics',
     '/lastfm': 'lastFm',
+    '/spotify': 'spotify',
     '/twitch': 'twitch',
     '/features': 'features',
 }
@@ -42,6 +43,8 @@ function useRouteCopy(pathname: string): RouteCopy {
     let key: string
     if (pathname.startsWith('/music/history')) {
         key = 'trackHistory'
+    } else if (pathname.startsWith('/music/artists')) {
+        key = 'preferredArtists'
     } else if (pathname.startsWith('/music')) {
         key = 'music'
     } else {

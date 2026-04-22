@@ -251,16 +251,17 @@ function FeatureSection() {
 
 // Stats Strip with Neon Numbers
 function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: any) {
-    const { t } = useTranslation()
+    const { t, i18n } = useTranslation()
+    const locale = i18n.resolvedLanguage ?? i18n.language
     const stats = [
         {
             label: t('landing.stats.servers'),
-            value: statsLoading ? '---' : `${guildCount.toLocaleString()}${guildCount > 0 ? '+' : ''}`,
+            value: statsLoading ? '---' : `${guildCount.toLocaleString(locale)}${guildCount > 0 ? '+' : ''}`,
             icon: Server,
         },
         {
             label: t('landing.stats.users'),
-            value: statsLoading ? '---' : `${userCount.toLocaleString()}+`,
+            value: statsLoading ? '---' : `${userCount.toLocaleString(locale)}+`,
             icon: Users,
         },
         {

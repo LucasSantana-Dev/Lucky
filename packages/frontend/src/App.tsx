@@ -60,11 +60,14 @@ function isLegalPath(pathname: string) {
 
 function ForbiddenModulePage({ module }: { module: ModuleKey }) {
     const { t } = useTranslation()
+    const moduleLabel = t(`modules.${module}`, { defaultValue: module })
     return (
         <EmptyState
             icon={<ShieldAlert className='h-10 w-10' />}
             title={t('common.accessDenied')}
-            description={t('common.accessDeniedDescription', { module })}
+            description={t('common.accessDeniedDescription', {
+                module: moduleLabel,
+            })}
         />
     )
 }
