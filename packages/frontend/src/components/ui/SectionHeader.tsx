@@ -10,6 +10,7 @@ export type StatusBandTone =
     | 'muted'
 
 export interface StatusBandTile {
+    id?: string
     label: string
     status: string
     icon?: ReactNode
@@ -77,11 +78,11 @@ export default function SectionHeader({
                     role='list'
                     aria-label='Module status'
                 >
-                    {statusBand.map((tile) => {
+                    {statusBand.map((tile, index) => {
                         const toneClass = TONE_TEXT[tile.tone ?? 'muted']
                         return (
                             <div
-                                key={tile.label}
+                                key={tile.id ?? `${tile.label}:${tile.status}:${index}`}
                                 role='listitem'
                                 className='group flex items-center gap-3 rounded-xl border border-transparent bg-canvas/30 p-3 transition-colors hover:border-panel'
                             >
