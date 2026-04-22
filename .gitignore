@@ -74,6 +74,7 @@ coverage/
 # Playwright
 packages/frontend/playwright-report/
 packages/frontend/test-results/
+.playwright-mcp/
 
 # Secrets and keys
 *.pem
