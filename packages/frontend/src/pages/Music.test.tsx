@@ -19,6 +19,9 @@ vi.mock('@/components/Music/ImportPlaylist', () => ({
 vi.mock('@/components/Music/QueueList', () => ({
     default: () => <div data-testid='queue-list'>QueueList</div>,
 }))
+vi.mock('@/components/Music/AutoplayGenres', () => ({
+    default: () => <div data-testid='autoplay-genres'>AutoplayGenres</div>,
+}))
 
 const mockGuild = { id: '123', name: 'Test Guild' }
 
@@ -80,6 +83,7 @@ describe('MusicPage', () => {
         expect(screen.getByTestId('search-bar')).toBeInTheDocument()
         expect(screen.getByTestId('import-playlist')).toBeInTheDocument()
         expect(screen.getByTestId('queue-list')).toBeInTheDocument()
+        expect(screen.getByTestId('autoplay-genres')).toBeInTheDocument()
     })
 
     test('shows not connected message when no voice channel', () => {

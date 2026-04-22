@@ -112,10 +112,13 @@ function Layout({ children }: LayoutProps) {
 
     return (
         <div className='lucky-shell flex min-h-screen'>
+            <a className='lucky-skip-link' href='#lucky-main-content'>
+                Skip to content
+            </a>
             <Sidebar />
             <div className='flex min-w-0 flex-1 flex-col'>
-                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/95 backdrop-blur-md relative'>
-                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3 md:px-6'>
+                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/90 backdrop-blur-xl relative'>
+                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3.5 md:px-6 md:py-4'>
                         <div className='min-w-0'>
                             <h1 className='type-title text-lucky-text-primary leading-tight'>
                                 {routeCopy.title}
@@ -133,8 +136,8 @@ function Layout({ children }: LayoutProps) {
                     <div className='lucky-header-accent-line' aria-hidden='true' />
                 </header>
 
-                <main className='flex-1 min-w-0 overflow-y-auto'>
-                    <div className='mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6 lg:px-8'>
+                <main id='lucky-main-content' className='flex-1 min-w-0 overflow-y-auto' tabIndex={-1}>
+                    <div className='mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6 lg:px-8 lg:py-7'>
                         {children}
                     </div>
                 </main>
