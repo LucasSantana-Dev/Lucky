@@ -18,6 +18,7 @@ import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
+import { setupWebhookApiRoutes, setupWebhookPublicRoutes } from './webhooks'
 import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
@@ -81,7 +82,9 @@ export function setupRoutes(app: Express): void {
     setupHealthRoutes(app)
     setupStatsRoutes(app)
     setupInternalNotifyRoutes(app)
+    setupWebhookPublicRoutes(app)
     app.use('/api/', apiLimiter)
+    setupWebhookApiRoutes(app)
 
     for (const config of guildGuardConfigs) {
         const middleware = config.mode
