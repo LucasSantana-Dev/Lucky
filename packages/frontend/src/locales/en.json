@@ -1,0 +1,262 @@
+{
+    "common": {
+        "loading": "Loading…",
+        "retry": "Retry",
+        "cancel": "Cancel",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "close": "Close",
+        "closeSidebar": "Close sidebar",
+        "open": "Open",
+        "activeServerAriaLabel": "Active server: {{name}}. Click to switch.",
+        "viewAll": "View all",
+        "selectServer": "Select a server",
+        "accessDenied": "Access denied",
+        "accessDeniedDescription": "You do not have permission to view the {{module}} module for this server.",
+        "logout": "Log out",
+        "language": "Language"
+    },
+    "languages": {
+        "en": "English",
+        "pt-BR": "Português (Brasil)"
+    },
+    "sidebar": {
+        "activeGuild": "Active guild",
+        "switchServer": "Switch server",
+        "commandCenter": "Command center",
+        "status": {
+            "selectServer": "Select a server",
+            "needsSetup": "Needs setup",
+            "ready": "Ready"
+        },
+        "subtitle": {
+            "selectServer": "Choose a community to unlock guild tools.",
+            "needsSetup": "Lucky is not installed in this server yet.",
+            "ready": "Guild command center is ready for operations."
+        },
+        "sections": {
+            "overview": "Overview",
+            "moderation": "Moderation",
+            "automation": "Automation",
+            "community": "Community",
+            "media": "Media",
+            "integrations": "Integrations"
+        },
+        "nav": {
+            "dashboard": "Dashboard",
+            "serverSettings": "Server Settings",
+            "modCases": "Mod Cases",
+            "autoModeration": "Auto-Moderation",
+            "serverLogs": "Server Logs",
+            "customCommands": "Custom Commands",
+            "autoMessages": "Auto Messages",
+            "embedBuilder": "Embed Builder",
+            "reactionRoles": "Reaction Roles",
+            "guildAutomation": "Guild Automation",
+            "levelSystem": "Level System",
+            "starboard": "Starboard",
+            "musicPlayer": "Music Player",
+            "trackHistory": "Track History",
+            "lyrics": "Lyrics",
+            "musicalTaste": "Musical Taste",
+            "lastFm": "Last.fm",
+            "twitch": "Twitch",
+            "features": "Features"
+        }
+    },
+    "layout": {
+        "routes": {
+            "dashboard": {
+                "title": "Dashboard",
+                "subtitle": "Operational overview and key status signals for your server."
+            },
+            "servers": {
+                "title": "Servers",
+                "subtitle": "Review installation status and manage your eligible communities."
+            },
+            "serverSettings": {
+                "title": "Server Settings",
+                "subtitle": "Configure bot behaviour, channels, roles, and preferences."
+            },
+            "moderation": {
+                "title": "Mod Cases",
+                "subtitle": "Review and manage moderation actions for this server."
+            },
+            "autoMod": {
+                "title": "Auto-Moderation",
+                "subtitle": "Configure automated rule enforcement and filters."
+            },
+            "serverLogs": {
+                "title": "Server Logs",
+                "subtitle": "Inspect audit events and bot activity records."
+            },
+            "customCommands": {
+                "title": "Custom Commands",
+                "subtitle": "Create and manage custom slash commands for this server."
+            },
+            "autoMessages": {
+                "title": "Auto Messages",
+                "subtitle": "Schedule recurring messages to any channel."
+            },
+            "embedBuilder": {
+                "title": "Embed Builder",
+                "subtitle": "Design and send rich Discord embeds."
+            },
+            "reactionRoles": {
+                "title": "Reaction Roles",
+                "subtitle": "Assign roles based on member emoji reactions."
+            },
+            "guildAutomation": {
+                "title": "Guild Automation",
+                "subtitle": "Configure automated guild management workflows."
+            },
+            "levels": {
+                "title": "Level System",
+                "subtitle": "Configure XP, level roles, and leaderboards."
+            },
+            "starboard": {
+                "title": "Starboard",
+                "subtitle": "Surface popular messages to a dedicated channel."
+            },
+            "lyrics": {
+                "title": "Lyrics",
+                "subtitle": "Fetch and display song lyrics in your server."
+            },
+            "lastFm": {
+                "title": "Last.fm",
+                "subtitle": "Control account linking and scrobble attribution behavior."
+            },
+            "twitch": {
+                "title": "Twitch Notifications",
+                "subtitle": "Post live alerts when tracked streamers go online."
+            },
+            "features": {
+                "title": "Features",
+                "subtitle": "Toggle bot feature modules for your server."
+            },
+            "trackHistory": {
+                "title": "Track History",
+                "subtitle": "Inspect recent playback and requester activity."
+            },
+            "music": {
+                "title": "Music Player",
+                "subtitle": "Manage queue, autoplay, and real-time playback controls."
+            },
+            "fallback": {
+                "title": "Lucky Dashboard",
+                "subtitle": "Configure modules, moderation, and engagement workflows."
+            }
+        }
+    },
+    "landing": {
+        "meta": {
+            "title": "Lucky — Discord Bot with Music, Moderation & Dashboard",
+            "description": "The all-in-one Discord bot for your community. Music, moderation, custom commands, auto-mod, and a full web dashboard. Free forever."
+        },
+        "hero": {
+            "headlineLine1": "All-in-one Discord bot",
+            "headlineLine2": "for your community",
+            "subtitle": "Music, moderation, custom commands, auto-mod, and a full web dashboard. Built for vibes.",
+            "ctaPrimary": "Add to Discord",
+            "ctaSecondary": "Open Dashboard"
+        },
+        "features": {
+            "heading": "Powerful Features",
+            "subheading": "Everything you need to manage your Discord server",
+            "music": {
+                "title": "Music",
+                "description": "Spotify-powered autoplay with genre matching"
+            },
+            "autoMod": {
+                "title": "Auto-mod",
+                "description": "Spam/caps/link filters with per-guild rules"
+            },
+            "customCommands": {
+                "title": "Custom Commands",
+                "description": "User-defined responses with variable interpolation"
+            },
+            "webDashboard": {
+                "title": "Web Dashboard",
+                "description": "Full control from your browser"
+            },
+            "embedBuilder": {
+                "title": "Embed Builder",
+                "description": "Rich embeds without JSON"
+            },
+            "artistPreferences": {
+                "title": "Artist Preferences",
+                "description": "Tailor autoplay to your taste"
+            }
+        },
+        "stats": {
+            "servers": "Servers",
+            "users": "Users",
+            "status": "Status",
+            "statusOnline": "✓ Online",
+            "statusOffline": "✗ Offline"
+        },
+        "faq": {
+            "heading": "Frequently Asked Questions",
+            "items": {
+                "free": {
+                    "question": "Is Lucky free?",
+                    "answer": "Yes, Lucky is completely free with no premium tier."
+                },
+                "commands": {
+                    "question": "What commands does Lucky support?",
+                    "answer": "Lucky supports 100+ commands across music, moderation, custom commands, and more."
+                },
+                "autoplay": {
+                    "question": "How does autoplay work?",
+                    "answer": "Autoplay uses Spotify to match similar songs based on artist preferences you set."
+                },
+                "selfHost": {
+                    "question": "Can I self-host Lucky?",
+                    "answer": "Lucky is hosted and managed by us. You cannot self-host the bot, but you can use the dashboard to configure it."
+                },
+                "spam": {
+                    "question": "How do I moderate spam?",
+                    "answer": "Configure auto-mod rules for spam, caps, links, and more in the dashboard."
+                },
+                "support": {
+                    "question": "Where do I get support?",
+                    "answer": "Join our Discord support server or open an issue on GitHub."
+                }
+            }
+        },
+        "footer": {
+            "tagline": "Discord bot with music, moderation, and more. Built for vibes.",
+            "links": "Links",
+            "support": "Support",
+            "supportCopy": "Need help? Join our Discord community.",
+            "terms": "Terms of Service",
+            "privacy": "Privacy Policy",
+            "github": "GitHub",
+            "copyright": "© 2026 Lucky. All rights reserved."
+        }
+    },
+    "login": {
+        "meta": {
+            "title": "Login - Lucky",
+            "description": "Login to Lucky Dashboard to manage your Discord servers"
+        },
+        "brand": "Discord Bot Dashboard",
+        "headline": "Manage your Discord servers",
+        "description": "Configure moderation, custom commands, music, and more — all in one place.",
+        "modules": "Modules",
+        "commands": "Commands",
+        "uptime": "Uptime",
+        "authentication": "Authentication",
+        "signInWithDiscord": "Sign in with Discord",
+        "permissionsNote": "Your guild permissions and bot controls are tied to your Discord account.",
+        "connecting": "Connecting...",
+        "loginButton": "Login with Discord",
+        "badges": {
+            "oauthSecured": "OAuth secured",
+            "fastSetup": "Fast setup",
+            "liveControls": "Live controls"
+        },
+        "copyright": "© 2026 Lucky. All rights reserved."
+    }
+}

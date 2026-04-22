@@ -7,6 +7,7 @@ import {
     type ReactNode,
 } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ShieldAlert } from 'lucide-react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
@@ -58,11 +59,12 @@ function isLegalPath(pathname: string) {
 }
 
 function ForbiddenModulePage({ module }: { module: ModuleKey }) {
+    const { t } = useTranslation()
     return (
         <EmptyState
             icon={<ShieldAlert className='h-10 w-10' />}
-            title='Access denied'
-            description={`You do not have permission to view the ${module} module for this server.`}
+            title={t('common.accessDenied')}
+            description={t('common.accessDeniedDescription', { module })}
         />
     )
 }
