@@ -84,10 +84,10 @@ describe('Landing', () => {
         expect(subheadline).toBeInTheDocument()
 
         // Check for CTA buttons
-        const addToDiscordBtn = screen.getByRole('button', { name: /Add to Discord/i })
+        const addToDiscordLink = screen.getByRole('link', { name: /Add to Discord/i })
         const openDashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i })
 
-        expect(addToDiscordBtn).toBeInTheDocument()
+        expect(addToDiscordLink).toBeInTheDocument()
         expect(openDashboardBtn).toBeInTheDocument()
     })
 
@@ -203,21 +203,14 @@ describe('Landing', () => {
         expect(githubLink).toHaveAttribute('rel', 'noreferrer')
     })
 
-    test('renders Add to Discord button with correct href when clicked', async () => {
-        const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    test('renders Add to Discord link with correct attributes', () => {
         render(<Landing />)
 
-        const addToDiscordBtn = screen.getByRole('button', { name: /Add to Discord/i })
-        expect(addToDiscordBtn).toBeInTheDocument()
+        const addToDiscordLink = screen.getByRole('link', { name: /Add to Discord/i })
 
-        fireEvent.click(addToDiscordBtn)
-
-        await waitFor(() => {
-            expect(openSpy).toHaveBeenCalledWith(
-                expect.stringContaining('discord.com/oauth2/authorize'),
-                '_blank'
-            )
-        })
+        expect(addToDiscordLink).toHaveAttribute('href', expect.stringContaining('discord.com/oauth2/authorize'))
+        expect(addToDiscordLink).toHaveAttribute('target', '_blank')
+        expect(addToDiscordLink).toHaveAttribute('rel', 'noopener noreferrer')
     })
 
     test('calls login when Open Dashboard button is clicked', async () => {
