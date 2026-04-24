@@ -231,6 +231,59 @@ export async function getRecentTracks(
     }
 }
 
+const ARTIST_TAG_CACHE = new Map<
+    string,
+    { tags: string[]; expiresAt: number }
+>()
+const ARTIST_TAG_TTL_MS = 24 * 60 * 60 * 1000
+const ARTIST_TAG_CACHE_MAX = 5000
+
+export async function getArtistTopTags(
+    artist: string,
+    limit = 8,
+): Promise<string[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    const trimmed = artist?.trim()
+    if (!trimmed) return []
+
+    const cacheKey = trimmed.toLowerCase()
+    const cached = ARTIST_TAG_CACHE.get(cacheKey)
+    const now = Date.now()
+    if (cached && cached.expiresAt > now) {
+        return cached.tags
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+        )
+        const data = (await response.json()) as {
+            toptags?: {
+                tag?: Array<{ name: string; count?: number }>
+            }
+        }
+        const tags = (data.toptags?.tag ?? [])
+            .slice(0, limit)
+            .map((t) => t.name?.toLowerCase().trim())
+            .filter((name): name is string => !!name)
+
+        if (ARTIST_TAG_CACHE.size >= ARTIST_TAG_CACHE_MAX) {
+            const oldest = ARTIST_TAG_CACHE.keys().next().value
+            if (oldest) ARTIST_TAG_CACHE.delete(oldest)
+        }
+        ARTIST_TAG_CACHE.set(cacheKey, {
+            tags,
+            expiresAt: now + ARTIST_TAG_TTL_MS,
+        })
+
+        return tags
+    } catch (err) {
+        logAndSwallow(err, 'lastfm.getArtistTopTags', { artist: trimmed })
+        return []
+    }
+}
+
 export async function getSimilarTracks(
     artist: string,
     title: string,

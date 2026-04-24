@@ -224,7 +224,7 @@ describe('candidateScorer', () => {
             expect(result.score).toBeLessThan(1)
         })
 
-        it('applies Spanish locale penalty when dominantLocale is null', () => {
+        it('hard-rejects Spanish candidates when session has no Spanish history', () => {
             const current = createTrack()
             const candidate = createTrack({ title: 'Reggaeton Song' })
             const mood: SessionMood = {
@@ -250,8 +250,84 @@ describe('candidateScorer', () => {
                 mood,
             )
 
-            expect(result.score).toBeLessThan(1)
-            expect(result.reason).toContain('genre mismatch: latin/spanish')
+            expect(result.score).toBe(-Infinity)
+            expect(result.reason).toBe(
+                'cross-locale: spanish in non-spanish session',
+            )
+        })
+
+        it('rejects Spanish gospel via Last.fm artist tags even when title is ambiguous', () => {
+            // Repro for the 2026-04-24 bug: Brazilian rap session pulled in
+            // "Derrama Tu Gloria" by ALISON because no signal in the title
+            // alone identified it as Spanish. Last.fm artist tags carry the
+            // decisive `latin christian` / `spanish` markers.
+            const current = createTrack({
+                title: 'Só Rock 3',
+                author: 'Major RD',
+            })
+            const candidate = createTrack({
+                title: 'Derrama Tu Gloria',
+                author: 'ALISON',
+            })
+            const mood: SessionMood = {
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+            }
+
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                mood,
+                false,
+                ['latin christian', 'spanish', 'worship'],
+            )
+
+            expect(result.score).toBe(-Infinity)
+            expect(result.reason).toBe(
+                'cross-locale: spanish in non-spanish session',
+            )
+        })
+
+        it('does not reject Spanish candidates when session has Spanish history', () => {
+            const current = createTrack({ title: 'Despacito', author: 'Luis Fonsi' })
+            const candidate = createTrack({ title: 'Reggaeton Song' })
+            const mood: SessionMood = {
+                dominantLocale: 'spanish',
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+            }
+
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                mood,
+            )
+
+            expect(result.score).toBeGreaterThan(0)
+            expect(result.reason).not.toContain('cross-locale')
         })
 
         it('boosts deep dive artist tracks', () => {
