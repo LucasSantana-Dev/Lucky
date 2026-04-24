@@ -32,16 +32,16 @@ export default function StatTile({
     return (
         <article
             className={cn(
-                'surface-panel space-y-3 p-4',
+                'surface-panel flex flex-col gap-4 p-5',
                 className,
             )}
         >
             <div className='flex items-center justify-between gap-2'>
-                <p className='type-body-sm text-lucky-text-tertiary'>{label}</p>
+                <p className='type-meta text-lucky-text-tertiary'>{label}</p>
                 {icon && (
                     <span
                         className={cn(
-                            'rounded-lg p-2',
+                            'rounded-lg p-2.5',
                             toneIconClass[tone],
                         )}
                     >
@@ -50,14 +50,14 @@ export default function StatTile({
                 )}
             </div>
             <p
-                className='type-h2 text-lucky-text-primary'
+                className='type-h2 leading-tight text-lucky-text-primary'
             >
                 {typeof value === 'number' ? value.toLocaleString() : value}
             </p>
             {delta !== undefined && (
                 <p
                     className={cn(
-                        'type-body-sm inline-flex items-center gap-1.5 rounded-full px-2 py-0.5',
+                        'type-body-sm inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 font-medium',
                         delta >= 0
                             ? 'bg-lucky-success/10 text-lucky-success'
                             : 'bg-lucky-error/10 text-lucky-error',

@@ -136,13 +136,14 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4, duration: 0.6 }}
                 >
-                    <Button
-                        onClick={() => window.open(BOT_INVITE_URL, '_blank')}
-                        variant='primary'
-                        className='px-8 py-3 h-12 rounded-lg bg-gradient-to-r from-pink-500 to-orange-400 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/50 transition-all duration-300 border-0'
+                    <a
+                        href={BOT_INVITE_URL}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='inline-flex h-12 items-center justify-center rounded-lg border-0 bg-gradient-to-r from-pink-500 to-orange-400 px-8 py-3 font-semibold text-white transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950'
                     >
                         {t('landing.hero.ctaPrimary')}
-                    </Button>
+                    </a>
                     <Button
                         onClick={onLogin}
                         variant='secondary'
@@ -158,7 +159,6 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
 
 // Feature Grid with Neon Icon Orbs
 function FeatureSection() {
-    const prefersReducedMotion = useReducedMotion()
     const { t } = useTranslation()
 
     const features = [
@@ -220,30 +220,30 @@ function FeatureSection() {
                     <p className='text-gray-300 text-lg'>{t('landing.features.subheading')}</p>
                 </motion.div>
 
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                <ul className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'>
                     {features.map((feature, idx) => {
                         const Icon = feature.icon
                         return (
-                            <motion.div
-                                key={feature.titleKey}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                                viewport={{ once: true }}
-                                whileHover={prefersReducedMotion ? {} : { y: -4 }}
-                                className={`rounded-xl border border-white/10 bg-gradient-to-br ${feature.color} backdrop-blur-sm p-6 space-y-4 hover:border-white/20 transition-all duration-300 group cursor-pointer`}
-                            >
-                                <div className={`inline-flex p-3 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors ${feature.iconColor}`}>
-                                    <Icon size={24} />
-                                </div>
-                                <div>
-                                    <h3 className='text-xl font-semibold text-white mb-2'>{t(feature.titleKey)}</h3>
-                                    <p className='text-gray-300 text-sm'>{t(feature.descKey)}</p>
-                                </div>
-                            </motion.div>
+                            <li key={feature.titleKey} className='h-full'>
+                                <motion.article
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                                    viewport={{ once: true }}
+                                    className={`h-full rounded-xl border border-white/10 bg-gradient-to-br ${feature.color} backdrop-blur-sm p-6 space-y-4 transition-colors duration-300`}
+                                >
+                                    <div className={`inline-flex rounded-lg bg-white/5 p-3 transition-colors ${feature.iconColor}`}>
+                                        <Icon size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className='mb-2 text-xl font-semibold text-white'>{t(feature.titleKey)}</h3>
+                                        <p className='text-sm text-gray-300'>{t(feature.descKey)}</p>
+                                    </div>
+                                </motion.article>
+                            </li>
                         )
                     })}
-                </div>
+                </ul>
             </div>
         </section>
     )

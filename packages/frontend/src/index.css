@@ -504,7 +504,44 @@
     position: relative;
     min-height: 100vh;
     color: var(--lucky-text-primary);
+    isolation: isolate;
+    overflow-x: clip;
     background-color: var(--lucky-surface-canvas);
+    background-image:
+      radial-gradient(circle at 20% 0%, rgb(236 72 153 / 0.08), transparent 34%),
+      radial-gradient(circle at 85% 10%, rgb(251 146 60 / 0.06), transparent 28%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 18%),
+      linear-gradient(180deg, var(--lucky-surface-canvas), var(--lucky-surface-canvas));
+  }
+
+  .lucky-skip-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 50;
+    border: 1px solid var(--lucky-border-strong);
+    border-radius: 9999px;
+    background: var(--lucky-bg-secondary);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-lucky-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--lucky-text-primary);
+    box-shadow: var(--lucky-shadow-panel);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-180%);
+    transition: transform 160ms ease, opacity 160ms ease, border-color 160ms ease,
+      background-color 160ms ease;
+
+    &:focus-visible {
+      opacity: 1;
+      pointer-events: auto;
+      outline: none;
+      transform: translateY(0);
+      border-color: rgb(88 101 242 / 0.55);
+      box-shadow: 0 0 0 3px rgb(88 101 242 / 0.25), var(--lucky-shadow-panel);
+    }
   }
 
   .lucky-focus-visible:focus-visible {

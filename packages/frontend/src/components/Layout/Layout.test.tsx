@@ -43,6 +43,8 @@ describe('Layout', () => {
         renderLayout('/')
 
         expect(screen.getByTestId('sidebar')).toBeInTheDocument()
+        expect(screen.getByRole('link', { name: /skip to content/i })).toHaveAttribute('href', '#lucky-main-content')
+        expect(screen.getByRole('main')).toHaveAttribute('id', 'lucky-main-content')
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
         expect(
             screen.getByText(

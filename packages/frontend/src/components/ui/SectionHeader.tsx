@@ -47,8 +47,8 @@ export default function SectionHeader({
 }: SectionHeaderProps) {
     return (
         <div className={cn('space-y-4', className)}>
-            <header className='flex items-start justify-between gap-4'>
-                <div className='space-y-1'>
+            <header className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4'>
+                <div className='min-w-0 space-y-1'>
                     {eyebrow && (
                         <p className='type-meta inline-flex items-center gap-2 text-lucky-text-subtle'>
                             {eyebrowIcon && (
@@ -64,17 +64,17 @@ export default function SectionHeader({
                     )}
                     <h1 className='type-h1 text-lucky-text-primary'>{title}</h1>
                     {description && (
-                        <p className='type-body text-lucky-text-secondary max-w-3xl'>
+                        <p className='type-body max-w-3xl text-lucky-text-secondary'>
                             {description}
                         </p>
                     )}
                 </div>
-                {actions && <div className='shrink-0'>{actions}</div>}
+                {actions && <div className='flex flex-wrap gap-2 md:justify-end'>{actions}</div>}
             </header>
 
             {statusBand && statusBand.length > 0 && (
                 <div
-                    className='grid grid-cols-2 gap-2 rounded-2xl border border-panel bg-sidebar p-1 md:grid-cols-4'
+                    className='grid grid-cols-2 gap-2 rounded-2xl border border-panel bg-sidebar p-2 md:grid-cols-4 md:p-1.5'
                     role='list'
                     aria-label='Module status'
                 >
@@ -84,12 +84,12 @@ export default function SectionHeader({
                             <div
                                 key={tile.id ?? `${tile.label}:${tile.status}:${index}`}
                                 role='listitem'
-                                className='group flex items-center gap-3 rounded-xl border border-transparent bg-canvas/30 p-3 transition-colors hover:border-panel'
+                                className='group flex min-h-[84px] items-center gap-3 rounded-xl border border-transparent bg-canvas/40 p-3.5 transition-colors hover:border-panel'
                             >
                                 {tile.icon && (
                                     <span
                                         className={cn(
-                                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-panel bg-elevated transition-colors group-hover:bg-highlight',
+                                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-panel bg-elevated/90 transition-colors group-hover:bg-highlight',
                                             toneClass,
                                         )}
                                         aria-hidden='true'
@@ -98,12 +98,12 @@ export default function SectionHeader({
                                     </span>
                                 )}
                                 <div className='min-w-0'>
-                                    <p className='text-[10px] font-mono uppercase tracking-widest leading-none text-lucky-text-tertiary'>
+                                    <p className='type-meta text-lucky-text-tertiary'>
                                         {tile.label}
                                     </p>
                                     <p
                                         className={cn(
-                                            'mt-1 text-xs font-bold leading-none',
+                                            'mt-1.5 text-sm font-semibold leading-tight',
                                             toneClass,
                                         )}
                                     >
