@@ -178,9 +178,7 @@ describe('queueManipulation.replenishQueue', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     async function replenishWithSingleCandidate(options: {
@@ -2083,9 +2081,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     it('applies query modifiers based on replenish counter', async () => {
@@ -2179,9 +2175,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     it('uses multiple fallback queries when primary candidates empty', async () => {
@@ -2226,9 +2220,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     it('applies jitter to candidate scores and maintains top candidate', async () => {
@@ -2289,9 +2281,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
         addTrackToHistoryMock.mockResolvedValue(true)
     })
 
@@ -2488,7 +2478,6 @@ describe('queueManipulation — genre candidate collection', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({
             autoplayMode: 'similar',
             autoplayGenres: [],
@@ -2545,7 +2534,6 @@ describe('queueManipulation — genre candidate collection', () => {
 
     it('caps genre collection at 3 tags', async () => {
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({
             autoplayMode: 'similar',
             autoplayGenres: ['rock', 'pop', 'indie', 'jazz', 'metal'],
@@ -2573,7 +2561,6 @@ describe('queueManipulation — multi-user VC blend', () => {
             autoplayGenres: [],
         })
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         dislikedTrackWeightsMock.mockResolvedValue(new Map())
         likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
@@ -3732,9 +3719,7 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     it('deduplicates inverted-format same-song within a single replenish cycle', async () => {
@@ -3827,9 +3812,7 @@ describe('queueManipulation — Spotify priority', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     it('uses song-core query for Spotify engine when seed has artist-song format', async () => {
@@ -4101,9 +4084,7 @@ describe('queueManipulation — diversity improvements', () => {
         getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     it('penalises acoustic/live candidates so studio versions score higher', async () => {
