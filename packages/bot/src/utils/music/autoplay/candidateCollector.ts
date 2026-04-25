@@ -12,6 +12,7 @@ import {
     normalizeTrackKey,
 } from '../queueManipulation'
 import { isDuplicateCandidate } from './diversitySelector'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 
 export type ScoredTrack = {
     track: Track
@@ -81,8 +82,17 @@ export async function collectRecommendationCandidates(
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
     currentFeatures: SpotifyAudioFeatures | null = null,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies =
+        genreContext.sessionGenreFamilies ?? new Set<string>()
 
     // Collect from Spotify Recommendations API
     await collectSpotifyRecommendationCandidates(
@@ -104,6 +114,7 @@ export async function collectRecommendationCandidates(
         implicitLikeKeys,
         sessionMood,
         currentFeatures,
+        { getArtistTags, currentTrackTags, sessionGenreFamilies },
     )
 
     // Collect from seed track searches (YouTube, Spotify similar)
@@ -128,6 +139,7 @@ export async function collectRecommendationCandidates(
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
+            const tags = await getArtistTags(candidate.author)
             const rec = calculateRecommendationScore(
                 candidate,
                 currentTrack,
@@ -141,6 +153,12 @@ export async function collectRecommendationCandidates(
                 implicitLikeKeys,
                 dislikedWeights,
                 sessionMood,
+                false,
+                {
+                    candidateTags: tags,
+                    currentTrackTags,
+                    sessionGenreFamilies,
+                },
             )
             if (rec.score !== -Infinity) {
                 upsertScoredCandidate(candidates, candidate, rec)

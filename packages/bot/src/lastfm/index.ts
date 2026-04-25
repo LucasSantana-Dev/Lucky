@@ -4,6 +4,7 @@ export {
     getTopTracks,
     getRecentTracks,
     getSimilarTracks,
+    getArtistTopTags,
     getTagTopTracks,
     getLovedTracks,
     isLastFmInvalidSessionError,
