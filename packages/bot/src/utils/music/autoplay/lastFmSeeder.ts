@@ -130,7 +130,6 @@ export async function collectLastFmCandidates(
                     sessionGenreFamilies,
                 },
             )
-            if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
                 score: rec.score + LASTFM_SCORE_BOOST,
                 reason: rec.reason
@@ -177,7 +176,6 @@ export async function collectLastFmCandidates(
                         sessionGenreFamilies,
                     },
                 )
-                if (rec.score === -Infinity) continue
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
                     reason: rec.reason

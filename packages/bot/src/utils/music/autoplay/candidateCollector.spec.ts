@@ -171,6 +171,52 @@ describe('candidateCollector', () => {
             expect(entry.reason).toBe('high')
         })
 
+        it('drops -Infinity recommendations without inserting', () => {
+            const candidates = new Map<string, ScoredTrack>()
+            const track = createTrack({
+                title: 'Hard Reject',
+                author: 'Artist',
+            })
+
+            upsertScoredCandidate(candidates, track, {
+                score: -Infinity,
+                reason: 'cross-locale: spanish in non-spanish session',
+            })
+
+            expect(candidates.size).toBe(0)
+        })
+
+        it('drops -Infinity even when an existing entry could be displaced', () => {
+            const candidates = new Map<string, ScoredTrack>()
+            const track = createTrack({ title: 'Same Song', author: 'Same Artist' })
+
+            upsertScoredCandidate(candidates, track, {
+                score: 0.5,
+                reason: 'first',
+            })
+            upsertScoredCandidate(candidates, track, {
+                score: -Infinity,
+                reason: 'reject',
+            })
+
+            expect(candidates.size).toBe(1)
+            const entry = Array.from(candidates.values())[0]
+            expect(entry.score).toBe(0.5)
+            expect(entry.reason).toBe('first')
+        })
+
+        it('drops NaN recommendations defensively', () => {
+            const candidates = new Map<string, ScoredTrack>()
+            const track = createTrack({ title: 'NaN Score', author: 'Artist' })
+
+            upsertScoredCandidate(candidates, track, {
+                score: Number.NaN,
+                reason: 'bug',
+            })
+
+            expect(candidates.size).toBe(0)
+        })
+
         it('should use track URL as fallback key when normalized key is empty', () => {
             const candidates = new Map<string, ScoredTrack>()
             const track = createTrack({

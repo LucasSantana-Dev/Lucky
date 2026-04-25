@@ -35,12 +35,21 @@ export function shouldIncludeCandidate(
 /**
  * Add or update a candidate in the scored pool.
  * Keeps the higher-scored version if a duplicate key exists.
+ *
+ * Non-finite scores (e.g. the cross-locale `-Infinity` hard-reject from
+ * `calculateRecommendationScore`) are dropped here so callers don't need to
+ * remember the in-place guard before every call. Any per-source boost
+ * (`+ LASTFM_SCORE_BOOST`, `* match`, `+ GENRE_SCORE_BOOST`) that runs on a
+ * `-Infinity` base stays non-finite, so this gate covers the boosted-score
+ * caller patterns too.
  */
 export function upsertScoredCandidate(
     candidates: Map<string, ScoredTrack>,
     candidate: Track,
     recommendation: { score: number; reason: string },
 ): void {
+    if (!Number.isFinite(recommendation.score)) return
+
     const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
     const candidateKey =
         normalizedKey !== '::' ? normalizedKey : (candidate.id || candidate.url || normalizeTrackKey(candidate.title, candidate.author))
@@ -160,9 +169,7 @@ export async function collectRecommendationCandidates(
                     sessionGenreFamilies,
                 },
             )
-            if (rec.score !== -Infinity) {
-                upsertScoredCandidate(candidates, candidate, rec)
-            }
+            upsertScoredCandidate(candidates, candidate, rec)
         }
     }
 
