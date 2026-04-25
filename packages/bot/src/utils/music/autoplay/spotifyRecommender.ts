@@ -161,7 +161,6 @@ export async function collectSpotifyRecommendationCandidates(
                 sessionGenreFamilies,
             },
         )
-        if (rec.score === -Infinity) continue
         let score = rec.score + 0.3
         let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
 

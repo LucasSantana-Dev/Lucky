@@ -384,7 +384,6 @@ export async function collectBroadFallbackCandidates(
                     dislikedWeights,
                     sessionMood,
                 )
-                if (rec.score === -Infinity) continue
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
                     reason: rec.reason
@@ -447,7 +446,6 @@ function addGenreTrackCandidate(
         ctx.dislikedTrackKeys,
         ctx.sessionMood,
     )
-    if (rec.score === -Infinity) return
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
         reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
