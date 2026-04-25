@@ -5,7 +5,8 @@ import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
 } from './lastFmSeeds'
-import { getSimilarTracks, getArtistTopTags } from '../../../lastfm'
+import { getSimilarTracks } from '../../../lastfm'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import {
     cleanSearchQuery,
     cleanTitle,
@@ -50,6 +51,11 @@ export async function collectLastFmCandidates(
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
     contributionWeights?: Map<string, number>,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
@@ -89,10 +95,10 @@ export async function collectLastFmCandidates(
 
     if (seedSlice.length === 0) return
 
-    // Per-call cache so we only ask Last.fm for each artist once across all
-    // seed/similar lookups in this replenish pass. Each entry also short-
-    // circuits when Last.fm is not configured (returns []).
-    const artistTagCache = new Map<string, Promise<string[]>>()
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies =
+        genreContext.sessionGenreFamilies ?? new Set<string>()
 
     for (const seed of seedSlice) {
         const query = cleanSearchQuery(seed.title, seed.artist)
@@ -103,10 +109,7 @@ export async function collectLastFmCandidates(
             const normalizedKey = normalizeTrackKey(track.title, track.author)
             const dislikedWeight = dislikedWeights.get(normalizedKey)
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-            const tags = await getArtistTagsForCandidate(
-                track.author,
-                artistTagCache,
-            )
+            const tags = await getArtistTags(track.author)
             const rec = calculateRecommendationScore(
                 track,
                 currentTrack,
@@ -121,7 +124,11 @@ export async function collectLastFmCandidates(
                 dislikedWeights,
                 sessionMood,
                 true,
-                tags,
+                {
+                    candidateTags: tags,
+                    currentTrackTags,
+                    sessionGenreFamilies,
+                },
             )
             if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
@@ -149,10 +156,7 @@ export async function collectLastFmCandidates(
                 const dislikedWeight = dislikedWeights.get(normalizedKey)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
-                const tags = await getArtistTagsForCandidate(
-                    track.author,
-                    artistTagCache,
-                )
+                const tags = await getArtistTags(track.author)
                 const rec = calculateRecommendationScore(
                     track,
                     currentTrack,
@@ -167,7 +171,11 @@ export async function collectLastFmCandidates(
                     dislikedWeights,
                     sessionMood,
                     true,
-                    tags,
+                    {
+                        candidateTags: tags,
+                        currentTrackTags,
+                        sessionGenreFamilies,
+                    },
                 )
                 if (rec.score === -Infinity) continue
                 upsertScoredCandidate(candidates, track, {
@@ -180,20 +188,6 @@ export async function collectLastFmCandidates(
             if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         }
     }
-}
-
-async function getArtistTagsForCandidate(
-    artist: string | undefined,
-    cache: Map<string, Promise<string[]>>,
-): Promise<string[]> {
-    if (!artist) return []
-    const key = artist.toLowerCase().trim()
-    if (!key) return []
-    const cached = cache.get(key)
-    if (cached) return cached
-    const pending = getArtistTopTags(artist).catch(() => [])
-    cache.set(key, pending)
-    return pending
 }
 
 export async function searchLastFmQuery(
