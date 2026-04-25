@@ -31,7 +31,6 @@ const SPANISH_GENRE_MARKERS = [
 	'dembow',
 	'merengue',
 	'vallenato',
-	'trap latino',
 	'latin trap',
 ]
 

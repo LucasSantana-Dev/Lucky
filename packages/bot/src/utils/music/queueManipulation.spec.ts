@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals'
 import {
-    replenishQueue,,
+    replenishQueue,
     enrichWithAudioFeatures,
     getGenreFamilies,
-    calculateGenreFamilyPenalty
+    calculateGenreFamilyPenalty,
     shuffleQueue,
     smartShuffleQueue,
     removeTrackFromQueue,
