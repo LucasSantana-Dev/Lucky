@@ -21,12 +21,13 @@ import {
 import type { SessionMood } from './sessionMood'
 import {
     shouldIncludeCandidate,
-    calculateRecommendationScore,
     upsertScoredCandidate,
     normalizeTrackKey,
     normalizeText,
     extractSpotifyTrackId,
 } from '../queueManipulation'
+import { calculateRecommendationScore } from './candidateScorer'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
@@ -57,7 +58,16 @@ export async function collectSpotifyRecommendationCandidates(
     implicitLikeKeys: Set<string>,
     sessionMood: SessionMood | null,
     currentFeatures: SpotifyAudioFeatures | null,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<void> {
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies =
+        genreContext.sessionGenreFamilies ?? new Set<string>()
     if (!requestedBy) return
     const token = await Promise.resolve(
         spotifyLinkService.getValidAccessToken(requestedBy.id),
@@ -130,6 +140,7 @@ export async function collectSpotifyRecommendationCandidates(
         const normalizedKey = normalizeTrackKey(track.title, track.author)
         const dislikedWeight = dislikedWeights.get(normalizedKey)
         if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
+        const tags = await getArtistTags(track.author)
         const rec = calculateRecommendationScore(
             track,
             currentTrack,
@@ -143,6 +154,12 @@ export async function collectSpotifyRecommendationCandidates(
             implicitLikeKeys,
             dislikedWeights,
             sessionMood,
+            false,
+            {
+                candidateTags: tags,
+                currentTrackTags,
+                sessionGenreFamilies,
+            },
         )
         if (rec.score === -Infinity) continue
         let score = rec.score + 0.3
