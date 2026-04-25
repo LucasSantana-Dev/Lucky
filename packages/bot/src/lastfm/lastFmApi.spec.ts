@@ -17,6 +17,7 @@ import {
     getSimilarTracks,
     getTagTopTracks,
     getLovedTracks,
+    getArtistTopTags,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -518,6 +519,104 @@ describe('lastFmApi', () => {
             const tracks = await getTagTopTracks('pop')
 
             expect(tracks).toEqual([])
+        })
+    })
+
+    describe('getArtistTopTags', () => {
+        it('returns mapped, lowercased tags on success', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: {
+                        tag: [
+                            { name: 'Indie', count: 100 },
+                            { name: 'ALTERNATIVE', count: 80 },
+                            { name: 'Rock', count: 60 },
+                        ],
+                    },
+                }),
+            })
+
+            const tags = await getArtistTopTags('Radiohead')
+
+            expect(tags).toEqual(['indie', 'alternative', 'rock'])
+        })
+
+        it('respects the limit argument', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: {
+                        tag: Array.from({ length: 12 }, (_, i) => ({
+                            name: `tag${i}`,
+                        })),
+                    },
+                }),
+            })
+
+            const tags = await getArtistTopTags('Muse', 3)
+
+            expect(tags).toHaveLength(3)
+        })
+
+        it('filters out tags without a name', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: {
+                        tag: [
+                            { name: 'jazz' },
+                            { name: '' },
+                            { name: '   ' },
+                            { name: 'fusion' },
+                        ],
+                    },
+                }),
+            })
+
+            const tags = await getArtistTopTags('Snarky Puppy')
+
+            expect(tags).toEqual(['jazz', 'fusion'])
+        })
+
+        it('returns empty array when artist is blank', async () => {
+            const tags = await getArtistTopTags('   ')
+
+            expect(tags).toEqual([])
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns empty array when LASTFM_API_KEY is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+
+            const tags = await getArtistTopTags('Radiohead')
+
+            expect(tags).toEqual([])
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns the cached value on a second call within TTL', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: { tag: [{ name: 'electronic' }] },
+                }),
+            })
+
+            const first = await getArtistTopTags('Aphex Twin')
+            const second = await getArtistTopTags('aphex twin')
+
+            expect(first).toEqual(['electronic'])
+            expect(second).toEqual(['electronic'])
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('returns empty array and swallows fetch errors', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network'))
+
+            const tags = await getArtistTopTags('Some Unique Artist Name')
+
+            expect(tags).toEqual([])
         })
     })
 
