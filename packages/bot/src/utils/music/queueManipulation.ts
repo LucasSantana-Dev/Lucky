@@ -447,6 +447,7 @@ function addGenreTrackCandidate(
         ctx.dislikedTrackKeys,
         ctx.sessionMood,
     )
+    if (rec.score === -Infinity) return
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
         reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
