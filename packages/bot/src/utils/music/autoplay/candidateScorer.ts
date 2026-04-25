@@ -1,13 +1,11 @@
 import { LRUCache } from 'lru-cache'
 import type { Track } from 'discord-player'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
-import {
-    getBatchAudioFeatures,
-    getArtistGenres,
-} from '../../../spotify/spotifyApi'
+import { getBatchAudioFeatures } from '../../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
+import { detectSpanishMarkers } from '../languageHeuristics'
 
 interface AudioFeatureEntry {
     value: SpotifyAudioFeatures | null
@@ -22,6 +20,26 @@ type ScoredTrack = {
     track: Track
     score: number
     reason: string
+}
+
+/**
+ * Tag-driven genre context, threaded through every collector by the
+ * replenisher. Lets the in-pass scorer apply genre-family penalties without
+ * waiting for the post-selection `enrichWithAudioFeatures` pass — and so
+ * keeps working when a Spotify token is unavailable or the deprecated
+ * audio-features endpoint stops responding.
+ */
+export interface GenreContext {
+    /** Last.fm tags for the candidate's artist (lowercased). */
+    candidateTags?: string[]
+    /** Last.fm tags for the current/seed track's artist. */
+    currentTrackTags?: string[]
+    /**
+     * Genre families dominant in the recent session history. When non-empty,
+     * a candidate whose genre families intersect zero with this set is
+     * hard-rejected as cross-genre drift.
+     */
+    sessionGenreFamilies?: Set<string>
 }
 
 const GENRE_FAMILIES = {
@@ -42,9 +60,6 @@ const AMBIENT_NOISE_RE =
 
 const EDM_MIX_RE =
     /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
-
-const SPANISH_LOCALE_RE =
-    /\b(?:reggaeton|reggaet[oó]n|dembow|trap latino|latin trap|cumbia|bachata|merengue|ranchera|corrido|vallenato|banda)\b/i // NOSONAR S5852
 
 // Helpers from queueManipulation that are needed for score calculation
 function normalizeText(value?: string): string {
@@ -116,7 +131,11 @@ export function calculateRecommendationScore(
     dislikedWeights: Map<string, number> = new Map(),
     sessionMood: SessionMood | null = null,
     skipNoveltyBoost = false,
+    genreContext: GenreContext = {},
 ): { score: number; reason: string } {
+    const candidateTags = genreContext.candidateTags ?? []
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
@@ -144,13 +163,45 @@ export function calculateRecommendationScore(
     let score = 1
     const reasons: string[] = []
 
-    if (
-        sessionMood !== null &&
-        sessionMood.dominantLocale === null &&
-        SPANISH_LOCALE_RE.test(candidateTitle)
-    ) {
-        score -= 0.45
-        reasons.push('genre mismatch: latin/spanish')
+    // Cross-locale veto: if the session has shown no Spanish content but the
+    // candidate looks Spanish (Spanish-distinct accents/stopwords/gospel
+    // markers in title/author, OR Spanish/Latin tags from Last.fm), reject
+    // outright. The previous soft −0.45 still let a Spanish gospel track
+    // through on a Brazilian rap session because of stacked
+    // "completed before / similar duration / spotify preferred" boosts.
+    if (sessionMood !== null && sessionMood.dominantLocale === null) {
+        const candidateText = `${candidateTitle} ${candidate.author ?? ''}`
+        if (detectSpanishMarkers(candidateText, candidateTags)) {
+            return {
+                score: -Infinity,
+                reason: 'cross-locale: spanish in non-spanish session',
+            }
+        }
+    }
+
+    // Cross-genre-family veto: if the session has settled into one or more
+    // dominant genre families (rap_hiphop, rock_metal, latin, …) and the
+    // candidate's Last.fm tags don't intersect any of them, reject.
+    // Mirrors the cross-locale veto above and replaces the post-selection
+    // `enrichWithAudioFeatures` pass that depended on Spotify's deprecated
+    // audio-features endpoint.
+    if (sessionGenreFamilies.size > 0 && candidateTags.length > 0) {
+        const candidateFamilies = getGenreFamilies(candidateTags)
+        if (candidateFamilies.size > 0) {
+            let intersects = false
+            for (const family of candidateFamilies) {
+                if (sessionGenreFamilies.has(family)) {
+                    intersects = true
+                    break
+                }
+            }
+            if (!intersects) {
+                return {
+                    score: -Infinity,
+                    reason: 'cross-genre: family drift from session',
+                }
+            }
+        }
     }
 
     if (preferredArtistKeys.has(candidateArtistKey)) {
@@ -274,6 +325,26 @@ export function calculateRecommendationScore(
         reasons.push('spotify preferred')
     }
 
+    // Soft genre-family penalty (formerly inside enrichWithAudioFeatures via
+    // Spotify's getArtistGenres). When both sides have Last.fm tags, score
+    // family overlap: same family → 0, no families known → −0.1, no overlap
+    // and current is in a strong family → −0.6, no overlap otherwise → −0.3.
+    // This runs in-pass so it works without a Spotify token, and stacks
+    // gracefully when the cross-genre veto above didn't fire (mixed sessions
+    // or candidates whose tags don't map to a known family).
+    if (currentTrackTags.length > 0 && candidateTags.length > 0) {
+        const familyPenalty = calculateGenreFamilyPenalty(
+            currentTrackTags,
+            candidateTags,
+        )
+        if (familyPenalty !== 0) {
+            score += familyPenalty
+            if (familyPenalty <= -0.3) {
+                reasons.push('genre family drift')
+            }
+        }
+    }
+
     if (
         /\b(?:acoustic|live|ao\s{0,3}vivo|ac[uú]stico|cover|karaoke|instrumental)\b/i.test(
             candidate.title ?? '',
@@ -374,12 +445,11 @@ export async function enrichWithAudioFeatures(
         () => new Map(),
     )
 
-    let currentGenres: string[] = []
-    if (currentArtistName) {
-        currentGenres = await getArtistGenres(token, currentArtistName).catch(
-            () => [],
-        )
-    }
+    // Genre-family scoring moved to in-pass `calculateRecommendationScore`
+    // via Last.fm tags so it works without a Spotify token. This pass is now
+    // limited to audio-feature (energy/valence) deltas, which the
+    // Last.fm-tag path can't substitute for.
+    void currentArtistName
 
     for (const [id, feature] of features) {
         const track = idToTrack.get(id)
@@ -394,23 +464,6 @@ export async function enrichWithAudioFeatures(
             track.score += 0.07
         } else if (energyDelta > 0.6) {
             track.score -= 0.1
-        }
-
-        if (currentGenres.length > 0) {
-            const candidateGenres = await getArtistGenres(
-                token,
-                track.track.author,
-            ).catch(() => [])
-            const genrePenalty = calculateGenreFamilyPenalty(
-                currentGenres,
-                candidateGenres,
-            )
-            if (genrePenalty !== 0) {
-                track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
-                }
-            }
         }
     }
 
