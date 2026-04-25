@@ -89,7 +89,7 @@ jobs:
               run: npx secretlint "**/*"
 
             - name: TruffleHog secret scan
-              uses: trufflesecurity/trufflehog@4d2a8ef686341ee81a283d1d0fbcb97a5017ef35  # v3.94.3
+              uses: trufflesecurity/trufflehog@3fc0c2aa6648d54242e4af6fbfde0701796e4fb0  # v3.94.3
               with:
                   extra_args: --only-verified
               continue-on-error: true
