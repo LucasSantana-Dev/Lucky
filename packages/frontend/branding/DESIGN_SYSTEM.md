@@ -2,7 +2,7 @@
 
 ## Overview
 
-Lucky uses a clean, neutral dark design system inspired by professional developer tools and Discord bots like Dyno and Carl-bot. The palette is dark greys/near-black with Discord blurple as the single accent color.
+Lucky uses a clean, neutral dark design system inspired by professional developer tools and Discord bots like Dyno and Carl-bot. The palette is dark greys/near-black with a **dual accent**: Discord blurple as the primary CTA color and neon pink as the secondary accent. See `docs/decisions/2026-04-21-redesign-port-target.md` for the rationale.
 
 ## Color Palette
 
@@ -29,11 +29,15 @@ Lucky uses a clean, neutral dark design system inspired by professional develope
 | `--lucky-text-muted` | `#768390` | Secondary labels |
 | `--lucky-text-subtle` | `#545d68` | Disabled / meta |
 
-### Accent (single accent — Discord Blurple)
+### Accent (dual accent — Discord Blurple + Neon Pink)
 | Token | Hex | Usage |
 |---|---|---|
-| `--lucky-brand` | `#5865f2` | Primary accent, CTAs, active states |
-| `--lucky-brand-strong` | `#4752c4` | Hover state for brand |
+| `--color-brand-discord` | `#5865f2` | Primary CTA, active nav, focus rings |
+| `--lucky-brand-strong` | `#4752c4` | Primary hover |
+| `--color-brand-accent` | `#ec4899` | Secondary accent, live pings, gradient highlights |
+| `--color-lucky-neon-pink` | `#ec4899` | Alias for the secondary accent (used in token-bridge layer) |
+
+Short-form `--color-*` aliases are added alongside the long-form `--lucky-*` tokens during the redesign migration; both names resolve to the same value, see `index.css`. Cleanup PR removing the duplicates is queued for after all page ports land.
 
 ### Status
 | Token | Hex |
@@ -45,8 +49,11 @@ Lucky uses a clean, neutral dark design system inspired by professional develope
 
 ## Typography
 
-**Font**: Inter (system fallback: Segoe UI, system-ui, sans-serif)
-**Mono**: JetBrains Mono
+- **Display** (`h1`–`h4`, `type-display`, `type-title`): `Sora` (`--font-lucky-display`) — fallback Segoe UI, system-ui, sans-serif.
+- **Body** (body copy, UI labels, controls): `Manrope` (`--font-lucky-body`) — same fallbacks.
+- **Mono** (command snippets, IDs, case numbers, technical metadata): `JetBrains Mono` (`--font-lucky-mono`) — fallback SFMono-Regular, Menlo, Monaco, Consolas.
+
+All four fonts are loaded at the top of `packages/frontend/src/index.css`; Inter remains in the import list as a transitional fallback while pages port from the legacy single-font system.
 
 ### Type Scale
 | Class | Size | Weight | Usage |
@@ -87,8 +94,8 @@ Lucky uses a clean, neutral dark design system inspired by professional develope
 
 ## Principles
 
-1. **Single accent**: Discord blurple `#5865f2` is the only accent. No gold, no purple gradients.
+1. **Dual accent**: Discord blurple `#5865f2` for primary CTAs + active states; neon pink `#ec4899` for secondary accents and gradient highlights. No gold, no legacy-purple gradients.
 2. **Flat panels**: No glassmorphism, no background radial gradients on pages.
 3. **Professional motion**: Only fade transitions. No glow-pulse, float, or shimmer.
-4. **Inter only**: No Sora or Manrope fonts.
+4. **Sora display + Manrope body + JetBrains Mono**: see Typography. Inter stays in the import list as a transitional fallback while pages port.
 5. **Consistent spacing**: panels use `p-4` or `p-5`.
