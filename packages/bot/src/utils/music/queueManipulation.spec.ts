@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals'
 import {
-    replenishQueue,,
+    replenishQueue,
     enrichWithAudioFeatures,
     getGenreFamilies,
-    calculateGenreFamilyPenalty
+    calculateGenreFamilyPenalty,
     shuffleQueue,
     smartShuffleQueue,
     removeTrackFromQueue,
@@ -87,10 +87,12 @@ jest.mock('./autoplay/lastFmSeeds', () => ({
 
 const getSimilarTracksMock = jest.fn()
 const getTagTopTracksMock = jest.fn()
+const getArtistTopTagsMock = jest.fn()
 
 jest.mock('../../lastfm', () => ({
     getSimilarTracks: (...args: unknown[]) => getSimilarTracksMock(...args),
     getTagTopTracks: (...args: unknown[]) => getTagTopTracksMock(...args),
+    getArtistTopTags: (...args: unknown[]) => getArtistTopTagsMock(...args),
 }))
 
 jest.mock('../../spotify/spotifyApi', () => ({
@@ -175,6 +177,7 @@ describe('queueManipulation.replenishQueue', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -2077,6 +2080,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -2170,6 +2174,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -2214,6 +2219,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -2274,6 +2280,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
         addTrackToHistoryMock.mockResolvedValue(true)
     })
@@ -2470,6 +2477,7 @@ describe('queueManipulation — genre candidate collection', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({
             autoplayMode: 'similar',
             autoplayGenres: [],
@@ -2526,6 +2534,7 @@ describe('queueManipulation — genre candidate collection', () => {
 
     it('caps genre collection at 3 tags', async () => {
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({
             autoplayMode: 'similar',
             autoplayGenres: ['rock', 'pop', 'indie', 'jazz', 'metal'],
@@ -2553,6 +2562,7 @@ describe('queueManipulation — multi-user VC blend', () => {
             autoplayGenres: [],
         })
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         dislikedTrackWeightsMock.mockResolvedValue(new Map())
         likedTrackWeightsMock.mockResolvedValue(new Map())
         getPreferredArtistKeysMock.mockResolvedValue(new Set())
@@ -3709,6 +3719,7 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -3801,6 +3812,7 @@ describe('queueManipulation — Spotify priority', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
@@ -4072,6 +4084,7 @@ describe('queueManipulation — diversity improvements', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 

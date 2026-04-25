@@ -8,6 +8,7 @@ import {
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
+import { detectSpanishMarkers } from '../languageHeuristics'
 
 interface AudioFeatureEntry {
     value: SpotifyAudioFeatures | null
@@ -42,9 +43,6 @@ const AMBIENT_NOISE_RE =
 
 const EDM_MIX_RE =
     /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
-
-const SPANISH_LOCALE_RE =
-    /\b(?:reggaeton|reggaet[oó]n|dembow|trap latino|latin trap|cumbia|bachata|merengue|ranchera|corrido|vallenato|banda)\b/i // NOSONAR S5852
 
 // Helpers from queueManipulation that are needed for score calculation
 function normalizeText(value?: string): string {
@@ -116,6 +114,7 @@ export function calculateRecommendationScore(
     dislikedWeights: Map<string, number> = new Map(),
     sessionMood: SessionMood | null = null,
     skipNoveltyBoost = false,
+    candidateTags: string[] = [],
 ): { score: number; reason: string } {
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
@@ -144,13 +143,20 @@ export function calculateRecommendationScore(
     let score = 1
     const reasons: string[] = []
 
-    if (
-        sessionMood !== null &&
-        sessionMood.dominantLocale === null &&
-        SPANISH_LOCALE_RE.test(candidateTitle)
-    ) {
-        score -= 0.45
-        reasons.push('genre mismatch: latin/spanish')
+    // Cross-locale veto: if the session has shown no Spanish content but the
+    // candidate looks Spanish (Spanish-distinct accents/stopwords/gospel
+    // markers in title/author, OR Spanish/Latin tags from Last.fm), reject
+    // outright. The previous soft −0.45 still let a Spanish gospel track
+    // through on a Brazilian rap session because of stacked
+    // "completed before / similar duration / spotify preferred" boosts.
+    if (sessionMood !== null && sessionMood.dominantLocale === null) {
+        const candidateText = `${candidateTitle} ${candidate.author ?? ''}`
+        if (detectSpanishMarkers(candidateText, candidateTags)) {
+            return {
+                score: -Infinity,
+                reason: 'cross-locale: spanish in non-spanish session',
+            }
+        }
     }
 
     if (preferredArtistKeys.has(candidateArtistKey)) {
