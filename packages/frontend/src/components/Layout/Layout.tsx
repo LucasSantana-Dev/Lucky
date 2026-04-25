@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type MouseEvent, type ReactNode, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
@@ -109,15 +109,21 @@ function GuildChip() {
 function Layout({ children }: LayoutProps) {
     const location = useLocation()
     const routeCopy = useRouteCopy(location.pathname)
+    const mainRef = useRef<HTMLElement>(null)
+
+    const handleSkipLinkClick = (event: MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault()
+        mainRef.current?.focus({ preventScroll: true })
+    }
 
     return (
-        <div className='lucky-shell flex min-h-screen'>
-            <a className='lucky-skip-link' href='#lucky-main-content'>
+        <div className='lucky-shell lucky-shell-authenticated flex min-h-screen'>
+            <a className='lucky-skip-link' href='#lucky-main-content' onClick={handleSkipLinkClick}>
                 Skip to content
             </a>
             <Sidebar />
             <div className='flex min-w-0 flex-1 flex-col'>
-                <header className='sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/90 backdrop-blur-xl relative'>
+                <header className='lucky-shell-header sticky top-0 z-20 border-b border-lucky-border bg-lucky-bg-primary/92 relative'>
                     <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 px-4 py-3.5 md:px-6 md:py-4'>
                         <div className='min-w-0'>
                             <h1 className='type-title text-lucky-text-primary leading-tight'>
@@ -136,7 +142,7 @@ function Layout({ children }: LayoutProps) {
                     <div className='lucky-header-accent-line' aria-hidden='true' />
                 </header>
 
-                <main id='lucky-main-content' className='flex-1 min-w-0 overflow-y-auto' tabIndex={-1}>
+                <main ref={mainRef} id='lucky-main-content' className='flex-1 min-w-0 overflow-y-auto' tabIndex={-1}>
                     <div className='mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6 lg:px-8 lg:py-7'>
                         {children}
                     </div>

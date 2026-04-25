@@ -13,12 +13,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
             <div
                 ref={ref}
                 className={cn(
-                    'surface-card relative transition-all duration-200',
+                    'surface-card relative transition-colors transition-shadow transition-transform duration-200',
                     'focus-within:border-lucky-brand/35 focus-within:ring-2 focus-within:ring-lucky-brand/20',
                     hover && 'hover:border-lucky-border-strong hover:bg-lucky-bg-active/60',
                     interactive && [
                         'cursor-pointer',
-                        'transform-gpu',
                         'hover:border-lucky-border-strong',
                         'hover:bg-lucky-bg-active/70',
                         'hover:-translate-y-px',
