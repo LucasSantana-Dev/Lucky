@@ -38,7 +38,7 @@ jobs:
             # run the npm script; pnpm executes `package.json#scripts.build`
             # natively without needing a pnpm-lock.yaml.
             - name: Setup pnpm (shim for compressed-size-action pm detection)
-              uses: pnpm/action-setup@v4
+              uses: pnpm/action-setup@v6
               with:
                   version: 9
                   run_install: false
