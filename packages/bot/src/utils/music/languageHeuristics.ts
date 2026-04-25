@@ -6,7 +6,6 @@ const PORTUGUESE_ONLY_DIACRITICS = /[ãõçÃÕÇ]/
 const SPANISH_GENRE_MARKERS = [
 	'latin',
 	'reggaeton',
-	'forró',
 	'bachata',
 	'salsa',
 	'spanish',

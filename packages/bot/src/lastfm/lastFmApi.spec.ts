@@ -618,6 +618,72 @@ describe('lastFmApi', () => {
 
             expect(tags).toEqual([])
         })
+
+        it('returns empty array on non-ok response without caching', async () => {
+            const artist = 'Non-Ok Artist'
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: { tag: [{ name: 'rock' }] },
+                }),
+            })
+
+            const first = await getArtistTopTags(artist)
+            const second = await getArtistTopTags(artist)
+
+            expect(first).toEqual([])
+            expect(second).toEqual(['rock'])
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('returns empty array on Last.fm error payload without caching', async () => {
+            const artist = 'Error Payload Artist'
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ error: 6, message: 'The artist you supplied could not be found' }),
+            })
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: { tag: [{ name: 'pop' }] },
+                }),
+            })
+
+            const first = await getArtistTopTags(artist)
+            const second = await getArtistTopTags(artist)
+
+            expect(first).toEqual([])
+            expect(second).toEqual(['pop'])
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('keys the cache by (artist, limit) so different limits re-fetch', async () => {
+            const artist = 'Cache Limit Artist'
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: {
+                        tag: Array.from({ length: 10 }, (_, i) => ({ name: `t${i}` })),
+                    },
+                }),
+            })
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptags: {
+                        tag: Array.from({ length: 10 }, (_, i) => ({ name: `t${i}` })),
+                    },
+                }),
+            })
+
+            const small = await getArtistTopTags(artist, 2)
+            const large = await getArtistTopTags(artist, 5)
+
+            expect(small).toHaveLength(2)
+            expect(large).toHaveLength(5)
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+        })
     })
 
     describe('getLovedTracks', () => {

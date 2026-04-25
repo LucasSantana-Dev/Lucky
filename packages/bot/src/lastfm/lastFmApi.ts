@@ -247,7 +247,7 @@ export async function getArtistTopTags(
     const trimmed = artist?.trim()
     if (!trimmed) return []
 
-    const cacheKey = trimmed.toLowerCase()
+    const cacheKey = `${trimmed.toLowerCase()}::${limit}`
     const cached = ARTIST_TAG_CACHE.get(cacheKey)
     const now = Date.now()
     if (cached && cached.expiresAt > now) {
@@ -258,11 +258,15 @@ export async function getArtistTopTags(
         const response = await fetch(
             `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
         )
+        if (!response.ok) return []
         const data = (await response.json()) as {
+            error?: number
+            message?: string
             toptags?: {
                 tag?: Array<{ name: string; count?: number }>
             }
         }
+        if (typeof data.error === 'number') return []
         const tags = (data.toptags?.tag ?? [])
             .slice(0, limit)
             .map((t) => t.name?.toLowerCase().trim())
