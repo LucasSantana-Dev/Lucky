@@ -13,7 +13,7 @@ jest.mock('discord-player', () => ({
     QueryType: { SPOTIFY_SEARCH: 'spotifySearch' },
 }))
 
-jest.mock('../../../../utils/command/commandValidations', () => ({
+jest.mock('../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (interaction: unknown) => requireVoiceChannelMock(interaction),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
