@@ -18,11 +18,11 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
-jest.mock('../../../../utils/music/queueResolver', () => ({
+jest.mock('../../../utils/music/queueResolver', () => ({
     resolveGuildQueue: (client: unknown, guildId: string) => resolveGuildQueueMock(client, guildId),
 }))
 
-jest.mock('../../../../utils/music/queueManipulation', () => ({
+jest.mock('../../../utils/music/queueManipulation', () => ({
     moveUserTrackToPriority: (queue: unknown, track: unknown) => moveUserTrackToPriorityMock(queue, track),
 }))
 
@@ -38,12 +38,12 @@ jest.mock('@lucky/shared/config', () => ({
     ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 15000 } },
 }))
 
-jest.mock('../../../../utils/general/embeds', () => ({
+jest.mock('../../../utils/general/embeds', () => ({
     createErrorEmbed: (title: string, message: string) => createErrorEmbedMock(title, message),
     createSuccessEmbed: (title: string, message: string) => createSuccessEmbedMock(title, message),
 }))
 
-jest.mock('../../../../utils/general/interactionReply', () => ({
+jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (payload: unknown) => interactionReplyMock(payload),
 }))
 
