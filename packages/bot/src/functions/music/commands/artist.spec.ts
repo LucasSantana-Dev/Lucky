@@ -1,29 +1,42 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
-const requireVoiceChannelMock = jest.fn<(interaction: unknown) => Promise<boolean>>()
+const requireVoiceChannelMock =
+    jest.fn<(interaction: unknown) => Promise<boolean>>()
 const requireDJRoleMock = jest.fn()
 const errorLogMock = jest.fn()
-const resolveGuildQueueMock = jest.fn<(client: unknown, guildId: string) => { queue: unknown }>()
+const resolveGuildQueueMock =
+    jest.fn<(client: unknown, guildId: string) => { queue: unknown }>()
 const moveUserTrackToPriorityMock = jest.fn()
 const interactionReplyMock = jest.fn<(payload: unknown) => Promise<void>>()
-const createErrorEmbedMock = jest.fn((title: string, message: string) => ({ type: 'error', title, message }))
-const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({ type: 'success', title, message }))
+const createErrorEmbedMock = jest.fn((title: string, message: string) => ({
+    type: 'error',
+    title,
+    message,
+}))
+const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
+    type: 'success',
+    title,
+    message,
+}))
 
 jest.mock('discord-player', () => ({
     QueryType: { SPOTIFY_SEARCH: 'spotifySearch' },
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
-    requireVoiceChannel: (interaction: unknown) => requireVoiceChannelMock(interaction),
+    requireVoiceChannel: (interaction: unknown) =>
+        requireVoiceChannelMock(interaction),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
 
 jest.mock('../../../utils/music/queueResolver', () => ({
-    resolveGuildQueue: (client: unknown, guildId: string) => resolveGuildQueueMock(client, guildId),
+    resolveGuildQueue: (client: unknown, guildId: string) =>
+        resolveGuildQueueMock(client, guildId),
 }))
 
 jest.mock('../../../utils/music/queueManipulation', () => ({
-    moveUserTrackToPriority: (queue: unknown, track: unknown) => moveUserTrackToPriorityMock(queue, track),
+    moveUserTrackToPriority: (queue: unknown, track: unknown) =>
+        moveUserTrackToPriorityMock(queue, track),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -39,8 +52,10 @@ jest.mock('@lucky/shared/config', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createErrorEmbed: (title: string, message: string) => createErrorEmbedMock(title, message),
-    createSuccessEmbed: (title: string, message: string) => createSuccessEmbedMock(title, message),
+    createErrorEmbed: (title: string, message: string) =>
+        createErrorEmbedMock(title, message),
+    createSuccessEmbed: (title: string, message: string) =>
+        createSuccessEmbedMock(title, message),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -53,7 +68,11 @@ jest.mock('./play/queryUtils', () => ({
 
 import artistCommand from './artist'
 
-function createInteraction(guildId: string | null, artistName = 'Radiohead', limit: number | null = null) {
+function createInteraction(
+    guildId: string | null,
+    artistName = 'Radiohead',
+    limit: number | null = null,
+) {
     return {
         guildId,
         user: { id: 'user-1' },
@@ -69,7 +88,10 @@ function createInteraction(guildId: string | null, artistName = 'Radiohead', lim
     } as any
 }
 
-function createClient(searchResult: unknown, playResult: unknown = { track: { url: 'url-1' } }) {
+function createClient(
+    searchResult: unknown,
+    playResult: unknown = { track: { url: 'url-1' } },
+) {
     return {
         player: {
             search: jest.fn(async () => searchResult),
@@ -84,11 +106,28 @@ describe('artist command', () => {
         jest.clearAllMocks()
         requireVoiceChannelMock.mockResolvedValue(true)
         requireDJRoleMock.mockResolvedValue(true)
+        createErrorEmbedMock.mockImplementation(
+            (title: string, message: string) => ({
+                type: 'error',
+                title,
+                message,
+            }),
+        )
+        createSuccessEmbedMock.mockImplementation(
+            (title: string, message: string) => ({
+                type: 'success',
+                title,
+                message,
+            }),
+        )
     })
 
     it('replies with error when not in a guild', async () => {
         const interaction = createInteraction(null)
-        await artistCommand.execute({ client: createClient(null), interaction } as any)
+        await artistCommand.execute({
+            client: createClient(null),
+            interaction,
+        } as any)
         expect(interaction.reply).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
         )
@@ -97,14 +136,20 @@ describe('artist command', () => {
     it('returns early when voice channel check fails', async () => {
         requireVoiceChannelMock.mockResolvedValue(false)
         const interaction = createInteraction('guild-1')
-        await artistCommand.execute({ client: createClient(null), interaction } as any)
+        await artistCommand.execute({
+            client: createClient(null),
+            interaction,
+        } as any)
         expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     it('returns early when DJ role check fails', async () => {
         requireDJRoleMock.mockResolvedValue(false)
         const interaction = createInteraction('guild-1')
-        await artistCommand.execute({ client: createClient(null), interaction } as any)
+        await artistCommand.execute({
+            client: createClient(null),
+            interaction,
+        } as any)
         expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
@@ -128,8 +173,18 @@ describe('artist command', () => {
 
     it('queues tracks and replies with success on valid artist search', async () => {
         const tracks = [
-            { url: 'url-1', requestedBy: null },
-            { url: 'url-2', requestedBy: null },
+            {
+                url: 'url-1',
+                author: 'Radiohead',
+                title: 'Track 1',
+                requestedBy: null,
+            },
+            {
+                url: 'url-2',
+                author: 'Radiohead',
+                title: 'Track 2',
+                requestedBy: null,
+            },
         ]
         const interaction = createInteraction('guild-1')
         const queue = { addTrack: jest.fn(), tracks: { size: 0 } }
