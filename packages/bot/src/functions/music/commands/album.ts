@@ -1,0 +1,208 @@
+import { SlashCommandBuilder } from '@discordjs/builders'
+import { QueryType } from 'discord-player'
+import type { GuildMember } from 'discord.js'
+import Command from '../../../models/Command'
+import type { CommandExecuteParams } from '../../../types/CommandData'
+import {
+    requireVoiceChannel,
+    requireDJRole,
+} from '../../../utils/command/commandValidations'
+import { resolveGuildQueue } from '../../../utils/music/queueResolver'
+import { moveUserTrackToPriority } from '../../../utils/music/queueManipulation'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
+import { interactionReply } from '../../../utils/general/interactionReply'
+import { errorLog } from '@lucky/shared/utils'
+import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
+import { isUnknownInteractionError } from './play/queryUtils'
+
+function isSpotifyAlbumUrl(query: string): boolean {
+    return /open\.spotify\.com\/album\//.test(query)
+}
+
+export default new Command({
+    data: new SlashCommandBuilder()
+        .setName('album')
+        .setDescription('Queue all tracks from a specific album')
+        .addStringOption((option) =>
+            option
+                .setName('query')
+                .setDescription('Album name or Spotify album URL')
+                .setRequired(true),
+        )
+        .addStringOption((option) =>
+            option
+                .setName('artist')
+                .setDescription('Artist name to narrow the search (optional)')
+                .setRequired(false),
+        ),
+    category: 'music',
+    execute: async ({
+        client,
+        interaction,
+    }: CommandExecuteParams): Promise<void> => {
+        if (!interaction.guildId) {
+            await interaction.reply({
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'This command can only be used in a server',
+                    ),
+                ],
+                ephemeral: true,
+            })
+            return
+        }
+
+        const member = interaction.member as GuildMember
+        if (!(await requireVoiceChannel(interaction))) return
+        if (!(await requireDJRole(interaction, interaction.guildId))) return
+
+        const voiceChannel = member.voice.channel!
+        const query = interaction.options.getString('query', true)
+        const artistFilter = interaction.options.getString('artist')
+
+        try {
+            await interaction.deferReply()
+        } catch (error) {
+            if (isUnknownInteractionError(error)) return
+            throw error
+        }
+
+        try {
+            const isUrl = isSpotifyAlbumUrl(query)
+            const searchEngine = isUrl
+                ? QueryType.AUTO
+                : QueryType.SPOTIFY_SEARCH
+            const searchQuery =
+                !isUrl && artistFilter ? `${query} ${artistFilter}` : query
+
+            const searchResult = await client.player.search(searchQuery, {
+                requestedBy: interaction.user,
+                searchEngine,
+            })
+
+            if (!searchResult?.tracks.length) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'No results',
+                                `No tracks found for **${query}**${artistFilter ? ` by **${artistFilter}**` : ''}.`,
+                            ),
+                        ],
+                    },
+                })
+                return
+            }
+
+            const tracks = searchResult.playlist
+                ? searchResult.tracks
+                : searchResult.tracks.slice(0, 1)
+
+            if (!tracks.length) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'No results',
+                                'No album tracks found.',
+                            ),
+                        ],
+                    },
+                })
+                return
+            }
+
+            const firstTrack = tracks[0]
+
+            const playResult = await client.player.play(
+                voiceChannel,
+                firstTrack.url,
+                {
+                    nodeOptions: {
+                        metadata: {
+                            channel: interaction.channel,
+                            requestedBy: interaction.user,
+                        },
+                        connectionTimeout:
+                            ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
+                        leaveOnEmpty: true,
+                        leaveOnEmptyCooldown: 30_000,
+                        leaveOnEnd: true,
+                        leaveOnEndCooldown: 300_000,
+                    },
+                    requestedBy: interaction.user,
+                    searchEngine: QueryType.SPOTIFY_SONG,
+                },
+            )
+
+            const { queue } = resolveGuildQueue(client, interaction.guildId)
+            if (!queue) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'Error',
+                                'Could not create queue.',
+                            ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
+            for (const track of tracks.slice(1)) {
+                track.requestedBy = interaction.user
+                queue.addTrack(track)
+            }
+
+            moveUserTrackToPriority(queue, playResult.track)
+
+            const albumTitle =
+                searchResult.playlist?.title ?? tracks[0].album ?? query
+
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createSuccessEmbed(
+                            `💿 ${albumTitle}`,
+                            `Queued **${tracks.length}** track${tracks.length === 1 ? '' : 's'} from **${albumTitle}**.`,
+                        ),
+                    ],
+                },
+            })
+        } catch (error) {
+            if (isUnknownInteractionError(error)) return
+            errorLog({
+                message: 'Album command error:',
+                error,
+                data: { query, guildId: interaction.guildId },
+            })
+            try {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'Error',
+                                createUserFriendlyError(error),
+                            ),
+                        ],
+                        ephemeral: true,
+                    },
+                })
+            } catch {
+                // interaction already replied
+            }
+        }
+    },
+})
