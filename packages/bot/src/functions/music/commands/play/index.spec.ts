@@ -470,7 +470,7 @@ describe('play command', () => {
         expect(queue.setRepeatMode).not.toHaveBeenCalled()
     })
 
-    it('does not reinsert a manual track already queued by player.play in autoplay mode', async () => {
+    it('calls moveUserTrackToPriority even when track is already queued in autoplay mode', async () => {
         const interaction = createInteraction('guild-1')
         const track = {
             id: 'track-1',
@@ -509,14 +509,14 @@ describe('play command', () => {
         // Wait for background operations to complete
         await flushPromises()
 
-        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+        expect(moveUserTrackToPriorityMock).toHaveBeenCalled()
         expect(blendAutoplayTracksMock).toHaveBeenCalledWith(
             expect.anything(),
             track,
         )
     })
 
-    it('does not reinsert a manual track already queued by matching url', async () => {
+    it('calls moveUserTrackToPriority even when track url already exists in queue', async () => {
         const interaction = createInteraction('guild-1')
         const track = {
             url: 'https://example.com/url-match',
@@ -547,10 +547,10 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+        expect(moveUserTrackToPriorityMock).toHaveBeenCalled()
     })
 
-    it('does not reinsert the same track object already queued', async () => {
+    it('calls moveUserTrackToPriority even when same track object is already queued', async () => {
         const interaction = createInteraction('guild-1')
         const track = {
             title: 'Song A',
@@ -575,7 +575,7 @@ describe('play command', () => {
             interaction,
         } as any)
 
-        expect(moveUserTrackToPriorityMock).not.toHaveBeenCalled()
+        expect(moveUserTrackToPriorityMock).toHaveBeenCalled()
     })
 
     it('stops when voice channel validation fails', async () => {
