@@ -166,8 +166,7 @@ export default new Command({
 
             moveUserTrackToPriority(queue, playResult.track)
 
-            const albumTitle =
-                searchResult.playlist?.title ?? tracks[0].album ?? query
+            const albumTitle = searchResult.playlist?.title ?? query
 
             await interactionReply({
                 interaction,
