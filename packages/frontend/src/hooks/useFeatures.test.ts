@@ -22,6 +22,8 @@ type GuildState = {
 
 type FeaturesState = {
     globalToggles: Record<string, boolean>
+    globalToggleProvider: 'vercel' | 'environment'
+    globalTogglesWritable: boolean
     isLoading: boolean
     loadError: {
         kind: 'auth' | 'forbidden' | 'network' | 'upstream'
@@ -75,6 +77,8 @@ describe('useFeatures', () => {
         }
         featuresState = {
             globalToggles: { DOWNLOAD_VIDEO: true },
+            globalToggleProvider: 'vercel',
+            globalTogglesWritable: false,
             isLoading: false,
             loadError: null,
             features: [],
@@ -172,6 +176,8 @@ describe('useFeatures', () => {
             featuresState.globalToggles,
         )
         expect(getServerToggles).not.toHaveBeenCalled()
+        expect(result.current.globalToggleProvider).toBe('vercel')
+        expect(result.current.globalTogglesWritable).toBe(false)
     })
 
     test('returns per-guild toggles when guild is selected', async () => {
