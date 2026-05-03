@@ -14,6 +14,8 @@ export default function FeaturesPage() {
     const selectGuild = useGuildStore((state) => state.selectGuild)
     const {
         globalToggles,
+        globalToggleProvider,
+        globalTogglesWritable,
         serverToggles,
         isLoading,
         loadError,
@@ -84,6 +86,8 @@ export default function FeaturesPage() {
                 <section aria-labelledby='global-toggles-heading'>
                     <GlobalTogglesSection
                         toggles={globalToggles}
+                        provider={globalToggleProvider}
+                        writable={globalTogglesWritable}
                         onToggle={handleGlobalToggle}
                     />
                 </section>

@@ -578,46 +578,30 @@ type User = z.infer<typeof userSchema>
 
 ---
 
-### Unleash Client (v5.4.0)
+### Vercel Flags Core
 
 Feature toggle/flag management.
 
-- **Official Docs:** https://docs.getunleash.io/
-- **Node.js SDK:** https://docs.getunleash.io/reference/sdks/node
-- **GitHub:** https://github.com/Unleash/unleash-client-node
+- **Official Docs:** https://vercel.com/docs/flags/vercel-flags
+- **Core SDK:** https://vercel.com/docs/flags/vercel-flags/sdks/core
+- **Package:** https://www.npmjs.com/package/@vercel/flags-core
 
 **Quick Start:**
 
 ```typescript
-import { initialize } from 'unleash-client'
+import { createClient } from '@vercel/flags-core'
 
-const unleash = initialize({
-    url: 'http://localhost:4242/api',
-    appName: 'lucky',
-    customHeaders: {
-        Authorization: 'your_api_token',
-    },
-})
+const client = createClient(process.env.FLAGS!)
+const result = await client.evaluate<boolean>('AUTOPLAY', true)
 
-unleash.on('ready', () => {
-    if (unleash.isEnabled('MUSIC_PLAYBACK')) {
-        // Feature is enabled
-    }
-})
+const enabled = result.reason === 'error' ? true : result.value === true
 ```
 
-**Context:**
+**Lucky behavior:**
 
-```typescript
-const context = {
-    userId: 'user_123',
-    properties: {
-        guildId: 'guild_456',
-    },
-}
-
-const enabled = unleash.isEnabled('FEATURE_NAME', context)
-```
+- Global flags come from Vercel when `FLAGS` is configured.
+- `FEATURE_*` environment variables are the fallback.
+- Per-guild overrides stay in `guild_feature_toggles`.
 
 ---
 
