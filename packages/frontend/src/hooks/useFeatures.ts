@@ -11,6 +11,12 @@ export function useFeatures() {
     const isAuthLoading = useAuthStore((state) => state.isLoading)
     const selectedGuild = useGuildStore((state) => state.selectedGuild)
     const globalToggles = useFeaturesStore((state) => state.globalToggles)
+    const globalToggleProvider = useFeaturesStore(
+        (state) => state.globalToggleProvider,
+    )
+    const globalTogglesWritable = useFeaturesStore(
+        (state) => state.globalTogglesWritable,
+    )
     const isLoading = useFeaturesStore((state) => state.isLoading)
     const features = useFeaturesStore((state) => state.features)
     const loadError = useFeaturesStore((state) => state.loadError)
@@ -92,6 +98,8 @@ export function useFeatures() {
 
     return {
         globalToggles,
+        globalToggleProvider,
+        globalTogglesWritable,
         serverToggles,
         isLoading,
         features,

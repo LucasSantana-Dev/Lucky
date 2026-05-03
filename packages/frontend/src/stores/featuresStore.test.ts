@@ -21,6 +21,8 @@ describe('featuresStore', () => {
         useFeaturesStore.setState({
             features: [],
             globalToggles: {} as never,
+            globalToggleProvider: 'environment',
+            globalTogglesWritable: false,
             serverToggles: {},
             isLoading: false,
             loadError: null,
@@ -65,12 +67,22 @@ describe('featuresStore', () => {
         test('should set global toggles', async () => {
             const toggles = { AUTOPLAY: false, LYRICS: true }
             vi.mocked(api.features.getGlobalToggles).mockResolvedValue({
-                data: { toggles },
+                data: {
+                    toggles,
+                    provider: 'vercel',
+                    writable: false,
+                },
             } as never)
 
             await useFeaturesStore.getState().fetchGlobalToggles()
 
             expect(useFeaturesStore.getState().globalToggles).toEqual(toggles)
+            expect(useFeaturesStore.getState().globalToggleProvider).toBe(
+                'vercel',
+            )
+            expect(useFeaturesStore.getState().globalTogglesWritable).toBe(
+                false,
+            )
             expect(useFeaturesStore.getState().loadError).toBeNull()
         })
 
