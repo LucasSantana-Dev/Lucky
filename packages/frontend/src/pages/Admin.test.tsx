@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import AdminPage from './Admin'
 import { useAuthStore } from '@/stores/authStore'
 import { useFeatures } from '@/hooks/useFeatures'
+import type { FeatureToggleState } from '@/types'
 
 vi.mock('@/stores/authStore')
 vi.mock('@/hooks/useFeatures')
@@ -33,7 +34,7 @@ function mockAuthStore(overrides: Record<string, unknown> = {}) {
 
 function mockFeatures(overrides: Record<string, unknown> = {}) {
     vi.mocked(useFeatures).mockReturnValue({
-        globalToggles: {},
+        globalToggles: {} as unknown as FeatureToggleState,
         globalToggleProvider: 'environment',
         globalTogglesWritable: false,
         isLoading: false,
@@ -41,7 +42,7 @@ function mockFeatures(overrides: Record<string, unknown> = {}) {
         retryLoad: vi.fn(),
         handleGlobalToggle: vi.fn(),
         ...overrides,
-    } as ReturnType<typeof useFeatures>)
+    } as unknown as ReturnType<typeof useFeatures>)
 }
 
 describe('AdminPage', () => {

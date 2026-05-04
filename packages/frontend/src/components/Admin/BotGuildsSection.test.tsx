@@ -34,11 +34,12 @@ describe('BotGuildsSection', () => {
     })
 
     test('renders guild list with count badge after load', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [makeGuild({ id: '100', name: 'Alpha' }), makeGuild({ id: '200', name: 'Beta' })],
             },
-        })
+        } as any)
         render(<BotGuildsSection />)
         await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument())
         expect(screen.getByText('Beta')).toBeInTheDocument()
@@ -46,6 +47,7 @@ describe('BotGuildsSection', () => {
     })
 
     test('sorts guilds alphabetically by name', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [
@@ -53,7 +55,7 @@ describe('BotGuildsSection', () => {
                     makeGuild({ id: '2', name: 'Apple' }),
                 ],
             },
-        })
+        } as any)
         render(<BotGuildsSection />)
         await waitFor(() => expect(screen.getByText('Apple')).toBeInTheDocument())
         const names = screen.getAllByText(/Apple|Zebra/).map((el) => el.textContent)
@@ -62,6 +64,7 @@ describe('BotGuildsSection', () => {
     })
 
     test('displays numeric guild stats when present', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [
@@ -73,7 +76,7 @@ describe('BotGuildsSection', () => {
                     }),
                 ],
             },
-        })
+        } as any)
         render(<BotGuildsSection />)
         await waitFor(() => expect(screen.getByText('Test Guild')).toBeInTheDocument())
         expect(screen.getByText('250')).toBeInTheDocument()
@@ -91,7 +94,8 @@ describe('BotGuildsSection', () => {
     })
 
     test('shows empty state when no guilds returned', async () => {
-        vi.mocked(api.admin.getGuilds).mockResolvedValue({ data: { guilds: [] } })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        vi.mocked(api.admin.getGuilds).mockResolvedValue({ data: { guilds: [] } } as any)
         render(<BotGuildsSection />)
         await waitFor(() =>
             expect(
@@ -101,11 +105,12 @@ describe('BotGuildsSection', () => {
     })
 
     test('renders guild icon image when iconUrl provided', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [makeGuild({ name: 'Icon Guild', iconUrl: 'https://cdn.discord.com/icon.png' })],
             },
-        })
+        } as any)
         render(<BotGuildsSection />)
         await waitFor(() => {
             const img = screen.getByAltText('Icon Guild') as HTMLImageElement
@@ -114,9 +119,10 @@ describe('BotGuildsSection', () => {
     })
 
     test('renders fallback Server icon when iconUrl is null', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: { guilds: [makeGuild({ name: 'No Icon Guild', iconUrl: null })] },
-        })
+        } as any)
         render(<BotGuildsSection />)
         await waitFor(() => expect(screen.getByText('No Icon Guild')).toBeInTheDocument())
         expect(screen.queryByAltText('No Icon Guild')).not.toBeInTheDocument()
