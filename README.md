@@ -128,6 +128,30 @@ npm run test:e2e        # Playwright smoke tests
 - [Last.fm Integration](docs/LASTFM_SETUP.md)
 - [Environment Variables](.env.example)
 
+### Admin Panel
+
+The Admin Panel (`/admin`) is gated behind Discord OAuth and requires a developer Discord user ID.
+
+**Setup:**
+
+1. Add your Discord user ID to `.env`:
+   ```
+   DEVELOPER_USER_IDS=your_discord_user_id
+   ```
+   Multiple IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2`
+
+2. Apply the database migration (required for writable global toggles):
+   ```sh
+   npx prisma migrate deploy --config prisma/prisma.config.ts
+   ```
+
+3. Restart the backend so it picks up the env var:
+   ```sh
+   docker compose restart backend
+   ```
+
+After setup, sign in via Discord on the `/admin` page and the panel will be accessible.
+
 ---
 
 ## Contributing

@@ -20,7 +20,7 @@ import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
 import { setupWebhookApiRoutes, setupWebhookPublicRoutes } from './webhooks'
 import { setupAdminRoutes } from './admin'
-import { apiLimiter } from '../middleware/rateLimit'
+import { apiLimiter, writeLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
 import { requireAdmin } from '../middleware/requireAdmin'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
@@ -87,7 +87,7 @@ export function setupRoutes(app: Express): void {
     setupWebhookPublicRoutes(app)
     app.use('/api/', apiLimiter)
     app.use('/api/admin', requireAuth, requireAdmin)
-    app.use('/api/toggles/global', requireAuth, requireAdmin)
+    app.use('/api/toggles/global', requireAuth, requireAdmin, writeLimiter)
     setupWebhookApiRoutes(app)
     setupAdminRoutes(app)
 
