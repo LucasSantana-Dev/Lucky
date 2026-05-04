@@ -18,6 +18,12 @@ const createSuccessEmbedMock = jest.fn((title: string, message: string) => ({
     title,
     message,
 }))
+const createWarningEmbedMock = jest.fn((title: string, message: string) => ({
+    type: 'warning',
+    title,
+    message,
+}))
+const featureToggleIsEnabledMock = jest.fn<() => Promise<boolean>>()
 
 jest.mock('discord-player', () => ({
     QueryType: { SPOTIFY_SEARCH: 'spotifySearch' },
@@ -51,11 +57,19 @@ jest.mock('@lucky/shared/config', () => ({
     ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 15000 } },
 }))
 
+jest.mock('@lucky/shared/services', () => ({
+    featureToggleService: {
+        isEnabled: (...args: unknown[]) => featureToggleIsEnabledMock(...args),
+    },
+}))
+
 jest.mock('../../../utils/general/embeds', () => ({
     createErrorEmbed: (title: string, message: string) =>
         createErrorEmbedMock(title, message),
     createSuccessEmbed: (title: string, message: string) =>
         createSuccessEmbedMock(title, message),
+    createWarningEmbed: (title: string, message: string) =>
+        createWarningEmbedMock(title, message),
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -120,6 +134,34 @@ describe('artist command', () => {
                 message,
             }),
         )
+        createWarningEmbedMock.mockImplementation(
+            (title: string, message: string) => ({
+                type: 'warning',
+                title,
+                message,
+            }),
+        )
+        featureToggleIsEnabledMock.mockResolvedValue(true)
+    })
+
+    it('replies with warning when ARTIST_COMMAND feature is disabled', async () => {
+        featureToggleIsEnabledMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
+        await artistCommand.execute({
+            client: createClient(null),
+            interaction,
+        } as any)
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: expect.arrayContaining([
+                        expect.objectContaining({ type: 'warning' }),
+                    ]),
+                    ephemeral: true,
+                }),
+            }),
+        )
+        expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     it('replies with error when not in a guild', async () => {

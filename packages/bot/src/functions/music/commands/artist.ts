@@ -12,11 +12,13 @@ import { moveUserTrackToPriority } from '../../../utils/music/queueManipulation'
 import {
     createErrorEmbed,
     createSuccessEmbed,
+    createWarningEmbed,
 } from '../../../utils/general/embeds'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { errorLog } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
+import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
 
 const DEFAULT_LIMIT = 10
@@ -56,6 +58,25 @@ export default new Command({
                     ),
                 ],
                 ephemeral: true,
+            })
+            return
+        }
+
+        const isEnabled = await featureToggleService.isEnabled('ARTIST_COMMAND', {
+            guildId: interaction.guildId,
+        })
+        if (!isEnabled) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createWarningEmbed(
+                            'Feature unavailable',
+                            'The /artist command is currently disabled.',
+                        ),
+                    ],
+                    ephemeral: true,
+                },
             })
             return
         }
