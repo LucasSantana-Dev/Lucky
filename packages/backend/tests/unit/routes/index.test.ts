@@ -223,6 +223,7 @@ describe('setupRoutes', () => {
         expect(setupLevelsRoutes).toHaveBeenCalledWith(app)
         expect(setupStarboardRoutes).toHaveBeenCalledWith(app)
         expect(setupMusicRoutes).toHaveBeenCalledWith(app)
+        expect(setupSpotifyRoutes).toHaveBeenCalledWith(app)
         expect(setupArtistsRoutes).toHaveBeenCalledWith(app)
 
         expect(app.use).toHaveBeenCalledWith(errorHandler)
