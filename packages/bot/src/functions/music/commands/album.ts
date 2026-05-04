@@ -20,7 +20,14 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from './play/queryUtils'
 
 function isSpotifyAlbumUrl(query: string): boolean {
-    return /open\.spotify\.com\/album\//.test(query)
+    try {
+        const url = new URL(query)
+        const isSpotifyHost = /(^|\.)spotify\.com$/i.test(url.hostname)
+        const segments = url.pathname.split('/').filter(Boolean)
+        return isSpotifyHost && segments.includes('album')
+    } catch {
+        return false
+    }
 }
 
 export default new Command({
@@ -100,18 +107,14 @@ export default new Command({
                 return
             }
 
-            const tracks = searchResult.playlist
-                ? searchResult.tracks
-                : searchResult.tracks.slice(0, 1)
-
-            if (!tracks.length) {
+            if (!searchResult.playlist) {
                 await interactionReply({
                     interaction,
                     content: {
                         embeds: [
                             createErrorEmbed(
-                                'No results',
-                                'No album tracks found.',
+                                'No album found',
+                                'Please provide a Spotify album URL or a more specific album search.',
                             ),
                         ],
                     },
@@ -119,6 +122,7 @@ export default new Command({
                 return
             }
 
+            const tracks = searchResult.tracks
             const firstTrack = tracks[0]
 
             const playResult = await client.player.play(
