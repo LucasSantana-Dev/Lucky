@@ -721,6 +721,44 @@ class GuildService {
             ...metrics,
         }
     }
+
+    async getAllBotGuilds(): Promise<
+        Array<{
+            id: string
+            name: string
+            iconUrl: string | null
+            memberCount: number | null
+            textChannelCount: number | null
+            voiceChannelCount: number | null
+            roleCount: number | null
+        }>
+    > {
+        const client = this.getBotClient()
+        if (!client) {
+            return []
+        }
+
+        const guilds = [...client.guilds.cache.values()]
+
+        return Promise.all(
+            guilds.map(async (guild) => {
+                const metrics = await this.getGuildMetrics(guild.id)
+                const iconUrl = guild.icon
+                    ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64`
+                    : null
+
+                return {
+                    id: guild.id,
+                    name: guild.name,
+                    iconUrl,
+                    memberCount: metrics.memberCount,
+                    textChannelCount: metrics.textChannelCount,
+                    voiceChannelCount: metrics.voiceChannelCount,
+                    roleCount: metrics.roleCount,
+                }
+            }),
+        )
+    }
 }
 
 export const guildService = new GuildService()

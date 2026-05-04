@@ -2,6 +2,7 @@ import { ShieldCheck, AlertTriangle } from 'lucide-react'
 import Skeleton from '@/components/ui/Skeleton'
 import Button from '@/components/ui/Button'
 import GlobalTogglesSection from '@/components/Features/GlobalTogglesSection'
+import BotGuildsSection from '@/components/Admin/BotGuildsSection'
 import { useAuthStore } from '@/stores/authStore'
 import { useFeatures } from '@/hooks/useFeatures'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
@@ -68,7 +69,7 @@ export default function AdminPage() {
     }
 
     return (
-        <main className='p-4 md:p-6 space-y-8'>
+        <main className='p-4 md:p-6 space-y-10'>
             <header className='flex items-center gap-3'>
                 <ShieldCheck className='w-7 h-7 text-lucky-purple' aria-hidden='true' />
                 <h1 className='type-h1 text-lucky-text-primary'>Admin Panel</h1>
@@ -114,6 +115,8 @@ export default function AdminPage() {
                     onToggle={handleGlobalToggle}
                 />
             </section>
+
+            <BotGuildsSection />
         </main>
     )
 }

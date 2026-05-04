@@ -314,6 +314,21 @@ export const api = {
             }>(`/guilds/${guildId}/features/${name}`, { enabled }),
     },
 
+    admin: {
+        getGuilds: () =>
+            apiClient.get<{
+                guilds: Array<{
+                    id: string
+                    name: string
+                    iconUrl: string | null
+                    memberCount: number | null
+                    textChannelCount: number | null
+                    voiceChannelCount: number | null
+                    roleCount: number | null
+                }>
+            }>('/admin/guilds'),
+    },
+
     trackHistory: {
         getHistory: (guildId: string, limit = 50, offset = 0) =>
             apiClient.get<{

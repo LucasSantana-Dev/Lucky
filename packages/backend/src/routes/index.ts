@@ -19,8 +19,10 @@ import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
 import { setupWebhookApiRoutes, setupWebhookPublicRoutes } from './webhooks'
+import { setupAdminRoutes } from './admin'
 import { apiLimiter } from '../middleware/rateLimit'
 import { requireAuth } from '../middleware/auth'
+import { requireAdmin } from '../middleware/requireAdmin'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { errorHandler } from '../middleware/errorHandler'
 import { setupHealthRoutes } from './health'
@@ -84,7 +86,10 @@ export function setupRoutes(app: Express): void {
     setupInternalNotifyRoutes(app)
     setupWebhookPublicRoutes(app)
     app.use('/api/', apiLimiter)
+    app.use('/api/admin', requireAuth, requireAdmin)
+    app.use('/api/toggles/global', requireAuth, requireAdmin)
     setupWebhookApiRoutes(app)
+    setupAdminRoutes(app)
 
     for (const config of guildGuardConfigs) {
         const middleware = config.mode
