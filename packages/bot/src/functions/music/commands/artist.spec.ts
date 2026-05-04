@@ -144,6 +144,26 @@ describe('artist command', () => {
         featureToggleIsEnabledMock.mockResolvedValue(true)
     })
 
+    it('replies with warning when ARTIST_COMMAND feature is disabled', async () => {
+        featureToggleIsEnabledMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
+        await artistCommand.execute({
+            client: createClient(null),
+            interaction,
+        } as any)
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: expect.arrayContaining([
+                        expect.objectContaining({ type: 'warning' }),
+                    ]),
+                    ephemeral: true,
+                }),
+            }),
+        )
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+    })
+
     it('replies with error when not in a guild', async () => {
         const interaction = createInteraction(null)
         await artistCommand.execute({
