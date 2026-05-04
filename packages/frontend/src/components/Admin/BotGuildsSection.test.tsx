@@ -34,7 +34,6 @@ describe('BotGuildsSection', () => {
     })
 
     test('renders guild list with count badge after load', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [makeGuild({ id: '100', name: 'Alpha' }), makeGuild({ id: '200', name: 'Beta' })],
@@ -47,7 +46,6 @@ describe('BotGuildsSection', () => {
     })
 
     test('sorts guilds alphabetically by name', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [
@@ -64,7 +62,6 @@ describe('BotGuildsSection', () => {
     })
 
     test('displays numeric guild stats when present', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [
@@ -94,7 +91,6 @@ describe('BotGuildsSection', () => {
     })
 
     test('shows empty state when no guilds returned', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({ data: { guilds: [] } } as any)
         render(<BotGuildsSection />)
         await waitFor(() =>
@@ -105,7 +101,6 @@ describe('BotGuildsSection', () => {
     })
 
     test('renders guild icon image when iconUrl provided', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: {
                 guilds: [makeGuild({ name: 'Icon Guild', iconUrl: 'https://cdn.discord.com/icon.png' })],
@@ -119,7 +114,6 @@ describe('BotGuildsSection', () => {
     })
 
     test('renders fallback Server icon when iconUrl is null', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(api.admin.getGuilds).mockResolvedValue({
             data: { guilds: [makeGuild({ name: 'No Icon Guild', iconUrl: null })] },
         } as any)
