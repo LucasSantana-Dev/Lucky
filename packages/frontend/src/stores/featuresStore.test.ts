@@ -7,9 +7,7 @@ vi.mock('@/services/api', () => ({
         features: {
             list: vi.fn(),
             getGlobalToggles: vi.fn(),
-            getServerToggles: vi.fn(),
             updateGlobalToggle: vi.fn(),
-            updateServerToggle: vi.fn(),
         },
     },
 }))
@@ -23,7 +21,6 @@ describe('featuresStore', () => {
             globalToggles: {} as never,
             globalToggleProvider: 'environment',
             globalTogglesWritable: false,
-            serverToggles: {},
             isLoading: false,
             loadError: null,
         })
@@ -117,75 +114,6 @@ describe('featuresStore', () => {
         })
     })
 
-    describe('fetchServerToggles', () => {
-        test('should set per-guild toggles', async () => {
-            const toggles = { AUTOPLAY: true }
-            vi.mocked(api.features.getServerToggles).mockResolvedValue({
-                data: { toggles },
-            } as never)
-
-            await useFeaturesStore.getState().fetchServerToggles('guild-1')
-
-            expect(
-                useFeaturesStore.getState().serverToggles['guild-1'],
-            ).toEqual(toggles)
-        })
-
-        test('should set defaults on error for new guild', async () => {
-            vi.mocked(api.features.getServerToggles).mockRejectedValue(
-                new Error('fail'),
-            )
-
-            await useFeaturesStore.getState().fetchServerToggles('guild-2')
-
-            const toggles = useFeaturesStore.getState().serverToggles['guild-2']
-            expect(toggles).toBeDefined()
-            expect(toggles.AUTOPLAY).toBe(true)
-            expect(useFeaturesStore.getState().loadError).toEqual({
-                kind: 'upstream',
-                message: 'fail',
-                scope: 'server',
-            })
-        })
-
-        test('classifies network failures for server toggles', async () => {
-            vi.mocked(api.features.getServerToggles).mockRejectedValue(
-                new ApiError(0, 'offline'),
-            )
-
-            await useFeaturesStore.getState().fetchServerToggles('guild-9')
-
-            expect(useFeaturesStore.getState().loadError).toEqual({
-                kind: 'network',
-                message: 'offline',
-                status: 0,
-                scope: 'server',
-            })
-        })
-
-        test('should keep existing toggles on error', async () => {
-            useFeaturesStore.setState({
-                serverToggles: {
-                    'guild-3': { AUTOPLAY: false } as never,
-                },
-            })
-            vi.mocked(api.features.getServerToggles).mockRejectedValue(
-                new Error('fail'),
-            )
-
-            await useFeaturesStore.getState().fetchServerToggles('guild-3')
-
-            expect(
-                useFeaturesStore.getState().serverToggles['guild-3'].AUTOPLAY,
-            ).toBe(false)
-            expect(useFeaturesStore.getState().loadError).toEqual({
-                kind: 'upstream',
-                message: 'fail',
-                scope: 'server',
-            })
-        })
-    })
-
     describe('updateGlobalToggle', () => {
         test('should update toggle optimistically on success', async () => {
             vi.mocked(api.features.updateGlobalToggle).mockResolvedValue(
@@ -202,39 +130,13 @@ describe('featuresStore', () => {
         })
     })
 
-    describe('updateServerToggle', () => {
-        test('should update server toggle on success', async () => {
-            vi.mocked(api.features.updateServerToggle).mockResolvedValue(
-                undefined as never,
-            )
-
-            await useFeaturesStore
-                .getState()
-                .updateServerToggle('guild-1', 'LYRICS', false)
-
-            expect(
-                useFeaturesStore.getState().serverToggles['guild-1'].LYRICS,
-            ).toBe(false)
-        })
-    })
-
-    describe('getServerToggles', () => {
-        test('should return defaults for unknown guild', () => {
-            const toggles = useFeaturesStore
-                .getState()
-                .getServerToggles('unknown')
-            expect(toggles.AUTOPLAY).toBe(true)
-            expect(toggles.LYRICS).toBe(true)
-        })
-    })
-
     describe('clearLoadError', () => {
         test('resets loadError to null', () => {
             useFeaturesStore.setState({
                 loadError: {
                     kind: 'network',
                     message: 'offline',
-                    scope: 'server',
+                    scope: 'global',
                     status: 0,
                 },
             })

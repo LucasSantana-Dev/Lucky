@@ -9,7 +9,6 @@ import type {
     ServerListing,
     Feature,
     GlobalFeatureToggleResponse,
-    FeatureToggleState,
     GuildMemberContext,
     GuildRoleOption,
     RoleGrant,
