@@ -31,19 +31,6 @@ import {
     normalizeSoundCloudUrl,
 } from './queryUtils'
 
-function isTrackAlreadyQueued(
-    queue: { tracks: { toArray?: () => Array<{ id?: string; url?: string }> } },
-    track: { id?: string; url?: string },
-): boolean {
-    const queuedTracks = queue.tracks.toArray?.() ?? []
-
-    return queuedTracks.some((queuedTrack) => {
-        if (track.id && queuedTrack.id === track.id) return true
-        if (track.url && queuedTrack.url === track.url) return true
-        return queuedTrack === track
-    })
-}
-
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('play')
@@ -216,9 +203,7 @@ export default new Command({
             )
 
             if (!isPlaylist && queue) {
-                if (!isTrackAlreadyQueued(queue, track)) {
-                    moveUserTrackToPriority(queue, track)
-                }
+                moveUserTrackToPriority(queue, track)
             }
 
             // Find the track's actual index in the current queue. The queue
