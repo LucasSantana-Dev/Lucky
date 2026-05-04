@@ -1,3 +1,5 @@
+import { detectSessionLanguageMarkers } from '../languageHeuristics'
+
 export interface SessionMood {
     deepDiveArtist: string | null
     preferLong: boolean
@@ -5,9 +7,6 @@ export interface SessionMood {
     restless: boolean
     dominantLocale: 'spanish' | null
 }
-
-const SPANISH_LOCALE_RE =
-    /\b(?:reggaeton|reggaet[oó]n|dembow|trap latino|latin trap|cumbia|bachata|merengue|ranchera|corrido|vallenato|banda)\b/i // NOSONAR S5852
 
 function parseDurationString(durationStr: string | undefined): number {
     if (!durationStr || typeof durationStr !== 'string') return 0
@@ -111,17 +110,20 @@ export function detectSessionMood(
         }
     }
 
-    // Spanish/Latin locale: check for Spanish genre markers in recent tracks
-    let dominantLocale: 'spanish' | null = null
+    // Spanish/Latin locale: use the shared language heuristic so we pick up
+    // Spanish-distinct accents (ñ ¿ ¡ ü), Spanish-distinct stopwords, and
+    // Latin/Spanish/gospel genre tags — and so a Brazilian-Portuguese session
+    // (which previously slipped through) doesn't get falsely tagged as Spanish.
     const recentForLocale = historyTracks.slice(-15)
-    const hasSpanishMarkers = recentForLocale.some(
-        (t) =>
-            SPANISH_LOCALE_RE.test(t.title ?? '') ||
-            SPANISH_LOCALE_RE.test(t.author ?? ''),
+    const sessionLanguage = detectSessionLanguageMarkers(
+        recentForLocale.map((t) => ({
+            title: t.title,
+            author: t.author,
+        })),
     )
-    if (hasSpanishMarkers) {
-        dominantLocale = 'spanish'
-    }
+    const dominantLocale: 'spanish' | null = sessionLanguage.hasSpanish
+        ? 'spanish'
+        : null
 
     return {
         deepDiveArtist,

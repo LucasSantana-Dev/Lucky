@@ -6,6 +6,7 @@ import {
     trackHistoryService,
     guildSettingsService,
     spotifyLinkService,
+    premiumService,
 } from '@lucky/shared/services'
 import {
     getArtistPopularity,
@@ -14,6 +15,11 @@ import { detectSessionMood, type SessionMood } from './sessionMood'
 import {
     collectRecommendationCandidates,
 } from './candidateCollector'
+import {
+    createArtistTagFetcher,
+    type ArtistTagFetcher,
+} from './artistTagCache'
+import { getGenreFamilies } from './candidateScorer'
 import {
     buildExcludedUrls,
     buildExcludedKeys,
@@ -33,7 +39,11 @@ import {
     buildVcContributionWeights,
 } from '../queueManipulation'
 
+// Autoplay backfill target. Non-premium guilds keep the existing 8-song
+// runway; premium guilds get 2× (16) so large listening sessions rarely
+// run out of queued tracks between bot cycles. See PremiumService.isPremium.
 const AUTOPLAY_BUFFER_SIZE = 8
+const AUTOPLAY_BUFFER_SIZE_PREMIUM = 16
 const HISTORY_SEED_LIMIT = 3
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
@@ -75,7 +85,10 @@ async function _replenishQueue(
 
         purgeDuplicatesOfCurrentTrack(queue, currentTrack)
 
-        const missingTracks = AUTOPLAY_BUFFER_SIZE - queue.tracks.size
+        const bufferSize = (await premiumService.isPremium(queue.guild.id))
+            ? AUTOPLAY_BUFFER_SIZE_PREMIUM
+            : AUTOPLAY_BUFFER_SIZE
+        const missingTracks = bufferSize - queue.tracks.size
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
@@ -185,6 +198,30 @@ async function _replenishQueue(
             : null
         const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
+
+        // Tag-driven genre context (Phase 2). One Last.fm artist-tag cache for
+        // the whole pass — every candidate collector reuses it, plus the
+        // current track + recent history. Falls through to no-op when Last.fm
+        // is not configured.
+        const getArtistTags: ArtistTagFetcher = createArtistTagFetcher()
+        const currentTrackTags = await getArtistTags(currentTrack.author)
+        const sessionGenreFamilies = await detectSessionGenreFamilies(
+            historyTracks,
+            getArtistTags,
+        )
+        const candidateGenreContext = {
+            getArtistTags,
+            currentTrackTags,
+            sessionGenreFamilies,
+        }
+        debugLog({
+            message: 'Autoplay: genre context built',
+            data: {
+                guildId,
+                currentTrackTagCount: currentTrackTags.length,
+                sessionGenreFamilies: Array.from(sessionGenreFamilies),
+            },
+        })
         const candidates = await collectRecommendationCandidates(
             queue,
             seedTracks,
@@ -204,6 +241,7 @@ async function _replenishQueue(
             implicitLikeKeys,
             sessionMood,
             currentFeatures,
+            candidateGenreContext,
         )
         debugLog({
             message: 'Autoplay: recommendation candidates',
@@ -230,6 +268,7 @@ async function _replenishQueue(
                 implicitLikeKeys,
                 sessionMood,
                 contributionWeights,
+                candidateGenreContext,
             )
             debugLog({
                 message: 'Autoplay: last.fm candidates',
@@ -434,6 +473,50 @@ function buildRecentArtists(
             .filter(Boolean)
             .map((artist) => artist.toLowerCase()),
     )
+}
+
+/**
+ * Look up Last.fm tags for the most recent unique artists in history and
+ * derive the dominant genre families. Returns a non-empty set only when at
+ * least 3 of the recent tracks resolve to a single family — this matches
+ * `sessionMood`'s "deep dive" threshold and prevents single-track outliers
+ * from flipping the cross-genre veto on a genuinely mixed session.
+ */
+async function detectSessionGenreFamilies(
+    historyTracks: { author?: string }[],
+    getArtistTags: ArtistTagFetcher,
+): Promise<Set<string>> {
+    if (historyTracks.length === 0) return new Set()
+
+    const recentArtists = Array.from(
+        new Set(
+            historyTracks
+                .slice(-10)
+                .map((t) => t.author?.trim())
+                .filter((a): a is string => !!a),
+        ),
+    ).slice(0, 8)
+
+    if (recentArtists.length === 0) return new Set()
+
+    const artistTagSets = await Promise.all(
+        recentArtists.map((artist) => getArtistTags(artist)),
+    )
+
+    const familyCounts = new Map<string, number>()
+    for (const tags of artistTagSets) {
+        if (tags.length === 0) continue
+        const families = getGenreFamilies(tags)
+        for (const family of families) {
+            familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1)
+        }
+    }
+
+    const dominant = new Set<string>()
+    for (const [family, count] of familyCounts) {
+        if (count >= 3) dominant.add(family)
+    }
+    return dominant
 }
 
 function buildArtistFrequency(

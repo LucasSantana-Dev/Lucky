@@ -12,7 +12,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 | Backend API   | Express 5                       | Lightweight, no NestJS overhead                     |
 | Database      | Prisma 7 + PostgreSQL           | Single schema, type‑safe client                     |
 | Cache         | ioredis                         | Stable Redis client                                 |
-| Feature flags | unleash-client                  | Not deprecated; optional, env fallback              |
+| Feature flags | @vercel/flags-core              | Vercel global flags with env fallback               |
 | Frontend      | Vite 7, React 19, Tailwind 4    | Fast dev, stable UI stack                           |
 | Validation    | Zod 3                           | Type‑safe schemas; Zod 4 is optional upgrade        |
 
@@ -28,7 +28,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 
 - **Core**: `@prisma/client`, `ioredis`, `zod`, `dotenv`, `uuid`, `chalk` – all current and maintained.
 - **Observability**: `@sentry/node` – keep on recent patch (e.g. 10.37).
-- **Feature flags**: `unleash-client` 5.x – not deprecated; 6.x is a major (check changelog before upgrading).
+- **Feature flags**: `@vercel/flags-core` – global flag evaluation via `FLAGS`; per-guild overrides remain in PostgreSQL.
 - **Optional**: `@infisical/sdk` – optional; no hard dependency.
 
 ### `packages/bot`
@@ -55,7 +55,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 ## Reliability and deprecation
 
 - **Discord.js 14** and **discord-player 7**: Actively maintained (2025); no change needed for “reliable” choice.
-- **unleash-client**: Not deprecated; 6.x is a major version – upgrade when ready with changelog review.
+- **@vercel/flags-core**: Vercel-managed global flags. Keep `FEATURE_*` fallbacks for local development and outages.
 - **module-alias**: Legacy; TypeScript + tsup resolve paths. Removed from bot; use `paths` in `tsconfig` + bundler.
 - **Prisma 7**: Current; 7.3 is a minor – safe to adopt. Keep a single `@prisma/client` version across workspace (e.g. root or shared).
 - **Zod 3**: Stable. Zod 4 has breaking changes; upgrade only when you can run full validation and type checks.
@@ -72,7 +72,7 @@ This document summarizes the project’s NPM dependencies: what is used where, w
 1. **Low risk**: Patch/minor updates – Prisma 7.2 → 7.3, Sentry 10.34 → 10.37, ioredis, ws, etc. Run tests and typecheck.
 2. **Backend types**: `@types/cors`, `@types/express`, `@types/express-session` are in backend devDependencies. Root has no `cors` or `@types/cors` (backend-only).
 3. **Bot cleanup**: `module-alias` removed from bot. Keep `unfetch`/`isomorphic-unfetch` in tsup `external` so a transitive dependency resolves at build time.
-4. **Major upgrades**: Tailwind 4, React 19, and Vite 7 are done. Future upgrades: Zod 4 (when @hookform/resolvers supports it), unleash-client 6 – plan with docs and tests.
+4. **Major upgrades**: Tailwind 4, React 19, and Vite 7 are done. Future upgrades: Zod 4 when @hookform/resolvers supports it.
 
 ## Scripts and tooling
 

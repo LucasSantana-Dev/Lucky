@@ -12,6 +12,7 @@ import {
     normalizeTrackKey,
 } from '../queueManipulation'
 import { isDuplicateCandidate } from './diversitySelector'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 
 export type ScoredTrack = {
     track: Track
@@ -34,12 +35,21 @@ export function shouldIncludeCandidate(
 /**
  * Add or update a candidate in the scored pool.
  * Keeps the higher-scored version if a duplicate key exists.
+ *
+ * Non-finite scores (e.g. the cross-locale `-Infinity` hard-reject from
+ * `calculateRecommendationScore`) are dropped here so callers don't need to
+ * remember the in-place guard before every call. Any per-source boost
+ * (`+ LASTFM_SCORE_BOOST`, `* match`, `+ GENRE_SCORE_BOOST`) that runs on a
+ * `-Infinity` base stays non-finite, so this gate covers the boosted-score
+ * caller patterns too.
  */
 export function upsertScoredCandidate(
     candidates: Map<string, ScoredTrack>,
     candidate: Track,
     recommendation: { score: number; reason: string },
 ): void {
+    if (!Number.isFinite(recommendation.score)) return
+
     const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
     const candidateKey =
         normalizedKey !== '::' ? normalizedKey : (candidate.id || candidate.url || normalizeTrackKey(candidate.title, candidate.author))
@@ -81,8 +91,17 @@ export async function collectRecommendationCandidates(
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
     currentFeatures: SpotifyAudioFeatures | null = null,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies =
+        genreContext.sessionGenreFamilies ?? new Set<string>()
 
     // Collect from Spotify Recommendations API
     await collectSpotifyRecommendationCandidates(
@@ -104,6 +123,7 @@ export async function collectRecommendationCandidates(
         implicitLikeKeys,
         sessionMood,
         currentFeatures,
+        { getArtistTags, currentTrackTags, sessionGenreFamilies },
     )
 
     // Collect from seed track searches (YouTube, Spotify similar)
@@ -128,6 +148,7 @@ export async function collectRecommendationCandidates(
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
+            const tags = await getArtistTags(candidate.author)
             const rec = calculateRecommendationScore(
                 candidate,
                 currentTrack,
@@ -141,10 +162,14 @@ export async function collectRecommendationCandidates(
                 implicitLikeKeys,
                 dislikedWeights,
                 sessionMood,
+                false,
+                {
+                    candidateTags: tags,
+                    currentTrackTags,
+                    sessionGenreFamilies,
+                },
             )
-            if (rec.score !== -Infinity) {
-                upsertScoredCandidate(candidates, candidate, rec)
-            }
+            upsertScoredCandidate(candidates, candidate, rec)
         }
     }
 

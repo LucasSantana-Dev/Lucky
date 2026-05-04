@@ -123,6 +123,24 @@
   --color-lucky-blue: #5865f2;
   --color-lucky-purple: #5865f2;
 
+  /* Short-form aliases for the 2026-04-21 redesign port.
+     Values match the existing --color-lucky-* tokens. Keep both during
+     migration; the --lucky-* aliases will be dropped in a later cleanup PR
+     after every page has been ported. Decision: docs/decisions/2026-04-21-redesign-port-target.md */
+  --color-canvas: #0f1117;
+  --color-sidebar: #161b22;
+  --color-panel: #1c2129;
+  --color-elevated: #222831;
+  --color-highlight: #2a3140;
+  --color-brand-discord: #5865f2;
+  --color-brand-accent: #ec4899;
+  --color-text-strong: #e6edf3;
+  --color-text-body: #adbac7;
+  --color-text-muted: #768390;
+  --color-text-subtle: #545d68;
+  --shadow-soft: 0 4px 16px rgb(0 0 0 / 0.3);
+  --shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
+
   --font-lucky-display: 'Sora', 'Segoe UI', system-ui, sans-serif;
   --font-lucky-body: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   --font-lucky-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
@@ -309,6 +327,21 @@
   box-shadow: var(--lucky-shadow-soft);
 }
 
+@utility discord-gradient {
+  background: linear-gradient(135deg, #ec4899 0%, #fb923c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@utility lucky-focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(88 101 242 / 0.4);
+  }
+}
+
 @layer base {
   :root {
     --background: 216 13% 7%;
@@ -471,7 +504,56 @@
     position: relative;
     min-height: 100vh;
     color: var(--lucky-text-primary);
+    isolation: isolate;
+    overflow-x: clip;
     background-color: var(--lucky-surface-canvas);
+    background-image:
+      radial-gradient(circle at 20% 0%, rgb(236 72 153 / 0.08), transparent 34%),
+      radial-gradient(circle at 85% 10%, rgb(251 146 60 / 0.06), transparent 28%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 18%),
+      linear-gradient(180deg, var(--lucky-surface-canvas), var(--lucky-surface-canvas));
+  }
+
+  .lucky-shell-authenticated {
+    background-image:
+      linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent 14%),
+      linear-gradient(135deg, rgb(236 72 153 / 0.05), rgb(251 146 60 / 0.02) 42%, transparent 72%),
+      linear-gradient(180deg, var(--lucky-surface-canvas), var(--lucky-surface-canvas));
+  }
+
+  .lucky-shell-authenticated .lucky-shell-header {
+    background-color: rgb(15 17 23 / 0.92);
+    backdrop-filter: none;
+  }
+
+  .lucky-skip-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 50;
+    border: 1px solid var(--lucky-border-strong);
+    border-radius: 9999px;
+    background: var(--lucky-bg-secondary);
+    padding: 0.75rem 1rem;
+    font-family: var(--font-lucky-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--lucky-text-primary);
+    box-shadow: var(--lucky-shadow-panel);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-180%);
+    transition: transform 160ms ease, opacity 160ms ease, border-color 160ms ease,
+      background-color 160ms ease;
+
+    &:focus-visible {
+      opacity: 1;
+      pointer-events: auto;
+      outline: none;
+      transform: translateY(0);
+      border-color: rgb(88 101 242 / 0.55);
+      box-shadow: 0 0 0 3px rgb(88 101 242 / 0.25), var(--lucky-shadow-panel);
+    }
   }
 
   .lucky-focus-visible:focus-visible {

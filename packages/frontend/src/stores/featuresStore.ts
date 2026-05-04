@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import type { Feature, FeatureToggleName, FeatureToggleState } from '@/types'
+import type {
+    Feature,
+    FeatureToggleName,
+    FeatureToggleState,
+    GlobalFeatureToggleProvider,
+} from '@/types'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 
@@ -67,6 +72,8 @@ function classifyFeatureLoadError(
 interface FeaturesState {
     features: Feature[]
     globalToggles: FeatureToggleState
+    globalToggleProvider: GlobalFeatureToggleProvider
+    globalTogglesWritable: boolean
     serverToggles: Record<string, FeatureToggleState>
     isLoading: boolean
     loadError: FeatureLoadErrorState | null
@@ -96,6 +103,15 @@ const createDefaultToggles = (): FeatureToggleState => {
         'QUEUE_MANAGEMENT',
         'REACTION_ROLES',
         'ROLE_MANAGEMENT',
+        'MODERATION',
+        'AUTOMOD',
+        'CUSTOM_COMMANDS',
+        'AUTO_MESSAGES',
+        'SERVER_LOGS',
+        'WEBAPP',
+        'TWITCH_NOTIFICATIONS',
+        'LASTFM_INTEGRATION',
+        'WELCOME_MESSAGES',
     ]
     return toggleNames.reduce((acc, name) => {
         acc[name] = true
@@ -108,6 +124,8 @@ const defaultToggles = createDefaultToggles()
 export const useFeaturesStore = create<FeaturesState>((set, get) => ({
     features: [],
     globalToggles: defaultToggles,
+    globalToggleProvider: 'environment',
+    globalTogglesWritable: false,
     serverToggles: {},
     isLoading: false,
     loadError: null,
@@ -140,12 +158,16 @@ export const useFeaturesStore = create<FeaturesState>((set, get) => ({
             const response = await api.features.getGlobalToggles()
             set({
                 globalToggles: response.data.toggles,
+                globalToggleProvider: response.data.provider ?? 'environment',
+                globalTogglesWritable: response.data.writable ?? false,
                 isLoading: false,
                 loadError: null,
             })
         } catch (error) {
             set({
                 globalToggles: defaultToggles,
+                globalToggleProvider: 'environment',
+                globalTogglesWritable: false,
                 isLoading: false,
                 loadError: classifyFeatureLoadError(error, 'global'),
             })

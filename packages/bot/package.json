@@ -1,6 +1,6 @@
 {
     "name": "@lucky/bot",
-    "version": "2.6.140",
+    "version": "2.7.0",
     "description": "Discord bot application",
     "type": "module",
     "main": "./dist/index.js",
@@ -20,18 +20,18 @@
         "@discordjs/builders": "^1.14.1",
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
-        "@sentry/node": "^10.47.0",
+        "@sentry/node": "^10.51.0",
         "chalk": "^5.6.2",
         "discord-player": "^7.1.0",
         "discord-player-spotify": "^1.1.9",
         "discord-player-youtubei": "^3.0.0-beta.4",
-        "discord.js": "^14.26.2",
-        "dotenv": "^17.4.1",
+        "discord.js": "^14.26.4",
+        "dotenv": "^17.4.2",
         "ffmpeg-static": "^5.3.0",
-        "lru-cache": "^10.4.3",
+        "lru-cache": "^11.3.5",
         "play-dl": "^1.9.7",
         "ws": "^8.19.0",
-        "youtube-dl-exec": "^3.1.3",
+        "youtube-dl-exec": "^3.1.5",
         "youtubei.js": "^16.0.1"
     },
     "devDependencies": {
@@ -42,6 +42,6 @@
         "ts-jest": "^29.4.9",
         "tsup": "^8.5.1",
         "tsx": "^4.21.0",
-        "typescript": "^5.9.3"
+        "typescript": "^6.0.3"
     }
 }

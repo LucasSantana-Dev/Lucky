@@ -58,7 +58,7 @@ jobs:
 
             - name: SonarCloud Scan (PR — quality gate blocks merge)
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request'
-              uses: SonarSource/sonarqube-scan-action@v7
+              uses: SonarSource/sonarqube-scan-action@v8
               with:
                   args: -Dsonar.qualitygate.wait=true
               env:
@@ -66,7 +66,7 @@ jobs:
 
             - name: SonarCloud Scan (main — informational, non-blocking)
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'push'
-              uses: SonarSource/sonarqube-scan-action@v7
+              uses: SonarSource/sonarqube-scan-action@v8
               with:
                   args: -Dsonar.qualitygate.wait=false
               env:

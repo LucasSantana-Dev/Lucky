@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.148] - 2026-04-20
+
+### Added
+- feat(bot): `/social` — 6 roleplay subcommands (hug, pat, kiss, dance, bonk, wave) with deterministic GIF rotation by (sender, target, action, day). Targets other users or falls back to self-phrase. No Tenor API dependency, no env vars, auto-discovered (#731)
+- feat(bot): `/leaderboard tracks|artists [limit]` — top N music plays per guild via the existing `trackHistoryService.getTopTracks/getTopArtists` aggregation. Medal emojis for top 3, padded rank for 4–10, empty-state handling (#733)
+- feat(bot): `/birthday set|clear` — month + day only (no year, no age), new `MemberBirthday` Prisma model with `@@unique([guildId, userId])` + `@@index([guildId, month, day])`. Validates Feb 30 rejected, Feb 29 accepted (#738)
+
+### Fixed
+- fix(ci): force `npm ci` in `preactjs/compressed-size-action` — defaulted to pnpm when both lockfiles existed, breaking every PR with frontend changes (#726)
+
+### Changed
+- chore(backend): downgrade cached-guild fallback log from warn to info — the event is expected steady-state, not a problem (#741)
+
+## [2.6.147] - 2026-04-20
+
+### Fixed
+- fix(artists): suggestions cache pre-warm now waits up to 30s for Redis client `isHealthy()` before doing work — without it the call fired at module import time before redis finished its handshake and silently no-op'd. Adds infoLog/warnLog at every branch so cache state is visible in logs (#734)
+
+## [2.6.146] - 2026-04-19
+
+### Fixed
+- fix(artists): pre-warm popular-artists Redis cache at backend startup so `/api/artists/suggestions` doesn't take 9s and 503 every time on a cold cache. Sentry LUCKY-35 was firing post-v2.6.145 because users without `user-top-read` OAuth scope hit the empty 503 path consistently. Now the route serves popular artists from Redis within milliseconds (#724)
+
+## [2.6.145] - 2026-04-19
+
+### Fixed
+- fix(artists): Discover tab no longer shows letter-only placeholders when Spotify is silent — drops the image-less STATIC_FALLBACK_ARTISTS path, returns 503 instead, and lets the existing frontend retry UI handle it (#721)
+- fix(settings): saving an autoplay genre on a fresh guild no longer silently 500s — `updateGuildSettings` now upserts (mirrors `setGuildSettings`) so it seeds defaults on first write. Also unblocks every bot `/autoplay` subcommand for first-time guilds (#721)
+
+## [2.6.144] - 2026-04-18
+
+### Fixed
+- fix(artists): static last-resort fallback when Spotify rate-limits every path (user-top-read scope missing on stale tokens + popular-search 429s + Redis cache cold) — adds 52 hardcoded artist names so the suggestions grid is never blank (#717)
+
+## [2.6.143] - 2026-04-18
+
+### Fixed
+- fix(artists): cache the per-user merged top-artists (3 time-ranges) in Redis under `artist:user:top:v1:<discordUserId>` for 15 min — the suggestions endpoint was taking 9.8–10s on every page load (Spotify multi-time-range fetch + popular fallback) and tripping the frontend's 10s axios timeout (#715)
+- fix(artists): bump axios timeout for `getSuggestions` to 30s as a cold-cache safety net (#715)
+
+## [2.6.142] - 2026-04-18
+
+### Fixed
+- fix(artists): active tab's count badge now uses bg-white/20 + text-white so the count stays readable on the brand-colored button (was previously brand-on-brand → invisible) (#713)
+- fix(artists): suggestions errors now show the actual error message + a "Try again" button; previously every failure (503, 500, network) was silently masked as the generic "No suggestions available" empty state (#713)
+
+## [2.6.141] - 2026-04-18
+
+### Added
+- feat(artists): Musical Taste page now uses 3 tabs (Discover · Preferred · Blocked) with URL-synced state via `?tab=`. Each artist tile in Discover gets explicit hover Prefer (♥) and Block (✕) action buttons, separating the prefer/block intent from the related-artist expand. Sidebar label renamed "Preferred Artists" → "Musical Taste" (#711)
+
+### Fixed
+- fix(artists): suggestions grid now shows a loading spinner on first paint instead of briefly flashing "No suggestions available" (#711)
+
+### Changed
+- chore: rename sidebar entry to "Musical Taste" to match the redesigned page (#711)
+
 ## [2.6.140] - 2026-04-18
 
 ### Added

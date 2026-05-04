@@ -6,6 +6,7 @@ import {
     consumeBlendedSeedSlice,
 } from './lastFmSeeds'
 import { getSimilarTracks } from '../../../lastfm'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import {
     cleanSearchQuery,
     cleanTitle,
@@ -50,6 +51,11 @@ export async function collectLastFmCandidates(
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
     contributionWeights?: Map<string, number>,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
@@ -89,6 +95,11 @@ export async function collectLastFmCandidates(
 
     if (seedSlice.length === 0) return
 
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies =
+        genreContext.sessionGenreFamilies ?? new Set<string>()
+
     for (const seed of seedSlice) {
         const query = cleanSearchQuery(seed.title, seed.artist)
         const tracks = await searchLastFmQuery(queue, query, requestedBy)
@@ -98,6 +109,7 @@ export async function collectLastFmCandidates(
             const normalizedKey = normalizeTrackKey(track.title, track.author)
             const dislikedWeight = dislikedWeights.get(normalizedKey)
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
+            const tags = await getArtistTags(track.author)
             const rec = calculateRecommendationScore(
                 track,
                 currentTrack,
@@ -112,8 +124,12 @@ export async function collectLastFmCandidates(
                 dislikedWeights,
                 sessionMood,
                 true,
+                {
+                    candidateTags: tags,
+                    currentTrackTags,
+                    sessionGenreFamilies,
+                },
             )
-            if (rec.score === -Infinity) continue
             upsertScoredCandidate(candidates, track, {
                 score: rec.score + LASTFM_SCORE_BOOST,
                 reason: rec.reason
@@ -139,6 +155,7 @@ export async function collectLastFmCandidates(
                 const dislikedWeight = dislikedWeights.get(normalizedKey)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
+                const tags = await getArtistTags(track.author)
                 const rec = calculateRecommendationScore(
                     track,
                     currentTrack,
@@ -151,8 +168,13 @@ export async function collectLastFmCandidates(
                     implicitDislikeKeys,
                     implicitLikeKeys,
                     dislikedWeights,
-                    null,
+                    sessionMood,
                     true,
+                    {
+                        candidateTags: tags,
+                        currentTrackTags,
+                        sessionGenreFamilies,
+                    },
                 )
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),

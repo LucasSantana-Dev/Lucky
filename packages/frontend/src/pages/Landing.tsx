@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useCountUp } from '@/hooks/useCountUp'
 import Button from '@/components/ui/Button'
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import { useReducedMotion, motion } from 'framer-motion'
 import { api } from '@/services/api'
 import { Music, Shield, Zap, BarChart3, Palette, Sparkles, ChevronDown, Server, Users, Radio } from 'lucide-react'
@@ -16,6 +18,7 @@ const NEON_BACKDROP = 'bg-gradient-to-br from-slate-950 via-purple-950 to-slate-
 export default function Landing() {
     const login = useAuthStore((state) => state.login)
     const prefersReducedMotion = useReducedMotion()
+    const { t } = useTranslation()
     const [stats, setStats] = useState<{
         totalGuilds: number
         totalUsers: number
@@ -33,32 +36,55 @@ export default function Landing() {
         delay: 500,
     })
 
+    const displayGuildCount = prefersReducedMotion ? stats?.totalGuilds ?? 0 : guildCount
+    const displayUserCount = prefersReducedMotion ? stats?.totalUsers ?? 0 : userCount
+
     useEffect(() => {
+        let isActive = true
+
         const fetchStats = async () => {
             try {
                 const response = await api.stats.getPublic()
+                if (!isActive) {
+                    return
+                }
+
                 setStats(response.data)
             } catch (error) {
+                if (!isActive) {
+                    return
+                }
+
                 console.error('Failed to fetch stats:', error)
             } finally {
-                setStatsLoading(false)
+                if (isActive) {
+                    setStatsLoading(false)
+                }
             }
         }
 
         fetchStats()
+
+        return () => {
+            isActive = false
+        }
     }, [])
 
     usePageMetadata({
-        title: 'Lucky — Discord Bot with Music, Moderation & Dashboard',
-        description: 'The all-in-one Discord bot for your community. Music, moderation, custom commands, auto-mod, and a full web dashboard. Free forever.',
+        title: t('landing.meta.title'),
+        description: t('landing.meta.description'),
     })
 
-    const logoAnimation = prefersReducedMotion
-        ? {}
-        : {
-              animate: { scale: [1, 1.03, 1] },
-              transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
-          }
+    const logoAnimation = useMemo(
+        () =>
+            prefersReducedMotion
+                ? {}
+                : {
+                      animate: { scale: [1, 1.03, 1] },
+                      transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+                  },
+        [prefersReducedMotion],
+    )
 
     return (
         <div className='lucky-shell min-h-screen dark text-white'>
@@ -69,7 +95,12 @@ export default function Landing() {
             <FeatureSection />
 
             {/* Stats Strip */}
-            <StatsSection statsLoading={statsLoading} guildCount={guildCount} userCount={userCount} serversOnline={stats?.serversOnline} />
+            <StatsSection
+                statsLoading={statsLoading}
+                guildCount={displayGuildCount}
+                userCount={displayUserCount}
+                serversOnline={stats?.serversOnline}
+            />
 
             {/* FAQ */}
             <FAQSection />
@@ -81,11 +112,20 @@ export default function Landing() {
 }
 
 // Hero Section with Animated Logo
-function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: () => void }) {
+type HeroSectionProps = {
+    logoAnimation: Record<string, unknown>
+    onLogin: () => void
+}
+
+function HeroSection({ logoAnimation, onLogin }: HeroSectionProps) {
     const prefersReducedMotion = useReducedMotion()
+    const { t } = useTranslation()
 
     return (
         <section className={`min-h-screen flex items-center justify-center relative px-4 py-16 md:px-8 ${NEON_BACKDROP}`}>
+            <div className='absolute top-4 right-4 z-20'>
+                <LanguageSwitcher />
+            </div>
             {/* Animated neon glow blobs */}
             {!prefersReducedMotion && (
                 <>
@@ -107,18 +147,22 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
                         src='/lucky-logo.png'
                         alt='Lucky Bot'
                         className='h-32 w-32 mx-auto drop-shadow-2xl filter saturate-150'
-                        loading='lazy'
+                        width='128'
+                        height='128'
+                        loading='eager'
+                        fetchPriority='high'
+                        decoding='async'
                     />
                 </motion.div>
 
                 {/* Headline with gradient text */}
                 <div className='space-y-4'>
                     <h1 className='text-5xl md:text-7xl font-bold leading-tight'>
-                        <span className='block text-white'>All-in-one Discord bot</span>
-                        <span className='block bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent'>for your community</span>
+                        <span className='block text-white'>{t('landing.hero.headlineLine1')}</span>
+                        <span className='block bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent'>{t('landing.hero.headlineLine2')}</span>
                     </h1>
                     <p className='text-lg md:text-xl text-gray-300 max-w-2xl mx-auto font-light'>
-                        Music, moderation, custom commands, auto-mod, and a full web dashboard. Built for vibes.
+                        {t('landing.hero.subtitle')}
                     </p>
                 </div>
 
@@ -129,19 +173,20 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4, duration: 0.6 }}
                 >
-                    <Button
-                        onClick={() => window.open(BOT_INVITE_URL, '_blank')}
-                        variant='primary'
-                        className='px-8 py-3 h-12 rounded-lg bg-gradient-to-r from-pink-500 to-orange-400 text-white font-semibold hover:shadow-lg hover:shadow-pink-500/50 transition-all duration-300 border-0'
+                    <a
+                        href={BOT_INVITE_URL}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='inline-flex h-12 items-center justify-center rounded-lg border-0 bg-gradient-to-r from-pink-500 to-orange-400 px-8 py-3 font-semibold text-white transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950'
                     >
-                        Add to Discord
-                    </Button>
+                        {t('landing.hero.ctaPrimary')}
+                    </a>
                     <Button
                         onClick={onLogin}
                         variant='secondary'
                         className='px-8 py-3 h-12 rounded-lg border-2 border-pink-500/50 text-white hover:bg-pink-500/10 hover:border-pink-500 transition-all duration-300'
                     >
-                        Open Dashboard
+                        {t('landing.hero.ctaSecondary')}
                     </Button>
                 </motion.div>
             </motion.div>
@@ -151,52 +196,55 @@ function HeroSection({ logoAnimation, onLogin }: { logoAnimation: any; onLogin: 
 
 // Feature Grid with Neon Icon Orbs
 function FeatureSection() {
-    const prefersReducedMotion = useReducedMotion()
+    const { t } = useTranslation()
 
-    const features = [
-        {
-            icon: Music,
-            title: 'Music',
-            desc: 'Spotify-powered autoplay with genre matching',
-            color: 'from-pink-500/20 to-pink-600/10',
-            iconColor: 'text-pink-400',
-        },
-        {
-            icon: Shield,
-            title: 'Auto-mod',
-            desc: 'Spam/caps/link filters with per-guild rules',
-            color: 'from-orange-500/20 to-orange-600/10',
-            iconColor: 'text-orange-400',
-        },
-        {
-            icon: Zap,
-            title: 'Custom Commands',
-            desc: 'User-defined responses with variable interpolation',
-            color: 'from-purple-500/20 to-purple-600/10',
-            iconColor: 'text-purple-400',
-        },
-        {
-            icon: BarChart3,
-            title: 'Web Dashboard',
-            desc: 'Full control from your browser',
-            color: 'from-blue-500/20 to-blue-600/10',
-            iconColor: 'text-blue-400',
-        },
-        {
-            icon: Palette,
-            title: 'Embed Builder',
-            desc: 'Rich embeds without JSON',
-            color: 'from-cyan-500/20 to-cyan-600/10',
-            iconColor: 'text-cyan-400',
-        },
-        {
-            icon: Sparkles,
-            title: 'Artist Preferences',
-            desc: 'Tailor autoplay to your taste',
-            color: 'from-amber-500/20 to-amber-600/10',
-            iconColor: 'text-amber-400',
-        },
-    ]
+    const features = useMemo(
+        () => [
+            {
+                icon: Music,
+                titleKey: 'landing.features.music.title',
+                descKey: 'landing.features.music.description',
+                color: 'from-pink-500/20 to-pink-600/10',
+                iconColor: 'text-pink-400',
+            },
+            {
+                icon: Shield,
+                titleKey: 'landing.features.autoMod.title',
+                descKey: 'landing.features.autoMod.description',
+                color: 'from-orange-500/20 to-orange-600/10',
+                iconColor: 'text-orange-400',
+            },
+            {
+                icon: Zap,
+                titleKey: 'landing.features.customCommands.title',
+                descKey: 'landing.features.customCommands.description',
+                color: 'from-purple-500/20 to-purple-600/10',
+                iconColor: 'text-purple-400',
+            },
+            {
+                icon: BarChart3,
+                titleKey: 'landing.features.webDashboard.title',
+                descKey: 'landing.features.webDashboard.description',
+                color: 'from-blue-500/20 to-blue-600/10',
+                iconColor: 'text-blue-400',
+            },
+            {
+                icon: Palette,
+                titleKey: 'landing.features.embedBuilder.title',
+                descKey: 'landing.features.embedBuilder.description',
+                color: 'from-cyan-500/20 to-cyan-600/10',
+                iconColor: 'text-cyan-400',
+            },
+            {
+                icon: Sparkles,
+                titleKey: 'landing.features.artistPreferences.title',
+                descKey: 'landing.features.artistPreferences.description',
+                color: 'from-amber-500/20 to-amber-600/10',
+                iconColor: 'text-amber-400',
+            },
+        ],
+        [],
+    )
 
     return (
         <section className='bg-gradient-to-b from-slate-900 to-slate-950 px-4 py-20 md:px-8 relative overflow-hidden'>
@@ -208,55 +256,64 @@ function FeatureSection() {
 
             <div className='relative mx-auto max-w-6xl space-y-12'>
                 <motion.div className='text-center' initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
-                    <h2 className='text-4xl md:text-5xl font-bold mb-4'>Powerful Features</h2>
-                    <p className='text-gray-300 text-lg'>Everything you need to manage your Discord server</p>
+                    <h2 className='text-4xl md:text-5xl font-bold mb-4'>{t('landing.features.heading')}</h2>
+                    <p className='text-gray-300 text-lg'>{t('landing.features.subheading')}</p>
                 </motion.div>
 
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                <ul className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'>
                     {features.map((feature, idx) => {
                         const Icon = feature.icon
                         return (
-                            <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                                viewport={{ once: true }}
-                                whileHover={prefersReducedMotion ? {} : { y: -4 }}
-                                className={`rounded-xl border border-white/10 bg-gradient-to-br ${feature.color} backdrop-blur-sm p-6 space-y-4 hover:border-white/20 transition-all duration-300 group cursor-pointer`}
-                            >
-                                <div className={`inline-flex p-3 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors ${feature.iconColor}`}>
-                                    <Icon size={24} />
-                                </div>
-                                <div>
-                                    <h3 className='text-xl font-semibold text-white mb-2'>{feature.title}</h3>
-                                    <p className='text-gray-300 text-sm'>{feature.desc}</p>
-                                </div>
-                            </motion.div>
+                            <li key={feature.titleKey} className='h-full'>
+                                <motion.article
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                                    viewport={{ once: true }}
+                                    className={`h-full rounded-xl border border-white/10 bg-gradient-to-br ${feature.color} backdrop-blur-sm p-6 space-y-4 transition-colors duration-300`}
+                                >
+                                    <div className={`inline-flex rounded-lg bg-white/5 p-3 transition-colors ${feature.iconColor}`}>
+                                        <Icon size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className='mb-2 text-xl font-semibold text-white'>{t(feature.titleKey)}</h3>
+                                        <p className='text-sm text-gray-300'>{t(feature.descKey)}</p>
+                                    </div>
+                                </motion.article>
+                            </li>
                         )
                     })}
-                </div>
+                </ul>
             </div>
         </section>
     )
 }
 
 // Stats Strip with Neon Numbers
-function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: any) {
+type StatsSectionProps = {
+    statsLoading: boolean
+    guildCount: number
+    userCount: number
+    serversOnline?: number
+}
+
+function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: StatsSectionProps) {
+    const { t, i18n } = useTranslation()
+    const locale = i18n.resolvedLanguage ?? i18n.language
     const stats = [
         {
-            label: 'Servers',
-            value: statsLoading ? '---' : `${guildCount.toLocaleString()}${guildCount > 0 ? '+' : ''}`,
+            label: t('landing.stats.servers'),
+            value: statsLoading ? '---' : `${guildCount.toLocaleString(locale)}${guildCount > 0 ? '+' : ''}`,
             icon: Server,
         },
         {
-            label: 'Users',
-            value: statsLoading ? '---' : `${userCount.toLocaleString()}+`,
+            label: t('landing.stats.users'),
+            value: statsLoading ? '---' : `${userCount.toLocaleString(locale)}+`,
             icon: Users,
         },
         {
-            label: 'Status',
-            value: serversOnline ? '✓ Online' : statsLoading ? '---' : '✗ Offline',
+            label: t('landing.stats.status'),
+            value: serversOnline ? t('landing.stats.statusOnline') : statsLoading ? '---' : t('landing.stats.statusOffline'),
             icon: Radio,
             isStatus: true,
         },
@@ -301,40 +358,22 @@ function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: an
 
 // FAQ Section with Smooth Accordions
 function FAQSection() {
+    const { t } = useTranslation()
     const [openIdx, setOpenIdx] = useState<number | null>(null)
 
-    const faqs = [
-        {
-            q: 'Is Lucky free?',
-            a: 'Yes, Lucky is completely free with no premium tier.',
-        },
-        {
-            q: 'What commands does Lucky support?',
-            a: 'Lucky supports 100+ commands across music, moderation, custom commands, and more.',
-        },
-        {
-            q: 'How does autoplay work?',
-            a: 'Autoplay uses Spotify to match similar songs based on artist preferences you set.',
-        },
-        {
-            q: 'Can I self-host Lucky?',
-            a: 'Lucky is hosted and managed by us. You cannot self-host the bot, but you can use the dashboard to configure it.',
-        },
-        {
-            q: 'How do I moderate spam?',
-            a: 'Configure auto-mod rules for spam, caps, links, and more in the dashboard.',
-        },
-        {
-            q: 'Where do I get support?',
-            a: 'Join our Discord support server or open an issue on GitHub.',
-        },
-    ]
+    const faqs = useMemo(() => {
+        const faqKeys = ['free', 'commands', 'autoplay', 'selfHost', 'spam', 'support'] as const
+        return faqKeys.map((key) => ({
+            q: t(`landing.faq.items.${key}.question`),
+            a: t(`landing.faq.items.${key}.answer`),
+        }))
+    }, [t])
 
     return (
         <section className='bg-gradient-to-b from-slate-950 to-slate-900 px-4 py-20 md:px-8'>
             <div className='mx-auto max-w-3xl space-y-8'>
                 <motion.div className='text-center mb-12' initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>
-                    <h2 className='text-4xl md:text-5xl font-bold mb-2'>Frequently Asked Questions</h2>
+                    <h2 className='text-4xl md:text-5xl font-bold mb-2'>{t('landing.faq.heading')}</h2>
                 </motion.div>
 
                 <div className='space-y-3'>
@@ -381,6 +420,7 @@ function FAQSection() {
 
 // Footer with Logo Tile
 function FooterSection() {
+    const { t } = useTranslation()
     return (
         <footer className='bg-slate-950 border-t border-white/10 px-4 py-12 md:px-8'>
             <div className='mx-auto max-w-6xl'>
@@ -390,29 +430,29 @@ function FooterSection() {
                             <img src='/lucky-logo.png' alt='Lucky' className='h-8 w-8' loading='lazy' />
                             <h4 className='font-semibold text-lg'>Lucky</h4>
                         </div>
-                        <p className='text-sm text-gray-400'>Discord bot with music, moderation, and more. Built for vibes.</p>
+                        <p className='text-sm text-gray-400'>{t('landing.footer.tagline')}</p>
                     </motion.div>
                     <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} viewport={{ once: true }}>
-                        <h4 className='font-semibold mb-4'>Links</h4>
+                        <h4 className='font-semibold mb-4'>{t('landing.footer.links')}</h4>
                         <nav className='space-y-2'>
                             <a href='/terms' className='text-sm text-gray-400 hover:text-pink-400 transition-colors block'>
-                                Terms of Service
+                                {t('landing.footer.terms')}
                             </a>
                             <a href='/privacy' className='text-sm text-gray-400 hover:text-pink-400 transition-colors block'>
-                                Privacy Policy
+                                {t('landing.footer.privacy')}
                             </a>
                             <a href='https://github.com/LucasSantana-Dev/Lucky' target='_blank' rel='noreferrer' className='text-sm text-gray-400 hover:text-pink-400 transition-colors block'>
-                                GitHub
+                                {t('landing.footer.github')}
                             </a>
                         </nav>
                     </motion.div>
                     <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} viewport={{ once: true }}>
-                        <h4 className='font-semibold mb-4'>Support</h4>
-                        <p className='text-sm text-gray-400'>Need help? Join our Discord community.</p>
+                        <h4 className='font-semibold mb-4'>{t('landing.footer.support')}</h4>
+                        <p className='text-sm text-gray-400'>{t('landing.footer.supportCopy')}</p>
                     </motion.div>
                 </div>
                 <motion.div className='text-center pt-8 border-t border-white/10' initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }} viewport={{ once: true }}>
-                    <p className='text-xs text-gray-500'>© 2026 Lucky. All rights reserved.</p>
+                    <p className='text-xs text-gray-500'>{t('landing.footer.copyright')}</p>
                 </motion.div>
             </div>
         </footer>

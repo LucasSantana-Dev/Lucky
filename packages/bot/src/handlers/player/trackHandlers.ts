@@ -1,5 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
+import { LRUCache } from 'lru-cache'
 import { infoLog, debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { replenishQueue } from '../../utils/music/queueOperations'
@@ -28,10 +29,19 @@ import {
 import { handleQueueExhaustion } from './queueExhaustion'
 
 const MAX_GUILD_ENTRIES = 500
+const TRACK_STATE_TTL_MS = 30 * 60 * 1000
 
-export const lastPlayedTracks = new Map<string, Track>()
+export const lastPlayedTracks = new LRUCache<string, Track>({
+    max: MAX_GUILD_ENTRIES,
+    ttl: TRACK_STATE_TTL_MS,
+    updateAgeOnGet: true,
+})
 
-const guildTrackStartTimes = new Map<string, number>()
+const guildTrackStartTimes = new LRUCache<string, number>({
+    max: MAX_GUILD_ENTRIES,
+    ttl: TRACK_STATE_TTL_MS,
+    updateAgeOnGet: true,
+})
 
 export type TrackHistoryEntry = {
     url: string
@@ -41,7 +51,11 @@ export type TrackHistoryEntry = {
     timestamp: number
 }
 
-export const recentlyPlayedTracks = new Map<string, TrackHistoryEntry[]>()
+export const recentlyPlayedTracks = new LRUCache<string, TrackHistoryEntry[]>({
+    max: MAX_GUILD_ENTRIES,
+    ttl: TRACK_STATE_TTL_MS,
+    updateAgeOnGet: true,
+})
 
 function getTrackRequesterId(track: Track): string | undefined {
     const metadata = track.metadata as { requestedById?: string } | undefined
@@ -73,18 +87,19 @@ async function recordImplicitTrackFeedback(
 ): Promise<void> {
     const requesterId =
         track.requestedBy?.id ??
-        (track.metadata as { requestedById?: string } | undefined)?.requestedById
+        (track.metadata as { requestedById?: string } | undefined)
+            ?.requestedById
     if (!requesterId) return
     const trackKey = normalizeTrackKeyForFeedback(track.title, track.author)
-    await recommendationFeedbackService.recordImplicitFeedback(requesterId, trackKey, type)
+    await recommendationFeedbackService.recordImplicitFeedback(
+        requesterId,
+        trackKey,
+        type,
+    )
 }
 
 function evictOldEntries(): void {
-    if (lastPlayedTracks.size > MAX_GUILD_ENTRIES) {
-        const oldest = lastPlayedTracks.keys().next().value
-        if (oldest) lastPlayedTracks.delete(oldest)
-    }
-    for (const [guildId, entries] of recentlyPlayedTracks) {
+    for (const [guildId, entries] of recentlyPlayedTracks.entries()) {
         if (entries.length > MAX_GUILD_ENTRIES) {
             recentlyPlayedTracks.set(guildId, entries.slice(-MAX_GUILD_ENTRIES))
         }
@@ -259,7 +274,8 @@ const handlePlayerFinish = async (
         if (track) {
             const startTime = guildTrackStartTimes.get(queue.guild.id)
             if (startTime && track.durationMS) {
-                const completionRatio = (Date.now() - startTime) / track.durationMS
+                const completionRatio =
+                    (Date.now() - startTime) / track.durationMS
                 if (completionRatio > 0.8) {
                     await recordImplicitTrackFeedback(track, 'implicit_like')
                 }
@@ -267,7 +283,9 @@ const handlePlayerFinish = async (
             guildTrackStartTimes.delete(queue.guild.id)
         }
 
-        await handleQueueExhaustion(queue, (q, t) => replenishIfAutoplay(q, t ?? track))
+        await handleQueueExhaustion(queue, (q, t) =>
+            replenishIfAutoplay(q, t ?? track),
+        )
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
     }
@@ -304,7 +322,9 @@ const handlePlayerSkip = async (
             guildTrackStartTimes.delete(queue.guild.id)
         }
 
-        await handleQueueExhaustion(queue, (q, t) => replenishIfAutoplay(q, t ?? track))
+        await handleQueueExhaustion(queue, (q, t) =>
+            replenishIfAutoplay(q, t ?? track),
+        )
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })
     }

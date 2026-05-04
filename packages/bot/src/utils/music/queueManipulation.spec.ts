@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals'
 import {
-    replenishQueue,,
+    replenishQueue,
     enrichWithAudioFeatures,
     getGenreFamilies,
-    calculateGenreFamilyPenalty
+    calculateGenreFamilyPenalty,
     shuffleQueue,
     smartShuffleQueue,
     removeTrackFromQueue,
@@ -70,6 +70,9 @@ jest.mock('@lucky/shared/services', () => ({
     spotifyLinkService: {
         getValidAccessToken: jest.fn().mockResolvedValue(null),
     },
+    premiumService: {
+        isPremium: jest.fn(() => Promise.resolve(false)),
+    },
 }))
 
 const consumeLastFmSeedSliceMock = jest.fn()
@@ -84,10 +87,12 @@ jest.mock('./autoplay/lastFmSeeds', () => ({
 
 const getSimilarTracksMock = jest.fn()
 const getTagTopTracksMock = jest.fn()
+const getArtistTopTagsMock = jest.fn()
 
 jest.mock('../../lastfm', () => ({
     getSimilarTracks: (...args: unknown[]) => getSimilarTracksMock(...args),
     getTagTopTracks: (...args: unknown[]) => getTagTopTracksMock(...args),
+    getArtistTopTags: (...args: unknown[]) => getArtistTopTagsMock(...args),
 }))
 
 jest.mock('../../spotify/spotifyApi', () => ({
@@ -170,6 +175,7 @@ describe('queueManipulation.replenishQueue', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -2072,6 +2078,7 @@ describe('queueManipulation.replenishQueue query variation', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -2165,6 +2172,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -2209,6 +2217,7 @@ describe('queueManipulation.selectDiverseCandidates score jitter', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -2269,6 +2278,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
         getBlockedArtistKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -2465,6 +2475,7 @@ describe('queueManipulation — genre candidate collection', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({
@@ -2557,6 +2568,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         getImplicitDislikeKeysMock.mockResolvedValue(new Set())
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
     })
 
     afterEach(() => {
@@ -3704,6 +3716,7 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -3796,6 +3809,7 @@ describe('queueManipulation — Spotify priority', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
@@ -4067,6 +4081,7 @@ describe('queueManipulation — diversity improvements', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         getSimilarTracksMock.mockResolvedValue([])
+        getArtistTopTagsMock.mockResolvedValue([])
         getTrackHistoryMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })

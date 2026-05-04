@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Layout from './Layout'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
@@ -43,6 +43,8 @@ describe('Layout', () => {
         renderLayout('/')
 
         expect(screen.getByTestId('sidebar')).toBeInTheDocument()
+        expect(screen.getByRole('link', { name: /skip to content/i })).toHaveAttribute('href', '#lucky-main-content')
+        expect(screen.getByRole('main')).toHaveAttribute('id', 'lucky-main-content')
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
         expect(
             screen.getByText(
@@ -55,6 +57,14 @@ describe('Layout', () => {
             }),
         ).toBeInTheDocument()
         expect(screen.getByText('Test Server')).toBeInTheDocument()
+    })
+
+    test('skip link focuses the main content', () => {
+        renderLayout('/')
+
+        fireEvent.click(screen.getByRole('link', { name: /skip to content/i }))
+
+        expect(screen.getByRole('main')).toHaveFocus()
     })
 
     test('renders music history route copy', () => {

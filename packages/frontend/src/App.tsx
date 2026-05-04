@@ -7,7 +7,9 @@ import {
     type ReactNode,
 } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ShieldAlert } from 'lucide-react'
+import { Analytics } from '@vercel/analytics/react'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from './stores/authStore'
 import { useGuildStore } from './stores/guildStore'
@@ -58,11 +60,15 @@ function isLegalPath(pathname: string) {
 }
 
 function ForbiddenModulePage({ module }: { module: ModuleKey }) {
+    const { t } = useTranslation()
+    const moduleLabel = t(`modules.${module}`, { defaultValue: module })
     return (
         <EmptyState
             icon={<ShieldAlert className='h-10 w-10' />}
-            title='Access denied'
-            description={`You do not have permission to view the ${module} module for this server.`}
+            title={t('common.accessDenied')}
+            description={t('common.accessDeniedDescription', {
+                module: moduleLabel,
+            })}
         />
     )
 }
@@ -248,6 +254,7 @@ function App() {
                         <LegalRoutes />
                     </Suspense>
                 </ErrorBoundary>
+                <Analytics />
             </div>
         )
     }
@@ -257,6 +264,7 @@ function App() {
         return (
             <div className='dark'>
                 <PageLoader />
+                <Analytics />
             </div>
         )
     }
@@ -276,6 +284,7 @@ function App() {
                         </Routes>
                     </Suspense>
                 </ErrorBoundary>
+                <Analytics />
             </div>
         )
     }
@@ -289,6 +298,7 @@ function App() {
                     </Suspense>
                 </Layout>
             </ErrorBoundary>
+            <Analytics />
         </div>
     )
 }

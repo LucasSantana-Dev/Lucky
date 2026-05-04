@@ -1,7 +1,6 @@
 import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Music, MessageSquare, Shield } from 'lucide-react'
-import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
@@ -83,26 +82,18 @@ export default function ConfigPage() {
                     </h2>
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
                         {modules.map((module) => (
-                            <Card
+                            <button
                                 key={module.id}
-                                className='p-6 hover:bg-lucky-bg-tertiary transition-colors cursor-pointer'
+                                type='button'
+                                className='surface-card group w-full p-6 text-left transition-all duration-200 hover:border-lucky-border-strong hover:bg-lucky-bg-active focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-lucky-brand/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background'
                                 onClick={() => handleModuleClick(module.id)}
-                                role='button'
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault()
-                                        handleModuleClick(module.id)
-                                    }
-                                }}
-                                aria-label={`Configure ${module.name}`}
                             >
                                 <div className='flex items-start gap-4'>
                                     <div
-                                        className='p-3 bg-primary/20 rounded-lg'
+                                        className='rounded-lg bg-lucky-brand/15 p-3 text-lucky-brand transition-colors group-hover:bg-lucky-brand/20'
                                         aria-hidden='true'
                                     >
-                                        <module.icon className='w-6 h-6 text-primary' />
+                                        <module.icon className='h-6 w-6' />
                                     </div>
                                     <div className='flex-1'>
                                         <h3 className='type-h2 text-lucky-text-primary mb-1'>
@@ -113,7 +104,7 @@ export default function ConfigPage() {
                                         </p>
                                     </div>
                                 </div>
-                            </Card>
+                            </button>
                         ))}
                     </div>
                 </section>

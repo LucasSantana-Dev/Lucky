@@ -224,7 +224,7 @@ describe('candidateScorer', () => {
             expect(result.score).toBeLessThan(1)
         })
 
-        it('applies Spanish locale penalty when dominantLocale is null', () => {
+        it('hard-rejects Spanish candidates when session has no Spanish history', () => {
             const current = createTrack()
             const candidate = createTrack({ title: 'Reggaeton Song' })
             const mood: SessionMood = {
@@ -250,8 +250,189 @@ describe('candidateScorer', () => {
                 mood,
             )
 
-            expect(result.score).toBeLessThan(1)
-            expect(result.reason).toContain('genre mismatch: latin/spanish')
+            expect(result.score).toBe(-Infinity)
+            expect(result.reason).toBe(
+                'cross-locale: spanish in non-spanish session',
+            )
+        })
+
+        it('rejects Spanish gospel via Last.fm artist tags even when title is ambiguous', () => {
+            // Repro for the 2026-04-24 bug: Brazilian rap session pulled in
+            // "Derrama Tu Gloria" by ALISON because no signal in the title
+            // alone identified it as Spanish. Last.fm artist tags carry the
+            // decisive `latin christian` / `spanish` markers.
+            const current = createTrack({
+                title: 'Só Rock 3',
+                author: 'Major RD',
+            })
+            const candidate = createTrack({
+                title: 'Derrama Tu Gloria',
+                author: 'ALISON',
+            })
+            const mood: SessionMood = {
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+            }
+
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                mood,
+                false,
+                {
+                    candidateTags: ['latin christian', 'spanish', 'worship'],
+                },
+            )
+
+            expect(result.score).toBe(-Infinity)
+            expect(result.reason).toBe(
+                'cross-locale: spanish in non-spanish session',
+            )
+        })
+
+        it('does not reject Spanish candidates when session has Spanish history', () => {
+            const current = createTrack({ title: 'Despacito', author: 'Luis Fonsi' })
+            const candidate = createTrack({ title: 'Reggaeton Song' })
+            const mood: SessionMood = {
+                dominantLocale: 'spanish',
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+            }
+
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                mood,
+            )
+
+            expect(result.score).toBeGreaterThan(0)
+            expect(result.reason).not.toContain('cross-locale')
+        })
+
+        it('hard-rejects candidates that drift from the dominant session genre family', () => {
+            // Phase 2: Brazilian rap session has settled into the rap_hiphop
+            // family; a rock_metal candidate with no overlap must be vetoed.
+            const current = createTrack({
+                title: 'Liderança',
+                author: 'Major RD',
+            })
+            const candidate = createTrack({
+                title: 'Master of Puppets',
+                author: 'Metallica',
+            })
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                null,
+                false,
+                {
+                    candidateTags: ['thrash metal', 'metal', 'rock'],
+                    currentTrackTags: ['rap', 'hip hop', 'trap'],
+                    sessionGenreFamilies: new Set(['rap_hiphop']),
+                },
+            )
+            expect(result.score).toBe(-Infinity)
+            expect(result.reason).toBe(
+                'cross-genre: family drift from session',
+            )
+        })
+
+        it('does not veto cross-genre when the session has no dominant family yet', () => {
+            const current = createTrack({ author: 'Some Artist' })
+            const candidate = createTrack({
+                title: 'Master of Puppets',
+                author: 'Metallica',
+            })
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                null,
+                false,
+                {
+                    candidateTags: ['thrash metal', 'metal', 'rock'],
+                    currentTrackTags: ['rap', 'hip hop'],
+                    sessionGenreFamilies: new Set(),
+                },
+            )
+            // Soft genre-family penalty still applies (rap vs metal, no
+            // overlap), but the candidate is not hard-rejected.
+            expect(result.score).not.toBe(-Infinity)
+            expect(result.reason).toContain('genre family drift')
+        })
+
+        it('keeps candidates within the dominant session genre family', () => {
+            const current = createTrack({
+                title: 'Liderança',
+                author: 'Major RD',
+            })
+            const candidate = createTrack({
+                title: 'Outro Funk',
+                author: 'MC Cabelinho',
+            })
+            const result = calculateRecommendationScore(
+                candidate,
+                current,
+                new Set(),
+                new Map(),
+                new Set(),
+                new Set(),
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                new Map(),
+                null,
+                false,
+                {
+                    candidateTags: ['rap', 'trap', 'funk carioca'],
+                    currentTrackTags: ['rap', 'hip hop', 'trap'],
+                    sessionGenreFamilies: new Set(['rap_hiphop']),
+                },
+            )
+            expect(result.score).toBeGreaterThan(0)
+            expect(result.reason).not.toContain('cross-genre')
+            expect(result.reason).not.toContain('genre family drift')
         })
 
         it('boosts deep dive artist tracks', () => {
@@ -616,40 +797,6 @@ describe('candidateScorer', () => {
             expect(result[0].score).toBeLessThan(1)
         })
 
-        it('applies genre family penalty when fetching candidate genres', async () => {
-            const tracks = [
-                {
-                    track: createTrack(),
-                    score: 1,
-                    reason: 'test',
-                },
-            ]
-            spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getBatchAudioFeaturesMock.mockResolvedValue(
-                new Map([
-                    [
-                        'testid',
-                        { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-                    ],
-                ]),
-            )
-
-            let callCount = 0
-            getArtistGenresMock.mockImplementation(async () => {
-                callCount++
-                if (callCount === 1) return ['rock', 'metal']
-                return ['pop', 'dance']
-            })
-
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-                'Current Artist',
-            )
-
-            expect(result[0].score).toBeLessThan(1)
-            expect(result[0].reason).toContain('genre family drift')
         })
 
         it('sorts results by score descending', async () => {
