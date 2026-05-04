@@ -222,7 +222,13 @@ describe('album command', () => {
         const tracks = [{ url: 'url-1', requestedBy: null }]
         const interaction = createInteraction('guild-1')
         const client = createClient(
-            { tracks, playlist: null },
+            {
+                tracks,
+                playlist: {
+                    title: 'Test Album',
+                    url: 'https://open.spotify.com/album/123',
+                },
+            },
             { track: tracks[0] },
         )
         resolveGuildQueueMock.mockReturnValue({ queue: null })
@@ -245,5 +251,26 @@ describe('album command', () => {
 
         expect(errorLogMock).toHaveBeenCalled()
         expect(interactionReplyMock).toHaveBeenCalled()
+    })
+    it('replies with error when search returns tracks but no playlist', async () => {
+        const tracks = [
+            { url: 'url-1', requestedBy: null },
+            { url: 'url-2', requestedBy: null },
+        ]
+        const interaction = createInteraction('guild-1', 'Rumours')
+        const client = createClient({ playlist: null, tracks })
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+
+        await albumCommand.execute({ client, interaction } as any)
+
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: expect.arrayContaining([
+                        expect.objectContaining({ type: 'error' }),
+                    ]),
+                }),
+            }),
+        )
     })
 })
