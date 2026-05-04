@@ -20,6 +20,7 @@ import {
     Settings,
     Shield,
     ShieldAlert,
+    ShieldCheck,
     Star,
     Terminal,
     ToggleLeft,
@@ -338,9 +339,10 @@ function GuildHeader({
 interface NavSectionsProps {
     isActive: (path: string) => boolean
     canViewModule: (module: ModuleKey, requiredMode?: AccessMode) => boolean
+    isDeveloper: boolean
 }
 
-function NavSections({ isActive, canViewModule }: NavSectionsProps) {
+function NavSections({ isActive, canViewModule, isDeveloper }: NavSectionsProps) {
     const { t } = useTranslation()
     return (
         <ScrollArea className='flex-1 py-3'>
@@ -425,6 +427,51 @@ function NavSections({ isActive, canViewModule }: NavSectionsProps) {
                         </ul>
                     </div>
                 ))}
+                {isDeveloper && (
+                    <div className='border-t border-lucky-border/70 pt-4'>
+                        <p
+                            className='type-meta mb-2 px-2 text-lucky-text-subtle uppercase tracking-[0.22em] text-[10px] font-semibold'
+                            aria-hidden='true'
+                        >
+                            Admin
+                        </p>
+                        <ul className='space-y-0.5' role='list'>
+                            <li>
+                                <Link
+                                    to='/admin'
+                                    data-active={isActive('/admin') ? 'true' : 'false'}
+                                    aria-current={isActive('/admin') ? 'page' : undefined}
+                                    className={cn(
+                                        'lucky-focus-visible group relative flex min-h-[38px] items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-120',
+                                        isActive('/admin')
+                                            ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)]'
+                                            : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary',
+                                    )}
+                                >
+                                    <span
+                                        className={cn(
+                                            'absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r transition-all duration-120',
+                                            isActive('/admin') ? 'bg-lucky-brand' : 'bg-transparent',
+                                        )}
+                                        aria-hidden='true'
+                                    />
+                                    <ShieldCheck
+                                        className={cn(
+                                            'h-4 w-4 shrink-0 transition-colors duration-120',
+                                            isActive('/admin')
+                                                ? 'text-lucky-brand'
+                                                : 'text-lucky-text-subtle group-hover:text-lucky-text-tertiary',
+                                        )}
+                                        aria-hidden='true'
+                                    />
+                                    <span className='type-body-sm truncate font-medium'>
+                                        Admin Panel
+                                    </span>
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+                )}
             </nav>
         </ScrollArea>
     )
@@ -479,7 +526,7 @@ function UserFooter({ user, memberContext, onLogout }: UserFooterProps) {
 
 function Sidebar() {
     const location = useLocation()
-    const { user, logout } = useAuthStore()
+    const { user, logout, isDeveloper } = useAuthStore()
     const { selectedGuild, memberContext } = useGuildStore()
     const [mobileOpen, setMobileOpen] = useState(false)
     const [switcherOpen, setSwitcherOpen] = useState(false)
@@ -522,7 +569,7 @@ function Sidebar() {
 
             <GuildSwitcher open={switcherOpen} onOpenChange={setSwitcherOpen} />
 
-            <NavSections isActive={isActive} canViewModule={canViewModule} />
+            <NavSections isActive={isActive} canViewModule={canViewModule} isDeveloper={isDeveloper} />
 
             <UserFooter
                 user={user}
