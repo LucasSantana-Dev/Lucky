@@ -24,10 +24,13 @@ const setupArtistsRoutes = jest.fn()
 const setupInternalNotifyRoutes = jest.fn()
 const setupWebhookApiRoutes = jest.fn()
 const setupWebhookPublicRoutes = jest.fn()
+const setupAdminRoutes = jest.fn()
 
 const requireGuildModuleAccess = jest.fn()
 const apiLimiter = jest.fn()
+const writeLimiter = jest.fn()
 const requireAuth = jest.fn()
+const requireAdmin = jest.fn()
 const errorHandler = jest.fn()
 
 jest.mock('../../../src/routes/health', () => ({
@@ -119,12 +122,21 @@ jest.mock('../../../src/routes/webhooks', () => ({
     setupWebhookPublicRoutes,
 }))
 
+jest.mock('../../../src/routes/admin', () => ({
+    setupAdminRoutes,
+}))
+
 jest.mock('../../../src/middleware/rateLimit', () => ({
     apiLimiter,
+    writeLimiter,
 }))
 
 jest.mock('../../../src/middleware/auth', () => ({
     requireAuth,
+}))
+
+jest.mock('../../../src/middleware/requireAdmin', () => ({
+    requireAdmin,
 }))
 
 jest.mock('../../../src/middleware/guildAccess', () => ({
@@ -160,6 +172,18 @@ describe('setupRoutes', () => {
         expect(setupInternalNotifyRoutes).toHaveBeenCalledWith(app)
         expect(setupWebhookPublicRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
+        expect(app.use).toHaveBeenCalledWith(
+            '/api/admin',
+            requireAuth,
+            requireAdmin,
+        )
+        expect(app.use).toHaveBeenCalledWith(
+            '/api/toggles/global',
+            requireAuth,
+            requireAdmin,
+            writeLimiter,
+        )
+        expect(setupAdminRoutes).toHaveBeenCalledWith(app)
         expect(setupWebhookApiRoutes).toHaveBeenCalledWith(app)
 
         expect(requireGuildModuleAccess).toHaveBeenCalledWith('moderation')
@@ -199,6 +223,7 @@ describe('setupRoutes', () => {
         expect(setupLevelsRoutes).toHaveBeenCalledWith(app)
         expect(setupStarboardRoutes).toHaveBeenCalledWith(app)
         expect(setupMusicRoutes).toHaveBeenCalledWith(app)
+        expect(setupSpotifyRoutes).toHaveBeenCalledWith(app)
         expect(setupArtistsRoutes).toHaveBeenCalledWith(app)
 
         expect(app.use).toHaveBeenCalledWith(errorHandler)

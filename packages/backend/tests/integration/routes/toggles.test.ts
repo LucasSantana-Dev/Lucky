@@ -4,6 +4,8 @@ import request from 'supertest'
 import express from 'express'
 import { setupToggleRoutes } from '../../../src/routes/toggles'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
+import { requireAuth } from '../../../src/middleware/auth'
+import { requireAdmin } from '../../../src/middleware/requireAdmin'
 import { sessionService } from '../../../src/services/SessionService'
 import { getFeatureToggleConfig } from '@lucky/shared/config'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
@@ -14,7 +16,12 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
+jest.mock('../../../src/utils/developerAccess', () => ({
+    isDeveloperUser: (userId?: string) => userId === '123456789',
+}))
+
 const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
+const mockSetGlobalFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
 
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
@@ -25,6 +32,8 @@ jest.mock('@lucky/shared/services', () => ({
         isEnabledForGuild: jest.fn(),
         setGuildFeatureToggle: (...args: any[]) =>
             mockSetGuildFeatureToggle(...args),
+        setGlobalFeatureToggle: (...args: any[]) =>
+            mockSetGlobalFeatureToggle(...args),
     },
 }))
 
@@ -49,6 +58,7 @@ describe('Toggles Routes Integration', () => {
         app = express()
         app.use(express.json())
         setupSessionMiddleware(app)
+        app.use('/api/toggles/global', requireAuth, requireAdmin)
         setupToggleRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
@@ -107,7 +117,7 @@ describe('Toggles Routes Integration', () => {
 
             expect(response.body).toHaveProperty('toggles')
             expect(response.body).toHaveProperty('provider', 'vercel')
-            expect(response.body).toHaveProperty('writable', false)
+            expect(response.body).toHaveProperty('writable', true)
             expect(response.body).toHaveProperty('sources')
             expect(mockFeatureToggleService.getAllToggles).toHaveBeenCalled()
             expect(
@@ -132,7 +142,7 @@ describe('Toggles Routes Integration', () => {
                 .expect(403)
 
             expect(response.body).toEqual({
-                error: 'Developer access required',
+                error: 'Admin access required',
             })
         })
 
@@ -239,7 +249,7 @@ describe('Toggles Routes Integration', () => {
             expect(response.body).toEqual({ error: 'Invalid toggle name' })
         })
 
-        test('should reject writes because global toggles are Vercel-managed', async () => {
+        test('should write global toggle to database and return success', async () => {
             const developerSession = {
                 ...MOCK_SESSION_DATA,
                 userId: '123456789',
@@ -262,17 +272,17 @@ describe('Toggles Routes Integration', () => {
                 .post('/api/toggles/global/DOWNLOAD_VIDEO')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .send({ enabled: true })
-                .expect(409)
+                .expect(200)
 
             expect(response.body).toEqual({
-                error: 'Global feature flags are managed in Vercel',
-                provider: 'vercel',
-                writable: false,
-                requested: {
-                    name: 'DOWNLOAD_VIDEO',
-                    enabled: true,
-                },
+                success: true,
+                name: 'DOWNLOAD_VIDEO',
+                enabled: true,
             })
+            expect(mockSetGlobalFeatureToggle).toHaveBeenCalledWith(
+                'DOWNLOAD_VIDEO',
+                true,
+            )
         })
 
         test('should return 400 when enabled is missing', async () => {
@@ -328,143 +338,4 @@ describe('Toggles Routes Integration', () => {
         })
     })
 
-    describe('GET /api/guilds/:id/features', () => {
-        test('should return guild features', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockToggles = new Map([
-                ['DOWNLOAD_VIDEO', { name: 'DOWNLOAD_VIDEO' }],
-                ['DOWNLOAD_AUDIO', { name: 'DOWNLOAD_AUDIO' }],
-            ])
-
-            const mockFeatureToggleService =
-                featureToggleService as jest.Mocked<typeof featureToggleService>
-            mockFeatureToggleService.getAllToggles.mockReturnValue(mockToggles)
-            mockFeatureToggleService.isEnabledForGuild.mockResolvedValue(false)
-
-            const response = await request(app)
-                .get('/api/guilds/111111111111111111/features')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(200)
-
-            expect(response.body).toHaveProperty(
-                'guildId',
-                '111111111111111111',
-            )
-            expect(response.body).toHaveProperty('toggles')
-        })
-
-        test('should return 400 when guild ID is missing', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const response = await request(app)
-                .get('/api/guilds//features')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .expect(404)
-        })
-    })
-
-    describe('POST /api/guilds/:id/features/:name', () => {
-        test('saves toggle to db and returns updated state', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockToggles = new Map([
-                ['DOWNLOAD_VIDEO', { name: 'DOWNLOAD_VIDEO' }],
-            ])
-
-            const mockFeatureToggleService =
-                featureToggleService as jest.Mocked<typeof featureToggleService>
-            mockFeatureToggleService.getAllToggles.mockReturnValue(mockToggles)
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/features/DOWNLOAD_VIDEO')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ enabled: true })
-                .expect(200)
-
-            expect(response.body).toEqual({
-                success: true,
-                guildId: '111111111111111111',
-                name: 'DOWNLOAD_VIDEO',
-                enabled: true,
-            })
-            expect(mockSetGuildFeatureToggle).toHaveBeenCalledWith(
-                '111111111111111111',
-                'DOWNLOAD_VIDEO',
-                true,
-            )
-        })
-
-        test('should return 400 when enabled is missing', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/features/DOWNLOAD_VIDEO')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({})
-                .expect(400)
-
-            expect(response.body).toEqual({
-                error: 'Enabled must be a boolean',
-            })
-        })
-
-        test('should return 400 when enabled is not boolean', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockToggles = new Map([
-                ['DOWNLOAD_VIDEO', { name: 'DOWNLOAD_VIDEO' }],
-            ])
-
-            const mockFeatureToggleService =
-                featureToggleService as jest.Mocked<typeof featureToggleService>
-            mockFeatureToggleService.getAllToggles.mockReturnValue(mockToggles)
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/features/DOWNLOAD_VIDEO')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ enabled: 'not-a-boolean' })
-                .expect(400)
-
-            expect(response.body).toEqual({
-                error: 'Enabled must be a boolean',
-            })
-        })
-
-        test('should return 400 for invalid toggle name', async () => {
-            const mockSessionService = sessionService as jest.Mocked<
-                typeof sessionService
-            >
-            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-
-            const mockToggles = new Map()
-
-            const mockFeatureToggleService =
-                featureToggleService as jest.Mocked<typeof featureToggleService>
-            mockFeatureToggleService.getAllToggles.mockReturnValue(mockToggles)
-
-            const response = await request(app)
-                .post('/api/guilds/111111111111111111/features/INVALID_TOGGLE')
-                .set('Cookie', ['sessionId=valid_session_id'])
-                .send({ enabled: true })
-                .expect(400)
-
-            expect(response.body).toEqual({ error: 'Invalid toggle name' })
-        })
-    })
 })

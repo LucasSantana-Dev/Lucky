@@ -9,7 +9,6 @@ import type {
     ServerListing,
     Feature,
     GlobalFeatureToggleResponse,
-    FeatureToggleState,
     GuildMemberContext,
     GuildRoleOption,
     RoleGrant,
@@ -294,24 +293,21 @@ export const api = {
             }>(`/toggles/global/${name}`, {
                 enabled,
             }),
-        getServerToggles: async (guildId: string) => {
-            const response = await apiClient.get<{
-                guildId: string
-                toggles: FeatureToggleState
-            }>(`/guilds/${guildId}/features`)
-            return {
-                ...response,
-                data: {
-                    toggles: response.data.toggles,
-                },
-            }
-        },
-        updateServerToggle: (guildId: string, name: string, enabled: boolean) =>
-            apiClient.post<{
-                success: boolean
-                message?: string
-                note?: string
-            }>(`/guilds/${guildId}/features/${name}`, { enabled }),
+    },
+
+    admin: {
+        getGuilds: () =>
+            apiClient.get<{
+                guilds: Array<{
+                    id: string
+                    name: string
+                    iconUrl: string | null
+                    memberCount: number | null
+                    textChannelCount: number | null
+                    voiceChannelCount: number | null
+                    roleCount: number | null
+                }>
+            }>('/admin/guilds'),
     },
 
     trackHistory: {

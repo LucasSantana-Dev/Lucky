@@ -25,7 +25,7 @@ export type FeatureToggleName =
 
 export type FeatureToggleState = Record<FeatureToggleName, boolean>
 
-export type GlobalFeatureToggleProvider = 'vercel' | 'environment'
+export type GlobalFeatureToggleProvider = 'vercel' | 'environment' | 'database'
 
 export interface GlobalFeatureToggleResponse {
     toggles: FeatureToggleState

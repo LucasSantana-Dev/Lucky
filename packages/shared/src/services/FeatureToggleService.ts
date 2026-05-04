@@ -36,13 +36,12 @@ class FeatureToggleService {
         return getPrismaClient()
     }
 
-    private async getDbOverride(
-        guildId: string,
+    private async getDbGlobalOverride(
         name: string,
     ): Promise<boolean | null> {
         try {
-            const row = await this.db.guildFeatureToggle.findUnique({
-                where: { guildId_name: { guildId, name } },
+            const row = await this.db.globalFeatureToggle.findUnique({
+                where: { name },
                 select: { enabled: true },
             })
             return row?.enabled ?? null
@@ -51,15 +50,14 @@ class FeatureToggleService {
         }
     }
 
-    async setGuildFeatureToggle(
-        guildId: string,
+    async setGlobalFeatureToggle(
         name: FeatureToggleName,
         enabled: boolean,
     ): Promise<void> {
-        await this.db.guildFeatureToggle.upsert({
-            where: { guildId_name: { guildId, name } },
+        await this.db.globalFeatureToggle.upsert({
+            where: { name },
             update: { enabled },
-            create: { guildId, name, enabled },
+            create: { name, enabled },
         })
     }
 
@@ -99,15 +97,24 @@ class FeatureToggleService {
     }
 
     getGlobalToggleProvider(): GlobalFeatureToggleProvider {
-        return isVercelFlagsConfigured() ? 'vercel' : 'environment'
+        return isVercelFlagsConfigured() ? 'vercel' : 'database'
     }
 
     async getGlobalToggleStatus(
         name: FeatureToggleName,
     ): Promise<GlobalFeatureToggleState> {
         const fallbackValue = this.getFallbackValue(name)
-        const vercelValue = await this.getVercelValue(name, fallbackValue)
 
+        const dbOverride = await this.getDbGlobalOverride(name)
+        if (dbOverride !== null) {
+            return {
+                enabled: dbOverride,
+                provider: 'database',
+                writable: true,
+            }
+        }
+
+        const vercelValue = await this.getVercelValue(name, fallbackValue)
         if (vercelValue !== null) {
             return {
                 enabled: vercelValue,
@@ -119,7 +126,7 @@ class FeatureToggleService {
         return {
             enabled: fallbackValue,
             provider: 'environment',
-            writable: false,
+            writable: true,
         }
     }
 
@@ -128,27 +135,10 @@ class FeatureToggleService {
         return status.enabled
     }
 
-    async isEnabledForGuild(
-        name: FeatureToggleName,
-        guildId: string,
-    ): Promise<boolean> {
-        const dbOverride = await this.getDbOverride(guildId, name)
-
-        if (dbOverride !== null) {
-            return dbOverride
-        }
-
-        return this.isEnabledGlobal(name)
-    }
-
     async isEnabled(
         name: FeatureToggleName,
         context?: { userId?: string; guildId?: string },
     ): Promise<boolean> {
-        if (context?.guildId) {
-            return this.isEnabledForGuild(name, context.guildId)
-        }
-
         return this.isEnabledGlobal(name)
     }
 
