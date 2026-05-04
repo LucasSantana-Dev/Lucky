@@ -135,7 +135,7 @@ The Admin Panel (`/admin`) is gated behind Discord OAuth and requires a develope
 **Setup:**
 
 1. Add your Discord user ID to `.env`:
-   ```
+   ```env
    DEVELOPER_USER_IDS=your_discord_user_id
    ```
    Multiple IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2`
