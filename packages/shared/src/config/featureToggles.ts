@@ -92,6 +92,16 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
         enabled: true,
         description: 'Enable welcome/leave messages for new members',
     },
+    ARTIST_COMMAND: {
+        name: 'ARTIST_COMMAND',
+        enabled: true,
+        description: 'Enable /artist command to queue top tracks from an artist',
+    },
+    ALBUM_COMMAND: {
+        name: 'ALBUM_COMMAND',
+        enabled: true,
+        description: 'Enable /album command to queue all tracks from an album',
+    },
 }
 
 function parseEnvironmentToggle(
