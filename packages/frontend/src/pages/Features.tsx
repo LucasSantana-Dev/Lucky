@@ -1,33 +1,22 @@
-import { AlertTriangle, Shield } from 'lucide-react'
+import { Shield } from 'lucide-react'
 import Skeleton from '@/components/ui/Skeleton'
-import Button from '@/components/ui/Button'
-import GlobalTogglesSection from '@/components/Features/GlobalTogglesSection'
-import ServerTogglesSection from '@/components/Features/ServerTogglesSection'
-import { useGuildStore } from '@/stores/guildStore'
+import FeatureCard from '@/components/Features/FeatureCard'
+import FeatureErrorBanner from '@/components/Features/FeatureErrorBanner'
+import { useFeaturesStore } from '@/stores/featuresStore'
 import { useFeatures } from '@/hooks/useFeatures'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
-import { api } from '@/services/api'
 
 export default function FeaturesPage() {
-    const guilds = useGuildStore((state) => state.guilds)
-    const selectedGuild = useGuildStore((state) => state.selectedGuild)
-    const selectGuild = useGuildStore((state) => state.selectGuild)
+    const features = useFeaturesStore((state) => state.features)
     const {
         globalToggles,
-        globalToggleProvider,
-        globalTogglesWritable,
-        serverToggles,
         isLoading,
         loadError,
-        isDeveloper,
         retryLoad,
-        handleGlobalToggle,
-        handleServerToggle,
     } = useFeatures()
     usePageMetadata({
         title: 'Features - Lucky',
-        description:
-            'Manage and configure bot features for your Discord servers',
+        description: 'View available bot features and their current status',
     })
 
     if (isLoading) {
@@ -50,59 +39,28 @@ export default function FeaturesPage() {
                 <h1 className='type-h1 text-lucky-text-primary'>Features</h1>
             </header>
 
-            {loadError && (
-                <section className='rounded-xl border border-lucky-border bg-lucky-bg-secondary/80 p-4'>
-                    <div className='flex items-start gap-3'>
-                        <AlertTriangle className='h-5 w-5 text-lucky-yellow mt-0.5' />
-                        <div className='space-y-3'>
-                            <div>
-                                <h2 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    Unable to load feature data
-                                </h2>
-                                <p className='text-sm text-lucky-text-secondary'>
-                                    {loadError.message}
-                                </p>
-                            </div>
-                            <div className='flex items-center gap-3'>
-                                <Button size='sm' onClick={retryLoad}>
-                                    Retry
-                                </Button>
-                                {(loadError.kind === 'auth' ||
-                                    loadError.kind === 'forbidden') && (
-                                    <a
-                                        href={api.auth.getDiscordLoginUrl()}
-                                        className='text-sm text-lucky-text-secondary hover:text-lucky-text-primary'
-                                    >
-                                        Re-authenticate
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            )}
+            {loadError && <FeatureErrorBanner loadError={loadError} retryLoad={retryLoad} />}
 
-            {isDeveloper && (
-                <section aria-labelledby='global-toggles-heading'>
-                    <GlobalTogglesSection
-                        toggles={globalToggles}
-                        provider={globalToggleProvider}
-                        writable={globalTogglesWritable}
-                        onToggle={handleGlobalToggle}
-                    />
-                </section>
-            )}
-
-            <section aria-labelledby='server-toggles-heading'>
-                <ServerTogglesSection
-                    toggles={serverToggles}
-                    onToggle={handleServerToggle}
-                    selectedGuildId={selectedGuild?.id || null}
-                    onSelectGuild={(id) => {
-                        const guild = guilds.find((g) => g.id === id) || null
-                        selectGuild(guild)
-                    }}
-                />
+            <section>
+                <h2 className='text-lg font-semibold text-white mb-2'>
+                    Available Features
+                </h2>
+                <p className='text-sm text-lucky-text-secondary mb-6'>
+                    Features currently available on this bot. Contact an admin if a
+                    feature you need is disabled.
+                </p>
+                <div className='grid gap-4'>
+                    {features.map((feature) => (
+                        <FeatureCard
+                            key={feature.name}
+                            feature={feature}
+                            enabled={globalToggles[feature.name] ?? true}
+                            onToggle={() => {}}
+                            isGlobal
+                            readOnly
+                        />
+                    ))}
+                </div>
             </section>
         </main>
     )

@@ -914,4 +914,67 @@ describe('GuildService', () => {
             expect(roles).toEqual([])
         })
     })
+
+    describe('getAllBotGuilds', () => {
+        test('returns empty array when bot client is not set', async () => {
+            setBotClient(null)
+            const result = await guildService.getAllBotGuilds()
+            expect(result).toEqual([])
+        })
+
+        test('returns empty array when bot has no guilds', async () => {
+            setBotClient({
+                guilds: { cache: new Map() },
+            } as unknown as Client)
+            const result = await guildService.getAllBotGuilds()
+            expect(result).toEqual([])
+        })
+
+        test('returns mapped guild with CDN icon URL when guild has icon', async () => {
+            const guildId = '111111111111111111'
+            const mockGuild = {
+                id: guildId,
+                name: 'Test Server',
+                icon: 'abc123hash',
+                memberCount: 42,
+                channels: { cache: new Map() },
+                roles: { cache: new Map() },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: { cache: new Map([[guildId, mockGuild]]) },
+            } as unknown as Client)
+
+            const result = await guildService.getAllBotGuilds()
+
+            expect(result).toHaveLength(1)
+            expect(result[0]).toMatchObject({
+                id: guildId,
+                name: 'Test Server',
+                iconUrl: `https://cdn.discordapp.com/icons/${guildId}/abc123hash.png?size=64`,
+                memberCount: 42,
+            })
+        })
+
+        test('returns null iconUrl when guild has no icon', async () => {
+            const guildId = '222222222222222222'
+            const mockGuild = {
+                id: guildId,
+                name: 'No Icon Server',
+                icon: null,
+                memberCount: 5,
+                channels: { cache: new Map() },
+                roles: { cache: new Map() },
+            } as unknown as Guild
+
+            setBotClient({
+                guilds: { cache: new Map([[guildId, mockGuild]]) },
+            } as unknown as Client)
+
+            const result = await guildService.getAllBotGuilds()
+
+            expect(result).toHaveLength(1)
+            expect(result[0].iconUrl).toBeNull()
+        })
+    })
 })

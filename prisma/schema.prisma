@@ -82,6 +82,14 @@ model GuildFeatureToggle {
   @@map("guild_feature_toggles")
 }
 
+model GlobalFeatureToggle {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  enabled Boolean
+
+  @@map("global_feature_toggles")
+}
+
 model TwitchNotification {
   id               String   @id @default(cuid())
   guildId          String

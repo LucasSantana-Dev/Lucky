@@ -14,7 +14,7 @@ export interface FeatureLoadErrorState {
     kind: FeatureLoadErrorKind
     message: string
     status?: number
-    scope: 'catalog' | 'global' | 'server'
+    scope: 'catalog' | 'global'
 }
 
 function classifyFeatureLoadError(
@@ -74,23 +74,15 @@ interface FeaturesState {
     globalToggles: FeatureToggleState
     globalToggleProvider: GlobalFeatureToggleProvider
     globalTogglesWritable: boolean
-    serverToggles: Record<string, FeatureToggleState>
     isLoading: boolean
     loadError: FeatureLoadErrorState | null
     clearLoadError: () => void
     fetchFeatures: () => Promise<void>
     fetchGlobalToggles: () => Promise<void>
-    fetchServerToggles: (guildId: string) => Promise<void>
     updateGlobalToggle: (
         name: FeatureToggleName,
         enabled: boolean,
     ) => Promise<void>
-    updateServerToggle: (
-        guildId: string,
-        name: FeatureToggleName,
-        enabled: boolean,
-    ) => Promise<void>
-    getServerToggles: (guildId: string) => FeatureToggleState
 }
 
 const createDefaultToggles = (): FeatureToggleState => {
@@ -121,12 +113,11 @@ const createDefaultToggles = (): FeatureToggleState => {
 
 const defaultToggles = createDefaultToggles()
 
-export const useFeaturesStore = create<FeaturesState>((set, get) => ({
+export const useFeaturesStore = create<FeaturesState>((set) => ({
     features: [],
     globalToggles: defaultToggles,
     globalToggleProvider: 'environment',
     globalTogglesWritable: false,
-    serverToggles: {},
     isLoading: false,
     loadError: null,
 
@@ -174,56 +165,10 @@ export const useFeaturesStore = create<FeaturesState>((set, get) => ({
         }
     },
 
-    fetchServerToggles: async (guildId) => {
-        set({ isLoading: true, loadError: null })
-        try {
-            const response = await api.features.getServerToggles(guildId)
-            const current = get().serverToggles
-            set({
-                serverToggles: { ...current, [guildId]: response.data.toggles },
-                isLoading: false,
-                loadError: null,
-            })
-        } catch (error) {
-            const current = get().serverToggles
-            if (!current[guildId]) {
-                set({
-                    serverToggles: {
-                        ...current,
-                        [guildId]: { ...defaultToggles },
-                    },
-                    isLoading: false,
-                    loadError: classifyFeatureLoadError(error, 'server'),
-                })
-            } else {
-                set({
-                    isLoading: false,
-                    loadError: classifyFeatureLoadError(error, 'server'),
-                })
-            }
-        }
-    },
-
     updateGlobalToggle: async (name, enabled) => {
         await api.features.updateGlobalToggle(name, enabled)
         set((state) => ({
             globalToggles: { ...state.globalToggles, [name]: enabled },
         }))
     },
-
-    updateServerToggle: async (guildId, name, enabled) => {
-        await api.features.updateServerToggle(guildId, name, enabled)
-        set((state) => ({
-            serverToggles: {
-                ...state.serverToggles,
-                [guildId]: {
-                    ...(state.serverToggles[guildId] || defaultToggles),
-                    [name]: enabled,
-                },
-            },
-        }))
-    },
-
-    getServerToggles: (guildId) =>
-        get().serverToggles[guildId] || defaultToggles,
 }))
