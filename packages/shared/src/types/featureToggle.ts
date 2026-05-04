@@ -16,6 +16,8 @@ export type FeatureToggleName =
     | 'TWITCH_NOTIFICATIONS'
     | 'LASTFM_INTEGRATION'
     | 'WELCOME_MESSAGES'
+    | 'ARTIST_COMMAND'
+    | 'ALBUM_COMMAND'
 
 export type FeatureToggleConfig = {
     name: FeatureToggleName
