@@ -1,12 +1,12 @@
-import { ShieldCheck, AlertTriangle } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import Skeleton from '@/components/ui/Skeleton'
 import Button from '@/components/ui/Button'
 import GlobalTogglesSection from '@/components/Features/GlobalTogglesSection'
 import BotGuildsSection from '@/components/Admin/BotGuildsSection'
+import FeatureErrorBanner from '@/components/Features/FeatureErrorBanner'
 import { useAuthStore } from '@/stores/authStore'
 import { useFeatures } from '@/hooks/useFeatures'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
-import { api } from '@/services/api'
 
 export default function AdminPage() {
     const isDeveloper = useAuthStore((state) => state.isDeveloper)
@@ -75,37 +75,7 @@ export default function AdminPage() {
                 <h1 className='type-h1 text-lucky-text-primary'>Admin Panel</h1>
             </header>
 
-            {loadError && (
-                <section className='rounded-xl border border-lucky-border bg-lucky-bg-secondary/80 p-4'>
-                    <div className='flex items-start gap-3'>
-                        <AlertTriangle className='h-5 w-5 text-lucky-yellow mt-0.5' />
-                        <div className='space-y-3'>
-                            <div>
-                                <h2 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    Unable to load feature data
-                                </h2>
-                                <p className='text-sm text-lucky-text-secondary'>
-                                    {loadError.message}
-                                </p>
-                            </div>
-                            <div className='flex items-center gap-3'>
-                                <Button size='sm' onClick={retryLoad}>
-                                    Retry
-                                </Button>
-                                {(loadError.kind === 'auth' ||
-                                    loadError.kind === 'forbidden') && (
-                                    <a
-                                        href={api.auth.getDiscordLoginUrl()}
-                                        className='text-sm text-lucky-text-secondary hover:text-lucky-text-primary'
-                                    >
-                                        Re-authenticate
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            )}
+            {loadError && <FeatureErrorBanner loadError={loadError} retryLoad={retryLoad} />}
 
             <section aria-labelledby='global-toggles-heading'>
                 <GlobalTogglesSection
