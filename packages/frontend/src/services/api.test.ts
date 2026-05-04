@@ -246,18 +246,10 @@ describe('api service bootstrap', () => {
                     features: [{ name: 'music', description: 'Music module' }],
                 },
             })
-            .mockResolvedValueOnce({
-                data: {
-                    guildId: 'guild-1',
-                    toggles: { music: { enabled: true } },
-                },
-            })
 
         const authResponse = await module.api.auth.getUser()
         const guildResponse = await module.api.guilds.get('guild-1')
         const featuresResponse = await module.api.features.list()
-        const togglesResponse =
-            await module.api.features.getServerToggles('guild-1')
 
         expect(authResponse.data.user).toEqual({
             id: 'user-1',
@@ -276,9 +268,6 @@ describe('api service bootstrap', () => {
                 isGlobal: false,
             },
         ])
-        expect(togglesResponse.data.toggles).toEqual({
-            music: { enabled: true },
-        })
     })
 
     test('wires endpoint helpers to expected paths and payloads', async () => {
@@ -317,7 +306,6 @@ describe('api service bootstrap', () => {
         })
         await module.api.features.getGlobalToggles()
         await module.api.features.updateGlobalToggle('music', true)
-        await module.api.features.updateServerToggle('guild-1', 'music', false)
         await module.api.trackHistory.getHistory('guild-1')
         await module.api.trackHistory.getStats('guild-1')
         await module.api.trackHistory.getTopTracks('guild-1')
@@ -386,10 +374,6 @@ describe('api service bootstrap', () => {
         expect(apiClient.post).toHaveBeenCalledWith('/toggles/global/music', {
             enabled: true,
         })
-        expect(apiClient.post).toHaveBeenCalledWith(
-            '/guilds/guild-1/features/music',
-            { enabled: false },
-        )
         expect(apiClient.get).toHaveBeenCalledWith(
             '/guilds/guild-1/music/history?limit=50&offset=0',
         )

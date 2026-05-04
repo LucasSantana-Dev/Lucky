@@ -24,6 +24,7 @@ const LoginPage = lazy(() => import('./pages/Login'))
 const ServersPage = lazy(() => import('./pages/ServersPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardOverview'))
 const FeaturesPage = lazy(() => import('./pages/Features'))
+const AdminPage = lazy(() => import('./pages/Admin'))
 const ConfigPage = lazy(() => import('./pages/Config'))
 const ModerationPage = lazy(() => import('./pages/Moderation'))
 const AutoModPage = lazy(() => import('./pages/AutoMod'))
@@ -128,6 +129,7 @@ function AuthenticatedRoutes() {
                 path='/features'
                 element={guardedRoute('automation', <FeaturesPage />)}
             />
+            <Route path='/admin' element={<AdminPage />} />
             <Route
                 path='/config'
                 element={guardedRoute('settings', <ConfigPage />)}

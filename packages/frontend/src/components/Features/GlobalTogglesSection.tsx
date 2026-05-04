@@ -15,6 +15,12 @@ interface GlobalTogglesSectionProps {
     onToggle: (name: FeatureToggleName, enabled: boolean) => void
 }
 
+const providerLabel: Record<GlobalFeatureToggleProvider, string> = {
+    vercel: 'Vercel',
+    database: 'Database',
+    environment: 'Environment',
+}
+
 export default function GlobalTogglesSection({
     toggles,
     provider,
@@ -34,18 +40,19 @@ export default function GlobalTogglesSection({
                     id='global-toggles-heading'
                     className='text-lg font-semibold text-white'
                 >
-                    Global Toggles
+                    Global Feature Toggles
                 </h2>
                 <Badge className='bg-lucky-purple/20 text-lucky-purple text-xs'>
-                    Developer Only
+                    Admin Only
                 </Badge>
                 <Badge className='bg-lucky-bg-tertiary text-lucky-text-secondary text-xs'>
-                    {provider === 'vercel' ? 'Vercel' : 'Environment'}
+                    {providerLabel[provider]}
                 </Badge>
             </div>
             <p className='text-sm text-lucky-text-secondary mb-4'>
-                These toggles affect all servers using the bot and are managed
-                outside Lucky.
+                {writable
+                    ? 'Toggle features on or off globally. Changes take effect immediately for all servers.'
+                    : 'These toggles are managed externally and cannot be changed here.'}
             </p>
             <div className='grid gap-4'>
                 {features.map((feature) => (
