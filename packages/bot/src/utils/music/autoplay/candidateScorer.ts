@@ -1,4 +1,3 @@
-import { LRUCache } from 'lru-cache'
 import type { Track } from 'discord-player'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import { getBatchAudioFeatures } from '../../../spotify/spotifyApi'
@@ -6,15 +5,6 @@ import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
 import { detectSpanishMarkers } from '../languageHeuristics'
-
-interface AudioFeatureEntry {
-    value: SpotifyAudioFeatures | null
-}
-
-const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
-    max: 10000,
-    ttl: 24 * 60 * 60 * 1000,
-})
 
 type ScoredTrack = {
     track: Track
