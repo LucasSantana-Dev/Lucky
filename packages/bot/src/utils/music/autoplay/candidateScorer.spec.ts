@@ -522,6 +522,49 @@ describe('candidateScorer', () => {
             expect(result.reason).toContain('quick hit match')
         })
 
+        it('relaxes genre family penalty by 50% during skip storms (recentSkipCount >= 3)', () => {
+            const current = createTrack({ author: 'Rap Artist' })
+            const candidate = createTrack({ author: 'Pop Artist', source: 'youtube' })
+            const recentArtists = new Set(['other'])
+            const moodWithSkips: SessionMood = {
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+                recentSkipCount: 3,
+            }
+
+            const withSkips = calculateRecommendationScore(
+                candidate, current, recentArtists,
+                new Map(), new Set(), new Set(), 'similar', new Map(),
+                new Set(), new Set(), new Map(), moodWithSkips, false,
+                { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
+            )
+            const withoutSkips = calculateRecommendationScore(
+                candidate, current, recentArtists,
+                new Map(), new Set(), new Set(), 'similar', new Map(),
+                new Set(), new Set(), new Map(), null, false,
+                { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
+            )
+
+            expect(withSkips.score).toBeGreaterThan(withoutSkips.score)
+        })
+
+        it('boosts candidates in popular mode based on liked weight', () => {
+            const current = createTrack()
+            const candidate = createTrack({ title: 'Hit Song', author: 'Test Artist', source: 'youtube' })
+            const likedWeights = new Map([['hitsong::testartist', 0.8]])
+            const recentArtists = new Set(['other'])
+
+            const result = calculateRecommendationScore(
+                candidate, current, recentArtists,
+                likedWeights, new Set(), new Set(), 'popular',
+            )
+
+            expect(result.score).toBeGreaterThan(1)
+        })
+
         it('boosts restless discovery when artist is novel', () => {
             const current = createTrack()
             const candidate = createTrack({ author: 'Novel Artist' })
@@ -797,6 +840,96 @@ describe('candidateScorer', () => {
             expect(result[0].score).toBeLessThan(1)
         })
 
+        })
+
+        it('applies tempo drastic change penalty when delta exceeds 40 BPM', async () => {
+            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            spotifyLinkServiceMock.mockResolvedValue('valid-token')
+            getBatchAudioFeaturesMock.mockResolvedValue(
+                new Map([
+                    ['testid', { energy: 0.5, valence: 0.5, tempo: 180, acousticness: 0.3 } as SpotifyAudioFeatures],
+                ]),
+            )
+
+            const result = await enrichWithAudioFeatures(
+                tracks,
+                'user-123',
+                { energy: 0.5, valence: 0.5, tempo: 100, acousticness: 0.3 } as SpotifyAudioFeatures,
+            )
+
+            expect(result[0].score).toBeLessThan(1)
+        })
+
+        it('boosts track with high acousticness feature value', async () => {
+            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            spotifyLinkServiceMock.mockResolvedValue('valid-token')
+            getBatchAudioFeaturesMock.mockResolvedValue(
+                new Map([
+                    ['testid', { energy: 0.5, valence: 0.5, tempo: 120, acousticness: 0.8 } as SpotifyAudioFeatures],
+                ]),
+            )
+
+            const result = await enrichWithAudioFeatures(
+                tracks,
+                'user-123',
+                { energy: 0.5, valence: 0.5, tempo: 120, acousticness: 0.5 } as SpotifyAudioFeatures,
+            )
+
+            expect(result[0].score).toBeGreaterThan(1)
+        })
+
+        it('penalizes extreme acousticness swing when candidate is not acoustic', async () => {
+            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            spotifyLinkServiceMock.mockResolvedValue('valid-token')
+            getBatchAudioFeaturesMock.mockResolvedValue(
+                new Map([
+                    ['testid', { energy: 0.95, valence: 0.95, tempo: 120, acousticness: 0.05 } as SpotifyAudioFeatures],
+                ]),
+            )
+
+            const result = await enrichWithAudioFeatures(
+                tracks,
+                'user-123',
+                { energy: 0.1, valence: 0.1, tempo: 120, acousticness: 0.8 } as SpotifyAudioFeatures,
+            )
+
+            expect(result[0].score).toBeLessThan(1)
+        })
+
+        it('applies continuity bonus when both current and candidate are acoustic', async () => {
+            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            spotifyLinkServiceMock.mockResolvedValue('valid-token')
+            getBatchAudioFeaturesMock.mockResolvedValue(
+                new Map([
+                    ['testid', { energy: 0.4, valence: 0.4, tempo: 90, acousticness: 0.75 } as SpotifyAudioFeatures],
+                ]),
+            )
+
+            const result = await enrichWithAudioFeatures(
+                tracks,
+                'user-123',
+                { energy: 0.4, valence: 0.4, tempo: 90, acousticness: 0.7 } as SpotifyAudioFeatures,
+            )
+
+            expect(result[0].score).toBeGreaterThan(1)
+        })
+
+        it('penalizes acoustic candidate in a non-acoustic session', async () => {
+            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            spotifyLinkServiceMock.mockResolvedValue('valid-token')
+            getBatchAudioFeaturesMock.mockResolvedValue(
+                new Map([
+                    ['testid', { energy: 0.95, valence: 0.95, tempo: 120, acousticness: 0.8 } as SpotifyAudioFeatures],
+                ]),
+            )
+
+            const result = await enrichWithAudioFeatures(
+                tracks,
+                'user-123',
+                { energy: 0.1, valence: 0.1, tempo: 120, acousticness: 0.1 } as SpotifyAudioFeatures,
+            )
+
+            expect(result[0].score).toBeLessThan(1)
         })
 
         it('sorts results by score descending', async () => {
