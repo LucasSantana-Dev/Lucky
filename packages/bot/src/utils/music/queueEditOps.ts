@@ -231,8 +231,10 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
         return
     }
 
+    const queuedTrack = tracks[trackIndex]!
+
     try {
-        queue.node.remove(track)
+        queue.node.remove(queuedTrack)
     } catch {
         return
     }
@@ -244,15 +246,15 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     })
 
     if (newFirstAutoplayIndex === -1) {
-        queue.addTrack(track)
+        queue.addTrack(queuedTrack)
     } else {
-        queue.insertTrack(track, newFirstAutoplayIndex)
+        queue.insertTrack(queuedTrack, newFirstAutoplayIndex)
     }
 
     debugLog({
         message: 'User track moved to priority position',
         data: {
-            title: track.title,
+            title: queuedTrack.title,
             insertAt:
                 newFirstAutoplayIndex === -1 ? 'end' : newFirstAutoplayIndex,
         },

@@ -29,8 +29,8 @@ describe('normalizeText', () => {
         expect(normalizeText(undefined)).toBe('')
     })
 
-    it('handles accented characters by stripping them', () => {
-        expect(normalizeText('Café')).toBe('caf')
+    it('preserves Unicode letters including accented characters', () => {
+        expect(normalizeText('Café')).toBe('café')
     })
 
     it('preserves digits', () => {

@@ -135,7 +135,6 @@ export async function collectBroadFallbackCandidates(
                 })
             }
 
-            if (candidates.size > 0) return
         } catch {
             continue
         }
@@ -150,15 +149,24 @@ export async function collectGenreCandidates(
 ): Promise<void> {
     for (const tag of genres.slice(0, MAX_GENRES)) {
         if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-        const seeds = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
+        let seeds: Awaited<ReturnType<typeof getTagTopTracks>> = []
+        try {
+            seeds = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
+        } catch {
+            continue
+        }
         for (const seed of seeds) {
             if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-            const results = await searchLastFmQuery(
-                queue,
-                cleanSearchQuery(seed.title, seed.artist),
-                requestedBy,
-            )
-            for (const track of results) addGenreTrackCandidate(track, tag, ctx)
+            try {
+                const results = await searchLastFmQuery(
+                    queue,
+                    cleanSearchQuery(seed.title, seed.artist),
+                    requestedBy,
+                )
+                for (const track of results) addGenreTrackCandidate(track, tag, ctx)
+            } catch {
+                continue
+            }
         }
     }
 }

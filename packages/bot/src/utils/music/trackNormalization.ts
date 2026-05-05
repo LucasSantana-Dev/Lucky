@@ -19,8 +19,9 @@ export function normalizeTrackKey(title?: string, author?: string): string {
 
 export function normalizeText(value?: string): string {
     return (value ?? '')
+        .normalize('NFKC')
         .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '')
+        .replaceAll(/[^\p{L}\p{N}]+/gu, '')
         .trim()
 }
 
