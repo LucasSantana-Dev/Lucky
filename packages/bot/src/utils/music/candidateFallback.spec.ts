@@ -236,6 +236,50 @@ describe('enrichWithAudioFeatures', () => {
         const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never)
         expect(result[0].score).toBe(0.5)
     })
+
+    it('returns tracks unchanged when getValidAccessToken throws (catch callback)', async () => {
+        getValidAccessTokenMock.mockRejectedValue(new Error('auth failure'))
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
+        const currentFeatures = { energy: 0.7, valence: 0.5 }
+
+        const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never)
+        expect(result[0].score).toBe(0.5)
+        expect(getBatchAudioFeaturesMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to empty array when getArtistGenres throws for currentArtistName', async () => {
+        getValidAccessTokenMock.mockResolvedValue('token123')
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
+        const currentFeatures = { energy: 0.72, valence: 0.55 }
+        const trackFeatures = new Map([['abc123def456', { energy: 0.72, valence: 0.55 }]])
+        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
+        // First call (currentArtistName) throws — should fall back to []
+        getArtistGenresMock.mockRejectedValueOnce(new Error('genres api down'))
+
+        const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never, 'Rock Artist')
+        // currentGenres falls back to [] — no penalty applied, score unchanged
+        expect(result[0].score).toBeCloseTo(0.65, 5)
+    })
+
+    it('falls back to empty array when getArtistGenres throws per track', async () => {
+        getValidAccessTokenMock.mockResolvedValue('token123')
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
+        const currentFeatures = { energy: 0.72, valence: 0.55 }
+        const trackFeatures = new Map([['abc123def456', { energy: 0.72, valence: 0.55 }]])
+        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
+        // currentArtistName call succeeds, per-track call throws
+        getArtistGenresMock
+            .mockResolvedValueOnce(['rock'])
+            .mockRejectedValueOnce(new Error('per-track genres failed'))
+        calculateGenreFamilyPenaltyMock.mockReturnValue(0)
+
+        const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never, 'Rock Artist')
+        expect(getArtistGenresMock).toHaveBeenCalledTimes(2)
+        expect(result[0].score).toBeCloseTo(0.65, 5)
+    })
 })
 
 describe('collectGenreCandidates', () => {
@@ -367,5 +411,30 @@ describe('collectBroadFallbackCandidates', () => {
         )
 
         expect(upsertScoredCandidateMock).toHaveBeenCalled()
+    })
+
+    it('skips tracks when shouldIncludeCandidate returns false', async () => {
+        const foundTrack = { title: 'Found', author: 'Artist', url: 'u2', durationMS: 180_000 }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = { author: 'Artist', title: 'Song', url: 'u1', durationMS: 200_000 } as never
+        shouldIncludeCandidateMock.mockReturnValue(false)
+        const candidates = new Map<string, ScoredTrack>()
+
+        await collectBroadFallbackCandidates(
+            queue,
+            currentTrack,
+            null,
+            new Set(),
+            new Set(),
+            new Map(),
+            new Map(),
+            new Set(),
+            new Set(),
+            new Set(),
+            candidates,
+        )
+
+        expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
 })
