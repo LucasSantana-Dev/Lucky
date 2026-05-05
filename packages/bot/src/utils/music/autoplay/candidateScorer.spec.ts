@@ -535,18 +535,38 @@ describe('candidateScorer', () => {
                 recentSkipCount: 3,
             }
 
-            const withSkips = calculateRecommendationScore(
-                candidate, current, recentArtists,
-                new Map(), new Set(), new Set(), 'similar', new Map(),
-                new Set(), new Set(), new Map(), moodWithSkips, false,
-                { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
-            )
-            const withoutSkips = calculateRecommendationScore(
-                candidate, current, recentArtists,
-                new Map(), new Set(), new Set(), 'similar', new Map(),
-                new Set(), new Set(), new Map(), null, false,
-                { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
-            )
+            const withSkips = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: recentArtists,
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: moodWithSkips,
+                skipNoveltyBoost: false,
+                genreContext: { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
+            })
+            const withoutSkips = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: recentArtists,
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: null,
+                skipNoveltyBoost: false,
+                genreContext: { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
+            })
 
             expect(withSkips.score).toBeGreaterThan(withoutSkips.score)
         })
@@ -557,10 +577,15 @@ describe('candidateScorer', () => {
             const likedWeights = new Map([['hitsong::testartist', 0.8]])
             const recentArtists = new Set(['other'])
 
-            const result = calculateRecommendationScore(
-                candidate, current, recentArtists,
-                likedWeights, new Set(), new Set(), 'popular',
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: recentArtists,
+                likedWeights: likedWeights,
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'popular',
+            })
 
             expect(result.score).toBeGreaterThan(1)
         })
