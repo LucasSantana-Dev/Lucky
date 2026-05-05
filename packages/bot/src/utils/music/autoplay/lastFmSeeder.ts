@@ -6,7 +6,7 @@ import {
     consumeBlendedSeedSlice,
     isLovedSeed,
 } from './lastFmSeeds'
-import { getSimilarTracks } from '../../../lastfm'
+import { getSimilarTracks, getTagTopTracks } from '../../../lastfm'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import {
     cleanSearchQuery,
@@ -20,6 +20,7 @@ import {
     normalizeTrackKey,
 } from '../queueManipulation'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
+import type { ScoredTrack } from './diversitySelector';
 
 const LASTFM_SEED_COUNT = 3
 const LASTFM_SCORE_BOOST = 0.20
@@ -28,12 +29,6 @@ const MAX_SIMILAR_LOOKUPS = 5
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 const AUTOPLAY_BUFFER_SIZE = 8
-
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
 
 export async function collectLastFmCandidates(
     queue: GuildQueue,

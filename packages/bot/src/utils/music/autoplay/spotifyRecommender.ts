@@ -28,6 +28,7 @@ import {
 } from '../queueManipulation'
 import { calculateRecommendationScore } from './candidateScorer'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
+import type { ScoredTrack } from './diversitySelector';
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
@@ -40,12 +41,6 @@ const FULL_QUERY_MODIFIERS = [
     'band version',
     'session',
 ]
-
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
 
 export async function collectSpotifyRecommendationCandidates(
     queue: GuildQueue,

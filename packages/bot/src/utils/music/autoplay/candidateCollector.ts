@@ -13,12 +13,8 @@ import {
 } from '../queueManipulation'
 import { isDuplicateCandidate } from './diversitySelector'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
-
-export type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
+import type { ScoredTrack } from './diversitySelector'
+export type { ScoredTrack }
 
 /**
  * Include a candidate in the pool if it hasn't been played recently
