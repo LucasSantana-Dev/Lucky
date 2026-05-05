@@ -77,7 +77,7 @@ async function _replenishQueue(
     const startTime = Date.now()
     const guildId = queue.guild.id
     let candidatePoolSize = 0
-    const sourcesCounts = { spotify: 0, lastfm: 0, fallback: 0 }
+    const sourcesCounts = { spotify: 0, lastfm: 0, fallback: 0, genre: 0 }
 
     try {
         debugLog({
