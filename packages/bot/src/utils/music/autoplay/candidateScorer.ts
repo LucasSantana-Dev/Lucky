@@ -1,4 +1,3 @@
-import { LRUCache } from 'lru-cache'
 import type { Track } from 'discord-player'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import { getBatchAudioFeatures } from '../../../spotify/spotifyApi'
@@ -6,21 +5,47 @@ import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
 import { detectSpanishMarkers } from '../languageHeuristics'
+import { normalizeText, normalizeTrackKey } from '../queueManipulation'
+import type { ScoredTrack } from './diversitySelector'
 
-interface AudioFeatureEntry {
-    value: SpotifyAudioFeatures | null
-}
-
-const audioFeatureCache = new LRUCache<string, AudioFeatureEntry>({
-    max: 10000,
-    ttl: 24 * 60 * 60 * 1000,
-})
-
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
+const SCORE_SAME_ARTIST = 0.3
+const SCORE_SAME_GENRE_HINT = 0.3
+const SCORE_POPULAR_ARTIST = 0.2
+const SCORE_PREFERRED_ARTIST = 0.3
+const SCORE_LIKED_WEIGHT_MULTIPLIER = 0.3
+const SCORE_DISLIKED_PENALTY = -0.3
+const SCORE_IMPLICIT_DISLIKE = -0.35
+const SCORE_IMPLICIT_LIKE = 0.25
+const SCORE_TITLE_SIM_BONUS = 0.12
+const TITLE_SIM_THRESHOLD = 0.4
+const SCORE_RECENT_ARTIST = -0.25
+const SCORE_DURATION_MATCH = 0.15
+const SCORE_DURATION_BONUS_THRESHOLD = 0.05
+const SCORE_ACOUSTICNESS_MATCH = 0.1
+const SCORE_POPULAR_RESTLESS = 0.08
+const SCORE_BLOCKED_ARTIST = -0.4
+const SCORE_BLOCKED_ARTIST_PREFERRED = 0.25
+const SCORE_FREQUENT_ARTIST = -0.2
+const SCORE_GENRE_TAG_MAX = 0.2
+const SCORE_GENRE_TAG_PER_MATCH = 0.05
+const SCORE_LIKED_ARTIST_WEIGHT = 0.2
+const SCORE_LIKED_ARTIST_TEMPO = 0.1
+const SCORE_TEMPO_PENALTY_LARGE = -0.15
+const SCORE_TEMPO_PENALTY_SMALL = -0.07
+const TEMPO_DELTA_LARGE = 40
+const TEMPO_DELTA_SMALL = 25
+const DURATION_RATIO_TIGHT_LOW = 0.8
+const DURATION_RATIO_TIGHT_HIGH = 1.2
+const DURATION_RATIO_LOOSE_LOW = 0.7
+const DURATION_RATIO_LOOSE_HIGH = 1.3
+const SCORE_DURATION_RATIO_TIGHT = 0.15
+const SCORE_DURATION_RATIO_LOOSE = 0.05
+const GENRE_PENALTY_STRONG = -0.6
+const GENRE_PENALTY_WEAK = -0.3
+const GENRE_PENALTY_UNKNOWN = -0.1
+const SCORE_SPOTIFY_PREFERRED = 0.4
+const DISLIKE_WEIGHT_THRESHOLD = 0.5
+const POPULAR_TRACK_THRESHOLD = 50
 
 /**
  * Tag-driven genre context, threaded through every collector by the
@@ -61,20 +86,6 @@ const AMBIENT_NOISE_RE =
 const EDM_MIX_RE =
     /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
 
-// Helpers from queueManipulation that are needed for score calculation
-function normalizeText(value?: string): string {
-    return (value ?? '')
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '')
-        .trim()
-}
-
-function normalizeTrackKey(title?: string, author?: string): string {
-    const cleanedAuthor = author
-        ? author.split(',')[0]?.trim() ?? ''
-        : ''
-    return `${normalizeText(title)}::${normalizeText(cleanedAuthor)}`
-}
 
 export function getGenreFamilies(genres: string[]): Set<string> {
     const families = new Set<string>()
@@ -100,7 +111,7 @@ export function calculateGenreFamilyPenalty(
     const candidateFamilies = getGenreFamilies(candidateGenres)
 
     if (currentFamilies.size === 0 || candidateFamilies.size === 0) {
-        return -0.1
+        return GENRE_PENALTY_UNKNOWN
     }
 
     for (const family of currentFamilies) {
@@ -114,25 +125,51 @@ export function calculateGenreFamilyPenalty(
         strongGenres.includes(f),
     )
 
-    return isStrongGenre ? -0.6 : -0.3
+    return isStrongGenre ? GENRE_PENALTY_STRONG : GENRE_PENALTY_WEAK
+}
+
+export interface ScoringContext {
+  // Required properties
+  candidate: Track
+  currentTrack: Track
+  recentArtists: Set<string>
+  // Optional properties with defaults
+  likedWeights?: Map<string, number>
+  preferredArtistKeys?: Set<string>
+  blockedArtistKeys?: Set<string>
+  autoplayMode?: 'similar' | 'discover' | 'popular'
+  artistFrequency?: Map<string, number>
+  implicitDislikeKeys?: Set<string>
+  implicitLikeKeys?: Set<string>
+  dislikedWeights?: Map<string, number>
+  sessionMood?: SessionMood | null
+  skipNoveltyBoost?: boolean
+  genreContext?: {
+    candidateTags?: string[]
+    currentTrackTags?: string[]
+    sessionGenreFamilies?: Set<string>
+  }
 }
 
 export function calculateRecommendationScore(
-    candidate: Track,
-    currentTrack: Track,
-    recentArtists: Set<string>,
-    likedWeights: Map<string, number> = new Map(),
-    preferredArtistKeys: Set<string> = new Set(),
-    blockedArtistKeys: Set<string> = new Set(),
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    dislikedWeights: Map<string, number> = new Map(),
-    sessionMood: SessionMood | null = null,
-    skipNoveltyBoost = false,
-    genreContext: GenreContext = {},
+    ctx: ScoringContext,
 ): { score: number; reason: string } {
+    const {
+        candidate,
+        currentTrack,
+        recentArtists,
+        likedWeights = new Map(),
+        preferredArtistKeys = new Set(),
+        blockedArtistKeys = new Set(),
+        autoplayMode = 'similar',
+        artistFrequency = new Map(),
+        implicitDislikeKeys = new Set(),
+        implicitLikeKeys = new Set(),
+        dislikedWeights = new Map(),
+        sessionMood = null,
+        skipNoveltyBoost = false,
+        genreContext = {},
+    } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
     const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
@@ -205,66 +242,66 @@ export function calculateRecommendationScore(
     }
 
     if (preferredArtistKeys.has(candidateArtistKey)) {
-        score += 0.3
+        score += SCORE_PREFERRED_ARTIST
         reasons.push('preferred artist')
     }
 
     const freq = artistFrequency.get(candidateArtistKey) ?? 0
     if (freq >= 5) {
-        score += 0.3
+        score += SCORE_SAME_ARTIST
         reasons.push('favourite artist')
     } else if (freq >= 3) {
-        score += 0.2
+        score += SCORE_POPULAR_ARTIST
         reasons.push('liked artist')
     } else if (freq >= 1) {
-        score += 0.1
+        score += SCORE_POPULAR_ARTIST / 2
         reasons.push('known artist')
     }
 
     const candidateKey = normalizeTrackKey(candidate.title, candidate.author)
     const likedWeight = likedWeights.get(candidateKey)
     if (likedWeight !== undefined) {
-        score += 0.3 * likedWeight
+        score += SCORE_LIKED_WEIGHT_MULTIPLIER * likedWeight
         reasons.push('liked track')
     }
 
     const dislikedWeight = dislikedWeights.get(candidateKey)
     if (dislikedWeight !== undefined) {
-        if (dislikedWeight > 0.5) {
+        if (dislikedWeight > DISLIKE_WEIGHT_THRESHOLD) {
             return { score: -Infinity, reason: 'disliked' }
         }
-        score -= 0.3 * dislikedWeight
+        score -= Math.abs(SCORE_DISLIKED_PENALTY) * dislikedWeight
         reasons.push('old dislike')
     }
 
     if (implicitDislikeKeys.has(candidateKey)) {
-        score -= 0.35
+        score += SCORE_IMPLICIT_DISLIKE
         reasons.push('skipped before')
     }
     if (implicitLikeKeys.has(candidateKey)) {
-        score += 0.25
+        score += SCORE_IMPLICIT_LIKE
         reasons.push('completed before')
     }
 
     if (candidateArtist === currentArtist) {
-        score -= 0.35
+        score += SCORE_IMPLICIT_DISLIKE
         const titleSim = sharedTitleTokenScore(
             candidate.title ?? '',
             currentTrack.title ?? '',
         )
-        if (titleSim > 0.4) {
-            score += 0.12
+        if (titleSim > TITLE_SIM_THRESHOLD) {
+            score += SCORE_TITLE_SIM_BONUS
             reasons.push('album match')
         }
     } else if (!skipNoveltyBoost && !recentArtists.has(candidateArtist)) {
-        score += 0.15
+        score += SCORE_DURATION_MATCH
         reasons.push('session novelty')
     }
     if (
         candidate.source === currentTrack.source &&
         candidate.source !== 'spotify'
     ) {
-        score -= 0.25
+        score += SCORE_RECENT_ARTIST
     } else if (candidate.source && candidate.source !== currentTrack.source) {
         reasons.push('source variety')
     }
@@ -282,16 +319,16 @@ export function calculateRecommendationScore(
         currentTrack.durationMS > 0
     ) {
         const ratio = candidate.durationMS / currentTrack.durationMS
-        if (ratio >= 0.8 && ratio <= 1.2) {
-            score += 0.15
+        if (ratio >= DURATION_RATIO_TIGHT_LOW && ratio <= DURATION_RATIO_TIGHT_HIGH) {
+            score += SCORE_DURATION_RATIO_TIGHT
             reasons.push('similar energy')
-        } else if (ratio >= 0.7 && ratio <= 1.3) {
-            score += 0.05
+        } else if (ratio >= DURATION_RATIO_LOOSE_LOW && ratio <= DURATION_RATIO_LOOSE_HIGH) {
+            score += SCORE_DURATION_RATIO_LOOSE
         }
     }
 
     if (candidate.durationMS && candidate.durationMS > 7 * 60 * 1000) {
-        score -= 0.2
+        score += SCORE_FREQUENT_ARTIST
         reasons.push('long track penalty')
     }
 
@@ -301,28 +338,28 @@ export function calculateRecommendationScore(
             sessionMood.deepDiveArtist &&
             candidateArtist === sessionMood.deepDiveArtist
         ) {
-            score += 0.15
+            score += SCORE_DURATION_MATCH
             reasons.push('deep dive')
         }
         if (sessionMood.preferLong && durationMs > 0) {
             const durationBonus = 0.15 * Math.tanh((durationMs - 300_000) / 60_000)
             score += durationBonus
-            if (durationBonus > 0.05) reasons.push('long track match')
+            if (durationBonus > SCORE_DURATION_BONUS_THRESHOLD) reasons.push('long track match')
         }
         if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
-            score += 0.1
+            score += SCORE_ACOUSTICNESS_MATCH
             reasons.push('quick hit match')
         }
         if (sessionMood.restless) {
             if (!recentArtists.has(candidateArtist)) {
-                score += 0.1
+                score += SCORE_ACOUSTICNESS_MATCH
                 reasons.push('restless discovery')
             }
         }
     }
 
     if (candidate.source === 'spotify') {
-        score += 0.4
+        score += SCORE_SPOTIFY_PREFERRED
         reasons.push('spotify preferred')
     }
 
@@ -355,7 +392,7 @@ export function calculateRecommendationScore(
             candidate.title ?? '',
         )
     ) {
-        score -= 0.2
+        score += SCORE_FREQUENT_ARTIST
         reasons.push('version variant')
     }
 
@@ -366,26 +403,26 @@ export function calculateRecommendationScore(
         /\(tributo[^)]*\)/i.test(candidate.title ?? '') ||
         /\(\d{1,2}:\d{2}:\d{2}\)/.test(candidate.title ?? '')
     ) {
-        score -= 0.4
+        score += SCORE_BLOCKED_ARTIST
         reasons.push('low quality upload')
     }
 
     if (autoplayMode === 'discover') {
         if (!recentArtists.has(candidateArtist)) {
-            score += 0.25
+            score += SCORE_IMPLICIT_LIKE
             reasons.push('discovery boost')
         }
         if (recentArtists.has(candidateArtist)) {
-            score -= 0.2
+            score += SCORE_FREQUENT_ARTIST
         }
     } else if (autoplayMode === 'popular') {
         if (likedWeight !== undefined) {
-            score += 0.2 * likedWeight
+            score += SCORE_LIKED_ARTIST_WEIGHT * likedWeight
         }
         if (candidate.durationMS && currentTrack.durationMS) {
             const ratio = candidate.durationMS / currentTrack.durationMS
             if (ratio >= 0.9 && ratio <= 1.1) {
-                score += 0.1
+                score += SCORE_LIKED_ARTIST_TEMPO
                 reasons.push('energy match')
             }
         }
@@ -408,7 +445,7 @@ function sharedTitleTokenScore(titleA: string, titleB: string): number {
         if (tokensA.has(token)) matches++
     }
 
-    return Math.min(0.2, matches * 0.05)
+    return Math.min(SCORE_GENRE_TAG_MAX, matches * SCORE_GENRE_TAG_PER_MATCH)
 }
 
 function splitTokens(value: string): string[] {
@@ -460,21 +497,22 @@ export async function enrichWithAudioFeatures(
         const track = idToTrack.get(id)
         if (!track) continue
 
+
         const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
         const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
 
         if (energyDelta < 0.15 && valenceDelta < 0.2) {
-            track.score += 0.15
+            track.score += SCORE_DURATION_MATCH
         } else if (energyDelta < 0.3 || valenceDelta < 0.35) {
             track.score += 0.07
         } else if (energyDelta > 0.6) {
-            track.score -= 0.1
+            track.score += SCORE_ACOUSTICNESS_MATCH * -1
         }
 
         if (currentFeatures.tempo && feature.tempo) {
             const tempoDelta = Math.abs(currentFeatures.tempo - feature.tempo)
-            if (tempoDelta > 40) track.score -= 0.15
-            else if (tempoDelta > 25) track.score -= 0.07
+            if (tempoDelta > 40) track.score += SCORE_TEMPO_PENALTY_LARGE
+            else if (tempoDelta > TEMPO_DELTA_SMALL) track.score += SCORE_TEMPO_PENALTY_SMALL
         }
 
         if (
@@ -485,12 +523,12 @@ export async function enrichWithAudioFeatures(
                 currentFeatures.acousticness > 0.6 &&
                 feature.acousticness > 0.5
             ) {
-                track.score += 0.10
+                track.score += SCORE_ACOUSTICNESS_MATCH
             } else if (
                 currentFeatures.acousticness < 0.2 &&
                 feature.acousticness > 0.6
             ) {
-                track.score -= 0.10
+                track.score -= SCORE_ACOUSTICNESS_MATCH
             }
         }
     }

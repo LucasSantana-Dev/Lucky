@@ -441,4 +441,55 @@ describe('sessionMood', () => {
             expect(mood.dominantLocale).toBe('spanish')
         })
     })
+
+    describe('detectSessionMood - recentSkipCount triggers restless', () => {
+        it('sets restless=true when recentSkipCount >= 3', () => {
+            const history = Array.from({ length: 5 }, (_, i) => ({
+                author: `Artist ${i}`,
+                title: `Song ${i}`,
+                durationMS: 200000,
+            }))
+
+            const mood = detectSessionMood(history, 3)
+
+            expect(mood.restless).toBe(true)
+        })
+
+        it('does not override restless=true from skip count with restless=false', () => {
+            // All same artist — no natural restless trigger — but skip count forces it
+            const history = Array.from({ length: 5 }, () => ({
+                author: 'Same Artist',
+                title: 'Track',
+                durationMS: 200000,
+            }))
+
+            const mood = detectSessionMood(history, 5)
+
+            expect(mood.restless).toBe(true)
+        })
+
+        it('keeps restless=false when recentSkipCount < 3', () => {
+            const history = Array.from({ length: 5 }, (_, i) => ({
+                author: `Artist ${i}`,
+                title: `Song ${i}`,
+                durationMS: 200000,
+            }))
+
+            const mood = detectSessionMood(history, 2)
+
+            // With 5 tracks and 5 different artists, the organic restless check
+            // needs >40% autoplay tracks — this history has none, so restless stays false
+            expect(mood.restless).toBe(false)
+        })
+
+        it('returns correct shape with restless set when recentSkipCount >= 3', () => {
+            const history = [{ author: 'Artist', title: 'Song', durationMS: 200000 }]
+
+            const mood = detectSessionMood(history, 3)
+
+            expect(mood).toHaveProperty('restless')
+            expect(mood).toHaveProperty('deepDiveArtist')
+            expect(mood.restless).toBe(true)
+        })
+    })
 })

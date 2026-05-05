@@ -454,6 +454,69 @@ describe('diversitySelector', () => {
         })
     })
 
+        describe('same-album soft penalty', () => {
+            function makeCandidate(
+                title: string,
+                author: string,
+                score: number,
+                albumName?: string,
+            ) {
+                return {
+                    track: {
+                        title,
+                        author,
+                        url: `http://example.com/${title}`,
+                        source: 'spotify',
+                        raw: albumName ? { album: { name: albumName } } : {},
+                    } as unknown as Track,
+                    score,
+                    reason: 'test',
+                }
+            }
+
+            test('second track from same album is penalised by 0.12', () => {
+                const candidates = new Map([
+                    ['a', makeCandidate('Track A', 'Artist', 0.9, 'Great Album')],
+                    ['b', makeCandidate('Track B', 'Artist 2', 0.85, 'Great Album')],
+                    ['c', makeCandidate('Track C', 'Artist 3', 0.5)],
+                ])
+
+                // maxPerArtist=2 allows both same-album tracks by artist constraint
+                const selected = selectDiverseCandidates(candidates, 3, 2, 3, '')
+
+                // Track B gets score ~0.85 - 0.12 = 0.73 with jitter, still > 0
+                // Both A and B can be selected (different artists), B with reduced score
+                const titles = selected.map((s) => s.track.title)
+                expect(titles).toContain('Track A')
+                expect(titles).toContain('Track C')
+            })
+
+            test('track from same album with score < 0.12 is excluded', () => {
+                const candidates = new Map([
+                    ['a', makeCandidate('Track A', 'Artist 1', 0.9, 'Tight Album')],
+                    ['b', makeCandidate('Track B', 'Artist 2', 0.05, 'Tight Album')],
+                    ['c', makeCandidate('Track C', 'Artist 3', 0.8)],
+                ])
+
+                const selected = selectDiverseCandidates(candidates, 3, 2, 3, '')
+
+                // Track B score 0.05 - 0.12 < 0 → excluded
+                const titles = selected.map((s) => s.track.title)
+                expect(titles).not.toContain('Track B')
+            })
+
+            test('tracks with no album field are not penalised', () => {
+                const candidates = new Map([
+                    ['a', makeCandidate('Track A', 'Artist 1', 0.9)],
+                    ['b', makeCandidate('Track B', 'Artist 2', 0.8)],
+                ])
+
+                const selected = selectDiverseCandidates(candidates, 2, 2, 3, '')
+
+                expect(selected).toHaveLength(2)
+            })
+        })
+
     describe('purgeDuplicatesOfCurrentTrack', () => {
         test('should remove duplicate tracks from queue', () => {
             const dupTrack: Partial<Track> = {

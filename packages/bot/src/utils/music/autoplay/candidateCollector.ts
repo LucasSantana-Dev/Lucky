@@ -13,12 +13,8 @@ import {
 } from '../queueManipulation'
 import { isDuplicateCandidate } from './diversitySelector'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
-
-export type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
+import type { ScoredTrack } from './diversitySelector'
+export type { ScoredTrack }
 
 /**
  * Include a candidate in the pool if it hasn't been played recently
@@ -161,7 +157,7 @@ export async function collectRecommendationCandidates(
                 continue
             }
             const tags = await getArtistTags(candidate.author)
-            const rec = calculateRecommendationScore(
+            const rec = calculateRecommendationScore({
                 candidate,
                 currentTrack,
                 recentArtists,
@@ -174,13 +170,12 @@ export async function collectRecommendationCandidates(
                 implicitLikeKeys,
                 dislikedWeights,
                 sessionMood,
-                false,
-                {
+                genreContext: {
                     candidateTags: tags,
                     currentTrackTags,
                     sessionGenreFamilies,
                 },
-            )
+            })
             upsertScoredCandidate(candidates, candidate, rec)
         }
     }
