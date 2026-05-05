@@ -6,6 +6,7 @@ const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 const isLovedSeedMock = jest.fn()
 const getSimilarTracksMock = jest.fn()
+const getTagTopTracksMock = jest.fn()
 const createArtistTagFetcherMock = jest.fn()
 const cleanSearchQueryMock = jest.fn()
 const cleanTitleMock = jest.fn()
@@ -32,7 +33,7 @@ jest.mock('./lastFmSeeds', () => ({
 
 jest.mock('../../../lastfm', () => ({
     getSimilarTracks: (...args: unknown[]) => getSimilarTracksMock(...args),
-    getTagTopTracks: jest.fn().mockResolvedValue([]),
+    getTagTopTracks: (...args: unknown[]) => getTagTopTracksMock(...args),
 }))
 
 jest.mock('./artistTagCache', () => ({
@@ -147,6 +148,7 @@ describe('collectLastFmCandidates', () => {
         calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'test' })
         isLovedSeedMock.mockReturnValue(false)
         getSimilarTracksMock.mockResolvedValue([])
+        getTagTopTracksMock.mockResolvedValue([])
         createArtistTagFetcherMock.mockReturnValue(jest.fn().mockResolvedValue([]))
     })
 
@@ -252,5 +254,119 @@ describe('collectLastFmCandidates', () => {
         )
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
+    })
+
+    it('processes similar tracks from getSimilarTracks', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([{ title: 'Similar', artist: 'SimilarArtist', match: 80 }])
+        const track = createTrack()
+        const queue = createQueue({ tracks: [track] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), new Map(), new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        // seed track + similar track both call upsertScoredCandidate
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(2)
+        const similarCall = upsertScoredCandidateMock.mock.calls[1]
+        const reason = (similarCall?.[2] as { reason: string })?.reason
+        expect(reason).toContain('similar to your taste')
+    })
+
+    it('skips excluded tracks in similar-tracks loop (line 155 continue)', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([{ title: 'Similar', artist: 'SimilarArtist', match: 80 }])
+        // seed: include, similar: exclude
+        shouldIncludeCandidateMock
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(false)
+        const track = createTrack()
+        const queue = createQueue({ tracks: [track] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), new Map(), new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('skips disliked tracks in similar-tracks loop (line 162 continue)', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([{ title: 'Similar', artist: 'SimilarArtist', match: 80 }])
+        normalizeTrackKeyMock
+            .mockReturnValueOnce('seed-key')
+            .mockReturnValueOnce('similar-key')
+        const dislikedWeights = new Map([['similar-key', 0.9]])
+        const track = createTrack()
+        const queue = createQueue({ tracks: [track] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), dislikedWeights, new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('uses sparse-artist fallback when candidates < 3 and dominant tag exists', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue(jest.fn().mockResolvedValue(['rock']))
+        getTagTopTracksMock.mockResolvedValue([{ title: 'TagTrack', artist: 'TagArtist' }])
+        const track = createTrack()
+        const queue = createQueue({ tracks: [track] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), new Map(), new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
+        const calls = upsertScoredCandidateMock.mock.calls
+        const genreCall = calls.find(
+            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+        )
+        expect(genreCall).toBeDefined()
+    })
+
+    it('skips disliked tracks in sparse-artist fallback', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue(jest.fn().mockResolvedValue(['jazz']))
+        getTagTopTracksMock.mockResolvedValue([{ title: 'TagTrack', artist: 'TagArtist' }])
+        // seed key: 'seed-key', genre-fallback key: 'genre-key' (disliked)
+        normalizeTrackKeyMock
+            .mockReturnValueOnce('seed-key')
+            .mockReturnValueOnce('genre-key')
+        const dislikedWeights = new Map([['genre-key', 0.9]])
+        const queue = createQueue({ tracks: [createTrack()] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), dislikedWeights, new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        const calls = upsertScoredCandidateMock.mock.calls
+        const genreCall = calls.find(
+            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+        )
+        expect(genreCall).toBeUndefined()
     })
 })

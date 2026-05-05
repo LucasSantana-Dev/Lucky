@@ -6,7 +6,7 @@ import {
     consumeBlendedSeedSlice,
     isLovedSeed,
 } from './lastFmSeeds'
-import { getSimilarTracks } from '../../../lastfm'
+import { getSimilarTracks, getTagTopTracks } from '../../../lastfm'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import {
     cleanSearchQuery,
