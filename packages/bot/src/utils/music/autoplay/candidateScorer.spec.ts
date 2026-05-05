@@ -865,8 +865,6 @@ describe('candidateScorer', () => {
             expect(result[0].score).toBeLessThan(1)
         })
 
-        })
-
         it('applies tempo drastic change penalty when delta exceeds 40 BPM', async () => {
             const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
