@@ -13,6 +13,7 @@ const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
     desc,
 }))
 const createMusicControlButtonsMock = jest.fn(() => ({ type: 1 }))
+const createMusicActionButtonsMock = jest.fn(() => ({}))
 const createQueueEmbedMock = jest.fn()
 const shuffleQueueMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
@@ -31,7 +32,8 @@ const createLeaderboardPaginationButtonsMock = jest.fn()
 jest.mock('../utils/music/buttonComponents', () => ({
     createMusicControlButtons: (...args: unknown[]) =>
         createMusicControlButtonsMock(...args),
-    createMusicActionButtons: jest.fn().mockReturnValue({}),
+    createMusicActionButtons: (...args: unknown[]) =>
+        createMusicActionButtonsMock(...args),
     createLeaderboardPaginationButtons: (...args: unknown[]) =>
         createLeaderboardPaginationButtonsMock(...args),
 }))
@@ -122,6 +124,8 @@ describe('handleMusicButtonInteraction', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         createQueueEmbedMock.mockResolvedValue({ embed: {}, components: [] })
+        createMusicControlButtonsMock.mockReturnValue({ type: 1 })
+        createMusicActionButtonsMock.mockReturnValue({})
     })
 
     it('replies ephemeral error when member not in voice channel', async () => {
@@ -173,7 +177,7 @@ describe('handleMusicButtonInteraction', () => {
         expect(queue.node.pause).toHaveBeenCalled()
         expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
         expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ components: expect.any(Array) }),
+            expect.objectContaining({ components: [{ type: 1 }, {}] }),
         )
     })
 
@@ -188,7 +192,7 @@ describe('handleMusicButtonInteraction', () => {
         expect(queue.node.resume).toHaveBeenCalled()
         expect(createMusicControlButtonsMock).toHaveBeenCalledWith(queue)
         expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ components: expect.any(Array) }),
+            expect.objectContaining({ components: [{ type: 1 }, {}] }),
         )
     })
 

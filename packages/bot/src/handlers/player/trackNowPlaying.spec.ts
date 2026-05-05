@@ -225,7 +225,13 @@ describe('trackNowPlaying handlers', () => {
 
             await sendNowPlayingEmbed(mockQueue, mockTrack, false)
 
-            expect(mockChannel.send).toHaveBeenCalled()
+            expect(createMusicControlButtonsMock).toHaveBeenCalledWith(mockQueue)
+            expect(mockChannel.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    embeds: [{ title: 'test embed' }],
+                    components: [[], []],
+                }),
+            )
         })
 
         it('includes embed colors in create embed call', async () => {
@@ -314,8 +320,8 @@ describe('trackNowPlaying handlers', () => {
             expect(fetchMock).toHaveBeenCalledWith(prevMessageId)
             expect(prevMessage.edit).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    embeds: expect.arrayContaining([{ title: 'test embed' }]),
-                    components: expect.anything(),
+                    embeds: [{ title: 'test embed' }],
+                    components: [[], []],
                 })
             )
         })
