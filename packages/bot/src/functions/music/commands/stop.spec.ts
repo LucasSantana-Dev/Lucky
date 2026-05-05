@@ -7,6 +7,13 @@ const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const markIntentionalStopMock = jest.fn()
+const deleteSnapshotMock = jest.fn()
+
+jest.mock('../../../utils/music/sessionSnapshots', () => ({
+    musicSessionSnapshotService: {
+        deleteSnapshot: (...args: unknown[]) => deleteSnapshotMock(...args),
+    },
+}))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
@@ -51,6 +58,7 @@ describe('stop command', () => {
         interactionReplyMock.mockResolvedValue(undefined)
         createSuccessEmbedMock.mockReturnValue({ title: 'Playback stopped' })
         requireDJRoleMock.mockResolvedValue(true)
+        deleteSnapshotMock.mockResolvedValue(undefined)
     })
 
     it('stops node, clears and deletes queue', async () => {
@@ -64,6 +72,7 @@ describe('stop command', () => {
         })
 
         expect(markIntentionalStopMock).toHaveBeenCalledWith('guild-1')
+        expect(deleteSnapshotMock).toHaveBeenCalledWith('guild-1')
         expect(queue.node.stop).toHaveBeenCalled()
         expect(queue.clear).toHaveBeenCalled()
         expect(queue.delete).toHaveBeenCalled()
@@ -73,6 +82,9 @@ describe('stop command', () => {
         const queue = createQueue()
         const callOrder: string[] = []
         markIntentionalStopMock.mockImplementation(() => callOrder.push('mark'))
+        deleteSnapshotMock.mockImplementation(async () =>
+            callOrder.push('deleteSnapshot'),
+        )
         queue.node.stop.mockImplementation(() => callOrder.push('stop'))
         queue.clear.mockImplementation(() => callOrder.push('clear'))
         queue.delete.mockImplementation(() => callOrder.push('delete'))
@@ -84,7 +96,7 @@ describe('stop command', () => {
             client: {} as any,
         })
 
-        expect(callOrder).toEqual(['mark', 'stop', 'clear', 'delete'])
+        expect(callOrder).toEqual(['mark', 'deleteSnapshot', 'stop', 'clear', 'delete'])
     })
 
     it('replies with success embed after stopping', async () => {

@@ -48,7 +48,18 @@ export function upsertScoredCandidate(
     candidate: Track,
     recommendation: { score: number; reason: string },
 ): void {
-    if (!Number.isFinite(recommendation.score)) return
+    if (!Number.isFinite(recommendation.score)) {
+        debugLog({
+            message: 'Autoplay hard-reject',
+            data: {
+                title: candidate.title,
+                author: candidate.author,
+                score: recommendation.score,
+                reason: recommendation.reason,
+            },
+        })
+        return
+    }
 
     const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
     const candidateKey =

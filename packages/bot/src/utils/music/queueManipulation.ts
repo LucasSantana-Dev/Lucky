@@ -68,7 +68,7 @@ const SEARCH_RESULTS_LIMIT = 8
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 const LASTFM_SEED_COUNT = 3
-const LASTFM_SCORE_BOOST = 0.0
+const LASTFM_SCORE_BOOST = 0.20
 const MAX_SIMILAR_LOOKUPS = 5
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
     process.env.QUEUE_RESCUE_PROBE_TIMEOUT_MS ?? '5000',
@@ -868,7 +868,15 @@ export function markAsAutoplayTrack(
 
 export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     const tracks = queue.tracks.toArray()
-    const trackIndex = tracks.findIndex((t) => t.url === track.url)
+    // Use multi-strategy lookup: reference equality first, then ID, then URL.
+    // Spotify tracks are resolved to YouTube URLs at queue time, so the URL on
+    // the result track may differ from the queued track's resolved URL.
+    const trackIndex = tracks.findIndex(
+        (t) =>
+            t === track ||
+            (track.id && t.id === track.id) ||
+            t.url === track.url,
+    )
 
     if (trackIndex === -1) {
         debugLog({
@@ -877,6 +885,8 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
         })
         return
     }
+
+    const queuedTrack = tracks[trackIndex]!
 
     const firstAutoplayIndex = tracks.findIndex((t) => {
         const meta = (t.metadata ?? {}) as { isAutoplay?: boolean }
@@ -888,7 +898,7 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     }
 
     try {
-        queue.node.remove(track)
+        queue.node.remove(queuedTrack)
     } catch {
         return
     }
@@ -900,15 +910,15 @@ export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     })
 
     if (newFirstAutoplayIndex === -1) {
-        queue.addTrack(track)
+        queue.addTrack(queuedTrack)
     } else {
-        queue.insertTrack(track, newFirstAutoplayIndex)
+        queue.insertTrack(queuedTrack, newFirstAutoplayIndex)
     }
 
     debugLog({
         message: 'User track moved to priority position',
         data: {
-            title: track.title,
+            title: queuedTrack.title,
             insertAt:
                 newFirstAutoplayIndex === -1 ? 'end' : newFirstAutoplayIndex,
         },
