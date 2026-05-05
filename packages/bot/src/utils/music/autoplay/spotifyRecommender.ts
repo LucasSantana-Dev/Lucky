@@ -31,7 +31,15 @@ import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
-const QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
+const BASE_QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
+const FULL_QUERY_MODIFIERS = [
+    ...BASE_QUERY_MODIFIERS,
+    'acoustic',
+    'live',
+    'electric',
+    'band version',
+    'session',
+]
 
 type ScoredTrack = {
     track: Track
@@ -184,9 +192,13 @@ export async function searchSeedCandidates(
     seed: Track,
     requestedBy: User | null,
     replenishCount = 0,
+    sessionMood?: import('./sessionMood').SessionMood | null,
 ): Promise<Track[]> {
+    const modifiers = sessionMood?.restless
+        ? BASE_QUERY_MODIFIERS
+        : FULL_QUERY_MODIFIERS
     const baseQuery = cleanSearchQuery(seed.title, seed.author)
-    const modifier = QUERY_MODIFIERS[replenishCount % QUERY_MODIFIERS.length]
+    const modifier = modifiers[replenishCount % modifiers.length]
     const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
 
     const cleanedTitle = cleanTitle(seed.title)

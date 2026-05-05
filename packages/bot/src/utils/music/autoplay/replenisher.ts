@@ -106,7 +106,7 @@ async function _replenishQueue(
             Math.abs(allHistoryTracks.length - guildMoodCache.historyLen) < 3
                 ? guildMoodCache.mood
                 : (() => {
-                      const mood = detectSessionMood(allHistoryTracks)
+                      const mood = detectSessionMood(allHistoryTracks, 0 /* TODO: wire recentSkipCount from skip tracking */)
                       sessionMoodCache.set(replenishGuildId, {
                           mood,
                           historyLen: allHistoryTracks.length,

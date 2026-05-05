@@ -144,6 +144,7 @@ export async function collectRecommendationCandidates(
             seed,
             requestedBy,
             replenishCount,
+            sessionMood,
         )
         for (const candidate of seedCandidates) {
             if (

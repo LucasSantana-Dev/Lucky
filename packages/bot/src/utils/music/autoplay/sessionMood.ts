@@ -6,6 +6,7 @@ export interface SessionMood {
     preferShort: boolean
     restless: boolean
     dominantLocale: 'spanish' | null
+    recentSkipCount?: number
 }
 
 function parseDurationString(durationStr: string | undefined): number {
@@ -45,6 +46,7 @@ export function detectSessionMood(
         isAutoplay?: boolean
         title?: string
     }[],
+    recentSkipCount: number = 0,
 ): SessionMood {
     if (historyTracks.length === 0) {
         return {
@@ -108,6 +110,11 @@ export function detectSessionMood(
         if (autoplayRatio > 0.4 && uniqueArtists.size >= 3) {
             restless = true
         }
+    }
+
+    // Skip storm: relax mood when user is skipping aggressively
+    if (recentSkipCount >= 3) {
+        restless = true
     }
 
     // Spanish/Latin locale: use the shared language heuristic so we pick up

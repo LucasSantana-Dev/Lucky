@@ -304,9 +304,10 @@ export function calculateRecommendationScore(
             score += 0.15
             reasons.push('deep dive')
         }
-        if (sessionMood.preferLong && durationMs > 300_000) {
-            score += 0.1
-            reasons.push('long track match')
+        if (sessionMood.preferLong && durationMs > 0) {
+            const durationBonus = 0.15 * Math.tanh((durationMs - 300_000) / 60_000)
+            score += durationBonus
+            if (durationBonus > 0.05) reasons.push('long track match')
         }
         if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
             score += 0.1
@@ -333,10 +334,14 @@ export function calculateRecommendationScore(
     // gracefully when the cross-genre veto above didn't fire (mixed sessions
     // or candidates whose tags don't map to a known family).
     if (currentTrackTags.length > 0 && candidateTags.length > 0) {
-        const familyPenalty = calculateGenreFamilyPenalty(
+        let familyPenalty = calculateGenreFamilyPenalty(
             currentTrackTags,
             candidateTags,
         )
+        // Relax genre penalties by 50% during skip storms to allow more diverse candidates
+        if (sessionMood?.recentSkipCount && sessionMood.recentSkipCount >= 3) {
+            familyPenalty *= 0.5
+        }
         if (familyPenalty !== 0) {
             score += familyPenalty
             if (familyPenalty <= -0.3) {
@@ -455,6 +460,20 @@ export async function enrichWithAudioFeatures(
         const track = idToTrack.get(id)
         if (!track) continue
 
+        // Task 2: Tempo continuity penalty
+        const tempoDelta = Math.abs(feature.tempo - currentFeatures.tempo)
+        if (tempoDelta > 40) {
+            track.score -= 0.12  // Penalize drastic tempo changes
+        }
+        
+        // Task 3: Acousticness continuity logic
+        const acousticnessDelta = Math.abs(feature.acousticness - currentFeatures.acousticness)
+        if (feature.acousticness > 0.6) {
+            track.score += 0.08  // Bonus for acoustic tracks
+        } else if (acousticnessDelta > 0.5) {
+            track.score -= 0.08  // Penalty for extreme acousticness swings
+        }
+
         const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
         const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
 
@@ -464,6 +483,29 @@ export async function enrichWithAudioFeatures(
             track.score += 0.07
         } else if (energyDelta > 0.6) {
             track.score -= 0.1
+        }
+
+        if (currentFeatures.tempo && feature.tempo) {
+            const tempoDelta = Math.abs(currentFeatures.tempo - feature.tempo)
+            if (tempoDelta > 40) track.score -= 0.15
+            else if (tempoDelta > 25) track.score -= 0.07
+        }
+
+        if (
+            currentFeatures.acousticness !== undefined &&
+            feature.acousticness !== undefined
+        ) {
+            if (
+                currentFeatures.acousticness > 0.6 &&
+                feature.acousticness > 0.5
+            ) {
+                track.score += 0.10
+            } else if (
+                currentFeatures.acousticness < 0.2 &&
+                feature.acousticness > 0.6
+            ) {
+                track.score -= 0.10
+            }
         }
     }
 

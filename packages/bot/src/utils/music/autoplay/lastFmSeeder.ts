@@ -4,6 +4,7 @@ import { lastFmLinkService } from '@lucky/shared/services'
 import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
+    isLovedSeed,
 } from './lastFmSeeds'
 import { getSimilarTracks } from '../../../lastfm'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
@@ -21,7 +22,8 @@ import {
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 
 const LASTFM_SEED_COUNT = 3
-const LASTFM_SCORE_BOOST = 0.0
+const LASTFM_SCORE_BOOST = 0.20
+const LOVED_SEED_EXTRA_BOOST = 0.10
 const MAX_SIMILAR_LOOKUPS = 5
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
@@ -101,6 +103,9 @@ export async function collectLastFmCandidates(
         genreContext.sessionGenreFamilies ?? new Set<string>()
 
     for (const seed of seedSlice) {
+        const lovedBoost = isLovedSeed(requestedBy.id, seed.artist, seed.title)
+            ? LOVED_SEED_EXTRA_BOOST
+            : 0
         const query = cleanSearchQuery(seed.title, seed.artist)
         const tracks = await searchLastFmQuery(queue, query, requestedBy)
         for (const track of tracks) {
@@ -131,10 +136,10 @@ export async function collectLastFmCandidates(
                 },
             )
             upsertScoredCandidate(candidates, track, {
-                score: rec.score + LASTFM_SCORE_BOOST,
+                score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
                 reason: rec.reason
-                    ? `${rec.reason} • last.fm taste`
-                    : 'last.fm taste',
+                    ? `${rec.reason} • last.fm taste${lovedBoost > 0 ? ' (loved)' : ''}`
+                    : `last.fm taste${lovedBoost > 0 ? ' (loved)' : ''}`,
             })
         }
 
@@ -184,6 +189,67 @@ export async function collectLastFmCandidates(
                 })
             }
             if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
+        }
+    }
+
+    // Sparse-artist fallback: if similar tracks yielded < 3 candidates,
+    // use the current track's dominant genre tag to find tracks in-genre.
+    if (candidates.size < 3 && seedSlice.length > 0) {
+        const dominantTags = await getArtistTags(currentTrack.author)
+        const dominantTag = dominantTags[0]
+        if (dominantTag) {
+            const tagTracks = await getTagTopTracks(dominantTag, 20).catch(
+                () => [],
+            )
+            for (const t of tagTracks.slice(0, 5)) {
+                const tagQuery = cleanSearchQuery(t.title, t.artist)
+                const found = await searchLastFmQuery(
+                    queue,
+                    tagQuery,
+                    requestedBy,
+                )
+                for (const track of found) {
+                    if (
+                        !shouldIncludeCandidate(track, excludedUrls, excludedKeys)
+                    )
+                        continue
+                    const normalizedKey = normalizeTrackKey(
+                        track.title,
+                        track.author,
+                    )
+                    const dislikedWeight = dislikedWeights.get(normalizedKey)
+                    if (dislikedWeight !== undefined && dislikedWeight > 0.5)
+                        continue
+                    const tags = await getArtistTags(track.author)
+                    const rec = calculateRecommendationScore(
+                        track,
+                        currentTrack,
+                        recentArtists,
+                        likedWeights,
+                        preferredArtistKeys,
+                        blockedArtistKeys,
+                        autoplayMode,
+                        artistFrequency,
+                        implicitDislikeKeys,
+                        implicitLikeKeys,
+                        dislikedWeights,
+                        sessionMood,
+                        true,
+                        {
+                            candidateTags: tags,
+                            currentTrackTags,
+                            sessionGenreFamilies,
+                        },
+                    )
+                    upsertScoredCandidate(candidates, track, {
+                        score: rec.score + LASTFM_SCORE_BOOST,
+                        reason: rec.reason
+                            ? `${rec.reason} • genre fallback`
+                            : 'genre fallback',
+                    })
+                }
+                if (candidates.size >= 3) break
+            }
         }
     }
 }
