@@ -369,4 +369,71 @@ describe('collectLastFmCandidates', () => {
         )
         expect(genreCall).toBeUndefined()
     })
+
+    it('falls back to single-user seed when only one VC member is linked', async () => {
+        lastFmLinkServiceMock.getByDiscordId
+            .mockResolvedValueOnce({ lastFmUsername: 'user1' })
+            .mockResolvedValueOnce(null)
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        const queue = {
+            player: { search: jest.fn().mockResolvedValue({ tracks: [createTrack()] }) },
+            metadata: { vcMemberIds: ['user-1', 'user-2'] },
+            guild: { id: 'guild-1' },
+        } as unknown as GuildQueue
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), new Map(), new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 3)
+        expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
+    })
+
+    it('catches getTagTopTracks rejection and uses empty array (line 202 catch)', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue(jest.fn().mockResolvedValue(['rock']))
+        getTagTopTracksMock.mockRejectedValue(new Error('last.fm down'))
+        const queue = createQueue({ tracks: [createTrack()] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await expect(
+            collectLastFmCandidates(
+                queue, user,
+                new Set(), new Set(), new Map(), new Map(),
+                new Set(), new Set(), createTrack(), new Set(), candidates,
+            )
+        ).resolves.toBeUndefined()
+        expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
+    })
+
+    it('skips excluded tracks in sparse-artist fallback (line 215 continue)', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([{ title: 'T1', artist: 'A1' }])
+        getSimilarTracksMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue(jest.fn().mockResolvedValue(['pop']))
+        getTagTopTracksMock.mockResolvedValue([{ title: 'TagTrack', artist: 'TagArtist' }])
+        // seed: included, genre-fallback: excluded
+        shouldIncludeCandidateMock
+            .mockReturnValueOnce(true)
+            .mockReturnValueOnce(false)
+        const queue = createQueue({ tracks: [createTrack()] })
+        const user = createUser()
+        const candidates = new Map()
+
+        await collectLastFmCandidates(
+            queue, user,
+            new Set(), new Set(), new Map(), new Map(),
+            new Set(), new Set(), createTrack(), new Set(), candidates,
+        )
+
+        const genreCall = upsertScoredCandidateMock.mock.calls.find(
+            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+        )
+        expect(genreCall).toBeUndefined()
+    })
 })
