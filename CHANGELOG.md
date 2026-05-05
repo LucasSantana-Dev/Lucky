@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-05-05
+
+### Added
+- feat(admin): admin panel with writable global feature toggles — per-toggle enable/disable via the web UI, backed by `GlobalFeatureToggle` DB table (#801)
+- feat(bot): `/artist` and `/album` commands are now gated behind feature toggles — admins can disable them without a redeploy (#800)
+
+### Changed
+- docs: refresh roadmap for v2.8.0 and add Prisma migration guide (#802)
+
+## [2.8.0] - 2026-04-20
+
+### Added
+- feat(music): `/artist` — browse artist info, top tracks, and related artists from Spotify
+- feat(music): `/album` — search and browse albums with track listings and playback integration
+
 ## [2.6.148] - 2026-04-20
 
 ### Added
