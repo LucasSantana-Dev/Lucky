@@ -128,22 +128,48 @@ export function calculateGenreFamilyPenalty(
     return isStrongGenre ? GENRE_PENALTY_STRONG : GENRE_PENALTY_WEAK
 }
 
+export interface ScoringContext {
+  // Required properties
+  candidate: Track
+  currentTrack: Track
+  recentArtists: Set<string>
+  // Optional properties with defaults
+  likedWeights?: Map<string, number>
+  preferredArtistKeys?: Set<string>
+  blockedArtistKeys?: Set<string>
+  autoplayMode?: 'similar' | 'discover' | 'popular'
+  artistFrequency?: Map<string, number>
+  implicitDislikeKeys?: Set<string>
+  implicitLikeKeys?: Set<string>
+  dislikedWeights?: Map<string, number>
+  sessionMood?: SessionMood | null
+  skipNoveltyBoost?: boolean
+  genreContext?: {
+    candidateTags?: string[]
+    currentTrackTags?: string[]
+    sessionGenreFamilies?: Set<string>
+  }
+}
+
 export function calculateRecommendationScore(
-    candidate: Track,
-    currentTrack: Track,
-    recentArtists: Set<string>,
-    likedWeights: Map<string, number> = new Map(),
-    preferredArtistKeys: Set<string> = new Set(),
-    blockedArtistKeys: Set<string> = new Set(),
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    dislikedWeights: Map<string, number> = new Map(),
-    sessionMood: SessionMood | null = null,
-    skipNoveltyBoost = false,
-    genreContext: GenreContext = {},
+    ctx: ScoringContext,
 ): { score: number; reason: string } {
+    const {
+        candidate,
+        currentTrack,
+        recentArtists,
+        likedWeights = new Map(),
+        preferredArtistKeys = new Set(),
+        blockedArtistKeys = new Set(),
+        autoplayMode = 'similar',
+        artistFrequency = new Map(),
+        implicitDislikeKeys = new Set(),
+        implicitLikeKeys = new Set(),
+        dislikedWeights = new Map(),
+        sessionMood = null,
+        skipNoveltyBoost = false,
+        genreContext = {},
+    } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
     const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()

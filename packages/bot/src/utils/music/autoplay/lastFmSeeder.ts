@@ -110,8 +110,8 @@ export async function collectLastFmCandidates(
             const dislikedWeight = dislikedWeights.get(normalizedKey)
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
             const tags = await getArtistTags(track.author)
-            const rec = calculateRecommendationScore(
-                track,
+            const rec = calculateRecommendationScore({
+                candidate: track,
                 currentTrack,
                 recentArtists,
                 likedWeights,
@@ -123,13 +123,13 @@ export async function collectLastFmCandidates(
                 implicitLikeKeys,
                 dislikedWeights,
                 sessionMood,
-                true,
-                {
+                skipNoveltyBoost: true,
+                genreContext: {
                     candidateTags: tags,
                     currentTrackTags,
                     sessionGenreFamilies,
                 },
-            )
+            })
             upsertScoredCandidate(candidates, track, {
                 score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
                 reason: rec.reason
@@ -156,8 +156,8 @@ export async function collectLastFmCandidates(
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
                 const tags = await getArtistTags(track.author)
-                const rec = calculateRecommendationScore(
-                    track,
+                const rec = calculateRecommendationScore({
+                    candidate: track,
                     currentTrack,
                     recentArtists,
                     likedWeights,
@@ -169,13 +169,13 @@ export async function collectLastFmCandidates(
                     implicitLikeKeys,
                     dislikedWeights,
                     sessionMood,
-                    true,
-                    {
+                    skipNoveltyBoost: true,
+                    genreContext: {
                         candidateTags: tags,
                         currentTrackTags,
                         sessionGenreFamilies,
                     },
-                )
+                })
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
                     reason: rec.reason
@@ -216,8 +216,8 @@ export async function collectLastFmCandidates(
                     if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                         continue
                     const tags = await getArtistTags(track.author)
-                    const rec = calculateRecommendationScore(
-                        track,
+                    const rec = calculateRecommendationScore({
+                        candidate: track,
                         currentTrack,
                         recentArtists,
                         likedWeights,
@@ -229,13 +229,13 @@ export async function collectLastFmCandidates(
                         implicitLikeKeys,
                         dislikedWeights,
                         sessionMood,
-                        true,
-                        {
+                        skipNoveltyBoost: true,
+                        genreContext: {
                             candidateTags: tags,
                             currentTrackTags,
                             sessionGenreFamilies,
                         },
-                    )
+                    })
                     upsertScoredCandidate(candidates, track, {
                         score: rec.score + LASTFM_SCORE_BOOST,
                         reason: rec.reason

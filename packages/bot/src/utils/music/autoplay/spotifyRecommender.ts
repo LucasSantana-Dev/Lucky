@@ -144,8 +144,8 @@ export async function collectSpotifyRecommendationCandidates(
         const dislikedWeight = dislikedWeights.get(normalizedKey)
         if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
         const tags = await getArtistTags(track.author)
-        const rec = calculateRecommendationScore(
-            track,
+        const rec = calculateRecommendationScore({
+            candidate: track,
             currentTrack,
             recentArtists,
             likedWeights,
@@ -157,13 +157,12 @@ export async function collectSpotifyRecommendationCandidates(
             implicitLikeKeys,
             dislikedWeights,
             sessionMood,
-            false,
-            {
+            genreContext: {
                 candidateTags: tags,
                 currentTrackTags,
                 sessionGenreFamilies,
             },
-        )
+        })
         let score = rec.score + 0.3
         let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
 

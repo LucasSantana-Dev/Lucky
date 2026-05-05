@@ -57,14 +57,14 @@ describe('candidateScorer', () => {
             const candidate = createTrack({ author: 'Blocked Artist' })
             const blockedKeys = new Set(['blockedartist'])
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                blockedKeys,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: blockedKeys,
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe('blocked artist')
@@ -76,11 +76,11 @@ describe('candidateScorer', () => {
                 durationMS: 16 * 60 * 1000,
             })
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe('track too long')
@@ -92,11 +92,11 @@ describe('candidateScorer', () => {
                 title: 'Relaxing Rain Sounds for Sleep',
             })
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe('ambient/noise content')
@@ -106,11 +106,11 @@ describe('candidateScorer', () => {
             const current = createTrack()
             const candidate = createTrack({ title: 'DJ Set 3 Hour Mix' })
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe('dj mix / edm set')
@@ -121,13 +121,13 @@ describe('candidateScorer', () => {
             const candidate = createTrack({ author: 'Favorite Artist' })
             const preferredKeys = new Set(['favoriteartist'])
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                preferredKeys,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: preferredKeys,
+            })
 
             expect(result.score).toBeGreaterThan(1)
             expect(result.reason).toContain('preferred artist')
@@ -138,16 +138,16 @@ describe('candidateScorer', () => {
             const candidate = createTrack({ author: 'Favorite Band' })
             const frequency = new Map([['favoriteband', 5]])
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                frequency,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: frequency,
+            })
 
             expect(result.score).toBeGreaterThan(1)
             expect(result.reason).toContain('favourite artist')
@@ -161,19 +161,19 @@ describe('candidateScorer', () => {
             })
             const dislikedWeights = new Map([['dislikedsong::testartist', 0.7]])
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                dislikedWeights,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: dislikedWeights,
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe('disliked')
@@ -189,19 +189,19 @@ describe('candidateScorer', () => {
             const dislikedWeights = new Map([['xyzabc::differentartist', 0.3]])
             const recentArtists = new Set(['existing artist'])
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                recentArtists,
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                dislikedWeights,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: recentArtists,
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: dislikedWeights,
+            })
 
             expect(result.reason).toContain('old dislike')
             expect(result.score).toBeLessThan(1.3)
@@ -215,11 +215,11 @@ describe('candidateScorer', () => {
                 source: 'youtube',
             })
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+            })
 
             expect(result.score).toBeLessThan(1)
         })
@@ -235,20 +235,20 @@ describe('candidateScorer', () => {
                 restless: false,
             }
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe(
@@ -277,24 +277,24 @@ describe('candidateScorer', () => {
                 restless: false,
             }
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-                false,
-                {
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+                skipNoveltyBoost: false,
+                genreContext: {
                     candidateTags: ['latin christian', 'spanish', 'worship'],
                 },
-            )
+            })
 
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe(
@@ -313,20 +313,20 @@ describe('candidateScorer', () => {
                 restless: false,
             }
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+            })
 
             expect(result.score).toBeGreaterThan(0)
             expect(result.reason).not.toContain('cross-locale')
@@ -343,26 +343,26 @@ describe('candidateScorer', () => {
                 title: 'Master of Puppets',
                 author: 'Metallica',
             })
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                null,
-                false,
-                {
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: null,
+                skipNoveltyBoost: false,
+                genreContext: {
                     candidateTags: ['thrash metal', 'metal', 'rock'],
                     currentTrackTags: ['rap', 'hip hop', 'trap'],
                     sessionGenreFamilies: new Set(['rap_hiphop']),
                 },
-            )
+            })
             expect(result.score).toBe(-Infinity)
             expect(result.reason).toBe(
                 'cross-genre: family drift from session',
@@ -375,26 +375,26 @@ describe('candidateScorer', () => {
                 title: 'Master of Puppets',
                 author: 'Metallica',
             })
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                null,
-                false,
-                {
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: null,
+                skipNoveltyBoost: false,
+                genreContext: {
                     candidateTags: ['thrash metal', 'metal', 'rock'],
                     currentTrackTags: ['rap', 'hip hop'],
                     sessionGenreFamilies: new Set(),
                 },
-            )
+            })
             // Soft genre-family penalty still applies (rap vs metal, no
             // overlap), but the candidate is not hard-rejected.
             expect(result.score).not.toBe(-Infinity)
@@ -410,26 +410,26 @@ describe('candidateScorer', () => {
                 title: 'Outro Funk',
                 author: 'MC Cabelinho',
             })
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                null,
-                false,
-                {
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: null,
+                skipNoveltyBoost: false,
+                genreContext: {
                     candidateTags: ['rap', 'trap', 'funk carioca'],
                     currentTrackTags: ['rap', 'hip hop', 'trap'],
                     sessionGenreFamilies: new Set(['rap_hiphop']),
                 },
-            )
+            })
             expect(result.score).toBeGreaterThan(0)
             expect(result.reason).not.toContain('cross-genre')
             expect(result.reason).not.toContain('genre family drift')
@@ -446,20 +446,20 @@ describe('candidateScorer', () => {
                 restless: false,
             }
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+            })
 
             expect(result.reason).toContain('deep dive')
         })
@@ -475,20 +475,20 @@ describe('candidateScorer', () => {
                 restless: false,
             }
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+            })
 
             expect(result.reason).toContain('long track match')
         })
@@ -504,20 +504,20 @@ describe('candidateScorer', () => {
                 restless: false,
             }
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                new Set(),
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: new Set(),
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+            })
 
             expect(result.reason).toContain('quick hit match')
         })
@@ -534,20 +534,20 @@ describe('candidateScorer', () => {
             }
             const recentArtists = new Set(['other artist'])
 
-            const result = calculateRecommendationScore(
-                candidate,
-                current,
-                recentArtists,
-                new Map(),
-                new Set(),
-                new Set(),
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                new Map(),
-                mood,
-            )
+            const result = calculateRecommendationScore({
+                candidate: candidate,
+                currentTrack: current,
+                recentArtists: recentArtists,
+                likedWeights: new Map(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                autoplayMode: 'similar',
+                artistFrequency: new Map(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                sessionMood: mood,
+            })
 
             expect(result.reason).toContain('restless discovery')
         })

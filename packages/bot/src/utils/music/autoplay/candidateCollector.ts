@@ -157,7 +157,7 @@ export async function collectRecommendationCandidates(
                 continue
             }
             const tags = await getArtistTags(candidate.author)
-            const rec = calculateRecommendationScore(
+            const rec = calculateRecommendationScore({
                 candidate,
                 currentTrack,
                 recentArtists,
@@ -170,13 +170,12 @@ export async function collectRecommendationCandidates(
                 implicitLikeKeys,
                 dislikedWeights,
                 sessionMood,
-                false,
-                {
+                genreContext: {
                     candidateTags: tags,
                     currentTrackTags,
                     sessionGenreFamilies,
                 },
-            )
+            })
             upsertScoredCandidate(candidates, candidate, rec)
         }
     }
