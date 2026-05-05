@@ -55,6 +55,7 @@ export function detectSessionMood(
             preferShort: false,
             restless: false,
             dominantLocale: null,
+            recentSkipCount,
         }
     }
 
@@ -138,5 +139,6 @@ export function detectSessionMood(
         preferShort,
         restless,
         dominantLocale,
+        recentSkipCount,
     }
 }

@@ -130,5 +130,6 @@ describe('stop command', () => {
 
         expect(markIntentionalStopMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).not.toHaveBeenCalled()
+        expect(deleteSnapshotMock).not.toHaveBeenCalled()
     })
 })

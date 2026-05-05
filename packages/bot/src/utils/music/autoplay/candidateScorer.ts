@@ -460,20 +460,6 @@ export async function enrichWithAudioFeatures(
         const track = idToTrack.get(id)
         if (!track) continue
 
-        // Task 2: Tempo continuity penalty
-        const tempoDelta = Math.abs(feature.tempo - currentFeatures.tempo)
-        if (tempoDelta > 40) {
-            track.score -= 0.12  // Penalize drastic tempo changes
-        }
-        
-        // Task 3: Acousticness continuity logic
-        const acousticnessDelta = Math.abs(feature.acousticness - currentFeatures.acousticness)
-        if (feature.acousticness > 0.6) {
-            track.score += 0.08  // Bonus for acoustic tracks
-        } else if (acousticnessDelta > 0.5) {
-            track.score -= 0.08  // Penalty for extreme acousticness swings
-        }
-
         const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
         const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
 
