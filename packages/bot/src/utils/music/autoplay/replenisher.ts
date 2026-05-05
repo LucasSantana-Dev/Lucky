@@ -201,7 +201,6 @@ async function _replenishQueue(
                   () => null,
               )
             : null
-        const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
         // Tag-driven genre context (Phase 2). One Last.fm artist-tag cache for
