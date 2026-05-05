@@ -9,7 +9,6 @@ import { normalizeText, normalizeTrackKey } from '../queueManipulation'
 import type { ScoredTrack } from './diversitySelector'
 
 const SCORE_SAME_ARTIST = 0.3
-const SCORE_SAME_GENRE_HINT = 0.3
 const SCORE_POPULAR_ARTIST = 0.2
 const SCORE_PREFERRED_ARTIST = 0.3
 const SCORE_LIKED_WEIGHT_MULTIPLIER = 0.3
@@ -22,9 +21,7 @@ const SCORE_RECENT_ARTIST = -0.25
 const SCORE_DURATION_MATCH = 0.15
 const SCORE_DURATION_BONUS_THRESHOLD = 0.05
 const SCORE_ACOUSTICNESS_MATCH = 0.1
-const SCORE_POPULAR_RESTLESS = 0.08
 const SCORE_BLOCKED_ARTIST = -0.4
-const SCORE_BLOCKED_ARTIST_PREFERRED = 0.25
 const SCORE_FREQUENT_ARTIST = -0.2
 const SCORE_GENRE_TAG_MAX = 0.2
 const SCORE_GENRE_TAG_PER_MATCH = 0.05
