@@ -197,4 +197,33 @@ describe('replenishQueue', () => {
             }),
         )
     })
+
+    it('should emit telemetry log with correct fields', async () => {
+        const queue = createGuildQueue()
+        const { selectDiverseCandidates } = require('./diversitySelector')
+        const mockTracks = [
+            createTrack({ id: 'track1' }),
+            createTrack({ id: 'track2' }),
+        ]
+        selectDiverseCandidates.mockReturnValue(mockTracks)
+
+        await replenishQueue(queue)
+
+        expect(debugLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Autoplay pass complete',
+                data: expect.objectContaining({
+                    guildId: 'guildid',
+                    tracksAdded: expect.any(Number),
+                    candidatePoolSize: expect.any(Number),
+                    durationMs: expect.any(Number),
+                    sources: expect.objectContaining({
+                        spotify: expect.any(Number),
+                        lastfm: expect.any(Number),
+                        fallback: expect.any(Number),
+                    }),
+                }),
+            }),
+        )
+    })
 })

@@ -74,10 +74,15 @@ async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
 ): Promise<void> {
+    const startTime = Date.now()
+    const guildId = queue.guild.id
+    let candidatePoolSize = 0
+    const sourcesCounts = { spotify: 0, lastfm: 0, fallback: 0 }
+
     try {
         debugLog({
             message: 'Replenishing queue',
-            data: { guildId: queue.guild.id, queueSize: queue.tracks.size },
+            data: { guildId, queueSize: queue.tracks.size },
         })
 
         const currentTrack = queue.currentTrack ?? finishedTrack ?? null
@@ -243,6 +248,8 @@ async function _replenishQueue(
             currentFeatures,
             candidateGenreContext,
         )
+        sourcesCounts.spotify = candidates.size
+        candidatePoolSize = candidates.size
         debugLog({
             message: 'Autoplay: recommendation candidates',
             data: { guildId, count: candidates.size, source: 'recommendation' },
@@ -270,6 +277,7 @@ async function _replenishQueue(
                 contributionWeights,
                 candidateGenreContext,
             )
+            sourcesCounts.lastfm = candidates.size - beforeLastFm
             debugLog({
                 message: 'Autoplay: last.fm candidates',
                 data: {
@@ -303,6 +311,7 @@ async function _replenishQueue(
                     sessionMood,
                 },
             )
+            sourcesCounts.genre = candidates.size - beforeGenre
             debugLog({
                 message: 'Autoplay: genre candidates',
                 data: {
@@ -333,6 +342,7 @@ async function _replenishQueue(
                 implicitLikeKeys,
                 sessionMood,
             )
+            sourcesCounts.fallback = candidates.size
             debugLog({
                 message: 'Autoplay: broad fallback candidates',
                 data: { guildId, count: candidates.size, source: 'fallback' },
@@ -432,6 +442,17 @@ async function _replenishQueue(
                     reason: s.reason,
                     url: s.track.url,
                 })),
+            },
+        })
+
+        debugLog({
+            message: 'Autoplay pass complete',
+            data: {
+                guildId,
+                tracksAdded: enriched.length,
+                candidatePoolSize,
+                durationMs: Date.now() - startTime,
+                sources: sourcesCounts,
             },
         })
 
