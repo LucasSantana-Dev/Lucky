@@ -14,6 +14,11 @@ export type TrackData = {
     source?: string | null
 }
 
+export type QueueContext = {
+    totalTracks: number
+    autoplayEnabled: boolean
+}
+
 const KIND_LABELS: Record<TrackEmbedKind, string> = {
     playing: 'Now Playing',
     queued: 'Queued',
@@ -25,6 +30,7 @@ export function buildTrackEmbed(
     track: TrackData,
     kind: TrackEmbedKind,
     requestedBy?: Pick<User, 'tag' | 'displayAvatarURL'>,
+    queueContext?: QueueContext,
 ): EmbedBuilder {
     const badge = detectSource(track)
     const label = KIND_LABELS[kind]
@@ -35,8 +41,9 @@ export function buildTrackEmbed(
         .setTimestamp()
 
     if (requestedBy) {
+        const footerText = buildFooterText(requestedBy.tag, queueContext)
         embed.setFooter({
-            text: `Requested by ${requestedBy.tag}`,
+            text: footerText,
             iconURL: requestedBy.displayAvatarURL({ size: 64 }),
         })
     }
@@ -84,4 +91,18 @@ function formatDuration(ms: number): string {
     const minutes = Math.floor(totalSeconds / 60)
     const seconds = totalSeconds % 60
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+function buildFooterText(
+    userTag: string,
+    queueContext?: QueueContext,
+): string {
+    let text = `Requested by ${userTag}`
+
+    if (queueContext && queueContext.totalTracks > 0) {
+        const autoplayStatus = queueContext.autoplayEnabled ? ' — autoplay on' : ''
+        text += ` • #1 of ${queueContext.totalTracks} in queue${autoplayStatus}`
+    }
+
+    return text
 }

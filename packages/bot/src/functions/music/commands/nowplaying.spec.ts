@@ -33,6 +33,16 @@ function makeInteraction() {
     } as any
 }
 
+function makeMockQueue(currentTrack: any = null, tracks: any[] = []) {
+    return {
+        currentTrack,
+        tracks: {
+            size: tracks.length,
+            some: (predicate: (t: any) => boolean) => tracks.some(predicate),
+        },
+    }
+}
+
 describe('nowplaying command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -56,7 +66,7 @@ describe('nowplaying command', () => {
 
     it('returns early when no current track', async () => {
         requireCurrentTrackMock.mockResolvedValue(false)
-        const queue = { currentTrack: null }
+        const queue = makeMockQueue(null, [])
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await nowplayingCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
@@ -66,15 +76,28 @@ describe('nowplaying command', () => {
 
     it('replies with track embed when track is playing', async () => {
         const track = { title: 'Bohemian Rhapsody', author: 'Queen' }
-        const queue = { currentTrack: track }
+        const queue = makeMockQueue(track, [])
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await nowplayingCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
 
         expect(trackToDataMock).toHaveBeenCalledWith(track)
-        const [, status, user] = buildTrackEmbedMock.mock.calls[0] as [unknown, string, unknown]
+        const [, status, user, queueContext] = buildTrackEmbedMock.mock.calls[0] as [unknown, string, unknown, unknown]
         expect(status).toBe('playing')
         expect(user).toMatchObject({ tag: 'TestUser' })
+        expect(queueContext).toMatchObject({ totalTracks: 0, autoplayEnabled: false })
         expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
+    it('includes autoplay info when autoplay tracks exist', async () => {
+        const track = { title: 'Song A', author: 'Artist A' }
+        const autoplayTrack = { title: 'Song B', metadata: { isAutoplay: true } }
+        const queue = makeMockQueue(track, [autoplayTrack])
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await nowplayingCommand.execute({ client: {} as any, interaction: makeInteraction() } as any)
+
+        const [, , , queueContext] = buildTrackEmbedMock.mock.calls[0] as [unknown, string, unknown, unknown]
+        expect(queueContext).toMatchObject({ totalTracks: 1, autoplayEnabled: true })
     })
 })

@@ -24,9 +24,16 @@ export default new Command({
         if (!(await requireCurrentTrack(queue, interaction))) return
 
         const trackData = trackToData(track!)
+        
+        // Determine if autoplay is enabled by checking if there are autoplay tracks in the queue
+        const hasAutoplayTracks = queue!.tracks.some((t) => Boolean((t.metadata as { isAutoplay?: boolean })?.isAutoplay))
+        
         const embed = buildTrackEmbed(trackData, 'playing', {
             tag: interaction.user.username,
             displayAvatarURL: interaction.user.displayAvatarURL,
+        }, {
+            totalTracks: queue!.tracks.size,
+            autoplayEnabled: hasAutoplayTracks,
         })
 
         await interactionReply({

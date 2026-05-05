@@ -33,6 +33,16 @@ function createInteraction(guildId = 'guild-1') {
     } as any
 }
 
+function createMockQueue(currentTrack: any = null, tracks: any[] = []) {
+    return {
+        currentTrack,
+        tracks: {
+            size: tracks.length,
+            some: (predicate: (t: any) => boolean) => tracks.some(predicate),
+        },
+    }
+}
+
 describe('songinfo command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -42,7 +52,7 @@ describe('songinfo command', () => {
 
     it('returns early when queue validation fails', async () => {
         requireQueueMock.mockResolvedValue(false)
-        const queue = { currentTrack: null }
+        const queue = createMockQueue(null, [])
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await songinfoCommand.execute({ client: {} as any, interaction: createInteraction() } as any)
@@ -52,7 +62,7 @@ describe('songinfo command', () => {
 
     it('returns early when current track validation fails', async () => {
         requireCurrentTrackMock.mockResolvedValue(false)
-        const queue = { currentTrack: null }
+        const queue = createMockQueue(null, [])
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await songinfoCommand.execute({ client: {} as any, interaction: createInteraction() } as any)
@@ -62,7 +72,7 @@ describe('songinfo command', () => {
 
     it('shows rich track embed for current song', async () => {
         const track = { title: 'Test Song', author: 'Artist', url: 'http://x', duration: '3:00' }
-        const queue = { currentTrack: track }
+        const queue = createMockQueue(track, [track])
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await songinfoCommand.execute({ client: {} as any, interaction: createInteraction() } as any)
