@@ -219,6 +219,19 @@ describe('moveTrackInQueue', () => {
         expect(queue.node.remove).toHaveBeenCalledWith(t3)
     })
 
+    it('appends track when toPosition >= newTracks.length after removal', async () => {
+        const t1 = createTrack('T1', 'A1', 'u1')
+        const t2 = createTrack('T2', 'A2', 'u2')
+        const t3 = createTrack('T3', 'A3', 'u3')
+        const queue = createQueue([t1, t2, t3])
+        // Move t1 from position 0 to position 2 (valid guard), but after removing t1
+        // newTracks has length 2, so toPosition=2 >= 2 → addTrack path
+        const result = await moveTrackInQueue(queue, 0, 2)
+        expect(result).toBe(t1)
+        expect(queue.node.remove).toHaveBeenCalledWith(t1)
+        expect(queue.addTrack).toHaveBeenCalledWith(t1)
+    })
+
     it('returns null and logs error on exception', async () => {
         const t1 = createTrack('T1', 'A1', 'u1')
         const t2 = createTrack('T2', 'A2', 'u2')
@@ -271,6 +284,22 @@ describe('markAsAutoplayTrack', () => {
         const meta = (track as unknown as { metadata: Record<string, unknown> }).metadata
         expect(meta.requestedById).toBe('user123')
     })
+
+    it('handles non-configurable metadata property by mutating the object directly', () => {
+        const track = createTrack('T', 'A')
+        const metadata = { existing: 'value' }
+        Object.defineProperty(track, 'metadata', {
+            value: metadata,
+            configurable: false,
+            writable: false,
+        })
+        markAsAutoplayTrack(track, 'reason', 'user456')
+        const meta = (track as unknown as { metadata: Record<string, unknown> }).metadata
+        expect(meta.isAutoplay).toBe(true)
+        expect(meta.recommendationReason).toBe('reason')
+        expect(meta.requestedById).toBe('user456')
+        expect(meta.existing).toBe('value')
+    })
 })
 
 describe('moveUserTrackToPriority', () => {
@@ -301,6 +330,30 @@ describe('moveUserTrackToPriority', () => {
         const queue = createQueue([autoTrack, userTrack])
         moveUserTrackToPriority(queue, userTrack)
         expect(queue.node.remove).toHaveBeenCalledWith(userTrack)
+    })
+
+    it('returns early and logs when queue.node.remove throws exception', () => {
+        const autoTrack = createTrack('Auto', 'Bot', 'u1')
+        ;(autoTrack as unknown as { metadata: Record<string, unknown> }).metadata = { isAutoplay: true }
+        const userTrack = createTrack('User', 'Human', 'u2')
+        const queue = createQueue([autoTrack, userTrack])
+        ;(queue.node.remove as jest.Mock).mockImplementation(() => { throw new Error('remove failed') })
+        debugLogMock.mockReturnValue(undefined)
+        moveUserTrackToPriority(queue, userTrack)
+        expect(queue.insertTrack).not.toHaveBeenCalled()
+        expect(queue.addTrack).not.toHaveBeenCalled()
+    })
+
+    it('appends user track when no autoplay tracks remain after removal', () => {
+        // userTrack1 is the only autoplay-marked track, so after removing it
+        // newFirstAutoplayIndex === -1 → addTrack path
+        const userTrack1 = createTrack('User1', 'Human', 'u1')
+        ;(userTrack1 as unknown as { metadata: Record<string, unknown> }).metadata = { isAutoplay: true }
+        const userTrack2 = createTrack('User2', 'Human', 'u2')
+        const queue = createQueue([userTrack1, userTrack2])
+        moveUserTrackToPriority(queue, userTrack1)
+        expect(queue.node.remove).toHaveBeenCalledWith(userTrack1)
+        expect(queue.addTrack).toHaveBeenCalledWith(userTrack1)
     })
 })
 
