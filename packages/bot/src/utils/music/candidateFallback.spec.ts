@@ -60,6 +60,7 @@ import {
     interleaveByArtist,
     enrichWithAudioFeatures,
     collectBroadFallbackCandidates,
+    collectGenreCandidates,
 } from './candidateFallback'
 
 function createScoredTrack(author: string, score = 0.5, url = 'https://url'): ScoredTrack {
@@ -173,6 +174,141 @@ describe('enrichWithAudioFeatures', () => {
 
         const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never)
         expect(result[0].score).toBeLessThan(0.5)
+    })
+
+    it('applies small boost when energy delta is medium range', async () => {
+        getValidAccessTokenMock.mockResolvedValue('token123')
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
+        // energyDelta=0.25 (< 0.3), valenceDelta=0.4 (>= 0.35) → second else-if triggers: score += 0.07
+        const currentFeatures = { energy: 0.5, valence: 0.5 }
+        const trackFeatures = new Map([['abc123def456', { energy: 0.75, valence: 0.9 }]])
+        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
+        getArtistGenresMock.mockResolvedValue([])
+
+        const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never)
+        expect(result[0].score).toBeCloseTo(0.57, 5)
+    })
+
+    it('applies genre family penalty when currentArtistName is provided and genres differ', async () => {
+        getValidAccessTokenMock.mockResolvedValue('token123')
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Hip Hop Artist', 0.5, spotifyUrl)
+        const currentFeatures = { energy: 0.7, valence: 0.5 }
+        const trackFeatures = new Map([['abc123def456', { energy: 0.72, valence: 0.55 }]])
+        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
+        // First call: current artist genres; Second call: candidate artist genres
+        getArtistGenresMock
+            .mockResolvedValueOnce(['rock'])
+            .mockResolvedValueOnce(['hip hop'])
+        calculateGenreFamilyPenaltyMock.mockReturnValue(-0.6)
+
+        const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never, 'Rock Artist')
+        expect(getArtistGenresMock).toHaveBeenCalledTimes(2)
+        expect(calculateGenreFamilyPenaltyMock).toHaveBeenCalledWith(['rock'], ['hip hop'])
+        expect(result[0].score).toBeLessThan(0.5)
+        expect(result[0].reason).toContain('genre family drift')
+    })
+
+    it('looks up candidate genres when currentArtistName genres are non-empty', async () => {
+        getValidAccessTokenMock.mockResolvedValue('token123')
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
+        const currentFeatures = { energy: 0.7, valence: 0.5 }
+        const trackFeatures = new Map([['abc123def456', { energy: 0.72, valence: 0.55 }]])
+        getBatchAudioFeaturesMock.mockResolvedValue(trackFeatures)
+        getArtistGenresMock
+            .mockResolvedValueOnce(['pop'])
+            .mockResolvedValueOnce(['pop'])
+        calculateGenreFamilyPenaltyMock.mockReturnValue(0)
+
+        await enrichWithAudioFeatures([track], 'user1', currentFeatures as never, 'Pop Artist')
+        expect(getArtistGenresMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('returns tracks unchanged when getBatchAudioFeatures throws', async () => {
+        getValidAccessTokenMock.mockResolvedValue('token123')
+        const spotifyUrl = 'https://open.spotify.com/track/abc123def456'
+        const track = createScoredTrack('Artist A', 0.5, spotifyUrl)
+        const currentFeatures = { energy: 0.7, valence: 0.5 }
+        getBatchAudioFeaturesMock.mockRejectedValue(new Error('Spotify API error'))
+
+        const result = await enrichWithAudioFeatures([track], 'user1', currentFeatures as never)
+        expect(result[0].score).toBe(0.5)
+    })
+})
+
+describe('collectGenreCandidates', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        normalizeTrackKeyMock.mockReturnValue('key')
+        shouldIncludeCandidateMock.mockReturnValue(true)
+        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'genre' })
+        cleanSearchQueryMock.mockImplementation((t: unknown, a: unknown) => `${t} ${a}`)
+    })
+
+    function createCtx() {
+        return {
+            candidates: new Map(),
+            recentArtists: new Set<string>(),
+            likedTrackKeys: new Map<string, number>(),
+            dislikedTrackKeys: new Map<string, number>(),
+            currentTrack: { title: 'Now', author: 'Artist', url: 'u0', durationMS: 200_000 } as never,
+            excludedUrls: new Set<string>(),
+            excludedKeys: new Set<string>(),
+            preferredArtistKeys: new Set<string>(),
+            blockedArtistKeys: new Set<string>(),
+            autoplayMode: 'similar' as const,
+        }
+    }
+
+    it('does nothing when genres array is empty', async () => {
+        const queue = { player: { search: jest.fn() } } as never
+        const ctx = createCtx()
+        await collectGenreCandidates(queue, [], { id: 'user-1' } as never, ctx)
+        expect(getTagTopTracksMock).not.toHaveBeenCalled()
+    })
+
+    it('calls getTagTopTracks and searchLastFmQuery for each genre', async () => {
+        const foundTrack = { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 }
+        getTagTopTracksMock.mockResolvedValue([{ title: 'Seed', artist: 'Artist' }])
+        searchLastFmQueryMock.mockResolvedValue([foundTrack])
+        const queue = { player: { search: jest.fn() } } as never
+        const ctx = createCtx()
+
+        await collectGenreCandidates(queue, ['rock'], { id: 'user-1' } as never, ctx)
+
+        expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', expect.any(Number))
+        expect(searchLastFmQueryMock).toHaveBeenCalled()
+        expect(upsertScoredCandidateMock).toHaveBeenCalled()
+    })
+
+    it('stops when candidates buffer is full', async () => {
+        getTagTopTracksMock.mockResolvedValue([{ title: 'Seed', artist: 'Artist' }])
+        searchLastFmQueryMock.mockResolvedValue([])
+        const queue = { player: { search: jest.fn() } } as never
+        const ctx = createCtx()
+        // Pre-fill candidates to buffer size (8)
+        for (let i = 0; i < 8; i++) {
+            ctx.candidates.set(`key-${i}`, { track: {} as never, score: 0.5, reason: '' })
+        }
+
+        await collectGenreCandidates(queue, ['rock', 'pop'], { id: 'user-1' } as never, ctx)
+
+        expect(getTagTopTracksMock).not.toHaveBeenCalled()
+    })
+
+    it('skips track when shouldIncludeCandidate returns false', async () => {
+        const foundTrack = { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 }
+        getTagTopTracksMock.mockResolvedValue([{ title: 'Seed', artist: 'Artist' }])
+        searchLastFmQueryMock.mockResolvedValue([foundTrack])
+        shouldIncludeCandidateMock.mockReturnValue(false)
+        const queue = { player: { search: jest.fn() } } as never
+        const ctx = createCtx()
+
+        await collectGenreCandidates(queue, ['rock'], { id: 'user-1' } as never, ctx)
+
+        expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
 })
 
