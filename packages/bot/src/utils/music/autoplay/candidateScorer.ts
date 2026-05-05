@@ -5,6 +5,7 @@ import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
 import { cleanAuthor } from '../searchQueryCleaner'
 import { detectSpanishMarkers } from '../languageHeuristics'
+import { normalizeText, normalizeTrackKey } from '../queueManipulation'
 
 type ScoredTrack = {
     track: Track
@@ -51,20 +52,6 @@ const AMBIENT_NOISE_RE =
 const EDM_MIX_RE =
     /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
 
-// Helpers from queueManipulation that are needed for score calculation
-function normalizeText(value?: string): string {
-    return (value ?? '')
-        .toLowerCase()
-        .replaceAll(/[^a-z0-9]+/g, '')
-        .trim()
-}
-
-function normalizeTrackKey(title?: string, author?: string): string {
-    const cleanedAuthor = author
-        ? author.split(',')[0]?.trim() ?? ''
-        : ''
-    return `${normalizeText(title)}::${normalizeText(cleanedAuthor)}`
-}
 
 export function getGenreFamilies(genres: string[]): Set<string> {
     const families = new Set<string>()
