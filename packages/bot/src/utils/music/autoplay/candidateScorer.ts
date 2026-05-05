@@ -219,7 +219,9 @@ export function calculateRecommendationScore(
     // Mirrors the cross-locale veto above and replaces the post-selection
     // `enrichWithAudioFeatures` pass that depended on Spotify's deprecated
     // audio-features endpoint.
-    if (sessionGenreFamilies.size > 0 && candidateTags.length > 0) {
+    // Skip the hard veto during skip storms so the candidate pool broadens.
+    const inSkipStorm = (sessionMood?.recentSkipCount ?? 0) >= 3
+    if (!inSkipStorm && sessionGenreFamilies.size > 0 && candidateTags.length > 0) {
         const candidateFamilies = getGenreFamilies(candidateTags)
         if (candidateFamilies.size > 0) {
             let intersects = false
@@ -280,8 +282,14 @@ export function calculateRecommendationScore(
         reasons.push('completed before')
     }
 
+    const deepDiveArtist = sessionMood?.deepDiveArtist
+        ? cleanAuthor(sessionMood.deepDiveArtist).toLowerCase()
+        : null
+    const isDeepDive = deepDiveArtist !== null && candidateArtist === deepDiveArtist
     if (candidateArtist === currentArtist) {
-        score += SCORE_IMPLICIT_DISLIKE
+        if (!isDeepDive) {
+            score += SCORE_IMPLICIT_DISLIKE
+        }
         const titleSim = sharedTitleTokenScore(
             candidate.title ?? '',
             currentTrack.title ?? '',
@@ -290,7 +298,11 @@ export function calculateRecommendationScore(
             score += SCORE_TITLE_SIM_BONUS
             reasons.push('album match')
         }
-    } else if (!skipNoveltyBoost && !recentArtists.has(candidateArtist)) {
+        if (isDeepDive) {
+            score += SCORE_TITLE_SIM_BONUS
+            reasons.push('deep-dive artist')
+        }
+    } else if (!skipNoveltyBoost && !recentArtists.has(candidateArtist) && !isDeepDive) {
         score += SCORE_DURATION_MATCH
         reasons.push('session novelty')
     }
@@ -372,8 +384,7 @@ export function calculateRecommendationScore(
             currentTrackTags,
             candidateTags,
         )
-        // Relax genre penalties by 50% during skip storms to allow more diverse candidates
-        if (sessionMood?.recentSkipCount && sessionMood.recentSkipCount >= 3) {
+        if (inSkipStorm) {
             familyPenalty *= 0.5
         }
         if (familyPenalty !== 0) {

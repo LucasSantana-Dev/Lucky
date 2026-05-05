@@ -36,6 +36,10 @@ export interface CandidateContext {
     implicitDislikeKeys?: Set<string>
     implicitLikeKeys?: Set<string>
     sessionMood?: SessionMood | null
+    genreContext?: {
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    }
 }
 
 function addGenreTrackCandidate(
@@ -61,6 +65,11 @@ function addGenreTrackCandidate(
         implicitLikeKeys: ctx.implicitLikeKeys,
         dislikedWeights: ctx.dislikedTrackKeys,
         sessionMood: ctx.sessionMood,
+        genreContext: {
+            candidateTags: [tag.toLowerCase()],
+            currentTrackTags: ctx.genreContext?.currentTrackTags,
+            sessionGenreFamilies: ctx.genreContext?.sessionGenreFamilies,
+        },
     })
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
