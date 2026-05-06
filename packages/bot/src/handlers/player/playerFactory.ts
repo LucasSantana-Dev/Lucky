@@ -34,8 +34,8 @@ export const createPlayer = ({ client }: CreatePlayerParams): Player => {
 }
 
 const registerExtractors = (player: Player): void => {
-    // Register all extractors asynchronously in priority order:
-    //   Spotify → YouTube → SoundCloud → Apple Music → Vimeo → Attachments
+    // Register all extractors asynchronously in initialization order:
+    //   Spotify → play-dl SoundCloud init (yt-dlp bridge) → YouTube → SoundCloud extractor → Apple Music → Vimeo → Attachments
     // Fire without awaiting so createPlayer() returns synchronously.
     registerExtractorsInOrder(player).catch((error) => {
         errorLog({
