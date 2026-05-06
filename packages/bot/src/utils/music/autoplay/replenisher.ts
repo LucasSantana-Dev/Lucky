@@ -471,17 +471,6 @@ async function _replenishQueue(
             },
         })
 
-        debugLog({
-            message: 'Autoplay pass complete',
-            data: {
-                guildId,
-                tracksAdded: enriched.length,
-                candidatePoolSize,
-                durationMs: Date.now() - startTime,
-                sources: sourcesCounts,
-            },
-        })
-
         await addSelectedTracks(
             queue,
             enriched,
@@ -494,11 +483,14 @@ async function _replenishQueue(
         replenishCounters.set(guildId, replenishCount + 1)
 
         debugLog({
-            message: 'Autoplay: queue replenished successfully',
+            message: 'Autoplay pass complete',
             data: {
-                guildId: queue.guild.id,
-                addedCount: selected.length,
+                guildId,
+                tracksAdded: enriched.length,
                 newQueueSize: queue.tracks.size,
+                candidatePoolSize,
+                durationMs: Date.now() - startTime,
+                sources: sourcesCounts,
             },
         })
     } catch (error) {
