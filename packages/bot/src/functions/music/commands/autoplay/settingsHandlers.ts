@@ -108,10 +108,28 @@ async function handleAutoplayGenreAdd(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const guildId = interaction.guildId
-    if (!guildId) return
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     const tag = interaction.options.getString('tag')
-    if (!tag) return
+    if (!tag) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Missing Tag', 'Please provide a genre tag.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     const genres = settings?.autoplayGenres ?? []
@@ -185,10 +203,28 @@ async function handleAutoplayGenreRemove(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const guildId = interaction.guildId
-    if (!guildId) return
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     const tag = interaction.options.getString('tag')
-    if (!tag) return
+    if (!tag) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Missing Tag', 'Please provide a genre tag.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     const genres = settings?.autoplayGenres ?? []
@@ -425,6 +461,14 @@ async function handleAutoplayGenre(
             return handleAutoplayGenreList(interaction)
         case 'clear':
             return handleAutoplayGenreClear(interaction)
+        default:
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [createErrorEmbed('Unknown Subcommand', 'That genre subcommand is not recognized.')],
+                    ephemeral: true,
+                },
+            })
     }
 }
 

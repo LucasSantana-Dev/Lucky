@@ -9,11 +9,11 @@ import {
 import { debugLog } from '@lucky/shared/utils'
 import { lastFmLinkService } from '@lucky/shared/services'
 import type { ChatInputCommandInteraction, ColorResolvable } from 'discord.js'
-import type { GuildQueue } from 'discord-player'
+import type { GuildQueue, Track } from 'discord-player'
 import type { QueueMetadata } from '../../../../types/QueueMetadata'
 
-function isAutoplayTrack(track: any): boolean {
-    return (track?.metadata as any)?.isAutoplay === true
+function isAutoplayTrack(track: Track | null | undefined): boolean {
+    return (track?.metadata as { isAutoplay?: boolean })?.isAutoplay === true
 }
 
 async function handleSkipAutoplayTrack(
