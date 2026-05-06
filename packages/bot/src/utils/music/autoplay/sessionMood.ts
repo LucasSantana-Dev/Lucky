@@ -6,6 +6,7 @@ export interface SessionMood {
     preferShort: boolean
     restless: boolean
     dominantLocale: 'spanish' | null
+    recentSkipCount?: number
 }
 
 function parseDurationString(durationStr: string | undefined): number {
@@ -45,6 +46,7 @@ export function detectSessionMood(
         isAutoplay?: boolean
         title?: string
     }[],
+    recentSkipCount: number = 0,
 ): SessionMood {
     if (historyTracks.length === 0) {
         return {
@@ -53,6 +55,7 @@ export function detectSessionMood(
             preferShort: false,
             restless: false,
             dominantLocale: null,
+            recentSkipCount,
         }
     }
 
@@ -110,6 +113,11 @@ export function detectSessionMood(
         }
     }
 
+    // Skip storm: relax mood when user is skipping aggressively
+    if (recentSkipCount >= 3) {
+        restless = true
+    }
+
     // Spanish/Latin locale: use the shared language heuristic so we pick up
     // Spanish-distinct accents (ñ ¿ ¡ ü), Spanish-distinct stopwords, and
     // Latin/Spanish/gospel genre tags — and so a Brazilian-Portuguese session
@@ -131,5 +139,6 @@ export function detectSessionMood(
         preferShort,
         restless,
         dominantLocale,
+        recentSkipCount,
     }
 }

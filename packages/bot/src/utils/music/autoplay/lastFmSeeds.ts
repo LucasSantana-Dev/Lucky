@@ -15,6 +15,7 @@ export const LASTFM_SEED_COUNT = 5
 
 type CacheEntry = {
     tracks: { artist: string; title: string }[]
+    lovedKeys: Set<string>
     offset: number
     expiresAt: number
 }
@@ -63,8 +64,16 @@ export async function getLastFmSeedTracks(
             ...recentTracks,
         ])
 
+        const lovedKeys = new Set<string>(
+            lovedTracks.map(
+                (t) =>
+                    `${t.artist.toLowerCase()}|${cleanTitle(t.title).toLowerCase().trim()}`,
+            ),
+        )
+
         cache.set(discordUserId, {
             tracks: merged,
+            lovedKeys,
             offset: 0,
             expiresAt: Date.now() + CACHE_TTL_MS,
         })
@@ -182,4 +191,15 @@ export async function consumeBlendedSeedSlice(
 
     const deduped = deduplicateTracks(interleaved)
     return deduped.slice(0, count)
+}
+
+export function isLovedSeed(
+    discordUserId: string,
+    artist: string,
+    title: string,
+): boolean {
+    const cached = cache.get(discordUserId)
+    if (!cached?.lovedKeys) return false
+    const key = `${artist.toLowerCase()}|${cleanTitle(title).toLowerCase().trim()}`
+    return cached.lovedKeys.has(key)
 }

@@ -36,6 +36,10 @@ export interface CandidateContext {
     implicitDislikeKeys?: Set<string>
     implicitLikeKeys?: Set<string>
     sessionMood?: SessionMood | null
+    genreContext?: {
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    }
 }
 
 function addGenreTrackCandidate(
@@ -48,20 +52,25 @@ function addGenreTrackCandidate(
     const key = normalizeTrackKey(track.title, track.author)
     const dislikedWeight = ctx.dislikedTrackKeys.get(key)
     if (dislikedWeight !== undefined && dislikedWeight > 0.5) return
-    const rec = calculateRecommendationScore(
-        track,
-        ctx.currentTrack,
-        ctx.recentArtists,
-        ctx.likedTrackKeys,
-        ctx.preferredArtistKeys,
-        ctx.blockedArtistKeys,
-        ctx.autoplayMode,
-        ctx.artistFrequency,
-        ctx.implicitDislikeKeys,
-        ctx.implicitLikeKeys,
-        ctx.dislikedTrackKeys,
-        ctx.sessionMood,
-    )
+    const rec = calculateRecommendationScore({
+        candidate: track,
+        currentTrack: ctx.currentTrack,
+        recentArtists: ctx.recentArtists,
+        likedWeights: ctx.likedTrackKeys,
+        preferredArtistKeys: ctx.preferredArtistKeys,
+        blockedArtistKeys: ctx.blockedArtistKeys,
+        autoplayMode: ctx.autoplayMode,
+        artistFrequency: ctx.artistFrequency,
+        implicitDislikeKeys: ctx.implicitDislikeKeys,
+        implicitLikeKeys: ctx.implicitLikeKeys,
+        dislikedWeights: ctx.dislikedTrackKeys,
+        sessionMood: ctx.sessionMood,
+        genreContext: {
+            candidateTags: [tag.toLowerCase()],
+            currentTrackTags: ctx.genreContext?.currentTrackTags,
+            sessionGenreFamilies: ctx.genreContext?.sessionGenreFamilies,
+        },
+    })
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
         reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
@@ -113,8 +122,8 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
-                const rec = calculateRecommendationScore(
-                    track,
+                const rec = calculateRecommendationScore({
+                    candidate: track,
                     currentTrack,
                     recentArtists,
                     likedWeights,
@@ -126,7 +135,7 @@ export async function collectBroadFallbackCandidates(
                     implicitLikeKeys,
                     dislikedWeights,
                     sessionMood,
-                )
+                })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
                     reason: rec.reason

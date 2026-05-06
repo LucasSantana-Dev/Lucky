@@ -212,7 +212,18 @@ export function markAsAutoplayTrack(
 
 export function moveUserTrackToPriority(queue: GuildQueue, track: Track): void {
     const tracks = queue.tracks.toArray()
-    const trackIndex = tracks.findIndex((t) => t.url === track.url)
+    let trackIndex = -1
+    for (let i = tracks.length - 1; i >= 0; i--) {
+        const t = tracks[i]!
+        if (
+            t === track ||
+            (Boolean(track.id) && t.id === track.id) ||
+            (Boolean(track.url) && t.url === track.url)
+        ) {
+            trackIndex = i
+            break
+        }
+    }
 
     if (trackIndex === -1) {
         debugLog({

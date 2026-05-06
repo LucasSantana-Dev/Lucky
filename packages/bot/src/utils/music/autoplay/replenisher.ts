@@ -56,6 +56,13 @@ const replenishLocks = new Map<string, Promise<void>>()
 // Per-guild counter for query diversity across multiple replenish calls.
 const replenishCounters = new Map<string, number>()
 
+// Session mood cache: recomputed only after 3+ new tracks play, preventing
+// per-cycle mood flips from transient history changes.
+const sessionMoodCache = new Map<
+    string,
+    { mood: import('./sessionMood').SessionMood; historyLen: number }
+>()
+
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
@@ -97,7 +104,20 @@ async function _replenishQueue(
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
-        const sessionMood = detectSessionMood(allHistoryTracks)
+        const replenishGuildId = queue.guild.id
+        const guildMoodCache = sessionMoodCache.get(replenishGuildId)
+        const sessionMood =
+            guildMoodCache &&
+            Math.abs(allHistoryTracks.length - guildMoodCache.historyLen) < 3
+                ? guildMoodCache.mood
+                : (() => {
+                      const mood = detectSessionMood(allHistoryTracks, 0 /* TODO: wire recentSkipCount from skip tracking */)
+                      sessionMoodCache.set(replenishGuildId, {
+                          mood,
+                          historyLen: allHistoryTracks.length,
+                      })
+                      return mood
+                  })()
         const historyTracks = allHistoryTracks.slice(0, HISTORY_SEED_LIMIT)
         const seedTracks = [currentTrack, ...historyTracks].slice(
             0,
@@ -360,11 +380,18 @@ async function _replenishQueue(
         })
 
         const seedArtistKey = currentTrack.author.toLowerCase()
+        // When the user is deep-diving an artist (3+ tracks in last 8), relax
+        // the per-artist cap for that artist so autoplay follows their intent.
+        const deepDiveKey = sessionMood.deepDiveArtist
+        const effectiveMaxPerArtist =
+            deepDiveKey && seedArtistKey.includes(deepDiveKey)
+                ? 5
+                : MAX_TRACKS_PER_ARTIST
         const selected = interleaveByArtist(
             selectDiverseCandidates(
                 candidates,
                 missingTracks,
-                MAX_TRACKS_PER_ARTIST,
+                effectiveMaxPerArtist,
                 MAX_TRACKS_PER_SOURCE,
                 seedArtistKey,
             ),

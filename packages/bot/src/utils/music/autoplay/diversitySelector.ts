@@ -174,11 +174,13 @@ export function selectDiverseCandidates(
     )
     const sourceCount = new Map<string, number>()
     const selectedTitleKeys = new Set<string>()
+    const selectedAlbums = new Set<string>()
 
     for (const candidate of sortedCandidates) {
         const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
         const titleKey = normalizeTitleOnly(candidate.track.title)
+        const albumName = (candidate.track.raw as any)?.album?.name?.toLowerCase() ?? ''
         const core = extractSongCore(
             candidate.track.title ?? '',
             candidate.track.author,
@@ -187,6 +189,10 @@ export function selectDiverseCandidates(
 
         if ((artistCount.get(artistKey) ?? 0) >= maxPerArtist) continue
         if ((sourceCount.get(sourceKey) ?? 0) >= maxPerSource) continue
+        if (albumName && selectedAlbums.has(albumName)) {
+            const jitteredScore = candidate.jitteredScore - 0.12
+            if (jitteredScore < 0) continue
+        }
         if (selectedTitleKeys.has(titleKey || artistKey)) continue
         if (coreKey && selectedTitleKeys.has(coreKey)) continue
 
@@ -195,6 +201,7 @@ export function selectDiverseCandidates(
         sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
         selectedTitleKeys.add(titleKey || artistKey)
         if (coreKey) selectedTitleKeys.add(coreKey)
+        if (albumName) selectedAlbums.add(albumName)
         if (selected.length >= missingTracks) {
             break
         }

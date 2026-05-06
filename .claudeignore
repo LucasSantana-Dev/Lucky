@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+*.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.log
+*.min.js
+*.min.css
+*.map
+.git/
+.playwright-mcp/
+.data/
