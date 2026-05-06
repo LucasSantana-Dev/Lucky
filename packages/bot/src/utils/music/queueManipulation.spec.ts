@@ -83,6 +83,7 @@ jest.mock('./autoplay/lastFmSeeds', () => ({
         consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) =>
         consumeBlendedSeedSliceMock(...args),
+    isLovedSeed: jest.fn().mockReturnValue(false),
 }))
 
 const getSimilarTracksMock = jest.fn()

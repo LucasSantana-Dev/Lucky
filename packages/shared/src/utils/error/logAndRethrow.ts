@@ -1,4 +1,4 @@
-import { errorLog, debugLog } from '../general/log'
+import { errorLog, debugLog, warnLog } from '../general/log'
 
 /**
  * Log error and re-throw with context.
@@ -25,6 +25,22 @@ export function logAndSwallow(
 ): void {
     const error = err instanceof Error ? err : new Error(String(err))
     debugLog({
+        message: `${context}: ${error.message}`,
+        data: { ...data, stack: error.stack?.slice(0, 500) },
+    })
+}
+
+/**
+ * Log error at warn level and swallow it.
+ * Use for degraded-but-recoverable failures that operators should see.
+ */
+export function logAndWarn(
+    err: unknown,
+    context: string,
+    data?: Record<string, unknown>,
+): void {
+    const error = err instanceof Error ? err : new Error(String(err))
+    warnLog({
         message: `${context}: ${error.message}`,
         data: { ...data, stack: error.stack?.slice(0, 500) },
     })

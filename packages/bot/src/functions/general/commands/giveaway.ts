@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { COLOR } from '@lucky/shared/constants'
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
 import { PermissionFlagsBits, type TextChannel } from 'discord.js'
@@ -21,7 +22,7 @@ type GiveawayEntry = {
 const activeGiveaways = new Map<string, GiveawayEntry>()
 
 function parseDuration(durationStr: string): number {
-    const regex = /(\d+)([hmd])/g
+    const regex = /(\d+)([hmd])/g // NOSONAR: S5852 - no catastrophic backtracking; \d+ and [hmd] are non-overlapping
     let totalMs = 0
     let match
 
@@ -89,9 +90,9 @@ async function endGiveaway(messageId: string, isReroll = false, client?: any): P
     const selectedIndexes = new Set<number>()
 
     for (let i = 0; i < Math.min(giveaway.winnersCount, entries.length); i++) {
-        let index = Math.floor(Math.random() * entries.length)
+        let index = crypto.randomInt(entries.length)
         while (selectedIndexes.has(index)) {
-            index = Math.floor(Math.random() * entries.length)
+            index = crypto.randomInt(entries.length)
         }
         selectedIndexes.add(index)
         winners.push(entries[index])
