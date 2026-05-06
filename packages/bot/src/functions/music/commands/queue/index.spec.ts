@@ -169,8 +169,8 @@ describe('queue command', () => {
 
         expect(createQueueEmbedMock).toHaveBeenCalledWith(queue)
         expect(debugLogMock).toHaveBeenCalled()
-        expect(interaction.editReply).toHaveBeenCalledWith(
-            expect.objectContaining({ embeds: [{ id: 'queue-embed' }] }),
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({ content: expect.objectContaining({ embeds: [{ id: 'queue-embed' }] }) }),
         )
     })
 
@@ -186,9 +186,11 @@ describe('queue command', () => {
         } as any)
 
         expect(errorLogMock).toHaveBeenCalled()
-        expect(interaction.editReply).toHaveBeenCalledWith(
+        expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                embeds: [expect.objectContaining({ id: 'queue-error' })],
+                content: expect.objectContaining({
+                    embeds: [expect.objectContaining({ id: 'queue-error' })],
+                }),
             }),
         )
     })
@@ -207,9 +209,11 @@ describe('queue command', () => {
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Error in queue command' }),
         )
-        expect(interaction.editReply).toHaveBeenCalledWith(
+        expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                embeds: [expect.objectContaining({ id: 'queue-error' })],
+                content: expect.objectContaining({
+                    embeds: [expect.objectContaining({ id: 'queue-error' })],
+                }),
             }),
         )
     })
@@ -228,9 +232,11 @@ describe('queue command', () => {
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Error in queue command' }),
         )
-        expect(interaction.editReply).toHaveBeenCalledWith(
+        expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                embeds: [expect.objectContaining({ id: 'queue-error' })],
+                content: expect.objectContaining({
+                    embeds: [expect.objectContaining({ id: 'queue-error' })],
+                }),
             }),
         )
     })

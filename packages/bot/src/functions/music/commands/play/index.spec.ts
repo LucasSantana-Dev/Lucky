@@ -223,10 +223,12 @@ describe('play command', () => {
         } as any)
 
         expect(interaction.deferReply).not.toHaveBeenCalled()
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                embeds: expect.any(Array),
-                ephemeral: true,
+                content: expect.objectContaining({
+                    embeds: expect.any(Array),
+                    ephemeral: true,
+                }),
             }),
         )
         expect(requireVoiceChannelMock).not.toHaveBeenCalled()

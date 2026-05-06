@@ -170,8 +170,8 @@ describe('artist command', () => {
             client: createClient(null),
             interaction,
         } as any)
-        expect(interaction.reply).toHaveBeenCalledWith(
-            expect.objectContaining({ ephemeral: true }),
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({ content: expect.objectContaining({ ephemeral: true }) }),
         )
     })
 

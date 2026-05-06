@@ -54,7 +54,7 @@ describe('settings command', () => {
 
     it('should defer reply with ephemeral', async () => {
         await settingsCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
-        expect(mockInteraction.deferReply).toHaveBeenCalledWith({ ephemeral: true })
+        expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: 64 })
     })
 
     it('should save idle-timeout setting', async () => {

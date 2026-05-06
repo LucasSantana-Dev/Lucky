@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import Command from '../../../../models/Command'
 import { requireGuild } from '../../../../utils/command/commandValidations'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 import type { CommandExecuteParams } from '../../../../types/CommandData'
 import {
     handleShowSettings,
@@ -148,9 +149,9 @@ export default new Command({
                 await handleFeedback(interaction, client)
                 break
             default:
-                await interaction.reply({
-                    content: 'Unknown subcommand.',
-                    ephemeral: true,
+                await interactionReply({
+                    interaction,
+                    content: { content: 'Unknown subcommand.', ephemeral: true },
                 })
         }
     },

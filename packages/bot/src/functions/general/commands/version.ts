@@ -1,4 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
+import { MessageFlags } from 'discord.js'
+import { interactionReply } from '../../../utils/general/interactionReply'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import Command from '../../../models/Command'
@@ -29,9 +31,10 @@ export default new Command({
         .setDescription('Shows the current bot version'),
     category: 'general',
     execute: async ({ interaction }) => {
-        await interaction.deferReply({ ephemeral: true })
-        await interaction.editReply({
-            embeds: [createInfoEmbed('Bot Version', resolveVersion())],
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        await interactionReply({
+            interaction,
+            content: { embeds: [createInfoEmbed('Bot Version', resolveVersion())] },
         })
     },
 })

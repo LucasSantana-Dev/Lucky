@@ -4,6 +4,7 @@ import {
     PermissionFlagsBits,
     ChannelType,
     EmbedBuilder,
+    MessageFlags,
     type Guild,
     type CategoryChannel,
     type TextChannel,
@@ -301,12 +302,13 @@ export default new Command({
         const mode = resolveSetupMode(interaction.options.getString('mode'))
 
         if (template === 'criativaria') {
-            await interaction.deferReply({ ephemeral: true })
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
             try {
                 const result = await runCriativariaSetup(
                     interaction.guild,
                     mode,
                 )
+                // Raw editReply: plain-string streaming response, not an embed — interactionReply() does not apply here
                 await interaction.editReply(
                     formatCriativariaSummary(result, mode),
                 )
@@ -319,6 +321,7 @@ export default new Command({
                         'serversetup: Failed to execute Criativaria template',
                     error,
                 })
+                // Raw editReply: streaming error string
                 await interaction.editReply(
                     '❌ Failed to run Criativaria setup. Check logs and try again.',
                 )
@@ -348,13 +351,14 @@ export default new Command({
             return
         }
 
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         const guild = interaction.guild
         const progress: string[] = []
 
         try {
             progress.push('Creating roles...')
+            // Raw editReply: streaming progress updates with plain-string content — interactionReply() is not applicable here
             await interaction.editReply(progress.join('\n'))
             const roles = await createRoles(guild)
             progress.push(
