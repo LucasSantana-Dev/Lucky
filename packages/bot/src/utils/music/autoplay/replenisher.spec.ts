@@ -123,7 +123,13 @@ describe('replenishQueue', () => {
         premiumService.isPremium.mockResolvedValue(false)
 
         const { detectSessionMood } = require('./sessionMood')
-        detectSessionMood.mockReturnValue(null)
+        detectSessionMood.mockReturnValue({
+            deepDiveArtist: null,
+            preferLong: false,
+            preferShort: false,
+            restless: false,
+            dominantLocale: null,
+        })
 
         const { collectRecommendationCandidates } = require('./candidateCollector')
         collectRecommendationCandidates.mockResolvedValue(new Map())
