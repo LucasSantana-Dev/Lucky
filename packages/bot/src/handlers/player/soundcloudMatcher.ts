@@ -69,7 +69,7 @@ function normalizeForMatch(value: string): string {
     return value
         .toLowerCase()
         .replace(/[^a-z0-9 ]/g, '')
-        .replace(/ {2,}/g, ' ')
+        .replace(/ {2,}/g, ' ') // NOSONAR: S5852 — bounded input, no catastrophic backtracking risk
         .trim()
 }
 
