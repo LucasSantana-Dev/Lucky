@@ -20,6 +20,7 @@
 
 <p align="center">
   <a href="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml"><img src="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496"><img src="https://img.shields.io/badge/Invite-Lucky%20Bot-5865F2?logo=discord&logoColor=white" alt="Invite Lucky" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.x-green.svg" alt="Node.js" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript" /></a>
   <a href="https://discord.js.org/"><img src="https://img.shields.io/badge/Discord.js-14-purple.svg" alt="Discord.js" /></a>
@@ -30,7 +31,7 @@
 
 ## What is Lucky?
 
-Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music player with autoplay + recommendations, full moderation suite, auto-mod presets, and a React 19 dashboard — all self-hostable via Docker.
+Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music player with autoplay + recommendations, full moderation suite, auto-mod presets, and a React 19 dashboard — all self-hostable via Docker. Ships with /artist and /album commands for Spotify listening stats, session save/restore, a leveling system with XP and role rewards, and Twitch stream notifications.
 
 **Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496)
 
@@ -45,6 +46,18 @@ Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music pl
 | **Dashboard** | Discord OAuth, guild management, RBAC, moderation overview, music controls, feature toggles |
 | **Engagement** | Leveling system with XP + role rewards, starboard, Last.fm scrobbling |
 | **Integrations** | Twitch stream notifications, Sentry monitoring, Cloudflare Tunnel |
+
+---
+
+## Why Lucky?
+
+Most Discord music bots are cloud-only black boxes. Lucky is different:
+
+- **Self-hostable** — your data, your server, your rules. No dependency on a third-party service staying alive.
+- **Full-stack** — bot + React 19 dashboard in one monorepo. Control music, moderation, and settings from a web interface.
+- **Production-grade** — ~2500 tests, zero production incidents, Sentry monitoring, and SonarCloud quality gates.
+- **Multi-source** — YouTube + Spotify + SoundCloud, not locked to one provider.
+- **Smart autoplay** — personalized recommendations from listening history, not just random tracks.
 
 ---
 
