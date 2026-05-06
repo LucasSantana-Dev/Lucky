@@ -2,13 +2,19 @@ name: Deploy to Homelab
 
 on:
     workflow_dispatch:
+    workflow_run:
+        workflows: ["Build & Push Docker Images"]
+        types: [completed]
+        branches: [main]
 
 jobs:
     deploy:
         runs-on: ubuntu-latest
         permissions:
             actions: read
-        if: github.event_name == 'workflow_dispatch'
+        if: |
+            github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
         steps:
             - name: Validate secrets
@@ -33,7 +39,11 @@ jobs:
                   GH_PAGER: cat
               run: |
                   set -euo pipefail
-                  commit_sha="${{ github.sha }}"
+                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
+                    commit_sha="${{ github.event.workflow_run.head_sha }}"
+                  else
+                    commit_sha="${{ github.sha }}"
+                  fi"
                   max_wait=600
                   interval=15
                   elapsed=0
@@ -247,7 +257,11 @@ jobs:
               run: |
                   set -euo pipefail
                   base_url=$(node -e 'const u = new URL(process.env.WEBHOOK_URL); console.log(`${u.protocol}//${u.host}`)')
-                  expected="${{ github.sha }}"
+                  if [ "${{ github.event_name }}" = "workflow_run" ]; then
+                    expected="${{ github.event.workflow_run.head_sha }}"
+                  else
+                    expected="${{ github.sha }}"
+                  fi
 
                   if [ "${DOCKER_REBUILT:-false}" != "true" ]; then
                     health_url="${base_url}/api/health"
