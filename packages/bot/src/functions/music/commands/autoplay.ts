@@ -219,9 +219,6 @@ export default new Command({
                 case 'mode':
                     await handleAutoplayMode(interaction)
                     break
-                case 'artist':
-                    await handleAutoplayArtist(interaction)
-                    break
                 default:
                     await interactionReply({
                         interaction,
