@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js'
+import { MessageFlags, SlashCommandBuilder } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed } from '../../../utils/general/embeds'
@@ -162,7 +162,7 @@ export default new Command({
         const { queue } = resolveGuildQueue(client, guildId)
 
         try {
-            await interaction.deferReply({ ephemeral: true })
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
         } catch (error) {
             const isUnknownInteraction =
                 typeof error === 'object' &&

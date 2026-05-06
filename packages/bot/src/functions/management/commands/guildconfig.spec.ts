@@ -155,7 +155,7 @@ describe('guildconfig command', () => {
             expect.any(Object),
             '888888888888888888',
         )
-        expect(interaction.editReply).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalled()
     })
 
     it('rejects execution outside guild context', async () => {
@@ -165,10 +165,14 @@ describe('guildconfig command', () => {
         await guildconfigCommand.execute({ interaction } as any)
 
         expect(interaction.deferReply).not.toHaveBeenCalled()
-        expect(interaction.reply).toHaveBeenCalledWith({
-            content: '❌ This command can only be used in a server.',
-            ephemeral: true,
-        })
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    content: '❌ This command can only be used in a server.',
+                    ephemeral: true,
+                }),
+            }),
+        )
     })
 
     it('builds plan from current capture', async () => {
@@ -253,7 +257,7 @@ describe('guildconfig command', () => {
 
         expect(getStatusMock).toHaveBeenCalledWith('123456789012345678')
         expect(listRunsMock).toHaveBeenCalledWith('123456789012345678', 5)
-        expect(interaction.editReply).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalled()
     })
 
     it('runs cutover cleanup for legacy external bots when completed', async () => {

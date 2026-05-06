@@ -16,6 +16,7 @@ const createInfoEmbedMock = jest.fn((title: string, message: string) => ({
     title,
     message,
 }))
+const interactionReplyMock = jest.fn()
 
 jest.mock('node:fs', () => ({
     readFileSync: (...args: unknown[]) => readFileSyncMock(...args),
@@ -24,6 +25,10 @@ jest.mock('node:fs', () => ({
 jest.mock('../../../utils/general/embeds', () => ({
     createInfoEmbed: (...args: unknown[]) =>
         createInfoEmbedMock(...(args as [string, string])),
+}))
+
+jest.mock('../../../utils/general/interactionReply', () => ({
+    interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
 import versionCommand from './version'
@@ -46,7 +51,7 @@ describe('version command', () => {
     it('defers reply as ephemeral', async () => {
         const interaction = createInteraction()
         await versionCommand.execute({ interaction } as any)
-        expect(deferReplyMock).toHaveBeenCalledWith({ ephemeral: true })
+        expect(deferReplyMock).toHaveBeenCalledWith({ flags: 64 })
     })
 
     it('replies with version from package.json', async () => {
