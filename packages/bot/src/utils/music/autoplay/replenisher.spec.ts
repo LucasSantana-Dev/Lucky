@@ -9,14 +9,6 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
-    recommendationFeedbackService: {
-        getLikedTrackWeights: jest.fn(),
-        getDislikedTrackWeights: jest.fn(),
-        getImplicitDislikeKeys: jest.fn(),
-        getImplicitLikeKeys: jest.fn(),
-        getPreferredArtistKeys: jest.fn(),
-        getBlockedArtistKeys: jest.fn(),
-    },
     trackHistoryService: {
         getTrackHistory: jest.fn(),
     },
@@ -295,9 +287,10 @@ describe('replenishQueue', () => {
                     candidatePoolSize: expect.any(Number),
                     durationMs: expect.any(Number),
                     sources: expect.objectContaining({
-                        spotify: expect.any(Number),
+                        recommendation: expect.any(Number),
                         lastfm: expect.any(Number),
                         fallback: expect.any(Number),
+                        genre: expect.any(Number),
                     }),
                 }),
             }),

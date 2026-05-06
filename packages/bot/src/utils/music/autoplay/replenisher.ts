@@ -84,7 +84,7 @@ async function _replenishQueue(
     const startTime = Date.now()
     const guildId = queue.guild.id
     let candidatePoolSize = 0
-    const sourcesCounts = { spotify: 0, lastfm: 0, fallback: 0, genre: 0 }
+    const sourcesCounts = { recommendation: 0, lastfm: 0, fallback: 0, genre: 0 }
 
     try {
         debugLog({
@@ -267,7 +267,7 @@ async function _replenishQueue(
             currentFeatures,
             candidateGenreContext,
         )
-        sourcesCounts.spotify = candidates.size
+        sourcesCounts.recommendation = candidates.size
         candidatePoolSize = candidates.size
         debugLog({
             message: 'Autoplay: recommendation candidates',
@@ -343,6 +343,7 @@ async function _replenishQueue(
             })
         }
         if (candidates.size === 0 && currentTrack) {
+            const beforeFallback = candidates.size
             await collectBroadFallbackCandidates(
                 queue,
                 currentTrack,
@@ -361,7 +362,7 @@ async function _replenishQueue(
                 implicitLikeKeys,
                 sessionMood,
             )
-            sourcesCounts.fallback = candidates.size
+            sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({
                 message: 'Autoplay: broad fallback candidates',
                 data: { guildId, count: candidates.size, source: 'fallback' },
