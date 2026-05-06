@@ -2,79 +2,70 @@ import { jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import { replenishQueue } from './replenisher'
 
-const debugLogMock = jest.fn()
-const errorLogMock = jest.fn()
-const warnLogMock = jest.fn()
-
 jest.mock('@lucky/shared/utils', () => ({
-    debugLog: (...args: unknown[]) => debugLogMock(...args),
-    errorLog: (...args: unknown[]) => errorLogMock(...args),
-    warnLog: (...args: unknown[]) => warnLogMock(...args),
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
-    recommendationFeedbackService: {
-        getLikedTrackWeights: jest.fn(() => Promise.resolve(new Map())),
-        getDislikedTrackWeights: jest.fn(() => Promise.resolve(new Map())),
-        getImplicitDislikeKeys: jest.fn(() => Promise.resolve(new Set())),
-        getImplicitLikeKeys: jest.fn(() => Promise.resolve(new Set())),
-        getPreferredArtistKeys: jest.fn(() => Promise.resolve(new Set())),
-        getBlockedArtistKeys: jest.fn(() => Promise.resolve(new Set())),
-    },
     trackHistoryService: {
-        getTrackHistory: jest.fn(() => Promise.resolve([])),
+        getTrackHistory: jest.fn(),
     },
     guildSettingsService: {
-        getGuildSettings: jest.fn(() => Promise.resolve(null)),
+        getGuildSettings: jest.fn(),
     },
     spotifyLinkService: {
-        getValidAccessToken: jest.fn(() => Promise.resolve(null)),
+        getValidAccessToken: jest.fn(),
     },
     premiumService: {
-        isPremium: jest.fn(() => Promise.resolve(false)),
+        isPremium: jest.fn(),
+    },
+}))
+
+jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        getLikedTrackWeights: jest.fn(),
+        getDislikedTrackWeights: jest.fn(),
+        getImplicitDislikeKeys: jest.fn(),
+        getImplicitLikeKeys: jest.fn(),
+        getPreferredArtistKeys: jest.fn(),
+        getBlockedArtistKeys: jest.fn(),
     },
 }))
 
 jest.mock('./sessionMood', () => ({
-    detectSessionMood: jest.fn(() => null),
+    detectSessionMood: jest.fn(),
 }))
 
 jest.mock('./candidateCollector', () => ({
-    collectRecommendationCandidates: jest.fn(
-        () => Promise.resolve(new Map()),
-    ),
+    collectRecommendationCandidates: jest.fn(),
 }))
 
 jest.mock('./diversitySelector', () => ({
-    buildExcludedUrls: jest.fn(() => new Set()),
-    buildExcludedKeys: jest.fn(() => new Set()),
-    selectDiverseCandidates: jest.fn(() => []),
-    addSelectedTracks: jest.fn(() => Promise.resolve()),
+    buildExcludedUrls: jest.fn(),
+    buildExcludedKeys: jest.fn(),
+    selectDiverseCandidates: jest.fn(),
+    addSelectedTracks: jest.fn(),
     purgeDuplicatesOfCurrentTrack: jest.fn(),
 }))
 
 jest.mock('../queueManipulation', () => ({
-    collectBroadFallbackCandidates: jest.fn(
-        () => Promise.resolve(),
-    ),
-    collectLastFmCandidates: jest.fn(
-        () => Promise.resolve(),
-    ),
-    collectGenreCandidates: jest.fn(
-        () => Promise.resolve(),
-    ),
-    enrichWithAudioFeatures: jest.fn(
-        (tracks: any[]) => Promise.resolve(tracks),
-    ),
-    getTrackAudioFeatures: jest.fn(
-        () => Promise.resolve(null),
-    ),
-    interleaveByArtist: jest.fn(
-        (tracks: any[]) => tracks,
-    ),
-    buildVcContributionWeights: jest.fn(
-        () => new Map(),
-    ),
+    collectBroadFallbackCandidates: jest.fn(),
+    collectLastFmCandidates: jest.fn(),
+    collectGenreCandidates: jest.fn(),
+    enrichWithAudioFeatures: jest.fn(),
+    getTrackAudioFeatures: jest.fn(),
+    interleaveByArtist: jest.fn(),
+    buildVcContributionWeights: jest.fn(),
+}))
+
+jest.mock('./artistTagCache', () => ({
+    createArtistTagFetcher: jest.fn(),
+}))
+
+jest.mock('./lastFmSeeder', () => ({
+    collectLastFmCandidates: jest.fn(),
 }))
 
 function createTrack(overrides: Partial<Track> = {}): Track {
@@ -102,7 +93,69 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
 
 describe('replenishQueue', () => {
     beforeEach(() => {
-        jest.clearAllMocks()
+        const {
+            recommendationFeedbackService: feedbackSvc,
+        } = require('../../../services/musicRecommendation/feedbackService')
+        feedbackSvc.getLikedTrackWeights.mockResolvedValue(new Map())
+        feedbackSvc.getDislikedTrackWeights.mockResolvedValue(new Map())
+        feedbackSvc.getImplicitDislikeKeys.mockResolvedValue(new Set())
+        feedbackSvc.getImplicitLikeKeys.mockResolvedValue(new Set())
+        feedbackSvc.getPreferredArtistKeys.mockResolvedValue(new Set())
+        feedbackSvc.getBlockedArtistKeys.mockResolvedValue(new Set())
+
+        const {
+            trackHistoryService,
+            guildSettingsService,
+            spotifyLinkService,
+            premiumService,
+        } = require('@lucky/shared/services')
+        trackHistoryService.getTrackHistory.mockResolvedValue([])
+        guildSettingsService.getGuildSettings.mockResolvedValue(null)
+        spotifyLinkService.getValidAccessToken.mockResolvedValue(null)
+        premiumService.isPremium.mockResolvedValue(false)
+
+        const { detectSessionMood } = require('./sessionMood')
+        detectSessionMood.mockReturnValue({
+            deepDiveArtist: null,
+            preferLong: false,
+            preferShort: false,
+            restless: false,
+            dominantLocale: null,
+        })
+
+        const { collectRecommendationCandidates } = require('./candidateCollector')
+        collectRecommendationCandidates.mockResolvedValue(new Map())
+
+        const {
+            buildExcludedUrls,
+            buildExcludedKeys,
+            selectDiverseCandidates,
+            addSelectedTracks,
+        } = require('./diversitySelector')
+        buildExcludedUrls.mockReturnValue(new Set())
+        buildExcludedKeys.mockReturnValue(new Set())
+        selectDiverseCandidates.mockReturnValue([])
+        addSelectedTracks.mockResolvedValue(undefined)
+
+        const {
+            collectBroadFallbackCandidates,
+            collectLastFmCandidates,
+            collectGenreCandidates,
+            enrichWithAudioFeatures,
+            getTrackAudioFeatures,
+            interleaveByArtist,
+            buildVcContributionWeights,
+        } = require('../queueManipulation')
+        collectBroadFallbackCandidates.mockResolvedValue(undefined)
+        collectLastFmCandidates.mockResolvedValue(undefined)
+        collectGenreCandidates.mockResolvedValue(undefined)
+        enrichWithAudioFeatures.mockImplementation((tracks: any[]) => Promise.resolve(tracks))
+        getTrackAudioFeatures.mockResolvedValue(null)
+        interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+        buildVcContributionWeights.mockReturnValue(new Map())
+
+        const { createArtistTagFetcher } = require('./artistTagCache')
+        createArtistTagFetcher.mockReturnValue(jest.fn().mockResolvedValue([]))
     })
 
     it('should be exported and callable', async () => {
@@ -123,7 +176,6 @@ describe('replenishQueue', () => {
 
         await Promise.all([p1, p2])
 
-        // Both promises resolved without error
         expect(true).toBe(true)
     })
 
@@ -167,7 +219,8 @@ describe('replenishQueue', () => {
 
         await expect(replenishQueue(queue)).resolves.toBeUndefined()
 
-        expect(errorLogMock).toHaveBeenCalledWith(
+        const { errorLog } = require('@lucky/shared/utils')
+        expect(errorLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: expect.stringContaining(
                     'Error replenishing queue',
@@ -188,12 +241,58 @@ describe('replenishQueue', () => {
 
     it('should log debug info on start', async () => {
         const queue = createGuildQueue()
+        const { debugLog } = require('@lucky/shared/utils')
 
         await replenishQueue(queue)
 
-        expect(debugLogMock).toHaveBeenCalledWith(
+        expect(debugLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Replenishing queue',
+            }),
+        )
+    })
+
+    it('should emit telemetry log with correct fields', async () => {
+        const queue = createGuildQueue()
+        const { selectDiverseCandidates } = require('./diversitySelector')
+        const { collectRecommendationCandidates } = require('./candidateCollector')
+        const { interleaveByArtist, enrichWithAudioFeatures } =
+            require('../queueManipulation')
+
+        const mockScoredTracks = [
+            { track: createTrack({ id: 'track1' }), score: 0.8, reason: 'test' },
+            { track: createTrack({ id: 'track2' }), score: 0.7, reason: 'test' },
+        ]
+        selectDiverseCandidates.mockReturnValue(mockScoredTracks)
+        interleaveByArtist.mockReturnValue(mockScoredTracks)
+        enrichWithAudioFeatures.mockResolvedValue(mockScoredTracks)
+
+        const candidateMap = new Map()
+        candidateMap.set('candidate1', {
+            track: createTrack({ id: 'candidate1' }),
+            reason: 'test',
+            score: 0.5,
+        })
+        collectRecommendationCandidates.mockResolvedValue(candidateMap)
+
+        await replenishQueue(queue)
+
+        const { debugLog } = require('@lucky/shared/utils')
+        expect(debugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Autoplay pass complete',
+                data: expect.objectContaining({
+                    guildId: 'guildid',
+                    tracksAdded: expect.any(Number),
+                    candidatePoolSize: expect.any(Number),
+                    durationMs: expect.any(Number),
+                    sources: expect.objectContaining({
+                        recommendation: expect.any(Number),
+                        lastfm: expect.any(Number),
+                        fallback: expect.any(Number),
+                        genre: expect.any(Number),
+                    }),
+                }),
             }),
         )
     })
