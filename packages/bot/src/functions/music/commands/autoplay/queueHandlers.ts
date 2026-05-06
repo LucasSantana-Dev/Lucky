@@ -69,7 +69,23 @@ async function handleSkipAutoplayTrack(
         return
     }
 
-    await replenishQueue(queue)
+    try {
+        await replenishQueue(queue)
+    } catch (error) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Replenish Failed',
+                        'Track skipped but queue could not be replenished.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     await interactionReply({
         interaction,
