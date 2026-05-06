@@ -43,7 +43,7 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
         return Promise.reject(err)
     }
     return new Promise<Readable>((resolve, reject) => {
-        const proc = spawn(
+        const proc = spawn( // NOSONAR: S4036 — command is hardcoded, URL is validated by validateYtDlpUrl before this point
             'yt-dlp',
             [
                 '--no-playlist',
