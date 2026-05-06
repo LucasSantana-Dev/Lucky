@@ -78,7 +78,7 @@ async function handleSkipAutoplayTrack(
                 embeds: [
                     createErrorEmbed(
                         'Replenish Failed',
-                        'Track skipped but queue could not be replenished.',
+                        'Track skipped but the queue could not be replenished. Try `/autoplay skip` again or use `/play` to add tracks manually.',
                     ),
                 ],
                 ephemeral: true,
@@ -149,7 +149,7 @@ async function handleClearAutoplayTracks(
                 embeds: [
                     createErrorEmbed(
                         'Replenish Failed',
-                        'Autoplay tracks cleared but queue could not be replenished.',
+                        'Autoplay tracks cleared but the queue could not be replenished. Use `/play` to add tracks manually.',
                     ),
                 ],
                 ephemeral: true,
