@@ -282,7 +282,16 @@ async function handleAutoplayGenreList(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const guildId = interaction.guildId
-    if (!guildId) return
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     const genres = settings?.autoplayGenres ?? []
@@ -313,7 +322,16 @@ async function handleAutoplayGenreClear(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const guildId = interaction.guildId
-    if (!guildId) return
+    if (!guildId) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [createErrorEmbed('Guild Not Found', 'Unable to retrieve guild information.')],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     const genres = settings?.autoplayGenres ?? []

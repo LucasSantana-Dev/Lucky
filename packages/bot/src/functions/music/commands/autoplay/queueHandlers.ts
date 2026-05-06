@@ -133,8 +133,30 @@ async function handleClearAutoplayTracks(
         return
     }
 
-    autoplayTracks.reverse().forEach((index) => queue.removeTrack(index))
-    await replenishQueue(queue)
+    autoplayTracks.reverse().forEach((index) => {
+        const track = queue.tracks.at(index)
+        if (track && isAutoplayTrack(track)) {
+            queue.removeTrack(index)
+        }
+    })
+
+    try {
+        await replenishQueue(queue)
+    } catch (error) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Replenish Failed',
+                        'Autoplay tracks cleared but queue could not be replenished.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     await interactionReply({
         interaction,
@@ -183,19 +205,23 @@ async function handleAutoplayStatus(
 
     const vcMemberIds = metadata?.vcMemberIds ?? []
     if (vcMemberIds.length > 1) {
-        const linkedUsers = await Promise.all(
-            vcMemberIds.map(async (id) => {
-                const link = await lastFmLinkService.getByDiscordId(id)
-                return link?.lastFmUsername ? id : null
-            }),
-        )
-        const linkedCount = linkedUsers.filter((id) => id !== null).length
-        if (linkedCount > 1) {
-            fields.push({
-                name: '🎭 Blend',
-                value: `Mixing taste for ${linkedCount} users`,
-                inline: false,
-            })
+        try {
+            const linkedUsers = await Promise.all(
+                vcMemberIds.map(async (id) => {
+                    const link = await lastFmLinkService.getByDiscordId(id)
+                    return link?.lastFmUsername ? id : null
+                }),
+            )
+            const linkedCount = linkedUsers.filter((id) => id !== null).length
+            if (linkedCount > 1) {
+                fields.push({
+                    name: '🎭 Blend',
+                    value: `Mixing taste for ${linkedCount} users`,
+                    inline: false,
+                })
+            }
+        } catch {
+            // Blend field omitted if Last.fm lookup fails; status still shown
         }
     }
 
