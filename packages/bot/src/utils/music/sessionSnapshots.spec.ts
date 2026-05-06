@@ -573,4 +573,53 @@ describe('MusicSessionSnapshotService', () => {
         expect(result.restoredCount).toBe(0)
         expect(result.sessionSnapshotId).toBeNull()
     })
+
+    it('clears queue and returns restoredCount 0 when player.search throws mid-restore', async () => {
+        getMock.mockResolvedValue(
+            JSON.stringify({
+                sessionSnapshotId: 'snap-123',
+                guildId: 'g',
+                savedAt: Date.now(),
+                currentTrack: {
+                    title: 'Current Song',
+                    author: 'Artist 1',
+                    url: 'https://youtube.com/watch?v=abc',
+                    duration: '3:45',
+                    source: 'youtube',
+                },
+                upcomingTracks: [
+                    {
+                        title: 'Next Song',
+                        author: 'Artist 2',
+                        url: 'https://youtube.com/watch?v=def',
+                        duration: '4:20',
+                        source: 'youtube',
+                    },
+                ],
+            }),
+        )
+
+        const service = new MusicSessionSnapshotService(300)
+        const clearMock = jest.fn()
+        const searchMock = jest.fn()
+            .mockResolvedValueOnce({ tracks: [{ title: 'Current Song' }] })
+            .mockRejectedValueOnce(new Error('Search service unavailable'))
+
+        const queue = {
+            guild: { id: 'g' },
+            currentTrack: null,
+            tracks: { size: 0 },
+            player: { search: searchMock },
+            clear: clearMock,
+            addTrack: jest.fn(),
+        } as unknown as GuildQueue
+
+        const result = await service.restoreSnapshot(queue)
+
+        // Should have called clear to rollback the partial queue
+        expect(clearMock).toHaveBeenCalledTimes(1)
+        // Should return 0 restored and null sessionSnapshotId on error
+        expect(result.restoredCount).toBe(0)
+        expect(result.sessionSnapshotId).toBeNull()
+    })
 })

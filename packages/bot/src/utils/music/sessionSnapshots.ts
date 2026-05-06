@@ -235,22 +235,32 @@ export class MusicSessionSnapshotService {
             ]
 
             let restoredCount = 0
-            for (const entry of tracksToRestore) {
-                const query =
-                    entry.url || `${entry.title} ${entry.author}`.trim()
-                const result = await queue.player.search(query, searchOptions)
-                const track = result.tracks[0]
-                if (!track) continue
+            try {
+                for (const entry of tracksToRestore) {
+                    const query =
+                        entry.url || `${entry.title} ${entry.author}`.trim()
+                    const result = await queue.player.search(query, searchOptions)
+                    const track = result.tracks[0]
+                    if (!track) continue
 
-                applySnapshotMetadata(
-                    track as Track,
-                    snapshot.sessionSnapshotId,
-                    entry.recommendationReason,
-                    entry.isAutoplay,
-                    entry.requestedById,
-                )
-                queue.addTrack(track)
-                restoredCount += 1
+                    applySnapshotMetadata(
+                        track as Track,
+                        snapshot.sessionSnapshotId,
+                        entry.recommendationReason,
+                        entry.isAutoplay,
+                        entry.requestedById,
+                    )
+                    queue.addTrack(track)
+                    restoredCount += 1
+                }
+            } catch (loopError) {
+                // Rollback: clear partial queue state on any search/add failure
+                queue.clear()
+                errorLog({
+                    message: 'Failed to restore track during restore loop; rolling back queue',
+                    error: loopError,
+                })
+                return { restoredCount: 0, sessionSnapshotId: null }
             }
 
             if (restoredCount > 0) {
