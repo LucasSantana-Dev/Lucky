@@ -3,7 +3,7 @@ name: Path Portability
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
 
 jobs:
   portability:
