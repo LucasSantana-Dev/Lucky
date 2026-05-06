@@ -144,16 +144,18 @@ async function handleAutoplayStatus(
     const metadata = (queue.metadata as QueueMetadata) || {}
     const autoplayEnabled = queue.repeatMode === 2
 
-    const autoplayCount = Array.from(queue.tracks).filter((track) =>
-        isAutoplayTrack(track),
-    ).length
+    let autoplayCount = 0
+    for (let i = 0; i < queue.tracks.size; i++) {
+        const track = queue.tracks.at(i)
+        if (track && isAutoplayTrack(track)) {
+            autoplayCount++
+        }
+    }
 
-    const fields = [
+    const fields: Array<{ name: string; value: string; inline: boolean }> = [
         {
             name: '🎵 Status',
-            value: autoplayEnabled
-                ? `${EMOJIS.AUTOPLAY} Enabled`
-                : 'Disabled',
+            value: autoplayEnabled ? `${EMOJIS.AUTOPLAY} Enabled` : 'Disabled',
             inline: true,
         },
         {
@@ -163,33 +165,23 @@ async function handleAutoplayStatus(
         },
     ]
 
-    if (metadata.preferences?.mode) {
-        fields.push({
-            name: '🎯 Mode',
-            value: metadata.preferences.mode,
-            inline: true,
-        })
+    const vcMemberIds = metadata?.vcMemberIds ?? []
+    if (vcMemberIds.length > 1) {
+        const linkedUsers = await Promise.all(
+            vcMemberIds.map(async (id) => {
+                const link = await lastFmLinkService.getByDiscordId(id)
+                return link?.lastFmUsername ? id : null
+            }),
+        )
+        const linkedCount = linkedUsers.filter((id) => id !== null).length
+        if (linkedCount > 1) {
+            fields.push({
+                name: '🎭 Blend',
+                value: `Mixing taste for ${linkedCount} users`,
+                inline: false,
+            })
+        }
     }
-
-    if (metadata.preferences?.genres?.length) {
-        fields.push({
-            name: '🏷️ Genres',
-            value: metadata.preferences.genres
-                .map((g) => `\`${g}\``)
-                .join(', '),
-            inline: false,
-        })
-    }
-
-    const lastFmNowPlaying = metadata.nowPlayingLastFm
-        ? `[${metadata.nowPlayingLastFm}](${lastFmLinkService.getTrackUrl(metadata.nowPlayingLastFm)})`
-        : 'Not set'
-
-    fields.push({
-        name: '🎸 Last.fm Track',
-        value: lastFmNowPlaying,
-        inline: false,
-    })
 
     await interactionReply({
         interaction,

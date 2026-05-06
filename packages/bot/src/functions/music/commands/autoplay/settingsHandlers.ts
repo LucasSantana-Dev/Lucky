@@ -2,15 +2,12 @@ import { ChatInputCommandInteraction, ColorResolvable } from 'discord.js'
 import {
     createEmbed,
     createErrorEmbed,
-} from '../../../../../../utils/embed/embedHelpers'
-import {
     EMBED_COLORS,
     EMOJIS,
-} from '../../../../../../utils/constants/embedConstants'
-import { guildSettingsService } from '../../../../../../services/guild/guildSettingsService'
-import { trackHistoryService } from '../../../../../../services/track/trackHistoryService'
-import { errorLog } from '../../../../../../utils/log/errorLog'
-import { interactionReply } from '../../../../../../utils/interaction/interactionReply'
+} from '../../../../utils/general/embeds'
+import { guildSettingsService, trackHistoryService } from '@lucky/shared/services'
+import { errorLog } from '@lucky/shared/utils'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 
 async function handleAutoplayMode(
     interaction: ChatInputCommandInteraction,

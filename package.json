@@ -119,6 +119,7 @@
     "file-type": ">=21.3.2",
     "yauzl": ">=3.2.1",
     "picomatch": ">=2.3.2",
-    "follow-redirects": "1.16.0"
+    "follow-redirects": "1.16.0",
+    "ip-address": ">=10.1.1"
   }
 }

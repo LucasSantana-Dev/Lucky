@@ -1,9 +1,13 @@
 import { ChatInputCommandInteraction, ColorResolvable } from 'discord.js'
-import { recommendationFeedbackService } from '@/services/recommendationFeedbackService'
-import { createEmbed, createErrorEmbed } from '@/utils/embed'
-import { EMBED_COLORS, EMOJIS } from '@/constants'
-import { errorLog } from '@/logger'
-import { interactionReply } from '../interactionReply'
+import { recommendationFeedbackService } from '../../../../services/musicRecommendation/feedbackService'
+import {
+    createEmbed,
+    createErrorEmbed,
+    EMBED_COLORS,
+    EMOJIS,
+} from '../../../../utils/general/embeds'
+import { errorLog } from '@lucky/shared/utils'
+import { interactionReply } from '../../../../utils/general/interactionReply'
 
 export async function handleAutoplayArtist(
     interaction: ChatInputCommandInteraction,
