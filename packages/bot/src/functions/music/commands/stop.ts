@@ -9,6 +9,7 @@ import {
 import { resolveGuildQueue } from '../../../utils/music/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { musicWatchdogService } from '../../../utils/music/watchdog'
+import { musicSessionSnapshotService } from '../../../utils/music/sessionSnapshots'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -21,7 +22,10 @@ export default new Command({
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireDJRole(interaction, interaction.guildId!))) return
 
-        if (queue) musicWatchdogService.markIntentionalStop(queue.guild.id)
+        if (queue) {
+            musicWatchdogService.markIntentionalStop(queue.guild.id)
+            await musicSessionSnapshotService.deleteSnapshot(queue.guild.id)
+        }
         queue?.node.stop()
         queue?.clear()
         queue?.delete()
