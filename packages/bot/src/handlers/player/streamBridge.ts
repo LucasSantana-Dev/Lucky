@@ -85,6 +85,7 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
             if (settled) return
             settled = true
             clearTimeout(timeout)
+            proc.kill()
             reject(err)
         })
 

@@ -33,7 +33,15 @@ export async function streamViaSoundCloud(
         )
     }
 
-    const scStream = await playdl.stream(match.url)
+    let scStream: Awaited<ReturnType<typeof playdl.stream>>
+    try {
+        scStream = await playdl.stream(match.url)
+    } catch (err) {
+        throw new Error(
+            `SoundCloud: stream creation failed for "${match.name}" — ${(err as Error).message}`,
+            { cause: err },
+        )
+    }
     return scStream.stream
 }
 
