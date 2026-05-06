@@ -5,6 +5,11 @@ const getTrackHistoryMock = jest.fn()
 const musicEmbedMock = jest.fn()
 const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
 const createWarningEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
+const interactionReplyMock = jest.fn()
+
+jest.mock('../../../utils/general/interactionReply', () => ({
+    interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
+}))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
@@ -82,7 +87,13 @@ describe('history command', () => {
         const interaction = makeInteraction()
         await historyCommand.execute({ interaction } as never)
         expect(createWarningEmbedMock).toHaveBeenCalledWith('No history', expect.stringContaining('No tracks'))
-        expect(interaction.editReply).toHaveBeenCalledWith({ embeds: [expect.objectContaining({ title: 'No history' })] })
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: [expect.objectContaining({ title: 'No history' })],
+                }),
+            }),
+        )
     })
 
     it('shows page 1 of history', async () => {

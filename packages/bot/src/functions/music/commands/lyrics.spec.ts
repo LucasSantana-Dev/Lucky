@@ -142,7 +142,7 @@ describe('lyrics command', () => {
             'Line 1\nLine 2',
         )
         expect(deferReplyMock).toHaveBeenCalled()
-        expect(editReplyMock).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalled()
         expect(followUpMock).not.toHaveBeenCalled()
     })
 
@@ -176,7 +176,7 @@ describe('lyrics command', () => {
         const interaction = createInteraction({ song: 'Long Song' })
         const client = {} as unknown as TClient
         await lyricsCommand.execute({ client, interaction })
-        expect(editReplyMock).toHaveBeenCalledTimes(1)
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
         expect(followUpMock).toHaveBeenCalledTimes(2)
     })
 
@@ -189,7 +189,7 @@ describe('lyrics command', () => {
         const client = {} as unknown as TClient
         await lyricsCommand.execute({ client, interaction })
         expect(deferReplyMock).toHaveBeenCalled()
-        expect(editReplyMock).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalled()
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Lyrics not found',
             'Lyrics not found',
@@ -202,7 +202,7 @@ describe('lyrics command', () => {
         const client = {} as unknown as TClient
         await lyricsCommand.execute({ client, interaction })
         expect(deferReplyMock).toHaveBeenCalled()
-        expect(editReplyMock).toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalled()
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Lyrics error',
             expect.any(String),

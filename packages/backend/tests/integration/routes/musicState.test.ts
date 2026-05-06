@@ -870,6 +870,12 @@ describe('Music State Routes', () => {
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
 
+                let noHeartbeatFallback: ReturnType<typeof setTimeout>
+                const globalFallback = setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 40000)
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -883,17 +889,19 @@ describe('Music State Routes', () => {
                         res.on('data', (chunk: Buffer) => {
                             if (chunk.toString().includes('heartbeat')) {
                                 heartbeatReceived = true
+                                clearTimeout(noHeartbeatFallback)
                                 req.destroy()
                             }
                         })
                         // Keep connection open long enough for heartbeat (30s)
-                        setTimeout(() => {
+                        noHeartbeatFallback = setTimeout(() => {
                             if (!heartbeatReceived) req.destroy()
                         }, 35000)
                     },
                 )
 
                 req.on('close', () => {
+                    clearTimeout(globalFallback)
                     setTimeout(() => {
                         server.close(() => {
                             // Heartbeat interval should have fired
@@ -903,13 +911,9 @@ describe('Music State Routes', () => {
                 })
 
                 req.on('error', () => {
+                    clearTimeout(globalFallback)
                     server.close(() => done())
                 })
-
-                setTimeout(() => {
-                    req.destroy()
-                    server.close(() => done())
-                }, 40000)
             })
         }, 45000)
 
@@ -1010,6 +1014,11 @@ describe('Music State Routes', () => {
                 const port = (server.address() as AddressInfo).port
                 let heartbeatCount = 0
 
+                const globalFallback = setTimeout(() => {
+                    req.destroy()
+                    server.close(() => done())
+                }, 32000)
+
                 const req = http.get(
                     {
                         hostname: '127.0.0.1',
@@ -1032,6 +1041,7 @@ describe('Music State Routes', () => {
                 )
 
                 req.on('close', () => {
+                    clearTimeout(globalFallback)
                     setTimeout(() => {
                         server.close(() => {
                             // At least one heartbeat should have been sent
@@ -1044,11 +1054,6 @@ describe('Music State Routes', () => {
                 req.on('error', () => {
                     // Expected
                 })
-
-                setTimeout(() => {
-                    req.destroy()
-                    server.close(() => done())
-                }, 32000)
             })
         }, 35000)
     })

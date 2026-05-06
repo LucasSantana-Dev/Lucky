@@ -7,6 +7,11 @@ const handleUpdateSettingsMock = jest.fn()
 const handleApplyPresetMock = jest.fn()
 const handleResetSettingsMock = jest.fn()
 const handleFeedbackMock = jest.fn()
+const interactionReplyMock = jest.fn()
+
+jest.mock('../../../../utils/general/interactionReply', () => ({
+    interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
+}))
 
 jest.mock('../../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
@@ -90,9 +95,13 @@ describe('recommendation command', () => {
             interaction,
         } as any)
 
-        expect(interaction.reply).toHaveBeenCalledWith({
-            content: 'Unknown subcommand.',
-            ephemeral: true,
-        })
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    content: 'Unknown subcommand.',
+                    ephemeral: true,
+                }),
+            }),
+        )
     })
 })

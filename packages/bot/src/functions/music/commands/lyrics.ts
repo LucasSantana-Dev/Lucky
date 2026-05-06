@@ -85,8 +85,9 @@ export default new Command({
             const result = await lyricsService.searchLyrics(title, artist)
 
             if ('error' in result) {
-                await interaction.editReply({
-                    embeds: [createErrorEmbed('Lyrics not found', result.message)],
+                await interactionReply({
+                    interaction,
+                    content: { embeds: [createErrorEmbed('Lyrics not found', result.message)] },
                 })
                 return
             }
@@ -99,7 +100,7 @@ export default new Command({
                 text: `Source: ${result.source} • Page 1/${pages.length}`,
             })
 
-            await interaction.editReply({ embeds: [firstEmbed] })
+            await interactionReply({ interaction, content: { embeds: [firstEmbed] } })
 
             for (let i = 1; i < pages.length; i++) {
                 const pageEmbed = musicEmbed(
@@ -123,13 +124,16 @@ export default new Command({
                     userId: interaction.user.id,
                 },
             })
-            await interaction.editReply({
-                embeds: [
-                    createErrorEmbed(
-                        'Lyrics error',
-                        'An unexpected error occurred while fetching lyrics. Please try again later.',
-                    ),
-                ],
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Lyrics error',
+                            'An unexpected error occurred while fetching lyrics. Please try again later.',
+                        ),
+                    ],
+                },
             })
         }
     },

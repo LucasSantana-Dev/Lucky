@@ -31,8 +31,9 @@ export default new Command({
         const allEntries = await trackHistoryService.getTrackHistory(guildId, limit)
 
         if (allEntries.length === 0) {
-            await interaction.editReply({
-                embeds: [createWarningEmbed('No history', 'No tracks have been played in this server yet.')],
+            await interactionReply({
+                interaction,
+                content: { embeds: [createWarningEmbed('No history', 'No tracks have been played in this server yet.')] },
             })
             return
         }
@@ -42,8 +43,9 @@ export default new Command({
         const pageEntries = allEntries.slice(start, start + PAGE_SIZE)
 
         if (pageEntries.length === 0) {
-            await interaction.editReply({
-                embeds: [createErrorEmbed('Page not found', `There are only ${Math.ceil(totalFetched / PAGE_SIZE)} page(s) of history.`)],
+            await interactionReply({
+                interaction,
+                content: { embeds: [createErrorEmbed('Page not found', `There are only ${Math.ceil(totalFetched / PAGE_SIZE)} page(s) of history.`)] },
             })
             return
         }
@@ -64,6 +66,6 @@ export default new Command({
             text: footerText,
         })
 
-        await interaction.editReply({ embeds: [embed] })
+        await interactionReply({ interaction, content: { embeds: [embed] } })
     },
 })

@@ -80,14 +80,17 @@ export async function executePlayAtTop({
     commandName,
 }: PlayAtTopOptions): Promise<void> {
     if (!interaction.guildId) {
-        await interaction.reply({
-            embeds: [
-                createErrorEmbed(
-                    'Error',
-                    'This command can only be used in a server',
-                ),
-            ],
-            ephemeral: true,
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Error',
+                        'This command can only be used in a server',
+                    ),
+                ],
+                ephemeral: true,
+            },
         })
         return
     }

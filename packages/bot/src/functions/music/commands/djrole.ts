@@ -9,7 +9,7 @@ import {
 import { guildSettingsService } from '@lucky/shared/services'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { PermissionFlagsBits } from 'discord.js'
+import { MessageFlags, PermissionFlagsBits } from 'discord.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -36,7 +36,7 @@ export default new Command({
         const guildId = interaction.guildId!
         const sub = interaction.options.getSubcommand()
 
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         if (sub === 'set') {
             const role = interaction.options.getRole('role', true)
