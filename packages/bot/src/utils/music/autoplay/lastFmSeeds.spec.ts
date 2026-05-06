@@ -13,6 +13,7 @@ import {
     getLastFmCacheOffset,
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
+    isLovedSeed,
     LASTFM_SEED_COUNT,
 } from './lastFmSeeds'
 
@@ -556,6 +557,29 @@ describe('consumeBlendedSeedSlice', () => {
         expect(slice).toEqual([])
     })
 
+    it('trims sumSlices to count when weighted allocation overshoots', async () => {
+        getByDiscordIdMock.mockImplementation((userId) =>
+            Promise.resolve({ lastFmUsername: `user-${userId}` }),
+        )
+        getTopTracksMock.mockImplementation((username) => {
+            if (username === 'user-heavy')
+                return Promise.resolve([
+                    { artist: 'H1', title: 'T1', playCount: 1 },
+                    { artist: 'H2', title: 'T2', playCount: 1 },
+                    { artist: 'H3', title: 'T3', playCount: 1 },
+                ])
+            return Promise.resolve([{ artist: 'L1', title: 'T4', playCount: 1 }])
+        })
+
+        const weights = new Map<string, number>([
+            ['heavy', 3],
+            ['light', 1],
+        ])
+        const slice = await consumeBlendedSeedSlice(['heavy', 'light'], 3, weights)
+
+        expect(slice.length).toBeLessThanOrEqual(3)
+    })
+
     it('allocates weighted slices proportionally with weights map', async () => {
         getByDiscordIdMock.mockImplementation((userId) =>
             Promise.resolve({
@@ -596,5 +620,41 @@ describe('consumeBlendedSeedSlice', () => {
         expect(user1Tracks.length).toBeGreaterThanOrEqual(
             user2Tracks.length,
         )
+    })
+})
+
+describe('isLovedSeed', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        getLovedTracksMock.mockResolvedValue([])
+        getRecentTracksMock.mockResolvedValue([])
+    })
+
+    it('returns false when no cache entry exists for user', () => {
+        expect(isLovedSeed('unknown-user', 'Artist', 'Title')).toBe(false)
+    })
+
+    it('returns true when track is in the loved keys set', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([])
+        getLovedTracksMock.mockResolvedValue([
+            { artist: 'Loved Artist', title: 'Loved Song' },
+        ])
+
+        await getLastFmSeedTracks('loved-user')
+
+        expect(isLovedSeed('loved-user', 'Loved Artist', 'Loved Song')).toBe(true)
+    })
+
+    it('returns false when track is not in the loved keys set', async () => {
+        getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
+        getTopTracksMock.mockResolvedValue([])
+        getLovedTracksMock.mockResolvedValue([
+            { artist: 'Loved Artist', title: 'Loved Song' },
+        ])
+
+        await getLastFmSeedTracks('loved-user-2')
+
+        expect(isLovedSeed('loved-user-2', 'Other Artist', 'Other Song')).toBe(false)
     })
 })

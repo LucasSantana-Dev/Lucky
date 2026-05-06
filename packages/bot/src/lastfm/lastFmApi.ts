@@ -6,7 +6,7 @@
 
 import crypto from 'node:crypto'
 import { lastFmLinkService } from '@lucky/shared/services'
-import { logAndSwallow } from '@lucky/shared/utils/error'
+import { logAndWarn } from '@lucky/shared/utils/error'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
@@ -142,7 +142,7 @@ export async function getTopTracks(
             playCount: parseInt(t.playcount, 10) || 0,
         }))
     } catch (err) {
-        logAndSwallow(err, 'lastfm.getTopTracks')
+        logAndWarn(err, 'lastfm.getTopTracks')
         return []
     }
 }
@@ -226,7 +226,7 @@ export async function getRecentTracks(
                 title: t.name,
             }))
     } catch (err) {
-        logAndSwallow(err, 'lastfm.getRecentTracks', { username: lastFmUsername })
+        logAndWarn(err, 'lastfm.getRecentTracks', { username: lastFmUsername })
         return []
     }
 }
@@ -283,7 +283,7 @@ export async function getArtistTopTags(
 
         return tags
     } catch (err) {
-        logAndSwallow(err, 'lastfm.getArtistTopTags', { artist: trimmed })
+        logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
         return []
     }
 }
@@ -314,7 +314,7 @@ export async function getSimilarTracks(
             match: parseFloat(t.match) || 0,
         }))
     } catch (err) {
-        logAndSwallow(err, 'lastfm.getSimilarTracks', { artist, title })
+        logAndWarn(err, 'lastfm.getSimilarTracks', { artist, title })
         return []
     }
 }
@@ -342,7 +342,7 @@ export async function getTagTopTracks(
             title: t.name,
         }))
     } catch (err) {
-        logAndSwallow(err, 'lastfm.getTagTopTracks', { tag })
+        logAndWarn(err, 'lastfm.getTagTopTracks', { tag })
         return []
     }
 }
@@ -373,7 +373,7 @@ export async function getLovedTracks(
             title: t.name,
         }))
     } catch (err) {
-        logAndSwallow(err, 'lastfm.getLovedTracks', { username })
+        logAndWarn(err, 'lastfm.getLovedTracks', { username })
         return []
     }
 }

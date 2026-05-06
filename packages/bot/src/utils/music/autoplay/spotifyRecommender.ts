@@ -28,16 +28,19 @@ import {
 } from '../queueManipulation'
 import { calculateRecommendationScore } from './candidateScorer'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
+import type { ScoredTrack } from './diversitySelector';
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
-const QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
-
-type ScoredTrack = {
-    track: Track
-    score: number
-    reason: string
-}
+const BASE_QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
+const FULL_QUERY_MODIFIERS = [
+    ...BASE_QUERY_MODIFIERS,
+    'acoustic',
+    'live',
+    'electric',
+    'band version',
+    'session',
+]
 
 export async function collectSpotifyRecommendationCandidates(
     queue: GuildQueue,
@@ -141,8 +144,8 @@ export async function collectSpotifyRecommendationCandidates(
         const dislikedWeight = dislikedWeights.get(normalizedKey)
         if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
         const tags = await getArtistTags(track.author)
-        const rec = calculateRecommendationScore(
-            track,
+        const rec = calculateRecommendationScore({
+            candidate: track,
             currentTrack,
             recentArtists,
             likedWeights,
@@ -154,13 +157,12 @@ export async function collectSpotifyRecommendationCandidates(
             implicitLikeKeys,
             dislikedWeights,
             sessionMood,
-            false,
-            {
+            genreContext: {
                 candidateTags: tags,
                 currentTrackTags,
                 sessionGenreFamilies,
             },
-        )
+        })
         let score = rec.score + 0.3
         let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
 
@@ -184,9 +186,13 @@ export async function searchSeedCandidates(
     seed: Track,
     requestedBy: User | null,
     replenishCount = 0,
+    sessionMood?: import('./sessionMood').SessionMood | null,
 ): Promise<Track[]> {
+    const modifiers = sessionMood?.restless
+        ? BASE_QUERY_MODIFIERS
+        : FULL_QUERY_MODIFIERS
     const baseQuery = cleanSearchQuery(seed.title, seed.author)
-    const modifier = QUERY_MODIFIERS[replenishCount % QUERY_MODIFIERS.length]
+    const modifier = modifiers[replenishCount % modifiers.length]
     const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
 
     const cleanedTitle = cleanTitle(seed.title)
