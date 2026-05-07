@@ -55,9 +55,16 @@ function normalizeTitleOnly(title?: string): string {
 }
 
 function stripFeaturing(author: string): string {
+    const lower = author.toLowerCase()
+    let cut = author.length
+    for (const marker of [' feat ', ' feat.', ' ft ', ' ft.']) {
+        const idx = lower.indexOf(marker)
+        if (idx >= 0 && idx < cut) cut = idx
+    }
     return author
-        .split(/\s+(?:feat|ft)\.?(?:\s|$)/i)[0] // NOSONAR - bounded alternation, no catastrophic backtracking
-        .replace(/\s*\([^)]*feat[^)]*\)\s*/gi, '') // NOSONAR - [^)]* bounded by paren close, no backtracking
+        .slice(0, cut)
+        .replace(/\s*\([^)]*\)\s*/gi, (m) => /feat/i.test(m) ? '' : m)
+        .trim()
 }
 
 const VARIANT_SUFFIX_RE =
