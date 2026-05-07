@@ -247,6 +247,54 @@ describe('diversitySelector', () => {
                 ),
             ).toBe(false)
         })
+
+        test('detects remastered version as duplicate of base title in excludedKeys', () => {
+            // "bohemian rhapsody" is excluded; "bohemian rhapsody - remastered" should match
+            const excludedUrls = new Set<string>()
+            const excludedKeys = new Set(['bohemian rhapsody'])
+
+            const track: Partial<Track> = {
+                url: 'https://open.spotify.com/track/xyz',
+                title: 'Bohemian Rhapsody - Remastered',
+                author: 'Queen',
+            }
+
+            expect(
+                isDuplicateCandidate(track as Track, excludedUrls, excludedKeys),
+            ).toBe(true)
+        })
+
+        test('detects live version as duplicate of base title', () => {
+            const excludedUrls = new Set<string>()
+            const excludedKeys = new Set(['hotel california'])
+
+            const track: Partial<Track> = {
+                url: 'https://open.spotify.com/track/abc',
+                title: 'Hotel California - Live',
+                author: 'Eagles',
+            }
+
+            expect(
+                isDuplicateCandidate(track as Track, excludedUrls, excludedKeys),
+            ).toBe(true)
+        })
+
+        test('does not strip mid-title variant words — only suffix', () => {
+            // "live" in the middle of the title should not be stripped
+            const excludedUrls = new Set<string>()
+            const excludedKeys = new Set(['live and let die'])
+
+            const track: Partial<Track> = {
+                url: 'https://open.spotify.com/track/def',
+                title: 'Live and Let Die - Remastered',
+                author: 'Wings',
+            }
+
+            // "live and let die" after stripping " - Remastered" → still matches
+            expect(
+                isDuplicateCandidate(track as Track, excludedUrls, excludedKeys),
+            ).toBe(true)
+        })
     })
 
     describe('selectDiverseCandidates', () => {

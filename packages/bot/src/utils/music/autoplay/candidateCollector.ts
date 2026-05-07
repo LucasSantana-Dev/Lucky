@@ -165,7 +165,10 @@ export async function collectRecommendationCandidates(
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
-            const tags = await getArtistTags(candidate.author).catch(() => [] as string[])
+            const tags = await getArtistTags(candidate.author).catch((err: unknown) => {
+                debugLog({ message: 'candidateCollector: getArtistTags failed', data: { author: candidate.author, err } })
+                return [] as string[]
+            })
             if (blockSertanejo && tags.length > 0 && hasGenreTag(tags, SERTANEJO_TAGS)) {
                 continue
             }

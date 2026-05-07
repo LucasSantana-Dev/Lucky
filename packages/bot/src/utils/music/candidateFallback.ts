@@ -1,5 +1,6 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
+import { debugLog } from '@lucky/shared/utils'
 import { getBatchAudioFeatures, getArtistGenres, type SpotifyAudioFeatures } from '../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { getTagTopTracks } from '../../lastfm'
@@ -129,7 +130,10 @@ export async function collectBroadFallbackCandidates(
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
                 const candidateTags = genreContext.getArtistTags
-                    ? await genreContext.getArtistTags(track.author).catch(() => [] as string[])
+                    ? await genreContext.getArtistTags(track.author).catch((err: unknown) => {
+                        debugLog({ message: 'candidateFallback: getArtistTags failed', data: { author: track.author, err } })
+                        return [] as string[]
+                    })
                     : []
                 const rec = calculateRecommendationScore({
                     candidate: track,
@@ -252,7 +256,10 @@ export async function enrichWithAudioFeatures(
             const candidateGenres = await getArtistGenres(
                 token,
                 track.track.author,
-            ).catch(() => [])
+            ).catch((err: unknown) => {
+                debugLog({ message: 'candidateFallback: getArtistGenres failed', data: { author: track.track.author, err } })
+                return []
+            })
             const genrePenalty = calculateGenreFamilyPenalty(
                 currentGenres,
                 candidateGenres,

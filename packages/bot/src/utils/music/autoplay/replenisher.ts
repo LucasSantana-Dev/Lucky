@@ -241,6 +241,8 @@ async function _replenishQueue(
         const seedIsSertanejo = currentTrackTags.length > 0
             ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
             : false
+        // Block sertanejo candidates unless the seed itself is sertanejo — fail-open
+        // when tags are absent (Last.fm unlinked) to avoid over-filtering.
         const blockSertanejo = !seedIsSertanejo
 
         const candidateGenreContext = {

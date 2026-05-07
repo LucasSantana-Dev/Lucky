@@ -14,6 +14,12 @@ const cleanAuthorMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
 const calculateGenreFamilyPenaltyMock = jest.fn()
 
+jest.mock('@lucky/shared/utils', () => ({
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+    warnLog: jest.fn(),
+}))
+
 jest.mock('discord-player', () => ({
     QueryType: { SPOTIFY_SEARCH: 'spotify_search', AUTO: 'auto' },
 }))

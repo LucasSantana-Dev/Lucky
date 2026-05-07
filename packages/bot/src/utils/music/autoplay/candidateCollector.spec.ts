@@ -531,5 +531,104 @@ describe('candidateCollector', () => {
                 }),
             )
         })
+
+        it('blocks sertanejo candidates when blockSertanejo=true and tags match', async () => {
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
+            const serTanejoTrack = createTrack({ title: 'Saudade do Nordeste', author: 'Jorge e Mateus' })
+            searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
+
+            const getArtistTags = jest.fn().mockResolvedValue(['sertanejo'])
+
+            const result = await collectRecommendationCandidates(
+                createGuildQueue(),
+                [createTrack()],
+                null,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                createTrack(),
+                new Set(),
+                0,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                null,
+                null,
+                { getArtistTags },
+                true, // blockSertanejo
+            )
+
+            expect(result.size).toBe(0)
+        })
+
+        it('allows sertanejo candidates when blockSertanejo=false', async () => {
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
+            const serTanejoTrack = createTrack({ title: 'Saudade do Nordeste', author: 'Jorge e Mateus' })
+            searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
+
+            const getArtistTags = jest.fn().mockResolvedValue(['sertanejo'])
+
+            const result = await collectRecommendationCandidates(
+                createGuildQueue(),
+                [createTrack()],
+                null,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                createTrack(),
+                new Set(),
+                0,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                null,
+                null,
+                { getArtistTags },
+                false, // blockSertanejo
+            )
+
+            expect(result.size).toBeGreaterThan(0)
+        })
+
+        it('does not block sertanejo when tags are empty (fail-open when Last.fm unavailable)', async () => {
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
+            const serTanejoTrack = createTrack({ title: 'Saudade do Nordeste', author: 'Jorge e Mateus' })
+            searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
+
+            const getArtistTags = jest.fn().mockResolvedValue([]) // no tags returned
+
+            const result = await collectRecommendationCandidates(
+                createGuildQueue(),
+                [createTrack()],
+                null,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                createTrack(),
+                new Set(),
+                0,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                null,
+                null,
+                { getArtistTags },
+                true, // blockSertanejo is true but tags are empty — must not block
+            )
+
+            expect(result.size).toBeGreaterThan(0)
+        })
     })
 })

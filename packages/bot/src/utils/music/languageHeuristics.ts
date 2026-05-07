@@ -73,7 +73,7 @@ const SPANISH_DISTINCT_TOKENS = [
 	'presencia',      // Portuguese: presença (always has ç)
 	'alabanza', 'alabanzas', // Portuguese: louvor/louvores
 	'alabar',         // Portuguese: louvar
-	'gracia', 'gracias', // Portuguese: graça (always has ç) / obrigado
+	'gracia', 'gracias', // Portuguese: graça / obrigado (different roots entirely)
 	'eres',           // Portuguese: és
 	'nuevo', 'nueva', // Portuguese: novo/nova (different vowel pattern)
 	'pueblo',         // Portuguese: povo
