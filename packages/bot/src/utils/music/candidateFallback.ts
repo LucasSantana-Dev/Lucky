@@ -148,7 +148,7 @@ export async function collectBroadFallbackCandidates(
                 // candidateScorer can still fire for Spanish gospel artists
                 // that have non-Spanish-looking artist names / titles.
                 if (candidateTags.length === 0 && spotifyToken) {
-                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => [])
+                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => []) // NOSONAR S5144 — artistName used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
                 }
                 const rec = calculateRecommendationScore({
                     candidate: track,
