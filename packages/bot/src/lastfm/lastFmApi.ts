@@ -10,6 +10,30 @@ import { logAndWarn } from '@lucky/shared/utils/error'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
+/**
+ * Error thrown when Last.fm session key has expired (error code 9).
+ * Caller should re-authenticate the user.
+ */
+export class LastFmSessionExpiredError extends Error {
+    constructor(message = 'Last.fm session key has expired (error code 9)') {
+        super(message)
+        this.name = 'LastFmSessionExpiredError'
+    }
+}
+
+/**
+ * Metadata for a track from Last.fm track.getInfo API.
+ * Used to enhance scrobble requests with album, artist, and duration info.
+ */
+export type LastFmTrackMetadata = {
+    artist: string
+    title: string
+    album?: string
+    albumArtist?: string
+    mbid?: string
+    duration?: number
+}
+
 function getApiConfig(): { apiKey: string; secret: string } | null {
     const apiKey = process.env.LASTFM_API_KEY
     const secret = process.env.LASTFM_API_SECRET
@@ -82,6 +106,9 @@ async function signedPost(
         message?: string
     }
     if (data.error) {
+        if (data.error === 9) {
+            throw new LastFmSessionExpiredError()
+        }
         throw new Error(
             `Last.fm ${method}: ${data.error} - ${data.message ?? ''}`,
         )
@@ -100,6 +127,18 @@ export function normalizeLastFmArtist(raw: string): string {
 
 export function normalizeLastFmTitle(raw: string): string {
     return raw.replace(TITLE_NOISE_PARENS, '').replace(FEAT_CLAUSE, '').trim()
+}
+
+const FEAT_ARTIST_SEPARATORS =
+    /\s*(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?\b|\bwith\b)\s+/i
+
+export function parseArtists(raw: string): { primary: string; featured: string[] } {
+    const normalized = normalizeLastFmArtist(raw)
+    const parts = normalized
+        .split(FEAT_ARTIST_SEPARATORS)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    return { primary: parts[0] ?? normalized, featured: parts.slice(1) }
 }
 
 export type LastFmTopTrack = {
@@ -152,15 +191,20 @@ export async function updateNowPlaying(
     track: string,
     durationSec?: number,
     sessionKey?: string | null,
+    metadata?: Partial<LastFmTrackMetadata>,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
+    const { primary } = parseArtists(artist)
     const params: Record<string, string> = {
-        artist: normalizeLastFmArtist(artist),
+        artist: primary,
         track: normalizeLastFmTitle(track),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
     }
+    if (metadata?.album) params.album = metadata.album
+    if (metadata?.albumArtist) params.albumArtist = metadata.albumArtist
+    if (metadata?.mbid) params.mbid = metadata.mbid
     await signedPost('track.updateNowPlaying', params, sessionKey)
 }
 
@@ -285,6 +329,84 @@ export async function getArtistTopTags(
     } catch (err) {
         logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
         return []
+    }
+}
+
+const TRACK_METADATA_CACHE = new Map<
+    string,
+    { metadata: LastFmTrackMetadata | null; expiresAt: number }
+>()
+const TRACK_METADATA_TTL_MS = 24 * 60 * 60 * 1000
+const TRACK_METADATA_CACHE_MAX = 5000
+
+export async function getTrackMetadata(
+    artist: string,
+    title: string,
+): Promise<LastFmTrackMetadata | null> {
+    const config = getApiConfig()
+    if (!config) return null
+    const trimmedArtist = artist?.trim()
+    const trimmedTitle = title?.trim()
+    if (!trimmedArtist || !trimmedTitle) return null
+
+    const cacheKey = `${normalizeLastFmArtist(trimmedArtist).toLowerCase()}::${normalizeLastFmTitle(trimmedTitle).toLowerCase()}`
+    const cached = TRACK_METADATA_CACHE.get(cacheKey)
+    const now = Date.now()
+    if (cached && cached.expiresAt > now) {
+        return cached.metadata
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(trimmedArtist)}&track=${encodeURIComponent(trimmedTitle)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+        )
+        if (!response.ok) return null
+        const data = (await response.json()) as {
+            error?: number
+            message?: string
+            track?: {
+                name: string
+                artist: { name: string }
+                album?: { title: string; artist?: string }
+                mbid?: string
+                duration?: string
+            }
+        }
+        if (typeof data.error === 'number') return null
+        const track = data.track
+        if (!track) return null
+
+        const metadata: LastFmTrackMetadata = {
+            artist: track.artist.name || trimmedArtist,
+            title: track.name || trimmedTitle,
+            album: track.album?.title,
+            albumArtist: track.album?.artist,
+            mbid: track.mbid || undefined,
+            duration: track.duration
+                ? parseInt(track.duration, 10) || undefined
+                : undefined,
+        }
+
+        if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
+            const oldest = TRACK_METADATA_CACHE.keys().next().value
+            if (oldest) TRACK_METADATA_CACHE.delete(oldest)
+        }
+        TRACK_METADATA_CACHE.set(cacheKey, {
+            metadata,
+            expiresAt: now + TRACK_METADATA_TTL_MS,
+        })
+
+        return metadata
+    } catch (err) {
+        logAndWarn(err, 'lastfm.getTrackMetadata', {
+            artist: trimmedArtist,
+            title: trimmedTitle,
+        })
+        TRACK_METADATA_CACHE.set(cacheKey, {
+            metadata: null,
+            expiresAt: now + TRACK_METADATA_TTL_MS,
+        })
+        return null
     }
 }
 
