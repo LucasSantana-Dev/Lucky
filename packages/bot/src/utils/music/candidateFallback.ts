@@ -111,7 +111,7 @@ export async function collectBroadFallbackCandidates(
     // genre tags when Last.fm is not linked (getArtistTags returns []).
     // Promise.resolve() guards against stubs that return undefined rather than
     // a Promise (matches the pattern used throughout replenisher.ts).
-    const spotifyToken = requestedBy?.id
+    const spotifyToken = requestedBy?.id // NOSONAR — userId is an internal Discord snowflake, not user-controlled URL data
         ? await Promise.resolve(spotifyLinkService.getValidAccessToken(requestedBy.id)).catch(() => null)
         : null
 
@@ -148,7 +148,7 @@ export async function collectBroadFallbackCandidates(
                 // candidateScorer can still fire for Spanish gospel artists
                 // that have non-Spanish-looking artist names / titles.
                 if (candidateTags.length === 0 && spotifyToken) {
-                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => []) // NOSONAR S5144 — artistName used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
+                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => []) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
                 }
                 const rec = calculateRecommendationScore({
                     candidate: track,
