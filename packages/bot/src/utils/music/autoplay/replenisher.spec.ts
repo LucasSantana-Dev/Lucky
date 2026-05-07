@@ -216,6 +216,25 @@ describe('replenishQueue', () => {
         ).not.toHaveBeenCalled()
     })
 
+    it('should replenish when queue has user-added tracks but autoplay count is below buffer', async () => {
+        const queue = createGuildQueue()
+        const entries: [string, Track][] = []
+        for (let i = 0; i < 8; i++) {
+            const track = createTrack({ id: `user${i}`, metadata: undefined })
+            entries.push([`user${i}`, track])
+        }
+        const autoTrack = createTrack({ id: 'auto0', metadata: { isAutoplay: true } as unknown as never })
+        entries.push(['auto0', autoTrack])
+        queue.tracks = createTracksMap(entries)
+
+        const { collectRecommendationCandidates } =
+            require('./candidateCollector')
+
+        await replenishQueue(queue)
+
+        expect(collectRecommendationCandidates).toHaveBeenCalled()
+    })
+
     it('should handle errors gracefully without throwing', async () => {
         const queue = createGuildQueue()
         const { collectRecommendationCandidates } =

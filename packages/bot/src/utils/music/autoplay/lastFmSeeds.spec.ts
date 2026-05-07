@@ -201,23 +201,24 @@ describe('getLastFmSeedSlice', () => {
 
     it('stops at pool length without wraparound within slice', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
-        getTopTracksMock.mockResolvedValue([
-            { artist: 'A1', title: 'S1', playCount: 1 },
-            { artist: 'A2', title: 'S2', playCount: 2 },
-            { artist: 'A3', title: 'S3', playCount: 3 },
-            { artist: 'A4', title: 'S4', playCount: 4 },
-        ])
+        // Pool of 20 so advancing by LASTFM_SEED_COUNT=15 leaves 5 items (indices 15–19)
+        getTopTracksMock.mockResolvedValue(
+            Array.from({ length: 20 }, (_, i) => ({
+                artist: `A${i + 1}`,
+                title: `S${i + 1}`,
+                playCount: i + 1,
+            })),
+        )
 
         await getLastFmSeedTracks('user-wrap')
 
         advanceLastFmSeedOffset('user-wrap')
 
-        const slice = getLastFmSeedSlice('user-wrap', 3)
+        const slice = getLastFmSeedSlice('user-wrap', 8)
 
-        expect(slice).toHaveLength(3)
-        expect(slice[0]).toEqual({ artist: 'A2', title: 'S2' })
-        expect(slice[1]).toEqual({ artist: 'A3', title: 'S3' })
-        expect(slice[2]).toEqual({ artist: 'A4', title: 'S4' })
+        expect(slice).toHaveLength(5)
+        expect(slice[0]).toEqual({ artist: 'A16', title: 'S16' })
+        expect(slice[4]).toEqual({ artist: 'A20', title: 'S20' })
     })
 
     it('returns at most min(count, tracks.length) items without wraparound', async () => {
@@ -238,13 +239,13 @@ describe('getLastFmSeedSlice', () => {
 
     it('uses default LASTFM_SEED_COUNT when count not specified', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
-        getTopTracksMock.mockResolvedValue([
-            { artist: 'A1', title: 'S1', playCount: 1 },
-            { artist: 'A2', title: 'S2', playCount: 2 },
-            { artist: 'A3', title: 'S3', playCount: 3 },
-            { artist: 'A4', title: 'S4', playCount: 4 },
-            { artist: 'A5', title: 'S5', playCount: 5 },
-        ])
+        getTopTracksMock.mockResolvedValue(
+            Array.from({ length: 20 }, (_, i) => ({
+                artist: `A${i + 1}`,
+                title: `S${i + 1}`,
+                playCount: i + 1,
+            })),
+        )
 
         await getLastFmSeedTracks('user-default-count')
 
@@ -267,14 +268,14 @@ describe('advanceLastFmSeedOffset', () => {
 
     it('increments offset using modulo wrap-around', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
-        getTopTracksMock.mockResolvedValue([
-            { artist: 'A1', title: 'S1', playCount: 1 },
-            { artist: 'A2', title: 'S2', playCount: 2 },
-            { artist: 'A3', title: 'S3', playCount: 3 },
-            { artist: 'A4', title: 'S4', playCount: 4 },
-            { artist: 'A5', title: 'S5', playCount: 5 },
-            { artist: 'A6', title: 'S6', playCount: 6 },
-        ])
+        // Pool of 20 so (0+15)%20 = 15, no wrap
+        getTopTracksMock.mockResolvedValue(
+            Array.from({ length: 20 }, (_, i) => ({
+                artist: `A${i + 1}`,
+                title: `S${i + 1}`,
+                playCount: i + 1,
+            })),
+        )
 
         await getLastFmSeedTracks('user-advance')
 
@@ -338,14 +339,14 @@ describe('getLastFmCacheOffset', () => {
 
     it('tracks offset progression through advances', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
-        getTopTracksMock.mockResolvedValue([
-            { artist: 'A1', title: 'S1', playCount: 1 },
-            { artist: 'A2', title: 'S2', playCount: 2 },
-            { artist: 'A3', title: 'S3', playCount: 3 },
-            { artist: 'A4', title: 'S4', playCount: 4 },
-            { artist: 'A5', title: 'S5', playCount: 5 },
-            { artist: 'A6', title: 'S6', playCount: 6 },
-        ])
+        // Pool of 20 so (0+15)%20 = 15, no wrap
+        getTopTracksMock.mockResolvedValue(
+            Array.from({ length: 20 }, (_, i) => ({
+                artist: `A${i + 1}`,
+                title: `S${i + 1}`,
+                playCount: i + 1,
+            })),
+        )
 
         await getLastFmSeedTracks('user-track-offset')
 
@@ -433,13 +434,13 @@ describe('consumeLastFmSeedSlice', () => {
 
     it('uses default LASTFM_SEED_COUNT when count not specified', async () => {
         getByDiscordIdMock.mockResolvedValue({ lastFmUsername: 'user123' })
-        getTopTracksMock.mockResolvedValue([
-            { artist: 'A1', title: 'S1', playCount: 1 },
-            { artist: 'A2', title: 'S2', playCount: 2 },
-            { artist: 'A3', title: 'S3', playCount: 3 },
-            { artist: 'A4', title: 'S4', playCount: 4 },
-            { artist: 'A5', title: 'S5', playCount: 5 },
-        ])
+        getTopTracksMock.mockResolvedValue(
+            Array.from({ length: 20 }, (_, i) => ({
+                artist: `A${i + 1}`,
+                title: `S${i + 1}`,
+                playCount: i + 1,
+            })),
+        )
 
         const slice = await consumeLastFmSeedSlice('user-default-consume')
 

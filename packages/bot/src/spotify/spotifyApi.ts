@@ -486,12 +486,20 @@ export async function getUserSavedTracks(
             )
 
             if (!res.ok) {
+                logAndSwallow(
+                    new Error(`HTTP ${res.status}`),
+                    'spotify.getUserSavedTracks.request',
+                    { status: res.status, offset },
+                )
                 break
             }
 
-            const data = (await res.json().catch(() => null)) as {
-                items?: Array<{ track?: { id?: string } }>
-                total?: number
+            let data: { items?: Array<{ track?: { id?: string } }>; total?: number } | null = null
+            try {
+                data = (await res.json()) as typeof data
+            } catch (parseErr) {
+                logAndSwallow(parseErr, 'spotify.getUserSavedTracks.parse', { offset })
+                break
             }
 
             if (!data?.items) {

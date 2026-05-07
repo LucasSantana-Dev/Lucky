@@ -14,6 +14,7 @@ import {
 import { detectSessionMood, type SessionMood } from './sessionMood'
 import {
     collectRecommendationCandidates,
+    SERTANEJO_TAGS,
 } from './candidateCollector'
 import {
     createArtistTagFetcher,
@@ -237,13 +238,6 @@ async function _replenishQueue(
             historyTracks,
             getArtistTags,
         )
-        const SERTANEJO_TAGS = [
-            'sertanejo',
-            'sertanejo universitário',
-            'sertanejo pop',
-            'música sertaneja',
-            'forró',
-        ]
         const seedIsSertanejo = currentTrackTags.length > 0
             ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
             : false

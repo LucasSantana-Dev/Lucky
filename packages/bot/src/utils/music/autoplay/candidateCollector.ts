@@ -16,7 +16,7 @@ import { createArtistTagFetcher, hasGenreTag, type ArtistTagFetcher } from './ar
 import type { ScoredTrack } from './diversitySelector'
 export type { ScoredTrack }
 
-const SERTANEJO_TAGS = [
+export const SERTANEJO_TAGS = [
     'sertanejo',
     'sertanejo universitário',
     'sertanejo pop',
@@ -165,7 +165,7 @@ export async function collectRecommendationCandidates(
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
-            const tags = await getArtistTags(candidate.author)
+            const tags = await getArtistTags(candidate.author).catch(() => [] as string[])
             if (blockSertanejo && tags.length > 0 && hasGenreTag(tags, SERTANEJO_TAGS)) {
                 continue
             }
