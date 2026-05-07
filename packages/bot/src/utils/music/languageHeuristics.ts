@@ -121,13 +121,21 @@ const PORTUGUESE_DISTINCT_TOKENS = [
 	'glória',
 ]
 
-function countMatches(text: string, tokens: string[]): number {
+const NON_LETTER = '[^a-záéíóúüñãõç]'
+
+function compileTokenPattern(token: string): RegExp {
+	const escaped = token.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	return new RegExp(`(?:^|${NON_LETTER})${escaped}(?:$|${NON_LETTER})`, 'i')
+}
+
+const SPANISH_TOKEN_PATTERNS: RegExp[] = SPANISH_DISTINCT_TOKENS.map(compileTokenPattern)
+const PORTUGUESE_TOKEN_PATTERNS: RegExp[] = PORTUGUESE_DISTINCT_TOKENS.map(compileTokenPattern)
+
+function countMatches(text: string, patterns: RegExp[]): number {
 	if (!text) return 0
 	const lower = text.toLowerCase()
 	let count = 0
-	for (const token of tokens) {
-		const escaped = token.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
-		const re = new RegExp(`(?:^|[^a-záéíóúüñãõç])${escaped}(?:$|[^a-záéíóúüñãõç])`, 'i')
+	for (const re of patterns) {
 		if (re.test(lower)) count++
 	}
 	return count
@@ -152,13 +160,15 @@ export function scoreLanguageMarkers(
 		if (SPANISH_ONLY_DIACRITICS.test(safeText)) spanishScore += 2
 		if (PORTUGUESE_ONLY_DIACRITICS.test(safeText)) portugueseScore += 2
 
-		spanishScore += countMatches(safeText, SPANISH_DISTINCT_TOKENS)
-		portugueseScore += countMatches(safeText, PORTUGUESE_DISTINCT_TOKENS)
+		spanishScore += countMatches(safeText, SPANISH_TOKEN_PATTERNS)
+		portugueseScore += countMatches(safeText, PORTUGUESE_TOKEN_PATTERNS)
 
 		// Genre keywords in the title itself are a strong locale signal —
 		// "Reggaeton mix", "Cumbia caliente", "Bachata Rosa" etc.
-		const genreTokenHits = countMatches(safeText, SPANISH_GENRE_MARKERS)
-		if (genreTokenHits > 0) spanishScore += 2
+		const genreTokenHits = SPANISH_GENRE_MARKERS.some((m) =>
+			safeText.toLowerCase().includes(m.toLowerCase()),
+		)
+		if (genreTokenHits) spanishScore += 2
 	}
 
 	let hasSpanishGenreTag = false
