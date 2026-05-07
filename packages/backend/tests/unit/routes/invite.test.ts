@@ -3,9 +3,14 @@ import express from 'express'
 import request from 'supertest'
 
 const mockInfoLog = jest.fn()
+const mockLogAndSwallow = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
+}))
+
+jest.mock('@lucky/shared/utils/error', () => ({
+    logAndSwallow: (...args: unknown[]) => mockLogAndSwallow(...args),
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
@@ -23,6 +28,7 @@ function buildApp() {
 describe('GET /invite', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        mockInfoLog.mockReset()
     })
 
     test('redirects to Discord invite URL', async () => {
