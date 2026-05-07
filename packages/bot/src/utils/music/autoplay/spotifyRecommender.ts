@@ -5,6 +5,7 @@ import {
 } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, warnLog } from '@lucky/shared/utils'
+import { logAndSwallow } from '@lucky/shared/utils/error'
 import { spotifyLinkService } from '@lucky/shared/services'
 import {
     searchSpotifyTrack,
@@ -154,7 +155,10 @@ export async function collectSpotifyRecommendationCandidates(
         // title/artist name has no Spanish text markers.
         const tags = lastFmTags.length > 0
             ? lastFmTags
-            : await getArtistGenres(token, track.author).catch(() => [])
+            : await getArtistGenres(token, track.author).catch((err) => {
+                logAndSwallow(err, 'spotifyRecommender:getArtistGenres', { trackAuthor: track.author })
+                return [] as string[]
+            })
         const rec = calculateRecommendationScore({
             candidate: track,
             currentTrack,
