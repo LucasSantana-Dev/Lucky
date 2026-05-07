@@ -373,6 +373,7 @@ async function _replenishQueue(
                 implicitDislikeKeys,
                 implicitLikeKeys,
                 sessionMood,
+                candidateGenreContext,
             )
             sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({

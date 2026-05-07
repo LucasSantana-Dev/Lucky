@@ -66,6 +66,21 @@ const SPANISH_DISTINCT_TOKENS = [
 	'niño', 'niña', 'niños', 'niñas',
 	'tu gloria',
 	'tus alabanzas',
+	// Spanish worship music words whose Portuguese equivalents are spelled
+	// differently — catches gospel/worship titles that contain no ñ/¿/¡.
+	'fuego',          // Portuguese: fogo
+	'cielo', 'cielos',// Portuguese: céu/céus
+	'presencia',      // Portuguese: presença (always has ç)
+	'alabanza', 'alabanzas', // Portuguese: louvor/louvores
+	'alabar',         // Portuguese: louvar
+	'gracia', 'gracias', // Portuguese: graça (always has ç) / obrigado
+	'eres',           // Portuguese: és
+	'nuevo', 'nueva', // Portuguese: novo/nova (different vowel pattern)
+	'pueblo',         // Portuguese: povo
+	'tierra',         // Portuguese: terra ("ie" diphthong is Spanish-specific)
+	'llena', 'llenas', 'lleno', // Portuguese: cheia/cheio (double-l never in Portuguese)
+	'noche',          // Portuguese: noite
+	'hoy',            // Portuguese: hoje
 ]
 
 // Words distinctive to Portuguese (Brazilian or European). Hits here veto

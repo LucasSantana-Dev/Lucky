@@ -11,6 +11,7 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
+import type { ArtistTagFetcher } from './autoplay/artistTagCache'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
 import { normalizeTrackKey, calculateGenreFamilyPenalty } from './trackNormalization'
 
@@ -94,6 +95,11 @@ export async function collectBroadFallbackCandidates(
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<void> {
     const fallbackQueries = [
         currentTrack.author,
@@ -122,6 +128,9 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
+                const candidateTags = genreContext.getArtistTags
+                    ? await genreContext.getArtistTags(track.author).catch(() => [] as string[])
+                    : []
                 const rec = calculateRecommendationScore({
                     candidate: track,
                     currentTrack,
@@ -135,6 +144,11 @@ export async function collectBroadFallbackCandidates(
                     implicitLikeKeys,
                     dislikedWeights,
                     sessionMood,
+                    genreContext: {
+                        candidateTags,
+                        currentTrackTags: genreContext.currentTrackTags,
+                        sessionGenreFamilies: genreContext.sessionGenreFamilies,
+                    },
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,

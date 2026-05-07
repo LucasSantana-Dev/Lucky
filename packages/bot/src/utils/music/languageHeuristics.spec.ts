@@ -74,6 +74,29 @@ describe('languageHeuristics', () => {
 			).toBe(false)
 		})
 
+		it('should detect Spanish worship titles without ñ/¿/¡', () => {
+			// These slip through when Last.fm tags are absent — common gospel titles
+			expect(detectSpanishMarkers('Eres Fiel', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Fuego de Tu Presencia', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Los Cielos Cuentan', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Tiempo de Alabanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Tu Gracia', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Gracias a Dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Nuevo Corazon', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Pueblo de Dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Llena Mi Copa', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Una Noche Mas', undefined)).toBe(true)
+		})
+
+		it('should not flag English or Portuguese tracks on new tokens', () => {
+			expect(detectSpanishMarkers('Amazing Grace', undefined)).toBe(false)
+			expect(detectSpanishMarkers('Hillsong United', undefined)).toBe(false)
+			// Portuguese "presença" uses ç — won't match "presencia"
+			expect(detectSpanishMarkers('Presença de Deus', undefined)).toBe(false)
+			// Portuguese "graça" uses ç — won't match "gracia"
+			expect(detectSpanishMarkers('Graça e Paz', undefined)).toBe(false)
+		})
+
 		it('should let Portuguese veto win when both signals appear', () => {
 			// Brazilian artist Anitta has English/Spanish/Portuguese mixes.
 			// "El Que Espera Por Mim" — has Spanish stopwords ("el") but

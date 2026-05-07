@@ -437,4 +437,81 @@ describe('collectBroadFallbackCandidates', () => {
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
+
+    it('fetches artist tags via genreContext.getArtistTags and passes them to scorer', async () => {
+        const foundTrack = { title: 'Eres Fiel', author: 'Marcos Witt', url: 'u2', durationMS: 180_000 }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = { author: 'Artist', title: 'Song', url: 'u1', durationMS: 200_000 } as never
+        const getArtistTagsMock = jest.fn().mockResolvedValue(['latin christian', 'spanish gospel'])
+        const candidates = new Map<string, ScoredTrack>()
+
+        await collectBroadFallbackCandidates(
+            queue,
+            currentTrack,
+            null,
+            new Set(),
+            new Set(),
+            new Map(),
+            new Map(),
+            new Set(),
+            new Set(),
+            new Set(),
+            candidates,
+            'similar',
+            new Map(),
+            new Set(),
+            new Set(),
+            null,
+            { getArtistTags: getArtistTagsMock, currentTrackTags: ['rock'], sessionGenreFamilies: new Set(['rock_metal']) },
+        )
+
+        expect(getArtistTagsMock).toHaveBeenCalledWith('Marcos Witt')
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                genreContext: expect.objectContaining({
+                    candidateTags: ['latin christian', 'spanish gospel'],
+                    currentTrackTags: ['rock'],
+                    sessionGenreFamilies: expect.any(Set),
+                }),
+            }),
+        )
+    })
+
+    it('falls back to empty tags when getArtistTags rejects', async () => {
+        const foundTrack = { title: 'Song', author: 'Artist', url: 'u2', durationMS: 180_000 }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = { author: 'Artist', title: 'Song', url: 'u1', durationMS: 200_000 } as never
+        const getArtistTagsMock = jest.fn().mockRejectedValue(new Error('lastfm down'))
+        const candidates = new Map<string, ScoredTrack>()
+
+        await expect(
+            collectBroadFallbackCandidates(
+                queue,
+                currentTrack,
+                null,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                new Set(),
+                candidates,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                null,
+                { getArtistTags: getArtistTagsMock },
+            ),
+        ).resolves.toBeUndefined()
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                genreContext: expect.objectContaining({ candidateTags: [] }),
+            }),
+        )
+    })
 })
