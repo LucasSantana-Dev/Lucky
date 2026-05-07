@@ -9,7 +9,6 @@ import { spotifyLinkService } from '@lucky/shared/services'
 import {
     searchSpotifyTrack,
     getSpotifyRecommendations,
-    getArtistGenres,
     type SpotifyAudioFeatures,
 } from '../../../spotify/spotifyApi'
 import { getUserSpotifySeeds } from '../../../spotify/spotifyUserSeeds'
@@ -144,13 +143,7 @@ export async function collectSpotifyRecommendationCandidates(
         const normalizedKey = normalizeTrackKey(track.title, track.author)
         const dislikedWeight = dislikedWeights.get(normalizedKey)
         if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-        const lastFmTags = await getArtistTags(track.author)
-        // When Last.fm is not linked, fall back to Spotify genres so the
-        // cross-locale veto can still catch Spanish gospel tracks whose
-        // title/artist name has no Spanish text markers.
-        const tags = lastFmTags.length > 0
-            ? lastFmTags
-            : await getArtistGenres(token, track.author).catch(() => [])
+        const tags = await getArtistTags(track.author)
         const rec = calculateRecommendationScore({
             candidate: track,
             currentTrack,
