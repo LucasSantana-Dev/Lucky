@@ -61,10 +61,23 @@ function stripFeaturing(author: string): string {
         const idx = lower.indexOf(marker)
         if (idx >= 0 && idx < cut) cut = idx
     }
-    return author
-        .slice(0, cut)
-        .replace(/\s*\([^)]*\)\s*/gi, (m) => /feat/i.test(m) ? '' : m)
-        .trim()
+    let result = author.slice(0, cut)
+    // Remove parenthetical groups containing "feat" or "ft"
+    let i = 0
+    while (i < result.length) {
+        const open = result.indexOf('(', i)
+        if (open === -1) break
+        const close = result.indexOf(')', open + 1)
+        if (close === -1) break
+        const inner = result.slice(open + 1, close).toLowerCase()
+        if (inner.includes('feat') || inner.startsWith('ft ') || inner.startsWith('ft.')) {
+            result = (result.slice(0, open) + result.slice(close + 1)).trim()
+            i = 0
+        } else {
+            i = close + 1
+        }
+    }
+    return result.trim()
 }
 
 const VARIANT_KEYWORDS = [
@@ -73,24 +86,36 @@ const VARIANT_KEYWORDS = [
     'edit', 'version', 'acoustic', 'live', 'cover',
 ]
 
-// Matches optional year prefix inside brackets: "(2015 Remaster)" → inner = "remaster"
-const BRACKET_INNER_RE = /\s*[\[(]\d{0,4}\s*([a-z ]+)[\])]\s*$/
+function startsWithYear(s: string): boolean {
+    return s.length >= 5 && s[4] === ' ' &&
+        s[0] >= '0' && s[0] <= '9' &&
+        s[1] >= '0' && s[1] <= '9' &&
+        s[2] >= '0' && s[2] <= '9' &&
+        s[3] >= '0' && s[3] <= '9'
+}
 
 function stripVariantSuffix(title: string): string {
     const lower = title.toLowerCase()
+    const trimmedLower = lower.trimEnd()
+
     // Strip parenthetical variant suffix at end: (Remastered) or [2015 Live]
-    const bracketMatch = lower.match(BRACKET_INNER_RE)
-    if (bracketMatch) {
-        const kw = bracketMatch[1]!.trim()
-        if (VARIANT_KEYWORDS.some((v) => kw === v || kw.startsWith(v + ' '))) {
-            return title.slice(0, title.length - bracketMatch[0]!.length).trimEnd()
+    for (const [openChar, closeChar] of [['(', ')'], ['[', ']']] as [string, string][]) {
+        if (trimmedLower[trimmedLower.length - 1] !== closeChar) continue
+        const lastOpen = trimmedLower.lastIndexOf(openChar)
+        if (lastOpen < 0) continue
+        let inner = trimmedLower.slice(lastOpen + 1, trimmedLower.length - 1).trim()
+        if (startsWithYear(inner)) inner = inner.slice(5)
+        if (VARIANT_KEYWORDS.some((v) => inner === v || inner.startsWith(v + ' '))) {
+            return title.slice(0, lastOpen).trimEnd()
         }
     }
+
     // Strip dash-prefixed variant suffix at end: - Remastered or – 2015 Live
     for (const sep of [' - ', ' – ']) {
         const idx = lower.lastIndexOf(sep)
         if (idx < 0) continue
-        const rest = lower.slice(idx + sep.length).replace(/^\d{4} /, '').trimEnd()
+        let rest = lower.slice(idx + sep.length).trimEnd()
+        if (startsWithYear(rest)) rest = rest.slice(5)
         if (VARIANT_KEYWORDS.some((v) => rest === v || rest.startsWith(v + ' '))) {
             return title.slice(0, idx).trimEnd()
         }
