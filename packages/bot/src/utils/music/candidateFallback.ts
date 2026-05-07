@@ -109,8 +109,10 @@ export async function collectBroadFallbackCandidates(
 
     // Obtain Spotify token once for the whole fallback pass — used to enrich
     // genre tags when Last.fm is not linked (getArtistTags returns []).
+    // Promise.resolve() guards against stubs that return undefined rather than
+    // a Promise (matches the pattern used throughout replenisher.ts).
     const spotifyToken = requestedBy?.id
-        ? await spotifyLinkService.getValidAccessToken(requestedBy.id).catch(() => null)
+        ? await Promise.resolve(spotifyLinkService.getValidAccessToken(requestedBy.id)).catch(() => null)
         : null
 
     for (const query of fallbackQueries) {
