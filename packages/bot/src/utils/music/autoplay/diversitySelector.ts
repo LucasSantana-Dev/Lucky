@@ -67,11 +67,35 @@ function stripFeaturing(author: string): string {
         .trim()
 }
 
-const VARIANT_SUFFIX_RE =
-    /\s*(?:[-–]\s*(?:\d{4}\s+)?(?:remaster(?:ed)?|remix(?:ed)?|edit|version|radio\s+edit|acoustic|live|cover|extended\s+mix|club\s+mix|vip\s+mix)|[\[(](?:\d{4}\s+)?(?:remaster(?:ed)?|remix(?:ed)?|edit|version|acoustic|live|cover)[\])])\s*$/i
+const VARIANT_KEYWORDS = [
+    'remastered', 'remaster', 'remixed', 'remix',
+    'radio edit', 'extended mix', 'club mix', 'vip mix',
+    'edit', 'version', 'acoustic', 'live', 'cover',
+]
+
+// Matches optional year prefix inside brackets: "(2015 Remaster)" → inner = "remaster"
+const BRACKET_INNER_RE = /\s*[\[(]\d{0,4}\s*([a-z ]+)[\])]\s*$/
 
 function stripVariantSuffix(title: string): string {
-    return title.replace(VARIANT_SUFFIX_RE, '').trim()
+    const lower = title.toLowerCase()
+    // Strip parenthetical variant suffix at end: (Remastered) or [2015 Live]
+    const bracketMatch = lower.match(BRACKET_INNER_RE)
+    if (bracketMatch) {
+        const kw = bracketMatch[1]!.trim()
+        if (VARIANT_KEYWORDS.some((v) => kw === v || kw.startsWith(v + ' '))) {
+            return title.slice(0, title.length - bracketMatch[0]!.length).trimEnd()
+        }
+    }
+    // Strip dash-prefixed variant suffix at end: - Remastered or – 2015 Live
+    for (const sep of [' - ', ' – ']) {
+        const idx = lower.lastIndexOf(sep)
+        if (idx < 0) continue
+        const rest = lower.slice(idx + sep.length).replace(/^\d{4} /, '').trimEnd()
+        if (VARIANT_KEYWORDS.some((v) => rest === v || rest.startsWith(v + ' '))) {
+            return title.slice(0, idx).trimEnd()
+        }
+    }
+    return title
 }
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
