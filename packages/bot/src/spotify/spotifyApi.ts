@@ -472,7 +472,7 @@ export async function getUserSavedTracks(
     try {
         const params = new URLSearchParams({ limit: String(Math.min(limit, 50)), offset: '0' })
         const res = await fetch(
-            `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
+            'https://api.spotify.com/v1/me/tracks?' + params.toString(),
             { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } },
         )
         if (!res.ok) return []

@@ -95,10 +95,11 @@ jobs:
               continue-on-error: true
 
             - name: Socket.dev supply chain scan
+              if: false
               uses: SocketDev/socket-security-action@v1
               with:
                   api-key: ${{ secrets.SOCKET_SECURITY_API_KEY }}
                   allow-warnings: true
               continue-on-error: true
               # GitHub App (github.com/apps/socket-security) covers PR-level blocking
-              # This step provides CI-level visibility when SOCKET_SECURITY_API_KEY is set
+              # Disabled: SocketDev/socket-security-action@v1 repo unavailable
