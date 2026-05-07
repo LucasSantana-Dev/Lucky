@@ -520,4 +520,108 @@ describe('collectBroadFallbackCandidates', () => {
             }),
         )
     })
+
+    it('uses Spotify genres as fallback tags when Last.fm returns empty', async () => {
+        const foundTrack = { title: 'Hallelujah', author: 'Felipe Dutra', url: 'u2', durationMS: 180_000 }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = { author: 'Coldplay', title: 'Yellow', url: 'u1', durationMS: 200_000 } as never
+        const getArtistTagsMock = jest.fn().mockResolvedValue([])
+        getValidAccessTokenMock.mockResolvedValue('spotify-token')
+        getArtistGenresMock.mockResolvedValue(['latin gospel', 'latin christian'])
+        const candidates = new Map<string, ScoredTrack>()
+
+        await collectBroadFallbackCandidates(
+            queue,
+            currentTrack,
+            { id: 'user1' } as never,
+            new Set(),
+            new Set(),
+            new Map(),
+            new Map(),
+            new Set(),
+            new Set(),
+            new Set(),
+            candidates,
+            'similar',
+            new Map(),
+            new Set(),
+            new Set(),
+            null,
+            { getArtistTags: getArtistTagsMock },
+        )
+
+        expect(getArtistGenresMock).toHaveBeenCalledWith('spotify-token', 'Felipe Dutra')
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                genreContext: expect.objectContaining({
+                    candidateTags: ['latin gospel', 'latin christian'],
+                }),
+            }),
+        )
+    })
+
+    it('does not fetch Spotify genres when Last.fm tags are already populated', async () => {
+        const foundTrack = { title: 'Song', author: 'Artist', url: 'u2', durationMS: 180_000 }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = { author: 'Artist', title: 'Song', url: 'u1', durationMS: 200_000 } as never
+        const getArtistTagsMock = jest.fn().mockResolvedValue(['rock', 'indie'])
+        getValidAccessTokenMock.mockResolvedValue('spotify-token')
+        const candidates = new Map<string, ScoredTrack>()
+
+        await collectBroadFallbackCandidates(
+            queue,
+            currentTrack,
+            { id: 'user1' } as never,
+            new Set(),
+            new Set(),
+            new Map(),
+            new Map(),
+            new Set(),
+            new Set(),
+            new Set(),
+            candidates,
+            'similar',
+            new Map(),
+            new Set(),
+            new Set(),
+            null,
+            { getArtistTags: getArtistTagsMock },
+        )
+
+        expect(getArtistGenresMock).not.toHaveBeenCalled()
+    })
+
+    it('does not fetch Spotify genres when no user token is available', async () => {
+        const foundTrack = { title: 'Hallelujah', author: 'Felipe Dutra', url: 'u2', durationMS: 180_000 }
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = { author: 'Artist', title: 'Song', url: 'u1', durationMS: 200_000 } as never
+        const getArtistTagsMock = jest.fn().mockResolvedValue([])
+        getValidAccessTokenMock.mockResolvedValue(null)
+        const candidates = new Map<string, ScoredTrack>()
+
+        await collectBroadFallbackCandidates(
+            queue,
+            currentTrack,
+            { id: 'user1' } as never,
+            new Set(),
+            new Set(),
+            new Map(),
+            new Map(),
+            new Set(),
+            new Set(),
+            new Set(),
+            candidates,
+            'similar',
+            new Map(),
+            new Set(),
+            new Set(),
+            null,
+            { getArtistTags: getArtistTagsMock },
+        )
+
+        expect(getArtistGenresMock).not.toHaveBeenCalled()
+    })
 })

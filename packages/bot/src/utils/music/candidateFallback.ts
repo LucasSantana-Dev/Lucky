@@ -107,6 +107,12 @@ export async function collectBroadFallbackCandidates(
         `${currentTrack.author} popular`,
     ].filter(Boolean)
 
+    // Obtain Spotify token once for the whole fallback pass — used to enrich
+    // genre tags when Last.fm is not linked (getArtistTags returns []).
+    const spotifyToken = requestedBy?.id
+        ? await spotifyLinkService.getValidAccessToken(requestedBy.id).catch(() => null)
+        : null
+
     for (const query of fallbackQueries) {
         try {
             const result = await queue.player.search(query, {
@@ -129,12 +135,19 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
-                const candidateTags = genreContext.getArtistTags
+                let candidateTags = genreContext.getArtistTags
                     ? await genreContext.getArtistTags(track.author).catch((err: unknown) => {
                         debugLog({ message: 'candidateFallback: getArtistTags failed', data: { author: track.author, err } })
                         return [] as string[]
                     })
                     : []
+                // When Last.fm returns nothing (not linked or artist unknown),
+                // use Spotify's genre data so the cross-locale Spanish veto in
+                // candidateScorer can still fire for Spanish gospel artists
+                // that have non-Spanish-looking artist names / titles.
+                if (candidateTags.length === 0 && spotifyToken) {
+                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => [])
+                }
                 const rec = calculateRecommendationScore({
                     candidate: track,
                     currentTrack,
