@@ -84,6 +84,32 @@ describe('spotifyUserSeeds', () => {
         expect(result?.likedTrackIds).toEqual(['liked-1', 'liked-2'])
     })
 
+    it('should degrade gracefully when getUserSavedTracks rejects', async () => {
+        const mockLink = {
+            spotifyId: 'spotify-123',
+            accessToken: 'token',
+            refreshToken: 'refresh',
+            tokenExpiresAt: new Date(Date.now() + 3600000),
+            spotifyUsername: 'testuser',
+        }
+        const mockSeeds = {
+            artists: [{ id: 'artist-1', name: 'Artist One', genres: ['rock'] }],
+            tracks: [{ id: 'track-1', name: 'Song One', artist: 'Artist One' }],
+        }
+        ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(mockLink)
+        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue('token')
+        ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(mockSeeds)
+        ;(spotifyApi.getUserSavedTracks as jest.Mock).mockRejectedValue(new Error('network failure'))
+
+        clearUserSeedsCache('test-user-id')
+        const result = await getUserSpotifySeeds('test-user-id')
+
+        expect(result).not.toBeNull()
+        expect(result?.artistIds).toEqual(['artist-1'])
+        expect(result?.trackIds).toEqual(['track-1'])
+        expect(result?.likedTrackIds).toEqual([])
+    })
+
     it('should return null if user has no Spotify link', async () => {
         ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
             null,

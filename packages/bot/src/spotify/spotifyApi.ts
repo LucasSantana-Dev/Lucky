@@ -1,5 +1,5 @@
 import { logAndSwallow } from '@lucky/shared/utils/error'
-import { debugLog } from '@lucky/shared/utils/general/log'
+import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
 
 export interface SpotifyRecommendationTrack {
     id: string
@@ -475,7 +475,10 @@ export async function getUserSavedTracks(
             'https://api.spotify.com/v1/me/tracks?' + params.toString(),
             { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } },
         )
-        if (!res.ok) return []
+        if (!res.ok) {
+            warnLog({ message: 'Spotify saved tracks fetch failed', data: { status: res.status } })
+            return []
+        }
         const data = (await res.json().catch(() => null)) as {
             items?: Array<{ track?: { id?: string } }>
         }
