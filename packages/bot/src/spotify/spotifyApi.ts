@@ -475,8 +475,12 @@ export async function getUserSavedTracks(
 
     try {
         while (offset < maxTracks) {
+            const params = new URLSearchParams({
+                limit: String(limit),
+                offset: String(offset),
+            })
             const res = await fetch(
-                `https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`,
+                `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
                 {
                     method: 'GET',
                     headers: {
