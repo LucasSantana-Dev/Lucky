@@ -93,3 +93,9 @@ jobs:
               with:
                   extra_args: --only-verified
               continue-on-error: true
+
+            - name: Socket.dev supply chain scan
+              uses: SocketDev/socket-security-action@v1
+              with:
+                  api-key: ${{ secrets.SOCKET_SECURITY_API_KEY }}
+              continue-on-error: true
