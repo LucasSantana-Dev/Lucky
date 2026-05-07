@@ -112,10 +112,12 @@ describe('playskip command', () => {
 
         await playSkipCommand.execute({ client: createMockClient(), interaction } as any)
 
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interactionReply).toHaveBeenCalledWith(
             expect.objectContaining({
-                ephemeral: true,
-                embeds: expect.any(Array),
+                content: expect.objectContaining({
+                    ephemeral: true,
+                    embeds: expect.any(Array),
+                }),
             }),
         )
     })

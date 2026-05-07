@@ -100,7 +100,7 @@ describe('serversetup command', () => {
         await serversetupCommand.execute({ interaction } as any)
 
         expect(resolveSetupMode).toHaveBeenCalledWith('dry-run')
-        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true })
+        expect(interaction.deferReply).toHaveBeenCalledWith({ flags: 64 })
         expect(runCriativariaSetup).toHaveBeenCalledWith(
             interaction.guild,
             'dry-run',
@@ -123,7 +123,7 @@ describe('serversetup command', () => {
 
         await serversetupCommand.execute({ interaction } as any)
 
-        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true })
+        expect(interaction.deferReply).toHaveBeenCalledWith({ flags: 64 })
         expect(interaction.editReply).toHaveBeenCalledWith(
             '❌ Failed to run Criativaria setup. Check logs and try again.',
         )

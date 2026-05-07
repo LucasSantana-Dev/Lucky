@@ -251,7 +251,12 @@ describe('autoplay command', () => {
 
             expect(createEmbedMock).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    description: expect.stringContaining('Blending taste'),
+                    fields: expect.arrayContaining([
+                        expect.objectContaining({
+                            name: '🎭 Blend',
+                            value: 'Mixing taste for 2 users',
+                        }),
+                    ]),
                 }),
             )
         })
@@ -268,11 +273,13 @@ describe('autoplay command', () => {
 
             await autoplayCommand.execute({ client, interaction } as any)
 
-            expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    description: expect.not.stringContaining('Blending taste'),
-                }),
+            const callArgs = createEmbedMock.mock.calls[0][0] as {
+                fields: Array<{ name: string }>
+            }
+            const blendField = callArgs.fields?.find(
+                (f) => f.name === '🎭 Blend',
             )
+            expect(blendField).toBeUndefined()
         })
     })
 

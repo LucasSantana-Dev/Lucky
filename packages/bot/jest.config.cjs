@@ -32,6 +32,9 @@ module.exports = {
                 tsconfig: {
                     esModuleInterop: true,
                     allowSyntheticDefaultImports: true,
+                    module: 'CommonJS',
+                    target: 'ES2017',
+                    moduleResolution: 'node',
                 },
             },
         ],

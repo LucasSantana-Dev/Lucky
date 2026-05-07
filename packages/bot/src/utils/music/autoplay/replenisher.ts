@@ -56,6 +56,13 @@ const replenishLocks = new Map<string, Promise<void>>()
 // Per-guild counter for query diversity across multiple replenish calls.
 const replenishCounters = new Map<string, number>()
 
+// Session mood cache: recomputed only after 3+ new tracks play, preventing
+// per-cycle mood flips from transient history changes.
+const sessionMoodCache = new Map<
+    string,
+    { mood: import('./sessionMood').SessionMood; historyLen: number }
+>()
+
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
@@ -74,10 +81,15 @@ async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
 ): Promise<void> {
+    const startTime = Date.now()
+    const guildId = queue.guild.id
+    let candidatePoolSize = 0
+    const sourcesCounts = { recommendation: 0, lastfm: 0, fallback: 0, genre: 0 }
+
     try {
         debugLog({
             message: 'Replenishing queue',
-            data: { guildId: queue.guild.id, queueSize: queue.tracks.size },
+            data: { guildId, queueSize: queue.tracks.size },
         })
 
         const currentTrack = queue.currentTrack ?? finishedTrack ?? null
@@ -92,7 +104,20 @@ async function _replenishQueue(
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
-        const sessionMood = detectSessionMood(allHistoryTracks)
+        const replenishGuildId = queue.guild.id
+        const guildMoodCache = sessionMoodCache.get(replenishGuildId)
+        const sessionMood =
+            guildMoodCache &&
+            Math.abs(allHistoryTracks.length - guildMoodCache.historyLen) < 3
+                ? guildMoodCache.mood
+                : (() => {
+                      const mood = detectSessionMood(allHistoryTracks, 0 /* TODO: wire recentSkipCount from skip tracking */)
+                      sessionMoodCache.set(replenishGuildId, {
+                          mood,
+                          historyLen: allHistoryTracks.length,
+                      })
+                      return mood
+                  })()
         const historyTracks = allHistoryTracks.slice(0, HISTORY_SEED_LIMIT)
         const seedTracks = [currentTrack, ...historyTracks].slice(
             0,
@@ -196,7 +221,6 @@ async function _replenishQueue(
                   () => null,
               )
             : null
-        const guildId = queue.guild.id
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
         // Tag-driven genre context (Phase 2). One Last.fm artist-tag cache for
@@ -243,6 +267,8 @@ async function _replenishQueue(
             currentFeatures,
             candidateGenreContext,
         )
+        sourcesCounts.recommendation = candidates.size
+        candidatePoolSize = candidates.size
         debugLog({
             message: 'Autoplay: recommendation candidates',
             data: { guildId, count: candidates.size, source: 'recommendation' },
@@ -270,6 +296,7 @@ async function _replenishQueue(
                 contributionWeights,
                 candidateGenreContext,
             )
+            sourcesCounts.lastfm = candidates.size - beforeLastFm
             debugLog({
                 message: 'Autoplay: last.fm candidates',
                 data: {
@@ -303,6 +330,7 @@ async function _replenishQueue(
                     sessionMood,
                 },
             )
+            sourcesCounts.genre = candidates.size - beforeGenre
             debugLog({
                 message: 'Autoplay: genre candidates',
                 data: {
@@ -315,6 +343,7 @@ async function _replenishQueue(
             })
         }
         if (candidates.size === 0 && currentTrack) {
+            const beforeFallback = candidates.size
             await collectBroadFallbackCandidates(
                 queue,
                 currentTrack,
@@ -333,6 +362,7 @@ async function _replenishQueue(
                 implicitLikeKeys,
                 sessionMood,
             )
+            sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({
                 message: 'Autoplay: broad fallback candidates',
                 data: { guildId, count: candidates.size, source: 'fallback' },
@@ -351,11 +381,18 @@ async function _replenishQueue(
         })
 
         const seedArtistKey = currentTrack.author.toLowerCase()
+        // When the user is deep-diving an artist (3+ tracks in last 8), relax
+        // the per-artist cap for that artist so autoplay follows their intent.
+        const deepDiveKey = sessionMood.deepDiveArtist
+        const effectiveMaxPerArtist =
+            deepDiveKey && seedArtistKey.includes(deepDiveKey)
+                ? 5
+                : MAX_TRACKS_PER_ARTIST
         const selected = interleaveByArtist(
             selectDiverseCandidates(
                 candidates,
                 missingTracks,
-                MAX_TRACKS_PER_ARTIST,
+                effectiveMaxPerArtist,
                 MAX_TRACKS_PER_SOURCE,
                 seedArtistKey,
             ),
@@ -447,11 +484,14 @@ async function _replenishQueue(
         replenishCounters.set(guildId, replenishCount + 1)
 
         debugLog({
-            message: 'Autoplay: queue replenished successfully',
+            message: 'Autoplay pass complete',
             data: {
-                guildId: queue.guild.id,
-                addedCount: selected.length,
+                guildId,
+                tracksAdded: enriched.length,
                 newQueueSize: queue.tracks.size,
+                candidatePoolSize,
+                durationMs: Date.now() - startTime,
+                sources: sourcesCounts,
             },
         })
     } catch (error) {

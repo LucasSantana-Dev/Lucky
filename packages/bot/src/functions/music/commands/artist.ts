@@ -50,14 +50,17 @@ export default new Command({
         interaction,
     }: CommandExecuteParams): Promise<void> => {
         if (!interaction.guildId) {
-            await interaction.reply({
-                embeds: [
-                    createErrorEmbed(
-                        'Error',
-                        'This command can only be used in a server',
-                    ),
-                ],
-                ephemeral: true,
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed(
+                            'Error',
+                            'This command can only be used in a server',
+                        ),
+                    ],
+                    ephemeral: true,
+                },
             })
             return
         }
@@ -118,9 +121,24 @@ export default new Command({
             }
 
             const artistLower = artistName.toLowerCase()
-            const byArtist = searchResult.tracks.filter((t) =>
+            // Prefer exact match, then word-boundary match, then substring match.
+            // This prevents "Prince" from routing to "Prince Royce".
+            const exactMatch = searchResult.tracks.filter(
+                (t) => t.author.toLowerCase() === artistLower,
+            )
+            const wordMatch = searchResult.tracks.filter((t) => {
+                const words = t.author.toLowerCase().split(/[\s,&/]+/)
+                return words.some((w) => w === artistLower)
+            })
+            const substringMatch = searchResult.tracks.filter((t) =>
                 t.author.toLowerCase().includes(artistLower),
             )
+            const byArtist =
+                exactMatch.length >= 3
+                    ? exactMatch
+                    : wordMatch.length >= 3
+                      ? wordMatch
+                      : substringMatch
             const tracks = (
                 byArtist.length >= 3 ? byArtist : searchResult.tracks
             ).slice(0, limit)

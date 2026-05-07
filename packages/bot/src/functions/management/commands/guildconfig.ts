@@ -1,8 +1,9 @@
 import { COLOR } from '@lucky/shared/constants'
 import {
-    SlashCommandBuilder,
-    PermissionFlagsBits,
     EmbedBuilder,
+    MessageFlags,
+    PermissionFlagsBits,
+    SlashCommandBuilder,
 } from 'discord.js'
 import Command from '../../../models/Command'
 import { guildAutomationService } from '@lucky/shared/services'
@@ -108,14 +109,14 @@ export default new Command({
     category: 'management',
     execute: async ({ interaction }) => {
         if (!interaction.guild) {
-            await interaction.reply({
-                content: '❌ This command can only be used in a server.',
-                ephemeral: true,
+            await interactionReply({
+                interaction,
+                content: { content: '❌ This command can only be used in a server.', ephemeral: true },
             })
             return
         }
 
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         const guild = interaction.guild
         const subcommand = interaction.options.getSubcommand(true)
@@ -132,23 +133,26 @@ export default new Command({
                     interaction.user.id,
                 )
 
-                await interaction.editReply({
-                    embeds: [
-                        summaryEmbed({
-                            title: '✅ Guild State Captured',
-                            guildName: guild.name,
-                            description:
-                                'Current Discord state was captured for shadow planning.',
-                            fields: [
-                                {
-                                    name: 'Run',
-                                    value: result.runId,
-                                    inline: true,
-                                },
-                            ],
-                            color: COLOR.INFO_GREEN,
-                        }),
-                    ],
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            summaryEmbed({
+                                title: '✅ Guild State Captured',
+                                guildName: guild.name,
+                                description:
+                                    'Current Discord state was captured for shadow planning.',
+                                fields: [
+                                    {
+                                        name: 'Run',
+                                        value: result.runId,
+                                        inline: true,
+                                    },
+                                ],
+                                color: COLOR.INFO_GREEN,
+                            }),
+                        ],
+                    },
                 })
                 return
             }
@@ -167,28 +171,31 @@ export default new Command({
                     },
                 )
 
-                await interaction.editReply({
-                    embeds: [
-                        summaryEmbed({
-                            title: '📋 Drift Plan',
-                            guildName: guild.name,
-                            description: runSummaryText(result.plan),
-                            fields: [
-                                {
-                                    name: 'Run',
-                                    value: result.runId,
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Protected Ops',
-                                    value: String(
-                                        result.plan.protectedOperations.length,
-                                    ),
-                                    inline: true,
-                                },
-                            ],
-                        }),
-                    ],
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            summaryEmbed({
+                                title: '📋 Drift Plan',
+                                guildName: guild.name,
+                                description: runSummaryText(result.plan),
+                                fields: [
+                                    {
+                                        name: 'Run',
+                                        value: result.runId,
+                                        inline: true,
+                                    },
+                                    {
+                                        name: 'Protected Ops',
+                                        value: String(
+                                            result.plan.protectedOperations.length,
+                                        ),
+                                        inline: true,
+                                    },
+                                ],
+                            }),
+                        ],
+                    },
                 })
                 return
             }
@@ -246,32 +253,35 @@ export default new Command({
                     })
                 }
 
-                await interaction.editReply({
-                    embeds: [
-                        summaryEmbed({
-                            title:
-                                subcommand === 'apply'
-                                    ? '⚙️ Apply Result'
-                                    : '🔁 Reconcile Result',
-                            guildName: guild.name,
-                            description: blockedByProtected
-                                ? `Blocked by protected operations. ${runSummaryText(planResult.plan)}`
-                                : `Applied safe operations. ${runSummaryText(planResult.plan)}`,
-                            fields: [
-                                {
-                                    name: 'Run',
-                                    value: planResult.runId,
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Allow Protected',
-                                    value: String(allowProtected),
-                                    inline: true,
-                                },
-                            ],
-                            color: blockedByProtected ? 0xf59e0b : COLOR.INFO_GREEN,
-                        }),
-                    ],
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            summaryEmbed({
+                                title:
+                                    subcommand === 'apply'
+                                        ? '⚙️ Apply Result'
+                                        : '🔁 Reconcile Result',
+                                guildName: guild.name,
+                                description: blockedByProtected
+                                    ? `Blocked by protected operations. ${runSummaryText(planResult.plan)}`
+                                    : `Applied safe operations. ${runSummaryText(planResult.plan)}`,
+                                fields: [
+                                    {
+                                        name: 'Run',
+                                        value: planResult.runId,
+                                        inline: true,
+                                    },
+                                    {
+                                        name: 'Allow Protected',
+                                        value: String(allowProtected),
+                                        inline: true,
+                                    },
+                                ],
+                                color: blockedByProtected ? 0xf59e0b : COLOR.INFO_GREEN,
+                            }),
+                        ],
+                    },
                 })
 
                 return
@@ -281,49 +291,52 @@ export default new Command({
                 const status = await guildAutomationService.getStatus(guild.id)
                 const runs = await guildAutomationService.listRuns(guild.id, 5)
 
-                await interaction.editReply({
-                    embeds: [
-                        summaryEmbed({
-                            title: '📊 Guild Automation Status',
-                            guildName: guild.name,
-                            description: status.manifest
-                                ? `Manifest v${status.manifest.version} available.`
-                                : 'No manifest found yet.',
-                            fields: [
-                                {
-                                    name: 'Latest Run',
-                                    value: status.latestRun
-                                        ? `${status.latestRun.type} • ${status.latestRun.status}`
-                                        : 'none',
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Drift Modules',
-                                    value:
-                                        status.drifts.length > 0
-                                            ? status.drifts
-                                                  .map(
-                                                      (drift) =>
-                                                          `${drift.module}:${drift.severity}`,
-                                                  )
-                                                  .join(', ')
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            summaryEmbed({
+                                title: '📊 Guild Automation Status',
+                                guildName: guild.name,
+                                description: status.manifest
+                                    ? `Manifest v${status.manifest.version} available.`
+                                    : 'No manifest found yet.',
+                                fields: [
+                                    {
+                                        name: 'Latest Run',
+                                        value: status.latestRun
+                                            ? `${status.latestRun.type} • ${status.latestRun.status}`
                                             : 'none',
-                                },
-                                {
-                                    name: 'Recent Runs',
-                                    value:
-                                        runs.length > 0
-                                            ? runs
-                                                  .map(
-                                                      (run) =>
-                                                          `${run.type}:${run.status}`,
-                                                  )
-                                                  .join(' | ')
-                                            : 'none',
-                                },
-                            ],
-                        }),
-                    ],
+                                        inline: true,
+                                    },
+                                    {
+                                        name: 'Drift Modules',
+                                        value:
+                                            status.drifts.length > 0
+                                                ? status.drifts
+                                                      .map(
+                                                          (drift) =>
+                                                              `${drift.module}:${drift.severity}`,
+                                                      )
+                                                      .join(', ')
+                                                : 'none',
+                                    },
+                                    {
+                                        name: 'Recent Runs',
+                                        value:
+                                            runs.length > 0
+                                                ? runs
+                                                      .map(
+                                                          (run) =>
+                                                              `${run.type}:${run.status}`,
+                                                      )
+                                                      .join(' | ')
+                                                : 'none',
+                                    },
+                                ],
+                            }),
+                        ],
+                    },
                 })
                 return
             }
@@ -372,38 +385,41 @@ export default new Command({
                     }
                 }
 
-                await interaction.editReply({
-                    embeds: [
-                        summaryEmbed({
-                            title: '🚀 Cutover Status',
-                            guildName: guild.name,
-                            description:
-                                result.status === 'completed'
-                                    ? 'Cutover is now marked ready. Legacy-bot ownership can be removed.'
-                                    : 'Cutover blocked. Complete parity checklist first.',
-                            fields: [
-                                {
-                                    name: 'Run',
-                                    value: result.runId,
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Checklist Complete',
-                                    value: String(result.checklistComplete),
-                                    inline: true,
-                                },
-                                {
-                                    name: 'Legacy Bots Cleaned',
-                                    value: String(cleanedBots),
-                                    inline: true,
-                                },
-                            ],
-                            color:
-                                result.status === 'completed'
-                                    ? COLOR.INFO_GREEN
-                                    : 0xf59e0b,
-                        }),
-                    ],
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            summaryEmbed({
+                                title: '🚀 Cutover Status',
+                                guildName: guild.name,
+                                description:
+                                    result.status === 'completed'
+                                        ? 'Cutover is now marked ready. Legacy-bot ownership can be removed.'
+                                        : 'Cutover blocked. Complete parity checklist first.',
+                                fields: [
+                                    {
+                                        name: 'Run',
+                                        value: result.runId,
+                                        inline: true,
+                                    },
+                                    {
+                                        name: 'Checklist Complete',
+                                        value: String(result.checklistComplete),
+                                        inline: true,
+                                    },
+                                    {
+                                        name: 'Legacy Bots Cleaned',
+                                        value: String(cleanedBots),
+                                        inline: true,
+                                    },
+                                ],
+                                color:
+                                    result.status === 'completed'
+                                        ? COLOR.INFO_GREEN
+                                        : 0xf59e0b,
+                            }),
+                        ],
+                    },
                 })
             }
         } catch (error) {

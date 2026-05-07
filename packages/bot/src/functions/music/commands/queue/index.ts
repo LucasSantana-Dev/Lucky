@@ -61,8 +61,9 @@ export default new Command({
             )
 
             if (!queue) {
-                await interaction.editReply({
-                    embeds: [createErrorEmbed('Error', 'No queue found')],
+                await interactionReply({
+                    interaction,
+                    content: { embeds: [createErrorEmbed('Error', 'No queue found')] },
                 })
                 return
             }
@@ -129,9 +130,9 @@ export default new Command({
 
             const { embed, components } = await createQueueEmbed(queue)
 
-            await interaction.editReply({
-                embeds: [embed],
-                components,
+            await interactionReply({
+                interaction,
+                content: { embeds: [embed], components },
             })
         } catch (error) {
             errorLog({
@@ -143,8 +144,9 @@ export default new Command({
                 createUserFriendlyError(error),
             )
 
-            await interaction.editReply({
-                embeds: [errorEmbed],
+            await interactionReply({
+                interaction,
+                content: { embeds: [errorEmbed] },
             })
         }
     },

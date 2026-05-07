@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js'
+import { MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
@@ -34,7 +34,7 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
         const guildId = interaction.guildId!
 
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
         const group = interaction.options.getSubcommandGroup()
         const sub = interaction.options.getSubcommand()
