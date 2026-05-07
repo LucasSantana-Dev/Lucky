@@ -464,3 +464,56 @@ export async function getUserTopArtistsAndTracks(
         return null
     }
 }
+
+export async function getUserSavedTracks(
+    accessToken: string,
+): Promise<string[]> {
+    const savedTrackIds: string[] = []
+    const limit = 50
+    const maxTracks = 200
+    let offset = 0
+
+    try {
+        while (offset < maxTracks) {
+            const res = await fetch(
+                `https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                },
+            )
+
+            if (!res.ok) {
+                break
+            }
+
+            const data = (await res.json().catch(() => null)) as {
+                items?: Array<{ track?: { id?: string } }>
+                total?: number
+            }
+
+            if (!data?.items) {
+                break
+            }
+
+            for (const item of data.items) {
+                if (item.track?.id) {
+                    savedTrackIds.push(item.track.id)
+                }
+            }
+
+            if (savedTrackIds.length >= maxTracks || !data.items.length) {
+                break
+            }
+
+            offset += limit
+        }
+
+        return savedTrackIds.slice(0, maxTracks)
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getUserSavedTracks')
+        return []
+    }
+}

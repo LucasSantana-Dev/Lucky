@@ -80,10 +80,16 @@ function createTrack(overrides: Partial<Track> = {}): Track {
     } as Track
 }
 
+function createTracksMap(entries: [string, Track][] = []): Map<string, Track> & { toArray: () => Track[] } {
+    const map = new Map<string, Track>(entries) as Map<string, Track> & { toArray: () => Track[] }
+    map.toArray = () => [...map.values()]
+    return map
+}
+
 function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
     return {
         guild: { id: 'guildid' },
-        tracks: new Map(),
+        tracks: createTracksMap(),
         currentTrack: createTrack(),
         metadata: {},
         history: { tracks: { toArray: () => [] } },
@@ -193,11 +199,12 @@ describe('replenishQueue', () => {
 
     it('should skip replenish if queue is full (>= AUTOPLAY_BUFFER_SIZE)', async () => {
         const queue = createGuildQueue()
-        const tracks = new Map()
+        const entries: [string, Track][] = []
         for (let i = 0; i < 10; i++) {
-            tracks.set(`track${i}`, createTrack({ id: `track${i}` }))
+            const track = createTrack({ id: `track${i}`, metadata: { isAutoplay: true } as unknown as never })
+            entries.push([`track${i}`, track])
         }
-        queue.tracks = tracks
+        queue.tracks = createTracksMap(entries)
 
         const { collectRecommendationCandidates } =
             require('./candidateCollector')

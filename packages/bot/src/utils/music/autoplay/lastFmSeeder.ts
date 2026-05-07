@@ -22,10 +22,10 @@ import {
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import type { ScoredTrack } from './diversitySelector';
 
-const LASTFM_SEED_COUNT = 3
+const LASTFM_SEED_COUNT = 15
 const LASTFM_SCORE_BOOST = 0.20
 const LOVED_SEED_EXTRA_BOOST = 0.10
-const MAX_SIMILAR_LOOKUPS = 5
+const MAX_SIMILAR_LOOKUPS = 15
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 const AUTOPLAY_BUFFER_SIZE = 8

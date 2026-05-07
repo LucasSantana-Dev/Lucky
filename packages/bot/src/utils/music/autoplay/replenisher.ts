@@ -17,6 +17,7 @@ import {
 } from './candidateCollector'
 import {
     createArtistTagFetcher,
+    hasGenreTag,
     type ArtistTagFetcher,
 } from './artistTagCache'
 import { getGenreFamilies } from './candidateScorer'
@@ -100,7 +101,10 @@ async function _replenishQueue(
         const bufferSize = (await premiumService.isPremium(queue.guild.id))
             ? AUTOPLAY_BUFFER_SIZE_PREMIUM
             : AUTOPLAY_BUFFER_SIZE
-        const missingTracks = bufferSize - queue.tracks.size
+        const autoplayInQueue = [...queue.tracks.toArray()].filter(
+            (t) => (t.metadata as { isAutoplay?: boolean } | undefined)?.isAutoplay === true,
+        ).length
+        const missingTracks = bufferSize - autoplayInQueue
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
@@ -233,6 +237,18 @@ async function _replenishQueue(
             historyTracks,
             getArtistTags,
         )
+        const SERTANEJO_TAGS = [
+            'sertanejo',
+            'sertanejo universitário',
+            'sertanejo pop',
+            'música sertaneja',
+            'forró',
+        ]
+        const seedIsSertanejo = currentTrackTags.length > 0
+            ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
+            : false
+        const blockSertanejo = !seedIsSertanejo
+
         const candidateGenreContext = {
             getArtistTags,
             currentTrackTags,
@@ -244,6 +260,7 @@ async function _replenishQueue(
                 guildId,
                 currentTrackTagCount: currentTrackTags.length,
                 sessionGenreFamilies: Array.from(sessionGenreFamilies),
+                blockSertanejo,
             },
         })
         const candidates = await collectRecommendationCandidates(
@@ -266,6 +283,7 @@ async function _replenishQueue(
             sessionMood,
             currentFeatures,
             candidateGenreContext,
+            blockSertanejo,
         )
         sourcesCounts.recommendation = candidates.size
         candidatePoolSize = candidates.size

@@ -13,7 +13,7 @@ interface ScoredTrack {
 
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
-const FUZZY_TITLE_THRESHOLD = 0.82
+const FUZZY_TITLE_THRESHOLD = 0.75
 
 function randomJitter(max: number): number {
     return Math.random() * max // NOSONAR - non-cryptographic jitter for diversity selection
@@ -58,6 +58,13 @@ function stripFeaturing(author: string): string {
     return author
         .split(/\s+(?:feat|ft)\.?(?:\s|$)/i)[0] // NOSONAR - bounded alternation, no catastrophic backtracking
         .replace(/\s*\([^)]*feat[^)]*\)\s*/gi, '') // NOSONAR - [^)]* bounded by paren close, no backtracking
+}
+
+const VARIANT_SUFFIX_RE =
+    /\s*(?:[-–]\s*(?:\d{4}\s+)?(?:remaster(?:ed)?|remix(?:ed)?|edit|version|radio\s+edit|acoustic|live|cover|extended\s+mix|club\s+mix|vip\s+mix)|[\[(](?:\d{4}\s+)?(?:remaster(?:ed)?|remix(?:ed)?|edit|version|acoustic|live|cover)[\])])\s*$/i
+
+function stripVariantSuffix(title: string): string {
+    return title.replace(VARIANT_SUFFIX_RE, '').trim()
 }
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
@@ -116,6 +123,8 @@ export function buildExcludedKeys(
     for (const t of allTracks) {
         keys.push(normalizeTrackKey(t.title, t.author))
         keys.push(normalizeTitleOnly(t.title))
+        const variantStripped = stripVariantSuffix(t.title ?? '')
+        if (variantStripped) keys.push(normalizeTitleOnly(variantStripped))
         const core = extractSongCore(t.title ?? '', t.author)
         if (core) keys.push(normalizeText(core))
     }
@@ -139,6 +148,8 @@ export function isDuplicateCandidate(
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
 
     const candidateTitle = normalizeTitleOnly(track.title)
+    const candidateTitleStripped = normalizeTitleOnly(stripVariantSuffix(track.title ?? ''))
+    if (candidateTitleStripped && excludedKeys.has(candidateTitleStripped)) return true
     if (candidateTitle.length >= 5) {
         for (const key of excludedKeys) {
             if (key.includes('::') || key.length < 5) continue

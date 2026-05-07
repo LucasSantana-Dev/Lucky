@@ -179,7 +179,7 @@ describe('collectLastFmCandidates', () => {
             new Set(), new Set(), createTrack(), new Set(), candidates,
         )
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 3)
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
     })
 
     it('uses blended seed when multiple VC members are linked', async () => {
@@ -389,7 +389,7 @@ describe('collectLastFmCandidates', () => {
             new Set(), new Set(), createTrack(), new Set(), candidates,
         )
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 3)
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
         expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
     })
 

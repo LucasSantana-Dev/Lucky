@@ -12,9 +12,17 @@ import {
     normalizeTrackKey,
 } from '../queueManipulation'
 import { isDuplicateCandidate } from './diversitySelector'
-import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
+import { createArtistTagFetcher, hasGenreTag, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
 export type { ScoredTrack }
+
+const SERTANEJO_TAGS = [
+    'sertanejo',
+    'sertanejo universitário',
+    'sertanejo pop',
+    'música sertaneja',
+    'forró',
+]
 
 /**
  * Include a candidate in the pool if it hasn't been played recently
@@ -103,6 +111,7 @@ export async function collectRecommendationCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    blockSertanejo = false,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
     const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
@@ -157,6 +166,9 @@ export async function collectRecommendationCandidates(
                 continue
             }
             const tags = await getArtistTags(candidate.author)
+            if (blockSertanejo && tags.length > 0 && hasGenreTag(tags, SERTANEJO_TAGS)) {
+                continue
+            }
             const rec = calculateRecommendationScore({
                 candidate,
                 currentTrack,
