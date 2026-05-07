@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express'
 import { infoLog } from '@lucky/shared/utils'
+import { logAndSwallow } from '@lucky/shared/utils/error'
 import { apiLimiter } from '../middleware/rateLimit'
 
 const DISCORD_INVITE_URL =
@@ -21,8 +22,8 @@ export function setupInviteRoute(app: Express): void {
                 message: '[invite] click',
                 data: { utm_source, utm_medium, utm_campaign, utm_content },
             })
-        } catch {
-            // non-critical logging failure — redirect still proceeds
+        } catch (err) {
+            logAndSwallow(err, 'invite.infoLog')
         }
 
         res.redirect(302, DISCORD_INVITE_URL)
