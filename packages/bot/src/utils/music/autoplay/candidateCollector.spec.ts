@@ -630,5 +630,39 @@ describe('candidateCollector', () => {
 
             expect(result.size).toBeGreaterThan(0)
         })
+
+        it('falls back to empty tags when getArtistTags rejects', async () => {
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
+            const track = createTrack({ title: 'Some Song', author: 'Some Artist' })
+            searchSeedCandidatesMock.mockResolvedValue([track])
+
+            const getArtistTags = jest.fn().mockRejectedValue(new Error('Last.fm down'))
+
+            const result = await collectRecommendationCandidates(
+                createGuildQueue(),
+                [createTrack()],
+                null,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                createTrack(),
+                new Set(),
+                0,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                null,
+                null,
+                { getArtistTags },
+                true,
+            )
+
+            // fail-open: track should not be blocked when tag fetch errors
+            expect(result.size).toBeGreaterThan(0)
+        })
     })
 })
