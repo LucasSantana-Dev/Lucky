@@ -22,6 +22,9 @@ const SPANISH_GENRE_MARKERS = [
 	'latin christian',
 	'latin gospel',
 	'spanish gospel',
+	'latin worship',
+	'ccm en español',
+	'spanish ccm',
 	'reggaetón',
 	'tex-mex',
 	'norteño',
@@ -66,6 +69,17 @@ const SPANISH_DISTINCT_TOKENS = [
 	'niño', 'niña', 'niños', 'niñas',
 	'tu gloria',
 	'tus alabanzas',
+	// Additional Spanish gospel terms that slip through without Last.fm tags:
+	// 'eres' = "you are" (2nd person) — Portuguese uses 'és', never 'eres'
+	'eres',
+	// 'nuestro/a' = "our" — Portuguese uses 'nosso/a'
+	'nuestro', 'nuestra', 'nuestros', 'nuestras',
+	// 'siervo/a' = "servant" — Portuguese uses 'servo/serva'
+	'siervo', 'sierva',
+	// Common Spanish gospel praise words absent from Portuguese
+	'digno',
+	'fuego',
+	'cielos',
 ]
 
 // Words distinctive to Portuguese (Brazilian or European). Hits here veto
