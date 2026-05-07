@@ -79,6 +79,7 @@ const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
+    LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) =>

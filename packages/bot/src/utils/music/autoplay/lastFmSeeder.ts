@@ -5,6 +5,7 @@ import {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
     isLovedSeed,
+    LASTFM_SEED_COUNT,
 } from './lastFmSeeds'
 import { getSimilarTracks, getTagTopTracks } from '../../../lastfm'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
@@ -22,7 +23,6 @@ import {
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import type { ScoredTrack } from './diversitySelector';
 
-const LASTFM_SEED_COUNT = 15
 const LASTFM_SCORE_BOOST = 0.20
 const LOVED_SEED_EXTRA_BOOST = 0.10
 const MAX_SIMILAR_LOOKUPS = 15
@@ -98,6 +98,7 @@ export async function collectLastFmCandidates(
         genreContext.sessionGenreFamilies ?? new Set<string>()
 
     for (const seed of seedSlice) {
+        if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         const lovedBoost = isLovedSeed(requestedBy.id, seed.artist, seed.title)
             ? LOVED_SEED_EXTRA_BOOST
             : 0

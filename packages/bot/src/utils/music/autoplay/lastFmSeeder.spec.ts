@@ -26,6 +26,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 jest.mock('./lastFmSeeds', () => ({
+    LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) => consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) => consumeBlendedSeedSliceMock(...args),
     isLovedSeed: (...args: unknown[]) => isLovedSeedMock(...args),

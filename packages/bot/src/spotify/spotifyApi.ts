@@ -494,9 +494,10 @@ export async function getUserSavedTracks(
                 break
             }
 
-            let data: { items?: Array<{ track?: { id?: string } }>; total?: number } | null = null
+            type SavedTracksPage = { items: Array<{ track?: { id?: string } }>; total?: number }
+            let data: SavedTracksPage | null = null
             try {
-                data = (await res.json()) as typeof data
+                data = (await res.json()) as SavedTracksPage
             } catch (parseErr) {
                 logAndSwallow(parseErr, 'spotify.getUserSavedTracks.parse', { offset })
                 break
@@ -512,7 +513,8 @@ export async function getUserSavedTracks(
                 }
             }
 
-            if (savedTrackIds.length >= maxTracks || !data.items.length) {
+            const allFetched = data.total !== undefined && savedTrackIds.length >= data.total
+            if (savedTrackIds.length >= maxTracks || !data.items.length || allFetched) {
                 break
             }
 

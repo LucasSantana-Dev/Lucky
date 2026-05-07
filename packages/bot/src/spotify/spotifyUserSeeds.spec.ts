@@ -139,7 +139,7 @@ describe('spotifyUserSeeds', () => {
         expect(result).toBeNull()
     })
 
-    it('should cache results for 5 minutes', async () => {
+    it('should cache results for 30 minutes', async () => {
         const mockLink = {
             spotifyId: 'spotify-123',
             accessToken: 'token',

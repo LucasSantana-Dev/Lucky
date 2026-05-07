@@ -201,7 +201,7 @@ describe('replenishQueue', () => {
         const queue = createGuildQueue()
         const entries: [string, Track][] = []
         for (let i = 0; i < 10; i++) {
-            const track = createTrack({ id: `track${i}`, metadata: { isAutoplay: true } as unknown as never })
+            const track = createTrack({ id: `track${i}`, metadata: { isAutoplay: true } as Record<string, unknown> })
             entries.push([`track${i}`, track])
         }
         queue.tracks = createTracksMap(entries)
@@ -223,7 +223,7 @@ describe('replenishQueue', () => {
             const track = createTrack({ id: `user${i}`, metadata: undefined })
             entries.push([`user${i}`, track])
         }
-        const autoTrack = createTrack({ id: 'auto0', metadata: { isAutoplay: true } as unknown as never })
+        const autoTrack = createTrack({ id: 'auto0', metadata: { isAutoplay: true } as Record<string, unknown> })
         entries.push(['auto0', autoTrack])
         queue.tracks = createTracksMap(entries)
 
