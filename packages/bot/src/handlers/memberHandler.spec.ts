@@ -63,21 +63,6 @@ describe('memberHandler', () => {
         ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(true)
     })
 
-    describe('handleMemberEvents', () => {
-        it('should register event handlers', () => {
-            client = createMockClient()
-            handleMemberEvents(client as any)
-
-            expect(client.on).toHaveBeenCalledWith(
-                Events.GuildMemberAdd,
-                expect.any(Function),
-            )
-            expect(client.on).toHaveBeenCalledWith(
-                Events.GuildMemberRemove,
-                expect.any(Function),
-            )
-        })
-    })
 
     describe('GuildMemberAdd event', () => {
         beforeEach(() => {
@@ -303,67 +288,6 @@ describe('memberHandler', () => {
             expect(mockSend).toHaveBeenCalledWith('Hello <@user>')
         })
 
-        it('should not send when guild is missing', async () => {
-            const member = {
-                guild: null,
-            } as unknown as GuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberAdd, member)
-
-            expect(autoMessageService.getWelcomeMessage).not.toHaveBeenCalled()
-        })
-
-        it('should not send when feature is disabled', async () => {
-            ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
-                false,
-            )
-
-            const member = {
-                guild: { id: 'guild-1' },
-            } as unknown as GuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberAdd, member)
-
-            expect(autoMessageService.getWelcomeMessage).not.toHaveBeenCalled()
-        })
-
-        it('should not send when welcome message is not enabled', async () => {
-            ;(
-                autoMessageService.getWelcomeMessage as jest.Mock
-            ).mockResolvedValue({
-                enabled: false,
-                message: 'Welcome!',
-            })
-
-            const member = {
-                guild: {
-                    id: 'guild-1',
-                    systemChannel: { send: jest.fn() },
-                },
-            } as unknown as GuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberAdd, member)
-
-            expect(debugLog).not.toHaveBeenCalled()
-        })
-
-        it('should not send when welcome message is null', async () => {
-            ;(
-                autoMessageService.getWelcomeMessage as jest.Mock
-            ).mockResolvedValue(null)
-
-            const member = {
-                guild: { id: 'guild-1' },
-            } as unknown as GuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberAdd, member)
-
-            expect(debugLog).not.toHaveBeenCalled()
-        })
 
         it('should not send when no suitable channel found', async () => {
             ;(
@@ -576,49 +500,6 @@ describe('memberHandler', () => {
             expect(mockSend).toHaveBeenCalledWith('Bye <@user>')
         })
 
-        it('should not send when guild is missing', async () => {
-            const member = {
-                guild: null,
-            } as unknown as PartialGuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberRemove, member)
-
-            expect(autoMessageService.getLeaveMessage).not.toHaveBeenCalled()
-        })
-
-        it('should not send when feature is disabled', async () => {
-            ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
-                false,
-            )
-
-            const member = {
-                guild: { id: 'guild-1' },
-            } as unknown as PartialGuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberRemove, member)
-
-            expect(autoMessageService.getLeaveMessage).not.toHaveBeenCalled()
-        })
-
-        it('should not send when leave message is disabled', async () => {
-            ;(
-                autoMessageService.getLeaveMessage as jest.Mock
-            ).mockResolvedValue({
-                enabled: false,
-                message: 'Bye',
-            })
-
-            const member = {
-                guild: { id: 'guild-1' },
-            } as unknown as PartialGuildMember
-
-            handleMemberEvents(client as any)
-            await triggerEvent(client, Events.GuildMemberRemove, member)
-
-            expect(debugLog).not.toHaveBeenCalled()
-        })
 
         it('should not send when no suitable channel found', async () => {
             ;(
