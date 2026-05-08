@@ -105,6 +105,46 @@ describe('languageHeuristics', () => {
 				detectSpanishMarkers('Não te quiero pero também não te perdono', undefined),
 			).toBe(false)
 		})
+
+		it('should detect new Spanish worship genre markers', () => {
+			expect(detectSpanishMarkers(undefined, ['latin worship'])).toBe(true)
+			expect(detectSpanishMarkers(undefined, ['ccm en español'])).toBe(true)
+			expect(detectSpanishMarkers(undefined, ['spanish ccm'])).toBe(true)
+		})
+
+		it('should detect new Spanish gospel distinct tokens', () => {
+			expect(detectSpanishMarkers('eres mi todo', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestro padre celestial', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestra esperanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestros corazones', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestras vidas', undefined)).toBe(true)
+			expect(detectSpanishMarkers('siervo fiel', undefined)).toBe(true)
+			expect(detectSpanishMarkers('sierva del señor', undefined)).toBe(true)
+			expect(detectSpanishMarkers('digno de alabanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('fuego de dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('reina en los cielos', undefined)).toBe(true)
+		})
+
+		it('should not false-positive English text with new tokens', () => {
+			// "eres" is not an English word
+			expect(detectSpanishMarkers('Greatest Hits Vol 1', undefined)).toBe(false)
+			// "fuego" does not appear in ordinary English titles
+			expect(detectSpanishMarkers('Fire and Rain', undefined)).toBe(false)
+		})
+
+		it('should not classify Portuguese text containing overlapping words as Spanish', () => {
+			// "nosso" (not "nuestro") is the Portuguese equivalent; must not match
+			expect(detectSpanishMarkers('O Nosso Amor', undefined)).toBe(false)
+			// "servo" is the Portuguese word, not "siervo"; must not match
+			expect(detectSpanishMarkers('Servo Fiel do Senhor', undefined)).toBe(false)
+		})
+
+		it('should detect Spanish gospel title via multiple new tokens together', () => {
+			// "Eres digno" — common Spanish worship song title fragment
+			expect(detectSpanishMarkers('Eres Digno y Santo', undefined)).toBe(true)
+			// "Nuestro Dios" — title of a popular Spanish worship song
+			expect(detectSpanishMarkers('Nuestro Dios', undefined)).toBe(true)
+		})
 	})
 
 	describe('detectPortugueseMarkers', () => {

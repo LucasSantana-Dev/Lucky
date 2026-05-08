@@ -13,6 +13,7 @@ import {
     getArtistGenres,
 } from '../../../spotify/spotifyApi'
 import { detectSessionMood, type SessionMood } from './sessionMood'
+import { getRecentSkipCount } from '../../../handlers/player/trackHandlers'
 import {
     collectRecommendationCandidates,
     SERTANEJO_TAGS,
@@ -117,7 +118,7 @@ async function _replenishQueue(
             Math.abs(allHistoryTracks.length - guildMoodCache.historyLen) < 3
                 ? guildMoodCache.mood
                 : (() => {
-                      const mood = detectSessionMood(allHistoryTracks, 0 /* TODO: wire recentSkipCount from skip tracking */)
+                      const mood = detectSessionMood(allHistoryTracks, getRecentSkipCount(replenishGuildId))
                       sessionMoodCache.set(replenishGuildId, {
                           mood,
                           historyLen: allHistoryTracks.length,
