@@ -1,5 +1,6 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
+import { debugLog } from '@lucky/shared/utils'
 import { getBatchAudioFeatures, getArtistGenres, type SpotifyAudioFeatures } from '../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { getTagTopTracks } from '../../lastfm'
@@ -11,6 +12,7 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './autoplay/artistTagCache'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
 import { normalizeTrackKey, calculateGenreFamilyPenalty } from './trackNormalization'
 
@@ -94,11 +96,28 @@ export async function collectBroadFallbackCandidates(
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<void> {
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
+
     const fallbackQueries = [
         currentTrack.author,
         `${currentTrack.author} popular`,
     ].filter(Boolean)
+
+    // Obtain Spotify token once for the whole fallback pass — used to enrich
+    // genre tags when Last.fm is not linked (getArtistTags returns []).
+    // Promise.resolve() guards against stubs that return undefined rather than
+    // a Promise (matches the pattern used throughout replenisher.ts).
+    const spotifyToken = requestedBy?.id // NOSONAR — userId is an internal Discord snowflake, not user-controlled URL data
+        ? await Promise.resolve(spotifyLinkService.getValidAccessToken(requestedBy.id)).catch(() => null)
+        : null
 
     for (const query of fallbackQueries) {
         try {
@@ -122,6 +141,17 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
+                let candidateTags = await getArtistTags(track.author).catch((err: unknown) => {
+                    debugLog({ message: 'candidateFallback: getArtistTags failed', data: { author: track.author, err } })
+                    return [] as string[]
+                })
+                // When Last.fm returns nothing (not linked or artist unknown),
+                // use Spotify's genre data so the cross-locale Spanish veto in
+                // candidateScorer can still fire for Spanish gospel artists
+                // that have non-Spanish-looking artist names / titles.
+                if (candidateTags.length === 0 && spotifyToken) {
+                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => []) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
+                }
                 const rec = calculateRecommendationScore({
                     candidate: track,
                     currentTrack,
@@ -135,6 +165,11 @@ export async function collectBroadFallbackCandidates(
                     implicitLikeKeys,
                     dislikedWeights,
                     sessionMood,
+                    genreContext: {
+                        candidateTags,
+                        currentTrackTags,
+                        sessionGenreFamilies,
+                    },
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
@@ -238,7 +273,10 @@ export async function enrichWithAudioFeatures(
             const candidateGenres = await getArtistGenres(
                 token,
                 track.track.author,
-            ).catch(() => [])
+            ).catch((err: unknown) => {
+                debugLog({ message: 'candidateFallback: getArtistGenres failed', data: { author: track.track.author, err } })
+                return []
+            })
             const genrePenalty = calculateGenreFamilyPenalty(
                 currentGenres,
                 candidateGenres,

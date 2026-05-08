@@ -79,6 +79,7 @@ const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
+    LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) =>
@@ -191,9 +192,9 @@ describe('queueManipulation.replenishQueue', () => {
     }): Promise<QueueMock> {
         const queue = createQueueMock({
             currentTrack: {
-                title: 'Song A',
-                author: 'Artist A',
-                url: 'https://example.com/a',
+                title: 'Bohemian Rhapsody',
+                author: 'Queen',
+                url: 'https://example.com/bohemian',
             } as unknown as Track,
             metadata: options.queueRequestedById
                 ? { requestedBy: { id: options.queueRequestedById } }
@@ -206,10 +207,10 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: options.candidateTitle ?? 'Song B',
-                            author: options.candidateAuthor ?? 'Artist B',
+                            title: options.candidateTitle ?? 'Stairway to Heaven',
+                            author: options.candidateAuthor ?? 'Led Zeppelin',
                             url:
-                                options.candidateUrl ?? 'https://example.com/b',
+                                options.candidateUrl ?? 'https://example.com/stairway',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -227,9 +228,9 @@ describe('queueManipulation.replenishQueue', () => {
                 size: 1,
                 toArray: jest.fn().mockReturnValue([
                     {
-                        title: 'Queued Song',
-                        author: 'Queued Artist',
-                        url: 'https://example.com/q',
+                        title: 'Highway to Hell',
+                        author: 'AC/DC',
+                        url: 'https://example.com/highway',
                     },
                 ]),
             },
@@ -237,24 +238,24 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: 'Song B',
-                            author: 'Artist B',
-                            url: 'https://example.com/b',
+                            title: 'Stairway to Heaven',
+                            author: 'Led Zeppelin',
+                            url: 'https://example.com/stairway',
                         },
                         {
-                            title: 'Song C',
-                            author: 'Artist C',
-                            url: 'https://example.com/c',
+                            title: 'Smells Like Teen Spirit',
+                            author: 'Nirvana',
+                            url: 'https://example.com/nirvana',
                         },
                         {
-                            title: 'Song D',
-                            author: 'Artist D',
-                            url: 'https://example.com/d',
+                            title: 'Purple Rain',
+                            author: 'Prince',
+                            url: 'https://example.com/prince',
                         },
                         {
-                            title: 'Song E',
-                            author: 'Artist E',
-                            url: 'https://example.com/e',
+                            title: 'Imagine',
+                            author: 'John Lennon',
+                            url: 'https://example.com/lennon',
                         },
                     ],
                 }),
@@ -277,8 +278,17 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('does not search when queue already has buffer size', async () => {
+        const autoplayTracks = Array.from({ length: 8 }, (_, i) => ({
+            title: `Autoplay Track ${i + 1}`,
+            author: `Artist ${i + 1}`,
+            url: `https://example.com/autoplay-${i + 1}`,
+            metadata: { isAutoplay: true },
+        }))
         const queue = createQueueMock({
-            tracks: { size: 8, toArray: jest.fn().mockReturnValue([]) },
+            tracks: {
+                size: 8,
+                toArray: jest.fn().mockReturnValue(autoplayTracks),
+            },
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
@@ -629,9 +639,9 @@ describe('queueManipulation.replenishQueue', () => {
 
     it('returns without adding tracks when candidate set is exhausted', async () => {
         const queue = await replenishWithSingleCandidate({
-            candidateTitle: 'Song A clone',
-            candidateAuthor: 'Artist A',
-            candidateUrl: 'https://example.com/a',
+            candidateTitle: 'Bohemian Rhapsody',
+            candidateAuthor: 'Queen',
+            candidateUrl: 'https://example.com/bohemian',
         })
 
         expect(queue.addTrack).not.toHaveBeenCalled()
