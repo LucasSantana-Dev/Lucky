@@ -392,13 +392,7 @@ describe('queueManipulation.replenishQueue', () => {
                 },
             })
 
-        const queue = createQueueMock({
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: { search: searchMock },
-        })
+            await replenishQueue(queue as unknown as GuildQueue)
 
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 1,
