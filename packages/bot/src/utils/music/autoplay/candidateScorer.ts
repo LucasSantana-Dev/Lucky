@@ -3,6 +3,7 @@ import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import { getBatchAudioFeatures } from '../../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import type { SessionMood } from './sessionMood'
+import type { RecommendationSignal } from './recommendationBasis.js'
 import { cleanAuthor } from '../searchQueryCleaner'
 import { detectSpanishMarkers } from '../languageHeuristics'
 import { normalizeText, normalizeTrackKey } from '../queueManipulation'
@@ -151,7 +152,7 @@ export interface ScoringContext {
 
 export function calculateRecommendationScore(
     ctx: ScoringContext,
-): { score: number; reason: string } {
+): { score: number; signals: RecommendationSignal[] } {
     const {
         candidate,
         currentTrack,
@@ -176,7 +177,7 @@ export function calculateRecommendationScore(
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
 
     if (blockedArtistKeys.has(candidateArtistKey)) {
-        return { score: -Infinity, reason: 'blocked artist' }
+        return { score: -Infinity, signals: [] }
     }
 
     const MAX_CANDIDATE_DURATION_MS = 15 * 60 * 1000
@@ -184,19 +185,19 @@ export function calculateRecommendationScore(
         candidate.durationMS &&
         candidate.durationMS > MAX_CANDIDATE_DURATION_MS
     ) {
-        return { score: -Infinity, reason: 'track too long' }
+        return { score: -Infinity, signals: [] }
     }
 
     const candidateTitle = candidate.title ?? ''
     if (AMBIENT_NOISE_RE.test(candidateTitle)) {
-        return { score: -Infinity, reason: 'ambient/noise content' }
+        return { score: -Infinity, signals: [] }
     }
     if (EDM_MIX_RE.test(candidateTitle)) {
-        return { score: -Infinity, reason: 'dj mix / edm set' }
+        return { score: -Infinity, signals: [] }
     }
 
     let score = 1
-    const reasons: string[] = []
+    const signals: RecommendationSignal[] = []
 
     // Cross-locale veto: if the session has shown no Spanish content but the
     // candidate looks Spanish (Spanish-distinct accents/stopwords/gospel
@@ -207,10 +208,7 @@ export function calculateRecommendationScore(
     if (sessionMood !== null && sessionMood.dominantLocale === null) {
         const candidateText = `${candidateTitle} ${candidate.author ?? ''}`
         if (detectSpanishMarkers(candidateText, candidateTags)) {
-            return {
-                score: -Infinity,
-                reason: 'cross-locale: spanish in non-spanish session',
-            }
+            return { score: -Infinity, signals: [] }
         }
     }
 
@@ -233,54 +231,51 @@ export function calculateRecommendationScore(
                 }
             }
             if (!intersects) {
-                return {
-                    score: -Infinity,
-                    reason: 'cross-genre: family drift from session',
-                }
+                return { score: -Infinity, signals: [] }
             }
         }
     }
 
     if (preferredArtistKeys.has(candidateArtistKey)) {
         score += SCORE_PREFERRED_ARTIST
-        reasons.push('preferred artist')
+        signals.push('preferred artist')
     }
 
     const freq = artistFrequency.get(candidateArtistKey) ?? 0
     if (freq >= 5) {
         score += SCORE_SAME_ARTIST
-        reasons.push('favourite artist')
+        signals.push('favourite artist')
     } else if (freq >= 3) {
         score += SCORE_POPULAR_ARTIST
-        reasons.push('liked artist')
+        signals.push('liked artist')
     } else if (freq >= 1) {
         score += SCORE_POPULAR_ARTIST / 2
-        reasons.push('known artist')
+        signals.push('known artist')
     }
 
     const candidateKey = normalizeTrackKey(candidate.title, candidate.author)
     const likedWeight = likedWeights.get(candidateKey)
     if (likedWeight !== undefined) {
         score += SCORE_LIKED_WEIGHT_MULTIPLIER * likedWeight
-        reasons.push('liked track')
+        signals.push('liked track')
     }
 
     const dislikedWeight = dislikedWeights.get(candidateKey)
     if (dislikedWeight !== undefined) {
         if (dislikedWeight > DISLIKE_WEIGHT_THRESHOLD) {
-            return { score: -Infinity, reason: 'disliked' }
+            return { score: -Infinity, signals: [] }
         }
         score -= Math.abs(SCORE_DISLIKED_PENALTY) * dislikedWeight
-        reasons.push('old dislike')
+        signals.push('old dislike')
     }
 
     if (implicitDislikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_DISLIKE
-        reasons.push('skipped before')
+        signals.push('skipped before')
     }
     if (implicitLikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_LIKE
-        reasons.push('completed before')
+        signals.push('completed before')
     }
 
     const deepDiveArtist = sessionMood?.deepDiveArtist
@@ -297,15 +292,15 @@ export function calculateRecommendationScore(
         )
         if (titleSim > TITLE_SIM_THRESHOLD) {
             score += SCORE_TITLE_SIM_BONUS
-            reasons.push('album match')
+            signals.push('album match')
         }
         if (isDeepDive) {
             score += SCORE_TITLE_SIM_BONUS
-            reasons.push('deep-dive artist')
+            signals.push('deep-dive artist')
         }
     } else if (!skipNoveltyBoost && !recentArtists.has(candidateArtist) && !isDeepDive) {
         score += SCORE_DURATION_MATCH
-        reasons.push('session novelty')
+        signals.push('session novelty')
     }
     if (
         candidate.source === currentTrack.source &&
@@ -313,7 +308,7 @@ export function calculateRecommendationScore(
     ) {
         score += SCORE_RECENT_ARTIST
     } else if (candidate.source && candidate.source !== currentTrack.source) {
-        reasons.push('source variety')
+        signals.push('source variety')
     }
     const tokenScore = sharedTitleTokenScore(
         candidate.title,
@@ -321,7 +316,7 @@ export function calculateRecommendationScore(
     )
     score += tokenScore
     if (tokenScore > 0) {
-        reasons.push('similar title mood')
+        signals.push('similar title mood')
     }
     if (
         currentTrack.durationMS &&
@@ -331,7 +326,7 @@ export function calculateRecommendationScore(
         const ratio = candidate.durationMS / currentTrack.durationMS
         if (ratio >= DURATION_RATIO_TIGHT_LOW && ratio <= DURATION_RATIO_TIGHT_HIGH) {
             score += SCORE_DURATION_RATIO_TIGHT
-            reasons.push('similar energy')
+            signals.push('similar energy')
         } else if (ratio >= DURATION_RATIO_LOOSE_LOW && ratio <= DURATION_RATIO_LOOSE_HIGH) {
             score += SCORE_DURATION_RATIO_LOOSE
         }
@@ -339,7 +334,7 @@ export function calculateRecommendationScore(
 
     if (candidate.durationMS && candidate.durationMS > 7 * 60 * 1000) {
         score += SCORE_FREQUENT_ARTIST
-        reasons.push('long track penalty')
+        signals.push('long track penalty')
     }
 
     if (sessionMood) {
@@ -349,28 +344,28 @@ export function calculateRecommendationScore(
             candidateArtist === sessionMood.deepDiveArtist
         ) {
             score += SCORE_DURATION_MATCH
-            reasons.push('deep dive')
+            signals.push('deep dive')
         }
         if (sessionMood.preferLong && durationMs > 0) {
             const durationBonus = 0.15 * Math.tanh((durationMs - 300_000) / 60_000)
             score += durationBonus
-            if (durationBonus > SCORE_DURATION_BONUS_THRESHOLD) reasons.push('long track match')
+            if (durationBonus > SCORE_DURATION_BONUS_THRESHOLD) signals.push('long track match')
         }
         if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
             score += SCORE_ACOUSTICNESS_MATCH
-            reasons.push('quick hit match')
+            signals.push('quick hit match')
         }
         if (sessionMood.restless) {
             if (!recentArtists.has(candidateArtist)) {
                 score += SCORE_ACOUSTICNESS_MATCH
-                reasons.push('restless discovery')
+                signals.push('restless discovery')
             }
         }
     }
 
     if (candidate.source === 'spotify') {
         score += SCORE_SPOTIFY_PREFERRED
-        reasons.push('spotify preferred')
+        signals.push('spotify preferred')
     }
 
     // Soft genre-family penalty (formerly inside enrichWithAudioFeatures via
@@ -391,7 +386,7 @@ export function calculateRecommendationScore(
         if (familyPenalty !== 0) {
             score += familyPenalty
             if (familyPenalty <= -0.3) {
-                reasons.push('genre family drift')
+                signals.push('genre family drift')
             }
         }
     }
@@ -402,7 +397,7 @@ export function calculateRecommendationScore(
         )
     ) {
         score += SCORE_FREQUENT_ARTIST
-        reasons.push('version variant')
+        signals.push('version variant')
     }
 
     if (
@@ -413,13 +408,13 @@ export function calculateRecommendationScore(
         /\(\d{1,2}:\d{2}:\d{2}\)/.test(candidate.title ?? '')
     ) {
         score += SCORE_BLOCKED_ARTIST
-        reasons.push('low quality upload')
+        signals.push('low quality upload')
     }
 
     if (autoplayMode === 'discover') {
         if (!recentArtists.has(candidateArtist)) {
             score += SCORE_IMPLICIT_LIKE
-            reasons.push('discovery boost')
+            signals.push('discovery boost')
         }
         if (recentArtists.has(candidateArtist)) {
             score += SCORE_FREQUENT_ARTIST
@@ -432,15 +427,14 @@ export function calculateRecommendationScore(
             const ratio = candidate.durationMS / currentTrack.durationMS
             if (ratio >= 0.9 && ratio <= 1.1) {
                 score += SCORE_LIKED_ARTIST_TEMPO
-                reasons.push('energy match')
+                signals.push('energy match')
             }
         }
     }
 
     return {
         score,
-        reason:
-            reasons.length > 0 ? reasons.join(' • ') : 'balanced autoplay pick',
+        signals,
     }
 }
 
