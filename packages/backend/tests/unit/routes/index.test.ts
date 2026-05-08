@@ -3,6 +3,7 @@ import type { Express } from 'express'
 
 const setupHealthRoutes = jest.fn()
 const setupStatsRoutes = jest.fn()
+const setupInviteRoute = jest.fn()
 const setupAuthRoutes = jest.fn()
 const setupToggleRoutes = jest.fn()
 const setupGuildRoutes = jest.fn()
@@ -39,6 +40,10 @@ jest.mock('../../../src/routes/health', () => ({
 
 jest.mock('../../../src/routes/stats', () => ({
     setupStatsRoutes,
+}))
+
+jest.mock('../../../src/routes/invite', () => ({
+    setupInviteRoute,
 }))
 
 jest.mock('../../../src/routes/auth', () => ({
@@ -149,11 +154,12 @@ jest.mock('../../../src/middleware/errorHandler', () => ({
 
 import { setupRoutes } from '../../../src/routes'
 
-type MockApp = Pick<Express, 'use'>
+type MockApp = Pick<Express, 'use' | 'get'>
 
 describe('setupRoutes', () => {
     const app: MockApp = {
         use: jest.fn() as unknown as Express['use'],
+        get: jest.fn() as unknown as Express['get'],
     }
 
     beforeEach(() => {
@@ -169,6 +175,7 @@ describe('setupRoutes', () => {
 
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
         expect(setupStatsRoutes).toHaveBeenCalledWith(app)
+        expect(setupInviteRoute).toHaveBeenCalledWith(app)
         expect(setupInternalNotifyRoutes).toHaveBeenCalledWith(app)
         expect(setupWebhookPublicRoutes).toHaveBeenCalledWith(app)
         expect(app.use).toHaveBeenCalledWith('/api/', apiLimiter)
