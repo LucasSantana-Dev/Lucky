@@ -69,6 +69,54 @@ describe('Spotify API 429 Retry Logic', () => {
             expect(logAndSwallow).toHaveBeenCalled()
             expect(result).toBeNull()
         })
+
+        it('should throw immediately on non-429 errors without retrying', async () => {
+            fetchMock.mockImplementation(async () => {
+                throw new Response(null, { status: 401 })
+            })
+
+            const result = await spotifyApi.getAudioFeatures('test-token', 'track1')
+
+            // No retry — only 1 attempt
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+            expect(result).toBeNull()
+            expect(logAndSwallow).toHaveBeenCalled()
+        })
+
+        it('should use Retry-After header when present', async () => {
+            let attemptCount = 0
+
+            fetchMock.mockImplementation(async () => {
+                attemptCount++
+                if (attemptCount === 1) {
+                    throw new Response(null, {
+                        status: 429,
+                        headers: { 'Retry-After': '0' },
+                    })
+                }
+                return new Response(
+                    JSON.stringify({
+                        id: 'track1',
+                        energy: 0.8,
+                        valence: 0.7,
+                        danceability: 0.6,
+                        tempo: 120,
+                        acousticness: 0.2,
+                    }),
+                    { status: 200 },
+                )
+            })
+
+            const result = await spotifyApi.getAudioFeatures('test-token', 'track1')
+
+            expect(attemptCount).toBe(2)
+            expect(result).not.toBeNull()
+            expect(debugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ retryAfter: 0 }),
+                }),
+            )
+        })
     })
 
     describe('getSpotifyRecommendations with 429 retry', () => {
