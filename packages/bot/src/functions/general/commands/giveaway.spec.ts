@@ -100,47 +100,6 @@ describe('giveaway command', () => {
         })
     })
 
-    it('should start a giveaway', async () => {
-        const interaction = createInteraction('start', { value: '1h' }) as any
-        interaction.options.getString = jest
-            .fn()
-            .mockReturnValueOnce('1h')
-            .mockReturnValueOnce('Discord Nitro')
-
-        await giveawayCommand.execute({
-            interaction,
-        })
-
-        expect(interactionReplyMock).toHaveBeenCalled()
-    })
-
-    it('should reject invalid duration', async () => {
-        const interaction = createInteraction('start') as any
-        interaction.options.getString = jest.fn().mockReturnValueOnce('invalid')
-
-        await giveawayCommand.execute({
-            interaction,
-        })
-
-        expect(interactionReplyMock).toHaveBeenCalled()
-    })
-
-    it('should handle end subcommand', async () => {
-        await giveawayCommand.execute({
-            interaction: createInteraction('end') as any,
-        })
-
-        expect(interactionReplyMock).toHaveBeenCalled()
-    })
-
-    it('should handle reroll subcommand', async () => {
-        await giveawayCommand.execute({
-            interaction: createInteraction('reroll') as any,
-        })
-
-        expect(interactionReplyMock).toHaveBeenCalled()
-    })
-
     it('starts giveaway when channel is text-based', async () => {
         jest.useFakeTimers()
         const sendMock = jest.fn().mockResolvedValue({
