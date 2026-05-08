@@ -43,6 +43,16 @@ const guildTrackStartTimes = new LRUCache<string, number>({
     updateAgeOnGet: true,
 })
 
+const guildRecentSkipCounts = new LRUCache<string, number>({
+    max: MAX_GUILD_ENTRIES,
+    ttl: TRACK_STATE_TTL_MS,
+    updateAgeOnGet: true,
+})
+
+export function getRecentSkipCount(guildId: string): number {
+    return guildRecentSkipCounts.get(guildId) ?? 0
+}
+
 export type TrackHistoryEntry = {
     url: string
     title: string
@@ -278,6 +288,7 @@ const handlePlayerFinish = async (
                     (Date.now() - startTime) / track.durationMS
                 if (completionRatio > 0.8) {
                     await recordImplicitTrackFeedback(track, 'implicit_like')
+                    guildRecentSkipCounts.delete(queue.guild.id)
                 }
             }
             guildTrackStartTimes.delete(queue.guild.id)
@@ -317,6 +328,8 @@ const handlePlayerSkip = async (
                 const skipRatio = (Date.now() - startTime) / track.durationMS
                 if (skipRatio < 0.3) {
                     await recordImplicitTrackFeedback(track, 'implicit_dislike')
+                    const current = guildRecentSkipCounts.get(queue.guild.id) ?? 0
+                    guildRecentSkipCounts.set(queue.guild.id, current + 1)
                 }
             }
             guildTrackStartTimes.delete(queue.guild.id)

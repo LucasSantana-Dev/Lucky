@@ -4,6 +4,7 @@ import {
     lastPlayedTracks,
     recentlyPlayedTracks,
     setupTrackHandlers,
+    getRecentSkipCount,
 } from './trackHandlers'
 
 const QueueRepeatMode = {
@@ -254,4 +255,151 @@ describe('trackHandlers autoplay replenishment', () => {
 
 
 
+    it('does not record feedback on playerFinish when track played < 80%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const finishedTrack = {
+            ...createTrack('listener-finish-2'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, finishedTrack)
+        jest.advanceTimersByTime(60000)
+        await playerFinish(queue, finishedTrack)
+
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('records implicit dislike on playerSkip when track played < 30%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const skippedTrack = {
+            ...createTrack('listener-skip-1'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, skippedTrack)
+        jest.advanceTimersByTime(20000)
+        await playerSkip(queue, skippedTrack)
+
+        expect(recordImplicitFeedbackMock).toHaveBeenCalledWith(
+            'listener-skip-1',
+            'testsong::testartist',
+            'implicit_dislike',
+        )
+    })
+
+    it('increments getRecentSkipCount on early skip and resets on track completion', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.AUTOPLAY),
+            guild: { id: 'guild-skip-count', name: 'Skip Count Guild' },
+        } as unknown as GuildQueue
+        const track = { ...createTrack('skip-count-user'), durationMS: 100000 }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10000) // 10% through — early skip
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(1)
+
+        // Another early skip increments further
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10000)
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(2)
+
+        // Completing a track (>80%) resets the counter
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(90000)
+        await handlers.playerFinish(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(0)
+    })
+
+    it('does not increment getRecentSkipCount when skip is after 30% of track', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.AUTOPLAY),
+            guild: { id: 'guild-skip-late', name: 'Skip Late Guild' },
+        } as unknown as GuildQueue
+        const track = { ...createTrack('skip-late-user'), durationMS: 100000 }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(50000) // 50% through — late skip
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(0)
+    })
+
+    it('does not record feedback on playerSkip when track < 20 seconds duration', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const shortTrack = {
+            ...createTrack('listener-skip-2'),
+            durationMS: 10000,
+        }
+
+        await playerStart(queue, shortTrack)
+        jest.advanceTimersByTime(5000)
+        await playerSkip(queue, shortTrack)
+
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('does not record feedback on playerSkip when track played > 30%', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerSkip = handlers.playerSkip
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const skippedTrack = {
+            ...createTrack('listener-skip-3'),
+            durationMS: 100000,
+        }
+
+        await playerStart(queue, skippedTrack)
+        jest.advanceTimersByTime(50000)
+        await playerSkip(queue, skippedTrack)
+
+        expect(recordImplicitFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('records implicit like for track with metadata requestedById on playerFinish', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const playerStart = handlers.playerStart
+        const playerFinish = handlers.playerFinish
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        const metadataTrack = {
+            id: 'track-3',
+            title: 'Metadata Track',
+            author: 'Metadata Artist',
+            url: 'https://example.com/track-3',
+            source: 'youtube',
+            requestedBy: undefined,
+            metadata: {
+                requestedById: 'listener-finish-3',
+            },
+            durationMS: 100000,
+        } as unknown as Track
+
+        await playerStart(queue, metadataTrack)
+        jest.advanceTimersByTime(85000)
+        await playerFinish(queue, metadataTrack)
+
+        expect(recordImplicitFeedbackMock).toHaveBeenCalledWith(
+            'listener-finish-3',
+            'metadatatrack::metadataartist',
+            'implicit_like',
+        )
+    })
 })
