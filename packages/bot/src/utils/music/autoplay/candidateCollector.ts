@@ -147,14 +147,14 @@ export async function collectRecommendationCandidates(
         { getArtistTags, currentTrackTags, sessionGenreFamilies },
     )
 
-    // Collect from seed track searches (YouTube, Spotify similar)
+    // Collect from seed track searches (Spotify only — no YouTube fallback to
+    // avoid language-drift where genre terms like "worship" cause YouTube's
+    // algorithm to surface Spanish gospel on non-Spanish sessions)
     for (const seed of seedTracks) {
         const seedCandidates = await searchSeedCandidates(
             queue,
             seed,
             requestedBy,
-            replenishCount,
-            sessionMood,
         )
         for (const candidate of seedCandidates) {
             if (
