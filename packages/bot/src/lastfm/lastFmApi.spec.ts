@@ -801,9 +801,10 @@ describe('lastFmApi', () => {
         })
 
         it('correctly handles unicode artist string with multiplication sign', () => {
-            const result = parseArtists('BTS × Halsey')
-            expect(result.primary).toBe('BTS')
-            expect(result.featured).toEqual(['Halsey'])
+            expect(parseArtists('BTS × Halsey')).toEqual({
+                primary: 'BTS',
+                featured: ['Halsey'],
+            })
         })
 
         it('splits on word-boundary "x" separator', () => {
@@ -848,6 +849,10 @@ describe('lastFmApi', () => {
         beforeEach(() => {
             process.env.LASTFM_API_KEY = 'test-key'
             process.env.LASTFM_API_SECRET = 'test-secret'
+        })
+
+        afterEach(() => {
+            jest.useRealTimers()
         })
 
         it('returns canonical metadata on successful fetch', async () => {
@@ -916,8 +921,6 @@ describe('lastFmApi', () => {
             const second = await getTrackMetadata('Artist A', 'First Version')
             expect(second!.title).toBe('Second Version')
             expect(fetchMock).toHaveBeenCalledTimes(2)
-
-            jest.useRealTimers()
         })
 
         it('omits optional fields when absent from API response', async () => {
