@@ -5,10 +5,12 @@ import {
 } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, warnLog } from '@lucky/shared/utils'
+import { logAndSwallow } from '@lucky/shared/utils/error'
 import { spotifyLinkService } from '@lucky/shared/services'
 import {
     searchSpotifyTrack,
     getSpotifyRecommendations,
+    getArtistGenres,
     type SpotifyAudioFeatures,
 } from '../../../spotify/spotifyApi'
 import { getUserSpotifySeeds } from '../../../spotify/spotifyUserSeeds'
@@ -147,7 +149,16 @@ export async function collectSpotifyRecommendationCandidates(
         const normalizedKey = normalizeTrackKey(track.title, track.author)
         const dislikedWeight = dislikedWeights.get(normalizedKey)
         if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-        const tags = await getArtistTags(track.author)
+        const lastFmTags = await getArtistTags(track.author)
+        // When Last.fm is not linked, fall back to Spotify genres so the
+        // cross-locale veto can still catch Spanish gospel tracks whose
+        // title/artist name has no Spanish text markers.
+        const tags = lastFmTags.length > 0
+            ? lastFmTags
+            : await getArtistGenres(token, track.author).catch((err) => {
+                logAndSwallow(err, 'spotifyRecommender:getArtistGenres', { trackAuthor: track.author })
+                return [] as string[]
+            })
         const rec = calculateRecommendationScore({
             candidate: track,
             currentTrack,

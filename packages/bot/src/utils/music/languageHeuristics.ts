@@ -22,6 +22,9 @@ const SPANISH_GENRE_MARKERS = [
 	'latin christian',
 	'latin gospel',
 	'spanish gospel',
+	'latin worship',
+	'ccm en español',
+	'spanish ccm',
 	'reggaetón',
 	'tex-mex',
 	'norteño',
@@ -81,6 +84,9 @@ const SPANISH_DISTINCT_TOKENS = [
 	'llena', 'llenas', 'lleno', // Portuguese: cheia/cheio (double-l never in Portuguese)
 	'noche',          // Portuguese: noite
 	'hoy',            // Portuguese: hoje
+	'nuestro', 'nuestra', 'nuestros', 'nuestras', // Portuguese: nosso/nossa
+	'siervo', 'sierva', // Portuguese: servo/serva
+	'digno',          // Portuguese: digno (same) — but rarely in PT worship titles
 ]
 
 // Words distinctive to Portuguese (Brazilian or European). Hits here veto
