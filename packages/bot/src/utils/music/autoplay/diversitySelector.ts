@@ -4,7 +4,7 @@ import { trackHistoryService } from '@lucky/shared/services'
 import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
 import { markAsAutoplayTrack } from '../queueManipulation'
-import { RecommendationBasis } from './recommendationBasis.js'
+import { RecommendationBasis, serializeBasis } from './recommendationBasis.js'
 
 interface ScoredTrack {
     track: Track
@@ -288,7 +288,7 @@ export async function addSelectedTracks(
     const historyWrites: Promise<boolean>[] = []
 
     for (const candidate of selected) {
-        markAsAutoplayTrack(candidate.track, candidate.reason, requestedById)
+        markAsAutoplayTrack(candidate.track, serializeBasis(candidate.basis), requestedById)
         queue.addTrack(candidate.track)
         // Update local exclusion sets for this replenish call
         excludedUrls.add(candidate.track.url)

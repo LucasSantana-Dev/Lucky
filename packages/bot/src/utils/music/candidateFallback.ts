@@ -286,9 +286,6 @@ export async function enrichWithAudioFeatures(
             )
             if (genrePenalty !== 0) {
                 track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
-                }
             }
         }
     }
