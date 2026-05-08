@@ -467,7 +467,7 @@ export async function getUserTopArtistsAndTracks(
 
 export async function getUserSavedTracks(
     accessToken: string,
-    limit = 50,
+    limit = 200,
 ): Promise<string[]> {
     const savedTrackIds: string[] = []
     const pageLimit = 50
