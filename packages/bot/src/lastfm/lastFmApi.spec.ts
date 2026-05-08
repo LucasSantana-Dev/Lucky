@@ -18,6 +18,8 @@ import {
     getTagTopTracks,
     getLovedTracks,
     getArtistTopTags,
+    parseArtists,
+    getTrackMetadata,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -744,6 +746,193 @@ describe('lastFmApi', () => {
             const result = await getLovedTracks('testuser')
 
             expect(result).toEqual([{ artist: 'Oasis', title: 'Wonderwall' }])
+        })
+    })
+
+    describe('parseArtists', () => {
+        it('returns single artist as primary with no featured', () => {
+            expect(parseArtists('Radiohead')).toEqual({
+                primary: 'Radiohead',
+                featured: [],
+            })
+        })
+
+        it('strips " - Topic" suffix before splitting', () => {
+            expect(parseArtists('Radiohead - Topic')).toEqual({
+                primary: 'Radiohead',
+                featured: [],
+            })
+        })
+
+        it('splits on "feat." separator', () => {
+            expect(parseArtists('Drake feat. Rihanna')).toEqual({
+                primary: 'Drake',
+                featured: ['Rihanna'],
+            })
+        })
+
+        it('splits on "ft." separator', () => {
+            expect(parseArtists('Post Malone ft. Swae Lee')).toEqual({
+                primary: 'Post Malone',
+                featured: ['Swae Lee'],
+            })
+        })
+
+        it('splits on "&" separator', () => {
+            expect(parseArtists('Jay-Z & Kanye West')).toEqual({
+                primary: 'Jay-Z',
+                featured: ['Kanye West'],
+            })
+        })
+
+        it('splits on "×" separator', () => {
+            expect(parseArtists('James Blake × Frank Ocean')).toEqual({
+                primary: 'James Blake',
+                featured: ['Frank Ocean'],
+            })
+        })
+
+        it('splits on word-boundary "x" separator', () => {
+            expect(parseArtists('Travis Scott x Drake')).toEqual({
+                primary: 'Travis Scott',
+                featured: ['Drake'],
+            })
+        })
+
+        it('does not split on "x" inside a word', () => {
+            const result = parseArtists('Rex Orange County')
+            expect(result.primary).toBe('Rex Orange County')
+            expect(result.featured).toEqual([])
+        })
+
+        it('splits on "vs." separator', () => {
+            expect(parseArtists('Biggie vs. Tupac')).toEqual({
+                primary: 'Biggie',
+                featured: ['Tupac'],
+            })
+        })
+
+        it('splits on "with" separator', () => {
+            expect(parseArtists('Eric Clapton with B.B. King')).toEqual({
+                primary: 'Eric Clapton',
+                featured: ['B.B. King'],
+            })
+        })
+
+        it('handles multiple featured artists in a chain', () => {
+            const result = parseArtists('Kendrick Lamar feat. Drake & J. Cole')
+            expect(result.primary).toBe('Kendrick Lamar')
+            expect(result.featured.length).toBeGreaterThanOrEqual(1)
+        })
+
+        it('is case-insensitive on separator', () => {
+            expect(parseArtists('Artist FEAT. Featured').primary).toBe('Artist')
+        })
+    })
+
+    describe('getTrackMetadata', () => {
+        beforeEach(() => {
+            process.env.LASTFM_API_KEY = 'test-key'
+            process.env.LASTFM_API_SECRET = 'test-secret'
+        })
+
+        it('returns canonical metadata on successful fetch', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Bohemian Rhapsody',
+                        artist: { name: 'Queen' },
+                        album: { title: 'A Night at the Opera', artist: 'Queen' },
+                        mbid: 'abc-123',
+                        duration: '354000',
+                    },
+                }),
+            })
+
+            const result = await getTrackMetadata('Queen', 'Bohemian Rhapsody')
+
+            expect(result).toEqual({
+                artist: 'Queen',
+                title: 'Bohemian Rhapsody',
+                album: 'A Night at the Opera',
+                albumArtist: 'Queen',
+                mbid: 'abc-123',
+                duration: 354000,
+            })
+        })
+
+        it('omits optional fields when absent from API response', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Some Track',
+                        artist: { name: 'Some Artist' },
+                    },
+                }),
+            })
+
+            const result = await getTrackMetadata('Some Artist', 'Some Track')
+
+            expect(result).not.toBeNull()
+            expect(result!.album).toBeUndefined()
+            expect(result!.mbid).toBeUndefined()
+            expect(result!.duration).toBeUndefined()
+        })
+
+        it('returns cached result on second call without fetching again', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Cached Track',
+                        artist: { name: 'Cached Artist' },
+                    },
+                }),
+            })
+
+            await getTrackMetadata('Cached Artist', 'Cached Track')
+            await getTrackMetadata('cached artist', 'cached track')
+
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('returns null on non-ok HTTP response', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+        })
+
+        it('returns null when API returns error field', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ error: 6, message: 'Track not found' }),
+            })
+            const result = await getTrackMetadata('Nobody', 'Nonexistent')
+            expect(result).toBeNull()
+        })
+
+        it('returns null when track field missing', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({}),
+            })
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+        })
+
+        it('returns null on fetch error', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network'))
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+        })
+
+        it('returns null when Last.fm is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
         })
     })
 })

@@ -102,6 +102,86 @@ export function normalizeLastFmTitle(raw: string): string {
     return raw.replace(TITLE_NOISE_PARENS, '').replace(FEAT_CLAUSE, '').trim()
 }
 
+export type LastFmTrackMetadata = {
+    artist: string
+    title: string
+    album?: string
+    albumArtist?: string
+    mbid?: string
+    duration?: number
+}
+
+const FEAT_ARTIST_SEPARATORS =
+    /\s*(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?|\bwith\b)\s+/i
+
+export function parseArtists(raw: string): {
+    primary: string
+    featured: string[]
+} {
+    const normalized = normalizeLastFmArtist(raw)
+    const parts = normalized
+        .split(FEAT_ARTIST_SEPARATORS)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    return { primary: parts[0] ?? normalized, featured: parts.slice(1) }
+}
+
+const TRACK_METADATA_CACHE = new Map<
+    string,
+    { meta: LastFmTrackMetadata; expiresAt: number }
+>()
+const TRACK_METADATA_TTL_MS = 24 * 60 * 60 * 1000
+const TRACK_METADATA_CACHE_MAX = 5000
+
+export async function getTrackMetadata(
+    artist: string,
+    title: string,
+): Promise<LastFmTrackMetadata | null> {
+    const config = getApiConfig()
+    if (!config) return null
+    const key = `${artist.toLowerCase()}::${title.toLowerCase()}`
+    const cached = TRACK_METADATA_CACHE.get(key)
+    const now = Date.now()
+    if (cached && cached.expiresAt > now) return cached.meta
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+        )
+        if (!response.ok) return null
+        const data = (await response.json()) as {
+            error?: number
+            track?: {
+                name: string
+                artist: { name: string }
+                album?: { title: string; artist?: string }
+                mbid?: string
+                duration?: string
+            }
+        }
+        if (data.error || !data.track) return null
+        const t = data.track
+        const meta: LastFmTrackMetadata = {
+            artist: t.artist.name,
+            title: t.name,
+            album: t.album?.title,
+            albumArtist: t.album?.artist,
+            mbid: t.mbid || undefined,
+            duration: t.duration
+                ? parseInt(t.duration, 10) || undefined
+                : undefined,
+        }
+        if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
+            const oldest = TRACK_METADATA_CACHE.keys().next().value
+            if (oldest) TRACK_METADATA_CACHE.delete(oldest)
+        }
+        TRACK_METADATA_CACHE.set(key, { meta, expiresAt: now + TRACK_METADATA_TTL_MS })
+        return meta
+    } catch (err) {
+        logAndWarn(err, 'lastfm.getTrackMetadata', { artist, title })
+        return null
+    }
+}
+
 export type LastFmTopTrack = {
     artist: string
     title: string
@@ -152,15 +232,19 @@ export async function updateNowPlaying(
     track: string,
     durationSec?: number,
     sessionKey?: string | null,
+    metadata?: Partial<LastFmTrackMetadata>,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
     const params: Record<string, string> = {
-        artist: normalizeLastFmArtist(artist),
+        artist: parseArtists(artist).primary,
         track: normalizeLastFmTitle(track),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
     }
+    if (metadata?.album) params.album = metadata.album
+    if (metadata?.albumArtist) params.albumArtist = metadata.albumArtist
+    if (metadata?.mbid) params.mbid = metadata.mbid
     await signedPost('track.updateNowPlaying', params, sessionKey)
 }
 
@@ -170,16 +254,20 @@ export async function scrobble(
     timestamp: number,
     durationSec?: number,
     sessionKey?: string | null,
+    metadata?: Partial<LastFmTrackMetadata>,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
     const params: Record<string, string> = {
-        artist: normalizeLastFmArtist(artist),
+        artist: parseArtists(artist).primary,
         track: normalizeLastFmTitle(track),
         timestamp: String(Math.floor(timestamp)),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
     }
+    if (metadata?.album) params.album = metadata.album
+    if (metadata?.albumArtist) params.albumArtist = metadata.albumArtist
+    if (metadata?.mbid) params.mbid = metadata.mbid
     await signedPost('track.scrobble', params, sessionKey)
 }
 

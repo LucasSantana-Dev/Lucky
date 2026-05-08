@@ -30,6 +30,7 @@ const isLastFmConfiguredMock = jest.fn()
 const getSessionKeyForUserMock = jest.fn()
 const lastFmUpdateNowPlayingMock = jest.fn()
 const lastFmScrobbleMock = jest.fn()
+const getTrackMetadataMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -56,6 +57,7 @@ jest.mock('../../utils/music/buttonComponents', () => ({
 jest.mock('../../lastfm', () => ({
     isLastFmConfigured: (...args: unknown[]) => isLastFmConfiguredMock(...args),
     getSessionKeyForUser: (...args: unknown[]) => getSessionKeyForUserMock(...args),
+    getTrackMetadata: (...args: unknown[]) => getTrackMetadataMock(...args),
     updateNowPlaying: (...args: unknown[]) => lastFmUpdateNowPlayingMock(...args),
     scrobble: (...args: unknown[]) => lastFmScrobbleMock(...args),
 }))
@@ -72,6 +74,7 @@ describe('trackNowPlaying handlers', () => {
         createEmbedMock.mockReturnValue({ title: 'test embed' })
         createMusicControlButtonsMock.mockReturnValue([])
         createMusicActionButtonsMock.mockReturnValue([])
+        getTrackMetadataMock.mockResolvedValue(null)
     })
 
     describe('TrackNowPlayingState - registerNowPlayingMessage', () => {
@@ -428,7 +431,8 @@ describe('trackNowPlaying handlers', () => {
                 'Test Artist',
                 'Test Song',
                 225,
-                'session-key-123'
+                'session-key-123',
+                undefined
             )
         })
 
@@ -477,7 +481,8 @@ describe('trackNowPlaying handlers', () => {
                 expect.anything(),
                 expect.anything(),
                 undefined,
-                expect.anything()
+                expect.anything(),
+                undefined
             )
         })
     })
@@ -536,7 +541,8 @@ describe('trackNowPlaying handlers', () => {
                 'Test Song',
                 expect.any(Number),
                 225,
-                'session-key'
+                'session-key',
+                undefined
             )
         })
 
@@ -552,7 +558,8 @@ describe('trackNowPlaying handlers', () => {
                 'Current Song',
                 expect.any(Number),
                 200,
-                'session-key'
+                'session-key',
+                undefined
             )
         })
 
@@ -602,7 +609,8 @@ describe('trackNowPlaying handlers', () => {
                 expect.anything(),
                 expect.any(Number),
                 undefined,
-                expect.anything()
+                expect.anything(),
+                undefined
             )
         })
 
