@@ -1,12 +1,13 @@
 import { LRUCache } from 'lru-cache'
 import { spotifyLinkService } from '@lucky/shared/services'
-import { getUserTopArtistsAndTracks } from './spotifyApi'
+import { getUserTopArtistsAndTracks, getUserSavedTracks } from './spotifyApi'
 import { debugLog, errorLog } from '@lucky/shared/utils/general/log'
 
 export interface UserSpotifySeeds {
     artistIds: string[]
     artistNames: Set<string>
     trackIds: string[]
+    likedTrackIds: string[]
 }
 
 interface SeededUserEntry {
@@ -14,12 +15,12 @@ interface SeededUserEntry {
     fetched: number
 }
 
+const CACHE_TTL_MS = 30 * 60 * 1000
+
 const userSeedsCache = new LRUCache<string, SeededUserEntry>({
     max: 500,
-    ttl: 5 * 60 * 1000,
+    ttl: CACHE_TTL_MS,
 })
-
-const CACHE_TTL_MS = 5 * 60 * 1000
 
 export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySeeds | null> {
     const now = Date.now()
@@ -57,10 +58,13 @@ export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySe
             return null
         }
 
+        const likedTrackIds = await getUserSavedTracks(token).catch(() => [] as string[])
+
         const seeds: UserSpotifySeeds = {
             artistIds: seedData.artists.map((a) => a.id),
             artistNames: new Set(seedData.artists.map((a) => a.name.toLowerCase())),
             trackIds: seedData.tracks.map((t) => t.id),
+            likedTrackIds,
         }
 
         userSeedsCache.set(userId, {
@@ -74,6 +78,7 @@ export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySe
                 userId,
                 artistCount: seeds.artistIds.length,
                 trackCount: seeds.trackIds.length,
+                likedTrackCount: likedTrackIds.length,
             },
         })
 

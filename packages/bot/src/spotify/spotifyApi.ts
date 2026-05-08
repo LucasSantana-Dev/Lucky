@@ -1,5 +1,5 @@
 import { logAndSwallow } from '@lucky/shared/utils/error'
-import { debugLog } from '@lucky/shared/utils/general/log'
+import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
 
 export interface SpotifyRecommendationTrack {
     id: string
@@ -462,5 +462,74 @@ export async function getUserTopArtistsAndTracks(
     } catch (err) {
         logAndSwallow(err, 'spotify.getUserTopArtistsAndTracks')
         return null
+    }
+}
+
+export async function getUserSavedTracks(
+    accessToken: string,
+    limit = 200,
+): Promise<string[]> {
+    const savedTrackIds: string[] = []
+    const pageLimit = 50
+    const maxTracks = Math.min(limit, 200)
+    let offset = 0
+
+    try {
+        while (offset < maxTracks) {
+            const params = new URLSearchParams({
+                limit: String(pageLimit),
+                offset: String(offset),
+            })
+            const res = await fetch(
+                `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                },
+            )
+
+            if (!res.ok) {
+                logAndSwallow(
+                    new Error(`HTTP ${res.status}`),
+                    'spotify.getUserSavedTracks.request',
+                    { status: res.status, offset },
+                )
+                await res.body?.cancel().catch(() => undefined)
+                break
+            }
+
+            type SavedTracksPage = { items: Array<{ track?: { id?: string } }>; total?: number }
+            let data: SavedTracksPage | null = null
+            try {
+                data = (await res.json()) as SavedTracksPage
+            } catch (parseErr) {
+                logAndSwallow(parseErr, 'spotify.getUserSavedTracks.parse', { offset })
+                break
+            }
+
+            if (!data?.items) {
+                break
+            }
+
+            for (const item of data.items) {
+                if (item.track?.id) {
+                    savedTrackIds.push(item.track.id)
+                }
+            }
+
+            const allFetched = data.total !== undefined && savedTrackIds.length >= data.total
+            if (savedTrackIds.length >= maxTracks || !data.items.length || allFetched) {
+                break
+            }
+
+            offset += pageLimit
+        }
+
+        return savedTrackIds.slice(0, maxTracks)
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getUserSavedTracks')
+        return []
     }
 }

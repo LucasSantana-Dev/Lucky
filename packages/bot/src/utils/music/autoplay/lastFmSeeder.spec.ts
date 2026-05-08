@@ -26,6 +26,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 jest.mock('./lastFmSeeds', () => ({
+    LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) => consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) => consumeBlendedSeedSliceMock(...args),
     isLovedSeed: (...args: unknown[]) => isLovedSeedMock(...args),
@@ -179,7 +180,7 @@ describe('collectLastFmCandidates', () => {
             new Set(), new Set(), createTrack(), new Set(), candidates,
         )
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 3)
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
     })
 
     it('uses blended seed when multiple VC members are linked', async () => {
@@ -389,7 +390,7 @@ describe('collectLastFmCandidates', () => {
             new Set(), new Set(), createTrack(), new Set(), candidates,
         )
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 3)
+        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
         expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
     })
 

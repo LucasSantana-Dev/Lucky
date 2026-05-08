@@ -79,6 +79,7 @@ const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
+    LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) =>
@@ -191,9 +192,9 @@ describe('queueManipulation.replenishQueue', () => {
     }): Promise<QueueMock> {
         const queue = createQueueMock({
             currentTrack: {
-                title: 'Song A',
-                author: 'Artist A',
-                url: 'https://example.com/a',
+                title: 'Bohemian Rhapsody',
+                author: 'Queen',
+                url: 'https://example.com/bohemian',
             } as unknown as Track,
             metadata: options.queueRequestedById
                 ? { requestedBy: { id: options.queueRequestedById } }
@@ -206,10 +207,10 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: options.candidateTitle ?? 'Song B',
-                            author: options.candidateAuthor ?? 'Artist B',
+                            title: options.candidateTitle ?? 'Stairway to Heaven',
+                            author: options.candidateAuthor ?? 'Led Zeppelin',
                             url:
-                                options.candidateUrl ?? 'https://example.com/b',
+                                options.candidateUrl ?? 'https://example.com/stairway',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -221,8 +222,134 @@ describe('queueManipulation.replenishQueue', () => {
         return queue
     }
 
+    it('tops up autoplay queue with multiple tracks when below buffer', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 1,
+                toArray: jest.fn().mockReturnValue([
+                    {
+                        title: 'Highway to Hell',
+                        author: 'AC/DC',
+                        url: 'https://example.com/highway',
+                    },
+                ]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Stairway to Heaven',
+                            author: 'Led Zeppelin',
+                            url: 'https://example.com/stairway',
+                        },
+                        {
+                            title: 'Smells Like Teen Spirit',
+                            author: 'Nirvana',
+                            url: 'https://example.com/nirvana',
+                        },
+                        {
+                            title: 'Purple Rain',
+                            author: 'Prince',
+                            url: 'https://example.com/prince',
+                        },
+                        {
+                            title: 'Imagine',
+                            author: 'John Lennon',
+                            url: 'https://example.com/lennon',
+                        },
+                    ],
+                }),
+            },
+        })
 
 
+        expect(queue.player.search).toHaveBeenCalled()
+        expect(queue.addTrack).toHaveBeenCalledTimes(3)
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    recommendationReason: expect.any(String),
+                    requestedById: 'user-1',
+                }),
+            }),
+        )
+    })
+
+    it('does not search when queue already has buffer size', async () => {
+        const autoplayTracks = Array.from({ length: 8 }, (_, i) => ({
+            title: `Autoplay Track ${i + 1}`,
+            author: `Artist ${i + 1}`,
+            url: `https://example.com/autoplay-${i + 1}`,
+            metadata: { isAutoplay: true },
+        }))
+        const queue = createQueueMock({
+            tracks: {
+                size: 8,
+                toArray: jest.fn().mockReturnValue(autoplayTracks),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.player.search).not.toHaveBeenCalled()
+        expect(queue.addTrack).not.toHaveBeenCalled()
+    })
+
+    it('skips duplicate url and normalized title+artist candidates', async () => {
+        const queue = createQueueMock({
+            tracks: {
+                size: 0,
+                toArray: jest.fn().mockReturnValue([
+                    {
+                        title: 'Queue Song',
+                        author: 'Queue Artist',
+                        url: 'https://example.com/q',
+                    },
+                ]),
+            },
+            player: {
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Song A copy',
+                            author: 'Artist A',
+                            url: 'https://example.com/a',
+                        },
+                        {
+                            title: 'queue-song',
+                            author: 'QUEUE ARTIST',
+                            url: 'https://example.com/other',
+                        },
+                        {
+                            title: 'Fresh Song',
+                            author: 'Fresh Artist',
+                            url: 'https://example.com/fresh',
+                        },
+                    ],
+                }),
+            },
+        })
+
+        await replenishQueue(queue as unknown as GuildQueue)
+
+        expect(queue.player.search).toHaveBeenCalledWith(
+            expect.stringContaining('Song A Artist A'),
+            expect.objectContaining({
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+            }),
+        )
+        expect(queue.addTrack).toHaveBeenCalledTimes(1)
+        expect(queue.addTrack).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://example.com/fresh',
+                metadata: expect.objectContaining({
+                    isAutoplay: true,
+                    recommendationReason: expect.any(String),
+                }),
+            }),
+        )
+    })
 
     it.each([
         {
@@ -425,6 +552,12 @@ describe('queueManipulation.replenishQueue', () => {
         expect(youtubeCount).toBeLessThanOrEqual(3)
     })
 
+    it('returns without adding tracks when candidate set is exhausted', async () => {
+        const queue = await replenishWithSingleCandidate({
+            candidateTitle: 'Bohemian Rhapsody',
+            candidateAuthor: 'Queen',
+            candidateUrl: 'https://example.com/bohemian',
+        })
 
 
     it('tags session novelty when candidate artist is not in recent history', async () => {

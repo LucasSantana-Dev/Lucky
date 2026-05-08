@@ -2,6 +2,12 @@ import { getArtistTopTags } from '../../../lastfm'
 
 export type ArtistTagFetcher = (artist: string | undefined) => Promise<string[]>
 
+export function hasGenreTag(tags: string[], genreVariants: string[]): boolean {
+    if (tags.length === 0) return false
+    const normalized = tags.map((t) => t.toLowerCase().trim())
+    return genreVariants.some((g) => normalized.includes(g.toLowerCase().trim()))
+}
+
 /**
  * Per-pass de-duplicating Last.fm artist-tag fetcher. The replenisher creates
  * one of these per autoplay pass and threads it through every candidate

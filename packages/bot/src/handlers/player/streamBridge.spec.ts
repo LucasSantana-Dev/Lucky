@@ -137,8 +137,9 @@ describe('streamViaYtDlp – process lifecycle', () => {
     it('rejects and kills proc when process emits an error', async () => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.emit('error', new Error('ENOENT yt-dlp')))
-        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('ENOENT yt-dlp')
+        const promise = streamViaYtDlp(validUrl)
+        proc.emit('error', new Error('ENOENT yt-dlp'))
+        await expect(promise).rejects.toThrow('ENOENT yt-dlp')
         expect(proc.kill).toHaveBeenCalled()
     })
 
