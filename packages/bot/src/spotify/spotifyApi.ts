@@ -496,6 +496,7 @@ export async function getUserSavedTracks(
                     'spotify.getUserSavedTracks.request',
                     { status: res.status, offset },
                 )
+                await res.body?.cancel().catch(() => undefined)
                 break
             }
 
