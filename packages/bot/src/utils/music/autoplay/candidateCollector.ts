@@ -16,6 +16,7 @@ import { createArtistTagFetcher, hasGenreTag, type ArtistTagFetcher } from './ar
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 export type { ScoredTrack }
+export type { RecommendationBasis, RecommendationSource, RecommendationSignal } from './recommendationBasis.js'
 
 export const SERTANEJO_TAGS = [
     'sertanejo',
