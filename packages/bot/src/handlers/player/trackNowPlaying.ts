@@ -246,6 +246,12 @@ export async function updateLastFmNowPlaying(
     const durationSec =
         track.durationMS > 0 ? Math.round(track.durationMS / 1000) : undefined
     const meta = await getTrackMetadata(track.author, track.title)
+    if (!meta) {
+        debugLog({
+            message: 'Last.fm metadata not found, updating now-playing without metadata',
+            data: { artist: track.author, title: track.title },
+        })
+    }
     try {
         await lastFmUpdateNowPlaying(
             track.author,
@@ -291,6 +297,12 @@ export async function scrobbleCurrentTrackIfLastFm(
             ? Math.round(trackToScrobble.durationMS / 1000)
             : undefined
     const meta = await getTrackMetadata(trackToScrobble.author, trackToScrobble.title)
+    if (!meta) {
+        debugLog({
+            message: 'Last.fm metadata not found, scrobbling without metadata',
+            data: { artist: trackToScrobble.author, title: trackToScrobble.title },
+        })
+    }
     try {
         await lastFmScrobble(
             trackToScrobble.author,

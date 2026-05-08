@@ -485,6 +485,42 @@ describe('trackNowPlaying handlers', () => {
                 undefined
             )
         })
+
+        it('logs when metadata is not found', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            getTrackMetadataMock.mockResolvedValue(null)
+            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
+            debugLogMock.mockClear()
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            // Should have called debugLog when metadata not found
+            const debugLogCalls = debugLogMock.mock.calls
+            const metadataNotFoundCall = debugLogCalls.find(
+                (call: any[]) =>
+                    call[0]?.message?.includes('metadata not found')
+            )
+            expect(metadataNotFoundCall).toBeDefined()
+        })
+
+        it('forwards metadata to lastFmUpdateNowPlaying when available', async () => {
+            const testMetadata = { mbid: 'test-mbid', listeners: 1000 }
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            getTrackMetadataMock.mockResolvedValue(testMetadata)
+            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
+                'Test Artist',
+                'Test Song',
+                225,
+                'session-key',
+                testMetadata
+            )
+        })
     })
 
     describe('scrobbleCurrentTrackIfLastFm', () => {
@@ -621,6 +657,43 @@ describe('trackNowPlaying handlers', () => {
             await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
 
             expect(lastFmScrobbleMock).not.toHaveBeenCalled()
+        })
+
+        it('logs when metadata is not found', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            getTrackMetadataMock.mockResolvedValue(null)
+            lastFmScrobbleMock.mockResolvedValue(undefined)
+            debugLogMock.mockClear()
+
+            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
+
+            // Should have called debugLog when metadata not found
+            const debugLogCalls = debugLogMock.mock.calls
+            const metadataNotFoundCall = debugLogCalls.find(
+                (call: any[]) =>
+                    call[0]?.message?.includes('metadata not found')
+            )
+            expect(metadataNotFoundCall).toBeDefined()
+        })
+
+        it('forwards metadata to lastFmScrobble when available', async () => {
+            const testMetadata = { mbid: 'test-mbid', listeners: 1000 }
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            getTrackMetadataMock.mockResolvedValue(testMetadata)
+            lastFmScrobbleMock.mockResolvedValue(undefined)
+
+            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
+
+            expect(lastFmScrobbleMock).toHaveBeenCalledWith(
+                'Test Artist',
+                'Test Song',
+                expect.any(Number),
+                225,
+                'session-key',
+                testMetadata
+            )
         })
     })
 })
