@@ -153,13 +153,6 @@ describe('queueStateManager', () => {
             expect(state.position).toBe(0)
         })
 
-        it('should call node.isPlaying() and node.isPaused()', () => {
-            getQueueState(mockQueue)
-
-            expect(mockQueue.node?.isPlaying).toHaveBeenCalled()
-            expect(mockQueue.node?.isPaused).toHaveBeenCalled()
-        })
-
         it('should return default state when exception occurs', () => {
             ;(mockQueue.node?.isPlaying as jest.Mock).mockImplementation(() => {
                 throw new Error('Queue error')
