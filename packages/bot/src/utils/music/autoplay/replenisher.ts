@@ -266,6 +266,7 @@ async function _replenishQueue(
             sessionMood,
             currentFeatures,
             candidateGenreContext,
+            auditCollector,
         )
         sourcesCounts.recommendation = candidates.size
         candidatePoolSize = candidates.size
@@ -295,6 +296,7 @@ async function _replenishQueue(
                 sessionMood,
                 contributionWeights,
                 candidateGenreContext,
+                auditCollector,
             )
             sourcesCounts.lastfm = candidates.size - beforeLastFm
             debugLog({
@@ -332,6 +334,7 @@ async function _replenishQueue(
                         currentTrackTags,
                         sessionGenreFamilies,
                     },
+                    auditCollector,
                 },
             )
             sourcesCounts.genre = candidates.size - beforeGenre
@@ -366,6 +369,7 @@ async function _replenishQueue(
                 implicitLikeKeys,
                 sessionMood,
                 candidateGenreContext,
+                auditCollector,
             )
             sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({
@@ -413,6 +417,7 @@ async function _replenishQueue(
             currentAudioFeatures,
             currentTrack.author,
         )
+        auditCollector.setFinalSelected(enriched)
 
         if (
             (autoplayMode === 'discover' || autoplayMode === 'popular') &&
@@ -488,6 +493,7 @@ async function _replenishQueue(
         // Increment replenish counter for next call's query variation
         replenishCounters.set(guildId, replenishCount + 1)
 
+        auditCollector.emit(guildId, currentTrack.title, sessionMood, sourcesCounts, Date.now() - startTime)
         debugLog({
             message: 'Autoplay pass complete',
             data: {
