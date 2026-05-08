@@ -74,9 +74,13 @@ export async function collectSpotifyRecommendationCandidates(
         getUserSpotifySeeds(requestedBy.id),
     ).catch(() => null)
 
-    const seedIds = seedTracks
+    const likedSeedIds = userSpotifySeeds?.likedTrackIds?.slice(0, 3) ?? []
+    const queueSeedIds = seedTracks
         .map(extractSpotifyTrackId)
         .filter((id): id is string => id !== null)
+    // Liked tracks take priority; fill remaining slots from queue history (max 5 total per Spotify API limit)
+    const seedIds = [...likedSeedIds, ...queueSeedIds]
+        .filter((id, i, arr) => arr.indexOf(id) === i)
         .slice(0, 5)
 
     if (seedIds.length === 0) {

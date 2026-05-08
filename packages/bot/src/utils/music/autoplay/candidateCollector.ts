@@ -12,10 +12,18 @@ import {
     normalizeTrackKey,
 } from '../queueManipulation'
 import { isDuplicateCandidate } from './diversitySelector'
-import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
+import { createArtistTagFetcher, hasGenreTag, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 export type { ScoredTrack }
+
+export const SERTANEJO_TAGS = [
+    'sertanejo',
+    'sertanejo universitário',
+    'sertanejo pop',
+    'música sertaneja',
+    'forró',
+]
 
 /**
  * Include a candidate in the pool if it hasn't been played recently
@@ -117,6 +125,7 @@ export async function collectRecommendationCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    blockSertanejo = false,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
     const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
@@ -170,7 +179,13 @@ export async function collectRecommendationCandidates(
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
-            const tags = await getArtistTags(candidate.author)
+            const tags = await getArtistTags(candidate.author).catch((err: unknown) => {
+                debugLog({ message: 'candidateCollector: getArtistTags failed', data: { author: candidate.author, err } })
+                return [] as string[]
+            })
+            if (blockSertanejo && tags.length > 0 && hasGenreTag(tags, SERTANEJO_TAGS)) {
+                continue
+            }
             const rec = calculateRecommendationScore({
                 candidate,
                 currentTrack,
