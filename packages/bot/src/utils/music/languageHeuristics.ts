@@ -66,6 +66,21 @@ const SPANISH_DISTINCT_TOKENS = [
 	'niño', 'niña', 'niños', 'niñas',
 	'tu gloria',
 	'tus alabanzas',
+	// Spanish worship music words whose Portuguese equivalents are spelled
+	// differently — catches gospel/worship titles that contain no ñ/¿/¡.
+	'fuego',          // Portuguese: fogo
+	'cielo', 'cielos',// Portuguese: céu/céus
+	'presencia',      // Portuguese: presença (always has ç)
+	'alabanza', 'alabanzas', // Portuguese: louvor/louvores
+	'alabar',         // Portuguese: louvar
+	'gracia', 'gracias', // Portuguese: graça / obrigado (different roots entirely)
+	'eres',           // Portuguese: és
+	'nuevo', 'nueva', // Portuguese: novo/nova (different vowel pattern)
+	'pueblo',         // Portuguese: povo
+	'tierra',         // Portuguese: terra ("ie" diphthong is Spanish-specific)
+	'llena', 'llenas', 'lleno', // Portuguese: cheia/cheio (double-l never in Portuguese)
+	'noche',          // Portuguese: noite
+	'hoy',            // Portuguese: hoje
 ]
 
 // Words distinctive to Portuguese (Brazilian or European). Hits here veto
@@ -106,14 +121,28 @@ const PORTUGUESE_DISTINCT_TOKENS = [
 	'glória',
 ]
 
+// Literal regex — not dynamic, never built from variables.
+const LETTER_RE = /[a-záéíóúüñãõç]/i
+
+function hasWordMatch(text: string, token: string): boolean {
+	let i = text.indexOf(token)
+	while (i !== -1) {
+		const before = i > 0 ? text[i - 1] : ''
+		const after = i + token.length < text.length ? text[i + token.length] : ''
+		if ((!before || !LETTER_RE.test(before)) && (!after || !LETTER_RE.test(after))) {
+			return true
+		}
+		i = text.indexOf(token, i + 1)
+	}
+	return false
+}
+
 function countMatches(text: string, tokens: string[]): number {
 	if (!text) return 0
 	const lower = text.toLowerCase()
 	let count = 0
 	for (const token of tokens) {
-		const escaped = token.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
-		const re = new RegExp(`(?:^|[^a-záéíóúüñãõç])${escaped}(?:$|[^a-záéíóúüñãõç])`, 'i')
-		if (re.test(lower)) count++
+		if (hasWordMatch(lower, token.toLowerCase())) count++
 	}
 	return count
 }

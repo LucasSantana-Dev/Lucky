@@ -15,12 +15,12 @@ interface SeededUserEntry {
     fetched: number
 }
 
+const CACHE_TTL_MS = 30 * 60 * 1000
+
 const userSeedsCache = new LRUCache<string, SeededUserEntry>({
     max: 500,
-    ttl: 5 * 60 * 1000,
+    ttl: CACHE_TTL_MS,
 })
-
-const CACHE_TTL_MS = 5 * 60 * 1000
 
 export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySeeds | null> {
     const now = Date.now()
@@ -78,6 +78,7 @@ export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySe
                 userId,
                 artistCount: seeds.artistIds.length,
                 trackCount: seeds.trackIds.length,
+                likedTrackCount: likedTrackIds.length,
             },
         })
 
