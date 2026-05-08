@@ -12,7 +12,7 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
-import type { ArtistTagFetcher } from './autoplay/artistTagCache'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './autoplay/artistTagCache'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
 import { normalizeTrackKey, calculateGenreFamilyPenalty } from './trackNormalization'
 
@@ -102,6 +102,10 @@ export async function collectBroadFallbackCandidates(
         sessionGenreFamilies?: Set<string>
     } = {},
 ): Promise<void> {
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
+
     const fallbackQueries = [
         currentTrack.author,
         `${currentTrack.author} popular`,
@@ -137,12 +141,10 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
-                let candidateTags = genreContext.getArtistTags
-                    ? await genreContext.getArtistTags(track.author).catch((err: unknown) => {
-                        debugLog({ message: 'candidateFallback: getArtistTags failed', data: { author: track.author, err } })
-                        return [] as string[]
-                    })
-                    : []
+                let candidateTags = await getArtistTags(track.author).catch((err: unknown) => {
+                    debugLog({ message: 'candidateFallback: getArtistTags failed', data: { author: track.author, err } })
+                    return [] as string[]
+                })
                 // When Last.fm returns nothing (not linked or artist unknown),
                 // use Spotify's genre data so the cross-locale Spanish veto in
                 // candidateScorer can still fire for Spanish gospel artists
@@ -165,8 +167,8 @@ export async function collectBroadFallbackCandidates(
                     sessionMood,
                     genreContext: {
                         candidateTags,
-                        currentTrackTags: genreContext.currentTrackTags,
-                        sessionGenreFamilies: genreContext.sessionGenreFamilies,
+                        currentTrackTags,
+                        sessionGenreFamilies,
                     },
                 })
                 upsertScoredCandidate(candidates, track, {
