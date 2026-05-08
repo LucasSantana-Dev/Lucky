@@ -75,6 +75,7 @@ const GENRE_FAMILIES = {
     jazz_classical: ['jazz', 'classical', 'orchestral'],
     world: ['afrobeat', 'desi', 'bhangra'],
     ambient_chill: ['lofi', 'chillwave', 'downtempo', 'ambient'],
+    gospel_christian: ['gospel', 'christian', 'christian music', 'contemporary christian music', 'ccm', 'worship', 'christian rock', 'christian pop', 'praise & worship', 'religious'],
 }
 
 const AMBIENT_NOISE_RE =
