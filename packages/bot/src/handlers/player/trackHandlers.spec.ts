@@ -4,6 +4,7 @@ import {
     lastPlayedTracks,
     recentlyPlayedTracks,
     setupTrackHandlers,
+    getRecentSkipCount,
 } from './trackHandlers'
 
 const QueueRepeatMode = {
@@ -567,6 +568,48 @@ describe('trackHandlers autoplay replenishment', () => {
             'testsong::testartist',
             'implicit_dislike',
         )
+    })
+
+    it('increments getRecentSkipCount on early skip and resets on track completion', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.AUTOPLAY),
+            guild: { id: 'guild-skip-count', name: 'Skip Count Guild' },
+        } as unknown as GuildQueue
+        const track = { ...createTrack('skip-count-user'), durationMS: 100000 }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10000) // 10% through — early skip
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(1)
+
+        // Another early skip increments further
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10000)
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(2)
+
+        // Completing a track (>80%) resets the counter
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(90000)
+        await handlers.playerFinish(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(0)
+    })
+
+    it('does not increment getRecentSkipCount when skip is after 30% of track', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.AUTOPLAY),
+            guild: { id: 'guild-skip-late', name: 'Skip Late Guild' },
+        } as unknown as GuildQueue
+        const track = { ...createTrack('skip-late-user'), durationMS: 100000 }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(50000) // 50% through — late skip
+        await handlers.playerSkip(queue, track)
+        expect(getRecentSkipCount(queue.guild.id)).toBe(0)
     })
 
     it('does not record feedback on playerSkip when track < 20 seconds duration', async () => {

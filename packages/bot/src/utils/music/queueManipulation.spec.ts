@@ -3213,6 +3213,7 @@ describe('queueManipulation — multi-user VC blend', () => {
     it('adds spotify recommendation results as scored candidates', async () => {
         const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
             getSpotifyRecommendations: jest.Mock
+            getArtistGenres: jest.Mock
         }
         const sharedMocks = jest.requireMock('@lucky/shared/services') as {
             spotifyLinkService: { getValidAccessToken: jest.Mock }
@@ -3220,6 +3221,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
             'tok-recs',
         )
+        spotifyApiMock.getArtistGenres.mockResolvedValue([])
         spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([
             {
                 id: 'rectrack1',
