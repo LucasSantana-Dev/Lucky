@@ -71,7 +71,7 @@ export function serializeBasis(basis: RecommendationBasis): string {
 	// Remove duplicate signals while preserving order
 	const uniqueSignals = Array.from(new Set(basis.signals))
 
-	// Combine source with up to 2-3 significant signals
+	// Combine source with all unique signals
 	if (uniqueSignals.length === 0) {
 		return sourceLabel
 	}
