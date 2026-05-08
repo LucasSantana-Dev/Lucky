@@ -1,5 +1,5 @@
 import { logAndSwallow } from '@lucky/shared/utils/error'
-import { debugLog } from '@lucky/shared/utils/general/log'
+import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
 
 export interface SpotifyRecommendationTrack {
     id: string
@@ -467,16 +467,17 @@ export async function getUserTopArtistsAndTracks(
 
 export async function getUserSavedTracks(
     accessToken: string,
+    limit = 50,
 ): Promise<string[]> {
     const savedTrackIds: string[] = []
-    const limit = 50
-    const maxTracks = 200
+    const pageLimit = 50
+    const maxTracks = Math.min(limit, 200)
     let offset = 0
 
     try {
         while (offset < maxTracks) {
             const params = new URLSearchParams({
-                limit: String(limit),
+                limit: String(pageLimit),
                 offset: String(offset),
             })
             const res = await fetch(
@@ -522,7 +523,7 @@ export async function getUserSavedTracks(
                 break
             }
 
-            offset += limit
+            offset += pageLimit
         }
 
         return savedTrackIds.slice(0, maxTracks)

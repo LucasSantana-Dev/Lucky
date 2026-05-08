@@ -58,7 +58,7 @@ export async function getUserSpotifySeeds(userId: string): Promise<UserSpotifySe
             return null
         }
 
-        const likedTrackIds = await getUserSavedTracks(token)
+        const likedTrackIds = await getUserSavedTracks(token).catch(() => [] as string[])
 
         const seeds: UserSpotifySeeds = {
             artistIds: seedData.artists.map((a) => a.id),

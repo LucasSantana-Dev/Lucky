@@ -93,3 +93,7 @@ jobs:
               with:
                   extra_args: --only-verified
               continue-on-error: true
+
+            - name: Socket.dev supply chain scan
+              run: echo "Socket.dev scan -- GitHub App (apps/socket-security) covers PR-level blocking"
+              # SocketDev/socket-security-action@v1 is unavailable; removed to unblock CI

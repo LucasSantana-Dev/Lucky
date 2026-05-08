@@ -6,12 +6,12 @@
 </p>
 
 <p align="center">
-  <b>Self-hosted Discord music bot + React dashboard.</b><br>
-  TypeScript monorepo · Discord.js 14 · Prisma 7 · ~2500 tests · Zero prod incidents.
+  <b>The Discord music bot that can't be shut down — because you host it.</b><br>
+  Self-hosted · Open-source · TypeScript monorepo · ~2500 tests · Zero prod incidents.
 </p>
 
 <p align="center">
-  <a href="https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496"><b>→ Invite Lucky</b></a> ·
+  <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><b>→ Invite Lucky</b></a> ·
   <a href="https://lucky.lucassantana.tech"><b>Dashboard</b></a> ·
   <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="./CHANGELOG.md">Changelog</a> ·
@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml"><img src="https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496"><img src="https://img.shields.io/badge/Invite-Lucky%20Bot-5865F2?logo=discord&logoColor=white" alt="Invite Lucky" /></a>
+  <a href="https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge"><img src="https://img.shields.io/badge/Invite-Lucky%20Bot-5865F2?logo=discord&logoColor=white" alt="Invite Lucky" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22.x-green.svg" alt="Node.js" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-blue.svg" alt="TypeScript" /></a>
   <a href="https://discord.js.org/"><img src="https://img.shields.io/badge/Discord.js-14-purple.svg" alt="Discord.js" /></a>
@@ -33,7 +33,7 @@
 
 Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music player with autoplay + recommendations, full moderation suite, auto-mod presets, and a React 19 dashboard — all self-hostable via Docker. Ships with /artist and /album commands for Spotify listening stats, session save/restore, a leveling system with XP and role rewards, and Twitch stream notifications.
 
-**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://discord.com/oauth2/authorize?client_id=962198089161134131&scope=bot%20applications.commands&permissions=36970496)
+**Live at** [lucky.lucassantana.tech](https://lucky.lucassantana.tech) · [Invite to your server](https://lucky.lucassantana.tech/invite?utm_source=github&utm_medium=readme&utm_campaign=readme-badge)
 
 ---
 
@@ -51,13 +51,14 @@ Lucky is a production-grade Discord bot built as a TypeScript monorepo. Music pl
 
 ## Why Lucky?
 
-Most Discord music bots are cloud-only black boxes. Lucky is different:
+Groovy, Rythm, Hydra — the biggest Discord music bots all died. YouTube API enforcement can kill any cloud-only bot overnight. Lucky can't be shut down because you host it.
 
-- **Self-hostable** — your data, your server, your rules. No dependency on a third-party service staying alive.
+- **Shutdown-proof** — self-hosted means no third-party service can take your bot away. Your server, your uptime.
 - **Full-stack** — bot + React 19 dashboard in one monorepo. Control music, moderation, and settings from a web interface.
 - **Production-grade** — ~2500 tests, zero production incidents, Sentry monitoring, and SonarCloud quality gates.
 - **Multi-source** — YouTube + Spotify + SoundCloud, not locked to one provider.
 - **Smart autoplay** — personalized recommendations from listening history, not just random tracks.
+- **No paywall** — every feature included, free forever. No premium tier, no upsells.
 
 ---
 
