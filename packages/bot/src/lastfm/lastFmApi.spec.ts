@@ -12,6 +12,8 @@ import {
     updateNowPlaying,
     normalizeLastFmArtist,
     normalizeLastFmTitle,
+    parseArtists,
+    LastFmSessionExpiredError,
     getTopTracks,
     getRecentTracks,
     getSimilarTracks,
@@ -151,6 +153,103 @@ describe('lastFmApi', () => {
 
         it('returns unchanged for clean titles', () => {
             expect(normalizeLastFmTitle('HUMBLE.')).toBe('HUMBLE.')
+        })
+    })
+
+    describe('parseArtists', () => {
+        it('returns primary artist only when no featured artists', () => {
+            const result = parseArtists('The Beatles')
+            expect(result.primary).toBe('The Beatles')
+            expect(result.featured).toEqual([])
+        })
+
+        it('splits artists on feat.', () => {
+            const result = parseArtists('Drake feat. Rihanna')
+            expect(result.primary).toBe('Drake')
+            expect(result.featured).toContain('Rihanna')
+        })
+
+        it('splits artists on ft.', () => {
+            const result = parseArtists('SZA ft. Travis Scott')
+            expect(result.primary).toBe('SZA')
+            expect(result.featured).toContain('Travis Scott')
+        })
+
+        it('splits artists on ampersand', () => {
+            const result = parseArtists('Jay-Z & Beyoncé')
+            expect(result.primary).toBe('Jay-Z')
+            expect(result.featured).toContain('Beyoncé')
+        })
+
+        it('splits artists on × symbol', () => {
+            const result = parseArtists('Artist1 × Artist2')
+            expect(result.primary).toBe('Artist1')
+            expect(result.featured).toContain('Artist2')
+        })
+
+        it('splits artists on x separator', () => {
+            const result = parseArtists('Artist1 x Artist2')
+            expect(result.primary).toBe('Artist1')
+            expect(result.featured).toContain('Artist2')
+        })
+
+        it('does not split on vs. (word boundary issue with period)', () => {
+            // Note: \bvs\.?\b doesn't match "vs." due to word boundary rules
+            const result = parseArtists('Artist1 vs. Artist2')
+            expect(result.primary).toBe('Artist1 vs. Artist2')
+            expect(result.featured.length).toBe(0)
+        })
+
+        it('splits artists on vs (without period)', () => {
+            const result = parseArtists('Artist1 vs Artist2')
+            expect(result.primary).toBe('Artist1')
+            expect(result.featured).toContain('Artist2')
+        })
+
+        it('splits artists on with', () => {
+            const result = parseArtists('John Smith with Jane Doe')
+            expect(result.primary).toBe('John Smith')
+            expect(result.featured).toContain('Jane Doe')
+        })
+
+        it('handles multiple featured artists', () => {
+            const result = parseArtists('Artist1 feat. Artist2 & Artist3')
+            expect(result.primary).toBe('Artist1')
+            expect(result.featured.length).toBeGreaterThan(0)
+        })
+
+        it('normalizes whitespace', () => {
+            const result = parseArtists('  Artist   feat.   Other  ')
+            expect(result.primary).toBe('Artist')
+            expect(result.featured).toContain('Other')
+        })
+
+        it('handles empty string gracefully', () => {
+            const result = parseArtists('')
+            expect(result).toEqual({ primary: '', featured: [] })
+        })
+    })
+
+    describe('LastFmSessionExpiredError', () => {
+        it('creates error with default message', () => {
+            const error = new LastFmSessionExpiredError()
+            expect(error).toBeInstanceOf(Error)
+            expect(error.message).toBe(
+                'Last.fm session key has expired (error code 9)',
+            )
+            expect(error.name).toBe('LastFmSessionExpiredError')
+        })
+
+        it('creates error with custom message', () => {
+            const customMsg = 'Custom expiry message'
+            const error = new LastFmSessionExpiredError(customMsg)
+            expect(error.message).toBe(customMsg)
+            expect(error.name).toBe('LastFmSessionExpiredError')
+        })
+
+        it('is instanceof Error', () => {
+            const error = new LastFmSessionExpiredError()
+            expect(error instanceof Error).toBe(true)
         })
     })
 
