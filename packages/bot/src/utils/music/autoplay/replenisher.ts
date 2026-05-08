@@ -328,6 +328,10 @@ async function _replenishQueue(
                     implicitDislikeKeys,
                     implicitLikeKeys,
                     sessionMood,
+                    genreContext: {
+                        currentTrackTags,
+                        sessionGenreFamilies,
+                    },
                 },
             )
             sourcesCounts.genre = candidates.size - beforeGenre
@@ -361,6 +365,7 @@ async function _replenishQueue(
                 implicitDislikeKeys,
                 implicitLikeKeys,
                 sessionMood,
+                candidateGenreContext,
             )
             sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({

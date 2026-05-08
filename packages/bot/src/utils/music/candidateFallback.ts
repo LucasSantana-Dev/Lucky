@@ -11,6 +11,7 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
+import { createArtistTagFetcher, type ArtistTagFetcher } from './autoplay/artistTagCache'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
 import { normalizeTrackKey, calculateGenreFamilyPenalty } from './trackNormalization'
 
@@ -94,7 +95,16 @@ export async function collectBroadFallbackCandidates(
     implicitDislikeKeys: Set<string> = new Set(),
     implicitLikeKeys: Set<string> = new Set(),
     sessionMood: SessionMood | null = null,
+    genreContext: {
+        getArtistTags?: ArtistTagFetcher
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    } = {},
 ): Promise<void> {
+    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
+
     const fallbackQueries = [
         currentTrack.author,
         `${currentTrack.author} popular`,
@@ -122,6 +132,7 @@ export async function collectBroadFallbackCandidates(
                 const dislikedWeight = dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
+                const tags = await getArtistTags(track.author)
                 const rec = calculateRecommendationScore({
                     candidate: track,
                     currentTrack,
@@ -135,6 +146,11 @@ export async function collectBroadFallbackCandidates(
                     implicitLikeKeys,
                     dislikedWeights,
                     sessionMood,
+                    genreContext: {
+                        candidateTags: tags,
+                        currentTrackTags,
+                        sessionGenreFamilies,
+                    },
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,

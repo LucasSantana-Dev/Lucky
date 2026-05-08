@@ -13,6 +13,8 @@ const cleanSearchQueryMock = jest.fn()
 const cleanAuthorMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
 const calculateGenreFamilyPenaltyMock = jest.fn()
+const artistTagFetcherMock = jest.fn()
+const createArtistTagFetcherMock = jest.fn()
 
 jest.mock('discord-player', () => ({
     QueryType: { SPOTIFY_SEARCH: 'spotify_search', AUTO: 'auto' },
@@ -54,6 +56,10 @@ jest.mock('./searchQueryCleaner', () => ({
 jest.mock('./trackNormalization', () => ({
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
     calculateGenreFamilyPenalty: (...args: unknown[]) => calculateGenreFamilyPenaltyMock(...args),
+}))
+
+jest.mock('./autoplay/artistTagCache', () => ({
+    createArtistTagFetcher: (...args: unknown[]) => createArtistTagFetcherMock(...args),
 }))
 
 import {
@@ -362,6 +368,8 @@ describe('collectBroadFallbackCandidates', () => {
         normalizeTrackKeyMock.mockReturnValue('normalized-key')
         shouldIncludeCandidateMock.mockReturnValue(true)
         calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'test' })
+        artistTagFetcherMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) => artistTagFetcherMock(...args))
     })
 
     it('does not throw when queue.player.search rejects', async () => {
