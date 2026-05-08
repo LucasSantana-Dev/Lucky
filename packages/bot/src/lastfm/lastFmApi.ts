@@ -155,7 +155,7 @@ export async function getTrackMetadata(
     const promise = (async () => {
         try {
             const response = await fetch(
-                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
             )
             if (!response.ok) return null
             const data = (await response.json()) as {

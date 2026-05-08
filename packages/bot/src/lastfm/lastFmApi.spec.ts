@@ -10,6 +10,7 @@ import {
     getSessionKeyForUser,
     isLastFmInvalidSessionError,
     updateNowPlaying,
+    scrobble,
     normalizeLastFmArtist,
     normalizeLastFmTitle,
     getTopTracks,
@@ -102,6 +103,45 @@ describe('lastFmApi', () => {
         expect(request.body).toContain('track=Track+Name')
         expect(request.body).toContain('duration=187')
         expect(request.body).toContain('api_sig=')
+    })
+
+    it('includes album and albumArtist in updateNowPlaying when metadata provided', async () => {
+        await updateNowPlaying(
+            'Artist Name',
+            'Track Name',
+            187,
+            'session-123',
+            { album: 'Test Album', albumArtist: 'Album Artist' }
+        )
+
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
+        expect(request.body).toContain('album=Test+Album')
+        expect(request.body).toContain('albumArtist=Album+Artist')
+    })
+
+    it('includes mbid in updateNowPlaying when metadata provided', async () => {
+        await updateNowPlaying(
+            'Artist Name',
+            'Track Name',
+            187,
+            'session-123',
+            { mbid: 'test-mbid-123' }
+        )
+
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
+        expect(request.body).toContain('mbid=test-mbid-123')
+    })
+
+    it('omits metadata fields when not provided to updateNowPlaying', async () => {
+        await updateNowPlaying('Artist Name', 'Track Name', 187, 'session-123')
+
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
+        expect(request.body).not.toContain('album=')
+        expect(request.body).not.toContain('albumArtist=')
+        expect(request.body).not.toContain('mbid=')
     })
 
     describe('normalizeLastFmArtist', () => {
@@ -993,6 +1033,87 @@ describe('lastFmApi', () => {
             delete process.env.LASTFM_API_KEY
             const result = await getTrackMetadata('Artist', 'Track')
             expect(result).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('scrobble', () => {
+        it('sends signed scrobble payload with timestamp', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', 'Track Name', timestamp, 187, 'session-123')
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).toContain('method=track.scrobble')
+            expect(request.body).toContain('artist=Artist+Name')
+            expect(request.body).toContain('track=Track+Name')
+            expect(request.body).toContain(`timestamp=${timestamp}`)
+            expect(request.body).toContain('duration=187')
+            expect(request.body).toContain('api_sig=')
+        })
+
+        it('includes album and albumArtist in scrobble when metadata provided', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble(
+                'Artist Name',
+                'Track Name',
+                timestamp,
+                187,
+                'session-123',
+                { album: 'Test Album', albumArtist: 'Album Artist' }
+            )
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).toContain('album=Test+Album')
+            expect(request.body).toContain('albumArtist=Album+Artist')
+        })
+
+        it('includes mbid in scrobble when metadata provided', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble(
+                'Artist Name',
+                'Track Name',
+                timestamp,
+                187,
+                'session-123',
+                { mbid: 'test-mbid-456' }
+            )
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).toContain('mbid=test-mbid-456')
+        })
+
+        it('omits metadata fields when not provided to scrobble', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', 'Track Name', timestamp, 187, 'session-123')
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).not.toContain('album=')
+            expect(request.body).not.toContain('albumArtist=')
+            expect(request.body).not.toContain('mbid=')
+        })
+
+        it('returns early without calling API when sessionKey is falsy', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', 'Track Name', timestamp, 187, null)
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when artist is blank', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('  ', 'Track Name', timestamp, 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when track is blank', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', '  ', timestamp, 187, 'session-123')
+
             expect(fetchMock).not.toHaveBeenCalled()
         })
     })
