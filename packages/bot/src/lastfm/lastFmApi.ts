@@ -6,7 +6,7 @@
 
 import crypto from 'node:crypto'
 import { lastFmLinkService } from '@lucky/shared/services'
-import { logAndWarn } from '@lucky/shared/utils/error'
+import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
@@ -132,6 +132,10 @@ const TRACK_METADATA_CACHE = new Map<
 >()
 const TRACK_METADATA_TTL_MS = 24 * 60 * 60 * 1000
 const TRACK_METADATA_CACHE_MAX = 5000
+const TRACK_METADATA_IN_FLIGHT = new Map<
+    string,
+    Promise<LastFmTrackMetadata | null>
+>()
 
 export async function getTrackMetadata(
     artist: string,
@@ -143,42 +147,56 @@ export async function getTrackMetadata(
     const cached = TRACK_METADATA_CACHE.get(key)
     const now = Date.now()
     if (cached && cached.expiresAt > now) return cached.meta
-    try {
-        const response = await fetch(
-            `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
-        )
-        if (!response.ok) return null
-        const data = (await response.json()) as {
-            error?: number
-            track?: {
-                name: string
-                artist: { name: string }
-                album?: { title: string; artist?: string }
-                mbid?: string
-                duration?: string
+
+    // Deduplicate concurrent fetches
+    const inFlight = TRACK_METADATA_IN_FLIGHT.get(key)
+    if (inFlight) return inFlight
+
+    const promise = (async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+            )
+            if (!response.ok) return null
+            const data = (await response.json()) as {
+                error?: number
+                track?: {
+                    name: string
+                    artist: { name: string }
+                    album?: { title: string; artist?: string }
+                    mbid?: string
+                    duration?: string
+                }
             }
+            if (data.error || !data.track) return null
+            const t = data.track
+            const meta: LastFmTrackMetadata = {
+                artist: t.artist.name,
+                title: t.name,
+                album: t.album?.title,
+                albumArtist: t.album?.artist,
+                mbid: t.mbid || undefined,
+                duration: t.duration
+                    ? parseInt(t.duration, 10) || undefined
+                    : undefined,
+            }
+            if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
+                const oldest = TRACK_METADATA_CACHE.keys().next().value
+                if (oldest) TRACK_METADATA_CACHE.delete(oldest)
+            }
+            TRACK_METADATA_CACHE.set(key, { meta, expiresAt: now + TRACK_METADATA_TTL_MS })
+            return meta
+        } catch (err) {
+            logAndSwallow(err, 'lastfm.getTrackMetadata', { artist, title })
+            return null
         }
-        if (data.error || !data.track) return null
-        const t = data.track
-        const meta: LastFmTrackMetadata = {
-            artist: t.artist.name,
-            title: t.name,
-            album: t.album?.title,
-            albumArtist: t.album?.artist,
-            mbid: t.mbid || undefined,
-            duration: t.duration
-                ? parseInt(t.duration, 10) || undefined
-                : undefined,
-        }
-        if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
-            const oldest = TRACK_METADATA_CACHE.keys().next().value
-            if (oldest) TRACK_METADATA_CACHE.delete(oldest)
-        }
-        TRACK_METADATA_CACHE.set(key, { meta, expiresAt: now + TRACK_METADATA_TTL_MS })
-        return meta
-    } catch (err) {
-        logAndWarn(err, 'lastfm.getTrackMetadata', { artist, title })
-        return null
+    })()
+
+    TRACK_METADATA_IN_FLIGHT.set(key, promise)
+    try {
+        return await promise
+    } finally {
+        TRACK_METADATA_IN_FLIGHT.delete(key)
     }
 }
 
@@ -235,6 +253,7 @@ export async function updateNowPlaying(
     metadata?: Partial<LastFmTrackMetadata>,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
+    if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
         artist: parseArtists(artist).primary,
         track: normalizeLastFmTitle(track),
@@ -257,6 +276,7 @@ export async function scrobble(
     metadata?: Partial<LastFmTrackMetadata>,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
+    if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
         artist: parseArtists(artist).primary,
         track: normalizeLastFmTitle(track),
@@ -325,6 +345,7 @@ const ARTIST_TAG_CACHE = new Map<
 >()
 const ARTIST_TAG_TTL_MS = 24 * 60 * 60 * 1000
 const ARTIST_TAG_CACHE_MAX = 5000
+const ARTIST_TAG_IN_FLIGHT = new Map<string, Promise<string[]>>()
 
 export async function getArtistTopTags(
     artist: string,
@@ -342,37 +363,50 @@ export async function getArtistTopTags(
         return cached.tags
     }
 
-    try {
-        const response = await fetch(
-            `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
-        )
-        if (!response.ok) return []
-        const data = (await response.json()) as {
-            error?: number
-            message?: string
-            toptags?: {
-                tag?: Array<{ name: string; count?: number }>
+    // Deduplicate concurrent fetches
+    const inFlight = ARTIST_TAG_IN_FLIGHT.get(cacheKey)
+    if (inFlight) return inFlight
+
+    const promise = (async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+            )
+            if (!response.ok) return []
+            const data = (await response.json()) as {
+                error?: number
+                message?: string
+                toptags?: {
+                    tag?: Array<{ name: string; count?: number }>
+                }
             }
-        }
-        if (typeof data.error === 'number') return []
-        const tags = (data.toptags?.tag ?? [])
-            .slice(0, limit)
-            .map((t) => t.name?.toLowerCase().trim())
-            .filter((name): name is string => !!name)
+            if (typeof data.error === 'number') return []
+            const tags = (data.toptags?.tag ?? [])
+                .slice(0, limit)
+                .map((t) => t.name?.toLowerCase().trim())
+                .filter((name): name is string => !!name)
 
-        if (ARTIST_TAG_CACHE.size >= ARTIST_TAG_CACHE_MAX) {
-            const oldest = ARTIST_TAG_CACHE.keys().next().value
-            if (oldest) ARTIST_TAG_CACHE.delete(oldest)
-        }
-        ARTIST_TAG_CACHE.set(cacheKey, {
-            tags,
-            expiresAt: now + ARTIST_TAG_TTL_MS,
-        })
+            if (ARTIST_TAG_CACHE.size >= ARTIST_TAG_CACHE_MAX) {
+                const oldest = ARTIST_TAG_CACHE.keys().next().value
+                if (oldest) ARTIST_TAG_CACHE.delete(oldest)
+            }
+            ARTIST_TAG_CACHE.set(cacheKey, {
+                tags,
+                expiresAt: now + ARTIST_TAG_TTL_MS,
+            })
 
-        return tags
-    } catch (err) {
-        logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
-        return []
+            return tags
+        } catch (err) {
+            logAndSwallow(err, 'lastfm.getArtistTopTags', { artist: trimmed })
+            return []
+        }
+    })()
+
+    ARTIST_TAG_IN_FLIGHT.set(cacheKey, promise)
+    try {
+        return await promise
+    } finally {
+        ARTIST_TAG_IN_FLIGHT.delete(cacheKey)
     }
 }
 
