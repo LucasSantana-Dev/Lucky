@@ -1,0 +1,37 @@
+name: PR Agent
+
+on:
+    pull_request:
+        types: [opened, reopened, ready_for_review]
+    issue_comment:
+        types: [created]
+    pull_request_review_comment:
+        types: [created]
+    pull_request_review:
+        types: [submitted]
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    pr-agent:
+        name: AI Code Review
+        runs-on: ubuntu-latest
+        if: ${{ github.event.sender.type != 'Bot' && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null) }}
+        permissions:
+            issues: write
+            pull-requests: write
+            contents: read
+        steps:
+            - name: PR Agent action
+              uses: Codium-ai/pr-agent@009ba5a116c4d3273368a6dc53a4efdb7904d519  # main
+              env:
+                  OPENAI.KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+                  OPENAI.API_TYPE: anthropic
+                  OPENAI.MODEL: claude-sonnet-4-6
+                  CONFIG.AI_PROVIDER: anthropic
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  github_action_config.auto_review: 'true'
+                  github_action_config.auto_describe: 'true'
+                  github_action_config.auto_improve: 'true'

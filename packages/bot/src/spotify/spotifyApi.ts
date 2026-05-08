@@ -1,5 +1,5 @@
 import { logAndSwallow } from '@lucky/shared/utils/error'
-import { debugLog } from '@lucky/shared/utils/general/log'
+import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
 
 export interface SpotifyRecommendationTrack {
     id: string
@@ -462,5 +462,31 @@ export async function getUserTopArtistsAndTracks(
     } catch (err) {
         logAndSwallow(err, 'spotify.getUserTopArtistsAndTracks')
         return null
+    }
+}
+
+export async function getUserSavedTracks(
+    accessToken: string,
+    limit = 50,
+): Promise<string[]> {
+    try {
+        const params = new URLSearchParams({ limit: String(Math.min(limit, 50)), offset: '0' })
+        const res = await fetch(
+            'https://api.spotify.com/v1/me/tracks?' + params.toString(),
+            { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } },
+        )
+        if (!res.ok) {
+            warnLog({ message: 'Spotify saved tracks fetch failed', data: { status: res.status } })
+            return []
+        }
+        const data = (await res.json().catch(() => null)) as {
+            items?: Array<{ track?: { id?: string } }>
+        }
+        return (data?.items ?? [])
+            .map((item) => item.track?.id)
+            .filter((id): id is string => Boolean(id))
+    } catch (err) {
+        logAndSwallow(err, 'spotify.getUserSavedTracks')
+        return []
     }
 }
