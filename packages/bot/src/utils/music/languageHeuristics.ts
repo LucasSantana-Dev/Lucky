@@ -66,6 +66,26 @@ const SPANISH_DISTINCT_TOKENS = [
 	'niño', 'niña', 'niños', 'niñas',
 	'tu gloria',
 	'tus alabanzas',
+	// Spanish verbs with no Portuguese equivalent (common in song titles)
+	// PT equivalents: eres→és, tiene→tem, tengo→tenho, quiero→quero, nadie→ninguém
+	'eres', 'tiene', 'tengo', 'quiero', 'nadie',
+	// Spanish possessives/pronouns distinct from Portuguese (nosso→nuestro, nós→nosotros)
+	'nuestro', 'nuestra', 'nuestros', 'nuestras', 'nosotros',
+	'tuyo', 'tuya',
+	// Spanish nouns that differ from Portuguese equivalents (céu→cielo, terra→tierra,
+	// irmão→hermano, filho→hijo, povo→pueblo, noite→noche)
+	'cielo', 'cielos', 'tierra',
+	'hermano', 'hermana', 'hermanos',
+	'hijo', 'hija', 'hijos',
+	'pueblo', 'noche',
+	// Spanish worship vocabulary distinct from Portuguese (louvor→alabanza, etc.)
+	'alabanza', 'alabanzas', 'alabaré',
+	'salvacion', 'salvación',
+	'libre',
+	// Explicit Spanish-language markers (YouTube "en español" titles, etc.)
+	'español', 'espanol',
+	// Common Spanish gospel greeting/expression (PT: obrigado/obrigada)
+	'gracias',
 ]
 
 // Words distinctive to Portuguese (Brazilian or European). Hits here veto
