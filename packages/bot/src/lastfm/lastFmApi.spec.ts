@@ -750,6 +750,14 @@ describe('lastFmApi', () => {
     })
 
     describe('parseArtists', () => {
+        it('handles empty string without throwing', () => {
+            const result = parseArtists('')
+            expect(result).toEqual({
+                primary: '',
+                featured: [],
+            })
+        })
+
         it('returns single artist as primary with no featured', () => {
             expect(parseArtists('Radiohead')).toEqual({
                 primary: 'Radiohead',
@@ -790,6 +798,12 @@ describe('lastFmApi', () => {
                 primary: 'James Blake',
                 featured: ['Frank Ocean'],
             })
+        })
+
+        it('correctly handles unicode artist string with multiplication sign', () => {
+            const result = parseArtists('BTS × Halsey')
+            expect(result.primary).toBe('BTS')
+            expect(result.featured).toEqual(['Halsey'])
         })
 
         it('splits on word-boundary "x" separator', () => {
@@ -860,6 +874,50 @@ describe('lastFmApi', () => {
                 mbid: 'abc-123',
                 duration: 354000,
             })
+        })
+
+        it('re-fetches when cached entry has expired TTL', async () => {
+            // Use fake timers to control Date.now()
+            jest.useFakeTimers()
+            const now = 1000000
+
+            // Set up the first fetch
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'First Version',
+                        artist: { name: 'Artist A' },
+                    },
+                }),
+            })
+
+            // First call caches the result at time = 1000000
+            jest.setSystemTime(now)
+            const first = await getTrackMetadata('Artist A', 'First Version')
+            expect(first!.title).toBe('First Version')
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+
+            // Fast-forward past TTL (24 hours = 86400000 ms)
+            jest.setSystemTime(now + 86400001)
+
+            // Set up second fetch
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Second Version',
+                        artist: { name: 'Artist A' },
+                    },
+                }),
+            })
+
+            // Second call should re-fetch because cache expired
+            const second = await getTrackMetadata('Artist A', 'First Version')
+            expect(second!.title).toBe('Second Version')
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+
+            jest.useRealTimers()
         })
 
         it('omits optional fields when absent from API response', async () => {
