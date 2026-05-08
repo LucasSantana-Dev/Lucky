@@ -77,7 +77,8 @@ function addGenreTrackCandidate(
     })
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
-        reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
+        source: 'genre-tag',
+        signals: rec.signals,
     }, ctx.auditCollector)
 }
 
@@ -176,9 +177,8 @@ export async function collectBroadFallbackCandidates(
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
-                    reason: rec.reason
-                        ? `${rec.reason} • artist fallback`
-                        : 'artist fallback',
+                    source: 'artist-fallback',
+                    signals: rec.signals,
                 }, auditCollector)
             }
 

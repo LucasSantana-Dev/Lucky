@@ -173,16 +173,27 @@ export async function collectSpotifyRecommendationCandidates(
         })
         let score = rec.score + 0.3
         let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
+        })
+        let score = rec.score + 0.3
+        let source: 'spotify-rec' | 'spotify-taste' = 'spotify-rec'
+        let signals = rec.signals
 
         if (userSpotifySeeds !== null) {
             const trackArtistLower = track.author.toLowerCase()
             if (userSpotifySeeds.artistNames.has(trackArtistLower)) {
                 score += 0.08
-                reason += ' • spotify taste'
+                source = 'spotify-taste'
             }
         }
 
-        upsertScoredCandidate(candidates, track, { score, reason }, auditCollector)
+        upsertScoredCandidate(candidates, track, {
+            score,
+            source,
+            signals,
+        }, auditCollector)
+    }
+}
+
     }
 }
 
