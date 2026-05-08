@@ -28,7 +28,8 @@ import {
 } from '../queueManipulation'
 import { calculateRecommendationScore } from './candidateScorer'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
-import type { ScoredTrack } from './diversitySelector';
+import type { ScoredTrack } from './diversitySelector'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
@@ -66,6 +67,7 @@ export async function collectSpotifyRecommendationCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
     const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -174,10 +176,7 @@ export async function collectSpotifyRecommendationCandidates(
             }
         }
 
-        upsertScoredCandidate(candidates, track, {
-            score,
-            reason,
-        })
+        upsertScoredCandidate(candidates, track, { score, reason }, auditCollector)
     }
 }
 

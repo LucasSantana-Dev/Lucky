@@ -14,6 +14,7 @@ import {
 import { isDuplicateCandidate } from './diversitySelector'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 export type { ScoredTrack }
 
 /**
@@ -43,6 +44,7 @@ export function upsertScoredCandidate(
     candidates: Map<string, ScoredTrack>,
     candidate: Track,
     recommendation: { score: number; reason: string },
+    auditCollector?: AutoplayAuditCollector,
 ): void {
     if (!Number.isFinite(recommendation.score)) {
         debugLog({
@@ -54,6 +56,12 @@ export function upsertScoredCandidate(
                 reason: recommendation.reason,
             },
         })
+        auditCollector?.recordEvaluated(
+            candidate,
+            recommendation.score,
+            recommendation.reason,
+            'rejected',
+        )
         return
     }
 
@@ -68,6 +76,12 @@ export function upsertScoredCandidate(
             score: recommendation.score,
             reason: recommendation.reason,
         })
+        auditCollector?.recordEvaluated(
+            candidate,
+            recommendation.score,
+            recommendation.reason,
+            'accepted',
+        )
     }
 }
 

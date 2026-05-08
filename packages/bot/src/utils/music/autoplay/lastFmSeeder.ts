@@ -20,7 +20,8 @@ import {
     normalizeTrackKey,
 } from '../queueManipulation'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
-import type { ScoredTrack } from './diversitySelector';
+import type { ScoredTrack } from './diversitySelector'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 
 const LASTFM_SEED_COUNT = 3
 const LASTFM_SCORE_BOOST = 0.20
@@ -53,6 +54,7 @@ export async function collectLastFmCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
@@ -135,7 +137,7 @@ export async function collectLastFmCandidates(
                 reason: rec.reason
                     ? `${rec.reason} • last.fm taste${lovedBoost > 0 ? ' (loved)' : ''}`
                     : `last.fm taste${lovedBoost > 0 ? ' (loved)' : ''}`,
-            })
+            }, auditCollector)
         }
 
         const similar = await getSimilarTracks(
@@ -181,7 +183,7 @@ export async function collectLastFmCandidates(
                     reason: rec.reason
                         ? `${rec.reason} • similar to your taste`
                         : 'similar to your taste',
-                })
+                }, auditCollector)
             }
             if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         }
@@ -241,7 +243,7 @@ export async function collectLastFmCandidates(
                         reason: rec.reason
                             ? `${rec.reason} • genre fallback`
                             : 'genre fallback',
-                    })
+                    }, auditCollector)
                 }
                 if (candidates.size >= 3) break
             }

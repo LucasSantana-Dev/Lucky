@@ -74,6 +74,28 @@ describe('languageHeuristics', () => {
 			).toBe(false)
 		})
 
+		it('detects Spanish gospel songs without Last.fm tags via expanded vocabulary', () => {
+			// These are real Spanish worship songs that previously slipped through
+			// when LASTFM_API_KEY was not configured (empty candidateTags=[])
+			expect(detectSpanishMarkers('Tu Amor No Tiene Fin', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Nuestro Dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Gracias', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Cielos Nuevos Tierra Nueva', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Eres Poderoso', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Tengo Fe en Ti', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Quiero Mas de Ti', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Alabanza Alabanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Himno en Español', undefined)).toBe(true)
+		})
+
+		it('does not classify Portuguese worship as Spanish after vocabulary expansion', () => {
+			expect(detectSpanishMarkers('Louvor ao Senhor', undefined)).toBe(false)
+			expect(detectSpanishMarkers('Nosso Deus', undefined)).toBe(false)
+			expect(detectSpanishMarkers('Obrigado pelo Seu Amor', undefined)).toBe(false)
+			expect(detectSpanishMarkers('Filho de Deus', undefined)).toBe(false)
+			expect(detectSpanishMarkers('A Noite Escura', undefined)).toBe(false)
+		})
+
 		it('should let Portuguese veto win when both signals appear', () => {
 			// Brazilian artist Anitta has English/Spanish/Portuguese mixes.
 			// "El Que Espera Por Mim" — has Spanish stopwords ("el") but
