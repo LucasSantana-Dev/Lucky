@@ -262,6 +262,7 @@ describe('queueManipulation.replenishQueue', () => {
             },
         })
 
+        await replenishQueue(queue as unknown as GuildQueue)
 
         expect(queue.player.search).toHaveBeenCalled()
         expect(queue.addTrack).toHaveBeenCalledTimes(3)
@@ -559,6 +560,8 @@ describe('queueManipulation.replenishQueue', () => {
             candidateUrl: 'https://example.com/bohemian',
         })
 
+        expect(queue.addTrack).not.toHaveBeenCalled()
+    })
 
     it('tags session novelty when candidate artist is not in recent history', async () => {
         const queue = createQueueMock({
