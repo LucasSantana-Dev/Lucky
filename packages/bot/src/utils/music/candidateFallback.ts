@@ -13,6 +13,7 @@ import {
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './autoplay/artistTagCache'
+import type { AutoplayAuditCollector } from './autoplay/autoplayAudit'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
 import { normalizeTrackKey, calculateGenreFamilyPenalty } from './trackNormalization'
 
@@ -42,6 +43,7 @@ export interface CandidateContext {
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     }
+    auditCollector?: AutoplayAuditCollector
 }
 
 function addGenreTrackCandidate(
@@ -76,7 +78,7 @@ function addGenreTrackCandidate(
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
         reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
-    })
+    }, ctx.auditCollector)
 }
 
 export async function collectBroadFallbackCandidates(
@@ -101,6 +103,7 @@ export async function collectBroadFallbackCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
     const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -179,7 +182,7 @@ export async function collectBroadFallbackCandidates(
                     reason: rec.reason
                         ? `${rec.reason} • artist fallback`
                         : 'artist fallback',
-                })
+                }, auditCollector)
             }
 
         } catch (err: unknown) {
