@@ -112,6 +112,9 @@ export type LastFmTrackMetadata = {
     duration: number
 }
 
+// NOSONAR S5852 — alternation contains only literal tokens (no nested quantifiers
+// or overlapping branches), and the regex is used only as a String.split delimiter
+// over short Last.fm artist strings, so backtracking cannot escalate.
 const FEAT_ARTIST_SEPARATORS =
     /\s*(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?|\bwith\b)\s+/i
 
