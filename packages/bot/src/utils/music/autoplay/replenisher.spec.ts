@@ -322,4 +322,18 @@ describe('replenishQueue', () => {
             }),
         )
     })
+
+    it('passes Spotify genre fallback to createArtistTagFetcher when token is available', async () => {
+        const queue = createGuildQueue()
+        const { spotifyLinkService } = require('@lucky/shared/services')
+        spotifyLinkService.getValidAccessToken.mockResolvedValue('test-token')
+
+        const { createArtistTagFetcher } = require('./artistTagCache')
+
+        await replenishQueue(queue)
+
+        expect(createArtistTagFetcher).toHaveBeenCalledWith(
+            expect.any(Function),
+        )
+    })
 })
