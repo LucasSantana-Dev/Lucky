@@ -50,9 +50,12 @@ jest.mock('./candidateScorer', () => ({
     calculateRecommendationScore: (...args: unknown[]) => calculateRecommendationScoreMock(...args),
 }))
 
-jest.mock('../queueManipulation', () => ({
+jest.mock('./candidateCollector', () => ({
     shouldIncludeCandidate: (...args: unknown[]) => shouldIncludeCandidateMock(...args),
     upsertScoredCandidate: (...args: unknown[]) => upsertScoredCandidateMock(...args),
+}))
+
+jest.mock('../queueManipulation', () => ({
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 

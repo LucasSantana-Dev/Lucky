@@ -84,7 +84,7 @@ function createScoredTrack(author: string, score = 0.5, url = 'https://url'): Sc
             durationMS: 200_000,
         } as never,
         score,
-        reason: 'test reason',
+        basis: { source: 'spotify-rec', signals: [] } as never,
     }
 }
 
@@ -219,7 +219,6 @@ describe('enrichWithAudioFeatures', () => {
         expect(getArtistGenresMock).toHaveBeenCalledTimes(2)
         expect(calculateGenreFamilyPenaltyMock).toHaveBeenCalledWith(['rock'], ['hip hop'])
         expect(result[0].score).toBeLessThan(0.5)
-        expect(result[0].reason).toContain('genre family drift')
     })
 
     it('looks up candidate genres when currentArtistName genres are non-empty', async () => {
