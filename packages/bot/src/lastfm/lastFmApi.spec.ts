@@ -1035,6 +1035,36 @@ describe('lastFmApi', () => {
             expect(result).toBeNull()
             expect(fetchMock).not.toHaveBeenCalled()
         })
+
+        it('deduplicates concurrent requests with the same key, fetching only once', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Dedup Test Track',
+                        artist: { name: 'Dedup Test Artist' },
+                        album: { title: 'Dedup Album' },
+                    },
+                }),
+            })
+
+            // Fire two concurrent requests with identical (artist, title)
+            const [result1, result2] = await Promise.all([
+                getTrackMetadata('Dedup Test Artist', 'Dedup Test Track'),
+                getTrackMetadata('Dedup Test Artist', 'Dedup Test Track'),
+            ])
+
+            // Both should return the same result
+            expect(result1).toEqual({
+                artist: 'Dedup Test Artist',
+                title: 'Dedup Test Track',
+                album: 'Dedup Album',
+            })
+            expect(result2).toEqual(result1)
+
+            // Underlying fetch should have been called exactly once
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
     })
 
     describe('scrobble', () => {
