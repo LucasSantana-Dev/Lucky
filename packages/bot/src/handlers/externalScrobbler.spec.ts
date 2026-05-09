@@ -13,25 +13,9 @@ const isLastFmConfiguredMock = jest.fn<() => boolean>()
 const getSessionKeyForUserMock =
     jest.fn<(discordId: string) => Promise<string | null>>()
 const isLastFmInvalidSessionErrorMock = jest.fn<(error: unknown) => boolean>()
-const updateNowPlayingMock =
-    jest.fn<
-        (
-            artist: string,
-            track: string,
-            durationSec?: number,
-            sessionKey?: string | null,
-        ) => Promise<void>
-    >()
-const scrobbleMock =
-    jest.fn<
-        (
-            artist: string,
-            track: string,
-            timestamp: number,
-            durationSec?: number,
-            sessionKey?: string | null,
-        ) => Promise<void>
-    >()
+const getTrackMetadataMock = jest.fn()
+const updateNowPlayingMock = jest.fn()
+const scrobbleMock = jest.fn()
 const lastFmUnlinkMock = jest.fn<(discordId: string) => Promise<boolean>>()
 const infoLogMock = jest.fn<(payload: unknown) => void>()
 const errorLogMock = jest.fn<(payload: unknown) => void>()
@@ -43,19 +27,9 @@ jest.mock('../lastfm', () => ({
         getSessionKeyForUserMock(discordId),
     isLastFmInvalidSessionError: (error: unknown) =>
         isLastFmInvalidSessionErrorMock(error),
-    updateNowPlaying: (
-        artist: string,
-        track: string,
-        durationSec?: number,
-        sessionKey?: string | null,
-    ) => updateNowPlayingMock(artist, track, durationSec, sessionKey),
-    scrobble: (
-        artist: string,
-        track: string,
-        timestamp: number,
-        durationSec?: number,
-        sessionKey?: string | null,
-    ) => scrobbleMock(artist, track, timestamp, durationSec, sessionKey),
+    getTrackMetadata: (...args: unknown[]) => getTrackMetadataMock(...args),
+    updateNowPlaying: (...args: unknown[]) => updateNowPlayingMock(...args),
+    scrobble: (...args: unknown[]) => scrobbleMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -148,6 +122,9 @@ describe('externalScrobbler', () => {
         getSessionKeyForUserMock.mockResolvedValue('session-1')
         isLastFmInvalidSessionErrorMock.mockReturnValue(false)
         lastFmUnlinkMock.mockResolvedValue(true)
+        getTrackMetadataMock.mockResolvedValue(null)
+        updateNowPlayingMock.mockResolvedValue(undefined)
+        scrobbleMock.mockResolvedValue(undefined)
     })
 
     afterEach(() => {
@@ -167,8 +144,27 @@ describe('externalScrobbler', () => {
             'My Song',
             undefined,
             'session-1',
+            undefined,
         )
         expect(getSessionKeyForUserMock).toHaveBeenCalledWith('user-1')
+    })
+
+    it('forwards metadata to updateNowPlaying when available', async () => {
+        const testMeta = { mbid: 'test-mbid', album: 'Test Album' }
+        getTrackMetadataMock.mockResolvedValue(testMeta)
+        const { guild, handler } = createHarness('guild-meta-1')
+
+        await handler(
+            createMessage('**Now playing: My Artist – My Song**', guild),
+        )
+
+        expect(updateNowPlayingMock).toHaveBeenCalledWith(
+            'My Artist',
+            'My Song',
+            undefined,
+            'session-1',
+            testMeta,
+        )
     })
 
     it('scrobbles previous track on next now-playing event after 30 seconds', async () => {
@@ -193,12 +189,38 @@ describe('externalScrobbler', () => {
             100,
             40,
             'session-1',
+            undefined,
         )
         expect(updateNowPlayingMock).toHaveBeenCalledWith(
             'Second Artist',
             'Second Song',
             undefined,
             'session-1',
+            undefined,
+        )
+    })
+
+    it('forwards metadata to scrobble when available', async () => {
+        const testMeta = { mbid: 'scrobble-mbid' }
+        getTrackMetadataMock.mockResolvedValue(testMeta)
+        dateNowSpy = jest.spyOn(Date, 'now')
+        dateNowSpy
+            .mockReturnValueOnce(100000)
+            .mockReturnValueOnce(140000)
+            .mockReturnValueOnce(140000)
+
+        const { guild, handler } = createHarness('guild-meta-2')
+
+        await handler(createMessage('Now playing: First Artist — First Song', guild))
+        await handler(createMessage('Now playing: Second Artist - Second Song', guild))
+
+        expect(scrobbleMock).toHaveBeenCalledWith(
+            'First Artist',
+            'First Song',
+            100,
+            40,
+            'session-1',
+            testMeta,
         )
     })
 

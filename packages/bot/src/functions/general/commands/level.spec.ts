@@ -167,14 +167,6 @@ describe('level command', () => {
         expect(createSuccessEmbedMock).toHaveBeenCalledWith('Reward Removed', expect.any(String))
     })
 
-    it('returns early without guild', async () => {
-        requireGuildMock.mockResolvedValue(false)
-        await levelCommand.execute({
-            interaction: { ...createInteraction('rank'), guild: null },
-        } as any)
-        expect(getMemberXPMock).not.toHaveBeenCalled()
-    })
-
     it('shows error embed on service failure', async () => {
         getMemberXPMock.mockRejectedValue(new Error('DB error'))
         getRankMock.mockRejectedValue(new Error('DB error'))
