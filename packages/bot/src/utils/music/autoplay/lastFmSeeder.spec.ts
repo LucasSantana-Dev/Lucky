@@ -277,8 +277,8 @@ describe('collectLastFmCandidates', () => {
         // seed track + similar track both call upsertScoredCandidate
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(2)
         const similarCall = upsertScoredCandidateMock.mock.calls[1]
-        const reason = (similarCall?.[2] as { reason: string })?.reason
-        expect(reason).toContain('similar to your taste')
+        const source = (similarCall?.[2] as { source: string })?.source
+        expect(source).toBe('lastfm-similar')
     })
 
     it('skips excluded tracks in similar-tracks loop (line 155 continue)', async () => {
@@ -342,7 +342,7 @@ describe('collectLastFmCandidates', () => {
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
         const calls = upsertScoredCandidateMock.mock.calls
         const genreCall = calls.find(
-            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+            (c) => (c[2] as { source: string })?.source === 'lastfm-genre-fallback',
         )
         expect(genreCall).toBeDefined()
     })
