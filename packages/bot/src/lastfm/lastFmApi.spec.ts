@@ -1122,6 +1122,27 @@ describe('lastFmApi', () => {
             // Underlying fetch should have been called exactly once
             expect(fetchMock).toHaveBeenCalledTimes(1)
         })
+
+        it('looks up Last.fm with the primary artist when the input is a collaboration', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Hotline Bling',
+                        artist: { name: 'Drake' },
+                        album: { title: 'Views' },
+                    },
+                }),
+            })
+
+            await getTrackMetadata('Drake feat. Rihanna', 'Hotline Bling')
+
+            const url = String(fetchMock.mock.calls[0]![0])
+            // Primary artist should be sent encoded; the "feat. Rihanna" suffix
+            // must not appear in the query string.
+            expect(url).toContain('artist=Drake&')
+            expect(url).not.toContain('Rihanna')
+        })
     })
 
     describe('scrobble', () => {

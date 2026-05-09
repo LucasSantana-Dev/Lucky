@@ -112,11 +112,11 @@ export type LastFmTrackMetadata = {
     duration: number
 }
 
-// NOSONAR S5852 — alternation contains only literal tokens (no nested quantifiers
-// or overlapping branches), and the regex is used only as a String.split delimiter
-// over short Last.fm artist strings, so backtracking cannot escalate.
+// Whitespace bounds use bounded repetition (S5852) so the matcher remains
+// strictly linear regardless of input. Last.fm artist strings rarely contain
+// runs of internal whitespace, so {0,4}/{1,4} comfortably covers real input.
 const FEAT_ARTIST_SEPARATORS =
-    /\s*(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?|\bwith\b)\s+/i
+    /\s{0,4}(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?|\bwith\b)\s{1,4}/i
 
 export function parseArtists(raw: string): {
     primary: string
@@ -156,10 +156,14 @@ export async function getTrackMetadata(
     const inFlight = TRACK_METADATA_IN_FLIGHT.get(key)
     if (inFlight) return inFlight
 
+    // Last.fm's track.getInfo does not handle collaboration strings —
+    // "Drake feat. Rihanna" returns error 6 (Track not found). Use the
+    // primary artist so multi-artist inputs still resolve metadata + art.
+    const lookupArtist = parseArtists(artist).primary
     const promise = (async () => {
         try {
             const response = await fetch(
-                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(lookupArtist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
             )
             if (!response.ok) {
                 debugLog({ message: 'lastFmApi: getTrackMetadata HTTP error', data: { status: response.status, statusText: response.statusText } })
@@ -408,7 +412,9 @@ export async function getArtistTopTags(
 
             return tags
         } catch (err) {
-            logAndSwallow(err, 'lastfm.getArtistTopTags', { artist: trimmed })
+            // Surface tag-fetch failures so autoplay tag-based recommendations
+            // remain debuggable when Last.fm is rate-limiting or DNS-flaky.
+            logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
             return []
         }
     })()
