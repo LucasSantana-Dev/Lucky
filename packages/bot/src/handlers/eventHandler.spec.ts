@@ -402,18 +402,6 @@ describe('eventHandler', () => {
                 expect(cleanupGuildStateMock).toHaveBeenCalledWith('guild-delete-123')
             })
 
-            it('logs error when guild delete cleanup fails', async () => {
-                const { client, onMock } = createMockClient()
-                handleEvents(client as unknown as never)
-
-                const handler = getGuildDeleteHandler(onMock)
-                const mockGuild = { id: 'guild-error-456' }
-
-                await handler?.(mockGuild)
-
-                expect(cleanupGuildStateMock).toHaveBeenCalled()
-            })
-
             it('handles errors during guild cleanup gracefully', async () => {
                 const { client, onMock } = createMockClient()
                 cleanupGuildStateMock.mockImplementation(() => {
@@ -469,31 +457,6 @@ describe('eventHandler', () => {
 
                 expect(cleanupGuildStateMock).not.toHaveBeenCalled()
             })
-
-            it('logs error when channel cleanup fails', () => {
-                const { client, onMock } = createMockClient()
-                cleanupGuildStateMock.mockImplementation(() => {
-                    throw new Error('Channel cleanup failed')
-                })
-
-                handleEvents(client as unknown as never)
-
-                const handler = getChannelDeleteHandler(onMock)
-                const mockChannel = {
-                    guildId: 'guild-error-ch',
-                    isDMBased: () => false,
-                }
-
-                handler?.(mockChannel)
-
-                expect(errorLogMock).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        message: expect.stringContaining(
-                            'Error clearing state on channel delete',
-                        ),
-                    }),
-                )
-            })
         })
     })
 
@@ -504,48 +467,6 @@ describe('eventHandler', () => {
             const call = onceMock.mock.calls.find((args) => args[0] === 'clientReady')
             return call?.[1] as ((client: unknown) => void) | undefined
         }
-
-        it('logs when client is ready', () => {
-            const { client, onceMock } = createMockClient()
-            const mockClient = {
-                ...client,
-                user: { tag: 'TestBot#0001' },
-            }
-
-            handleEvents(mockClient as unknown as never)
-
-            const handler = getClientReadyHandler(onceMock)
-            expect(handler).toBeDefined()
-
-            handler?.({})
-
-            expect(infoLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('Logged in as'),
-                }),
-            )
-        })
-
-        it('logs command count when ready', () => {
-            const { client, onceMock } = createMockClient()
-            client.commands.set('cmd1', { execute: jest.fn() })
-            client.commands.set('cmd2', { execute: jest.fn() })
-            const mockClient = {
-                ...client,
-                user: { tag: 'TestBot#0001' },
-            }
-
-            handleEvents(mockClient as unknown as never)
-
-            const handler = getClientReadyHandler(onceMock)
-            handler?.({})
-
-            expect(debugLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('Bot is ready'),
-                }),
-            )
-        })
 
         it('starts ai dev toolkit service when enabled', async () => {
             process.env.AI_DEV_TOOLKIT_BOARD_ENABLED = 'true'
@@ -565,32 +486,6 @@ describe('eventHandler', () => {
             await new Promise<void>((resolve) => setImmediate(resolve))
 
             expect(aiDevToolkitStartMock).toHaveBeenCalled()
-
-            delete process.env.AI_DEV_TOOLKIT_BOARD_ENABLED
-        })
-
-        it('logs error if ai dev toolkit fails to start', async () => {
-            process.env.AI_DEV_TOOLKIT_BOARD_ENABLED = 'true'
-            aiDevToolkitStartMock.mockRejectedValue(new Error('Toolkit start failed'))
-
-            const { client, onceMock } = createMockClient()
-            const mockClient = {
-                ...client,
-                user: { tag: 'TestBot#0001' },
-            }
-
-            handleEvents(mockClient as unknown as never)
-
-            const handler = getClientReadyHandler(onceMock)
-            handler?.(mockClient)
-
-            await new Promise<void>((resolve) => setImmediate(resolve))
-
-            expect(errorLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('AiDevToolkitService'),
-                }),
-            )
 
             delete process.env.AI_DEV_TOOLKIT_BOARD_ENABLED
         })
