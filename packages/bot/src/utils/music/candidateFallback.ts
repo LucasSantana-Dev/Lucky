@@ -150,7 +150,10 @@ export async function collectBroadFallbackCandidates(
                 // candidateScorer can still fire for Spanish gospel artists
                 // that have non-Spanish-looking artist names / titles.
                 if (candidateTags.length === 0 && spotifyToken) {
-                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => []) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
+                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch((err: unknown) => {
+                        debugLog({ message: 'candidateFallback: getArtistGenres (Spotify fallback) failed', data: { author: track.author, err } })
+                        return [] as string[]
+                    }) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
                 }
                 const rec = calculateRecommendationScore({
                     candidate: track,
@@ -179,7 +182,8 @@ export async function collectBroadFallbackCandidates(
                 })
             }
 
-        } catch {
+        } catch (err: unknown) {
+            debugLog({ message: 'candidateFallback: Spotify search failed', data: { query, err } })
             continue
         }
     }
@@ -196,7 +200,8 @@ export async function collectGenreCandidates(
         let seeds: Awaited<ReturnType<typeof getTagTopTracks>> = []
         try {
             seeds = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
-        } catch {
+        } catch (err: unknown) {
+            debugLog({ message: 'candidateFallback: getTagTopTracks failed', data: { tag, err } })
             continue
         }
         for (const seed of seeds) {
@@ -208,7 +213,8 @@ export async function collectGenreCandidates(
                     requestedBy,
                 )
                 for (const track of results) addGenreTrackCandidate(track, tag, ctx)
-            } catch {
+            } catch (err: unknown) {
+                debugLog({ message: 'candidateFallback: searchLastFmQuery failed', data: { tag, seed: `${seed.artist}/${seed.title}`, err } })
                 continue
             }
         }
