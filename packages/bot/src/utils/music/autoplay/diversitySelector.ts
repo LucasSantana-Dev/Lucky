@@ -4,7 +4,8 @@ import { trackHistoryService } from '@lucky/shared/services'
 import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
 import { markAsAutoplayTrack } from '../queueManipulation'
-import { RecommendationBasis, serializeBasis } from './recommendationBasis.js'
+import type { RecommendationBasis } from './recommendationBasis.js'
+import { serializeBasis } from './recommendationBasis.js'
 
 interface ScoredTrack {
     track: Track
