@@ -20,6 +20,7 @@ import {
     getTagTopTracks,
     getLovedTracks,
     getArtistTopTags,
+    getTrackMetadata,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -843,6 +844,128 @@ describe('lastFmApi', () => {
             const result = await getLovedTracks('testuser')
 
             expect(result).toEqual([{ artist: 'Oasis', title: 'Wonderwall' }])
+        })
+    })
+
+    describe('getTrackMetadata', () => {
+        it('returns null when LASTFM_API_KEY is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+            const result = await getTrackMetadata('Artist', 'Song')
+            expect(result).toBeNull()
+        })
+
+        it('returns null for empty artist', async () => {
+            const result = await getTrackMetadata('', 'Song')
+            expect(result).toBeNull()
+        })
+
+        it('returns null for empty title', async () => {
+            const result = await getTrackMetadata('Artist', '')
+            expect(result).toBeNull()
+        })
+
+        it('returns full metadata on successful fetch', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Bohemian Rhapsody',
+                        artist: { name: 'Queen' },
+                        album: { title: 'A Night at the Opera', artist: 'Queen' },
+                        mbid: 'track-mbid-123',
+                        duration: '354000',
+                    },
+                }),
+            })
+
+            const result = await getTrackMetadata('queen', 'bohemian rhapsody')
+
+            expect(result).toEqual({
+                artist: 'Queen',
+                title: 'Bohemian Rhapsody',
+                album: 'A Night at the Opera',
+                albumArtist: 'Queen',
+                mbid: 'track-mbid-123',
+                duration: 354000,
+            })
+        })
+
+        it('returns metadata without album when album is absent', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Track Title',
+                        artist: { name: 'Some Artist' },
+                    },
+                }),
+            })
+
+            const result = await getTrackMetadata('Some Artist', 'Track Title')
+
+            expect(result).not.toBeNull()
+            expect(result?.album).toBeUndefined()
+            expect(result?.albumArtist).toBeUndefined()
+            expect(result?.mbid).toBeUndefined()
+            expect(result?.duration).toBeUndefined()
+        })
+
+        it('returns null when response is not ok', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+
+            const result = await getTrackMetadata('Bad Artist A', 'Bad Song A')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when response contains error code', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ error: 6, message: 'Track not found' }),
+            })
+
+            const result = await getTrackMetadata('Bad Artist B', 'Bad Song B')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null when track is missing from response', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({}),
+            })
+
+            const result = await getTrackMetadata('Bad Artist C', 'Bad Song C')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns null and logs warning on fetch error', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network failure'))
+
+            const result = await getTrackMetadata('Failing Artist Meta', 'Failing Song Meta')
+
+            expect(result).toBeNull()
+        })
+
+        it('returns cached result on second call with same artist and title', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Cached Song',
+                        artist: { name: 'Cached Artist' },
+                        mbid: 'cached-mbid',
+                    },
+                }),
+            })
+
+            const first = await getTrackMetadata('Cached Artist', 'Cached Song')
+            const second = await getTrackMetadata('Cached Artist', 'Cached Song')
+
+            expect(first).not.toBeNull()
+            expect(second).toEqual(first)
+            expect(fetchMock).toHaveBeenCalledTimes(1)
         })
     })
 })
