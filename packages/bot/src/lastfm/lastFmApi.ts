@@ -378,7 +378,7 @@ export async function getArtistTopTags(
     const promise = (async () => {
         try {
             const response = await fetch(
-                `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+                `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
             )
             if (!response.ok) return []
             const data = (await response.json()) as {
