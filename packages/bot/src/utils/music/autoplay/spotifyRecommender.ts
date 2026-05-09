@@ -172,9 +172,6 @@ export async function collectSpotifyRecommendationCandidates(
             },
         })
         let score = rec.score + 0.3
-        let reason = rec.reason ? `${rec.reason} • spotify rec` : 'spotify rec'
-        })
-        let score = rec.score + 0.3
         let source: 'spotify-rec' | 'spotify-taste' = 'spotify-rec'
         let signals = rec.signals
 
@@ -191,9 +188,6 @@ export async function collectSpotifyRecommendationCandidates(
             source,
             signals,
         }, auditCollector)
-    }
-}
-
     }
 }
 
