@@ -171,4 +171,113 @@ describe('Spotify API 429 Retry Logic', () => {
             expect(result).toEqual([])
         })
     })
+
+    describe('getBatchAudioFeatures with 429 retry', () => {
+        it('should retry on 429 and return features on second attempt', async () => {
+            let attemptCount = 0
+
+            fetchMock.mockImplementation(async () => {
+                attemptCount++
+                if (attemptCount === 1) {
+                    throw new Response(null, { status: 429 })
+                }
+                return new Response(
+                    JSON.stringify({
+                        audio_features: [
+                            {
+                                id: 'batch1',
+                                energy: 0.7,
+                                valence: 0.6,
+                                danceability: 0.5,
+                                tempo: 130,
+                                acousticness: 0.1,
+                            },
+                        ],
+                    }),
+                    { status: 200 },
+                )
+            })
+
+            const result = await spotifyApi.getBatchAudioFeatures('test-token', ['batch1'])
+
+            expect(attemptCount).toBe(2)
+            expect(result.size).toBe(1)
+            expect(result.get('batch1')?.energy).toBe(0.7)
+        })
+
+        it('should return empty map after exhausting retries', async () => {
+            fetchMock.mockImplementation(async () => {
+                throw new Response(null, { status: 429 })
+            })
+
+            const result = await spotifyApi.getBatchAudioFeatures('test-token', ['batch1'])
+
+            expect(result.size).toBe(0)
+            expect(logAndSwallow).toHaveBeenCalled()
+        })
+    })
+
+    describe('getArtistPopularity with 429 retry', () => {
+        it('should retry on 429 and return popularity on second attempt', async () => {
+            let attemptCount = 0
+
+            fetchMock.mockImplementation(async () => {
+                attemptCount++
+                if (attemptCount === 1) {
+                    throw new Response(null, { status: 429 })
+                }
+                return new Response(
+                    JSON.stringify({
+                        artists: { items: [{ popularity: 82 }] },
+                    }),
+                    { status: 200 },
+                )
+            })
+
+            const result = await spotifyApi.getArtistPopularity('test-token', 'Retry Artist Popularity')
+
+            expect(attemptCount).toBe(2)
+            expect(result).toBe(82)
+        })
+
+        it('should return null after network error', async () => {
+            fetchMock.mockRejectedValue(new Error('network failure'))
+
+            const result = await spotifyApi.getArtistPopularity('test-token', 'Failing Artist Popularity')
+
+            expect(result).toBeNull()
+        })
+    })
+
+    describe('getArtistGenres with 429 retry', () => {
+        it('should retry on 429 and return genres on second attempt', async () => {
+            let attemptCount = 0
+
+            fetchMock.mockImplementation(async () => {
+                attemptCount++
+                if (attemptCount === 1) {
+                    throw new Response(null, { status: 429 })
+                }
+                return new Response(
+                    JSON.stringify({
+                        artists: { items: [{ genres: ['pop', 'rock'] }] },
+                    }),
+                    { status: 200 },
+                )
+            })
+
+            const result = await spotifyApi.getArtistGenres('test-token', 'Retry Artist Genres')
+
+            expect(attemptCount).toBe(2)
+            expect(result).toEqual(['pop', 'rock'])
+        })
+
+        it('should return empty array after network error', async () => {
+            fetchMock.mockRejectedValue(new Error('network failure'))
+
+            const result = await spotifyApi.getArtistGenres('test-token', 'Failing Artist Genres')
+
+            expect(result).toEqual([])
+        })
+    })
 })
