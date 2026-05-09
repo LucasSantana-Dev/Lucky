@@ -64,8 +64,6 @@ async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promis
             throw error
         }
     }
-
-    throw new Error('Unreachable: withSpotifyRetry loop should always return or throw')
 }
 
 export async function getSpotifyRecommendations(
