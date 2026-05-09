@@ -7,6 +7,7 @@
 import crypto from 'node:crypto'
 import { lastFmLinkService } from '@lucky/shared/services'
 import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
+import { debugLog } from '@lucky/shared/utils/general/log'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
@@ -157,7 +158,10 @@ export async function getTrackMetadata(
             const response = await fetch(
                 `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
             )
-            if (!response.ok) return null
+            if (!response.ok) {
+                debugLog({ message: 'lastFmApi: getTrackMetadata HTTP error', data: { status: response.status, statusText: response.statusText } })
+                return null
+            }
             const data = (await response.json()) as {
                 error?: number
                 track?: {

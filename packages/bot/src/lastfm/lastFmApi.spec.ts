@@ -40,6 +40,16 @@ const fetchMock =
         ) => Promise<MockFetchResponse>
     >()
 
+const debugLogMock = jest.fn()
+
+jest.mock('@lucky/shared/utils/general/log', () => ({
+    debugLog: (params: unknown) => debugLogMock(params),
+    warnLog: jest.fn(),
+    errorLog: jest.fn(),
+    infoLog: jest.fn(),
+    successLog: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
         getSessionKey: (discordId: string) => getSessionKeyMock(discordId),
@@ -1004,6 +1014,23 @@ describe('lastFmApi', () => {
             fetchMock.mockResolvedValueOnce({ ok: false })
             const result = await getTrackMetadata('Artist', 'Track')
             expect(result).toBeNull()
+        })
+
+        it('logs HTTP error and returns null when response is not ok', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: false,
+                status: 404,
+                statusText: 'Not Found',
+            } as MockFetchResponse)
+
+            const result = await getTrackMetadata('Artist', 'Title')
+
+            expect(result).toBeNull()
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ status: 404 }),
+                }),
+            )
         })
 
         it('returns null when API returns error field', async () => {
