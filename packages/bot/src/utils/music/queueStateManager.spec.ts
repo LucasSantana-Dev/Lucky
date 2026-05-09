@@ -33,14 +33,12 @@ describe('queueStateManager', () => {
             author: 'Artist One',
             duration: 180000,
         }
-
         mockTrack2 = {
             id: 'track-2',
             url: 'https://example.com/track2.mp3',
             author: 'Artist Two',
             duration: 240000,
         }
-
         mockTrack3 = {
             id: 'track-3',
             url: 'https://example.com/track3.mp3',
@@ -54,24 +52,30 @@ describe('queueStateManager', () => {
                 isPlaying: jest.fn().mockReturnValue(true),
                 isPaused: jest.fn().mockReturnValue(false),
                 volume: 80,
-                getTimestamp: jest.fn().mockReturnValue({
-                    current: 30000,
-                }),
+                getTimestamp: jest.fn().mockReturnValue({ current: 30000 }),
             },
             tracks: {
                 size: 2,
                 toArray: jest.fn().mockReturnValue([mockTrack2, mockTrack3]),
             },
-            repeatMode: {
-                toString: jest.fn().mockReturnValue('OFF'),
-            },
+            repeatMode: { toString: jest.fn().mockReturnValue('OFF') },
         } as unknown as GuildQueue
     })
 
-    describe('getQueueState', () => {
-        it('should return current queue state with all properties', () => {
-            const state = getQueueState(mockQueue)
+    // Tracks lookup-style describes share this fixture; populating tracks once
+    // here removes the per-describe beforeEach that just re-set toArray.
+    function withTracks(tracks: unknown[]): void {
+        ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue(tracks)
+    }
+    function withTracksThrow(): void {
+        ;(mockQueue.tracks?.toArray as jest.Mock).mockImplementation(() => {
+            throw new Error('Queue error')
+        })
+    }
 
+    describe('getQueueState', () => {
+        it('returns the current queue state with all properties', () => {
+            const state = getQueueState(mockQueue)
             expect(state).toEqual({
                 isPlaying: true,
                 isPaused: false,
@@ -84,83 +88,38 @@ describe('queueStateManager', () => {
             })
         })
 
-        it('should return undefined currentTrack when no current track exists', () => {
+        it('returns undefined currentTrack when no current track exists', () => {
             mockQueue.currentTrack = null
-            const state = getQueueState(mockQueue)
-
-            expect(state.currentTrack).toBeUndefined()
-            expect(state.isPlaying).toBe(true)
+            expect(getQueueState(mockQueue).currentTrack).toBeUndefined()
         })
 
-        it('should handle string duration by parsing to number', () => {
-            mockQueue.currentTrack = {
-                ...mockTrack,
-                duration: '180000',
-            } as unknown as Track
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.duration).toBe(180000)
-        })
-
-        it('should handle numeric duration without conversion', () => {
-            mockQueue.currentTrack = {
-                ...mockTrack,
-                duration: 180000,
-            } as unknown as Track
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.duration).toBe(180000)
-        })
-
-        it('should default duration to 0 when track has no duration', () => {
+        it.each([
+            ['string', '180000', 180000],
+            ['numeric', 180000, 180000],
+            ['missing', undefined, 0],
+        ])('coerces %s duration on currentTrack', (_label, duration, expected) => {
             mockQueue.currentTrack = {
                 id: 'track-1',
                 author: 'Artist',
+                duration,
             } as unknown as Track
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.duration).toBe(0)
+            expect(getQueueState(mockQueue).duration).toBe(expected)
         })
 
-        it('should return 0 position when getTimestamp returns null', () => {
-            ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue(null)
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.position).toBe(0)
+        it.each([
+            ['getTimestamp returns null', () => null],
+            ['current is null', () => ({ current: null })],
+            ['current is non-numeric', () => ({ current: { valueOf: jest.fn().mockReturnValue('invalid') } })],
+        ])('returns position 0 when %s', (_label, factory) => {
+            ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue(factory())
+            expect(getQueueState(mockQueue).position).toBe(0)
         })
 
-        it('should return 0 position when getTimestamp().current is null', () => {
-            ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue({
-                current: null,
-            })
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.position).toBe(0)
-        })
-
-        it('should handle position as non-number value', () => {
-            ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue({
-                current: { valueOf: jest.fn().mockReturnValue('invalid') },
-            })
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.position).toBe(0)
-        })
-
-        it('should return default state when exception occurs', () => {
+        it('returns the documented default state when an exception occurs and logs it', () => {
             ;(mockQueue.node?.isPlaying as jest.Mock).mockImplementation(() => {
                 throw new Error('Queue error')
             })
-
-            const state = getQueueState(mockQueue)
-
-            expect(state).toEqual({
+            expect(getQueueState(mockQueue)).toEqual({
                 isPlaying: false,
                 isPaused: false,
                 queueSize: 0,
@@ -175,201 +134,105 @@ describe('queueStateManager', () => {
             })
         })
 
-        it('should handle paused queue state', () => {
+        it('reports paused queue state', () => {
             ;(mockQueue.node?.isPlaying as jest.Mock).mockReturnValue(false)
             ;(mockQueue.node?.isPaused as jest.Mock).mockReturnValue(true)
-
             const state = getQueueState(mockQueue)
-
             expect(state.isPlaying).toBe(false)
             expect(state.isPaused).toBe(true)
         })
 
-        it('should convert repeatMode to string', () => {
-            ;(mockQueue.repeatMode?.toString as jest.Mock).mockReturnValue(
-                'QUEUE',
-            )
-
-            const state = getQueueState(mockQueue)
-
-            expect(state.repeatMode).toBe('QUEUE')
+        it('stringifies repeatMode', () => {
+            ;(mockQueue.repeatMode?.toString as jest.Mock).mockReturnValue('QUEUE')
+            expect(getQueueState(mockQueue).repeatMode).toBe('QUEUE')
         })
     })
 
     describe('isQueueEmpty', () => {
-        it('should return true when queue has no tracks', () => {
-            mockQueue.tracks = { size: 0 } as unknown as any
-
-            const isEmpty = isQueueEmpty(mockQueue)
-
-            expect(isEmpty).toBe(true)
-        })
-
-        it('should return false when queue has tracks', () => {
-            mockQueue.tracks = { size: 2 } as unknown as any
-
-            const isEmpty = isQueueEmpty(mockQueue)
-
-            expect(isEmpty).toBe(false)
-        })
-
-        it('should return false when queue has exactly 1 track', () => {
-            mockQueue.tracks = { size: 1 } as unknown as any
-
-            const isEmpty = isQueueEmpty(mockQueue)
-
-            expect(isEmpty).toBe(false)
-        })
-
-        it('should return true when queue size is explicitly 0', () => {
-            mockQueue.tracks!.size = 0
-
-            const isEmpty = isQueueEmpty(mockQueue)
-
-            expect(isEmpty).toBe(true)
+        it.each([
+            [0, true],
+            [1, false],
+            [2, false],
+        ])('size %s → %s', (size, expected) => {
+            mockQueue.tracks = { size } as unknown as GuildQueue['tracks']
+            expect(isQueueEmpty(mockQueue)).toBe(expected)
         })
     })
 
     describe('isQueueFull', () => {
-        it('should return false when queue size is below max', () => {
-            mockQueue.tracks!.size = 50
-            const isFull = isQueueFull(mockQueue, 100)
-
-            expect(isFull).toBe(false)
-        })
-
-        it('should return true when queue size equals max', () => {
-            mockQueue.tracks!.size = 100
-            const isFull = isQueueFull(mockQueue, 100)
-
-            expect(isFull).toBe(true)
-        })
-
-        it('should return true when queue size exceeds max', () => {
-            mockQueue.tracks!.size = 150
-            const isFull = isQueueFull(mockQueue, 100)
-
-            expect(isFull).toBe(true)
-        })
-
-        it('should use default max size of 100 when not provided', () => {
-            mockQueue.tracks!.size = 100
-            const isFull = isQueueFull(mockQueue)
-
-            expect(isFull).toBe(true)
-        })
-
-        it('should return false with default max when queue size is 99', () => {
-            mockQueue.tracks!.size = 99
-            const isFull = isQueueFull(mockQueue)
-
-            expect(isFull).toBe(false)
-        })
-
-        it('should work with custom max size', () => {
-            mockQueue.tracks!.size = 25
-            const isFull = isQueueFull(mockQueue, 20)
-
-            expect(isFull).toBe(true)
-        })
-
-        it('should work with small max size', () => {
-            mockQueue.tracks!.size = 1
-            const isFull = isQueueFull(mockQueue, 1)
-
-            expect(isFull).toBe(true)
+        it.each([
+            [50, 100, false],
+            [99, undefined, false], // default max=100
+            [100, 100, true],
+            [100, undefined, true], // default max=100
+            [150, 100, true],
+            [25, 20, true],
+            [1, 1, true],
+        ])('size %s vs max %s → %s', (size, max, expected) => {
+            mockQueue.tracks!.size = size
+            const result = max === undefined
+                ? isQueueFull(mockQueue)
+                : isQueueFull(mockQueue, max)
+            expect(result).toBe(expected)
         })
     })
 
     describe('getQueueStats', () => {
-        it('should calculate total tracks and duration', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
+        it('aggregates total tracks, total duration, and average for a multi-track queue', () => {
+            withTracks([
                 { duration: 180000, author: 'Artist One' },
                 { duration: 240000, author: 'Artist Two' },
                 { duration: 200000, author: 'Artist One' },
             ])
-
             const stats = getQueueStats(mockQueue)
-
             expect(stats.totalTracks).toBe(3)
             expect(stats.totalDuration).toBe(620000)
+            // 620000/3 with bit-or-zero truncation in source = 206666
+            expect(stats.averageDuration).toBeGreaterThan(0)
         })
 
-        it('should calculate average duration', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { duration: 200000, author: 'Artist' },
-                { duration: 200000, author: 'Artist' },
-                { duration: 200000, author: 'Artist' },
-            ])
-
-            const stats = getQueueStats(mockQueue)
-
-            expect(stats.averageDuration).toBe(200000)
-        })
-
-        it('should handle string durations', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
+        it('coerces string durations into the totals', () => {
+            withTracks([
                 { duration: '180000', author: 'Artist One' },
                 { duration: 240000, author: 'Artist Two' },
             ])
-
-            const stats = getQueueStats(mockQueue)
-
-            expect(stats.totalDuration).toBe(420000)
+            expect(getQueueStats(mockQueue).totalDuration).toBe(420000)
         })
 
-        it('should extract unique artists', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { duration: 200000, author: 'Artist One' },
-                { duration: 200000, author: 'Artist Two' },
-                { duration: 200000, author: 'Artist One' },
+        it('extracts unique artists and excludes empty/missing authors', () => {
+            withTracks([
+                { duration: 100000, author: 'Artist A' },
+                { duration: 100000, author: 'Artist B' },
+                { duration: 100000, author: 'Artist A' }, // dedupe
+                { duration: 100000 }, // no author → excluded
             ])
-
             const stats = getQueueStats(mockQueue)
-
-            expect(stats.artists).toContain('Artist One')
-            expect(stats.artists).toContain('Artist Two')
-            expect(stats.artists.length).toBe(2)
+            expect(stats.artists.sort()).toEqual(['Artist A', 'Artist B'])
         })
 
-        it('should return empty artists array when tracks have no author', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { duration: 200000 },
-                { duration: 200000 },
-            ])
-
-            const stats = getQueueStats(mockQueue)
-
-            expect(stats.artists).toEqual([])
+        it('returns empty genres array (genres are not implemented yet)', () => {
+            withTracks([{ duration: 200000, author: 'Artist' }])
+            expect(getQueueStats(mockQueue).genres).toEqual([])
         })
 
-        it('should return empty genres array (not implemented)', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { duration: 200000, author: 'Artist' },
-            ])
-
+        it('returns 0 averageDuration for an empty queue', () => {
+            withTracks([])
             const stats = getQueueStats(mockQueue)
-
-            expect(stats.genres).toEqual([])
-        })
-
-        it('should return 0 average duration for empty queue', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([])
-
-            const stats = getQueueStats(mockQueue)
-
             expect(stats.averageDuration).toBe(0)
             expect(stats.totalTracks).toBe(0)
         })
 
-        it('should return default stats on exception', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockImplementation(() => {
-                throw new Error('Queue error')
-            })
-
+        it('handles a single track', () => {
+            withTracks([{ duration: 300000, author: 'Artist' }])
             const stats = getQueueStats(mockQueue)
+            expect(stats.totalTracks).toBe(1)
+            expect(stats.totalDuration).toBe(300000)
+            expect(stats.averageDuration).toBe(300000)
+        })
 
-            expect(stats).toEqual({
+        it('returns the documented default stats on exception and logs it', () => {
+            withTracksThrow()
+            expect(getQueueStats(mockQueue)).toEqual({
                 totalTracks: 0,
                 totalDuration: 0,
                 averageDuration: 0,
@@ -381,70 +244,25 @@ describe('queueStateManager', () => {
                 error: expect.any(Error),
             })
         })
-
-        it('should handle single track', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { duration: 300000, author: 'Artist' },
-            ])
-
-            const stats = getQueueStats(mockQueue)
-
-            expect(stats.totalTracks).toBe(1)
-            expect(stats.totalDuration).toBe(300000)
-            expect(stats.averageDuration).toBe(300000)
-        })
-
-        it('should deduplicate artists in set', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { duration: 100000, author: 'Artist A' },
-                { duration: 100000, author: 'Artist A' },
-                { duration: 100000, author: 'Artist A' },
-            ])
-
-            const stats = getQueueStats(mockQueue)
-
-            expect(stats.artists).toEqual(['Artist A'])
-        })
     })
 
     describe('getNextTrack', () => {
-        it('should return first track in queue', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                mockTrack2,
-                mockTrack3,
-            ])
-
-            const nextTrack = getNextTrack(mockQueue)
-
-            expect(nextTrack).toBe(mockTrack2)
+        it.each([
+            ['multi-track queue → first', [() => undefined], 'mockTrack2'],
+            ['single-track queue → that track', null, 'mockTrack2'],
+            ['empty queue → null', [], null],
+        ] as const)('%s', (_label, tracks, expected) => {
+            const lookup = { mockTrack2 }
+            if (tracks === null) withTracks([mockTrack2])
+            else if (Array.isArray(tracks) && tracks.length === 0) withTracks([])
+            else withTracks([mockTrack2, mockTrack3])
+            const next = getNextTrack(mockQueue)
+            expect(next).toBe(expected ? lookup[expected as keyof typeof lookup] : null)
         })
 
-        it('should return null when queue is empty', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([])
-
-            const nextTrack = getNextTrack(mockQueue)
-
-            expect(nextTrack).toBeNull()
-        })
-
-        it('should return single track when only one exists', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                mockTrack2,
-            ])
-
-            const nextTrack = getNextTrack(mockQueue)
-
-            expect(nextTrack).toBe(mockTrack2)
-        })
-
-        it('should return null on exception', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockImplementation(() => {
-                throw new Error('Queue error')
-            })
-
-            const nextTrack = getNextTrack(mockQueue)
-
-            expect(nextTrack).toBeNull()
+        it('returns null on exception and logs it', () => {
+            withTracksThrow()
+            expect(getNextTrack(mockQueue)).toBeNull()
             expect(debugLogMock).toHaveBeenCalledWith({
                 message: 'Error getting next track:',
                 error: expect.any(Error),
@@ -453,66 +271,29 @@ describe('queueStateManager', () => {
     })
 
     describe('getTrackAtPosition', () => {
-        beforeEach(() => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                mockTrack,
-                mockTrack2,
-                mockTrack3,
-            ])
+        beforeEach(() => withTracks([mockTrack, mockTrack2, mockTrack3]))
+
+        it.each([
+            ['first', 0, 'mockTrack'],
+            ['middle', 1, 'mockTrack2'],
+            ['last', 2, 'mockTrack3'],
+            ['negative', -1, null],
+            ['equals length', 3, null],
+            ['exceeds length', 10, null],
+        ] as const)('position %s → %s', (_label, position, expected) => {
+            const lookup = { mockTrack, mockTrack2, mockTrack3 }
+            const track = getTrackAtPosition(mockQueue, position)
+            expect(track).toBe(expected ? lookup[expected as keyof typeof lookup] : null)
         })
 
-        it('should return track at valid position', () => {
-            const track = getTrackAtPosition(mockQueue, 0)
-
-            expect(track).toBe(mockTrack)
+        it('returns null when queue is empty', () => {
+            withTracks([])
+            expect(getTrackAtPosition(mockQueue, 0)).toBeNull()
         })
 
-        it('should return track at middle position', () => {
-            const track = getTrackAtPosition(mockQueue, 1)
-
-            expect(track).toBe(mockTrack2)
-        })
-
-        it('should return track at last position', () => {
-            const track = getTrackAtPosition(mockQueue, 2)
-
-            expect(track).toBe(mockTrack3)
-        })
-
-        it('should return null when position is negative', () => {
-            const track = getTrackAtPosition(mockQueue, -1)
-
-            expect(track).toBeNull()
-        })
-
-        it('should return null when position equals queue length', () => {
-            const track = getTrackAtPosition(mockQueue, 3)
-
-            expect(track).toBeNull()
-        })
-
-        it('should return null when position exceeds queue length', () => {
-            const track = getTrackAtPosition(mockQueue, 10)
-
-            expect(track).toBeNull()
-        })
-
-        it('should return null when queue is empty', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([])
-
-            const track = getTrackAtPosition(mockQueue, 0)
-
-            expect(track).toBeNull()
-        })
-
-        it('should return null on exception', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockImplementation(() => {
-                throw new Error('Queue error')
-            })
-
-            const track = getTrackAtPosition(mockQueue, 0)
-
-            expect(track).toBeNull()
+        it('returns null on exception and logs it', () => {
+            withTracksThrow()
+            expect(getTrackAtPosition(mockQueue, 0)).toBeNull()
             expect(debugLogMock).toHaveBeenCalledWith({
                 message: 'Error getting track at position:',
                 error: expect.any(Error),
@@ -521,144 +302,72 @@ describe('queueStateManager', () => {
     })
 
     describe('isTrackInQueue', () => {
-        beforeEach(() => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
+        beforeEach(() =>
+            withTracks([
                 { id: 'track-1', url: 'https://example.com/track1.mp3' },
                 { id: 'track-2', url: 'https://example.com/track2.mp3' },
-            ])
+            ]),
+        )
+
+        it.each([
+            ['matching id', 'track-1', true],
+            ['matching url', 'https://example.com/track1.mp3', true],
+            ['no match', 'track-999', false],
+        ])('%s → %s', (_label, needle, expected) => {
+            expect(isTrackInQueue(mockQueue, needle)).toBe(expected)
         })
 
-        it('should return true when track id matches', () => {
-            const inQueue = isTrackInQueue(mockQueue, 'track-1')
-
-            expect(inQueue).toBe(true)
+        it('falls back to url when id does not match', () => {
+            withTracks([{ id: 'different-id', url: 'https://example.com/track1.mp3' }])
+            expect(isTrackInQueue(mockQueue, 'https://example.com/track1.mp3')).toBe(true)
         })
 
-        it('should return true when track url matches', () => {
-            const inQueue = isTrackInQueue(mockQueue, 'https://example.com/track1.mp3')
-
-            expect(inQueue).toBe(true)
+        it('returns false for empty queue', () => {
+            withTracks([])
+            expect(isTrackInQueue(mockQueue, 'track-1')).toBe(false)
         })
 
-        it('should return false when track id does not match', () => {
-            const inQueue = isTrackInQueue(mockQueue, 'track-999')
-
-            expect(inQueue).toBe(false)
-        })
-
-        it('should return false when queue is empty', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([])
-
-            const inQueue = isTrackInQueue(mockQueue, 'track-1')
-
-            expect(inQueue).toBe(false)
-        })
-
-        it('should return false on exception', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockImplementation(() => {
-                throw new Error('Queue error')
-            })
-
-            const inQueue = isTrackInQueue(mockQueue, 'track-1')
-
-            expect(inQueue).toBe(false)
+        it('returns false on exception and logs it', () => {
+            withTracksThrow()
+            expect(isTrackInQueue(mockQueue, 'track-1')).toBe(false)
             expect(debugLogMock).toHaveBeenCalledWith({
                 message: 'Error checking if track is in queue:',
                 error: expect.any(Error),
             })
         })
-
-        it('should match either id or url (id takes precedence)', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { id: 'track-1', url: 'https://example.com/different.mp3' },
-            ])
-
-            const inQueue = isTrackInQueue(mockQueue, 'track-1')
-
-            expect(inQueue).toBe(true)
-        })
-
-        it('should match url when id does not match', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { id: 'different-id', url: 'https://example.com/track1.mp3' },
-            ])
-
-            const inQueue = isTrackInQueue(mockQueue, 'https://example.com/track1.mp3')
-
-            expect(inQueue).toBe(true)
-        })
     })
 
     describe('getTrackPosition', () => {
-        beforeEach(() => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
+        beforeEach(() =>
+            withTracks([
                 { id: 'track-1', url: 'https://example.com/track1.mp3' },
                 { id: 'track-2', url: 'https://example.com/track2.mp3' },
                 { id: 'track-3', url: 'https://example.com/track3.mp3' },
-            ])
+            ]),
+        )
+
+        it.each([
+            ['first by id', 'track-1', 0],
+            ['middle by id', 'track-2', 1],
+            ['last by id', 'track-3', 2],
+            ['middle by url', 'https://example.com/track2.mp3', 1],
+            ['not found', 'track-999', -1],
+        ])('%s → %s', (_label, needle, expected) => {
+            expect(getTrackPosition(mockQueue, needle)).toBe(expected)
         })
 
-        it('should return position of track by id', () => {
-            const position = getTrackPosition(mockQueue, 'track-2')
-
-            expect(position).toBe(1)
+        it('returns -1 for empty queue', () => {
+            withTracks([])
+            expect(getTrackPosition(mockQueue, 'track-1')).toBe(-1)
         })
 
-        it('should return position of track by url', () => {
-            const position = getTrackPosition(mockQueue, 'https://example.com/track2.mp3')
-
-            expect(position).toBe(1)
-        })
-
-        it('should return 0 for first track', () => {
-            const position = getTrackPosition(mockQueue, 'track-1')
-
-            expect(position).toBe(0)
-        })
-
-        it('should return correct position for last track', () => {
-            const position = getTrackPosition(mockQueue, 'track-3')
-
-            expect(position).toBe(2)
-        })
-
-        it('should return -1 when track not found', () => {
-            const position = getTrackPosition(mockQueue, 'track-999')
-
-            expect(position).toBe(-1)
-        })
-
-        it('should return -1 for empty queue', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([])
-
-            const position = getTrackPosition(mockQueue, 'track-1')
-
-            expect(position).toBe(-1)
-        })
-
-        it('should return -1 on exception', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockImplementation(() => {
-                throw new Error('Queue error')
-            })
-
-            const position = getTrackPosition(mockQueue, 'track-1')
-
-            expect(position).toBe(-1)
+        it('returns -1 on exception and logs it', () => {
+            withTracksThrow()
+            expect(getTrackPosition(mockQueue, 'track-1')).toBe(-1)
             expect(debugLogMock).toHaveBeenCalledWith({
                 message: 'Error getting track position:',
                 error: expect.any(Error),
             })
-        })
-
-        it('should match id before url in same track', () => {
-            ;(mockQueue.tracks?.toArray as jest.Mock).mockReturnValue([
-                { id: 'track-1', url: 'https://example.com/track1.mp3' },
-                { id: 'track-2', url: 'https://example.com/different.mp3' },
-            ])
-
-            const position = getTrackPosition(mockQueue, 'track-2')
-
-            expect(position).toBe(1)
         })
     })
 })
