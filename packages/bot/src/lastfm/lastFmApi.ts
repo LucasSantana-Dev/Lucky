@@ -147,7 +147,12 @@ export async function getTrackMetadata(
 ): Promise<LastFmTrackMetadata | null> {
     const config = getApiConfig()
     if (!config) return null
-    const key = `${artist.toLowerCase()}::${title.toLowerCase()}`
+    // Bail before allocating cache / in-flight slots so blank inputs don't
+    // pollute the maps or burn a Last.fm request.
+    const trimmedArtist = artist?.trim()
+    const trimmedTitle = title?.trim()
+    if (!trimmedArtist || !trimmedTitle) return null
+    const key = `${trimmedArtist.toLowerCase()}::${trimmedTitle.toLowerCase()}`
     const cached = TRACK_METADATA_CACHE.get(key)
     const now = Date.now()
     if (cached && cached.expiresAt > now) return cached.meta
@@ -159,11 +164,11 @@ export async function getTrackMetadata(
     // Last.fm's track.getInfo does not handle collaboration strings —
     // "Drake feat. Rihanna" returns error 6 (Track not found). Use the
     // primary artist so multi-artist inputs still resolve metadata + art.
-    const lookupArtist = parseArtists(artist).primary
+    const lookupArtist = parseArtists(trimmedArtist).primary
     const promise = (async () => {
         try {
             const response = await fetch(
-                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(lookupArtist)}&track=${encodeURIComponent(title)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(lookupArtist)}&track=${encodeURIComponent(trimmedTitle)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
             )
             if (!response.ok) {
                 debugLog({ message: 'lastFmApi: getTrackMetadata HTTP error', data: { status: response.status, statusText: response.statusText } })
@@ -202,7 +207,10 @@ export async function getTrackMetadata(
             TRACK_METADATA_CACHE.set(key, { meta, expiresAt: now + TRACK_METADATA_TTL_MS })
             return meta
         } catch (err) {
-            logAndSwallow(err, 'lastfm.getTrackMetadata', { artist, title })
+            logAndSwallow(err, 'lastfm.getTrackMetadata', {
+                artist: trimmedArtist,
+                title: trimmedTitle,
+            })
             return null
         }
     })()
@@ -213,6 +221,16 @@ export async function getTrackMetadata(
     } finally {
         TRACK_METADATA_IN_FLIGHT.delete(key)
     }
+}
+
+/**
+ * Test-only: reset the module-level metadata caches so each test starts with
+ * a clean slate. The maps are intentionally module-private at runtime; this
+ * helper exists purely to keep `lastFmApi.spec.ts` test cases isolated.
+ */
+export function __resetMetadataCacheForTests(): void {
+    TRACK_METADATA_CACHE.clear()
+    TRACK_METADATA_IN_FLIGHT.clear()
 }
 
 export type LastFmTopTrack = {
@@ -270,8 +288,11 @@ export async function updateNowPlaying(
     if (!sessionKey || !getApiConfig()) return
     if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
-        artist: parseArtists(artist).primary,
-        track: normalizeLastFmTitle(track),
+        // Prefer Last.fm's canonical (autocorrected) artist/title when a
+        // resolved metadata payload is supplied; only fall back to local
+        // parsing when the caller had no metadata to thread through.
+        artist: metadata?.artist?.trim() || parseArtists(artist).primary,
+        track: metadata?.title?.trim() || normalizeLastFmTitle(track),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
@@ -293,8 +314,11 @@ export async function scrobble(
     if (!sessionKey || !getApiConfig()) return
     if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
-        artist: parseArtists(artist).primary,
-        track: normalizeLastFmTitle(track),
+        // Prefer Last.fm's canonical (autocorrected) artist/title when a
+        // resolved metadata payload is supplied; only fall back to local
+        // parsing when the caller had no metadata to thread through.
+        artist: metadata?.artist?.trim() || parseArtists(artist).primary,
+        track: metadata?.title?.trim() || normalizeLastFmTitle(track),
         timestamp: String(Math.floor(timestamp)),
     }
     if (durationSec != null && durationSec > 0) {

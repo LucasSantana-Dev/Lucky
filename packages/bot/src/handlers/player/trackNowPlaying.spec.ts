@@ -505,7 +505,16 @@ describe('trackNowPlaying handlers', () => {
         })
 
         it('forwards metadata to lastFmUpdateNowPlaying when available', async () => {
-            const testMetadata = { mbid: 'test-mbid', listeners: 1000 }
+            // Match the real LastFmTrackMetadata shape so the spec catches
+            // regressions if the type tightens or new required fields are added.
+            const testMetadata = {
+                artist: 'Test Artist',
+                title: 'Test Song',
+                album: 'Test Album',
+                albumArtist: 'Test Artist',
+                mbid: 'test-mbid',
+                duration: 225000,
+            }
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
             getTrackMetadataMock.mockResolvedValue(testMetadata)
@@ -678,7 +687,16 @@ describe('trackNowPlaying handlers', () => {
         })
 
         it('forwards metadata to lastFmScrobble when available', async () => {
-            const testMetadata = { mbid: 'test-mbid', listeners: 1000 }
+            // Match the real LastFmTrackMetadata shape so the spec catches
+            // regressions if the type tightens or new required fields are added.
+            const testMetadata = {
+                artist: 'Test Artist',
+                title: 'Test Song',
+                album: 'Test Album',
+                albumArtist: 'Test Artist',
+                mbid: 'test-mbid',
+                duration: 225000,
+            }
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
             getTrackMetadataMock.mockResolvedValue(testMetadata)

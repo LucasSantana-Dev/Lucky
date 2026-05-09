@@ -21,6 +21,7 @@ import {
     getArtistTopTags,
     parseArtists,
     getTrackMetadata,
+    __resetMetadataCacheForTests,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -925,10 +926,24 @@ describe('lastFmApi', () => {
         beforeEach(() => {
             process.env.LASTFM_API_KEY = 'test-key'
             process.env.LASTFM_API_SECRET = 'test-secret'
+            // Module-level caches persist across tests; reset so each case
+            // starts clean and ordering can't silently leak fixtures.
+            __resetMetadataCacheForTests()
         })
 
         afterEach(() => {
             jest.useRealTimers()
+        })
+
+        it.each([
+            ['blank artist', '', 'Track'],
+            ['blank title', 'Artist', ''],
+            ['whitespace artist', '   ', 'Track'],
+            ['whitespace title', 'Artist', '   '],
+        ])('returns null without fetching on %s', async (_label, artist, title) => {
+            const result = await getTrackMetadata(artist, title)
+            expect(result).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
         })
 
         it('returns canonical metadata on successful fetch', async () => {
