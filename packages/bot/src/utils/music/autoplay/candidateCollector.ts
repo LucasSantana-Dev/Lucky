@@ -14,6 +14,7 @@ import {
 import { isDuplicateCandidate } from './diversitySelector'
 import { createArtistTagFetcher, hasGenreTag, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 export type { ScoredTrack }
 
 export const SERTANEJO_TAGS = [
@@ -51,6 +52,7 @@ export function upsertScoredCandidate(
     candidates: Map<string, ScoredTrack>,
     candidate: Track,
     recommendation: { score: number; reason: string },
+    auditCollector?: AutoplayAuditCollector,
 ): void {
     if (!Number.isFinite(recommendation.score)) {
         debugLog({
@@ -62,6 +64,12 @@ export function upsertScoredCandidate(
                 reason: recommendation.reason,
             },
         })
+        auditCollector?.recordEvaluated(
+            candidate,
+            recommendation.score,
+            recommendation.reason,
+            'rejected',
+        )
         return
     }
 
@@ -76,6 +84,12 @@ export function upsertScoredCandidate(
             score: recommendation.score,
             reason: recommendation.reason,
         })
+        auditCollector?.recordEvaluated(
+            candidate,
+            recommendation.score,
+            recommendation.reason,
+            'accepted',
+        )
     }
 }
 
@@ -142,14 +156,14 @@ export async function collectRecommendationCandidates(
         { getArtistTags, currentTrackTags, sessionGenreFamilies },
     )
 
-    // Collect from seed track searches (YouTube, Spotify similar)
+    // Collect from seed track searches (Spotify only — no YouTube fallback to
+    // avoid language-drift where genre terms like "worship" cause YouTube's
+    // algorithm to surface Spanish gospel on non-Spanish sessions)
     for (const seed of seedTracks) {
         const seedCandidates = await searchSeedCandidates(
             queue,
             seed,
             requestedBy,
-            replenishCount,
-            sessionMood,
         )
         for (const candidate of seedCandidates) {
             if (

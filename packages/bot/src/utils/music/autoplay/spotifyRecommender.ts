@@ -4,7 +4,7 @@ import {
     type GuildQueue,
 } from 'discord-player'
 import type { User } from 'discord.js'
-import { debugLog, warnLog } from '@lucky/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 import { logAndSwallow } from '@lucky/shared/utils/error'
 import { spotifyLinkService } from '@lucky/shared/services'
 import {
@@ -30,19 +30,11 @@ import {
 } from '../queueManipulation'
 import { calculateRecommendationScore } from './candidateScorer'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
-import type { ScoredTrack } from './diversitySelector';
+import type { ScoredTrack } from './diversitySelector'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 
 const MAX_AUTOPLAY_DURATION_MS = 7 * 60 * 1000
 const SEARCH_RESULTS_LIMIT = 8
-const BASE_QUERY_MODIFIERS = ['', 'similar', 'like', 'playlist', 'mix']
-const FULL_QUERY_MODIFIERS = [
-    ...BASE_QUERY_MODIFIERS,
-    'acoustic',
-    'live',
-    'electric',
-    'band version',
-    'session',
-]
 
 export async function collectSpotifyRecommendationCandidates(
     queue: GuildQueue,
@@ -68,6 +60,7 @@ export async function collectSpotifyRecommendationCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
     const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -189,10 +182,7 @@ export async function collectSpotifyRecommendationCandidates(
             }
         }
 
-        upsertScoredCandidate(candidates, track, {
-            score,
-            reason,
-        })
+        upsertScoredCandidate(candidates, track, { score, reason }, auditCollector)
     }
 }
 
@@ -200,15 +190,8 @@ export async function searchSeedCandidates(
     queue: GuildQueue,
     seed: Track,
     requestedBy: User | null,
-    replenishCount = 0,
-    sessionMood?: import('./sessionMood').SessionMood | null,
 ): Promise<Track[]> {
-    const modifiers = sessionMood?.restless
-        ? BASE_QUERY_MODIFIERS
-        : FULL_QUERY_MODIFIERS
     const baseQuery = cleanSearchQuery(seed.title, seed.author)
-    const modifier = modifiers[replenishCount % modifiers.length]
-    const query = modifier ? `${baseQuery} ${modifier}` : baseQuery
 
     const cleanedTitle = cleanTitle(seed.title)
     const cleanedAuthor = cleanAuthor(seed.author)
@@ -236,58 +219,35 @@ export async function searchSeedCandidates(
     }
     const spotifyQuery = spotifyBase
 
-    const engines: QueryType[] = [
-        QueryType.SPOTIFY_SEARCH,
-        QueryType.YOUTUBE_SEARCH,
-        QueryType.AUTO,
-    ]
+    try {
+        const searchResult = await queue.player.search(spotifyQuery, {
+            requestedBy: requestedBy ?? undefined,
+            searchEngine: QueryType.SPOTIFY_SEARCH,
+        })
 
-    for (const [idx, engine] of engines.entries()) {
-        const engineQuery =
-            engine === QueryType.SPOTIFY_SEARCH ? spotifyQuery : query
-        try {
-            const searchResult = await queue.player.search(engineQuery, {
-                requestedBy: requestedBy ?? undefined,
-                searchEngine: engine,
-            })
+        const tracks = searchResult.tracks
+            .filter(
+                (t) =>
+                    !t.durationMS ||
+                    t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+            )
+            .slice(0, SEARCH_RESULTS_LIMIT)
 
-            const tracks = searchResult.tracks
-                .filter(
-                    (t) =>
-                        !t.durationMS ||
-                        t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
-                )
-                .slice(0, SEARCH_RESULTS_LIMIT)
-
-            if (tracks.length > 0) {
-                if (idx > 0) {
-                    warnLog({
-                        message:
-                            'Autoplay: Spotify returned 0 results, using fallback',
-                        data: {
-                            fallbackEngine: engine,
-                            spotifyQuery,
-                            fallbackQuery: engineQuery,
-                        },
-                    })
-                }
-                return tracks
-            }
-            if (engine === QueryType.SPOTIFY_SEARCH) {
-                debugLog({
-                    message: 'Autoplay: Spotify search returned 0 results',
-                    data: { spotifyQuery },
-                })
-            }
-        } catch (error) {
+        if (tracks.length === 0) {
             debugLog({
-                message: 'Search failed for seed, trying next engine',
-                data: { query: engineQuery, engine, error: String(error) },
+                message: 'Autoplay: seed search returned 0 results',
+                data: { spotifyQuery },
             })
         }
-    }
 
-    return []
+        return tracks
+    } catch (error) {
+        debugLog({
+            message: 'Autoplay: seed search failed',
+            data: { spotifyQuery, error: String(error) },
+        })
+        return []
+    }
 }
 
 function extractTitleArtistFromSong(
