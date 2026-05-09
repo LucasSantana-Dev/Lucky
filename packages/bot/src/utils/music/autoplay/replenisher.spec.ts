@@ -325,7 +325,9 @@ describe('replenishQueue', () => {
     })
 
     it('passes Spotify genre fallback to createArtistTagFetcher when token is available', async () => {
-        const queue = createGuildQueue()
+        const queue = createGuildQueue({
+            currentTrack: createTrack({ requestedBy: { id: 'user-123' } as import('discord.js').User }),
+        })
         const { spotifyLinkService } = require('@lucky/shared/services')
         spotifyLinkService.getValidAccessToken.mockResolvedValue('test-token')
 
