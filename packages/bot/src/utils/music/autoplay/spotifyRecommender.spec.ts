@@ -399,91 +399,55 @@ describe('spotifyRecommender', () => {
     })
 
     describe('searchSeedCandidates', () => {
-        it('returns empty array on failure', async () => {
+        it('returns empty array on search failure', async () => {
             const queueMock = createMockQueue()
             ;(queueMock.player.search as jest.Mock).mockRejectedValue(
                 new Error('Search failed'),
             )
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
             expect(result).toEqual([])
         })
 
-        it('returns tracks from first successful engine', async () => {
+        it('returns empty array when Spotify returns 0 results — no YouTube fallback', async () => {
             const queueMock = createMockQueue()
-            const tracks = [createTrack({ title: 'Result 1' })]
             ;(queueMock.player.search as jest.Mock).mockResolvedValue({
-                tracks,
+                tracks: [],
             })
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
-            expect(result).toEqual(tracks)
+            expect(result).toEqual([])
+            expect(queueMock.player.search).toHaveBeenCalledTimes(1)
             expect(queueMock.player.search).toHaveBeenCalledWith(
                 expect.any(String),
-                {
-                    requestedBy: user,
-                    searchEngine: QueryType.SPOTIFY_SEARCH,
-                },
+                { requestedBy: expect.anything(), searchEngine: QueryType.SPOTIFY_SEARCH },
             )
         })
 
-        it('tries fallback engines on failure', async () => {
+        it('uses only Spotify search engine', async () => {
             const queueMock = createMockQueue()
-            ;(queueMock.player.search as jest.Mock)
-                .mockResolvedValueOnce({ tracks: [] })
-                .mockResolvedValueOnce({
-                    tracks: [createTrack({ title: 'YouTube result' })],
-                })
+            const tracks = [createTrack({ title: 'Result 1' })]
+            ;(queueMock.player.search as jest.Mock).mockResolvedValue({ tracks })
 
             const user = { id: 'user123' } as any
+            const result = await searchSeedCandidates(queueMock, createTrack(), user)
 
-            const result = await searchSeedCandidates(
-                queueMock,
-                createTrack(),
-                user,
-                0,
+            expect(result).toEqual(tracks)
+            expect(queueMock.player.search).toHaveBeenCalledTimes(1)
+            expect(queueMock.player.search).toHaveBeenCalledWith(
+                expect.any(String),
+                { requestedBy: user, searchEngine: QueryType.SPOTIFY_SEARCH },
             )
-
-            expect(result.length).toBeGreaterThan(0)
-            expect(queueMock.player.search).toHaveBeenCalledTimes(2)
-        })
-
-        it('applies query modifiers based on replenishCount for non-Spotify', async () => {
-            const queueMock = createMockQueue()
-            ;(queueMock.player.search as jest.Mock)
-                .mockResolvedValueOnce({ tracks: [] })
-                .mockResolvedValueOnce({
-                    tracks: [createTrack()],
-                })
-
-            const user = { id: 'user123' } as any
-
-            await searchSeedCandidates(
-                queueMock,
-                createTrack({ title: 'Test', author: 'Artist' }),
-                user,
-                1,
-            )
-
-            const youtubeCall = (queueMock.player.search as jest.Mock).mock
-                .calls[1][0]
-            expect(youtubeCall).toContain('similar')
         })
 
         it('filters tracks exceeding max duration', async () => {
@@ -496,13 +460,10 @@ describe('spotifyRecommender', () => {
                 ],
             })
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
             expect(result.length).toBeLessThanOrEqual(2)
@@ -522,41 +483,13 @@ describe('spotifyRecommender', () => {
                 tracks: manyTracks,
             })
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
             expect(result.length).toBeLessThanOrEqual(8)
-        })
-
-        it('uses different search query for non-Spotify engines', async () => {
-            const queueMock = createMockQueue()
-            ;(queueMock.player.search as jest.Mock)
-                .mockResolvedValueOnce({ tracks: [] })
-                .mockResolvedValueOnce({
-                    tracks: [createTrack({ source: 'youtube' })],
-                })
-
-            const user = { id: 'user123' } as any
-
-            await searchSeedCandidates(
-                queueMock,
-                createTrack(),
-                user,
-                0,
-            )
-
-            const calls = (queueMock.player.search as jest.Mock).mock.calls
-            const spotifyCall = calls[0][0]
-            const youtubeCall = calls[1][0]
-
-            expect(typeof spotifyCall).toBe('string')
-            expect(typeof youtubeCall).toBe('string')
         })
     })
 })
