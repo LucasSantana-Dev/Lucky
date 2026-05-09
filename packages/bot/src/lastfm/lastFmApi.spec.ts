@@ -154,6 +154,32 @@ describe('lastFmApi', () => {
         expect(request.body).not.toContain('mbid=')
     })
 
+    describe('blank-input guard', () => {
+        it('returns early without calling API when artist is empty string', async () => {
+            await updateNowPlaying('', 'Track Name', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when track is empty string', async () => {
+            await updateNowPlaying('Artist Name', '', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when artist is whitespace-only', async () => {
+            await updateNowPlaying('   ', 'Track Name', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when track is whitespace-only', async () => {
+            await updateNowPlaying('Artist Name', '   ', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+    })
+
     describe('normalizeLastFmArtist', () => {
         it('strips " - Topic" suffix', () => {
             expect(normalizeLastFmArtist('Doja Cat - Topic')).toBe('Doja Cat')

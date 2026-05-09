@@ -65,10 +65,11 @@ export class AutoplayAuditCollector {
         sourceCounts: Record<string, number>,
         durationMs: number,
     ): void {
+        const now = Date.now()
         const record: AutoplayAuditRecord = {
-            cycleId: `${guildId}-${Date.now()}`,
+            cycleId: `${guildId}-${now}`,
             guildId,
-            timestamp: Date.now(),
+            timestamp: now,
             seed,
             sessionMoodSummary: sessionMood?.dominantLocale ?? null,
             evaluated: this.evaluated,
