@@ -21,14 +21,15 @@ async function sleep(ms: number): Promise<void> {
 }
 
 async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let attempt = 0
+    while (true) {
         try {
             return await fn()
         } catch (error) {
             const isResponse = error instanceof Response
             const status = isResponse ? error.status : null
 
-            if (status === 429) {
+            if (status === 429 && attempt < maxRetries) {
                 const retryAfterHeader = isResponse
                     ? error.headers.get('Retry-After')
                     : null
@@ -36,29 +37,25 @@ async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promis
                     ? parseInt(retryAfterHeader, 10)
                     : 1
                 const delayMs = retryAfterSeconds * 1000
+                debugLog({
+                    message: 'Spotify 429 rate limit, retrying',
+                    data: {
+                        attempt,
+                        maxRetries,
+                        delayMs,
+                        retryAfter: retryAfterSeconds,
+                    },
+                })
+                await sleep(delayMs)
+                attempt++
+                continue
+            }
 
-                if (attempt < maxRetries) {
-                    debugLog({
-                        message: 'Spotify 429 rate limit, retrying',
-                        data: {
-                            attempt,
-                            maxRetries,
-                            delayMs,
-                            retryAfter: retryAfterSeconds,
-                        },
-                    })
-                    await sleep(delayMs)
-                    continue
-                } else {
-                    warnLog({
-                        message: 'Spotify 429 retry exhausted',
-                        data: {
-                            attempt,
-                            maxRetries,
-                        },
-                    })
-                    throw error
-                }
+            if (status === 429) {
+                warnLog({
+                    message: 'Spotify 429 retry exhausted',
+                    data: { attempt, maxRetries },
+                })
             }
 
             throw error
