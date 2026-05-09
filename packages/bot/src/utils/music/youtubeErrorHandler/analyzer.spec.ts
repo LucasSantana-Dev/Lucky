@@ -1,6 +1,23 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import type { YouTubeErrorInfo, YouTubeErrorContext, YouTubeErrorResponse } from './types'
+import type { YouTubeErrorInfo, YouTubeErrorContext } from './types'
 import { YouTubeErrorAnalyzer } from './analyzer'
+
+// Build a fresh YouTubeErrorInfo with all flags false except the requested one.
+// Used by the getErrorResponse describes so each scenario is one bool flip
+// rather than a full literal repeat.
+function infoWith(overrides: Partial<YouTubeErrorInfo> = {}): YouTubeErrorInfo {
+    return {
+        isParserError: false,
+        isCompositeVideoError: false,
+        isHypePointsError: false,
+        isTypeMismatchError: false,
+        isGridShelfViewError: false,
+        isSectionHeaderViewError: false,
+        shouldRetry: false,
+        retryWithFallback: false,
+        ...overrides,
+    }
+}
 
 describe('YouTubeErrorAnalyzer', () => {
     let analyzer: YouTubeErrorAnalyzer
@@ -18,705 +35,273 @@ describe('YouTubeErrorAnalyzer', () => {
     })
 
     describe('analyzeError', () => {
-        describe('parser error detection', () => {
-            it('should detect parser error with innertubeerror message', () => {
-                const error = new Error('InnerTubeError: Invalid request')
-                const result = analyzer.analyzeError(error)
+        // Each row covers one error category × one positive-match input (case
+        // sensitivity is exercised by the case-insensitive row per category).
+        // Negative matches are covered once at the bottom (one shared "Some
+        // other error" check) — six identical "does not detect X" cases were
+        // collapsed into one.
+        it.each([
+            ['parser', 'InnerTubeError: Invalid request', 'isParserError'],
+            ['parser', 'ParsingError: Failed to parse response', 'isParserError'],
+            ['parser (case-insensitive)', 'INNERTUBEERROR: test', 'isParserError'],
+            ['composite video', 'CompositeVideoError: Video format not supported', 'isCompositeVideoError'],
+            ['composite video (case-insensitive)', 'compositevideoERROR: test', 'isCompositeVideoError'],
+            ['hype points', 'HypePoints: Unable to process hype points', 'isHypePointsError'],
+            ['hype points (case-insensitive)', 'HYPEPOINTS: test', 'isHypePointsError'],
+            ['type mismatch', 'TypeError: TypeMismatch in response', 'isTypeMismatchError'],
+            ['type mismatch (case-insensitive)', 'TYPEMISMATCH: test', 'isTypeMismatchError'],
+            ['grid shelf view', 'GridShelfView: Failed to render shelf', 'isGridShelfViewError'],
+            ['grid shelf view (case-insensitive)', 'GRIDSHELFVIEW: test', 'isGridShelfViewError'],
+            ['section header view', 'SectionHeaderView: Failed to render header', 'isSectionHeaderViewError'],
+            ['section header view (case-insensitive)', 'SECTIONHEADERVIEW: test', 'isSectionHeaderViewError'],
+        ] as const)('detects %s error from message %s', (_label, message, flag) => {
+            const result = analyzer.analyzeError(new Error(message))
+            expect(result[flag as keyof YouTubeErrorInfo]).toBe(true)
+        })
 
-                expect(result.isParserError).toBe(true)
-            })
+        it('detects parser error from youtubei.js stack frame even with unrelated message', () => {
+            const error = new Error('Failed to fetch')
+            error.stack = 'Error: Failed to fetch\n    at youtubei.js:123:45'
+            expect(analyzer.analyzeError(error).isParserError).toBe(true)
+        })
 
-            it('should detect parser error with parsingerror message', () => {
-                const error = new Error('ParsingError: Failed to parse response')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isParserError).toBe(true)
-            })
-
-            it('should detect parser error with youtubei.js in stack', () => {
-                const error = new Error('Failed to fetch')
-                error.stack = 'Error: Failed to fetch\n    at youtubei.js:123:45'
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isParserError).toBe(true)
-            })
-
-            it('should be case-insensitive for parser error detection', () => {
-                const error = new Error('INNERTUBEERROR: test')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isParserError).toBe(true)
-            })
-
-            it('should not detect parser error when error does not match', () => {
-                const error = new Error('Some other error')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isParserError).toBe(false)
+        it('returns all-false flags for an unrelated error message', () => {
+            const result = analyzer.analyzeError(new Error('Some other error'))
+            expect(result).toMatchObject({
+                isParserError: false,
+                isCompositeVideoError: false,
+                isHypePointsError: false,
+                isTypeMismatchError: false,
+                isGridShelfViewError: false,
+                isSectionHeaderViewError: false,
             })
         })
 
-        describe('composite video error detection', () => {
-            it('should detect composite video error', () => {
-                const error = new Error('CompositeVideoError: Video format not supported')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isCompositeVideoError).toBe(true)
-            })
-
-            it('should be case-insensitive for composite video error detection', () => {
-                const error = new Error('compositevideoERROR: test')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isCompositeVideoError).toBe(true)
-            })
-
-            it('should not detect composite video error when error does not match', () => {
-                const error = new Error('Some other error')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isCompositeVideoError).toBe(false)
-            })
+        it.each([
+            ['timeout', 'Request timeout'],
+            ['network', 'Network error occurred'],
+            ['rate limit', 'Rate limit exceeded'],
+            ['quota exceeded', 'Quota exceeded'],
+        ])('marks %s error as retryable', (_label, message) => {
+            expect(analyzer.analyzeError(new Error(message)).shouldRetry).toBe(true)
         })
 
-        describe('hype points error detection', () => {
-            it('should detect hype points error', () => {
-                const error = new Error('HypePoints: Unable to process hype points')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isHypePointsError).toBe(true)
-            })
-
-            it('should be case-insensitive for hype points error detection', () => {
-                const error = new Error('HYPEPOINTS: test')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isHypePointsError).toBe(true)
-            })
-
-            it('should not detect hype points error when error does not match', () => {
-                const error = new Error('Some other error')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isHypePointsError).toBe(false)
-            })
+        it('does not mark an unrelated error as retryable', () => {
+            expect(analyzer.analyzeError(new Error('Invalid input')).shouldRetry).toBe(false)
         })
 
-        describe('type mismatch error detection', () => {
-            it('should detect type mismatch error', () => {
-                const error = new Error('TypeError: TypeMismatch in response')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isTypeMismatchError).toBe(true)
-            })
-
-            it('should be case-insensitive for type mismatch error detection', () => {
-                const error = new Error('TYPEMISMATCH: test')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isTypeMismatchError).toBe(true)
-            })
-
-            it('should not detect type mismatch error when error does not match', () => {
-                const error = new Error('Some other error')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isTypeMismatchError).toBe(false)
-            })
+        it.each([
+            ['signature', 'Signature verification failed'],
+            ['cipher', 'Cipher decryption failed'],
+            ['decrypt', 'Decrypt operation failed'],
+        ])('marks %s error for retry-with-fallback', (_label, message) => {
+            expect(analyzer.analyzeError(new Error(message)).retryWithFallback).toBe(true)
         })
 
-        describe('grid shelf view error detection', () => {
-            it('should detect grid shelf view error', () => {
-                const error = new Error('GridShelfView: Failed to render shelf')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isGridShelfViewError).toBe(true)
-            })
-
-            it('should be case-insensitive for grid shelf view error detection', () => {
-                const error = new Error('GRIDSHELFVIEW: test')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isGridShelfViewError).toBe(true)
-            })
-
-            it('should not detect grid shelf view error when error does not match', () => {
-                const error = new Error('Some other error')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isGridShelfViewError).toBe(false)
-            })
+        it('does not mark an unrelated error for retry-with-fallback', () => {
+            expect(analyzer.analyzeError(new Error('Invalid input')).retryWithFallback).toBe(false)
         })
 
-        describe('section header view error detection', () => {
-            it('should detect section header view error', () => {
-                const error = new Error('SectionHeaderView: Failed to render header')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isSectionHeaderViewError).toBe(true)
-            })
-
-            it('should be case-insensitive for section header view error detection', () => {
-                const error = new Error('SECTIONHEADERVIEW: test')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isSectionHeaderViewError).toBe(true)
-            })
-
-            it('should not detect section header view error when error does not match', () => {
-                const error = new Error('Some other error')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isSectionHeaderViewError).toBe(false)
-            })
+        it.each([
+            ['undefined', undefined],
+            ['empty', ''],
+        ])('handles error with %s stack without throwing', (_label, stack) => {
+            const error = new Error('Test error')
+            error.stack = stack
+            const result = analyzer.analyzeError(error)
+            expect(result).toBeDefined()
+            expect(result.isParserError).toBe(false)
         })
 
-        describe('retry logic', () => {
-            it('should set shouldRetry true for timeout error', () => {
-                const error = new Error('Request timeout')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.shouldRetry).toBe(true)
-            })
-
-            it('should set shouldRetry true for network error', () => {
-                const error = new Error('Network error occurred')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.shouldRetry).toBe(true)
-            })
-
-            it('should set shouldRetry true for rate limit error', () => {
-                const error = new Error('Rate limit exceeded')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.shouldRetry).toBe(true)
-            })
-
-            it('should set shouldRetry true for quota exceeded error', () => {
-                const error = new Error('Quota exceeded')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.shouldRetry).toBe(true)
-            })
-
-            it('should set shouldRetry false for non-retryable error', () => {
-                const error = new Error('Invalid input')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.shouldRetry).toBe(false)
-            })
-        })
-
-        describe('retry with fallback logic', () => {
-            it('should set retryWithFallback true for signature error', () => {
-                const error = new Error('Signature verification failed')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.retryWithFallback).toBe(true)
-            })
-
-            it('should set retryWithFallback true for cipher error', () => {
-                const error = new Error('Cipher decryption failed')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.retryWithFallback).toBe(true)
-            })
-
-            it('should set retryWithFallback true for decrypt error', () => {
-                const error = new Error('Decrypt operation failed')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.retryWithFallback).toBe(true)
-            })
-
-            it('should set retryWithFallback false for non-fallback error', () => {
-                const error = new Error('Invalid input')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.retryWithFallback).toBe(false)
-            })
-        })
-
-        describe('error without stack trace', () => {
-            it('should handle error with undefined stack', () => {
-                const error = new Error('Test error')
-                error.stack = undefined
-                const result = analyzer.analyzeError(error)
-
-                expect(result).toBeDefined()
-                expect(result.isParserError).toBe(false)
-            })
-
-            it('should handle error with empty stack', () => {
-                const error = new Error('Test error')
-                error.stack = ''
-                const result = analyzer.analyzeError(error)
-
-                expect(result).toBeDefined()
-            })
-        })
-
-        describe('multiple error characteristics', () => {
-            it('should detect multiple error characteristics in one error', () => {
-                const error = new Error('InnerTubeError: Network timeout')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isParserError).toBe(true)
-                expect(result.shouldRetry).toBe(true)
-            })
-
-            it('should properly separate unrelated error characteristics', () => {
-                const error = new Error('CompositeVideoError: Invalid format')
-                const result = analyzer.analyzeError(error)
-
-                expect(result.isCompositeVideoError).toBe(true)
-                expect(result.isParserError).toBe(false)
-                expect(result.isHypePointsError).toBe(false)
-            })
+        it('detects multiple characteristics in one error and keeps unrelated flags false', () => {
+            const result = analyzer.analyzeError(
+                new Error('InnerTubeError: Network timeout'),
+            )
+            expect(result.isParserError).toBe(true)
+            expect(result.shouldRetry).toBe(true)
+            expect(result.isCompositeVideoError).toBe(false)
+            expect(result.isHypePointsError).toBe(false)
         })
     })
 
     describe('getErrorResponse', () => {
-        describe('parser error handling', () => {
-            it('should return parser error response for parser error', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: true,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
+        // Each row asserts the canonical response payload for a single error
+        // category. Replaces six near-identical describes that built a full
+        // YouTubeErrorInfo literal each time.
+        it.each([
+            [
+                'parser',
+                infoWith({ isParserError: true }),
+                {
                     shouldRetry: true,
                     retryWithFallback: true,
                     userMessage: 'YouTube parser error, trying alternative method...',
-                    logLevel: 'warn',
-                })
-            })
-
-            it('should return parser error response even if shouldRetry is false', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: true,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.shouldRetry).toBe(true)
-                expect(response.logLevel).toBe('warn')
-            })
-        })
-
-        describe('composite video error handling', () => {
-            it('should return video format error response for composite video error', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: true,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: true,
-                    retryWithFallback: true,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
+                    logLevel: 'warn' as const,
+                },
+            ],
+            [
+                'composite video',
+                infoWith({ isCompositeVideoError: true, shouldRetry: true, retryWithFallback: true }),
+                {
                     shouldRetry: false,
                     retryWithFallback: false,
                     userMessage: 'Video format not supported',
-                    logLevel: 'error',
-                })
-            })
-
-            it('should not retry composite video errors even if shouldRetry is true', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: true,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: true,
-                    retryWithFallback: true,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.shouldRetry).toBe(false)
-                expect(response.retryWithFallback).toBe(false)
-            })
-        })
-
-        describe('hype points error handling', () => {
-            it('should return hype points error response', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: true,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
+                    logLevel: 'error' as const,
+                },
+            ],
+            [
+                'hype points',
+                infoWith({ isHypePointsError: true }),
+                {
                     shouldRetry: true,
                     retryWithFallback: false,
                     userMessage: 'YouTube hype points error, retrying...',
-                    logLevel: 'warn',
-                })
-            })
-        })
-
-        describe('type mismatch error handling', () => {
-            it('should return type mismatch error response', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: true,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
+                    logLevel: 'warn' as const,
+                },
+            ],
+            [
+                'type mismatch',
+                infoWith({ isTypeMismatchError: true }),
+                {
                     shouldRetry: true,
                     retryWithFallback: true,
                     userMessage: 'YouTube type mismatch, trying alternative method...',
-                    logLevel: 'warn',
-                })
-            })
-        })
-
-        describe('grid shelf view error handling', () => {
-            it('should return grid shelf view error response', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: true,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
+                    logLevel: 'warn' as const,
+                },
+            ],
+            [
+                'grid shelf view',
+                infoWith({ isGridShelfViewError: true }),
+                {
                     shouldRetry: true,
                     retryWithFallback: false,
                     userMessage: 'YouTube grid shelf error, retrying...',
-                    logLevel: 'warn',
-                })
-            })
-        })
-
-        describe('section header view error handling', () => {
-            it('should return section header view error response', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
+                    logLevel: 'warn' as const,
+                },
+            ],
+            [
+                'section header view',
+                infoWith({ isSectionHeaderViewError: true }),
+                {
                     shouldRetry: true,
                     retryWithFallback: false,
                     userMessage: 'YouTube section header error, retrying...',
-                    logLevel: 'warn',
-                })
+                    logLevel: 'warn' as const,
+                },
+            ],
+        ] as const)('returns canonical response for %s error', (_label, info, expected) => {
+            expect(analyzer.getErrorResponse(info, mockContext)).toEqual(expected)
+        })
+
+        it('returns the generic response and inherits flags when no specific category matches', () => {
+            const info = infoWith({ shouldRetry: true, retryWithFallback: true })
+            expect(analyzer.getErrorResponse(info, mockContext)).toEqual({
+                shouldRetry: true,
+                retryWithFallback: true,
+                userMessage: 'YouTube error occurred',
+                logLevel: 'error',
             })
         })
 
-        describe('fallback to generic error response', () => {
-            it('should return generic error response when no specific error matches', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: true,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toEqual({
-                    shouldRetry: true,
-                    retryWithFallback: false,
-                    userMessage: 'YouTube error occurred',
-                    logLevel: 'error',
-                })
-            })
-
-            it('should use shouldRetry from errorInfo in generic response', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.shouldRetry).toBe(false)
-            })
-
-            it('should use retryWithFallback from errorInfo in generic response', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: true,
-                    retryWithFallback: true,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.retryWithFallback).toBe(true)
-            })
+        it('preserves shouldRetry=false in the generic response', () => {
+            const info = infoWith()
+            expect(analyzer.getErrorResponse(info, mockContext).shouldRetry).toBe(false)
         })
 
-        describe('error hierarchy priority', () => {
-            it('should prioritize parser error over other errors', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: true,
-                    isCompositeVideoError: true,
-                    isHypePointsError: true,
-                    isTypeMismatchError: true,
-                    isGridShelfViewError: true,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.userMessage).toBe(
-                    'YouTube parser error, trying alternative method...',
-                )
-            })
-
-            it('should prioritize composite video error over retryable errors', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: true,
-                    isHypePointsError: true,
-                    isTypeMismatchError: true,
-                    isGridShelfViewError: true,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: true,
-                    retryWithFallback: true,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.userMessage).toBe('Video format not supported')
-            })
-
-            it('should prioritize hype points error first among retryable errors', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: true,
-                    isTypeMismatchError: true,
-                    isGridShelfViewError: true,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.userMessage).toBe(
-                    'YouTube hype points error, retrying...',
-                )
-            })
-
-            it('should prioritize type mismatch error second among retryable errors', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: true,
-                    isGridShelfViewError: true,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.userMessage).toBe(
-                    'YouTube type mismatch, trying alternative method...',
-                )
-            })
-
-            it('should prioritize grid shelf view error third among retryable errors', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: true,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.userMessage).toBe(
-                    'YouTube grid shelf error, retrying...',
-                )
-            })
-
-            it('should prioritize section header view error fourth among retryable errors', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: true,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response.userMessage).toBe(
-                    'YouTube section header error, retrying...',
-                )
-            })
+        it('honours the documented priority order when several flags are set', () => {
+            // Folds six "should prioritize X" describes into one assertion that
+            // walks the full chain: parser > composite > hype > type-mismatch >
+            // grid-shelf > section-header > generic.
+            const allFlags: Array<keyof YouTubeErrorInfo> = [
+                'isParserError',
+                'isCompositeVideoError',
+                'isHypePointsError',
+                'isTypeMismatchError',
+                'isGridShelfViewError',
+                'isSectionHeaderViewError',
+            ]
+            const expectedMessage: Record<string, string> = {
+                isParserError: 'YouTube parser error, trying alternative method...',
+                isCompositeVideoError: 'Video format not supported',
+                isHypePointsError: 'YouTube hype points error, retrying...',
+                isTypeMismatchError: 'YouTube type mismatch, trying alternative method...',
+                isGridShelfViewError: 'YouTube grid shelf error, retrying...',
+                isSectionHeaderViewError: 'YouTube section header error, retrying...',
+            }
+            // For each priority slot, set that flag plus everything below and
+            // assert the higher-priority message wins.
+            for (let i = 0; i < allFlags.length; i++) {
+                const overrides: Partial<YouTubeErrorInfo> = {}
+                for (let j = i; j < allFlags.length; j++) overrides[allFlags[j]!] = true as never
+                const info = infoWith(overrides)
+                const response = analyzer.getErrorResponse(info, mockContext)
+                expect(response.userMessage).toBe(expectedMessage[allFlags[i]!])
+            }
         })
 
-        describe('context parameter handling', () => {
-            it('should accept context parameter even though it is unused', () => {
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-                expect(response).toBeDefined()
-                expect(response.userMessage).toBe('YouTube error occurred')
-            })
-
-            it('should handle context with optional guildId', () => {
-                const contextWithoutGuild: YouTubeErrorContext = {
-                    query: 'test query',
-                    userId: 'user-123',
-                    timestamp: Date.now(),
-                }
-
-                const errorInfo: YouTubeErrorInfo = {
-                    isParserError: false,
-                    isCompositeVideoError: false,
-                    isHypePointsError: false,
-                    isTypeMismatchError: false,
-                    isGridShelfViewError: false,
-                    isSectionHeaderViewError: false,
-                    shouldRetry: false,
-                    retryWithFallback: false,
-                }
-
-                const response = analyzer.getErrorResponse(
-                    errorInfo,
-                    contextWithoutGuild,
-                )
-
-                expect(response).toBeDefined()
-            })
+        it('handles context without guildId', () => {
+            const contextWithoutGuild: YouTubeErrorContext = {
+                query: 'test query',
+                userId: 'user-123',
+                timestamp: Date.now(),
+            }
+            expect(
+                analyzer.getErrorResponse(infoWith(), contextWithoutGuild),
+            ).toBeDefined()
         })
     })
 
     describe('integration: analyze then respond', () => {
-        it('should analyze error and get appropriate response for parser error', () => {
-            const error = new Error('InnerTubeError: Invalid request')
-            const errorInfo = analyzer.analyzeError(error)
-            const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-            expect(errorInfo.isParserError).toBe(true)
-            expect(response.userMessage).toBe(
-                'YouTube parser error, trying alternative method...',
-            )
-            expect(response.logLevel).toBe('warn')
-        })
-
-        it('should analyze error and get appropriate response for network timeout', () => {
-            const error = new Error('Request timeout')
-            const errorInfo = analyzer.analyzeError(error)
-            const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-            expect(errorInfo.shouldRetry).toBe(true)
-            expect(response.shouldRetry).toBe(true)
-            expect(response.logLevel).toBe('error')
-        })
-
-        it('should analyze error and get appropriate response for cipher failure', () => {
-            const error = new Error('Cipher decryption failed')
-            const errorInfo = analyzer.analyzeError(error)
-            const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-            expect(errorInfo.retryWithFallback).toBe(true)
-            expect(response.retryWithFallback).toBe(true)
-        })
-
-        it('should analyze error and get appropriate response for composite video error', () => {
-            const error = new Error('CompositeVideoError: Format not supported')
-            const errorInfo = analyzer.analyzeError(error)
-            const response = analyzer.getErrorResponse(errorInfo, mockContext)
-
-            expect(errorInfo.isCompositeVideoError).toBe(true)
-            expect(response.shouldRetry).toBe(false)
-            expect(response.userMessage).toBe('Video format not supported')
-        })
+        it.each([
+            [
+                'parser error',
+                new Error('InnerTubeError: Invalid request'),
+                {
+                    flag: 'isParserError' as const,
+                    userMessage: 'YouTube parser error, trying alternative method...',
+                    logLevel: 'warn' as const,
+                },
+            ],
+            [
+                'network timeout (retryable, no specific category)',
+                new Error('Request timeout'),
+                {
+                    flag: 'shouldRetry' as const,
+                    userMessage: 'YouTube error occurred',
+                    logLevel: 'error' as const,
+                },
+            ],
+            [
+                'cipher failure (retry-with-fallback)',
+                new Error('Cipher decryption failed'),
+                {
+                    flag: 'retryWithFallback' as const,
+                    userMessage: 'YouTube error occurred',
+                    logLevel: 'error' as const,
+                },
+            ],
+            [
+                'composite video error (terminal)',
+                new Error('CompositeVideoError: Format not supported'),
+                {
+                    flag: 'isCompositeVideoError' as const,
+                    userMessage: 'Video format not supported',
+                    logLevel: 'error' as const,
+                    extra: (resp: { shouldRetry: boolean }) =>
+                        expect(resp.shouldRetry).toBe(false),
+                },
+            ],
+        ] as const)(
+            'analyzes %s and forwards to the right response',
+            (_label, error, expected) => {
+                const info = analyzer.analyzeError(error)
+                expect(info[expected.flag]).toBe(true)
+                const response = analyzer.getErrorResponse(info, mockContext)
+                expect(response.userMessage).toBe(expected.userMessage)
+                expect(response.logLevel).toBe(expected.logLevel)
+                if ('extra' in expected && expected.extra)
+                    (expected.extra as (r: typeof response) => void)(response)
+            },
+        )
     })
 })
