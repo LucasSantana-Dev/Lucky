@@ -369,7 +369,7 @@ describe('collectLastFmCandidates', () => {
 
         const calls = upsertScoredCandidateMock.mock.calls
         const genreCall = calls.find(
-            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+            (c) => (c[2] as { source: string })?.source === 'lastfm-genre-fallback',
         )
         expect(genreCall).toBeUndefined()
     })
@@ -436,7 +436,7 @@ describe('collectLastFmCandidates', () => {
         )
 
         const genreCall = upsertScoredCandidateMock.mock.calls.find(
-            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+            (c) => (c[2] as { source: string })?.source === 'lastfm-genre-fallback',
         )
         expect(genreCall).toBeUndefined()
     })
