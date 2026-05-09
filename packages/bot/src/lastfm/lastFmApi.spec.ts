@@ -963,7 +963,7 @@ describe('lastFmApi', () => {
             expect(fetchMock).toHaveBeenCalledTimes(2)
         })
 
-        it('omits optional fields when absent from API response', async () => {
+        it('provides empty string/zero for missing optional fields', async () => {
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -977,9 +977,10 @@ describe('lastFmApi', () => {
             const result = await getTrackMetadata('Some Artist', 'Some Track')
 
             expect(result).not.toBeNull()
-            expect(result!.album).toBeUndefined()
-            expect(result!.mbid).toBeUndefined()
-            expect(result!.duration).toBeUndefined()
+            expect(result!.album).toBe('')
+            expect(result!.mbid).toBe('')
+            expect(result!.duration).toBe(0)
+            expect(result!.albumArtist).toBe('')
         })
 
         it('returns cached result on second call without fetching again', async () => {
@@ -1059,6 +1060,9 @@ describe('lastFmApi', () => {
                 artist: 'Dedup Test Artist',
                 title: 'Dedup Test Track',
                 album: 'Dedup Album',
+                albumArtist: '',
+                mbid: '',
+                duration: 0,
             })
             expect(result2).toEqual(result1)
 

@@ -105,10 +105,10 @@ export function normalizeLastFmTitle(raw: string): string {
 export type LastFmTrackMetadata = {
     artist: string
     title: string
-    album?: string
-    albumArtist?: string
-    mbid?: string
-    duration?: number
+    album: string
+    albumArtist: string
+    mbid: string
+    duration: number
 }
 
 const FEAT_ARTIST_SEPARATORS =
@@ -170,15 +170,19 @@ export async function getTrackMetadata(
             }
             if (data.error || !data.track) return null
             const t = data.track
+            const album = t.album?.title || ''
+            const albumArtist = t.album?.artist || ''
+            const mbid = t.mbid || ''
+            const durationNum = t.duration
+                ? parseInt(t.duration, 10) || 0
+                : 0
             const meta: LastFmTrackMetadata = {
                 artist: t.artist.name,
                 title: t.name,
-                album: t.album?.title,
-                albumArtist: t.album?.artist,
-                mbid: t.mbid || undefined,
-                duration: t.duration
-                    ? parseInt(t.duration, 10) || undefined
-                    : undefined,
+                album,
+                albumArtist,
+                mbid,
+                duration: durationNum,
             }
             if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
                 const oldest = TRACK_METADATA_CACHE.keys().next().value
@@ -250,7 +254,7 @@ export async function updateNowPlaying(
     track: string,
     durationSec?: number,
     sessionKey?: string | null,
-    metadata?: Partial<LastFmTrackMetadata>,
+    metadata?: LastFmTrackMetadata,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
     if (!artist?.trim() || !track?.trim()) return
@@ -273,7 +277,7 @@ export async function scrobble(
     timestamp: number,
     durationSec?: number,
     sessionKey?: string | null,
-    metadata?: Partial<LastFmTrackMetadata>,
+    metadata?: LastFmTrackMetadata,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
     if (!artist?.trim() || !track?.trim()) return
