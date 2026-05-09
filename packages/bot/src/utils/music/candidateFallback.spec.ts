@@ -219,6 +219,7 @@ describe('enrichWithAudioFeatures', () => {
         expect(getArtistGenresMock).toHaveBeenCalledTimes(2)
         expect(calculateGenreFamilyPenaltyMock).toHaveBeenCalledWith(['rock'], ['hip hop'])
         expect(result[0].score).toBeLessThan(0.5)
+        expect(result[0].basis.signals).toContain('genre family drift')
     })
 
     it('looks up candidate genres when currentArtistName genres are non-empty', async () => {
