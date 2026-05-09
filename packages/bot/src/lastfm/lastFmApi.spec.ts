@@ -156,80 +156,40 @@ describe('lastFmApi', () => {
     })
 
     describe('blank-input guard', () => {
-        it('returns early without calling API when artist is empty string', async () => {
-            await updateNowPlaying('', 'Track Name', 187, 'session-123')
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
-
-        it('returns early without calling API when track is empty string', async () => {
-            await updateNowPlaying('Artist Name', '', 187, 'session-123')
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
-
-        it('returns early without calling API when artist is whitespace-only', async () => {
-            await updateNowPlaying('   ', 'Track Name', 187, 'session-123')
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
-
-        it('returns early without calling API when track is whitespace-only', async () => {
-            await updateNowPlaying('Artist Name', '   ', 187, 'session-123')
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
+        it.each([
+            ['artist is empty string', '', 'Track Name'],
+            ['track is empty string', 'Artist Name', ''],
+            ['artist is whitespace-only', '   ', 'Track Name'],
+            ['track is whitespace-only', 'Artist Name', '   '],
+        ])(
+            'returns early without calling API when %s',
+            async (_label, artist, track) => {
+                await updateNowPlaying(artist, track, 187, 'session-123')
+                expect(fetchMock).not.toHaveBeenCalled()
+            },
+        )
     })
 
     describe('normalizeLastFmArtist', () => {
-        it('strips " - Topic" suffix', () => {
-            expect(normalizeLastFmArtist('Doja Cat - Topic')).toBe('Doja Cat')
-        })
-
-        it('takes first artist when multiple are separated by comma', () => {
-            expect(normalizeLastFmArtist('Artist A, Artist B')).toBe('Artist A')
-        })
-
-        it('takes first artist when separated by slash', () => {
-            expect(normalizeLastFmArtist('Artist A / Artist B')).toBe(
-                'Artist A',
-            )
-        })
-
-        it('returns unchanged when no separators', () => {
-            expect(normalizeLastFmArtist('Kendrick Lamar')).toBe(
-                'Kendrick Lamar',
-            )
+        it.each([
+            ['strips " - Topic" suffix', 'Doja Cat - Topic', 'Doja Cat'],
+            ['takes first artist when separated by comma', 'Artist A, Artist B', 'Artist A'],
+            ['takes first artist when separated by slash', 'Artist A / Artist B', 'Artist A'],
+            ['returns unchanged when no separators', 'Kendrick Lamar', 'Kendrick Lamar'],
+        ])('%s', (_label, input, expected) => {
+            expect(normalizeLastFmArtist(input)).toBe(expected)
         })
     })
 
     describe('normalizeLastFmTitle', () => {
-        it('removes (Official Video) suffix', () => {
-            expect(normalizeLastFmTitle('Track Name (Official Video)')).toBe(
-                'Track Name',
-            )
-        })
-
-        it('removes [Official Music Video] suffix', () => {
-            expect(
-                normalizeLastFmTitle('Track Name [Official Music Video]'),
-            ).toBe('Track Name')
-        })
-
-        it('removes feat. clause', () => {
-            expect(
-                normalizeLastFmTitle('Track Name (feat. Other Artist)'),
-            ).toBe('Track Name')
-        })
-
-        it('removes (ft. Other Artist) bracketed clause', () => {
-            expect(normalizeLastFmTitle('Track Name (ft. Other Artist)')).toBe(
-                'Track Name',
-            )
-        })
-
-        it('returns unchanged for clean titles', () => {
-            expect(normalizeLastFmTitle('HUMBLE.')).toBe('HUMBLE.')
+        it.each([
+            ['removes (Official Video) suffix', 'Track Name (Official Video)', 'Track Name'],
+            ['removes [Official Music Video] suffix', 'Track Name [Official Music Video]', 'Track Name'],
+            ['removes (feat. ...) clause', 'Track Name (feat. Other Artist)', 'Track Name'],
+            ['removes (ft. ...) clause', 'Track Name (ft. Other Artist)', 'Track Name'],
+            ['returns unchanged for clean titles', 'HUMBLE.', 'HUMBLE.'],
+        ])('%s', (_label, input, expected) => {
+            expect(normalizeLastFmTitle(input)).toBe(expected)
         })
     })
 
@@ -827,88 +787,24 @@ describe('lastFmApi', () => {
     })
 
     describe('parseArtists', () => {
-        it('handles empty string without throwing', () => {
-            const result = parseArtists('')
-            expect(result).toEqual({
-                primary: '',
-                featured: [],
-            })
-        })
-
-        it('returns single artist as primary with no featured', () => {
-            expect(parseArtists('Radiohead')).toEqual({
-                primary: 'Radiohead',
-                featured: [],
-            })
-        })
-
-        it('strips " - Topic" suffix before splitting', () => {
-            expect(parseArtists('Radiohead - Topic')).toEqual({
-                primary: 'Radiohead',
-                featured: [],
-            })
-        })
-
-        it('splits on "feat." separator', () => {
-            expect(parseArtists('Drake feat. Rihanna')).toEqual({
-                primary: 'Drake',
-                featured: ['Rihanna'],
-            })
-        })
-
-        it('splits on "ft." separator', () => {
-            expect(parseArtists('Post Malone ft. Swae Lee')).toEqual({
-                primary: 'Post Malone',
-                featured: ['Swae Lee'],
-            })
-        })
-
-        it('splits on "&" separator', () => {
-            expect(parseArtists('Jay-Z & Kanye West')).toEqual({
-                primary: 'Jay-Z',
-                featured: ['Kanye West'],
-            })
-        })
-
-        it('splits on "×" separator', () => {
-            expect(parseArtists('James Blake × Frank Ocean')).toEqual({
-                primary: 'James Blake',
-                featured: ['Frank Ocean'],
-            })
-        })
-
-        it('correctly handles unicode artist string with multiplication sign', () => {
-            expect(parseArtists('BTS × Halsey')).toEqual({
-                primary: 'BTS',
-                featured: ['Halsey'],
-            })
-        })
-
-        it('splits on word-boundary "x" separator', () => {
-            expect(parseArtists('Travis Scott x Drake')).toEqual({
-                primary: 'Travis Scott',
-                featured: ['Drake'],
-            })
-        })
-
-        it('does not split on "x" inside a word', () => {
-            const result = parseArtists('Rex Orange County')
-            expect(result.primary).toBe('Rex Orange County')
-            expect(result.featured).toEqual([])
-        })
-
-        it('splits on "vs." separator', () => {
-            expect(parseArtists('Biggie vs. Tupac')).toEqual({
-                primary: 'Biggie',
-                featured: ['Tupac'],
-            })
-        })
-
-        it('splits on "with" separator', () => {
-            expect(parseArtists('Eric Clapton with B.B. King')).toEqual({
-                primary: 'Eric Clapton',
-                featured: ['B.B. King'],
-            })
+        // Each row covers one parsing branch (separator, suffix-strip, edge case).
+        // Replaces 13 near-identical it() blocks that all asserted on the
+        // { primary, featured } shape.
+        it.each([
+            ['empty string', '', '', []],
+            ['single artist, no separators', 'Radiohead', 'Radiohead', []],
+            ['strips " - Topic" suffix', 'Radiohead - Topic', 'Radiohead', []],
+            ['splits on "feat."', 'Drake feat. Rihanna', 'Drake', ['Rihanna']],
+            ['splits on "ft."', 'Post Malone ft. Swae Lee', 'Post Malone', ['Swae Lee']],
+            ['splits on "&"', 'Jay-Z & Kanye West', 'Jay-Z', ['Kanye West']],
+            ['splits on "×"', 'James Blake × Frank Ocean', 'James Blake', ['Frank Ocean']],
+            ['handles unicode multiplication sign', 'BTS × Halsey', 'BTS', ['Halsey']],
+            ['splits on word-boundary "x"', 'Travis Scott x Drake', 'Travis Scott', ['Drake']],
+            ['does not split on "x" inside a word', 'Rex Orange County', 'Rex Orange County', []],
+            ['splits on "vs."', 'Biggie vs. Tupac', 'Biggie', ['Tupac']],
+            ['splits on "with"', 'Eric Clapton with B.B. King', 'Eric Clapton', ['B.B. King']],
+        ] as const)('%s', (_label, input, primary, featured) => {
+            expect(parseArtists(input)).toEqual({ primary, featured })
         })
 
         it('handles multiple featured artists in a chain', () => {
@@ -1219,25 +1115,17 @@ describe('lastFmApi', () => {
             expect(request.body).not.toContain('mbid=')
         })
 
-        it('returns early without calling API when sessionKey is falsy', async () => {
-            const timestamp = Math.floor(Date.now() / 1000)
-            await scrobble('Artist Name', 'Track Name', timestamp, 187, null)
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
-
-        it('returns early without calling API when artist is blank', async () => {
-            const timestamp = Math.floor(Date.now() / 1000)
-            await scrobble('  ', 'Track Name', timestamp, 187, 'session-123')
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
-
-        it('returns early without calling API when track is blank', async () => {
-            const timestamp = Math.floor(Date.now() / 1000)
-            await scrobble('Artist Name', '  ', timestamp, 187, 'session-123')
-
-            expect(fetchMock).not.toHaveBeenCalled()
-        })
+        it.each([
+            ['sessionKey is falsy', 'Artist Name', 'Track Name', null as string | null],
+            ['artist is blank', '  ', 'Track Name', 'session-123' as string | null],
+            ['track is blank', 'Artist Name', '  ', 'session-123' as string | null],
+        ])(
+            'returns early without calling API when %s',
+            async (_label, artist, track, sessionKey) => {
+                const timestamp = Math.floor(Date.now() / 1000)
+                await scrobble(artist, track, timestamp, 187, sessionKey)
+                expect(fetchMock).not.toHaveBeenCalled()
+            },
+        )
     })
 })
