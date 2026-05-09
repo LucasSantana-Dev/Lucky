@@ -30,6 +30,20 @@ const fetchMock =
         ) => Promise<MockFetchResponse>
     >()
 
+// Common mock recipes — used as it.each rows so each "returns null/empty on X"
+// branch ends up as one row instead of a near-identical it() block.
+const okWithJson = (json: () => Promise<unknown>): MockFetchResponse => ({
+    ok: true,
+    json,
+})
+const notOk = (): MockFetchResponse => ({ ok: false })
+const jsonParseFail = (): MockFetchResponse => ({
+    ok: true,
+    json: async () => {
+        throw new Error('JSON parse error')
+    },
+})
+
 describe('spotifyApi', () => {
     let originalFetch: typeof global.fetch
 
@@ -46,20 +60,17 @@ describe('spotifyApi', () => {
 
     describe('getAudioFeatures', () => {
         it('returns audio features on successful response', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     energy: 0.8,
                     valence: 0.75,
                     danceability: 0.65,
                     tempo: 120,
                     acousticness: 0.1,
-                }),
-            })
+                })),
+            )
 
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toEqual({
+            expect(await getAudioFeatures('test-token', 'track-123')).toEqual({
                 energy: 0.8,
                 valence: 0.75,
                 danceability: 0.65,
@@ -69,17 +80,11 @@ describe('spotifyApi', () => {
         })
 
         it('uses default values for missing optional properties', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    energy: 0.8,
-                    valence: 0.75,
-                }),
-            })
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({ energy: 0.8, valence: 0.75 })),
+            )
 
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toEqual({
+            expect(await getAudioFeatures('test-token', 'track-123')).toEqual({
                 energy: 0.8,
                 valence: 0.75,
                 danceability: 0,
@@ -88,145 +93,74 @@ describe('spotifyApi', () => {
             })
         })
 
-        it('returns null when response is not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when json parsing fails', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => {
-                    throw new Error('JSON parse error')
-                },
-            })
-
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when energy is missing', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ valence: 0.75, danceability: 0.65 }),
-            })
-
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when valence is not a number', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ energy: 0.8, valence: 'high' }),
-            })
-
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toBeNull()
-        })
-
-        it('catches and returns null on fetch error', async () => {
-            fetchMock.mockRejectedValue(new Error('Network error'))
-
-            const result = await getAudioFeatures('test-token', 'track-123')
-
-            expect(result).toBeNull()
+        // Each row covers one distinct null-return branch (HTTP, JSON parse,
+        // type-guard on energy, type-guard on valence, outer catch).
+        it.each([
+            ['response not ok', () => fetchMock.mockResolvedValue(notOk())],
+            ['json parse fails', () => fetchMock.mockResolvedValue(jsonParseFail())],
+            [
+                'energy is missing',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({
+                            valence: 0.75,
+                            danceability: 0.65,
+                        })),
+                    ),
+            ],
+            [
+                'valence is not a number',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ energy: 0.8, valence: 'high' })),
+                    ),
+            ],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('Network error')),
+            ],
+        ])('returns null when %s', async (_label, arrange) => {
+            arrange()
+            expect(await getAudioFeatures('test-token', 'track-123')).toBeNull()
         })
     })
 
     describe('searchSpotifyTrack', () => {
         it('returns track id on successful search', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     tracks: { items: [{ id: 'spotify:track:abc123' }] },
-                }),
-            })
-
-            const result = await searchSpotifyTrack(
-                'test-token',
-                'Song Title',
-                'Artist Name',
+                })),
             )
 
-            expect(result).toBe('spotify:track:abc123')
+            expect(
+                await searchSpotifyTrack('test-token', 'Song Title', 'Artist Name'),
+            ).toBe('spotify:track:abc123')
         })
 
-        it('returns null when no tracks found', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: { items: [] } }),
-            })
-
-            const result = await searchSpotifyTrack(
-                'test-token',
-                'Unknown Song',
-                'Unknown Artist',
-            )
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when tracks property is missing', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({}),
-            })
-
-            const result = await searchSpotifyTrack(
-                'test-token',
-                'Song',
-                'Artist',
-            )
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when response is not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await searchSpotifyTrack(
-                'test-token',
-                'Song',
-                'Artist',
-            )
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when json parsing fails', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => {
-                    throw new Error('JSON parse error')
-                },
-            })
-
-            const result = await searchSpotifyTrack(
-                'test-token',
-                'Song',
-                'Artist',
-            )
-
-            expect(result).toBeNull()
-        })
-
-        it('catches and returns null on fetch error', async () => {
-            fetchMock.mockRejectedValue(new Error('Network error'))
-
-            const result = await searchSpotifyTrack(
-                'test-token',
-                'Song',
-                'Artist',
-            )
-
-            expect(result).toBeNull()
+        it.each([
+            [
+                'no tracks found',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ tracks: { items: [] } })),
+                    ),
+            ],
+            [
+                'tracks property is missing',
+                () => fetchMock.mockResolvedValue(okWithJson(async () => ({}))),
+            ],
+            ['response not ok', () => fetchMock.mockResolvedValue(notOk())],
+            ['json parse fails', () => fetchMock.mockResolvedValue(jsonParseFail())],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('Network error')),
+            ],
+        ])('returns null when %s', async (_label, arrange) => {
+            arrange()
+            expect(
+                await searchSpotifyTrack('test-token', 'Song', 'Artist'),
+            ).toBeNull()
         })
     })
 
@@ -237,9 +171,8 @@ describe('spotifyApi', () => {
         })
 
         it('fetches audio features for multiple tracks', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     audio_features: [
                         {
                             id: 'track1',
@@ -258,8 +191,8 @@ describe('spotifyApi', () => {
                             acousticness: 0.3,
                         },
                     ],
-                }),
-            })
+                })),
+            )
 
             const result = await getBatchAudioFeatures('token', [
                 'track1',
@@ -284,9 +217,8 @@ describe('spotifyApi', () => {
         })
 
         it('skips null entries in audio_features array', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     audio_features: [
                         {
                             id: 'track1',
@@ -306,8 +238,8 @@ describe('spotifyApi', () => {
                             acousticness: 0.3,
                         },
                     ],
-                }),
-            })
+                })),
+            )
 
             const result = await getBatchAudioFeatures('token', [
                 'track1',
@@ -320,34 +252,23 @@ describe('spotifyApi', () => {
             expect(result.has('track3')).toBe(true)
         })
 
-        it('returns empty map on fetch error', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await getBatchAudioFeatures('token', ['track1'])
-            expect(result.size).toBe(0)
-        })
-
-        it('returns empty map on json parse error', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => {
-                    throw new Error('JSON error')
-                },
-            })
-
+        it.each([
+            ['response not ok', () => fetchMock.mockResolvedValue(notOk())],
+            ['json parse fails', () => fetchMock.mockResolvedValue(jsonParseFail())],
+        ])('returns empty map when %s', async (_label, arrange) => {
+            arrange()
             const result = await getBatchAudioFeatures('token', ['track1'])
             expect(result.size).toBe(0)
         })
 
         it('handles missing optional audio feature fields', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     audio_features: [
                         { id: 'track1', energy: 0.8, valence: 0.7 },
                     ],
-                }),
-            })
+                })),
+            )
 
             const result = await getBatchAudioFeatures('token', ['track1'])
             expect(result.get('track1')).toEqual({
@@ -362,51 +283,32 @@ describe('spotifyApi', () => {
 
     describe('getArtistPopularity', () => {
         it('returns artist popularity from search', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     artists: { items: [{ popularity: 75 }] },
-                }),
-            })
+                })),
+            )
 
-            const result = await getArtistPopularity('token', 'The Beatles')
-            expect(result).toBe(75)
+            expect(await getArtistPopularity('token', 'The Beatles')).toBe(75)
         })
 
-        it('returns null when no artists found', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ artists: { items: [] } }),
-            })
-
-            const result = await getArtistPopularity('token', 'Unknown Artist')
-            expect(result).toBeNull()
-        })
-
-        it('returns null when response is not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await getArtistPopularity('token', 'Some Artist')
-            expect(result).toBeNull()
-        })
-
-        it('returns null on fetch error', async () => {
-            fetchMock.mockRejectedValue(new Error('Network error'))
-
-            const result = await getArtistPopularity('token', 'Some Artist')
-            expect(result).toBeNull()
-        })
-
-        it('returns null on json parse error', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => {
-                    throw new Error('JSON error')
-                },
-            })
-
-            const result = await getArtistPopularity('token', 'Some Artist')
-            expect(result).toBeNull()
+        it.each([
+            [
+                'no artists found',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ artists: { items: [] } })),
+                    ),
+            ],
+            ['response not ok', () => fetchMock.mockResolvedValue(notOk())],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('Network error')),
+            ],
+            ['json parse fails', () => fetchMock.mockResolvedValue(jsonParseFail())],
+        ])('returns null when %s', async (_label, arrange) => {
+            arrange()
+            expect(await getArtistPopularity('token', 'Some Artist')).toBeNull()
         })
     })
 
@@ -418,9 +320,8 @@ describe('spotifyApi', () => {
         })
 
         it('returns tracks on successful response', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     tracks: [
                         {
                             id: 'rec1',
@@ -438,8 +339,8 @@ describe('spotifyApi', () => {
                             duration_ms: 180000,
                         },
                     ],
-                }),
-            })
+                })),
+            )
 
             const result = await getSpotifyRecommendations(
                 'token',
@@ -458,10 +359,7 @@ describe('spotifyApi', () => {
         })
 
         it('slices seed track ids to max 5', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
+            fetchMock.mockResolvedValue(okWithJson(async () => ({ tracks: [] })))
 
             await getSpotifyRecommendations('token', [
                 'a',
@@ -478,22 +376,21 @@ describe('spotifyApi', () => {
             expect(params.get('seed_tracks')?.split(',').length).toBe(5)
         })
 
-        it('returns empty array when response is not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-            const result = await getSpotifyRecommendations('token', ['seed1'])
-            expect(result).toEqual([])
-        })
-
-        it('returns empty array on network error', async () => {
-            fetchMock.mockRejectedValue(new Error('network error'))
+        it.each([
+            ['response not ok', () => fetchMock.mockResolvedValue(notOk())],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('network error')),
+            ],
+        ])('returns empty array when %s', async (_label, arrange) => {
+            arrange()
             const result = await getSpotifyRecommendations('token', ['seed1'])
             expect(result).toEqual([])
         })
 
         it('filters out tracks missing id or name', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     tracks: [
                         {
                             id: 'good',
@@ -514,8 +411,8 @@ describe('spotifyApi', () => {
                             duration_ms: 100000,
                         },
                     ],
-                }),
-            })
+                })),
+            )
 
             const result = await getSpotifyRecommendations('token', ['seed1'])
             expect(result).toHaveLength(1)
@@ -523,10 +420,7 @@ describe('spotifyApi', () => {
         })
 
         it('passes audio feature constraints as URL parameters when provided', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
+            fetchMock.mockResolvedValue(okWithJson(async () => ({ tracks: [] })))
 
             await getSpotifyRecommendations('token', ['seed1'], 10, {
                 energy: 0.8,
@@ -534,8 +428,7 @@ describe('spotifyApi', () => {
                 danceability: 0.75,
             })
 
-            const call = fetchMock.mock.calls[0]!
-            const url = String(call[0])
+            const url = String(fetchMock.mock.calls[0]![0])
             expect(url).toContain('min_energy=0.55')
             expect(url).toContain('max_energy=1.00')
             expect(url).toContain('min_valence=0.35')
@@ -545,141 +438,128 @@ describe('spotifyApi', () => {
         })
 
         it('does not pass audio feature constraints when audioConstraints is undefined', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
+            fetchMock.mockResolvedValue(okWithJson(async () => ({ tracks: [] })))
 
             await getSpotifyRecommendations('token', ['seed1'], 10, undefined)
 
-            const call = fetchMock.mock.calls[0]!
-            const url = String(call[0])
+            const url = String(fetchMock.mock.calls[0]![0])
             expect(url).not.toContain('min_energy')
             expect(url).not.toContain('min_valence')
             expect(url).not.toContain('min_danceability')
         })
 
         it('clamps audio constraint bounds to [0, 1]', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ tracks: [] }),
-            })
+            fetchMock.mockResolvedValue(okWithJson(async () => ({ tracks: [] })))
 
             await getSpotifyRecommendations('token', ['seed1'], 10, {
                 energy: 0.1,
                 valence: 0.95,
             })
 
-            const call = fetchMock.mock.calls[0]!
-            const url = String(call[0])
+            const url = String(fetchMock.mock.calls[0]![0])
             expect(url).toContain('min_energy=0.00')
             expect(url).toContain('max_energy=0.35')
             expect(url).toContain('min_valence=0.70')
             expect(url).toContain('max_valence=1.00')
         })
     })
-})
 
     describe('getArtistGenres', () => {
-        it('returns empty array when response not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-            expect(await getArtistGenres('token', 'Artist')).toEqual([])
-        })
-
-        it('returns empty array on network error', async () => {
-            fetchMock.mockRejectedValue(new Error('Network'))
-            expect(await getArtistGenres('token', 'Artist')).toEqual([])
-        })
-
-        it('returns empty array when no artists found', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ artists: { items: [] } }),
-            })
-            expect(await getArtistGenres('token', 'UnknownArtist')).toEqual([])
-        })
-
-        it('returns empty array on JSON parse error', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => { throw new Error('Parse error') },
-            })
-            expect(await getArtistGenres('token', 'Artist')).toEqual([])
-        })
-
-        it('handles missing genres field', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    artists: { items: [{ name: 'Artist' }] },
-                }),
-            })
-            expect(await getArtistGenres('token', 'Artist')).toEqual([])
-        })
-
-        it('handles null genres', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
-                    artists: { items: [{ genres: null }] },
-                }),
-            })
-            expect(await getArtistGenres('token', 'Artist')).toEqual([])
-        })
-
-        it('handles undefined artists', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ artists: undefined }),
-            })
+        // Each row hits a distinct empty-array branch:
+        //   HTTP, network reject, empty items, JSON parse, missing field,
+        //   null genres, undefined artists. All preserved.
+        it.each([
+            ['response not ok', () => fetchMock.mockResolvedValue(notOk())],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('Network')),
+            ],
+            [
+                'no artists found',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ artists: { items: [] } })),
+                    ),
+            ],
+            ['json parse fails', () => fetchMock.mockResolvedValue(jsonParseFail())],
+            [
+                'genres field missing',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({
+                            artists: { items: [{ name: 'Artist' }] },
+                        })),
+                    ),
+            ],
+            [
+                'genres is null',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({
+                            artists: { items: [{ genres: null }] },
+                        })),
+                    ),
+            ],
+            [
+                'artists is undefined',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ artists: undefined })),
+                    ),
+            ],
+        ])('returns empty array when %s', async (_label, arrange) => {
+            arrange()
             expect(await getArtistGenres('token', 'Artist')).toEqual([])
         })
     })
 
     describe('getUserTopArtistsAndTracks', () => {
-        it('returns null on 401 unauthorized', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await getUserTopArtistsAndTracks('expired-token')
-
-            expect(result).toBeNull()
+        // The original suite had 3 separately-named tests ("401 unauthorized",
+        // "429 rate limit", "artists response is not ok") that all mocked the
+        // same `{ ok: false }` branch — folded into one.
+        it.each([
+            ['artists fetch returns ok:false', () => fetchMock.mockResolvedValue(notOk())],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('Network error')),
+            ],
+            ['json parse fails', () => fetchMock.mockResolvedValue(jsonParseFail())],
+        ])('returns null when %s', async (_label, arrange) => {
+            arrange()
+            expect(await getUserTopArtistsAndTracks('test-token')).toBeNull()
         })
 
-        it('returns null on 429 rate limit', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await getUserTopArtistsAndTracks('test-token')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null on network error', async () => {
-            fetchMock.mockRejectedValue(new Error('Network error'))
-
-            const result = await getUserTopArtistsAndTracks('test-token')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when artists response is not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false })
-
-            const result = await getUserTopArtistsAndTracks('test-token')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null on malformed JSON response', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => {
-                    throw new Error('JSON parse error')
-                },
+        it('returns null when artists json is null', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    return { ok: true, json: () => Promise.resolve(null) }
+                }
+                return { ok: true, json: () => Promise.resolve({ items: [] }) }
             })
 
-            const result = await getUserTopArtistsAndTracks('test-token')
+            expect(await getUserTopArtistsAndTracks('token')).toBeNull()
+        })
 
-            expect(result).toBeNull()
+        it.each([
+            [
+                'artists ok:false but tracks ok',
+                () =>
+                    fetchMock
+                        .mockResolvedValueOnce(notOk())
+                        .mockResolvedValueOnce(okWithJson(async () => ({ items: [] }))),
+            ],
+            [
+                'artists ok but tracks ok:false',
+                () =>
+                    fetchMock
+                        .mockResolvedValueOnce(okWithJson(async () => ({ items: [] })))
+                        .mockResolvedValueOnce(notOk()),
+            ],
+        ])('returns null when %s', async (_label, arrange) => {
+            arrange()
+            expect(await getUserTopArtistsAndTracks('token')).toBeNull()
         })
 
         it('returns artists and tracks with valid response', async () => {
@@ -687,122 +567,68 @@ describe('spotifyApi', () => {
             fetchMock.mockImplementation(async () => {
                 callCount++
                 if (callCount === 1) {
-                    return {
-                        ok: true,
-                        json: () =>
-                            Promise.resolve({
-                                items: [{ id: 'a1', name: 'Artist 1', genres: [] }],
-                            }),
-                    }
+                    return okWithJson(async () => ({
+                        items: [{ id: 'a1', name: 'Artist 1', genres: [] }],
+                    }))
                 }
-                return {
-                    ok: true,
-                    json: () =>
-                        Promise.resolve({
-                            items: [
-                                { id: 't1', name: 'Track 1', artists: [{ name: 'Artist 1' }] },
-                            ],
-                        }),
-                }
+                return okWithJson(async () => ({
+                    items: [
+                        { id: 't1', name: 'Track 1', artists: [{ name: 'Artist 1' }] },
+                    ],
+                }))
             })
 
             const result = await getUserTopArtistsAndTracks('token')
 
-            if (result !== null) {
-                expect(result.artists).toHaveLength(1)
-                expect(result.tracks).toHaveLength(1)
-                expect(result.artists[0].id).toBe('a1')
-            }
+            expect(result).not.toBeNull()
+            expect(result?.artists).toHaveLength(1)
+            expect(result?.tracks).toHaveLength(1)
+            expect(result?.artists[0].id).toBe('a1')
         })
 
         it('handles tracks without artist field', async () => {
             let callCount = 0
-            fetchMock.mockImplementation(async () => {
-                callCount++
-                if (callCount === 1) {
-                    return {
-                        ok: true,
-                        json: async () => ({ items: [] }),
-                    }
-                }
-                return {
-                    ok: true,
-                    json: async () => ({
+            fetchMock.mockImplementation(async () =>
+                ++callCount === 1
+                    ? okWithJson(async () => ({ items: [] }))
+                    : okWithJson(async () => ({
                         items: [{ id: 't1', name: 'Track 1' }],
-                    }),
-                }
-            })
+                    })),
+            )
 
             const result = await getUserTopArtistsAndTracks('token')
 
-            if (result !== null) {
-                expect(result.tracks).toHaveLength(1)
-                expect(result.tracks[0].artist).toBe('Unknown')
-            }
-        })
-
-        it('returns null when artists response not ok but tracks ok', async () => {
-            fetchMock
-                .mockResolvedValueOnce({ ok: false })
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => ({ items: [] }),
-                })
-
-            const result = await getUserTopArtistsAndTracks('token')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when tracks response not ok but artists ok', async () => {
-            fetchMock
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => ({ items: [] }),
-                })
-                .mockResolvedValueOnce({ ok: false })
-
-            const result = await getUserTopArtistsAndTracks('token')
-
-            expect(result).toBeNull()
+            expect(result).not.toBeNull()
+            expect(result?.tracks).toHaveLength(1)
+            expect(result?.tracks[0].artist).toBe('Unknown')
         })
 
         it('builds full payload with mixed artist + track shapes', async () => {
             let callCount = 0
             fetchMock.mockImplementation(async () => {
                 callCount++
-                console.log('fetch call', callCount)
                 if (callCount === 1) {
-                    return {
-                        ok: true,
-                        json: () =>
-                            Promise.resolve({
-                                items: [
-                                    { id: 'a1', name: 'Artist 1', genres: ['rock', 'pop'] },
-                                    { id: 'a2', name: 'Artist 2' },
-                                    { id: 'a3', name: 'Artist 3', genres: null },
-                                    { id: '', name: 'No Id' },
-                                    { id: 'a5' },
-                                ],
-                            }),
-                    }
+                    return okWithJson(async () => ({
+                        items: [
+                            { id: 'a1', name: 'Artist 1', genres: ['rock', 'pop'] },
+                            { id: 'a2', name: 'Artist 2' },
+                            { id: 'a3', name: 'Artist 3', genres: null },
+                            { id: '', name: 'No Id' },
+                            { id: 'a5' },
+                        ],
+                    }))
                 }
-                return {
-                    ok: true,
-                    json: () =>
-                        Promise.resolve({
-                            items: [
-                                { id: 't1', name: 'Track 1', artists: [{ name: 'Main' }] },
-                                { id: 't2', name: 'Track 2' },
-                                { id: 't3', name: 'Track 3', artists: [] },
-                                { id: 't4', name: 'Track 4', artists: [{}] },
-                                { name: 'No Id Track' },
-                            ],
-                        }),
-                }
+                return okWithJson(async () => ({
+                    items: [
+                        { id: 't1', name: 'Track 1', artists: [{ name: 'Main' }] },
+                        { id: 't2', name: 'Track 2' },
+                        { id: 't3', name: 'Track 3', artists: [] },
+                        { id: 't4', name: 'Track 4', artists: [{}] },
+                        { name: 'No Id Track' },
+                    ],
+                }))
             })
 
-            ;(globalThis as { fetch: unknown }).fetch = fetchMock
             const result = await getUserTopArtistsAndTracks('token')
 
             expect(result).not.toBeNull()
@@ -820,48 +646,54 @@ describe('spotifyApi', () => {
             expect(result?.tracks[2].artist).toBe('Unknown')
             expect(result?.tracks[3].artist).toBe('Unknown')
         })
-
-        it('returns null when artists json is null', async () => {
-            let callCount = 0
-            fetchMock.mockImplementation(async () => {
-                callCount++
-                if (callCount === 1) {
-                    return { ok: true, json: () => Promise.resolve(null) }
-                }
-                return { ok: true, json: () => Promise.resolve({ items: [] }) }
-            })
-
-            ;(globalThis as { fetch: unknown }).fetch = fetchMock
-            const result = await getUserTopArtistsAndTracks('token')
-
-            expect(result).toBeNull()
-        })
     })
 
     describe('getUserSavedTracks', () => {
-        it('returns empty array when response is not ok', async () => {
-            fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) })
-
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual([])
+        it.each([
+            [
+                'response not ok',
+                () =>
+                    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) }),
+            ],
+            [
+                'json parse fails',
+                () => fetchMock.mockResolvedValue(jsonParseFail()),
+            ],
+            [
+                'fetch rejects',
+                () => fetchMock.mockRejectedValue(new Error('network error')),
+            ],
+            [
+                'data has no items field',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ total: 10 })),
+                    ),
+            ],
+            [
+                'items array is empty',
+                () =>
+                    fetchMock.mockResolvedValue(
+                        okWithJson(async () => ({ items: [], total: 100 })),
+                    ),
+            ],
+        ])('returns empty array when %s', async (_label, arrange) => {
+            arrange()
+            expect(await getUserSavedTracks('token')).toEqual([])
         })
 
         it('returns track ids from a single page', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({
+            fetchMock.mockResolvedValue(
+                okWithJson(async () => ({
                     items: [
                         { track: { id: 'track-1' } },
                         { track: { id: 'track-2' } },
                     ],
                     total: 2,
-                }),
-            })
+                })),
+            )
 
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual(['track-1', 'track-2'])
+            expect(await getUserSavedTracks('token')).toEqual(['track-1', 'track-2'])
         })
 
         it('paginates until all tracks are fetched', async () => {
@@ -869,21 +701,19 @@ describe('spotifyApi', () => {
             fetchMock.mockImplementation(async () => {
                 callCount++
                 if (callCount === 1) {
-                    return {
-                        ok: true,
-                        json: async () => ({
-                            items: Array.from({ length: 50 }, (_, i) => ({ track: { id: `track-${i}` } })),
-                            total: 60,
-                        }),
-                    }
-                }
-                return {
-                    ok: true,
-                    json: async () => ({
-                        items: Array.from({ length: 10 }, (_, i) => ({ track: { id: `track-${50 + i}` } })),
+                    return okWithJson(async () => ({
+                        items: Array.from({ length: 50 }, (_, i) => ({
+                            track: { id: `track-${i}` },
+                        })),
                         total: 60,
-                    }),
+                    }))
                 }
+                return okWithJson(async () => ({
+                    items: Array.from({ length: 10 }, (_, i) => ({
+                        track: { id: `track-${50 + i}` },
+                    })),
+                    total: 60,
+                }))
             })
 
             const result = await getUserSavedTracks('token')
@@ -893,13 +723,14 @@ describe('spotifyApi', () => {
         })
 
         it('stops when maxTracks (200) is reached', async () => {
-            fetchMock.mockImplementation(async () => ({
-                ok: true,
-                json: async () => ({
-                    items: Array.from({ length: 50 }, (_, i) => ({ track: { id: `t${i}` } })),
+            fetchMock.mockImplementation(async () =>
+                okWithJson(async () => ({
+                    items: Array.from({ length: 50 }, (_, i) => ({
+                        track: { id: `t${i}` },
+                    })),
                     total: 1000,
-                }),
-            }))
+                })),
+            )
 
             const result = await getUserSavedTracks('token')
 
@@ -907,63 +738,26 @@ describe('spotifyApi', () => {
             expect(fetchMock).toHaveBeenCalledTimes(4)
         })
 
-        it('stops when items array is empty', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ items: [], total: 100 }),
-            })
-
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual([])
-            expect(fetchMock).toHaveBeenCalledTimes(1)
-        })
-
         it('breaks on non-ok response mid-pagination', async () => {
             let callCount = 0
             fetchMock.mockImplementation(async () => {
                 callCount++
                 if (callCount === 1) {
-                    return {
-                        ok: true,
-                        json: async () => ({
-                            items: [{ track: { id: 'track-1' } }],
-                            total: 100,
-                        }),
-                    }
+                    return okWithJson(async () => ({
+                        items: [{ track: { id: 'track-1' } }],
+                        total: 100,
+                    }))
                 }
                 return { ok: false, json: async () => ({}) }
             })
 
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual(['track-1'])
-        })
-
-        it('breaks on JSON parse error', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => { throw new Error('JSON error') },
-            })
-
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual([])
-        })
-
-        it('returns empty array on network error', async () => {
-            fetchMock.mockRejectedValue(new Error('network error'))
-
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual([])
+            expect(await getUserSavedTracks('token')).toEqual(['track-1'])
         })
 
         it('skips items without a track id', async () => {
             fetchMock
-                .mockResolvedValueOnce({
-                    ok: true,
-                    json: async () => ({
+                .mockResolvedValueOnce(
+                    okWithJson(async () => ({
                         items: [
                             { track: { id: 'valid-1' } },
                             { track: {} },
@@ -972,40 +766,26 @@ describe('spotifyApi', () => {
                             { track: { id: 'valid-2' } },
                         ],
                         total: 5,
-                    }),
-                })
-                .mockResolvedValue({
-                    ok: true,
-                    json: async () => ({ items: [], total: 5 }),
-                })
+                    })),
+                )
+                .mockResolvedValue(
+                    okWithJson(async () => ({ items: [], total: 5 })),
+                )
 
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual(['valid-1', 'valid-2'])
-        })
-
-        it('breaks when data has no items field', async () => {
-            fetchMock.mockResolvedValue({
-                ok: true,
-                json: async () => ({ total: 10 }),
-            })
-
-            const result = await getUserSavedTracks('token')
-
-            expect(result).toEqual([])
+            expect(await getUserSavedTracks('token')).toEqual([
+                'valid-1',
+                'valid-2',
+            ])
         })
 
         it('stops early when data.total matches accumulated count', async () => {
             let callCount = 0
             fetchMock.mockImplementation(async () => {
                 callCount++
-                return {
-                    ok: true,
-                    json: async () => ({
-                        items: [{ track: { id: `t${callCount}` } }],
-                        total: 1,
-                    }),
-                }
+                return okWithJson(async () => ({
+                    items: [{ track: { id: `t${callCount}` } }],
+                    total: 1,
+                }))
             })
 
             const result = await getUserSavedTracks('token')
