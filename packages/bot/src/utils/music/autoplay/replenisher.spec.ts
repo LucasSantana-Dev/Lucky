@@ -17,6 +17,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
     spotifyLinkService: {
         getValidAccessToken: jest.fn(),
+        getByDiscordId: jest.fn(),
     },
     premiumService: {
         isPremium: jest.fn(),
