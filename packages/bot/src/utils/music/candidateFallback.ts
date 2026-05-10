@@ -292,7 +292,7 @@ export async function enrichWithAudioFeatures(
             )
             if (genrePenalty !== 0) {
                 track.score += genrePenalty
-                if (genrePenalty <= -0.3) {
+                if (genrePenalty <= -0.3 && !track.basis.signals.includes('genre family drift')) {
                     track.basis.signals.push('genre family drift')
                 }
             }
