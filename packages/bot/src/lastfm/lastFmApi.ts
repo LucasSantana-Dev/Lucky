@@ -11,6 +11,17 @@ import { debugLog } from '@lucky/shared/utils/general/log'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
+/**
+ * Error thrown when Last.fm session key has expired (error code 9).
+ * Caller should re-authenticate the user.
+ */
+export class LastFmSessionExpiredError extends Error {
+    constructor(message = 'Last.fm session key has expired (error code 9)') {
+        super(message)
+        this.name = 'LastFmSessionExpiredError'
+    }
+}
+
 function getApiConfig(): { apiKey: string; secret: string } | null {
     const apiKey = process.env.LASTFM_API_KEY
     const secret = process.env.LASTFM_API_SECRET
@@ -83,6 +94,9 @@ async function signedPost(
         message?: string
     }
     if (data.error) {
+        if (data.error === 9) {
+            throw new LastFmSessionExpiredError()
+        }
         throw new Error(
             `Last.fm ${method}: ${data.error} - ${data.message ?? ''}`,
         )
@@ -331,6 +345,7 @@ export async function scrobble(
 }
 
 export function isLastFmInvalidSessionError(error: unknown): boolean {
+    if (error instanceof LastFmSessionExpiredError) return true
     if (!(error instanceof Error)) return false
 
     const message = error.message.toLowerCase()
