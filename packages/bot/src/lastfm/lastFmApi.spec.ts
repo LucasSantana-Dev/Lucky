@@ -10,17 +10,19 @@ import {
     getSessionKeyForUser,
     isLastFmInvalidSessionError,
     updateNowPlaying,
+    scrobble,
     normalizeLastFmArtist,
     normalizeLastFmTitle,
-    parseArtists,
-    LastFmSessionExpiredError,
     getTopTracks,
     getRecentTracks,
     getSimilarTracks,
     getTagTopTracks,
     getLovedTracks,
     getArtistTopTags,
+    parseArtists,
     getTrackMetadata,
+    __resetMetadataCacheForTests,
+    LastFmSessionExpiredError,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -39,6 +41,16 @@ const fetchMock =
             init?: RequestInit,
         ) => Promise<MockFetchResponse>
     >()
+
+const debugLogMock = jest.fn()
+
+jest.mock('@lucky/shared/utils/general/log', () => ({
+    debugLog: (params: unknown) => debugLogMock(params),
+    warnLog: jest.fn(),
+    errorLog: jest.fn(),
+    infoLog: jest.fn(),
+    successLog: jest.fn(),
+}))
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {
@@ -105,6 +117,71 @@ describe('lastFmApi', () => {
         expect(request.body).toContain('api_sig=')
     })
 
+    it('includes album and albumArtist in updateNowPlaying when metadata provided', async () => {
+        await updateNowPlaying(
+            'Artist Name',
+            'Track Name',
+            187,
+            'session-123',
+            { album: 'Test Album', albumArtist: 'Album Artist' }
+        )
+
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
+        expect(request.body).toContain('album=Test+Album')
+        expect(request.body).toContain('albumArtist=Album+Artist')
+    })
+
+    it('includes mbid in updateNowPlaying when metadata provided', async () => {
+        await updateNowPlaying(
+            'Artist Name',
+            'Track Name',
+            187,
+            'session-123',
+            { mbid: 'test-mbid-123' }
+        )
+
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
+        expect(request.body).toContain('mbid=test-mbid-123')
+    })
+
+    it('omits metadata fields when not provided to updateNowPlaying', async () => {
+        await updateNowPlaying('Artist Name', 'Track Name', 187, 'session-123')
+
+        const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+        const request = lastCall?.[1] as { body: string }
+        expect(request.body).not.toContain('album=')
+        expect(request.body).not.toContain('albumArtist=')
+        expect(request.body).not.toContain('mbid=')
+    })
+
+    describe('blank-input guard', () => {
+        it('returns early without calling API when artist is empty string', async () => {
+            await updateNowPlaying('', 'Track Name', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when track is empty string', async () => {
+            await updateNowPlaying('Artist Name', '', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when artist is whitespace-only', async () => {
+            await updateNowPlaying('   ', 'Track Name', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when track is whitespace-only', async () => {
+            await updateNowPlaying('Artist Name', '   ', 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+    })
+
     describe('normalizeLastFmArtist', () => {
         it('strips " - Topic" suffix', () => {
             expect(normalizeLastFmArtist('Doja Cat - Topic')).toBe('Doja Cat')
@@ -154,80 +231,6 @@ describe('lastFmApi', () => {
 
         it('returns unchanged for clean titles', () => {
             expect(normalizeLastFmTitle('HUMBLE.')).toBe('HUMBLE.')
-        })
-    })
-
-    describe('parseArtists', () => {
-        it('returns primary artist only when no featured artists', () => {
-            const result = parseArtists('The Beatles')
-            expect(result.primary).toBe('The Beatles')
-            expect(result.featured).toEqual([])
-        })
-
-        it('splits artists on feat.', () => {
-            const result = parseArtists('Drake feat. Rihanna')
-            expect(result.primary).toBe('Drake')
-            expect(result.featured).toContain('Rihanna')
-        })
-
-        it('splits artists on ft.', () => {
-            const result = parseArtists('SZA ft. Travis Scott')
-            expect(result.primary).toBe('SZA')
-            expect(result.featured).toContain('Travis Scott')
-        })
-
-        it('splits artists on ampersand', () => {
-            const result = parseArtists('Jay-Z & Beyoncé')
-            expect(result.primary).toBe('Jay-Z')
-            expect(result.featured).toContain('Beyoncé')
-        })
-
-        it('splits artists on × symbol', () => {
-            const result = parseArtists('Artist1 × Artist2')
-            expect(result.primary).toBe('Artist1')
-            expect(result.featured).toContain('Artist2')
-        })
-
-        it('splits artists on x separator', () => {
-            const result = parseArtists('Artist1 x Artist2')
-            expect(result.primary).toBe('Artist1')
-            expect(result.featured).toContain('Artist2')
-        })
-
-        it('does not split on vs. (word boundary issue with period)', () => {
-            // Note: \bvs\.?\b doesn't match "vs." due to word boundary rules
-            const result = parseArtists('Artist1 vs. Artist2')
-            expect(result.primary).toBe('Artist1 vs. Artist2')
-            expect(result.featured.length).toBe(0)
-        })
-
-        it('splits artists on vs (without period)', () => {
-            const result = parseArtists('Artist1 vs Artist2')
-            expect(result.primary).toBe('Artist1')
-            expect(result.featured).toContain('Artist2')
-        })
-
-        it('splits artists on with', () => {
-            const result = parseArtists('John Smith with Jane Doe')
-            expect(result.primary).toBe('John Smith')
-            expect(result.featured).toContain('Jane Doe')
-        })
-
-        it('handles multiple featured artists', () => {
-            const result = parseArtists('Artist1 feat. Artist2 & Artist3')
-            expect(result.primary).toBe('Artist1')
-            expect(result.featured.length).toBeGreaterThan(0)
-        })
-
-        it('normalizes whitespace', () => {
-            const result = parseArtists('  Artist   feat.   Other  ')
-            expect(result.primary).toBe('Artist')
-            expect(result.featured).toContain('Other')
-        })
-
-        it('handles empty string gracefully', () => {
-            const result = parseArtists('')
-            expect(result).toEqual({ primary: '', featured: [] })
         })
     })
 
@@ -847,24 +850,127 @@ describe('lastFmApi', () => {
         })
     })
 
+    describe('parseArtists', () => {
+        it('handles empty string without throwing', () => {
+            const result = parseArtists('')
+            expect(result).toEqual({
+                primary: '',
+                featured: [],
+            })
+        })
+
+        it('returns single artist as primary with no featured', () => {
+            expect(parseArtists('Radiohead')).toEqual({
+                primary: 'Radiohead',
+                featured: [],
+            })
+        })
+
+        it('strips " - Topic" suffix before splitting', () => {
+            expect(parseArtists('Radiohead - Topic')).toEqual({
+                primary: 'Radiohead',
+                featured: [],
+            })
+        })
+
+        it('splits on "feat." separator', () => {
+            expect(parseArtists('Drake feat. Rihanna')).toEqual({
+                primary: 'Drake',
+                featured: ['Rihanna'],
+            })
+        })
+
+        it('splits on "ft." separator', () => {
+            expect(parseArtists('Post Malone ft. Swae Lee')).toEqual({
+                primary: 'Post Malone',
+                featured: ['Swae Lee'],
+            })
+        })
+
+        it('splits on "&" separator', () => {
+            expect(parseArtists('Jay-Z & Kanye West')).toEqual({
+                primary: 'Jay-Z',
+                featured: ['Kanye West'],
+            })
+        })
+
+        it('splits on "×" separator', () => {
+            expect(parseArtists('James Blake × Frank Ocean')).toEqual({
+                primary: 'James Blake',
+                featured: ['Frank Ocean'],
+            })
+        })
+
+        it('correctly handles unicode artist string with multiplication sign', () => {
+            expect(parseArtists('BTS × Halsey')).toEqual({
+                primary: 'BTS',
+                featured: ['Halsey'],
+            })
+        })
+
+        it('splits on word-boundary "x" separator', () => {
+            expect(parseArtists('Travis Scott x Drake')).toEqual({
+                primary: 'Travis Scott',
+                featured: ['Drake'],
+            })
+        })
+
+        it('does not split on "x" inside a word', () => {
+            const result = parseArtists('Rex Orange County')
+            expect(result.primary).toBe('Rex Orange County')
+            expect(result.featured).toEqual([])
+        })
+
+        it('splits on "vs." separator', () => {
+            expect(parseArtists('Biggie vs. Tupac')).toEqual({
+                primary: 'Biggie',
+                featured: ['Tupac'],
+            })
+        })
+
+        it('splits on "with" separator', () => {
+            expect(parseArtists('Eric Clapton with B.B. King')).toEqual({
+                primary: 'Eric Clapton',
+                featured: ['B.B. King'],
+            })
+        })
+
+        it('handles multiple featured artists in a chain', () => {
+            const result = parseArtists('Kendrick Lamar feat. Drake & J. Cole')
+            expect(result.primary).toBe('Kendrick Lamar')
+            expect(result.featured.length).toBeGreaterThanOrEqual(1)
+        })
+
+        it('is case-insensitive on separator', () => {
+            expect(parseArtists('Artist FEAT. Featured').primary).toBe('Artist')
+        })
+    })
+
     describe('getTrackMetadata', () => {
-        it('returns null when LASTFM_API_KEY is not configured', async () => {
-            delete process.env.LASTFM_API_KEY
-            const result = await getTrackMetadata('Artist', 'Song')
-            expect(result).toBeNull()
+        beforeEach(() => {
+            process.env.LASTFM_API_KEY = 'test-key'
+            process.env.LASTFM_API_SECRET = 'test-secret'
+            // Module-level caches persist across tests; reset so each case
+            // starts clean and ordering can't silently leak fixtures.
+            __resetMetadataCacheForTests()
         })
 
-        it('returns null for empty artist', async () => {
-            const result = await getTrackMetadata('', 'Song')
-            expect(result).toBeNull()
+        afterEach(() => {
+            jest.useRealTimers()
         })
 
-        it('returns null for empty title', async () => {
-            const result = await getTrackMetadata('Artist', '')
+        it.each([
+            ['blank artist', '', 'Track'],
+            ['blank title', 'Artist', ''],
+            ['whitespace artist', '   ', 'Track'],
+            ['whitespace title', 'Artist', '   '],
+        ])('returns null without fetching on %s', async (_label, artist, title) => {
+            const result = await getTrackMetadata(artist, title)
             expect(result).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
         })
 
-        it('returns full metadata on successful fetch', async () => {
+        it('returns canonical metadata on successful fetch', async () => {
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -872,100 +978,290 @@ describe('lastFmApi', () => {
                         name: 'Bohemian Rhapsody',
                         artist: { name: 'Queen' },
                         album: { title: 'A Night at the Opera', artist: 'Queen' },
-                        mbid: 'track-mbid-123',
+                        mbid: 'abc-123',
                         duration: '354000',
                     },
                 }),
             })
 
-            const result = await getTrackMetadata('queen', 'bohemian rhapsody')
+            const result = await getTrackMetadata('Queen', 'Bohemian Rhapsody')
 
             expect(result).toEqual({
                 artist: 'Queen',
                 title: 'Bohemian Rhapsody',
                 album: 'A Night at the Opera',
                 albumArtist: 'Queen',
-                mbid: 'track-mbid-123',
+                mbid: 'abc-123',
                 duration: 354000,
             })
         })
 
-        it('returns metadata without album when album is absent', async () => {
+        it('re-fetches when cached entry has expired TTL', async () => {
+            // Use fake timers to control Date.now()
+            jest.useFakeTimers()
+            const now = 1000000
+
+            // Set up the first fetch
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
                     track: {
-                        name: 'Track Title',
+                        name: 'First Version',
+                        artist: { name: 'Artist A' },
+                    },
+                }),
+            })
+
+            // First call caches the result at time = 1000000
+            jest.setSystemTime(now)
+            const first = await getTrackMetadata('Artist A', 'First Version')
+            expect(first!.title).toBe('First Version')
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+
+            // Fast-forward past TTL (24 hours = 86400000 ms)
+            jest.setSystemTime(now + 86400001)
+
+            // Set up second fetch
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Second Version',
+                        artist: { name: 'Artist A' },
+                    },
+                }),
+            })
+
+            // Second call should re-fetch because cache expired
+            const second = await getTrackMetadata('Artist A', 'First Version')
+            expect(second!.title).toBe('Second Version')
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('provides empty string/zero for missing optional fields', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Some Track',
                         artist: { name: 'Some Artist' },
                     },
                 }),
             })
 
-            const result = await getTrackMetadata('Some Artist', 'Track Title')
+            const result = await getTrackMetadata('Some Artist', 'Some Track')
 
             expect(result).not.toBeNull()
-            expect(result?.album).toBeUndefined()
-            expect(result?.albumArtist).toBeUndefined()
-            expect(result?.mbid).toBeUndefined()
-            expect(result?.duration).toBeUndefined()
+            expect(result!.album).toBe('')
+            expect(result!.mbid).toBe('')
+            expect(result!.duration).toBe(0)
+            expect(result!.albumArtist).toBe('')
         })
 
-        it('returns null when response is not ok', async () => {
-            fetchMock.mockResolvedValueOnce({ ok: false })
-
-            const result = await getTrackMetadata('Bad Artist A', 'Bad Song A')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when response contains error code', async () => {
-            fetchMock.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ error: 6, message: 'Track not found' }),
-            })
-
-            const result = await getTrackMetadata('Bad Artist B', 'Bad Song B')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null when track is missing from response', async () => {
-            fetchMock.mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({}),
-            })
-
-            const result = await getTrackMetadata('Bad Artist C', 'Bad Song C')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns null and logs warning on fetch error', async () => {
-            fetchMock.mockRejectedValueOnce(new Error('network failure'))
-
-            const result = await getTrackMetadata('Failing Artist Meta', 'Failing Song Meta')
-
-            expect(result).toBeNull()
-        })
-
-        it('returns cached result on second call with same artist and title', async () => {
+        it('returns cached result on second call without fetching again', async () => {
             fetchMock.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
                     track: {
-                        name: 'Cached Song',
+                        name: 'Cached Track',
                         artist: { name: 'Cached Artist' },
-                        mbid: 'cached-mbid',
                     },
                 }),
             })
 
-            const first = await getTrackMetadata('Cached Artist', 'Cached Song')
-            const second = await getTrackMetadata('Cached Artist', 'Cached Song')
+            await getTrackMetadata('Cached Artist', 'Cached Track')
+            await getTrackMetadata('cached artist', 'cached track')
 
-            expect(first).not.toBeNull()
-            expect(second).toEqual(first)
             expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('returns null on non-ok HTTP response', async () => {
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+        })
+
+        it('logs HTTP error and returns null when response is not ok', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: false,
+                status: 404,
+                statusText: 'Not Found',
+            } as MockFetchResponse)
+
+            const result = await getTrackMetadata('Artist', 'Title')
+
+            expect(result).toBeNull()
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ status: 404 }),
+                }),
+            )
+        })
+
+        it('returns null when API returns error field', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ error: 6, message: 'Track not found' }),
+            })
+            const result = await getTrackMetadata('Nobody', 'Nonexistent')
+            expect(result).toBeNull()
+        })
+
+        it('returns null when track field missing', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({}),
+            })
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+        })
+
+        it('returns null on fetch error', async () => {
+            fetchMock.mockRejectedValueOnce(new Error('network'))
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+        })
+
+        it('returns null when Last.fm is not configured', async () => {
+            delete process.env.LASTFM_API_KEY
+            const result = await getTrackMetadata('Artist', 'Track')
+            expect(result).toBeNull()
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('deduplicates concurrent requests with the same key, fetching only once', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Dedup Test Track',
+                        artist: { name: 'Dedup Test Artist' },
+                        album: { title: 'Dedup Album' },
+                    },
+                }),
+            })
+
+            // Fire two concurrent requests with identical (artist, title)
+            const [result1, result2] = await Promise.all([
+                getTrackMetadata('Dedup Test Artist', 'Dedup Test Track'),
+                getTrackMetadata('Dedup Test Artist', 'Dedup Test Track'),
+            ])
+
+            // Both should return the same result
+            expect(result1).toEqual({
+                artist: 'Dedup Test Artist',
+                title: 'Dedup Test Track',
+                album: 'Dedup Album',
+                albumArtist: '',
+                mbid: '',
+                duration: 0,
+            })
+            expect(result2).toEqual(result1)
+
+            // Underlying fetch should have been called exactly once
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('looks up Last.fm with the primary artist when the input is a collaboration', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    track: {
+                        name: 'Hotline Bling',
+                        artist: { name: 'Drake' },
+                        album: { title: 'Views' },
+                    },
+                }),
+            })
+
+            await getTrackMetadata('Drake feat. Rihanna', 'Hotline Bling')
+
+            const url = String(fetchMock.mock.calls[0]![0])
+            // Primary artist should be sent encoded; the "feat. Rihanna" suffix
+            // must not appear in the query string.
+            expect(url).toContain('artist=Drake&')
+            expect(url).not.toContain('Rihanna')
+        })
+    })
+
+    describe('scrobble', () => {
+        it('sends signed scrobble payload with timestamp', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', 'Track Name', timestamp, 187, 'session-123')
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).toContain('method=track.scrobble')
+            expect(request.body).toContain('artist=Artist+Name')
+            expect(request.body).toContain('track=Track+Name')
+            expect(request.body).toContain(`timestamp=${timestamp}`)
+            expect(request.body).toContain('duration=187')
+            expect(request.body).toContain('api_sig=')
+        })
+
+        it('includes album and albumArtist in scrobble when metadata provided', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble(
+                'Artist Name',
+                'Track Name',
+                timestamp,
+                187,
+                'session-123',
+                { album: 'Test Album', albumArtist: 'Album Artist' }
+            )
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).toContain('album=Test+Album')
+            expect(request.body).toContain('albumArtist=Album+Artist')
+        })
+
+        it('includes mbid in scrobble when metadata provided', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble(
+                'Artist Name',
+                'Track Name',
+                timestamp,
+                187,
+                'session-123',
+                { mbid: 'test-mbid-456' }
+            )
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).toContain('mbid=test-mbid-456')
+        })
+
+        it('omits metadata fields when not provided to scrobble', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', 'Track Name', timestamp, 187, 'session-123')
+
+            const lastCall = fetchMock.mock.calls[fetchMock.mock.calls.length - 1]
+            const request = lastCall?.[1] as { body: string }
+            expect(request.body).not.toContain('album=')
+            expect(request.body).not.toContain('albumArtist=')
+            expect(request.body).not.toContain('mbid=')
+        })
+
+        it('returns early without calling API when sessionKey is falsy', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', 'Track Name', timestamp, 187, null)
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when artist is blank', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('  ', 'Track Name', timestamp, 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('returns early without calling API when track is blank', async () => {
+            const timestamp = Math.floor(Date.now() / 1000)
+            await scrobble('Artist Name', '  ', timestamp, 187, 'session-123')
+
+            expect(fetchMock).not.toHaveBeenCalled()
         })
     })
 })

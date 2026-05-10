@@ -6,7 +6,8 @@
 
 import crypto from 'node:crypto'
 import { lastFmLinkService } from '@lucky/shared/services'
-import { logAndWarn } from '@lucky/shared/utils/error'
+import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
+import { debugLog } from '@lucky/shared/utils/general/log'
 
 const API_BASE = 'https://ws.audioscrobbler.com/2.0/'
 
@@ -19,19 +20,6 @@ export class LastFmSessionExpiredError extends Error {
         super(message)
         this.name = 'LastFmSessionExpiredError'
     }
-}
-
-/**
- * Metadata for a track from Last.fm track.getInfo API.
- * Used to enhance scrobble requests with album, artist, and duration info.
- */
-export type LastFmTrackMetadata = {
-    artist: string
-    title: string
-    album?: string
-    albumArtist?: string
-    mbid?: string
-    duration?: number
 }
 
 function getApiConfig(): { apiKey: string; secret: string } | null {
@@ -129,16 +117,134 @@ export function normalizeLastFmTitle(raw: string): string {
     return raw.replace(TITLE_NOISE_PARENS, '').replace(FEAT_CLAUSE, '').trim()
 }
 
-const FEAT_ARTIST_SEPARATORS =
-    /\s*(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?\b|\bwith\b)\s+/i
+export type LastFmTrackMetadata = {
+    artist: string
+    title: string
+    album: string
+    albumArtist: string
+    mbid: string
+    duration: number
+}
 
-export function parseArtists(raw: string): { primary: string; featured: string[] } {
+// Whitespace bounds use bounded repetition (S5852) so the matcher remains
+// strictly linear regardless of input. Last.fm artist strings rarely contain
+// runs of internal whitespace, so {0,4}/{1,4} comfortably covers real input.
+const FEAT_ARTIST_SEPARATORS =
+    /\s{0,4}(?:feat\.?|ft\.?|&|×|\bx\b|\bvs\.?|\bwith\b)\s{1,4}/i
+
+export function parseArtists(raw: string): {
+    primary: string
+    featured: string[]
+} {
     const normalized = normalizeLastFmArtist(raw)
     const parts = normalized
         .split(FEAT_ARTIST_SEPARATORS)
         .map((s) => s.trim())
         .filter(Boolean)
     return { primary: parts[0] ?? normalized, featured: parts.slice(1) }
+}
+
+const TRACK_METADATA_CACHE = new Map<
+    string,
+    { meta: LastFmTrackMetadata; expiresAt: number }
+>()
+const TRACK_METADATA_TTL_MS = 24 * 60 * 60 * 1000
+const TRACK_METADATA_CACHE_MAX = 5000
+const TRACK_METADATA_IN_FLIGHT = new Map<
+    string,
+    Promise<LastFmTrackMetadata | null>
+>()
+
+export async function getTrackMetadata(
+    artist: string,
+    title: string,
+): Promise<LastFmTrackMetadata | null> {
+    const config = getApiConfig()
+    if (!config) return null
+    // Bail before allocating cache / in-flight slots so blank inputs don't
+    // pollute the maps or burn a Last.fm request.
+    const trimmedArtist = artist?.trim()
+    const trimmedTitle = title?.trim()
+    if (!trimmedArtist || !trimmedTitle) return null
+    const key = `${trimmedArtist.toLowerCase()}::${trimmedTitle.toLowerCase()}`
+    const cached = TRACK_METADATA_CACHE.get(key)
+    const now = Date.now()
+    if (cached && cached.expiresAt > now) return cached.meta
+
+    // Deduplicate concurrent fetches
+    const inFlight = TRACK_METADATA_IN_FLIGHT.get(key)
+    if (inFlight) return inFlight
+
+    // Last.fm's track.getInfo does not handle collaboration strings —
+    // "Drake feat. Rihanna" returns error 6 (Track not found). Use the
+    // primary artist so multi-artist inputs still resolve metadata + art.
+    const lookupArtist = parseArtists(trimmedArtist).primary
+    const promise = (async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(lookupArtist)}&track=${encodeURIComponent(trimmedTitle)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+            )
+            if (!response.ok) {
+                debugLog({ message: 'lastFmApi: getTrackMetadata HTTP error', data: { status: response.status, statusText: response.statusText } })
+                return null
+            }
+            const data = (await response.json()) as {
+                error?: number
+                track?: {
+                    name: string
+                    artist: { name: string }
+                    album?: { title: string; artist?: string }
+                    mbid?: string
+                    duration?: string
+                }
+            }
+            if (data.error || !data.track) return null
+            const t = data.track
+            const album = t.album?.title || ''
+            const albumArtist = t.album?.artist || ''
+            const mbid = t.mbid || ''
+            const durationNum = t.duration
+                ? parseInt(t.duration, 10) || 0
+                : 0
+            const meta: LastFmTrackMetadata = {
+                artist: t.artist.name,
+                title: t.name,
+                album,
+                albumArtist,
+                mbid,
+                duration: durationNum,
+            }
+            if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
+                const oldest = TRACK_METADATA_CACHE.keys().next().value
+                if (oldest) TRACK_METADATA_CACHE.delete(oldest)
+            }
+            TRACK_METADATA_CACHE.set(key, { meta, expiresAt: now + TRACK_METADATA_TTL_MS })
+            return meta
+        } catch (err) {
+            logAndSwallow(err, 'lastfm.getTrackMetadata', {
+                artist: trimmedArtist,
+                title: trimmedTitle,
+            })
+            return null
+        }
+    })()
+
+    TRACK_METADATA_IN_FLIGHT.set(key, promise)
+    try {
+        return await promise
+    } finally {
+        TRACK_METADATA_IN_FLIGHT.delete(key)
+    }
+}
+
+/**
+ * Test-only: reset the module-level metadata caches so each test starts with
+ * a clean slate. The maps are intentionally module-private at runtime; this
+ * helper exists purely to keep `lastFmApi.spec.ts` test cases isolated.
+ */
+export function __resetMetadataCacheForTests(): void {
+    TRACK_METADATA_CACHE.clear()
+    TRACK_METADATA_IN_FLIGHT.clear()
 }
 
 export type LastFmTopTrack = {
@@ -191,13 +297,16 @@ export async function updateNowPlaying(
     track: string,
     durationSec?: number,
     sessionKey?: string | null,
-    metadata?: Partial<LastFmTrackMetadata>,
+    metadata?: LastFmTrackMetadata,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
-    const { primary } = parseArtists(artist)
+    if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
-        artist: primary,
-        track: normalizeLastFmTitle(track),
+        // Prefer Last.fm's canonical (autocorrected) artist/title when a
+        // resolved metadata payload is supplied; only fall back to local
+        // parsing when the caller had no metadata to thread through.
+        artist: metadata?.artist?.trim() || parseArtists(artist).primary,
+        track: metadata?.title?.trim() || normalizeLastFmTitle(track),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
@@ -214,16 +323,24 @@ export async function scrobble(
     timestamp: number,
     durationSec?: number,
     sessionKey?: string | null,
+    metadata?: LastFmTrackMetadata,
 ): Promise<void> {
     if (!sessionKey || !getApiConfig()) return
+    if (!artist?.trim() || !track?.trim()) return
     const params: Record<string, string> = {
-        artist: normalizeLastFmArtist(artist),
-        track: normalizeLastFmTitle(track),
+        // Prefer Last.fm's canonical (autocorrected) artist/title when a
+        // resolved metadata payload is supplied; only fall back to local
+        // parsing when the caller had no metadata to thread through.
+        artist: metadata?.artist?.trim() || parseArtists(artist).primary,
+        track: metadata?.title?.trim() || normalizeLastFmTitle(track),
         timestamp: String(Math.floor(timestamp)),
     }
     if (durationSec != null && durationSec > 0) {
         params.duration = String(Math.round(durationSec))
     }
+    if (metadata?.album) params.album = metadata.album
+    if (metadata?.albumArtist) params.albumArtist = metadata.albumArtist
+    if (metadata?.mbid) params.mbid = metadata.mbid
     await signedPost('track.scrobble', params, sessionKey)
 }
 
@@ -247,7 +364,7 @@ export async function getRecentTracks(
     if (!config) return []
     try {
         const response = await fetch(
-            `${API_BASE}?method=user.getrecenttracks&user=${encodeURIComponent(lastFmUsername)}&limit=${limit}&format=json&api_key=${config.apiKey}`, // NOSONAR
+            `${API_BASE}?method=user.getrecenttracks&user=${encodeURIComponent(lastFmUsername)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
         )
         const data = (await response.json()) as {
             recenttracks?: {
@@ -281,6 +398,7 @@ const ARTIST_TAG_CACHE = new Map<
 >()
 const ARTIST_TAG_TTL_MS = 24 * 60 * 60 * 1000
 const ARTIST_TAG_CACHE_MAX = 5000
+const ARTIST_TAG_IN_FLIGHT = new Map<string, Promise<string[]>>()
 
 export async function getArtistTopTags(
     artist: string,
@@ -298,115 +416,52 @@ export async function getArtistTopTags(
         return cached.tags
     }
 
-    try {
-        const response = await fetch(
-            `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
-        )
-        if (!response.ok) return []
-        const data = (await response.json()) as {
-            error?: number
-            message?: string
-            toptags?: {
-                tag?: Array<{ name: string; count?: number }>
+    // Deduplicate concurrent fetches
+    const inFlight = ARTIST_TAG_IN_FLIGHT.get(cacheKey)
+    if (inFlight) return inFlight
+
+    const promise = (async () => {
+        try {
+            const response = await fetch(
+                `${API_BASE}?method=artist.gettoptags&artist=${encodeURIComponent(trimmed)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+            )
+            if (!response.ok) return []
+            const data = (await response.json()) as {
+                error?: number
+                message?: string
+                toptags?: {
+                    tag?: Array<{ name: string; count?: number }>
+                }
             }
-        }
-        if (typeof data.error === 'number') return []
-        const tags = (data.toptags?.tag ?? [])
-            .slice(0, limit)
-            .map((t) => t.name?.toLowerCase().trim())
-            .filter((name): name is string => !!name)
+            if (typeof data.error === 'number') return []
+            const tags = (data.toptags?.tag ?? [])
+                .slice(0, limit)
+                .map((t) => t.name?.toLowerCase().trim())
+                .filter((name): name is string => !!name)
 
-        if (ARTIST_TAG_CACHE.size >= ARTIST_TAG_CACHE_MAX) {
-            const oldest = ARTIST_TAG_CACHE.keys().next().value
-            if (oldest) ARTIST_TAG_CACHE.delete(oldest)
-        }
-        ARTIST_TAG_CACHE.set(cacheKey, {
-            tags,
-            expiresAt: now + ARTIST_TAG_TTL_MS,
-        })
-
-        return tags
-    } catch (err) {
-        logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
-        return []
-    }
-}
-
-const TRACK_METADATA_CACHE = new Map<
-    string,
-    { metadata: LastFmTrackMetadata | null; expiresAt: number }
->()
-const TRACK_METADATA_TTL_MS = 24 * 60 * 60 * 1000
-const TRACK_METADATA_CACHE_MAX = 5000
-
-export async function getTrackMetadata(
-    artist: string,
-    title: string,
-): Promise<LastFmTrackMetadata | null> {
-    const config = getApiConfig()
-    if (!config) return null
-    const trimmedArtist = artist?.trim()
-    const trimmedTitle = title?.trim()
-    if (!trimmedArtist || !trimmedTitle) return null
-
-    const cacheKey = `${normalizeLastFmArtist(trimmedArtist).toLowerCase()}::${normalizeLastFmTitle(trimmedTitle).toLowerCase()}`
-    const cached = TRACK_METADATA_CACHE.get(cacheKey)
-    const now = Date.now()
-    if (cached && cached.expiresAt > now) {
-        return cached.metadata
-    }
-
-    try {
-        const response = await fetch(
-            `${API_BASE}?method=track.getInfo&artist=${encodeURIComponent(trimmedArtist)}&track=${encodeURIComponent(trimmedTitle)}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
-        )
-        if (!response.ok) return null
-        const data = (await response.json()) as {
-            error?: number
-            message?: string
-            track?: {
-                name: string
-                artist: { name: string }
-                album?: { title: string; artist?: string }
-                mbid?: string
-                duration?: string
+            if (ARTIST_TAG_CACHE.size >= ARTIST_TAG_CACHE_MAX) {
+                const oldest = ARTIST_TAG_CACHE.keys().next().value
+                if (oldest) ARTIST_TAG_CACHE.delete(oldest)
             }
-        }
-        if (typeof data.error === 'number') return null
-        const track = data.track
-        if (!track) return null
+            ARTIST_TAG_CACHE.set(cacheKey, {
+                tags,
+                expiresAt: now + ARTIST_TAG_TTL_MS,
+            })
 
-        const metadata: LastFmTrackMetadata = {
-            artist: track.artist.name || trimmedArtist,
-            title: track.name || trimmedTitle,
-            album: track.album?.title,
-            albumArtist: track.album?.artist,
-            mbid: track.mbid || undefined,
-            duration: track.duration
-                ? parseInt(track.duration, 10) || undefined
-                : undefined,
+            return tags
+        } catch (err) {
+            // Surface tag-fetch failures so autoplay tag-based recommendations
+            // remain debuggable when Last.fm is rate-limiting or DNS-flaky.
+            logAndWarn(err, 'lastfm.getArtistTopTags', { artist: trimmed })
+            return []
         }
+    })()
 
-        if (TRACK_METADATA_CACHE.size >= TRACK_METADATA_CACHE_MAX) {
-            const oldest = TRACK_METADATA_CACHE.keys().next().value
-            if (oldest) TRACK_METADATA_CACHE.delete(oldest)
-        }
-        TRACK_METADATA_CACHE.set(cacheKey, {
-            metadata,
-            expiresAt: now + TRACK_METADATA_TTL_MS,
-        })
-
-        return metadata
-    } catch (err) {
-        logAndWarn(err, 'lastfm.getTrackMetadata', {
-            artist: trimmedArtist,
-            title: trimmedTitle,
-        })
-        TRACK_METADATA_CACHE.set(cacheKey, {
-            metadata: null,
-            expiresAt: now + TRACK_METADATA_TTL_MS,
-        })
-        return null
+    ARTIST_TAG_IN_FLIGHT.set(cacheKey, promise)
+    try {
+        return await promise
+    } finally {
+        ARTIST_TAG_IN_FLIGHT.delete(cacheKey)
     }
 }
 
@@ -419,7 +474,7 @@ export async function getSimilarTracks(
     if (!config) return []
     try {
         const response = await fetch(
-            `${API_BASE}?method=track.getSimilar&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`, // NOSONAR
+            `${API_BASE}?method=track.getSimilar&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`,
         )
         const data = (await response.json()) as {
             similartracks?: {
@@ -449,7 +504,7 @@ export async function getTagTopTracks(
     if (!config) return []
     try {
         const response = await fetch(
-            `${API_BASE}?method=tag.getTopTracks&tag=${encodeURIComponent(tag)}&limit=${limit}&format=json&api_key=${config.apiKey}`, // NOSONAR
+            `${API_BASE}?method=tag.getTopTracks&tag=${encodeURIComponent(tag)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
         )
         const data = (await response.json()) as {
             toptracks?: {
@@ -477,7 +532,7 @@ export async function getLovedTracks(
     if (!config) return []
     try {
         const response = await fetch(
-            `${API_BASE}?method=user.getlovedtracks&user=${encodeURIComponent(username)}&limit=${limit}&format=json&api_key=${config.apiKey}`, // NOSONAR
+            `${API_BASE}?method=user.getlovedtracks&user=${encodeURIComponent(username)}&limit=${limit}&format=json&api_key=${config.apiKey}`,
         )
         const data = (await response.json()) as {
             lovedtracks?: {

@@ -16,12 +16,15 @@ import {
 import type { SessionMood } from './sessionMood'
 import { calculateRecommendationScore } from './candidateScorer'
 import {
-    shouldIncludeCandidate,
-    upsertScoredCandidate,
     normalizeTrackKey,
 } from '../queueManipulation'
+import {
+    shouldIncludeCandidate,
+    upsertScoredCandidate,
+} from './candidateCollector'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
-import type { ScoredTrack } from './diversitySelector';
+import type { ScoredTrack } from './diversitySelector'
+import type { AutoplayAuditCollector } from './autoplayAudit'
 
 const LASTFM_SCORE_BOOST = 0.20
 const LOVED_SEED_EXTRA_BOOST = 0.10
@@ -53,6 +56,7 @@ export async function collectLastFmCandidates(
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
     } = {},
+    auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata
     const vcMemberIds = metadata?.vcMemberIds ?? []
@@ -133,10 +137,9 @@ export async function collectLastFmCandidates(
             })
             upsertScoredCandidate(candidates, track, {
                 score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
-                reason: rec.reason
-                    ? `${rec.reason} • last.fm taste${lovedBoost > 0 ? ' (loved)' : ''}`
-                    : `last.fm taste${lovedBoost > 0 ? ' (loved)' : ''}`,
-            })
+                source: 'lastfm-loved',
+                signals: rec.signals,
+            }, auditCollector)
         }
 
         const similar = await getSimilarTracks(
@@ -179,10 +182,9 @@ export async function collectLastFmCandidates(
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
-                    reason: rec.reason
-                        ? `${rec.reason} • similar to your taste`
-                        : 'similar to your taste',
-                })
+                    source: 'lastfm-similar',
+                    signals: rec.signals,
+                }, auditCollector)
             }
             if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         }
@@ -239,10 +241,9 @@ export async function collectLastFmCandidates(
                     })
                     upsertScoredCandidate(candidates, track, {
                         score: rec.score + LASTFM_SCORE_BOOST,
-                        reason: rec.reason
-                            ? `${rec.reason} • genre fallback`
-                            : 'genre fallback',
-                    })
+                        source: 'lastfm-genre-fallback',
+                        signals: rec.signals,
+                    }, auditCollector)
                 }
                 if (candidates.size >= 3) break
             }

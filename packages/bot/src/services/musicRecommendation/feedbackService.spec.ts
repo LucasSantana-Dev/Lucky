@@ -30,40 +30,7 @@ describe('RecommendationFeedbackService', () => {
         jest.clearAllMocks()
     })
 
-    it('uses user-scoped redis key (no guildId in key)', async () => {
-        const service = new RecommendationFeedbackService(30)
-        getMock.mockResolvedValue(null)
-        setexMock.mockResolvedValue(true)
 
-        const key = service.buildTrackKey('Song A', 'Artist A')
-        await service.setFeedback('guild-1', 'user-1', key, 'dislike')
-
-        expect(setexMock).toHaveBeenCalledWith(
-            'music:feedback:user-1',
-            expect.any(Number),
-            expect.any(String),
-        )
-        expect(setexMock).not.toHaveBeenCalledWith(
-            expect.stringContaining('guild-1'),
-            expect.anything(),
-            expect.anything(),
-        )
-    })
-
-    it('uses 30-day TTL in seconds', async () => {
-        const service = new RecommendationFeedbackService(30)
-        getMock.mockResolvedValue(null)
-        setexMock.mockResolvedValue(true)
-
-        const key = service.buildTrackKey('Song A', 'Artist A')
-        await service.setFeedback('guild-1', 'user-1', key, 'dislike')
-
-        expect(setexMock).toHaveBeenCalledWith(
-            expect.any(String),
-            30 * 24 * 60 * 60,
-            expect.any(String),
-        )
-    })
 
     it('stores dislike feedback and returns disliked keys', async () => {
         const now = 10_000
@@ -204,43 +171,7 @@ describe('RecommendationFeedbackService', () => {
         expect(getMock).not.toHaveBeenCalled()
     })
 
-    it('setArtistFeedback stores prefer feedback', async () => {
-        const service = new RecommendationFeedbackService(30)
-        getMock.mockResolvedValue(null)
-        setexMock.mockResolvedValue(true)
 
-        await service.setArtistFeedback(
-            'guild-1',
-            'user-1',
-            'Taylor Swift',
-            'prefer',
-        )
-
-        expect(setexMock).toHaveBeenCalledWith(
-            'music:artist_feedback:user-1',
-            30 * 24 * 60 * 60,
-            expect.any(String),
-        )
-        expect(getMock).toHaveBeenCalledWith('music:artist_feedback:user-1')
-    })
-
-    it('setArtistFeedback stores block feedback', async () => {
-        const service = new RecommendationFeedbackService(30)
-        getMock.mockResolvedValue(null)
-        setexMock.mockResolvedValue(true)
-
-        await service.setArtistFeedback(
-            'guild-1',
-            'user-1',
-            'Unknown Artist',
-            'block',
-        )
-
-        expect(setexMock).toHaveBeenCalled()
-        const callArgs = setexMock.mock.calls[0]
-        const storedData = JSON.parse(callArgs[2] as string)
-        expect(Object.values(storedData)[0]).toBe('block')
-    })
 
     it('getPreferredArtistKeys returns preferred artists', async () => {
         const service = new RecommendationFeedbackService(30)

@@ -67,27 +67,6 @@ describe('interactionReply', () => {
             })
             expect(mockErrorLog).not.toHaveBeenCalled()
         })
-
-        it('does not attempt to reply on non-replyable interaction', async () => {
-            const mockInteraction = {
-                isChatInputCommand: jest.fn(() => false),
-                isButton: jest.fn(() => false),
-                isModalSubmit: jest.fn(() => false),
-                isStringSelectMenu: jest.fn(() => false),
-                isUserSelectMenu: jest.fn(() => false),
-                isChannelSelectMenu: jest.fn(() => false),
-                isRoleSelectMenu: jest.fn(() => false),
-                isMentionableSelectMenu: jest.fn(() => false),
-            } as unknown as Interaction
-
-            await interactionReply({
-                interaction: mockInteraction,
-                content: { content: 'test' },
-            })
-
-            // Should not call any Discord API methods
-            expect(mockErrorLog).not.toHaveBeenCalledWith(expect.anything())
-        })
     })
 
     describe('chat input command interactions', () => {

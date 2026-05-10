@@ -84,7 +84,7 @@ function createScoredTrack(author: string, score = 0.5, url = 'https://url'): Sc
             durationMS: 200_000,
         } as never,
         score,
-        reason: 'test reason',
+        basis: { source: 'spotify-rec', signals: [] } as never,
     }
 }
 
@@ -219,7 +219,7 @@ describe('enrichWithAudioFeatures', () => {
         expect(getArtistGenresMock).toHaveBeenCalledTimes(2)
         expect(calculateGenreFamilyPenaltyMock).toHaveBeenCalledWith(['rock'], ['hip hop'])
         expect(result[0].score).toBeLessThan(0.5)
-        expect(result[0].reason).toContain('genre family drift')
+        expect(result[0].basis.signals).toContain('genre family drift')
     })
 
     it('looks up candidate genres when currentArtistName genres are non-empty', async () => {
@@ -299,7 +299,7 @@ describe('collectGenreCandidates', () => {
         jest.clearAllMocks()
         normalizeTrackKeyMock.mockReturnValue('key')
         shouldIncludeCandidateMock.mockReturnValue(true)
-        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'genre' })
+        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, signals: [] })
         cleanSearchQueryMock.mockImplementation((t: unknown, a: unknown) => `${t} ${a}`)
     })
 
@@ -346,7 +346,7 @@ describe('collectGenreCandidates', () => {
         const ctx = createCtx()
         // Pre-fill candidates to buffer size (8)
         for (let i = 0; i < 8; i++) {
-            ctx.candidates.set(`key-${i}`, { track: {} as never, score: 0.5, reason: '' })
+            ctx.candidates.set(`key-${i}`, { track: {} as never, score: 0.5, basis: { source: 'spotify-rec', signals: [] } })
         }
 
         await collectGenreCandidates(queue, ['rock', 'pop'], { id: 'user-1' } as never, ctx)
@@ -373,7 +373,7 @@ describe('collectBroadFallbackCandidates', () => {
         jest.clearAllMocks()
         normalizeTrackKeyMock.mockReturnValue('normalized-key')
         shouldIncludeCandidateMock.mockReturnValue(true)
-        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'test' })
+        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, signals: [] })
         artistTagFetcherMock.mockResolvedValue([])
         createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) => artistTagFetcherMock(...args))
     })

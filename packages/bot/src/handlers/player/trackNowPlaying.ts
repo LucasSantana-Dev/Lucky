@@ -13,6 +13,7 @@ import type { QueueMetadata } from '../../types/QueueMetadata'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
+    getTrackMetadata,
     updateNowPlaying as lastFmUpdateNowPlaying,
     scrobble as lastFmScrobble,
 } from '../../lastfm'
@@ -244,12 +245,20 @@ export async function updateLastFmNowPlaying(
     if (!sessionKey) return
     const durationSec =
         track.durationMS > 0 ? Math.round(track.durationMS / 1000) : undefined
+    const meta = await getTrackMetadata(track.author, track.title)
+    if (!meta) {
+        debugLog({
+            message: 'Last.fm metadata not found, updating now-playing without metadata',
+            data: { artist: track.author, title: track.title },
+        })
+    }
     try {
         await lastFmUpdateNowPlaying(
             track.author,
             track.title,
             durationSec,
             sessionKey,
+            meta ?? undefined,
         )
         trackNowPlayingState.setLastFmTrackStartTime(
             queue.guild.id,
@@ -287,6 +296,13 @@ export async function scrobbleCurrentTrackIfLastFm(
         trackToScrobble.durationMS > 0
             ? Math.round(trackToScrobble.durationMS / 1000)
             : undefined
+    const meta = await getTrackMetadata(trackToScrobble.author, trackToScrobble.title)
+    if (!meta) {
+        debugLog({
+            message: 'Last.fm metadata not found, scrobbling without metadata',
+            data: { artist: trackToScrobble.author, title: trackToScrobble.title },
+        })
+    }
     try {
         await lastFmScrobble(
             trackToScrobble.author,
@@ -294,6 +310,7 @@ export async function scrobbleCurrentTrackIfLastFm(
             timestamp,
             durationSec,
             sessionKey,
+            meta ?? undefined,
         )
     } catch (err) {
         const is403 = err instanceof Error && err.message.includes('403')
