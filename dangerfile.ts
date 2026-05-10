@@ -7,10 +7,8 @@
 import { danger, fail, message, warn } from 'danger'
 
 const pr = danger.github.pr
-const files = danger.git
-const modified = files.modified_files
-const created = files.created_files
-const deleted = files.deleted_files
+const modified = danger.git.modified_files
+const created = danger.git.created_files
 const all = [...modified, ...created]
 
 // --- 1. PR size warning -----------------------------------------------------
@@ -35,11 +33,18 @@ const sourceLikelyNeedingTest = (path: string): boolean =>
 const sourceChanges = all.filter(sourceLikelyNeedingTest)
 const testChanges = all.filter((p) => /\.(spec|test)\.(ts|tsx)$/.test(p))
 
-if (sourceChanges.length > 0 && testChanges.length === 0 && pr.additions > 50) {
-    warn(
-        `**No test changes** despite ${sourceChanges.length} source files modified. ` +
-            `If this is intentional (e.g. refactor, build config), reply explaining why.`,
+// Sum additions across only the source files (not the whole PR), so a big
+// CHANGELOG / lockfile / docs change next to a one-line source tweak doesn't
+// trigger the no-tests warning.
+async function countSourceAdditions(): Promise<number> {
+    if (sourceChanges.length === 0) return 0
+    const diffs = await Promise.all(
+        sourceChanges.map((f) => danger.git.diffForFile(f)),
     )
+    return diffs.reduce((sum, d) => {
+        if (!d?.added) return sum
+        return sum + d.added.split('\n').filter((l) => l.startsWith('+')).length
+    }, 0)
 }
 
 // --- 3. CHANGELOG reminder for user-facing changes --------------------------
@@ -52,14 +57,11 @@ const userFacingPatterns = [
 const userFacingChange = all.some((p) =>
     userFacingPatterns.some((rx) => rx.test(p)),
 )
-if (
-    userFacingChange &&
-    !changelogTouched &&
-    !pr.title.startsWith('chore') &&
-    !pr.title.startsWith('test') &&
-    !pr.title.startsWith('docs') &&
-    !pr.title.startsWith('refactor')
-) {
+// Match conventional-commit prefixes with separator (colon, slash, parens)
+// so titles like "refactoring auth" don't accidentally count as `refactor`.
+const TITLE_PREFIX_SKIP =
+    /^(chore|test|docs|refactor|ci|build|style|perf)(\([^)]*\))?:\s/
+if (userFacingChange && !changelogTouched && !TITLE_PREFIX_SKIP.test(pr.title)) {
     message(
         `User-facing change without a CHANGELOG.md update. ` +
             `Add a line under \`## [Unreleased]\` if this should appear in release notes.`,
@@ -93,7 +95,7 @@ if (envFiles.length > 0) {
 // --- 6. Console.log left behind in source ----------------------------------
 // Lucky uses structured logging via debugLog/infoLog/errorLog/warnLog.
 // Bare console.log in src/ is almost always debug residue.
-async function checkConsoleLogs() {
+async function checkConsoleLogs(): Promise<void> {
     const sourceTouched = all.filter(
         (p) => /^packages\/.+\/src\//.test(p) && /\.(ts|tsx|js)$/.test(p),
     )
@@ -112,7 +114,6 @@ async function checkConsoleLogs() {
         }
     }
 }
-void checkConsoleLogs()
 
 // --- 7. Branch-prefix discipline -------------------------------------------
 // Per workflow.md: feature/, fix/, refactor/, chore/, docs/, ci/, test/, release/
@@ -128,7 +129,7 @@ if (!validPrefixes.test(headRef) && !headRef.startsWith('worktree-')) {
 
 // --- 8. Big-file warning ----------------------------------------------------
 // Files > 500 lines are review-hostile. Flag new ones.
-async function checkLargeFiles() {
+async function checkLargeFiles(): Promise<void> {
     for (const file of created) {
         const lineCount = (await danger.git.structuredDiffForFile(file))?.chunks
             ?.flatMap((c) => c.changes)
@@ -140,4 +141,29 @@ async function checkLargeFiles() {
         }
     }
 }
-void checkLargeFiles()
+
+// --- Async runner -----------------------------------------------------------
+// Top-level await ensures Danger waits for these checks before exiting.
+// Without this, fire-and-forget `void checkX()` calls could be cut off
+// when the runtime tears down, silently dropping warnings.
+async function runAsyncChecks(): Promise<void> {
+    const sourceAdditions = await countSourceAdditions()
+    if (
+        sourceChanges.length > 0 &&
+        testChanges.length === 0 &&
+        sourceAdditions > 50
+    ) {
+        warn(
+            `**No test changes** despite ${sourceChanges.length} source files modified ` +
+                `(${sourceAdditions} source lines added). ` +
+                `If this is intentional (e.g. refactor, build config), reply explaining why.`,
+        )
+    }
+
+    await Promise.all([checkConsoleLogs(), checkLargeFiles()])
+}
+
+// Schedule the runner. Danger's `--failOnErrors` runner awaits the dangerfile
+// module's default export and any pending top-level promises before exiting,
+// so this top-level `await` is safe.
+await runAsyncChecks()
