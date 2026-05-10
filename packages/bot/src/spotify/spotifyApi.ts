@@ -20,6 +20,46 @@ async function sleep(ms: number): Promise<void> {
     })
 }
 
+const DEFAULT_RETRY_AFTER_MS = 1000
+const MAX_RETRY_AFTER_MS = 60 * 1000
+
+/**
+ * Parse a Retry-After header value into a millisecond delay.
+ *
+ * Per RFC 7231 the header may be either:
+ *   - delta-seconds: a non-negative integer ("120")
+ *   - HTTP-date: an RFC 7231 IMF-fixdate ("Sat, 10 May 2026 12:00:00 GMT")
+ *
+ * Returns null when the header is missing or unparseable so callers can fall
+ * back to a default delay (rather than NaN milliseconds, which becomes a busy
+ * loop).
+ */
+function parseRetryAfterMs(header: string | null): number | null {
+    if (!header) return null
+    const trimmed = header.trim()
+    if (!trimmed) return null
+    // delta-seconds form first — bare integer
+    if (/^\d+$/.test(trimmed)) {
+        const seconds = Number.parseInt(trimmed, 10)
+        return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null
+    }
+    // HTTP-date form
+    const targetMs = Date.parse(trimmed)
+    if (!Number.isFinite(targetMs)) return null
+    const delta = targetMs - Date.now()
+    return delta > 0 ? delta : 0
+}
+
+/**
+ * Throw the Response when its status is retryable so withSpotifyRetry's
+ * catch block can intercept it. fetch() does not throw on HTTP error
+ * statuses, so wrapped callbacks must signal retry-eligible failures
+ * explicitly.
+ */
+function throwIfRetryable(res: Response): void {
+    if (res.status === 429) throw res
+}
+
 async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
     let attempt = 0
     while (true) {
@@ -33,17 +73,18 @@ async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promis
                 const retryAfterHeader = isResponse
                     ? error.headers.get('Retry-After')
                     : null
-                const retryAfterSeconds = retryAfterHeader
-                    ? parseInt(retryAfterHeader, 10)
-                    : 1
-                const delayMs = retryAfterSeconds * 1000
+                const parsedDelayMs = parseRetryAfterMs(retryAfterHeader)
+                const delayMs = Math.min(
+                    parsedDelayMs ?? DEFAULT_RETRY_AFTER_MS,
+                    MAX_RETRY_AFTER_MS,
+                )
                 debugLog({
                     message: 'Spotify 429 rate limit, retrying',
                     data: {
                         attempt,
                         maxRetries,
                         delayMs,
-                        retryAfter: retryAfterSeconds,
+                        retryAfterHeader,
                     },
                 })
                 await sleep(delayMs)
@@ -144,6 +185,7 @@ export async function getSpotifyRecommendations(
                 `https://api.spotify.com/v1/recommendations?${params.toString()}`,
                 { headers: { Authorization: `Bearer ${accessToken}` } },
             )
+            throwIfRetryable(res)
             if (!res.ok) return []
             const data = (await res.json().catch(() => null)) as {
                 tracks?: Array<{
@@ -213,6 +255,7 @@ export async function getAudioFeatures(
                 },
             )
 
+            throwIfRetryable(res)
             if (!res.ok) {
                 return null
             }
@@ -262,6 +305,7 @@ export async function getBatchAudioFeatures(
                 },
             )
 
+            throwIfRetryable(res)
             if (!res.ok) return null
 
             return (await res.json().catch(() => null)) as {
@@ -340,6 +384,7 @@ export async function getArtistPopularity(
                 },
             )
 
+            throwIfRetryable(res)
             if (!res.ok) {
                 return null
             }
@@ -395,6 +440,7 @@ export async function getArtistGenres(
                 },
             )
 
+            throwIfRetryable(res)
             if (!res.ok) {
                 return []
             }

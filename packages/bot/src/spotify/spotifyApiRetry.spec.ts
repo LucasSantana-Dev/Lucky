@@ -280,4 +280,95 @@ describe('Spotify API 429 Retry Logic', () => {
             expect(result).toEqual([])
         })
     })
+
+    // Regression: real fetch() RESOLVES with a 429 Response (it does not throw
+    // on HTTP error statuses). Verify retry fires when fetch resolves rather
+    // than rejects — Greptile feedback on PR #808.
+    describe('429 retry when fetch resolves (not throws) the Response', () => {
+        it('retries on resolved 429 then succeeds', async () => {
+            let attemptCount = 0
+            fetchMock.mockImplementation(async () => {
+                attemptCount++
+                if (attemptCount === 1) {
+                    return new Response(null, { status: 429 })
+                }
+                return new Response(
+                    JSON.stringify({
+                        id: 't1',
+                        energy: 0.5,
+                        valence: 0.5,
+                        danceability: 0.5,
+                        tempo: 100,
+                        acousticness: 0.5,
+                    }),
+                    { status: 200 },
+                )
+            })
+
+            const result = await spotifyApi.getAudioFeatures('tok', 't1')
+
+            expect(attemptCount).toBe(2)
+            expect(result).not.toBeNull()
+        })
+
+        it('honours Retry-After delta-seconds header from resolved Response', async () => {
+            jest.useFakeTimers()
+            try {
+                let attemptCount = 0
+                fetchMock.mockImplementation(async () => {
+                    attemptCount++
+                    if (attemptCount === 1) {
+                        return new Response(null, {
+                            status: 429,
+                            headers: { 'Retry-After': '2' },
+                        })
+                    }
+                    return new Response(
+                        JSON.stringify({ id: 't', energy: 0.5, valence: 0.5 }),
+                        { status: 200 },
+                    )
+                })
+
+                const promise = spotifyApi.getAudioFeatures('tok', 't')
+                await jest.advanceTimersByTimeAsync(2000)
+                await promise
+
+                expect(attemptCount).toBe(2)
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
+        it('parses Retry-After HTTP-date header without producing NaN delay', async () => {
+            jest.useFakeTimers()
+            try {
+                const baseTime = new Date('2026-05-10T12:00:00Z').getTime()
+                jest.setSystemTime(baseTime)
+                const futureDate = new Date(baseTime + 3000).toUTCString()
+
+                let attemptCount = 0
+                fetchMock.mockImplementation(async () => {
+                    attemptCount++
+                    if (attemptCount === 1) {
+                        return new Response(null, {
+                            status: 429,
+                            headers: { 'Retry-After': futureDate },
+                        })
+                    }
+                    return new Response(
+                        JSON.stringify({ id: 't', energy: 0.5, valence: 0.5 }),
+                        { status: 200 },
+                    )
+                })
+
+                const promise = spotifyApi.getAudioFeatures('tok', 't')
+                await jest.advanceTimersByTimeAsync(3000)
+                await promise
+
+                expect(attemptCount).toBe(2)
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+    })
 })
