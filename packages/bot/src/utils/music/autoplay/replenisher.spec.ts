@@ -286,8 +286,8 @@ describe('replenishQueue', () => {
             require('../queueManipulation')
 
         const mockScoredTracks = [
-            { track: createTrack({ id: 'track1' }), score: 0.8, reason: 'test' },
-            { track: createTrack({ id: 'track2' }), score: 0.7, reason: 'test' },
+            { track: createTrack({ id: 'track1' }), score: 0.8, basis: { source: 'spotify-rec', signals: [] } },
+            { track: createTrack({ id: 'track2' }), score: 0.7, basis: { source: 'spotify-rec', signals: [] } },
         ]
         selectDiverseCandidates.mockReturnValue(mockScoredTracks)
         interleaveByArtist.mockReturnValue(mockScoredTracks)
@@ -296,7 +296,7 @@ describe('replenishQueue', () => {
         const candidateMap = new Map()
         candidateMap.set('candidate1', {
             track: createTrack({ id: 'candidate1' }),
-            reason: 'test',
+            basis: { source: 'spotify-rec', signals: [] },
             score: 0.5,
         })
         collectRecommendationCandidates.mockResolvedValue(candidateMap)

@@ -309,7 +309,7 @@ describe('diversitySelector', () => {
                             title: 'Song 1',
                         } as Track,
                         score: 0.9,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -321,7 +321,7 @@ describe('diversitySelector', () => {
                             title: 'Song 2',
                         } as Track,
                         score: 0.8,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -333,7 +333,7 @@ describe('diversitySelector', () => {
                             title: 'Song 3',
                         } as Track,
                         score: 0.7,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
             ])
@@ -358,7 +358,7 @@ describe('diversitySelector', () => {
                             title: 'Song 1',
                         } as Track,
                         score: 0.9,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -370,7 +370,7 @@ describe('diversitySelector', () => {
                             title: 'Song 2',
                         } as Track,
                         score: 0.8,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -382,7 +382,7 @@ describe('diversitySelector', () => {
                             title: 'Song 3',
                         } as Track,
                         score: 0.7,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
             ])
@@ -404,7 +404,7 @@ describe('diversitySelector', () => {
                             title: 'Song 1',
                         } as Track,
                         score: 0.9,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -416,7 +416,7 @@ describe('diversitySelector', () => {
                             title: 'Song 2',
                         } as Track,
                         score: 0.8,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -428,7 +428,7 @@ describe('diversitySelector', () => {
                             title: 'Song 3',
                         } as Track,
                         score: 0.7,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
             ])
@@ -457,7 +457,7 @@ describe('diversitySelector', () => {
                             title: 'Song 1',
                         } as Track,
                         score: 0.9,
-                        reason: 'similar',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
             ])
@@ -478,7 +478,7 @@ describe('diversitySelector', () => {
                             title: 'Song 1',
                         } as Track,
                         score: 0.5,
-                        reason: 'low',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
                 [
@@ -490,7 +490,7 @@ describe('diversitySelector', () => {
                             title: 'Song 2',
                         } as Track,
                         score: 0.95,
-                        reason: 'high',
+                        basis: { source: 'spotify-rec' as const, signals: [] },
                     },
                 ],
             ])
@@ -518,7 +518,7 @@ describe('diversitySelector', () => {
                         raw: albumName ? { album: { name: albumName } } : {},
                     } as unknown as Track,
                     score,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 }
             }
 

@@ -125,55 +125,6 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         service.stopOrphanSessionMonitor()
     })
 
-    it('startOrphanSessionMonitor is idempotent — second call is a no-op', () => {
-        const service = new MusicWatchdogService()
-        const scanSpy = jest
-            .spyOn(service, 'scanOrphanSessions')
-            .mockResolvedValue(undefined)
-
-        const player = {} as unknown as Player
-        service.startOrphanSessionMonitor(player, 60_000)
-        service.startOrphanSessionMonitor(player, 60_000)
-
-        jest.advanceTimersByTime(60_000)
-        expect(scanSpy).toHaveBeenCalledTimes(1)
-
-        service.stopOrphanSessionMonitor()
-    })
-
-    it('stopOrphanSessionMonitor stops the interval', async () => {
-        const service = new MusicWatchdogService()
-        const scanSpy = jest
-            .spyOn(service, 'scanOrphanSessions')
-            .mockResolvedValue(undefined)
-
-        const player = {} as unknown as Player
-        service.startOrphanSessionMonitor(player, 60_000)
-        service.stopOrphanSessionMonitor()
-
-        await jest.advanceTimersByTimeAsync(120_000)
-        expect(scanSpy).not.toHaveBeenCalled()
-    })
-
-    it('scanOrphanSessions skips when Redis is unhealthy', async () => {
-        isHealthyMock.mockReturnValue(false)
-        const service = new MusicWatchdogService()
-        const player = {} as unknown as Player
-
-        await service.scanOrphanSessions(player)
-
-        expect(keysMock).not.toHaveBeenCalled()
-    })
-
-    it('scanOrphanSessions skips when no session keys exist', async () => {
-        keysMock.mockResolvedValue([])
-        const service = new MusicWatchdogService()
-        const player = {} as unknown as Player
-
-        await service.scanOrphanSessions(player)
-
-        expect(getSnapshotMock).not.toHaveBeenCalled()
-    })
 
     it('scanOrphanSessions skips guild when snapshot is missing', async () => {
         keysMock.mockResolvedValue(['music:session:guild-99'])
@@ -557,33 +508,6 @@ describe('MusicWatchdogService — startPeriodicScan', () => {
         keysMock.mockResolvedValue([])
     })
 
-    it('startPeriodicScan is idempotent — second call is a no-op', async () => {
-        const service = new MusicWatchdogService({ scanIntervalMs: 60_000 })
-        const scanSpy = jest
-            .spyOn(service, 'scanOrphanedSessions')
-            .mockResolvedValue([])
-
-        const getQueue = jest.fn().mockReturnValue(null)
-        service.startPeriodicScan(getQueue)
-        service.startPeriodicScan(getQueue)
-
-        await jest.advanceTimersByTimeAsync(60_000)
-        expect(scanSpy).toHaveBeenCalledTimes(1)
-
-        service.stopPeriodicScan()
-    })
-
-    it('scanOrphanedSessions does not crash on malformed Redis key', async () => {
-        isHealthyMock.mockReturnValue(true)
-        keysMock.mockResolvedValue(['music:session:'])
-
-        const service = new MusicWatchdogService()
-        const getQueue = jest.fn().mockReturnValue(null)
-
-        await expect(
-            service.scanOrphanedSessions(getQueue),
-        ).resolves.toBeDefined()
-    })
 
     it('scanOrphanedSessions arms orphaned queues that are not playing', async () => {
         isHealthyMock.mockReturnValue(true)

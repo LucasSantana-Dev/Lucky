@@ -31,6 +31,7 @@ import {
     purgeDuplicatesOfCurrentTrack,
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
+import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
@@ -486,7 +487,7 @@ async function _replenishQueue(
                     title: s.track.title,
                     author: s.track.author,
                     score: s.score.toFixed(3),
-                    reason: s.reason,
+                    reason: serializeBasis(s.basis),
                     url: s.track.url,
                 })),
             },
