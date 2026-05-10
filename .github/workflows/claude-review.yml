@@ -1,0 +1,83 @@
+name: Claude Code Review
+
+# Self-owned PR reviewer — replaces Greptile's role (whose trial has
+# already lapsed) and supplements CodeRabbit with a focused review
+# tuned to the merge rule in ~/.claude/standards/workflow.md:
+# only flag correctness, security, semver, and prod-risk concerns.
+# Skip style nits — CodeRabbit + linters cover those.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - 'package-lock.json'
+
+# Cancel superseded runs when a newer commit is pushed to the same PR.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude PR review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Use Sonnet for routine review; Opus is reserved for
+          # security-flagged paths via the prompt logic below.
+          model: claude-sonnet-4-6
+          # Stop after one pass — no follow-up loops.
+          max_turns: 3
+          # Review prompt aligned with the merge rule.
+          direct_prompt: |
+            You are reviewing a pull request against `${{ github.event.pull_request.base.ref }}`.
+
+            **What to flag (substantive only):**
+            - Correctness bugs (logic errors, dead code paths, broken control flow)
+            - Security risks (auth bypass, injection, leaked secrets, unsafe deserialization)
+            - Semver hazards (peer-dep mismatches, range lag against companion packages)
+            - Production-risk version picks (non-LTS images on release branches, freshly-cut "Current" lines)
+            - Test gaps that would let real regressions slip through (NOT coverage % targets)
+            - Race conditions, retry logic that doesn't fire, error handlers that swallow real failures
+
+            **What to SKIP:**
+            - Style preferences (formatting, naming, ordering)
+            - "Could be more idiomatic" suggestions
+            - Documentation completeness unless the docs are actively misleading
+            - Minor / Nitpick / Optional / Quick-win observations
+            - Anything you would tag with 💤 Low value
+
+            **Format:**
+            - If you find one or more substantive issues, post inline review comments
+              with file:line references and concrete fix suggestions.
+            - If everything looks correct, post ONE top-level comment saying
+              "Claude review: no substantive concerns" and approve.
+            - Use the GitHub PR review API; do not push commits.
+
+            Read `~/.claude/standards/workflow.md` "Merge rule" section if it exists in the
+            checked-out tree (likely `.claude/standards/workflow.md`) for repo-specific guidance.
+
+      # Tag PRs with no substantive concerns so dashboards can spot them.
+      - name: Annotate review status
+        if: always()
+        run: echo "Claude review job finished — see PR for inline comments"
