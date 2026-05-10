@@ -22,6 +22,7 @@ import {
     parseArtists,
     getTrackMetadata,
     __resetMetadataCacheForTests,
+    LastFmSessionExpiredError,
 } from './lastFmApi'
 
 const getSessionKeyMock =
@@ -230,6 +231,29 @@ describe('lastFmApi', () => {
 
         it('returns unchanged for clean titles', () => {
             expect(normalizeLastFmTitle('HUMBLE.')).toBe('HUMBLE.')
+        })
+    })
+
+    describe('LastFmSessionExpiredError', () => {
+        it('creates error with default message', () => {
+            const error = new LastFmSessionExpiredError()
+            expect(error).toBeInstanceOf(Error)
+            expect(error.message).toBe(
+                'Last.fm session key has expired (error code 9)',
+            )
+            expect(error.name).toBe('LastFmSessionExpiredError')
+        })
+
+        it('creates error with custom message', () => {
+            const customMsg = 'Custom expiry message'
+            const error = new LastFmSessionExpiredError(customMsg)
+            expect(error.message).toBe(customMsg)
+            expect(error.name).toBe('LastFmSessionExpiredError')
+        })
+
+        it('is instanceof Error', () => {
+            const error = new LastFmSessionExpiredError()
+            expect(error instanceof Error).toBe(true)
         })
     })
 
@@ -516,6 +540,17 @@ describe('lastFmApi', () => {
             )
 
             expect(isLastFmInvalidSessionError(error)).toBe(true)
+        })
+
+        it('detects LastFmSessionExpiredError instances regardless of message', () => {
+            expect(
+                isLastFmInvalidSessionError(new LastFmSessionExpiredError()),
+            ).toBe(true)
+            expect(
+                isLastFmInvalidSessionError(
+                    new LastFmSessionExpiredError('totally different message'),
+                ),
+            ).toBe(true)
         })
     })
 
