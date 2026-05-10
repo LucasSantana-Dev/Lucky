@@ -3546,6 +3546,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
         sharedMocks.spotifyLinkService.getValidAccessToken
             .mockResolvedValueOnce('token-for-current')
+            .mockResolvedValueOnce(null) // spotifyToken for artist tag fetcher
             .mockResolvedValueOnce(null) // collectSpotifyRecommendationCandidates
             .mockResolvedValueOnce('token-for-enrich')
 

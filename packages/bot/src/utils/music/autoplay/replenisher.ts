@@ -10,6 +10,7 @@ import {
 } from '@lucky/shared/services'
 import {
     getArtistPopularity,
+    getArtistGenres,
 } from '../../../spotify/spotifyApi'
 import { detectSessionMood, type SessionMood } from './sessionMood'
 import { getRecentSkipCount } from '../../../handlers/player/trackHandlers'
@@ -230,11 +231,21 @@ async function _replenishQueue(
             : null
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
-        // Tag-driven genre context (Phase 2). One Last.fm artist-tag cache for
-        // the whole pass — every candidate collector reuses it, plus the
-        // current track + recent history. Falls through to no-op when Last.fm
-        // is not configured.
-        const getArtistTags: ArtistTagFetcher = createArtistTagFetcher()
+        // Tag-driven genre context (Phase 2). One artist-tag cache for the
+        // whole pass — every candidate collector reuses it. When Last.fm is not
+        // linked the fetcher falls back to Spotify genre strings so the
+        // cross-locale veto can still reject Spanish gospel tracks whose
+        // title/author carry no Spanish text markers.
+        const spotifyToken = requestedBy?.id
+            ? await Promise.resolve(
+                  spotifyLinkService.getValidAccessToken(requestedBy.id),
+              ).catch(() => null)
+            : null
+        const getArtistTags: ArtistTagFetcher = createArtistTagFetcher(
+            spotifyToken
+                ? (artist) => getArtistGenres(spotifyToken, artist)
+                : undefined,
+        )
         const currentTrackTags = await getArtistTags(currentTrack.author)
         const sessionGenreFamilies = await detectSessionGenreFamilies(
             historyTracks,
