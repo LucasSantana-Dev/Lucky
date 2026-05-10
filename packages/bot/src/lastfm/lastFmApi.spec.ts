@@ -541,6 +541,17 @@ describe('lastFmApi', () => {
 
             expect(isLastFmInvalidSessionError(error)).toBe(true)
         })
+
+        it('detects LastFmSessionExpiredError instances regardless of message', () => {
+            expect(
+                isLastFmInvalidSessionError(new LastFmSessionExpiredError()),
+            ).toBe(true)
+            expect(
+                isLastFmInvalidSessionError(
+                    new LastFmSessionExpiredError('totally different message'),
+                ),
+            ).toBe(true)
+        })
     })
 
     describe('getTagTopTracks', () => {

@@ -345,6 +345,7 @@ export async function scrobble(
 }
 
 export function isLastFmInvalidSessionError(error: unknown): boolean {
+    if (error instanceof LastFmSessionExpiredError) return true
     if (!(error instanceof Error)) return false
 
     const message = error.message.toLowerCase()
