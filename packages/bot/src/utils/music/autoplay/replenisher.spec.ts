@@ -17,6 +17,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
     spotifyLinkService: {
         getValidAccessToken: jest.fn(),
+        getByDiscordId: jest.fn(),
     },
     premiumService: {
         isPremium: jest.fn(),
@@ -320,6 +321,22 @@ describe('replenishQueue', () => {
                     }),
                 }),
             }),
+        )
+    })
+
+    it('passes Spotify genre fallback to createArtistTagFetcher when token is available', async () => {
+        const queue = createGuildQueue({
+            currentTrack: createTrack({ requestedBy: { id: 'user-123' } as import('discord.js').User }),
+        })
+        const { spotifyLinkService } = require('@lucky/shared/services')
+        spotifyLinkService.getValidAccessToken.mockResolvedValue('test-token')
+
+        const { createArtistTagFetcher } = require('./artistTagCache')
+
+        await replenishQueue(queue)
+
+        expect(createArtistTagFetcher).toHaveBeenCalledWith(
+            expect.any(Function),
         )
     })
 })
