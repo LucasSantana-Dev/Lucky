@@ -473,25 +473,28 @@ export async function searchSpotifyTrack(
             limit: '1',
         })
 
-        const res = await fetch(
-            `https://api.spotify.com/v1/search?${params.toString()}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+        return await withSpotifyRetry(async () => {
+            const res = await fetch(
+                `https://api.spotify.com/v1/search?${params.toString()}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
                 },
-            },
-        )
+            )
 
-        if (!res.ok) {
-            return null
-        }
+            throwIfRetryable(res)
+            if (!res.ok) {
+                return null
+            }
 
-        const data = (await res.json().catch(() => null)) as {
-            tracks?: { items?: Array<{ id?: string }> }
-        }
+            const data = (await res.json().catch(() => null)) as {
+                tracks?: { items?: Array<{ id?: string }> }
+            }
 
-        return data?.tracks?.items?.[0]?.id ?? null
+            return data?.tracks?.items?.[0]?.id ?? null
+        })
     } catch {
         return null
     }
@@ -513,25 +516,25 @@ export async function getUserTopArtistsAndTracks(
     accessToken: string,
 ): Promise<{ artists: SpotifyTopArtist[]; tracks: SpotifyTopTrack[] } | null> {
     try {
-        const topArtistsRes = await fetch(
-            'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term',
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        )
-
-        const topTracksRes = await fetch(
-            'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term',
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        )
+        const headers = { Authorization: `Bearer ${accessToken}` }
+        const [topArtistsRes, topTracksRes] = await Promise.all([
+            withSpotifyRetry(async () => {
+                const r = await fetch(
+                    'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term',
+                    { method: 'GET', headers },
+                )
+                throwIfRetryable(r)
+                return r
+            }),
+            withSpotifyRetry(async () => {
+                const r = await fetch(
+                    'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term',
+                    { method: 'GET', headers },
+                )
+                throwIfRetryable(r)
+                return r
+            }),
+        ])
 
         if (!topArtistsRes.ok || !topTracksRes.ok) {
             return null
@@ -586,15 +589,19 @@ export async function getUserSavedTracks(
                 limit: String(pageLimit),
                 offset: String(offset),
             })
-            const res = await fetch(
-                `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
+            const res = await withSpotifyRetry(async () => {
+                const r = await fetch(
+                    `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     },
-                },
-            )
+                )
+                throwIfRetryable(r)
+                return r
+            })
 
             if (!res.ok) {
                 logAndSwallow(
