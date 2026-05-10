@@ -60,7 +60,9 @@ gate-bailout.
 | SonarQube self-hosted | SonarCloud already gives us the quality gate without ops burden |
 | Codacy | Paid; overlaps with SonarCloud + Semgrep |
 | DeepCode (now Snyk Code) | Paid; replaced by Semgrep + GitGuardian + Socket + Danger combo |
-| Reviewdog | Useful for surfacing linter output as PR comments, but ESLint annotations in CI already do this; deferred until needed |
+| **Reviewdog** | Mature framework (~9k stars) for posting linter/static-analyzer output as PR comments. Pairs naturally with ESLint, Semgrep, ruff, golangci-lint, custom analyzers. ESLint annotations already surface in CI logs but Reviewdog gets them inline on the diff — better signal at the moment of review. Currently deferred (not in this PR) because Lucky's ESLint is wired through GitHub's native annotations and adding Reviewdog now would duplicate output. Revisit if we add Semgrep custom rules or want unified inline-comment formatting across multiple linters. |
+| **Sourcebot** | Newer (2026) self-hosted tool with whole-codebase indexing + semantic search + AI review. Strong "context awareness" pitch but young — wait for it to mature past v1.0 before adopting. |
+| **Continue** | VS Code / JetBrains plugin for inline AI review during editing. Editor-side, not PR-side — out of scope here, but worth installing locally if you want pre-commit AI feedback. |
 | Trivy | Container scanning; not yet relevant — Lucky deploys via Docker but Socket + GitHub Dependabot already handle node deps |
 | **Qodo Merge** (formerly PR-Agent) | Strong open-source AI reviewer with `/review` `/describe` slash commands and multi-agent architecture. Deferred — Claude review covers the same ground without an extra service to maintain. **Revisit if** we want PR slash-command interactivity, or want to swap LLMs per task (cheap model for `/describe`, expensive for `/review`), or need offline review via local Ollama. |
 | **LucidShark** | CLI-first local SAST + linting, Apache 2.0. Strong privacy story but overlaps with Semgrep + GitGuardian; deferred. |
@@ -80,3 +82,7 @@ the broader Forge-Space-era audit (2026-03-07).
   the `workflow.md` merge rule evolves
 - `dangerfile.ts` is the place to encode any new convention that humans keep
   forgetting — cheaper than re-asking AI bots to remember it
+
+## Reality check on AI reviewers
+
+Even the best AI reviewers (Claude, CodeRabbit, Qodo Merge, Greptile) hallucinate and miss subtle logic bugs. Treat them as **extra reviewers**, not human replacements. The merge rule's "code review tools approved" clause is necessary but not sufficient — a substantive concern from any source (human, bot, or your own gut) still outranks a green checkmark.
