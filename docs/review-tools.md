@@ -62,6 +62,11 @@ gate-bailout.
 | DeepCode (now Snyk Code) | Paid; replaced by Semgrep + GitGuardian + Socket + Danger combo |
 | Reviewdog | Useful for surfacing linter output as PR comments, but ESLint annotations in CI already do this; deferred until needed |
 | Trivy | Container scanning; not yet relevant — Lucky deploys via Docker but Socket + GitHub Dependabot already handle node deps |
+| **Qodo Merge** (formerly PR-Agent) | Strong open-source AI reviewer with `/review` `/describe` slash commands and multi-agent architecture. Deferred — Claude review covers the same ground without an extra service to maintain. **Revisit if** we want PR slash-command interactivity, or want to swap LLMs per task (cheap model for `/describe`, expensive for `/review`), or need offline review via local Ollama. |
+| **LucidShark** | CLI-first local SAST + linting, Apache 2.0. Strong privacy story but overlaps with Semgrep + GitGuardian; deferred. |
+| **Tabby** | Self-hosted Copilot alternative with repo-context indexing; primarily a code-completion tool, not a PR reviewer. Out of scope here. |
+| **SonarQube Community Edition (self-hosted)** | SonarCloud already gives us the quality gate without ops burden. The 2026 "AI CodeFix" feature in CE is interesting but not enough to justify hosting. |
+| **CodeFactor / Aikido** | Free-for-OSS SaaS; overlap with SonarCloud + Socket. No clear marginal value. |
 
 See `~/.claude/projects/-Users-lucassantana/memory/free-tools-analysis.md` for
 the broader Forge-Space-era audit (2026-03-07).

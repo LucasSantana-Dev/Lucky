@@ -27,6 +27,8 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  # Required by anthropics/claude-code-action for OIDC token retrieval.
+  id-token: write
 
 jobs:
   review:
