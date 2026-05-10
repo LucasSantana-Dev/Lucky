@@ -14,6 +14,96 @@ export type SpotifyAudioFeatureConstraints = {
     danceability?: number
 }
 
+async function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}
+
+const DEFAULT_RETRY_AFTER_MS = 1000
+const MAX_RETRY_AFTER_MS = 60 * 1000
+
+/**
+ * Parse a Retry-After header value into a millisecond delay.
+ *
+ * Per RFC 7231 the header may be either:
+ *   - delta-seconds: a non-negative integer ("120")
+ *   - HTTP-date: an RFC 7231 IMF-fixdate ("Sat, 10 May 2026 12:00:00 GMT")
+ *
+ * Returns null when the header is missing or unparseable so callers can fall
+ * back to a default delay (rather than NaN milliseconds, which becomes a busy
+ * loop).
+ */
+function parseRetryAfterMs(header: string | null): number | null {
+    if (!header) return null
+    const trimmed = header.trim()
+    if (!trimmed) return null
+    // delta-seconds form first — bare integer
+    if (/^\d+$/.test(trimmed)) {
+        const seconds = Number.parseInt(trimmed, 10)
+        return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null
+    }
+    // HTTP-date form
+    const targetMs = Date.parse(trimmed)
+    if (!Number.isFinite(targetMs)) return null
+    const delta = targetMs - Date.now()
+    return delta > 0 ? delta : 0
+}
+
+/**
+ * Throw the Response when its status is retryable so withSpotifyRetry's
+ * catch block can intercept it. fetch() does not throw on HTTP error
+ * statuses, so wrapped callbacks must signal retry-eligible failures
+ * explicitly.
+ */
+function throwIfRetryable(res: Response): void {
+    if (res.status === 429) throw res
+}
+
+async function withSpotifyRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+    let attempt = 0
+    while (true) {
+        try {
+            return await fn()
+        } catch (error) {
+            const isResponse = error instanceof Response
+            const status = isResponse ? error.status : null
+
+            if (status === 429 && attempt < maxRetries) {
+                const retryAfterHeader = isResponse
+                    ? error.headers.get('Retry-After')
+                    : null
+                const parsedDelayMs = parseRetryAfterMs(retryAfterHeader)
+                const delayMs = Math.min(
+                    parsedDelayMs ?? DEFAULT_RETRY_AFTER_MS,
+                    MAX_RETRY_AFTER_MS,
+                )
+                debugLog({
+                    message: 'Spotify 429 rate limit, retrying',
+                    data: {
+                        attempt,
+                        maxRetries,
+                        delayMs,
+                        retryAfterHeader,
+                    },
+                })
+                await sleep(delayMs)
+                attempt++
+                continue
+            }
+
+            if (status === 429) {
+                warnLog({
+                    message: 'Spotify 429 retry exhausted',
+                    data: { attempt, maxRetries },
+                })
+            }
+
+            throw error
+        }
+    }
+}
+
 export async function getSpotifyRecommendations(
     accessToken: string,
     seedTrackIds: string[],
@@ -22,95 +112,99 @@ export async function getSpotifyRecommendations(
 ): Promise<SpotifyRecommendationTrack[]> {
     if (seedTrackIds.length === 0) return []
     try {
-        const params = new URLSearchParams({
-            seed_tracks: seedTrackIds.slice(0, 5).join(','),
-            limit: String(Math.min(limit, 100)),
-        })
+        const result = await withSpotifyRetry(async () => {
+            const params = new URLSearchParams({
+                seed_tracks: seedTrackIds.slice(0, 5).join(','),
+                limit: String(Math.min(limit, 100)),
+            })
 
-        if (audioConstraints) {
-            const TOLERANCE = 0.25
-            if (audioConstraints.energy !== undefined) {
-                params.set(
-                    'min_energy',
-                    String(
-                        Math.max(
-                            0,
-                            audioConstraints.energy - TOLERANCE,
-                        ).toFixed(2),
-                    ),
-                )
-                params.set(
-                    'max_energy',
-                    String(
-                        Math.min(
-                            1,
-                            audioConstraints.energy + TOLERANCE,
-                        ).toFixed(2),
-                    ),
-                )
+            if (audioConstraints) {
+                const TOLERANCE = 0.25
+                if (audioConstraints.energy !== undefined) {
+                    params.set(
+                        'min_energy',
+                        String(
+                            Math.max(
+                                0,
+                                audioConstraints.energy - TOLERANCE,
+                            ).toFixed(2),
+                        ),
+                    )
+                    params.set(
+                        'max_energy',
+                        String(
+                            Math.min(
+                                1,
+                                audioConstraints.energy + TOLERANCE,
+                            ).toFixed(2),
+                        ),
+                    )
+                }
+                if (audioConstraints.valence !== undefined) {
+                    params.set(
+                        'min_valence',
+                        String(
+                            Math.max(
+                                0,
+                                audioConstraints.valence - TOLERANCE,
+                            ).toFixed(2),
+                        ),
+                    )
+                    params.set(
+                        'max_valence',
+                        String(
+                            Math.min(
+                                1,
+                                audioConstraints.valence + TOLERANCE,
+                            ).toFixed(2),
+                        ),
+                    )
+                }
+                if (audioConstraints.danceability !== undefined) {
+                    params.set(
+                        'min_danceability',
+                        String(
+                            Math.max(
+                                0,
+                                audioConstraints.danceability - TOLERANCE,
+                            ).toFixed(2),
+                        ),
+                    )
+                    params.set(
+                        'max_danceability',
+                        String(
+                            Math.min(
+                                1,
+                                audioConstraints.danceability + TOLERANCE,
+                            ).toFixed(2),
+                        ),
+                    )
+                }
             }
-            if (audioConstraints.valence !== undefined) {
-                params.set(
-                    'min_valence',
-                    String(
-                        Math.max(
-                            0,
-                            audioConstraints.valence - TOLERANCE,
-                        ).toFixed(2),
-                    ),
-                )
-                params.set(
-                    'max_valence',
-                    String(
-                        Math.min(
-                            1,
-                            audioConstraints.valence + TOLERANCE,
-                        ).toFixed(2),
-                    ),
-                )
+            const res = await fetch(
+                `https://api.spotify.com/v1/recommendations?${params.toString()}`,
+                { headers: { Authorization: `Bearer ${accessToken}` } },
+            )
+            throwIfRetryable(res)
+            if (!res.ok) return []
+            const data = (await res.json().catch(() => null)) as {
+                tracks?: Array<{
+                    id?: string
+                    name?: string
+                    artists?: Array<{ name?: string }>
+                    duration_ms?: number
+                }>
             }
-            if (audioConstraints.danceability !== undefined) {
-                params.set(
-                    'min_danceability',
-                    String(
-                        Math.max(
-                            0,
-                            audioConstraints.danceability - TOLERANCE,
-                        ).toFixed(2),
-                    ),
-                )
-                params.set(
-                    'max_danceability',
-                    String(
-                        Math.min(
-                            1,
-                            audioConstraints.danceability + TOLERANCE,
-                        ).toFixed(2),
-                    ),
-                )
-            }
-        }
-        const res = await fetch(
-            `https://api.spotify.com/v1/recommendations?${params.toString()}`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
-        )
-        if (!res.ok) return []
-        const data = (await res.json().catch(() => null)) as {
-            tracks?: Array<{
-                id?: string
-                name?: string
-                artists?: Array<{ name?: string }>
-                duration_ms?: number
-            }>
-        }
-        return (data?.tracks ?? [])
-            .filter((t) => t.id && t.name)
-            .map((t) => ({
-                id: t.id!,
-                name: t.name!,
-                artists: (t.artists ?? []).map((a) => ({ name: a.name ?? '' })),
-                duration_ms: t.duration_ms ?? 0,
-            }))
+            return (data?.tracks ?? [])
+                .filter((t) => t.id && t.name)
+                .map((t) => ({
+                    id: t.id!,
+                    name: t.name!,
+                    artists: (t.artists ?? []).map((a) => ({ name: a.name ?? '' })),
+                    duration_ms: t.duration_ms ?? 0,
+                }))
+        })
+        return result
     } catch (err) {
         logAndSwallow(err, 'spotify.getRecommendations', { seedTrackIds: seedTrackIds.length })
         return []
@@ -150,27 +244,30 @@ export async function getAudioFeatures(
     spotifyTrackId: string,
 ): Promise<SpotifyAudioFeatures | null> {
     try {
-        const res = await fetch(
-            `https://api.spotify.com/v1/audio-features/${spotifyTrackId}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+        const data = await withSpotifyRetry(async () => {
+            const res = await fetch(
+                `https://api.spotify.com/v1/audio-features/${spotifyTrackId}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
                 },
-            },
-        )
+            )
 
-        if (!res.ok) {
-            return null
-        }
+            throwIfRetryable(res)
+            if (!res.ok) {
+                return null
+            }
 
-        const data = (await res.json().catch(() => null)) as {
-            energy?: number
-            valence?: number
-            danceability?: number
-            tempo?: number
-            acousticness?: number
-        }
+            return (await res.json().catch(() => null)) as {
+                energy?: number
+                valence?: number
+                danceability?: number
+                tempo?: number
+                acousticness?: number
+            }
+        })
 
         if (!data?.energy || typeof data.valence !== 'number') {
             return null
@@ -196,34 +293,37 @@ export async function getBatchAudioFeatures(
     if (spotifyIds.length === 0) return new Map()
 
     try {
-        const ids = spotifyIds.slice(0, 100).join(',')
-        const res = await fetch(
-            `https://api.spotify.com/v1/audio-features?ids=${ids}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+        const result = await withSpotifyRetry(async () => {
+            const ids = spotifyIds.slice(0, 100).join(',')
+            const res = await fetch(
+                `https://api.spotify.com/v1/audio-features?ids=${ids}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
                 },
-            },
-        )
+            )
 
-        if (!res.ok) return new Map()
+            throwIfRetryable(res)
+            if (!res.ok) return null
 
-        const data = (await res.json().catch(() => null)) as {
-            audio_features?: Array<{
-                id?: string
-                energy?: number
-                valence?: number
-                danceability?: number
-                tempo?: number
-                acousticness?: number
-            } | null>
-        }
+            return (await res.json().catch(() => null)) as {
+                audio_features?: Array<{
+                    id?: string
+                    energy?: number
+                    valence?: number
+                    danceability?: number
+                    tempo?: number
+                    acousticness?: number
+                } | null>
+            }
+        })
 
-        const result = new Map<string, SpotifyAudioFeatures>()
-        if (!data?.audio_features) return result
+        const resultMap = new Map<string, SpotifyAudioFeatures>()
+        if (!result?.audio_features) return resultMap
 
-        for (const feature of data.audio_features) {
+        for (const feature of result.audio_features) {
             if (
                 !feature?.id ||
                 typeof feature.energy !== 'number' ||
@@ -232,7 +332,7 @@ export async function getBatchAudioFeatures(
                 continue
             }
 
-            result.set(feature.id, {
+            resultMap.set(feature.id, {
                 energy: feature.energy,
                 valence: feature.valence,
                 danceability: feature.danceability ?? 0,
@@ -241,7 +341,7 @@ export async function getBatchAudioFeatures(
             })
         }
 
-        return result
+        return resultMap
     } catch (err) {
         logAndSwallow(err, 'spotify.getBatchAudioFeatures', { count: spotifyIds.length })
         return new Map()
@@ -267,32 +367,35 @@ export async function getArtistPopularity(
     })
 
     try {
-        const params = new URLSearchParams({
-            q: artistName,
-            type: 'artist',
-            limit: '1',
+        const popularity = await withSpotifyRetry(async () => {
+            const params = new URLSearchParams({
+                q: artistName,
+                type: 'artist',
+                limit: '1',
+            })
+
+            const res = await fetch(
+                `https://api.spotify.com/v1/search?${params.toString()}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                },
+            )
+
+            throwIfRetryable(res)
+            if (!res.ok) {
+                return null
+            }
+
+            const data = (await res.json().catch(() => null)) as {
+                artists?: { items?: Array<{ popularity?: number }> }
+            }
+
+            return data?.artists?.items?.[0]?.popularity ?? null
         })
 
-        const res = await fetch(
-            `https://api.spotify.com/v1/search?${params.toString()}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        )
-
-        if (!res.ok) {
-            artistPopularityCache.set(artistName, { value: null })
-            return null
-        }
-
-        const data = (await res.json().catch(() => null)) as {
-            artists?: { items?: Array<{ popularity?: number }> }
-        }
-
-        const popularity = data?.artists?.items?.[0]?.popularity ?? null
         artistPopularityCache.set(artistName, { value: popularity })
         return popularity
     } catch {
@@ -320,32 +423,35 @@ export async function getArtistGenres(
     })
 
     try {
-        const params = new URLSearchParams({
-            q: artistName,
-            type: 'artist',
-            limit: '1',
+        const genres = await withSpotifyRetry(async () => {
+            const params = new URLSearchParams({
+                q: artistName,
+                type: 'artist',
+                limit: '1',
+            })
+
+            const res = await fetch(
+                `https://api.spotify.com/v1/search?${params.toString()}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                },
+            )
+
+            throwIfRetryable(res)
+            if (!res.ok) {
+                return []
+            }
+
+            const data = (await res.json().catch(() => null)) as {
+                artists?: { items?: Array<{ genres?: string[] }> }
+            }
+
+            return data?.artists?.items?.[0]?.genres ?? []
         })
 
-        const res = await fetch(
-            `https://api.spotify.com/v1/search?${params.toString()}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        )
-
-        if (!res.ok) {
-            artistGenresCache.set(artistName, { value: null })
-            return []
-        }
-
-        const data = (await res.json().catch(() => null)) as {
-            artists?: { items?: Array<{ genres?: string[] }> }
-        }
-
-        const genres = data?.artists?.items?.[0]?.genres ?? []
         artistGenresCache.set(artistName, { value: genres })
         return genres
     } catch {
@@ -367,25 +473,28 @@ export async function searchSpotifyTrack(
             limit: '1',
         })
 
-        const res = await fetch(
-            `https://api.spotify.com/v1/search?${params.toString()}`,
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+        return await withSpotifyRetry(async () => {
+            const res = await fetch(
+                `https://api.spotify.com/v1/search?${params.toString()}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
                 },
-            },
-        )
+            )
 
-        if (!res.ok) {
-            return null
-        }
+            throwIfRetryable(res)
+            if (!res.ok) {
+                return null
+            }
 
-        const data = (await res.json().catch(() => null)) as {
-            tracks?: { items?: Array<{ id?: string }> }
-        }
+            const data = (await res.json().catch(() => null)) as {
+                tracks?: { items?: Array<{ id?: string }> }
+            }
 
-        return data?.tracks?.items?.[0]?.id ?? null
+            return data?.tracks?.items?.[0]?.id ?? null
+        })
     } catch {
         return null
     }
@@ -407,25 +516,25 @@ export async function getUserTopArtistsAndTracks(
     accessToken: string,
 ): Promise<{ artists: SpotifyTopArtist[]; tracks: SpotifyTopTrack[] } | null> {
     try {
-        const topArtistsRes = await fetch(
-            'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term',
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        )
-
-        const topTracksRes = await fetch(
-            'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term',
-            {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            },
-        )
+        const headers = { Authorization: `Bearer ${accessToken}` }
+        const [topArtistsRes, topTracksRes] = await Promise.all([
+            withSpotifyRetry(async () => {
+                const r = await fetch(
+                    'https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term',
+                    { method: 'GET', headers },
+                )
+                throwIfRetryable(r)
+                return r
+            }),
+            withSpotifyRetry(async () => {
+                const r = await fetch(
+                    'https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=medium_term',
+                    { method: 'GET', headers },
+                )
+                throwIfRetryable(r)
+                return r
+            }),
+        ])
 
         if (!topArtistsRes.ok || !topTracksRes.ok) {
             return null
@@ -480,15 +589,19 @@ export async function getUserSavedTracks(
                 limit: String(pageLimit),
                 offset: String(offset),
             })
-            const res = await fetch(
-                `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
+            const res = await withSpotifyRetry(async () => {
+                const r = await fetch(
+                    `https://api.spotify.com/v1/me/tracks?${params.toString()}`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     },
-                },
-            )
+                )
+                throwIfRetryable(r)
+                return r
+            })
 
             if (!res.ok) {
                 logAndSwallow(
