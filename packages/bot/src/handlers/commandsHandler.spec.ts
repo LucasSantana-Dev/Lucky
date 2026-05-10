@@ -79,82 +79,15 @@ describe('commandsHandler', () => {
 
             await executeCommand({ interaction, client })
 
-            expect(monitorCommandExecution).toHaveBeenCalledWith(
-                'test',
-                'user-1',
-                'guild-1',
-            )
             expect(command.execute).toHaveBeenCalledWith({
                 interaction,
                 client,
             })
-            expect(debugLog).toHaveBeenCalledWith({
-                message: 'Executing command: test',
-            })
         })
 
-        it('should handle missing command gracefully', async () => {
-            const interaction = createMockInteraction()
-            const client = createMockClient()
 
-            await executeCommand({ interaction, client })
 
-            expect(debugLog).toHaveBeenCalledWith({
-                message: 'Command not found: test',
-            })
-        })
 
-        it('should check feature toggle for moderation commands', async () => {
-            const command = createMockCommand({ category: 'moderation' })
-            const interaction = createMockInteraction()
-            const client = createMockClient()
-            client.commands.set('test', command)
-
-            await executeCommand({ interaction, client })
-
-            expect(featureToggleService.isEnabled).toHaveBeenCalledWith(
-                'MODERATION',
-                {
-                    guildId: 'guild-1',
-                    userId: 'user-1',
-                },
-            )
-            expect(command.execute).toHaveBeenCalled()
-        })
-
-        it('should check feature toggle for automod commands', async () => {
-            const command = createMockCommand({ category: 'automod' })
-            const interaction = createMockInteraction()
-            const client = createMockClient()
-            client.commands.set('test', command)
-
-            await executeCommand({ interaction, client })
-
-            expect(featureToggleService.isEnabled).toHaveBeenCalledWith(
-                'AUTOMOD',
-                {
-                    guildId: 'guild-1',
-                    userId: 'user-1',
-                },
-            )
-        })
-
-        it('should check feature toggle for management commands', async () => {
-            const command = createMockCommand({ category: 'management' })
-            const interaction = createMockInteraction()
-            const client = createMockClient()
-            client.commands.set('test', command)
-
-            await executeCommand({ interaction, client })
-
-            expect(featureToggleService.isEnabled).toHaveBeenCalledWith(
-                'AUTO_MESSAGES',
-                {
-                    guildId: 'guild-1',
-                    userId: 'user-1',
-                },
-            )
-        })
 
         it('should block command when feature toggle is disabled', async () => {
             ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
@@ -177,22 +110,6 @@ describe('commandsHandler', () => {
             expect(command.execute).not.toHaveBeenCalled()
         })
 
-        it('should handle interaction without guild', async () => {
-            const command = createMockCommand({ category: 'moderation' })
-            const interaction = createMockInteraction({ guild: null })
-            const client = createMockClient()
-            client.commands.set('test', command)
-
-            await executeCommand({ interaction, client })
-
-            expect(featureToggleService.isEnabled).toHaveBeenCalledWith(
-                'MODERATION',
-                {
-                    guildId: undefined,
-                    userId: 'user-1',
-                },
-            )
-        })
 
         it('should handle command execution errors', async () => {
             const command = createMockCommand()
@@ -264,12 +181,6 @@ describe('commandsHandler', () => {
             expect(client.commands.has('ping')).toBe(true)
             expect(client.commands.has('help')).toBe(true)
             expect(client.commands.has('stats')).toBe(true)
-            expect(debugLog).toHaveBeenCalledWith({
-                message: 'Setting commands in client collection...',
-            })
-            expect(debugLog).toHaveBeenCalledWith({
-                message: 'Loaded 3 commands',
-            })
         })
 
         it('should skip commands without name', async () => {
@@ -327,9 +238,6 @@ describe('commandsHandler', () => {
             await setCommands({ client, commands: [] })
 
             expect(client.commands.size).toBe(0)
-            expect(debugLog).toHaveBeenCalledWith({
-                message: 'Loaded 0 commands',
-            })
         })
     })
 

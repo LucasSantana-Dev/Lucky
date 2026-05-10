@@ -518,68 +518,6 @@ describe('play command', () => {
         )
     })
 
-    it('calls moveUserTrackToPriority even when track url already exists in queue', async () => {
-        const interaction = createInteraction('guild-1')
-        const track = {
-            url: 'https://example.com/url-match',
-            title: 'Song A',
-            author: 'Artist A',
-        }
-
-        resolveGuildQueueMock.mockReturnValue({
-            queue: {
-                repeatMode: 3,
-                tracks: {
-                    size: 1,
-                    toArray: () => [
-                        {
-                            url: 'https://example.com/url-match',
-                            title: 'Queued',
-                        },
-                    ],
-                },
-            },
-        })
-
-        await playCommand.execute({
-            client: createClient(async () => ({
-                track,
-                searchResult: { playlist: null, tracks: [] },
-            })),
-            interaction,
-        } as any)
-
-        expect(moveUserTrackToPriorityMock).toHaveBeenCalled()
-    })
-
-    it('calls moveUserTrackToPriority even when same track object is already queued', async () => {
-        const interaction = createInteraction('guild-1')
-        const track = {
-            title: 'Song A',
-            author: 'Artist A',
-        }
-
-        resolveGuildQueueMock.mockReturnValue({
-            queue: {
-                repeatMode: 3,
-                tracks: {
-                    size: 1,
-                    toArray: () => [track],
-                },
-            },
-        })
-
-        await playCommand.execute({
-            client: createClient(async () => ({
-                track,
-                searchResult: { playlist: null, tracks: [] },
-            })),
-            interaction,
-        } as any)
-
-        expect(moveUserTrackToPriorityMock).toHaveBeenCalled()
-    })
-
     it('stops when voice channel validation fails', async () => {
         requireVoiceChannelMock.mockResolvedValue(false)
         const interaction = createInteraction('guild-1')

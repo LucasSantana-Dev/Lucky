@@ -11,6 +11,18 @@ module.exports = {
     ],
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],
+    // Floor pinned to the round-down of the post-#821 baseline
+    // (stmts 67 / branches 63 / functions 63 / lines 68). Binding without
+    // forcing emergency work; tighten 2-3 % per cleanup phase as the suite
+    // shrinks. See .agents/plans/test-cleanup-phase2.md.
+    coverageThreshold: {
+        global: {
+            statements: 65,
+            branches: 60,
+            functions: 60,
+            lines: 65,
+        },
+    },
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^chalk$': '<rootDir>/tests/__mocks__/chalk.ts',
