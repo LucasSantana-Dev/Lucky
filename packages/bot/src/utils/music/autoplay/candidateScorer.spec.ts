@@ -67,7 +67,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe('blocked artist')
+            expect(result.signals).toEqual([])
         })
 
         it('rejects tracks longer than 15 minutes', () => {
@@ -83,7 +83,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe('track too long')
+            expect(result.signals).toEqual([])
         })
 
         it('rejects ambient/noise content', () => {
@@ -99,7 +99,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe('ambient/noise content')
+            expect(result.signals).toEqual([])
         })
 
         it('rejects EDM mixes', () => {
@@ -113,7 +113,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe('dj mix / edm set')
+            expect(result.signals).toEqual([])
         })
 
         it('boosts preferred artists', () => {
@@ -130,7 +130,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBeGreaterThan(1)
-            expect(result.reason).toContain('preferred artist')
+            expect(result.signals).toContain('preferred artist')
         })
 
         it('boosts frequent artists (5+ plays)', () => {
@@ -150,7 +150,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBeGreaterThan(1)
-            expect(result.reason).toContain('favourite artist')
+            expect(result.signals).toContain('favourite artist')
         })
 
         it('handles explicit dislike with high weight by rejecting', () => {
@@ -176,7 +176,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe('disliked')
+            expect(result.signals).toEqual([])
         })
 
         it('applies partial penalty for low-weight dislikes', () => {
@@ -203,7 +203,7 @@ describe('candidateScorer', () => {
                 dislikedWeights: dislikedWeights,
             })
 
-            expect(result.reason).toContain('old dislike')
+            expect(result.signals).toContain('old dislike')
             expect(result.score).toBeLessThan(1.3)
         })
 
@@ -251,9 +251,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe(
-                'cross-locale: spanish in non-spanish session',
-            )
+            expect(result.signals).toEqual([])
         })
 
         it('rejects Spanish gospel via Last.fm artist tags even when title is ambiguous', () => {
@@ -297,9 +295,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe(
-                'cross-locale: spanish in non-spanish session',
-            )
+            expect(result.signals).toEqual([])
         })
 
         it('does not reject Spanish candidates when session has Spanish history', () => {
@@ -329,7 +325,7 @@ describe('candidateScorer', () => {
             })
 
             expect(result.score).toBeGreaterThan(0)
-            expect(result.reason).not.toContain('cross-locale')
+            expect(result.signals).not.toContain('cross-locale')
         })
 
         it('hard-rejects candidates that drift from the dominant session genre family', () => {
@@ -364,9 +360,7 @@ describe('candidateScorer', () => {
                 },
             })
             expect(result.score).toBe(-Infinity)
-            expect(result.reason).toBe(
-                'cross-genre: family drift from session',
-            )
+            expect(result.signals).toEqual([])
         })
 
         it('does not veto cross-genre when the session has no dominant family yet', () => {
@@ -398,7 +392,7 @@ describe('candidateScorer', () => {
             // Soft genre-family penalty still applies (rap vs metal, no
             // overlap), but the candidate is not hard-rejected.
             expect(result.score).not.toBe(-Infinity)
-            expect(result.reason).toContain('genre family drift')
+            expect(result.signals).toContain('genre family drift')
         })
 
         it('keeps candidates within the dominant session genre family', () => {
@@ -431,8 +425,8 @@ describe('candidateScorer', () => {
                 },
             })
             expect(result.score).toBeGreaterThan(0)
-            expect(result.reason).not.toContain('cross-genre')
-            expect(result.reason).not.toContain('genre family drift')
+            expect(result.signals).not.toContain('cross-genre')
+            expect(result.signals).not.toContain('genre family drift')
         })
 
         it('boosts deep dive artist tracks', () => {
@@ -461,7 +455,7 @@ describe('candidateScorer', () => {
                 sessionMood: mood,
             })
 
-            expect(result.reason).toContain('deep dive')
+            expect(result.signals).toContain('deep dive')
         })
 
         it('boosts long tracks when preferLong is true', () => {
@@ -490,7 +484,7 @@ describe('candidateScorer', () => {
                 sessionMood: mood,
             })
 
-            expect(result.reason).toContain('long track match')
+            expect(result.signals).toContain('long track match')
         })
 
         it('boosts short tracks when preferShort is true', () => {
@@ -519,7 +513,7 @@ describe('candidateScorer', () => {
                 sessionMood: mood,
             })
 
-            expect(result.reason).toContain('quick hit match')
+            expect(result.signals).toContain('quick hit match')
         })
 
         it('relaxes genre family penalty by 50% during skip storms (recentSkipCount >= 3)', () => {
@@ -617,7 +611,7 @@ describe('candidateScorer', () => {
                 sessionMood: mood,
             })
 
-            expect(result.reason).toContain('restless discovery')
+            expect(result.signals).toContain('restless discovery')
         })
     })
 
@@ -682,7 +676,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue(null)
@@ -701,7 +695,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockRejectedValue(new Error('Token error'))
@@ -720,7 +714,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack({ url: 'https://youtube.com/watch?v=123' }),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
@@ -739,7 +733,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
@@ -759,7 +753,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
@@ -780,7 +774,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
@@ -810,7 +804,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
@@ -840,7 +834,7 @@ describe('candidateScorer', () => {
                 {
                     track: createTrack(),
                     score: 1,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
@@ -866,7 +860,7 @@ describe('candidateScorer', () => {
         })
 
         it('applies tempo drastic change penalty when delta exceeds 40 BPM', async () => {
-            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
@@ -884,7 +878,7 @@ describe('candidateScorer', () => {
         })
 
         it('boosts track with high acousticness feature value', async () => {
-            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
@@ -902,7 +896,7 @@ describe('candidateScorer', () => {
         })
 
         it('penalizes extreme acousticness swing when candidate is not acoustic', async () => {
-            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
@@ -920,7 +914,7 @@ describe('candidateScorer', () => {
         })
 
         it('applies continuity bonus when both current and candidate are acoustic', async () => {
-            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
@@ -938,7 +932,7 @@ describe('candidateScorer', () => {
         })
 
         it('penalizes acoustic candidate in a non-acoustic session', async () => {
-            const tracks = [{ track: createTrack(), score: 1, reason: 'test' }]
+            const tracks = [{ track: createTrack(), score: 1, signals: [] }]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
@@ -963,7 +957,7 @@ describe('candidateScorer', () => {
                         url: 'https://open.spotify.com/track/lowid',
                     }),
                     score: 0.5,
-                    reason: 'test',
+                    signals: [],
                 },
                 {
                     track: createTrack({
@@ -971,7 +965,7 @@ describe('candidateScorer', () => {
                         url: 'https://open.spotify.com/track/highid',
                     }),
                     score: 2,
-                    reason: 'test',
+                    signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')

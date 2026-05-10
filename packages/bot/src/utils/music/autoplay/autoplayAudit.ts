@@ -1,6 +1,7 @@
 import type { Track } from 'discord-player'
 import { infoLog } from '@lucky/shared/utils'
 import type { ScoredTrack } from './candidateCollector'
+import { serializeBasis } from './recommendationBasis.js'
 import type { SessionMood } from './sessionMood'
 
 interface EvaluatedCandidate {
@@ -54,7 +55,7 @@ export class AutoplayAuditCollector {
             title: t.track.title,
             artist: t.track.author,
             score: t.score,
-            reason: t.reason,
+            reason: serializeBasis(t.basis),
         }))
     }
 

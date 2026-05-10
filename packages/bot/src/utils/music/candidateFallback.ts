@@ -77,7 +77,8 @@ function addGenreTrackCandidate(
     })
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
-        reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
+        source: 'genre-tag',
+        signals: rec.signals,
     }, ctx.auditCollector)
 }
 
@@ -179,9 +180,8 @@ export async function collectBroadFallbackCandidates(
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
-                    reason: rec.reason
-                        ? `${rec.reason} • artist fallback`
-                        : 'artist fallback',
+                    source: 'artist-fallback',
+                    signals: rec.signals,
                 }, auditCollector)
             }
 
@@ -292,8 +292,8 @@ export async function enrichWithAudioFeatures(
             )
             if (genrePenalty !== 0) {
                 track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
+                if (genrePenalty <= -0.3 && !track.basis.signals.includes('genre family drift')) {
+                    track.basis.signals.push('genre family drift')
                 }
             }
         }

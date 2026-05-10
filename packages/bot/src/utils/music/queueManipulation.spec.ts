@@ -4372,7 +4372,7 @@ describe('queueManipulation — diversity improvements', () => {
                 {
                     track: { title: 'T', author: 'A', url: 'https://spotify.com' },
                     score: 1,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
             const result = await enrichWithAudioFeatures(tracks, 'u1', null)
@@ -4384,7 +4384,7 @@ describe('queueManipulation — diversity improvements', () => {
                 {
                     track: { title: 'T', author: 'A', url: 'https://spotify.com' },
                     score: 1,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
             const result = await enrichWithAudioFeatures(
@@ -4400,7 +4400,7 @@ describe('queueManipulation — diversity improvements', () => {
                 {
                     track: { title: 'T', author: 'A', url: 'https://youtube.com' },
                     score: 1,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
             const result = await enrichWithAudioFeatures(
