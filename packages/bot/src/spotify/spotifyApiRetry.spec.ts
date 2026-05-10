@@ -113,7 +113,7 @@ describe('Spotify API 429 Retry Logic', () => {
             expect(result).not.toBeNull()
             expect(debugLog).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    data: expect.objectContaining({ retryAfter: 0 }),
+                    data: expect.objectContaining({ retryAfterHeader: '0' }),
                 }),
             )
         })
