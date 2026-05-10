@@ -28,7 +28,7 @@ function createScoredTrack(overrides: Partial<ScoredTrack> = {}): ScoredTrack {
     return {
         track: createTrack(),
         score: 0.8,
-        reason: 'test reason',
+        basis: { source: 'spotify-rec', signals: [] },
         ...overrides,
     }
 }
@@ -92,12 +92,12 @@ describe('AutoplayAuditCollector', () => {
                 createScoredTrack({
                     track: createTrack({ title: 'Pick A', author: 'Artist X' }),
                     score: 0.95,
-                    reason: 'top pick',
+                    basis: { source: 'spotify-rec', signals: ['preferred artist'] },
                 }),
                 createScoredTrack({
                     track: createTrack({ title: 'Pick B', author: 'Artist Y' }),
                     score: 0.85,
-                    reason: 'second pick',
+                    basis: { source: 'lastfm-similar', signals: [] },
                 }),
             ]
 
@@ -109,13 +109,13 @@ describe('AutoplayAuditCollector', () => {
                 title: 'Pick A',
                 artist: 'Artist X',
                 score: 0.95,
-                reason: 'top pick',
+                reason: 'spotify rec • preferred artist',
             })
             expect(record.selected[1]).toEqual({
                 title: 'Pick B',
                 artist: 'Artist Y',
                 score: 0.85,
-                reason: 'second pick',
+                reason: 'last.fm similar',
             })
         })
 
@@ -175,7 +175,7 @@ describe('AutoplayAuditCollector', () => {
         it('includes evaluated and selected entries in the record', () => {
             const track = createTrack({ title: 'T1', author: 'A1' })
             collector.recordEvaluated(track, 0.7, 'reason', 'accepted')
-            collector.setFinalSelected([createScoredTrack({ track, score: 0.7, reason: 'reason' })])
+            collector.setFinalSelected([createScoredTrack({ track, score: 0.7 })])
 
             collector.emit('guild-1', 'seed', null, {}, 200)
 

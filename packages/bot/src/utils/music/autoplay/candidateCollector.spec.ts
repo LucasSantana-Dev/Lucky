@@ -43,7 +43,7 @@ jest.mock('./diversitySelector', () => ({
 
 const calculateRecommendationScoreMock = jest.fn(() => ({
     score: 0.5,
-    reason: 'test',
+    signals: [],
 }))
 const normalizeTrackKeyMock = jest.fn(
     (title?: string, author?: string) =>
@@ -118,7 +118,7 @@ describe('candidateCollector', () => {
         it('should add new candidate to pool', () => {
             const candidates = new Map<string, ScoredTrack>()
             const track = createTrack({ title: 'Song 1', author: 'Artist 1' })
-            const recommendation = { score: 0.8, reason: 'test' }
+            const recommendation = { score: 0.8, source: 'spotify-rec' as const, signals: [] }
 
             upsertScoredCandidate(candidates, track, recommendation)
 
@@ -126,7 +126,7 @@ describe('candidateCollector', () => {
             const entry = Array.from(candidates.values())[0]
             expect(entry.track).toBe(track)
             expect(entry.score).toBe(0.8)
-            expect(entry.reason).toBe('test')
+            expect(entry.basis.source).toBe('spotify-rec')
         })
 
         it('should update candidate if new score is higher', () => {
@@ -140,17 +140,17 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track1, {
                 score: 0.5,
-                reason: 'test1',
+                source: 'spotify-rec', signals: [],
             })
             upsertScoredCandidate(candidates, track2, {
                 score: 0.8,
-                reason: 'test2',
+                source: 'spotify-rec', signals: [],
             })
 
             expect(candidates.size).toBe(1)
             const entry = Array.from(candidates.values())[0]
             expect(entry.score).toBe(0.8)
-            expect(entry.reason).toBe('test2')
+            expect(entry.basis.source).toBe('spotify-rec')
         })
 
         it('should keep higher score when duplicate key inserted', () => {
@@ -159,16 +159,16 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.9,
-                reason: 'high',
+                source: 'spotify-rec', signals: [],
             })
             upsertScoredCandidate(candidates, track, {
                 score: 0.3,
-                reason: 'low',
+                source: 'spotify-rec', signals: [],
             })
 
             const entry = Array.from(candidates.values())[0]
             expect(entry.score).toBe(0.9)
-            expect(entry.reason).toBe('high')
+            expect(entry.basis.source).toBe('spotify-rec')
         })
 
         it('drops -Infinity recommendations without inserting', () => {
@@ -180,7 +180,7 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: -Infinity,
-                reason: 'cross-locale: spanish in non-spanish session',
+                source: 'spotify-rec', signals: [],
             })
 
             expect(candidates.size).toBe(0)
@@ -192,17 +192,17 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.5,
-                reason: 'first',
+                source: 'spotify-rec', signals: [],
             })
             upsertScoredCandidate(candidates, track, {
                 score: -Infinity,
-                reason: 'reject',
+                source: 'spotify-rec', signals: [],
             })
 
             expect(candidates.size).toBe(1)
             const entry = Array.from(candidates.values())[0]
             expect(entry.score).toBe(0.5)
-            expect(entry.reason).toBe('first')
+            expect(entry.basis.source).toBe('spotify-rec')
         })
 
         it('drops NaN recommendations defensively', () => {
@@ -211,7 +211,7 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: Number.NaN,
-                reason: 'bug',
+                source: 'spotify-rec', signals: [],
             })
 
             expect(candidates.size).toBe(0)
@@ -227,7 +227,7 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.5,
-                reason: 'fallback',
+                source: 'spotify-rec', signals: [],
             })
 
             expect(candidates.size).toBe(1)
@@ -244,7 +244,7 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.5,
-                reason: 'id-fallback',
+                source: 'spotify-rec', signals: [],
             })
 
             expect(candidates.size).toBe(1)
@@ -257,7 +257,7 @@ describe('candidateCollector', () => {
             isDuplicateCandidateMock.mockReturnValue(false)
             calculateRecommendationScoreMock.mockReturnValue({
                 score: 0.5,
-                reason: 'test-score',
+                source: 'spotify-rec', signals: [],
             })
             normalizeTrackKeyMock.mockImplementation(
                 (title?: string, author?: string) =>
@@ -275,7 +275,7 @@ describe('candidateCollector', () => {
                             title: 'Spotify Result',
                             author: 'Spotify Artist',
                         }),
-                        { score: 0.6, reason: 'spotify' },
+                        { score: 0.6, source: 'spotify-rec', signals: [] },
                     )
                 },
             )
@@ -425,7 +425,7 @@ describe('candidateCollector', () => {
             // Mock score calculation to return -Infinity
             calculateRecommendationScoreMock.mockReturnValue({
                 score: -Infinity,
-                reason: 'filtered',
+                source: 'spotify-rec', signals: [],
             })
 
             const queue = createGuildQueue()

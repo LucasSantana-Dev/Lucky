@@ -221,22 +221,22 @@ describe('autoplay pipeline integration', () => {
         it('drops -Infinity scores — the cross-locale veto gate', () => {
             const candidates = new Map()
             const track = makeTrack({ title: 'Aleluya', author: 'Marco Barrientos' })
-            upsertScoredCandidate(candidates, track, { score: -Infinity, reason: 'cross-locale veto' })
+            upsertScoredCandidate(candidates, track, { score: -Infinity, source: 'spotify-rec', signals: [] })
             expect(candidates.size).toBe(0)
         })
 
         it('drops NaN scores defensively', () => {
             const candidates = new Map()
             const track = makeTrack()
-            upsertScoredCandidate(candidates, track, { score: NaN, reason: 'bad score' })
+            upsertScoredCandidate(candidates, track, { score: NaN, source: 'spotify-rec', signals: [] })
             expect(candidates.size).toBe(0)
         })
 
         it('keeps higher score when same-key track inserted twice', () => {
             const candidates = new Map()
             const track = makeTrack({ title: 'Rock Song', author: 'Radiohead', url: 'https://open.spotify.com/track/rh1' })
-            upsertScoredCandidate(candidates, track, { score: 0.5, reason: 'initial' })
-            upsertScoredCandidate(candidates, track, { score: 0.8, reason: 'boosted' })
+            upsertScoredCandidate(candidates, track, { score: 0.5, source: 'spotify-rec', signals: [] })
+            upsertScoredCandidate(candidates, track, { score: 0.8, source: 'spotify-rec', signals: ['preferred artist'] })
             expect(candidates.size).toBe(1)
             expect([...candidates.values()][0]!.score).toBe(0.8)
         })
@@ -244,8 +244,8 @@ describe('autoplay pipeline integration', () => {
         it('retains first score when second insert is lower', () => {
             const candidates = new Map()
             const track = makeTrack({ title: 'Rock Song', author: 'Radiohead', url: 'https://open.spotify.com/track/rh2' })
-            upsertScoredCandidate(candidates, track, { score: 0.9, reason: 'initial' })
-            upsertScoredCandidate(candidates, track, { score: 0.3, reason: 'lower' })
+            upsertScoredCandidate(candidates, track, { score: 0.9, source: 'spotify-rec', signals: [] })
+            upsertScoredCandidate(candidates, track, { score: 0.3, source: 'spotify-rec', signals: [] })
             expect([...candidates.values()][0]!.score).toBe(0.9)
         })
     })
