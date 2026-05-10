@@ -30,11 +30,19 @@ gate on opinion. Switched to `chill` profile so only substantive issues block.
 Replaced both gaps with:
 
 1. **`.coderabbit.yaml`** with `profile: chill` — fewer nits, same bug-finding.
-2. **Claude review action** (`.github/workflows/claude-review.yml`) — self-owned
-   Sonnet-powered reviewer focused on correctness/security/semver/prod-risk.
-3. **Danger.js** (`dangerfile.ts`, `.github/workflows/danger.yml`) — deterministic
-   rules that never silently bail (lockfile drift, console.log residue,
-   missing CHANGELOG, .env leaks, branch naming, big PR warning).
+2. **Claude review action** — self-owned Sonnet-powered reviewer focused on
+   correctness/security/semver/prod-risk. The runtime lives as a reusable
+   workflow in `LucasSantana-Dev/.github`; this repo's
+   `.github/workflows/review-tools.yml` calls it pinned at `@v1`.
+3. **Danger.js** — deterministic rules in `dangerfile.ts` (lockfile drift,
+   console.log residue, missing CHANGELOG, .env leaks, branch naming,
+   big PR warning). The runtime is also a reusable workflow in
+   `LucasSantana-Dev/.github`; rules are repo-specific by design.
+
+**Why one caller workflow + reusable workflows in `LucasSantana-Dev/.github`?**
+See ADR `ai-dev-toolkit:docs/decisions/2026-05-10-multi-repo-review-tools-rollout.md`.
+TL;DR: action SHA bumps and prompt tuning propagate centrally; repo-specific
+dangerfile rules stay local.
 
 ## Reading the merge rule against this stack
 
