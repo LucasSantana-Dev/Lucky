@@ -1,13 +1,36 @@
 import { jest } from '@jest/globals'
 import type { Track } from 'discord-player'
 import { AutoplayAuditCollector } from './autoplayAudit'
+import type { ScoredTrack } from './candidateCollector'
+import type { SessionMood } from './sessionMood'
+
+const infoLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
-    infoLog: jest.fn(),
+    infoLog: (...args: unknown[]) => infoLogMock(...args),
+    debugLog: jest.fn(),
+    errorLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
-function makeTrack(title = 'Test Song', author = 'Test Artist'): Track {
-    return { title, author } as Track
+function createTrack(overrides: Partial<Track> = {}): Track {
+    return {
+        title: 'Test Track',
+        author: 'Test Artist',
+        url: 'https://example.com/track',
+        id: 'track-id',
+        durationMS: 180000,
+        ...overrides,
+    } as Track
+}
+
+function createScoredTrack(overrides: Partial<ScoredTrack> = {}): ScoredTrack {
+    return {
+        track: createTrack(),
+        score: 0.8,
+        basis: { source: 'spotify-rec', signals: [] },
+        ...overrides,
+    }
 }
 
 describe('AutoplayAuditCollector', () => {
@@ -15,132 +38,176 @@ describe('AutoplayAuditCollector', () => {
 
     beforeEach(() => {
         collector = new AutoplayAuditCollector()
+        infoLogMock.mockClear()
     })
 
     describe('recordEvaluated', () => {
-        it('records an accepted candidate', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-            const track = makeTrack('Song A', 'Artist A')
+        it('stores title, artist, score, reason, and status', () => {
+            const track = createTrack({ title: 'Song A', author: 'Artist A' })
+            collector.recordEvaluated(track, 0.9, 'liked artist', 'accepted')
 
-            collector.recordEvaluated(track, 0.85, 'spotify rec', 'accepted')
-            collector.emit('g1', 'seed-1', null, {}, 100)
-
-            const record = infoLog.mock.calls[0][0].data
+            const record = captureEmit(collector)
             expect(record.evaluated).toHaveLength(1)
-            expect(record.evaluated[0]).toMatchObject({
+            expect(record.evaluated[0]).toEqual({
                 title: 'Song A',
                 artist: 'Artist A',
-                score: 0.85,
-                reason: 'spotify rec',
+                score: 0.9,
+                reason: 'liked artist',
                 status: 'accepted',
             })
         })
 
-        it('records a rejected candidate', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-            const track = makeTrack('Song B', 'Artist B')
+        it('stores rejected status correctly', () => {
+            const track = createTrack({ title: 'Blocked Song', author: 'Blocked Artist' })
+            collector.recordEvaluated(track, -Infinity, 'cross-locale reject', 'rejected')
 
-            collector.recordEvaluated(track, 0.2, 'disliked', 'rejected')
-            collector.emit('g1', 'seed-1', null, {}, 50)
-
-            const record = infoLog.mock.calls[0][0].data
-            expect(record.evaluated[0].status).toBe('rejected')
+            const record = captureEmit(collector)
+            expect(record.evaluated[0]).toMatchObject({
+                status: 'rejected',
+                reason: 'cross-locale reject',
+            })
         })
 
-        it('accumulates multiple evaluated candidates', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
+        it('accumulates multiple entries in order', () => {
+            const t1 = createTrack({ title: 'First', author: 'A1' })
+            const t2 = createTrack({ title: 'Second', author: 'A2' })
+            const t3 = createTrack({ title: 'Third', author: 'A3' })
 
-            collector.recordEvaluated(makeTrack('A', 'Artist1'), 0.9, 'r1', 'accepted')
-            collector.recordEvaluated(makeTrack('B', 'Artist2'), 0.4, 'r2', 'rejected')
-            collector.recordEvaluated(makeTrack('C', 'Artist3'), 0.7, 'r3', 'accepted')
-            collector.emit('g1', 'seed', null, {}, 200)
+            collector.recordEvaluated(t1, 0.9, 'reason 1', 'accepted')
+            collector.recordEvaluated(t2, 0.5, 'reason 2', 'accepted')
+            collector.recordEvaluated(t3, -1, 'reason 3', 'rejected')
 
-            const record = infoLog.mock.calls[0][0].data
+            const record = captureEmit(collector)
             expect(record.evaluated).toHaveLength(3)
+            expect(record.evaluated[0]!.title).toBe('First')
+            expect(record.evaluated[1]!.title).toBe('Second')
+            expect(record.evaluated[2]!.title).toBe('Third')
+            expect(record.evaluated[2]!.status).toBe('rejected')
         })
     })
 
     describe('setFinalSelected', () => {
-        it('maps scored tracks to selected entries', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-            const scoredTracks = [
-                { track: makeTrack('Song X', 'ArtistX'), score: 0.95, reason: 'top pick' },
-                { track: makeTrack('Song Y', 'ArtistY'), score: 0.8, reason: 'secondary' },
+        it('maps ScoredTrack array to selected entries', () => {
+            const scored: ScoredTrack[] = [
+                createScoredTrack({
+                    track: createTrack({ title: 'Pick A', author: 'Artist X' }),
+                    score: 0.95,
+                    basis: { source: 'spotify-rec', signals: ['preferred artist'] },
+                }),
+                createScoredTrack({
+                    track: createTrack({ title: 'Pick B', author: 'Artist Y' }),
+                    score: 0.85,
+                    basis: { source: 'lastfm-similar', signals: [] },
+                }),
             ]
 
-            collector.setFinalSelected(scoredTracks)
-            collector.emit('g1', 'seed', null, {}, 150)
+            collector.setFinalSelected(scored)
 
-            const record = infoLog.mock.calls[0][0].data
+            const record = captureEmit(collector)
             expect(record.selected).toHaveLength(2)
-            expect(record.selected[0]).toMatchObject({
-                title: 'Song X',
-                artist: 'ArtistX',
+            expect(record.selected[0]).toEqual({
+                title: 'Pick A',
+                artist: 'Artist X',
                 score: 0.95,
-                reason: 'top pick',
+                reason: 'spotify rec • preferred artist',
+            })
+            expect(record.selected[1]).toEqual({
+                title: 'Pick B',
+                artist: 'Artist Y',
+                score: 0.85,
+                reason: 'last.fm similar',
             })
         })
 
-        it('defaults to empty selected when not called', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-
-            collector.emit('g1', 'seed', null, {}, 50)
-
-            expect(infoLog.mock.calls[0][0].data.selected).toHaveLength(0)
+        it('produces empty selected when called with empty array', () => {
+            collector.setFinalSelected([])
+            const record = captureEmit(collector)
+            expect(record.selected).toHaveLength(0)
         })
     })
 
     describe('emit', () => {
-        it('logs an audit record with correct structure', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-            const sourceCounts = { spotify: 3, lastfm: 2 }
+        it('calls infoLog with a well-formed AutoplayAuditRecord', () => {
+            const beforeEmit = Date.now()
+            collector.emit('guild-123', 'seed-track', null, { spotify: 3 }, 450)
+            const afterEmit = Date.now()
 
-            collector.emit('guild-42', 'Artist - Track', null, sourceCounts, 300)
+            expect(infoLogMock).toHaveBeenCalledTimes(1)
+            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
 
-            expect(infoLog).toHaveBeenCalledTimes(1)
-            const call = infoLog.mock.calls[0][0]
-            expect(call.message).toBe('Autoplay audit')
-            const record = call.data
-            expect(record.guildId).toBe('guild-42')
-            expect(record.seed).toBe('Artist - Track')
-            expect(record.sourceCounts).toEqual(sourceCounts)
-            expect(record.durationMs).toBe(300)
-            expect(typeof record.cycleId).toBe('string')
-            expect(typeof record.timestamp).toBe('number')
+            expect(data.guildId).toBe('guild-123')
+            expect(data.seed).toBe('seed-track')
+            expect(data.durationMs).toBe(450)
+            expect(data.sourceCounts).toEqual({ spotify: 3 })
+            expect(data.timestamp).toBeGreaterThanOrEqual(beforeEmit)
+            expect(data.timestamp).toBeLessThanOrEqual(afterEmit)
         })
 
-        it('sets sessionMoodSummary to null when mood is null', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
+        it('sets cycleId as guildId-timestamp pattern', () => {
+            collector.emit('g-456', 'seed', null, {}, 100)
 
-            collector.emit('g1', 'seed', null, {}, 0)
-
-            expect(infoLog.mock.calls[0][0].data.sessionMoodSummary).toBeNull()
+            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            expect(typeof data.cycleId).toBe('string')
+            expect((data.cycleId as string).startsWith('g-456-')).toBe(true)
         })
 
-        it('sets sessionMoodSummary from mood dominantLocale', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-            const mood = { dominantLocale: 'spanish' as const } as import('./sessionMood').SessionMood
+        it('sets sessionMoodSummary to null when sessionMood is null', () => {
+            collector.emit('guild-1', 'seed', null, {}, 0)
 
-            collector.emit('g1', 'seed', mood, {}, 0)
-
-            expect(infoLog.mock.calls[0][0].data.sessionMoodSummary).toBe('spanish')
+            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            expect(data.sessionMoodSummary).toBeNull()
         })
 
-        it('sets sessionMoodSummary to null when dominantLocale is null', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
-            const mood = { dominantLocale: null } as import('./sessionMood').SessionMood
+        it('uses dominantLocale from sessionMood when provided', () => {
+            const mood: SessionMood = {
+                dominantLocale: 'pt-BR',
+                restless: false,
+                trackCount: 5,
+                localeWeights: new Map([['pt-BR', 5]]),
+            }
 
-            collector.emit('g1', 'seed', mood, {}, 0)
+            collector.emit('guild-1', 'seed', mood, {}, 0)
 
-            expect(infoLog.mock.calls[0][0].data.sessionMoodSummary).toBeNull()
+            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            expect(data.sessionMoodSummary).toBe('pt-BR')
         })
 
-        it('includes cycleId containing the guildId', () => {
-            const { infoLog } = require('@lucky/shared/utils') as { infoLog: jest.Mock }
+        it('includes evaluated and selected entries in the record', () => {
+            const track = createTrack({ title: 'T1', author: 'A1' })
+            collector.recordEvaluated(track, 0.7, 'reason', 'accepted')
+            collector.setFinalSelected([createScoredTrack({ track, score: 0.7 })])
 
-            collector.emit('my-guild', 'seed', null, {}, 0)
+            collector.emit('guild-1', 'seed', null, {}, 200)
 
-            expect(infoLog.mock.calls[0][0].data.cycleId).toContain('my-guild')
+            const { data } = infoLogMock.mock.calls[0]![0] as { message: string; data: Record<string, unknown> }
+            expect((data.evaluated as unknown[]).length).toBe(1)
+            expect((data.selected as unknown[]).length).toBe(1)
+        })
+
+        it('logs with message "Autoplay audit"', () => {
+            collector.emit('guild-1', 'seed', null, {}, 0)
+
+            const { message } = infoLogMock.mock.calls[0]![0] as { message: string }
+            expect(message).toBe('Autoplay audit')
         })
     })
 })
+
+function captureEmit(collector: AutoplayAuditCollector) {
+    collector.emit('test-guild', 'test-seed', null, {}, 0)
+    const call = infoLogMock.mock.calls[infoLogMock.mock.calls.length - 1]![0] as {
+        message: string
+        data: {
+            cycleId: string
+            guildId: string
+            timestamp: number
+            seed: string
+            sessionMoodSummary: string | null
+            evaluated: Array<{ title: string; artist: string; score: number; reason: string; status: 'accepted' | 'rejected' }>
+            selected: Array<{ title: string; artist: string; score: number; reason: string }>
+            sourceCounts: Record<string, number>
+            durationMs: number
+        }
+    }
+    return call.data
+}

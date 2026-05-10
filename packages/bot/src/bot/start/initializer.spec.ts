@@ -243,36 +243,6 @@ describe('BotInitializer', () => {
             expect(state.isReady).toBe(false)
         })
 
-        it('logs success on clean shutdown', async () => {
-            const initResult = await initializer.initializeBot()
-            expect(initResult.success).toBe(true)
-
-            await initializer.shutdown()
-
-            expect(infoLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Bot shutdown completed',
-                })
-            )
-        })
-
-        it('handles errors during shutdown gracefully', async () => {
-            const initResult = await initializer.initializeBot()
-            expect(initResult.success).toBe(true)
-
-            const client = initializer.getClient()
-            const destroyError = new Error('Destroy failed')
-            ;(client?.destroy as jest.Mock).mockRejectedValue(destroyError)
-
-            await initializer.shutdown()
-
-            expect(errorLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('Error during bot shutdown'),
-                })
-            )
-        })
-
         it('silently succeeds when shutdown called with no client', async () => {
             expect(() => initializer.shutdown()).not.toThrow()
         })

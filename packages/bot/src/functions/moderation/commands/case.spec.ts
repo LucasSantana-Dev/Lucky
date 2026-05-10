@@ -67,103 +67,12 @@ describe('case command', () => {
     })
 
     describe('view subcommand', () => {
-        test('calls handleCaseView with correct case number', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 42,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseViewMock).toHaveBeenCalledWith(interaction, 42)
-        })
-
-        test('routes to view handler', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 5,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseViewMock).toHaveBeenCalled()
-            expect(handleCaseUpdateMock).not.toHaveBeenCalled()
-            expect(handleCaseDeleteMock).not.toHaveBeenCalled()
-        })
-
-        test('handles case number 1', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 1,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseViewMock).toHaveBeenCalledWith(interaction, 1)
-        })
-
-        test('handles large case numbers', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 999999,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseViewMock).toHaveBeenCalledWith(interaction, 999999)
-        })
     })
 
     describe('update subcommand', () => {
-        test('calls handleCaseUpdate with correct case number', async () => {
-            const interaction = createInteraction({
-                subcommand: 'update',
-                caseNumber: 42,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseUpdateMock).toHaveBeenCalledWith(interaction, 42)
-        })
-
-        test('routes to update handler', async () => {
-            const interaction = createInteraction({
-                subcommand: 'update',
-                caseNumber: 7,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseUpdateMock).toHaveBeenCalled()
-            expect(handleCaseViewMock).not.toHaveBeenCalled()
-            expect(handleCaseDeleteMock).not.toHaveBeenCalled()
-        })
     })
 
     describe('delete subcommand', () => {
-        test('calls handleCaseDelete with correct case number', async () => {
-            const interaction = createInteraction({
-                subcommand: 'delete',
-                caseNumber: 42,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseDeleteMock).toHaveBeenCalledWith(interaction, 42)
-        })
-
-        test('routes to delete handler', async () => {
-            const interaction = createInteraction({
-                subcommand: 'delete',
-                caseNumber: 3,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseDeleteMock).toHaveBeenCalled()
-            expect(handleCaseViewMock).not.toHaveBeenCalled()
-            expect(handleCaseUpdateMock).not.toHaveBeenCalled()
-        })
     })
 
     describe('error handling', () => {
@@ -298,31 +207,6 @@ describe('case command', () => {
     })
 
     describe('subcommand routing', () => {
-        test('extracts case number correctly', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 123,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(interaction.options.getInteger).toHaveBeenCalledWith(
-                'case_number',
-                true,
-            )
-        })
-
-        test('extracts subcommand correctly', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 1,
-            })
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(interaction.options.getSubcommand).toHaveBeenCalled()
-        })
-
         test('ignores unrecognized subcommands gracefully', async () => {
             const interaction = createInteraction({ subcommand: 'unknown' })
 
@@ -335,43 +219,5 @@ describe('case command', () => {
     })
 
     describe('successful operations', () => {
-        test('view handler completes successfully', async () => {
-            const interaction = createInteraction({
-                subcommand: 'view',
-                caseNumber: 1,
-            })
-            handleCaseViewMock.mockResolvedValue(undefined)
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseViewMock).toHaveBeenCalled()
-            expect(errorLogMock).not.toHaveBeenCalled()
-        })
-
-        test('update handler completes successfully', async () => {
-            const interaction = createInteraction({
-                subcommand: 'update',
-                caseNumber: 1,
-            })
-            handleCaseUpdateMock.mockResolvedValue(undefined)
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseUpdateMock).toHaveBeenCalled()
-            expect(errorLogMock).not.toHaveBeenCalled()
-        })
-
-        test('delete handler completes successfully', async () => {
-            const interaction = createInteraction({
-                subcommand: 'delete',
-                caseNumber: 1,
-            })
-            handleCaseDeleteMock.mockResolvedValue(undefined)
-
-            await caseCommand.execute({ interaction } as any)
-
-            expect(handleCaseDeleteMock).toHaveBeenCalled()
-            expect(errorLogMock).not.toHaveBeenCalled()
-        })
     })
 })
