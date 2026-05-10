@@ -149,7 +149,7 @@ describe('collectLastFmCandidates', () => {
         cleanTitleMock.mockImplementation((s: unknown) => s)
         normalizeTrackKeyMock.mockReturnValue('normalized-key')
         shouldIncludeCandidateMock.mockReturnValue(true)
-        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'test' })
+        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, signals: [] })
         isLovedSeedMock.mockReturnValue(false)
         getSimilarTracksMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
