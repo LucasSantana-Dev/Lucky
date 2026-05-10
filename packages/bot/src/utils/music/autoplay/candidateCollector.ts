@@ -15,7 +15,11 @@ import { isDuplicateCandidate } from './diversitySelector'
 import { createArtistTagFetcher, hasGenreTag, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
+import type { RecommendationBasis, RecommendationSource, RecommendationSignal } from './recommendationBasis.js'
+import { serializeBasis } from './recommendationBasis.js'
+
 export type { ScoredTrack }
+export type { RecommendationBasis, RecommendationSource, RecommendationSignal } from './recommendationBasis.js'
 
 export const SERTANEJO_TAGS = [
     'sertanejo',
@@ -51,43 +55,46 @@ export function shouldIncludeCandidate(
 export function upsertScoredCandidate(
     candidates: Map<string, ScoredTrack>,
     candidate: Track,
-    recommendation: { score: number; reason: string },
+    scored: { score: number; source: RecommendationSource; signals: RecommendationSignal[] },
     auditCollector?: AutoplayAuditCollector,
 ): void {
-    if (!Number.isFinite(recommendation.score)) {
+    if (!Number.isFinite(scored.score)) {
         debugLog({
             message: 'Autoplay hard-reject',
             data: {
                 title: candidate.title,
                 author: candidate.author,
-                score: recommendation.score,
-                reason: recommendation.reason,
+                score: scored.score,
+                source: scored.source,
+                note: 'empty signals indicate hard-reject at scorer stage (blocked artist, too long, ambient noise, edm mix, spanish locale, disliked, or cross-genre drift)',
             },
         })
+        const basis: RecommendationBasis = { source: scored.source, signals: scored.signals }
         auditCollector?.recordEvaluated(
             candidate,
-            recommendation.score,
-            recommendation.reason,
+            scored.score,
+            serializeBasis(basis),
             'rejected',
         )
         return
     }
 
+    const basis: RecommendationBasis = { source: scored.source, signals: scored.signals }
     const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
     const candidateKey =
         normalizedKey !== '::' ? normalizedKey : (candidate.id || candidate.url || normalizeTrackKey(candidate.title, candidate.author))
     const existing = candidates.get(candidateKey)
 
-    if (!existing || recommendation.score > existing.score) {
+    if (!existing || scored.score > existing.score) {
         candidates.set(candidateKey, {
             track: candidate,
-            score: recommendation.score,
-            reason: recommendation.reason,
+            score: scored.score,
+            basis,
         })
         auditCollector?.recordEvaluated(
             candidate,
-            recommendation.score,
-            recommendation.reason,
+            scored.score,
+            serializeBasis(basis),
             'accepted',
         )
     }
@@ -205,7 +212,7 @@ export async function collectRecommendationCandidates(
                     sessionGenreFamilies,
                 },
             })
-            upsertScoredCandidate(candidates, candidate, rec)
+            upsertScoredCandidate(candidates, candidate, { score: rec.score, source: 'spotify-rec', signals: rec.signals })
         }
     }
 

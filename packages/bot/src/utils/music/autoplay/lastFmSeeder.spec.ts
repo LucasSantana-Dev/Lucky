@@ -50,9 +50,12 @@ jest.mock('./candidateScorer', () => ({
     calculateRecommendationScore: (...args: unknown[]) => calculateRecommendationScoreMock(...args),
 }))
 
-jest.mock('../queueManipulation', () => ({
+jest.mock('./candidateCollector', () => ({
     shouldIncludeCandidate: (...args: unknown[]) => shouldIncludeCandidateMock(...args),
     upsertScoredCandidate: (...args: unknown[]) => upsertScoredCandidateMock(...args),
+}))
+
+jest.mock('../queueManipulation', () => ({
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 
@@ -146,7 +149,7 @@ describe('collectLastFmCandidates', () => {
         cleanTitleMock.mockImplementation((s: unknown) => s)
         normalizeTrackKeyMock.mockReturnValue('normalized-key')
         shouldIncludeCandidateMock.mockReturnValue(true)
-        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, reason: 'test' })
+        calculateRecommendationScoreMock.mockReturnValue({ score: 0.5, signals: [] })
         isLovedSeedMock.mockReturnValue(false)
         getSimilarTracksMock.mockResolvedValue([])
         getTagTopTracksMock.mockResolvedValue([])
@@ -274,8 +277,8 @@ describe('collectLastFmCandidates', () => {
         // seed track + similar track both call upsertScoredCandidate
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(2)
         const similarCall = upsertScoredCandidateMock.mock.calls[1]
-        const reason = (similarCall?.[2] as { reason: string })?.reason
-        expect(reason).toContain('similar to your taste')
+        const source = (similarCall?.[2] as { source: string })?.source
+        expect(source).toBe('lastfm-similar')
     })
 
     it('skips excluded tracks in similar-tracks loop (line 155 continue)', async () => {
@@ -339,7 +342,7 @@ describe('collectLastFmCandidates', () => {
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
         const calls = upsertScoredCandidateMock.mock.calls
         const genreCall = calls.find(
-            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+            (c) => (c[2] as { source: string })?.source === 'lastfm-genre-fallback',
         )
         expect(genreCall).toBeDefined()
     })
@@ -366,7 +369,7 @@ describe('collectLastFmCandidates', () => {
 
         const calls = upsertScoredCandidateMock.mock.calls
         const genreCall = calls.find(
-            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+            (c) => (c[2] as { source: string })?.source === 'lastfm-genre-fallback',
         )
         expect(genreCall).toBeUndefined()
     })
@@ -433,7 +436,7 @@ describe('collectLastFmCandidates', () => {
         )
 
         const genreCall = upsertScoredCandidateMock.mock.calls.find(
-            (c) => ((c[2] as { reason: string })?.reason ?? '').includes('genre fallback'),
+            (c) => (c[2] as { source: string })?.source === 'lastfm-genre-fallback',
         )
         expect(genreCall).toBeUndefined()
     })

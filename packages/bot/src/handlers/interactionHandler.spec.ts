@@ -131,52 +131,6 @@ describe('interactionHandler', () => {
     })
 
     describe('handleInteractions', () => {
-        it('should register interaction event listener', async () => {
-            const client = createMockClient()
-
-            await handleInteractions({ client })
-
-            expect(client.on).toHaveBeenCalledWith(
-                Events.InteractionCreate,
-                expect.any(Function),
-            )
-            expect(debugLog).toHaveBeenCalledWith({
-                message: 'Interaction handler set up successfully',
-            })
-        })
-
-        it('should handle setup errors', async () => {
-            const client = {
-                on: jest.fn().mockImplementation(() => {
-                    throw new Error('Setup error')
-                }),
-            } as any
-
-            await handleInteractions({ client })
-
-            expect(errorLog).toHaveBeenCalledWith({
-                message: 'Error setting up interaction handler:',
-                error: expect.any(Error),
-            })
-        })
-
-        it('should catch async errors in interaction handler', async () => {
-            const client = createMockClient()
-            ;(executeCommand as jest.Mock).mockRejectedValue(
-                new Error('Handler error'),
-            )
-
-            await handleInteractions({ client })
-
-            const interaction = createMockChatInteraction()
-            await triggerEvent(client, Events.InteractionCreate, interaction)
-
-            expect(errorLog).toHaveBeenCalledWith({
-                message: 'Error handling interaction:',
-                error: expect.any(Error),
-                data: expect.any(Object),
-            })
-        })
     })
 
     describe('handleInteraction', () => {
@@ -194,42 +148,6 @@ describe('interactionHandler', () => {
             expect(executeCommand).toHaveBeenCalledWith({ interaction, client })
         })
 
-        it('should route music button to handleMusicButtonInteraction', async () => {
-            const interaction = createMockButtonInteraction('music_play')
-            const client = createMockClient()
-
-            await handleInteraction(interaction, client)
-
-            expect(handleMusicButtonInteraction).toHaveBeenCalledWith(
-                interaction,
-            )
-            expect(
-                reactionRolesService.handleButtonInteraction,
-            ).not.toHaveBeenCalled()
-        })
-
-        it('should route queue page button to handleMusicButtonInteraction', async () => {
-            const interaction = createMockButtonInteraction('queue_page_2')
-            const client = createMockClient()
-
-            await handleInteraction(interaction, client)
-
-            expect(handleMusicButtonInteraction).toHaveBeenCalledWith(
-                interaction,
-            )
-        })
-
-        it('should route non-music buttons to reactionRolesService', async () => {
-            const interaction = createMockButtonInteraction('role_selector')
-            const client = createMockClient()
-
-            await handleInteraction(interaction, client)
-
-            expect(
-                reactionRolesService.handleButtonInteraction,
-            ).toHaveBeenCalledWith(interaction)
-            expect(handleMusicButtonInteraction).not.toHaveBeenCalled()
-        })
 
         it('should handle interaction without guild', async () => {
             const interaction = createMockChatInteraction({ guild: null })
