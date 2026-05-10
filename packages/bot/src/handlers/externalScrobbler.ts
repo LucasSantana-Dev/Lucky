@@ -9,6 +9,7 @@ import { lastFmLinkService } from '@lucky/shared/services'
 import {
     isLastFmConfigured,
     getSessionKeyForUser,
+    getTrackMetadata,
     isLastFmInvalidSessionError,
     updateNowPlaying,
     scrobble,
@@ -105,6 +106,7 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
     const guild = globalClient?.guilds.cache.get(guildId)
     if (!guild) return
 
+    const meta = await getTrackMetadata(prev.artist, prev.title)
     const voiceChannels = guild.channels.cache.filter(
         (ch) => ch.isVoiceBased() && ch.members.size > 0,
     )
@@ -124,6 +126,7 @@ async function scrobblePreviousTrack(guildId: string): Promise<void> {
                     prev.timestamp,
                     elapsed,
                     sessionKey,
+                    meta ?? undefined,
                 )
                 debugLog({
                     message: `Scrobbled (external): ${prev.artist} – ${prev.title} for ${member.user.username}`,
@@ -167,6 +170,7 @@ async function handleExternalNowPlaying(message: Message): Promise<void> {
         timestamp: Math.floor(Date.now() / 1000),
     })
 
+    const meta = await getTrackMetadata(parsed.artist, parsed.title)
     const voiceChannel = getMusicBotVoiceChannel(message)
     if (!voiceChannel) {
         debugLog({ message: 'Music bot not in a voice channel' })
@@ -185,6 +189,7 @@ async function handleExternalNowPlaying(message: Message): Promise<void> {
                 parsed.title,
                 undefined,
                 sessionKey,
+                meta ?? undefined,
             )
             infoLog({
                 message: `Last.fm now playing: ${parsed.artist} – ${parsed.title} for ${member.user.username}`,

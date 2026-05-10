@@ -1,6 +1,6 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
-import { debugLog } from '@lucky/shared/utils'
+import { logAndSwallow } from '@lucky/shared/utils/error'
 import { getBatchAudioFeatures, getArtistGenres, type SpotifyAudioFeatures } from '../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { getTagTopTracks } from '../../lastfm'
@@ -77,7 +77,8 @@ function addGenreTrackCandidate(
     })
     upsertScoredCandidate(ctx.candidates, track, {
         score: rec.score + GENRE_SCORE_BOOST,
-        reason: rec.reason ? `${rec.reason} • ${tag} vibes` : `${tag} vibes`,
+        source: 'genre-tag',
+        signals: rec.signals,
     }, ctx.auditCollector)
 }
 
@@ -145,7 +146,7 @@ export async function collectBroadFallbackCandidates(
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
                 let candidateTags = await getArtistTags(track.author).catch((err: unknown) => {
-                    debugLog({ message: 'candidateFallback: getArtistTags failed', data: { author: track.author, err } })
+                    logAndSwallow(err, 'candidateFallback.getArtistTags', { author: track.author })
                     return [] as string[]
                 })
                 // When Last.fm returns nothing (not linked or artist unknown),
@@ -153,7 +154,10 @@ export async function collectBroadFallbackCandidates(
                 // candidateScorer can still fire for Spanish gospel artists
                 // that have non-Spanish-looking artist names / titles.
                 if (candidateTags.length === 0 && spotifyToken) {
-                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch(() => []) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
+                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch((err: unknown) => {
+                        logAndSwallow(err, 'candidateFallback.getArtistGenres.spotifyFallback', { author: track.author })
+                        return [] as string[]
+                    }) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
                 }
                 const rec = calculateRecommendationScore({
                     candidate: track,
@@ -176,13 +180,13 @@ export async function collectBroadFallbackCandidates(
                 })
                 upsertScoredCandidate(candidates, track, {
                     score: rec.score - 0.1,
-                    reason: rec.reason
-                        ? `${rec.reason} • artist fallback`
-                        : 'artist fallback',
+                    source: 'artist-fallback',
+                    signals: rec.signals,
                 }, auditCollector)
             }
 
-        } catch {
+        } catch (err: unknown) {
+            logAndSwallow(err, 'candidateFallback.spotifySearch', { query })
             continue
         }
     }
@@ -199,7 +203,8 @@ export async function collectGenreCandidates(
         let seeds: Awaited<ReturnType<typeof getTagTopTracks>> = []
         try {
             seeds = await getTagTopTracks(tag, MAX_TRACKS_PER_GENRE)
-        } catch {
+        } catch (err: unknown) {
+            logAndSwallow(err, 'candidateFallback.getTagTopTracks', { tag })
             continue
         }
         for (const seed of seeds) {
@@ -211,7 +216,8 @@ export async function collectGenreCandidates(
                     requestedBy,
                 )
                 for (const track of results) addGenreTrackCandidate(track, tag, ctx)
-            } catch {
+            } catch (err: unknown) {
+                logAndSwallow(err, 'candidateFallback.searchLastFmQuery', { tag, seed: `${seed.artist}/${seed.title}` })
                 continue
             }
         }
@@ -277,7 +283,7 @@ export async function enrichWithAudioFeatures(
                 token,
                 track.track.author,
             ).catch((err: unknown) => {
-                debugLog({ message: 'candidateFallback: getArtistGenres failed', data: { author: track.track.author, err } })
+                logAndSwallow(err, 'candidateFallback.getArtistGenres', { author: track.track.author })
                 return []
             })
             const genrePenalty = calculateGenreFamilyPenalty(
@@ -286,8 +292,8 @@ export async function enrichWithAudioFeatures(
             )
             if (genrePenalty !== 0) {
                 track.score += genrePenalty
-                if (genrePenalty < -0.3) {
-                    track.reason += ' • genre family drift'
+                if (genrePenalty <= -0.3 && !track.basis.signals.includes('genre family drift')) {
+                    track.basis.signals.push('genre family drift')
                 }
             }
         }
