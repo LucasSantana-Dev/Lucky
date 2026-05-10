@@ -125,6 +125,10 @@ describe('streamViaYtDlp – URL validation', () => {
 describe('streamViaYtDlp – process lifecycle', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
 
+    afterEach(() => {
+        jest.useRealTimers()
+    })
+
     it('resolves with a PassThrough stream when stdout emits first chunk', async () => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
