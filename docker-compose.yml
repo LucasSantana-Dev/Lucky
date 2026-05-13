@@ -1,8 +1,24 @@
+# Shared resource defaults — applied per service via `<<: *small-svc` etc.
+x-small-svc: &small-svc
+    mem_limit: 128m
+    cpus: 0.25
+    restart: unless-stopped
+
+x-medium-svc: &medium-svc
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+
+x-large-svc: &large-svc
+    mem_limit: 1g
+    cpus: 1.0
+    restart: unless-stopped
+
 services:
     postgres:
+        <<: *large-svc
         image: postgres:18-alpine
         container_name: lucky-postgres
-        restart: unless-stopped
         environment:
             POSTGRES_DB: discordbot
             POSTGRES_USER: discordbot
@@ -24,9 +40,9 @@ services:
                 max-file: "3"
 
     redis:
+        <<: *medium-svc
         image: redis:8-alpine
         container_name: lucky-redis
-        restart: unless-stopped
         command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
         volumes:
             - redis_data:/data
@@ -44,6 +60,7 @@ services:
                 max-file: "3"
 
     bot:
+        <<: *large-svc
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:-latest}
         build:
             context: .
@@ -53,7 +70,8 @@ services:
                 SERVICE: bot
                 NODE_ENV: production
         container_name: lucky-bot
-        restart: unless-stopped
+        env_file:
+            - .env
         depends_on:
             postgres:
                 condition: service_healthy
@@ -108,6 +126,7 @@ services:
                 max-file: "3"
 
     backend:
+        <<: *medium-svc
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-latest}
         build:
             context: .
@@ -117,7 +136,8 @@ services:
                 SERVICE: backend
                 NODE_ENV: production
         container_name: lucky-backend
-        restart: unless-stopped
+        env_file:
+            - .env
         depends_on:
             postgres:
                 condition: service_healthy
@@ -164,12 +184,12 @@ services:
                 max-file: "3"
 
     frontend:
+        <<: *small-svc
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile.frontend
         container_name: lucky-frontend
-        restart: unless-stopped
         networks:
             - lucky-network
         logging:
@@ -179,12 +199,12 @@ services:
                 max-file: "3"
 
     nginx:
+        <<: *small-svc
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:-latest}
         build:
             context: .
             dockerfile: Dockerfile.nginx
         container_name: lucky-nginx
-        restart: unless-stopped
         depends_on:
             - backend
             - frontend
@@ -202,11 +222,11 @@ services:
                 max-file: "3"
 
     webhook:
+        <<: *small-svc
         build:
             context: ./deploy
             dockerfile: Dockerfile
         container_name: lucky-webhook
-        restart: unless-stopped
         command: >
             -hooks /hooks/hooks.json
             -verbose
@@ -231,11 +251,10 @@ services:
 
     # Cloudflare Tunnel — exposes nginx to lucky.lucassantana.tech
     cloudflared:
+        <<: *small-svc
         image: cloudflare/cloudflared:latest
         container_name: lucky-tunnel
-        restart: unless-stopped
         command: tunnel --config /etc/cloudflared/config-lucky.yml run
-        user: root
         volumes:
             - ${CLOUDFLARED_CONFIG_DIR:-/home/luk-server/.cloudflared}:/etc/cloudflared:ro
         depends_on:
