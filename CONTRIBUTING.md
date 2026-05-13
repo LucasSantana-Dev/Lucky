@@ -2,6 +2,14 @@
 
 Thanks for working on Lucky. This file documents the small repo-specific rules that are easy to miss; everything else (style, tests, formatting) is enforced by CI and lives in code.
 
+## Reporting bugs and requesting features
+
+Use the GitHub issue tracker: https://github.com/LucasSantana-Dev/Lucky/issues
+
+Issue templates guide you through the required information:
+- **Bug report** — steps to reproduce, expected vs actual behaviour, Lucky version, deployment type
+- **Feature request** — problem statement and proposed solution
+
 ## Getting started
 
 ```bash
