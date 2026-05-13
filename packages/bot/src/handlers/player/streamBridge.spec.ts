@@ -125,10 +125,6 @@ describe('streamViaYtDlp – URL validation', () => {
 describe('streamViaYtDlp – process lifecycle', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
 
-    afterEach(() => {
-        jest.useRealTimers()
-    })
-
     it('resolves with a PassThrough stream when stdout emits first chunk', async () => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
@@ -141,9 +137,8 @@ describe('streamViaYtDlp – process lifecycle', () => {
     it('rejects and kills proc when process emits an error', async () => {
         const proc = makeFakeProc()
         mockSpawn.mockReturnValue(proc)
-        const promise = streamViaYtDlp(validUrl)
-        proc.emit('error', new Error('ENOENT yt-dlp'))
-        await expect(promise).rejects.toThrow('ENOENT yt-dlp')
+        setImmediate(() => proc.emit('error', new Error('ENOENT yt-dlp')))
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('ENOENT yt-dlp')
         expect(proc.kill).toHaveBeenCalled()
     })
 

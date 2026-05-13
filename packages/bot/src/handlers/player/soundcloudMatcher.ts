@@ -38,7 +38,7 @@ export async function streamViaSoundCloud(
         scStream = await playdl.stream(match.url)
     } catch (err) {
         throw new Error(
-            `SoundCloud: stream creation failed for "${match.name}" — ${err instanceof Error ? err.message : String(err)}`,
+            `SoundCloud: stream creation failed for "${match.name}" — ${(err as Error).message}`,
             { cause: err },
         )
     }
