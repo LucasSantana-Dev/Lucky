@@ -6,19 +6,20 @@ ARG NODE_VERSION=22-alpine
 
 FROM node:${NODE_VERSION} AS base-runtime
 
+# yt-dlp is installed into a dedicated venv at /opt/ytdlp so we avoid
+# `--break-system-packages` (Alpine's PEP 668 marker). The venv binary
+# is symlinked into /usr/local/bin so callers don't need to know the path.
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
     opus \
     opus-tools \
-    && rm -rf /var/cache/apk/*
+    && python3 -m venv /opt/ytdlp \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip yt-dlp \
+    && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+    && rm -rf /var/cache/apk/* /root/.cache
 
-RUN pip3 install --break-system-packages --no-cache-dir yt-dlp
-
-WORKDIR /app
-
-FROM node:${NODE_VERSION} AS base-runtime-backend
 WORKDIR /app
 
 # Development stage — full deps + native build tools + media binaries.
@@ -120,15 +121,16 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
 
-# Production stage — backend (slim runtime, no media tools)
-FROM base-runtime-backend AS production-backend
+# Production stage — backend (slim runtime, no media tools).
+# Derives directly from node:${NODE_VERSION} instead of a no-op intermediate
+# `base-runtime-backend` stage.
+FROM node:${NODE_VERSION} AS production-backend
+WORKDIR /app
 
 ARG COMMIT_SHA
 ENV NODE_ENV=production \
     NPM_CONFIG_LOGLEVEL=silent \
     COMMIT_SHA=$COMMIT_SHA
-
-WORKDIR /app
 
 COPY --from=deps-production /app/node_modules ./node_modules
 COPY --from=deps-production /app/package*.json ./

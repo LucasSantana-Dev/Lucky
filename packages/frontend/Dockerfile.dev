@@ -1,13 +1,16 @@
 # syntax=docker/dockerfile:1
-FROM node:24-alpine
+# Pinned to node:22-alpine to match the production frontend (PR #846 reverted
+# from node:24). Drift between dev + prod silently breaks native modules.
+FROM node:22-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 
+# Keep BuildKit's cache mount — DO NOT run `npm cache clean --force` here,
+# it defeats the mount and slows every rebuild.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund && \
-    npm cache clean --force
+    npm ci --no-audit --no-fund
 
 USER node
 
