@@ -11,7 +11,7 @@ import { cleanTitle } from '../searchQueryCleaner'
 const CACHE_TTL_MS = 15 * 60 * 1000
 const TOP_TRACKS_LIMIT = 50
 const RECENT_TRACKS_LIMIT = 30
-export const LASTFM_SEED_COUNT = 5
+export const LASTFM_SEED_COUNT = 15
 
 type CacheEntry = {
     tracks: { artist: string; title: string }[]

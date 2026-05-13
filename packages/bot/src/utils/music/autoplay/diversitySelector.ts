@@ -4,16 +4,18 @@ import { trackHistoryService } from '@lucky/shared/services'
 import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
 import { markAsAutoplayTrack } from '../queueManipulation'
+import type { RecommendationBasis } from './recommendationBasis.js'
+import { serializeBasis } from './recommendationBasis.js'
 
 interface ScoredTrack {
     track: Track
     score: number
-    reason: string
+    basis: RecommendationBasis
 }
 
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
-const FUZZY_TITLE_THRESHOLD = 0.82
+const FUZZY_TITLE_THRESHOLD = 0.75
 
 function randomJitter(max: number): number {
     return Math.random() * max // NOSONAR - non-cryptographic jitter for diversity selection
@@ -55,9 +57,72 @@ function normalizeTitleOnly(title?: string): string {
 }
 
 function stripFeaturing(author: string): string {
-    return author
-        .split(/\s+(?:feat|ft)\.?(?:\s|$)/i)[0] // NOSONAR - bounded alternation, no catastrophic backtracking
-        .replace(/\s*\([^)]*feat[^)]*\)\s*/gi, '') // NOSONAR - [^)]* bounded by paren close, no backtracking
+    const lower = author.toLowerCase()
+    let cut = author.length
+    for (const marker of [' feat ', ' feat.', ' ft ', ' ft.']) {
+        const idx = lower.indexOf(marker)
+        if (idx >= 0 && idx < cut) cut = idx
+    }
+    let result = author.slice(0, cut)
+    // Remove parenthetical groups containing "feat" or "ft"
+    let i = 0
+    while (i < result.length) {
+        const open = result.indexOf('(', i)
+        if (open === -1) break
+        const close = result.indexOf(')', open + 1)
+        if (close === -1) break
+        const inner = result.slice(open + 1, close).toLowerCase()
+        if (inner.includes('feat') || inner.startsWith('ft ') || inner.startsWith('ft.')) {
+            result = (result.slice(0, open) + result.slice(close + 1)).trim()
+            i = 0
+        } else {
+            i = close + 1
+        }
+    }
+    return result.trim()
+}
+
+const VARIANT_KEYWORDS = [
+    'remastered', 'remaster', 'remixed', 'remix',
+    'radio edit', 'extended mix', 'club mix', 'vip mix',
+    'edit', 'version', 'acoustic', 'live', 'cover',
+]
+
+function startsWithYear(s: string): boolean {
+    return s.length >= 5 && s[4] === ' ' &&
+        s[0] >= '0' && s[0] <= '9' &&
+        s[1] >= '0' && s[1] <= '9' &&
+        s[2] >= '0' && s[2] <= '9' &&
+        s[3] >= '0' && s[3] <= '9'
+}
+
+function stripVariantSuffix(title: string): string {
+    const lower = title.toLowerCase()
+    const trimmedLower = lower.trimEnd()
+
+    // Strip parenthetical variant suffix at end: (Remastered) or [2015 Live]
+    for (const [openChar, closeChar] of [['(', ')'], ['[', ']']] as [string, string][]) {
+        if (trimmedLower[trimmedLower.length - 1] !== closeChar) continue
+        const lastOpen = trimmedLower.lastIndexOf(openChar)
+        if (lastOpen < 0) continue
+        let inner = trimmedLower.slice(lastOpen + 1, trimmedLower.length - 1).trim()
+        if (startsWithYear(inner)) inner = inner.slice(5)
+        if (VARIANT_KEYWORDS.some((v) => inner === v || inner.startsWith(v + ' '))) {
+            return title.slice(0, lastOpen).trimEnd()
+        }
+    }
+
+    // Strip dash-prefixed variant suffix at end: - Remastered or – 2015 Live
+    for (const sep of [' - ', ' – ']) {
+        const idx = lower.lastIndexOf(sep)
+        if (idx < 0) continue
+        let rest = lower.slice(idx + sep.length).trimEnd()
+        if (startsWithYear(rest)) rest = rest.slice(5)
+        if (VARIANT_KEYWORDS.some((v) => rest === v || rest.startsWith(v + ' '))) {
+            return title.slice(0, idx).trimEnd()
+        }
+    }
+    return title
 }
 
 function getAllHistoryTracks(queue: GuildQueue): Track[] {
@@ -116,6 +181,8 @@ export function buildExcludedKeys(
     for (const t of allTracks) {
         keys.push(normalizeTrackKey(t.title, t.author))
         keys.push(normalizeTitleOnly(t.title))
+        const variantStripped = stripVariantSuffix(t.title ?? '')
+        if (variantStripped) keys.push(normalizeTitleOnly(variantStripped))
         const core = extractSongCore(t.title ?? '', t.author)
         if (core) keys.push(normalizeText(core))
     }
@@ -139,6 +206,8 @@ export function isDuplicateCandidate(
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
 
     const candidateTitle = normalizeTitleOnly(track.title)
+    const candidateTitleStripped = normalizeTitleOnly(stripVariantSuffix(track.title ?? ''))
+    if (candidateTitleStripped && excludedKeys.has(candidateTitleStripped)) return true
     if (candidateTitle.length >= 5) {
         for (const key of excludedKeys) {
             if (key.includes('::') || key.length < 5) continue
@@ -220,7 +289,7 @@ export async function addSelectedTracks(
     const historyWrites: Promise<boolean>[] = []
 
     for (const candidate of selected) {
-        markAsAutoplayTrack(candidate.track, candidate.reason, requestedById)
+        markAsAutoplayTrack(candidate.track, serializeBasis(candidate.basis), requestedById)
         queue.addTrack(candidate.track)
         // Update local exclusion sets for this replenish call
         excludedUrls.add(candidate.track.url)

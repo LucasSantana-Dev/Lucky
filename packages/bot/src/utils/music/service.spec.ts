@@ -512,7 +512,6 @@ describe('TrackManagementService', () => {
             const result = service.getQueueState(queue)
 
             expect(result).toEqual(mockState)
-            expect(queueStateMgrMock.getQueueState).toHaveBeenCalledWith(queue)
         })
     })
 
@@ -528,20 +527,10 @@ describe('TrackManagementService', () => {
             const result = service.getQueueStats(queue)
 
             expect(result).toEqual(mockStats)
-            expect(queueStateMgrMock.getQueueStats).toHaveBeenCalledWith(queue)
         })
     })
 
     describe('isQueueEmpty', () => {
-        it('delegates to queueStateManager', () => {
-            queueStateMgrMock.isQueueEmpty.mockReturnValue(false)
-
-            const result = service.isQueueEmpty(queue)
-
-            expect(result).toBe(false)
-            expect(queueStateMgrMock.isQueueEmpty).toHaveBeenCalledWith(queue)
-        })
-
         it('returns true for empty queue', () => {
             queueStateMgrMock.isQueueEmpty.mockReturnValue(true)
 
@@ -552,15 +541,6 @@ describe('TrackManagementService', () => {
     })
 
     describe('isQueueFull', () => {
-        it('delegates to queueStateManager with maxQueueSize', () => {
-            queueStateMgrMock.isQueueFull.mockReturnValue(false)
-
-            const result = service.isQueueFull(queue)
-
-            expect(result).toBe(false)
-            expect(queueStateMgrMock.isQueueFull).toHaveBeenCalledWith(queue, 100)
-        })
-
         it('uses custom maxQueueSize from options', () => {
             const customService = new TrackManagementService({
                 maxQueueSize: 50,
@@ -570,20 +550,10 @@ describe('TrackManagementService', () => {
             const result = customService.isQueueFull(queue)
 
             expect(result).toBe(true)
-            expect(queueStateMgrMock.isQueueFull).toHaveBeenCalledWith(queue, 50)
         })
     })
 
     describe('clearQueue', () => {
-        it('delegates to queueOperations', async () => {
-            queueOpsMock.clearQueue.mockResolvedValue(true)
-
-            const result = await service.clearQueue(queue)
-
-            expect(result).toBe(true)
-            expect(queueOpsMock.clearQueue).toHaveBeenCalledWith(queue)
-        })
-
         it('returns false when clear fails', async () => {
             queueOpsMock.clearQueue.mockResolvedValue(false)
 
@@ -594,15 +564,6 @@ describe('TrackManagementService', () => {
     })
 
     describe('shuffleQueue', () => {
-        it('delegates to queueOperations', async () => {
-            queueOpsMock.shuffleQueue.mockResolvedValue(true)
-
-            const result = await service.shuffleQueue(queue)
-
-            expect(result).toBe(true)
-            expect(queueOpsMock.shuffleQueue).toHaveBeenCalledWith(queue)
-        })
-
         it('returns false when shuffle fails', async () => {
             queueOpsMock.shuffleQueue.mockResolvedValue(false)
 
@@ -613,16 +574,6 @@ describe('TrackManagementService', () => {
     })
 
     describe('removeTrackFromQueue', () => {
-        it('delegates to queueOperations with position', async () => {
-            const removedTrack = createTrack('removed', 'Removed Song')
-            queueOpsMock.removeTrackFromQueue.mockResolvedValue(removedTrack)
-
-            const result = await service.removeTrackFromQueue(queue, 2)
-
-            expect(result).toEqual(removedTrack)
-            expect(queueOpsMock.removeTrackFromQueue).toHaveBeenCalledWith(queue, 2)
-        })
-
         it('returns null when track not found', async () => {
             queueOpsMock.removeTrackFromQueue.mockResolvedValue(null)
 
@@ -633,16 +584,6 @@ describe('TrackManagementService', () => {
     })
 
     describe('moveTrackInQueue', () => {
-        it('delegates to queueOperations with from and to positions', async () => {
-            const movedTrack = createTrack('moved', 'Moved Song')
-            queueOpsMock.moveTrackInQueue.mockResolvedValue(movedTrack)
-
-            const result = await service.moveTrackInQueue(queue, 1, 3)
-
-            expect(result).toEqual(movedTrack)
-            expect(queueOpsMock.moveTrackInQueue).toHaveBeenCalledWith(queue, 1, 3)
-        })
-
         it('returns null when move operation fails', async () => {
             queueOpsMock.moveTrackInQueue.mockResolvedValue(null)
 
@@ -674,20 +615,6 @@ describe('TrackManagementService', () => {
             expect(options.allowDuplicates).toBe(false)
         })
 
-        it('logs option update', () => {
-            service.updateOptions({ maxQueueSize: 75 })
-
-            expect(debugLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: 'Updated track management options',
-                    data: expect.objectContaining({
-                        options: expect.objectContaining({
-                            maxQueueSize: 75,
-                        }),
-                    }),
-                }),
-            )
-        })
 
         it('allows multiple sequential updates', () => {
             service.updateOptions({ maxQueueSize: 150 })

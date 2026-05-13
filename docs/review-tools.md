@@ -1,0 +1,105 @@
+# Code Review Tooling — Lucky
+
+Per the shared merge rule (workflow.md in the org-level standards, mirrored
+into each contributor's environment), a PR is merge-eligible when CI is green
+AND code review tools have approved. This page documents what each tool does,
+what it doesn't, and how to interpret silence.
+
+## Active stack (currently enforced)
+
+| Tool | Type | What it covers | Cost | Rate limit |
+|------|------|----------------|------|-----------|
+| **CodeRabbit** | AI | Logic review, semver, contextual feedback | Trial / paid | Hits trial cap |
+| **SonarCloud** | SAST + metrics | Quality gate, security hotspots, code smells | Free for public repos | Generous |
+| **GitGuardian** | Secret scan | Leaked credentials | Free for OSS | Generous |
+| **Socket** | Supply-chain | Dependency typosquatting, malware | Free | Per-PR |
+| **TruffleHog** | Secret scan | Git history secrets | Free | Generous |
+| **Danger** | Deterministic | PR convention rules (lockfile, console.log, …) | Free, OSS | None |
+| **Claude review** | AI | Self-owned reviewer for substantive concerns | Anthropic API (~$0.10/PR) | Pay-as-you-go |
+
+## Retired / not gating
+
+| Tool | Status |
+|------|--------|
+| **Greptile** | Trial cap reached (50 reviews/lifetime). Posts may still appear but **do not gate merges**. Use Claude review for the same coverage. |
+
+## Why we replaced Greptile + tightened CodeRabbit (2026-05-10)
+
+Greptile's free tier capped at 50 reviews/lifetime; we hit it. Their reviews
+were valuable when they fired (caught the `fetch()`-doesn't-throw bug on PR
+\#808 that CodeRabbit missed) but unreliable above the cap.
+
+CodeRabbit's default `assertive` profile generated `🟡 Minor / 💤 Low value /
+Nitpick` comments that flipped PRs to `CHANGES_REQUESTED`, blocking the merge
+gate on opinion. Switched to `chill` profile so only substantive issues block.
+
+Replaced both gaps with:
+
+1. **`.coderabbit.yaml`** with `profile: chill` — fewer nits, same bug-finding.
+2. **Claude review action** — self-owned Sonnet-powered reviewer focused on
+   correctness/security/semver/prod-risk. The runtime lives as a reusable
+   workflow in `LucasSantana-Dev/.github`; this repo's
+   `.github/workflows/review-tools.yml` calls it pinned at `@v1`.
+3. **Danger.js** — deterministic rules in `dangerfile.ts` (lockfile drift,
+   console.log residue, missing CHANGELOG, .env leaks, branch naming,
+   big PR warning). The runtime is also a reusable workflow in
+   `LucasSantana-Dev/.github`; rules are repo-specific by design.
+
+**Why one caller workflow + reusable workflows in `LucasSantana-Dev/.github`?**
+See ADR `ai-dev-toolkit:docs/decisions/2026-05-10-multi-repo-review-tools-rollout.md`.
+TL;DR: action SHA bumps and prompt tuning propagate centrally; repo-specific
+dangerfile rules stay local.
+
+## Reading the merge rule against this stack
+
+A PR is merge-eligible when ALL hold:
+
+- ✅ Required CI green
+- ✅ SonarCloud Quality Gate `passed`
+- ✅ CodeRabbit has no `🔴 Critical` / `🟠 Major` unresolved threads
+  (Minor/Nitpick/Optional/Low-value are now summarized, not threaded)
+- ✅ Claude review approved or no substantive concerns posted
+- ✅ Danger has no `fail()` outputs (warnings are fine)
+- ✅ GitGuardian / Socket / TruffleHog clean
+
+When CodeRabbit is rate-limited (rare with `chill` profile) or Greptile is
+absent, **Claude review still runs** — that's the point. No more silent
+gate-bailout.
+
+## Tools considered and skipped
+
+| Tool | Why skipped |
+|------|-------------|
+| Qodana | Strong inspections but JetBrains-specific; ESLint + tsc + ruff already cover the same ground |
+| SonarQube self-hosted | SonarCloud already gives us the quality gate without ops burden |
+| Codacy | Paid; overlaps with SonarCloud + Semgrep |
+| DeepCode (now Snyk Code) | Paid; replaced by Semgrep + GitGuardian + Socket + Danger combo |
+| **Reviewdog** | Mature framework (~9k stars) for posting linter/static-analyzer output as PR comments. Pairs naturally with ESLint, Semgrep, ruff, golangci-lint, custom analyzers. ESLint annotations already surface in CI logs but Reviewdog gets them inline on the diff — better signal at the moment of review. Currently deferred (not in this PR) because Lucky's ESLint is wired through GitHub's native annotations and adding Reviewdog now would duplicate output. Revisit if we add Semgrep custom rules or want unified inline-comment formatting across multiple linters. |
+| **Sourcebot** | Newer (2026) self-hosted tool with whole-codebase indexing + semantic search + AI review. Strong "context awareness" pitch but young — wait for it to mature past v1.0 before adopting. |
+| **Continue** | VS Code / JetBrains plugin for inline AI review during editing. Editor-side, not PR-side — out of scope here, but worth installing locally if you want pre-commit AI feedback. |
+| Trivy | Container scanning; not yet relevant — Lucky deploys via Docker but Socket + GitHub Dependabot already handle node deps |
+| **Qodo Merge** (formerly PR-Agent) | Strong open-source AI reviewer with `/review` `/describe` slash commands and multi-agent architecture. Deferred — Claude review covers the same ground without an extra service to maintain. **Revisit if** we want PR slash-command interactivity, or want to swap LLMs per task (cheap model for `/describe`, expensive for `/review`), or need offline review via local Ollama. |
+| **LucidShark** | CLI-first local SAST + linting, Apache 2.0. Strong privacy story but overlaps with Semgrep + GitGuardian; deferred. |
+| **Tabby** | Self-hosted Copilot alternative with repo-context indexing; primarily a code-completion tool, not a PR reviewer. Out of scope here. |
+| **SonarQube Community Edition (self-hosted)** | SonarCloud already gives us the quality gate without ops burden. The 2026 "AI CodeFix" feature in CE is interesting but not enough to justify hosting. |
+| **CodeFactor / Aikido** | Free-for-OSS SaaS; overlap with SonarCloud + Socket. No clear marginal value. |
+
+The broader Forge-Space-era audit (2026-03-07) compared 20+ free OSS reviewers
+and recorded the rejection rationale per tool; that audit lives in private
+maintainer notes and is summarized in the table above.
+
+## Maintenance
+
+- Re-evaluate Greptile if they introduce per-org pricing
+- Tune `.coderabbit.yaml` if `chill` proves too quiet — `path_filters` or
+  `auto_review.base_branches` are the levers
+- Update the centralized Claude review prompt in `LucasSantana-Dev/.github`
+  (`.github/workflows/claude-review.yml`, referenced by
+  `.github/workflows/review-tools.yml@v1`) when the `workflow.md` merge rule
+  evolves — that's the single source of truth for the review prompt
+- `dangerfile.ts` is the place to encode any new convention that humans keep
+  forgetting — cheaper than re-asking AI bots to remember it
+
+## Reality check on AI reviewers
+
+Even the best AI reviewers (Claude, CodeRabbit, Qodo Merge, Greptile) hallucinate and miss subtle logic bugs. Treat them as **extra reviewers**, not human replacements. The merge rule's "code review tools approved" clause is necessary but not sufficient — a substantive concern from any source (human, bot, or your own gut) still outranks a green checkmark.

@@ -17,6 +17,7 @@ jest.mock('@lucky/shared/utils', () => ({
 const spotifyLinkServiceMock = jest.fn()
 const searchSpotifyTrackMock = jest.fn()
 const getSpotifyRecommendationsMock = jest.fn()
+const getArtistGenresMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     spotifyLinkService: {
@@ -30,6 +31,8 @@ jest.mock('../../../spotify/spotifyApi', () => ({
         searchSpotifyTrackMock(...args),
     getSpotifyRecommendations: (...args: unknown[]) =>
         getSpotifyRecommendationsMock(...args),
+    getArtistGenres: (...args: unknown[]) =>
+        getArtistGenresMock(...args),
 }))
 
 jest.mock('../searchQueryCleaner', () => ({
@@ -65,6 +68,7 @@ describe('spotifyRecommender', () => {
         spotifyLinkServiceMock.mockResolvedValue('test-token')
         searchSpotifyTrackMock.mockResolvedValue('spotify-id')
         getSpotifyRecommendationsMock.mockResolvedValue([])
+        getArtistGenresMock.mockResolvedValue([])
     })
 
     describe('collectSpotifyRecommendationCandidates', () => {
@@ -302,94 +306,148 @@ describe('spotifyRecommender', () => {
                 },
             )
         })
+
+        it('falls back to Spotify genres when Last.fm tags are empty and rejects Spanish gospel', async () => {
+            // Simulates the case where Last.fm is not linked: artistTagCache returns []
+            // and Spotify genres identify the artist as latin gospel → cross-locale veto fires
+            getSpotifyRecommendationsMock.mockResolvedValue([{ id: 'rec-gospel' }] as any)
+            // getArtistTags returns [] (no Last.fm)
+            // getArtistGenres returns Spotify genre tags that reveal Spanish content
+            getArtistGenresMock.mockResolvedValue(['musica cristiana', 'latin gospel'])
+
+            const queueMock = createMockQueue()
+            ;(queueMock.player.search as jest.Mock).mockResolvedValue({
+                tracks: [createTrack({ title: 'Hosanna', author: 'Marcos Witt' })],
+            })
+
+            const candidates = new Map()
+            const user = { id: 'user123' } as any
+            const sessionMood = {
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+                dominantLocale: null,
+                recentSkipCount: 0,
+            }
+
+            await collectSpotifyRecommendationCandidates(
+                queueMock,
+                [createTrack({ url: 'https://open.spotify.com/track/seed1' })],
+                user,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                createTrack(),
+                new Set(),
+                candidates,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                sessionMood,
+                null,
+            )
+
+            // Spanish gospel track with neutral English title must be rejected
+            expect(candidates.size).toBe(0)
+            expect(getArtistGenresMock).toHaveBeenCalledWith('test-token', 'Marcos Witt')
+        })
+
+        it('uses Spotify genres only when Last.fm tags are absent (does not double-fetch)', async () => {
+            getSpotifyRecommendationsMock.mockResolvedValue([{ id: 'rec-1' }] as any)
+            // When Last.fm DOES return tags, getArtistGenres should NOT be called
+            const mockGetArtistTags = jest.fn().mockResolvedValue(['pop', 'indie'])
+            getArtistGenresMock.mockResolvedValue(['pop'])
+
+            const queueMock = createMockQueue()
+            ;(queueMock.player.search as jest.Mock).mockResolvedValue({
+                tracks: [createTrack()],
+            })
+
+            const candidates = new Map()
+            const user = { id: 'user123' } as any
+
+            await collectSpotifyRecommendationCandidates(
+                queueMock,
+                [createTrack({ url: 'https://open.spotify.com/track/seed1' })],
+                user,
+                new Set(),
+                new Set(),
+                new Map(),
+                new Map(),
+                new Set(),
+                new Set(),
+                createTrack(),
+                new Set(),
+                candidates,
+                'similar',
+                new Map(),
+                new Set(),
+                new Set(),
+                null,
+                null,
+                { getArtistTags: mockGetArtistTags },
+            )
+
+            // Last.fm tags were returned, so getArtistGenres should not be called
+            expect(getArtistGenresMock).not.toHaveBeenCalled()
+        })
     })
 
     describe('searchSeedCandidates', () => {
-        it('returns empty array on failure', async () => {
+        it('returns empty array on search failure', async () => {
             const queueMock = createMockQueue()
             ;(queueMock.player.search as jest.Mock).mockRejectedValue(
                 new Error('Search failed'),
             )
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
             expect(result).toEqual([])
         })
 
-        it('returns tracks from first successful engine', async () => {
+        it('returns empty array when Spotify returns 0 results — no YouTube fallback', async () => {
             const queueMock = createMockQueue()
-            const tracks = [createTrack({ title: 'Result 1' })]
             ;(queueMock.player.search as jest.Mock).mockResolvedValue({
-                tracks,
+                tracks: [],
             })
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
-            expect(result).toEqual(tracks)
+            expect(result).toEqual([])
+            expect(queueMock.player.search).toHaveBeenCalledTimes(1)
             expect(queueMock.player.search).toHaveBeenCalledWith(
                 expect.any(String),
-                {
-                    requestedBy: user,
-                    searchEngine: QueryType.SPOTIFY_SEARCH,
-                },
+                { requestedBy: expect.anything(), searchEngine: QueryType.SPOTIFY_SEARCH },
             )
         })
 
-        it('tries fallback engines on failure', async () => {
+        it('uses only Spotify search engine', async () => {
             const queueMock = createMockQueue()
-            ;(queueMock.player.search as jest.Mock)
-                .mockResolvedValueOnce({ tracks: [] })
-                .mockResolvedValueOnce({
-                    tracks: [createTrack({ title: 'YouTube result' })],
-                })
+            const tracks = [createTrack({ title: 'Result 1' })]
+            ;(queueMock.player.search as jest.Mock).mockResolvedValue({ tracks })
 
             const user = { id: 'user123' } as any
+            const result = await searchSeedCandidates(queueMock, createTrack(), user)
 
-            const result = await searchSeedCandidates(
-                queueMock,
-                createTrack(),
-                user,
-                0,
+            expect(result).toEqual(tracks)
+            expect(queueMock.player.search).toHaveBeenCalledTimes(1)
+            expect(queueMock.player.search).toHaveBeenCalledWith(
+                expect.any(String),
+                { requestedBy: user, searchEngine: QueryType.SPOTIFY_SEARCH },
             )
-
-            expect(result.length).toBeGreaterThan(0)
-            expect(queueMock.player.search).toHaveBeenCalledTimes(2)
-        })
-
-        it('applies query modifiers based on replenishCount for non-Spotify', async () => {
-            const queueMock = createMockQueue()
-            ;(queueMock.player.search as jest.Mock)
-                .mockResolvedValueOnce({ tracks: [] })
-                .mockResolvedValueOnce({
-                    tracks: [createTrack()],
-                })
-
-            const user = { id: 'user123' } as any
-
-            await searchSeedCandidates(
-                queueMock,
-                createTrack({ title: 'Test', author: 'Artist' }),
-                user,
-                1,
-            )
-
-            const youtubeCall = (queueMock.player.search as jest.Mock).mock
-                .calls[1][0]
-            expect(youtubeCall).toContain('similar')
         })
 
         it('filters tracks exceeding max duration', async () => {
@@ -402,13 +460,10 @@ describe('spotifyRecommender', () => {
                 ],
             })
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
             expect(result.length).toBeLessThanOrEqual(2)
@@ -428,41 +483,13 @@ describe('spotifyRecommender', () => {
                 tracks: manyTracks,
             })
 
-            const user = { id: 'user123' } as any
-
             const result = await searchSeedCandidates(
                 queueMock,
                 createTrack(),
-                user,
-                0,
+                { id: 'user123' } as any,
             )
 
             expect(result.length).toBeLessThanOrEqual(8)
-        })
-
-        it('uses different search query for non-Spotify engines', async () => {
-            const queueMock = createMockQueue()
-            ;(queueMock.player.search as jest.Mock)
-                .mockResolvedValueOnce({ tracks: [] })
-                .mockResolvedValueOnce({
-                    tracks: [createTrack({ source: 'youtube' })],
-                })
-
-            const user = { id: 'user123' } as any
-
-            await searchSeedCandidates(
-                queueMock,
-                createTrack(),
-                user,
-                0,
-            )
-
-            const calls = (queueMock.player.search as jest.Mock).mock.calls
-            const spotifyCall = calls[0][0]
-            const youtubeCall = calls[1][0]
-
-            expect(typeof spotifyCall).toBe('string')
-            expect(typeof youtubeCall).toBe('string')
         })
     })
 })
