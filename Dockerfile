@@ -99,8 +99,11 @@ RUN mkdir -p downloads logs && \
 
 USER bot
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "console.log('Service is running')" || exit 1
+# Liveness via Redis TCP PING — confirms node can run AND the bot's
+# Redis dependency is reachable. A wedged node process or broken Redis
+# link both fail this; the old `console.log` check did neither.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD node -e "const net=require('net');const s=net.createConnection({host:process.env.REDIS_HOST||'redis',port:+(process.env.REDIS_PORT||6379)},()=>s.write('*1\r\n\$4\r\nPING\r\n'));s.on('data',d=>process.exit(d.toString().startsWith('+PONG')?0:1));s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);" || exit 1
 
 CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
 
