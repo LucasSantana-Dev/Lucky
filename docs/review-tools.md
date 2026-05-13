@@ -1,21 +1,27 @@
 # Code Review Tooling — Lucky
 
-Per the merge rule in `~/.claude/standards/workflow.md`, a PR is merge-eligible
-when CI is green AND code review tools have approved. This page documents what
-each tool does, what it doesn't, and how to interpret silence.
+Per the shared merge rule (workflow.md in the org-level standards, mirrored
+into each contributor's environment), a PR is merge-eligible when CI is green
+AND code review tools have approved. This page documents what each tool does,
+what it doesn't, and how to interpret silence.
 
-## Active stack
+## Active stack (currently enforced)
 
 | Tool | Type | What it covers | Cost | Rate limit |
 |------|------|----------------|------|-----------|
 | **CodeRabbit** | AI | Logic review, semver, contextual feedback | Trial / paid | Hits trial cap |
 | **SonarCloud** | SAST + metrics | Quality gate, security hotspots, code smells | Free for public repos | Generous |
-| **Greptile** | AI | Cross-file logic, race conditions | Trial — **expired** | 50 reviews/lifetime |
 | **GitGuardian** | Secret scan | Leaked credentials | Free for OSS | Generous |
 | **Socket** | Supply-chain | Dependency typosquatting, malware | Free | Per-PR |
 | **TruffleHog** | Secret scan | Git history secrets | Free | Generous |
 | **Danger** | Deterministic | PR convention rules (lockfile, console.log, …) | Free, OSS | None |
 | **Claude review** | AI | Self-owned reviewer for substantive concerns | Anthropic API (~$0.10/PR) | Pay-as-you-go |
+
+## Retired / not gating
+
+| Tool | Status |
+|------|--------|
+| **Greptile** | Trial cap reached (50 reviews/lifetime). Posts may still appear but **do not gate merges**. Use Claude review for the same coverage. |
 
 ## Why we replaced Greptile + tightened CodeRabbit (2026-05-10)
 
@@ -78,8 +84,9 @@ gate-bailout.
 | **SonarQube Community Edition (self-hosted)** | SonarCloud already gives us the quality gate without ops burden. The 2026 "AI CodeFix" feature in CE is interesting but not enough to justify hosting. |
 | **CodeFactor / Aikido** | Free-for-OSS SaaS; overlap with SonarCloud + Socket. No clear marginal value. |
 
-See `~/.claude/projects/-Users-lucassantana/memory/free-tools-analysis.md` for
-the broader Forge-Space-era audit (2026-03-07).
+The broader Forge-Space-era audit (2026-03-07) compared 20+ free OSS reviewers
+and recorded the rejection rationale per tool; that audit lives in private
+maintainer notes and is summarized in the table above.
 
 ## Maintenance
 
