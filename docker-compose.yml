@@ -189,7 +189,10 @@ services:
             - backend
             - frontend
         ports:
-            - "${NGINX_PORT:-8080}:80"
+            # Container now listens on 8080 (non-root nginx).
+            # NOTE: update cloudflared config-lucky.yml service entry to
+            # `http://nginx:8080` after deploying this change.
+            - "${NGINX_PORT:-8080}:8080"
         networks:
             - lucky-network
         logging:
