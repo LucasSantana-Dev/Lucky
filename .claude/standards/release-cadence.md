@@ -86,8 +86,21 @@ Routine "small fix" work goes through `/pr-to-release`, not `/hotfix`.
 
 `release/vX.Y.Z` must always be at-or-ahead-of `main`, never behind. After
 any direct-to-main merge (hotfix, dependabot to main, etc.), fast-forward
-the active release branch. See follow-up issue Lucky #841 for automating
-this guard.
+the active release branch.
+
+### Automated enforcement
+
+The workflow `.github/workflows/release-branch-autosync.yml` runs after every
+push to `main` and automatically fast-forwards the active release branch
+(highest semver `release/vX.Y.Z`) to match `main`. The workflow:
+
+- Detects the active release branch by finding the highest semver tag
+- Fast-forwards to `main` using `git push origin main:<active> --force-with-lease`
+- Fails loudly if the release branch has commits NOT in `main` (true divergence),
+  surfacing a warning and requiring manual sync
+
+For local verification, use the script `scripts/check-release-sync.sh` to
+validate the invariant before pushing to main.
 
 ## References
 

@@ -1,0 +1,51 @@
+name: Release-branch auto-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-branch-autosync
+  cancel-in-progress: false
+
+jobs:
+  ff-active-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect the active release branch
+        id: detect
+        run: |
+          # Find the highest semver release/vX.Y.Z that exists on origin.
+          # Skip if no release/* branches exist.
+          active=$(git ls-remote --heads origin 'refs/heads/release/v*' | awk -F'refs/heads/' '{print $2}' | sort -V | tail -1)
+          if [ -z "$active" ]; then
+            echo "No release/v* branch exists — skipping"
+            echo "active=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "active=$active" >> "$GITHUB_OUTPUT"
+          echo "Active release branch: $active"
+
+      - name: Fast-forward release branch to main
+        if: steps.detect.outputs.active != ''
+        run: |
+          active="${{ steps.detect.outputs.active }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$active":"$active" || true
+          if git merge-base --is-ancestor "$active" main; then
+            # main is ahead of or equal to active release branch — ff-only push
+            git push origin "main:$active" --force-with-lease="$active:$(git rev-parse $active)" \
+              || echo "::warning::Could not fast-forward $active to main (likely diverged); manual sync needed"
+          else
+            echo "::warning::main is NOT an ancestor of $active — divergence detected. Manual sync required."
+            exit 1
+          fi
