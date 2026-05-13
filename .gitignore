@@ -14,6 +14,12 @@ packages/*/pnpm-lock.yaml
 
 # AI / IDE tooling (local-only)
 .claude/
+# Repo-level Claude workflow configs ARE committed (single-source-of-truth for
+# /dep-sweep, /branch-hygiene, release-cadence). Per-developer state stays local.
+!.claude/dep-sweep-config.json
+!.claude/branch-hygiene-config.json
+!.claude/standards/
+!.claude/standards/**
 .serena/
 .windsurf/
 .data/
