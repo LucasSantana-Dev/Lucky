@@ -43,7 +43,7 @@ jobs:
                     commit_sha="${{ github.event.workflow_run.head_sha }}"
                   else
                     commit_sha="${{ github.sha }}"
-                  fi"
+                  fi
                   max_wait=600
                   interval=15
                   elapsed=0
