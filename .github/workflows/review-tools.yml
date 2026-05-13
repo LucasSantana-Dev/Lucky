@@ -1,0 +1,42 @@
+name: Review Tools
+
+# Calls the org-level reusable workflows in LucasSantana-Dev/.github
+# (single source of truth for the Claude review prompt + Danger runtime).
+#
+# Tag policy: pinned to the mutable `@v1` tag intentionally. We accept the
+# trade-off — automatic adoption of non-breaking central updates is the
+# reason these workflows are centralized at all. Breaking changes ship under
+# a new major (`@v2`); consumers bump explicitly.
+# If a downstream repo needs strict immutability, pin to a commit SHA
+# instead of `@v1`.
+#
+# Repo-specific behavior lives in:
+#   - dangerfile.ts (rules)
+#   - .coderabbit.yaml (path filters, base branches)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - 'release/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - 'package-lock.json'
+
+# Cancel superseded runs when a newer commit is pushed to the same PR.
+concurrency:
+  group: review-tools-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@v1
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  danger:
+    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@v1
+    secrets: inherit
