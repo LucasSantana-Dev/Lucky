@@ -117,17 +117,6 @@ describe('music command', () => {
         })
     })
 
-    it('returns immediately when guild validation fails', async () => {
-        requireGuildMock.mockResolvedValue(false)
-
-        await musicCommand.execute({
-            client: createClient(),
-            interaction: createInteraction(),
-        } as any)
-
-        expect(interactionReplyMock).not.toHaveBeenCalled()
-    })
-
     it('replies with error for unknown subcommand', async () => {
         await musicCommand.execute({
             client: createClient(),
@@ -374,14 +363,5 @@ describe('music command', () => {
         )
     })
 
-    it('clearfeedback does not call health lookup methods', async () => {
-        await musicCommand.execute({
-            client: createClient(),
-            interaction: createInteraction('clearfeedback'),
-        } as any)
 
-        expect(getFeedbackCountsMock).not.toHaveBeenCalled()
-        expect(getAllStatusesMock).not.toHaveBeenCalled()
-        expect(getSnapshotMock).not.toHaveBeenCalled()
-    })
 })

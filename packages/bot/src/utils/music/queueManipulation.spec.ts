@@ -69,6 +69,7 @@ jest.mock('@lucky/shared/services', () => ({
     },
     spotifyLinkService: {
         getValidAccessToken: jest.fn().mockResolvedValue(null),
+        getByDiscordId: jest.fn().mockResolvedValue(null),
     },
     premiumService: {
         isPremium: jest.fn(() => Promise.resolve(false)),
@@ -79,6 +80,7 @@ const consumeLastFmSeedSliceMock = jest.fn()
 const consumeBlendedSeedSliceMock = jest.fn()
 
 jest.mock('./autoplay/lastFmSeeds', () => ({
+    LASTFM_SEED_COUNT: 15,
     consumeLastFmSeedSlice: (...args: unknown[]) =>
         consumeLastFmSeedSliceMock(...args),
     consumeBlendedSeedSlice: (...args: unknown[]) =>
@@ -191,9 +193,9 @@ describe('queueManipulation.replenishQueue', () => {
     }): Promise<QueueMock> {
         const queue = createQueueMock({
             currentTrack: {
-                title: 'Song A',
-                author: 'Artist A',
-                url: 'https://example.com/a',
+                title: 'Bohemian Rhapsody',
+                author: 'Queen',
+                url: 'https://example.com/bohemian',
             } as unknown as Track,
             metadata: options.queueRequestedById
                 ? { requestedBy: { id: options.queueRequestedById } }
@@ -206,10 +208,10 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: options.candidateTitle ?? 'Song B',
-                            author: options.candidateAuthor ?? 'Artist B',
+                            title: options.candidateTitle ?? 'Stairway to Heaven',
+                            author: options.candidateAuthor ?? 'Led Zeppelin',
                             url:
-                                options.candidateUrl ?? 'https://example.com/b',
+                                options.candidateUrl ?? 'https://example.com/stairway',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -227,9 +229,9 @@ describe('queueManipulation.replenishQueue', () => {
                 size: 1,
                 toArray: jest.fn().mockReturnValue([
                     {
-                        title: 'Queued Song',
-                        author: 'Queued Artist',
-                        url: 'https://example.com/q',
+                        title: 'Highway to Hell',
+                        author: 'AC/DC',
+                        url: 'https://example.com/highway',
                     },
                 ]),
             },
@@ -237,24 +239,24 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: 'Song B',
-                            author: 'Artist B',
-                            url: 'https://example.com/b',
+                            title: 'Stairway to Heaven',
+                            author: 'Led Zeppelin',
+                            url: 'https://example.com/stairway',
                         },
                         {
-                            title: 'Song C',
-                            author: 'Artist C',
-                            url: 'https://example.com/c',
+                            title: 'Smells Like Teen Spirit',
+                            author: 'Nirvana',
+                            url: 'https://example.com/nirvana',
                         },
                         {
-                            title: 'Song D',
-                            author: 'Artist D',
-                            url: 'https://example.com/d',
+                            title: 'Purple Rain',
+                            author: 'Prince',
+                            url: 'https://example.com/prince',
                         },
                         {
-                            title: 'Song E',
-                            author: 'Artist E',
-                            url: 'https://example.com/e',
+                            title: 'Imagine',
+                            author: 'John Lennon',
+                            url: 'https://example.com/lennon',
                         },
                     ],
                 }),
@@ -277,8 +279,17 @@ describe('queueManipulation.replenishQueue', () => {
     })
 
     it('does not search when queue already has buffer size', async () => {
+        const autoplayTracks = Array.from({ length: 8 }, (_, i) => ({
+            title: `Autoplay Track ${i + 1}`,
+            author: `Artist ${i + 1}`,
+            url: `https://example.com/autoplay-${i + 1}`,
+            metadata: { isAutoplay: true },
+        }))
         const queue = createQueueMock({
-            tracks: { size: 8, toArray: jest.fn().mockReturnValue([]) },
+            tracks: {
+                size: 8,
+                toArray: jest.fn().mockReturnValue(autoplayTracks),
+            },
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
@@ -344,21 +355,21 @@ describe('queueManipulation.replenishQueue', () => {
 
     it.each([
         {
-            name: 'when Spotify and AUTO search throw',
-            spotifySearch: () =>
+            name: 'when Spotify seed search throws',
+            seedSearch: () =>
                 Promise.reject(new Error('Spotify unavailable')),
-            autoSearch: () => Promise.reject(new Error('AUTO parser failed')),
+            artistSearch: () => Promise.reject(new Error('Artist search failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
-            name: 'when Spotify and AUTO search return no tracks',
-            spotifySearch: () => Promise.resolve({ tracks: [] }),
-            autoSearch: () => Promise.resolve({ tracks: [] }),
+            name: 'when Spotify seed search returns no tracks',
+            seedSearch: () => Promise.resolve({ tracks: [] }),
+            artistSearch: () => Promise.resolve({ tracks: [] }),
             fallbackUrl: 'https://example.com/recovered',
         },
     ])(
-        'falls back to YouTube search $name',
-        async ({ spotifySearch, autoSearch, fallbackUrl }) => {
+        'falls through to artist fallback $name',
+        async ({ seedSearch, artistSearch, fallbackUrl }) => {
             const queue = createQueueMock({
                 tracks: {
                     size: 0,
@@ -367,8 +378,8 @@ describe('queueManipulation.replenishQueue', () => {
                 player: {
                     search: jest
                         .fn()
-                        .mockImplementationOnce(spotifySearch)
-                        .mockImplementationOnce(autoSearch)
+                        .mockImplementationOnce(seedSearch)
+                        .mockImplementationOnce(artistSearch)
                         .mockResolvedValueOnce({
                             tracks: [
                                 {
@@ -392,16 +403,9 @@ describe('queueManipulation.replenishQueue', () => {
             )
             expect(queue.player.search).toHaveBeenNthCalledWith(
                 2,
-                expect.stringContaining('Song A Artist A'),
+                'Artist A',
                 expect.objectContaining({
-                    searchEngine: QueryType.YOUTUBE_SEARCH,
-                }),
-            )
-            expect(queue.player.search).toHaveBeenNthCalledWith(
-                3,
-                expect.stringContaining('Song A Artist A'),
-                expect.objectContaining({
-                    searchEngine: QueryType.AUTO,
+                    searchEngine: QueryType.SPOTIFY_SEARCH,
                 }),
             )
             expect(queue.addTrack).toHaveBeenCalledWith(
@@ -629,9 +633,9 @@ describe('queueManipulation.replenishQueue', () => {
 
     it('returns without adding tracks when candidate set is exhausted', async () => {
         const queue = await replenishWithSingleCandidate({
-            candidateTitle: 'Song A clone',
-            candidateAuthor: 'Artist A',
-            candidateUrl: 'https://example.com/a',
+            candidateTitle: 'Bohemian Rhapsody',
+            candidateAuthor: 'Queen',
+            candidateUrl: 'https://example.com/bohemian',
         })
 
         expect(queue.addTrack).not.toHaveBeenCalled()
@@ -1163,9 +1167,7 @@ describe('queueManipulation.replenishQueue', () => {
     it('uses broad artist fallback when seed search returns no candidates', async () => {
         const searchMock = jest
             .fn()
-            // Seed search tries 3 engines (SPOTIFY → AUTO → YOUTUBE) — all empty
-            .mockResolvedValueOnce({ tracks: [] })
-            .mockResolvedValueOnce({ tracks: [] })
+            // Seed search (Spotify only) — returns empty
             .mockResolvedValueOnce({ tracks: [] })
             // Broad fallback by author — returns a candidate
             .mockResolvedValueOnce({
@@ -1214,9 +1216,7 @@ describe('queueManipulation.replenishQueue', () => {
     it('swallows broad fallback search errors and tries the next query', async () => {
         const searchMock = jest
             .fn()
-            // Seed search: all 3 engines empty
-            .mockResolvedValueOnce({ tracks: [] })
-            .mockResolvedValueOnce({ tracks: [] })
+            // Seed search (Spotify only) — returns empty
             .mockResolvedValueOnce({ tracks: [] })
             // Broad fallback: first query ("Artist A") throws
             .mockRejectedValueOnce(new Error('Network blip'))
@@ -3207,6 +3207,7 @@ describe('queueManipulation — multi-user VC blend', () => {
     it('adds spotify recommendation results as scored candidates', async () => {
         const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
             getSpotifyRecommendations: jest.Mock
+            getArtistGenres: jest.Mock
         }
         const sharedMocks = jest.requireMock('@lucky/shared/services') as {
             spotifyLinkService: { getValidAccessToken: jest.Mock }
@@ -3214,6 +3215,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
             'tok-recs',
         )
+        spotifyApiMock.getArtistGenres.mockResolvedValue([])
         spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([
             {
                 id: 'rectrack1',
@@ -3544,6 +3546,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
         sharedMocks.spotifyLinkService.getValidAccessToken
             .mockResolvedValueOnce('token-for-current')
+            .mockResolvedValueOnce(null) // spotifyToken for artist tag fetcher
             .mockResolvedValueOnce(null) // collectSpotifyRecommendationCandidates
             .mockResolvedValueOnce('token-for-enrich')
 
@@ -3763,7 +3766,7 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         expect(haloTracks).toHaveLength(1)
     })
 
-    it('logs warnLog when primary Spotify search returns no results and falls back', async () => {
+    it('logs debugLog when primary Spotify seed search returns no results', async () => {
         const fallbackTrack = {
             title: 'Fallback Song',
             author: 'Fallback Artist',
@@ -3789,12 +3792,12 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        const { warnLog } = jest.requireMock('@lucky/shared/utils') as {
-            warnLog: jest.Mock
+        const { debugLog } = jest.requireMock('@lucky/shared/utils') as {
+            debugLog: jest.Mock
         }
-        expect(warnLog).toHaveBeenCalledWith(
+        expect(debugLog).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: expect.stringContaining('Spotify returned 0 results'),
+                message: expect.stringContaining('seed search returned 0 results'),
             }),
         )
     })
@@ -4370,7 +4373,7 @@ describe('queueManipulation — diversity improvements', () => {
                 {
                     track: { title: 'T', author: 'A', url: 'https://spotify.com' },
                     score: 1,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
             const result = await enrichWithAudioFeatures(tracks, 'u1', null)
@@ -4382,7 +4385,7 @@ describe('queueManipulation — diversity improvements', () => {
                 {
                     track: { title: 'T', author: 'A', url: 'https://spotify.com' },
                     score: 1,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
             const result = await enrichWithAudioFeatures(
@@ -4398,7 +4401,7 @@ describe('queueManipulation — diversity improvements', () => {
                 {
                     track: { title: 'T', author: 'A', url: 'https://youtube.com' },
                     score: 1,
-                    reason: 'test',
+                    basis: { source: 'spotify-rec' as const, signals: [] },
                 },
             ]
             const result = await enrichWithAudioFeatures(

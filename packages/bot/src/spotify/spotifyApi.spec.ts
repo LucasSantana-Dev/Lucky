@@ -14,6 +14,7 @@ import {
     getSpotifyRecommendations,
     getArtistGenres,
     getUserTopArtistsAndTracks,
+    getUserSavedTracks,
 } from './spotifyApi'
 
 type MockFetchResponse = {
@@ -834,6 +835,183 @@ describe('spotifyApi', () => {
             const result = await getUserTopArtistsAndTracks('token')
 
             expect(result).toBeNull()
+        })
+    })
+
+    describe('getUserSavedTracks', () => {
+        it('returns empty array when response is not ok', async () => {
+            fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual([])
+        })
+
+        it('returns track ids from a single page', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    items: [
+                        { track: { id: 'track-1' } },
+                        { track: { id: 'track-2' } },
+                    ],
+                    total: 2,
+                }),
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual(['track-1', 'track-2'])
+        })
+
+        it('paginates until all tracks are fetched', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            items: Array.from({ length: 50 }, (_, i) => ({ track: { id: `track-${i}` } })),
+                            total: 60,
+                        }),
+                    }
+                }
+                return {
+                    ok: true,
+                    json: async () => ({
+                        items: Array.from({ length: 10 }, (_, i) => ({ track: { id: `track-${50 + i}` } })),
+                        total: 60,
+                    }),
+                }
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toHaveLength(60)
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+        })
+
+        it('stops when maxTracks (200) is reached', async () => {
+            fetchMock.mockImplementation(async () => ({
+                ok: true,
+                json: async () => ({
+                    items: Array.from({ length: 50 }, (_, i) => ({ track: { id: `t${i}` } })),
+                    total: 1000,
+                }),
+            }))
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result.length).toBeLessThanOrEqual(200)
+            expect(fetchMock).toHaveBeenCalledTimes(4)
+        })
+
+        it('stops when items array is empty', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ items: [], total: 100 }),
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual([])
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        })
+
+        it('breaks on non-ok response mid-pagination', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                if (callCount === 1) {
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            items: [{ track: { id: 'track-1' } }],
+                            total: 100,
+                        }),
+                    }
+                }
+                return { ok: false, json: async () => ({}) }
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual(['track-1'])
+        })
+
+        it('breaks on JSON parse error', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => { throw new Error('JSON error') },
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual([])
+        })
+
+        it('returns empty array on network error', async () => {
+            fetchMock.mockRejectedValue(new Error('network error'))
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual([])
+        })
+
+        it('skips items without a track id', async () => {
+            fetchMock
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({
+                        items: [
+                            { track: { id: 'valid-1' } },
+                            { track: {} },
+                            { track: null },
+                            {},
+                            { track: { id: 'valid-2' } },
+                        ],
+                        total: 5,
+                    }),
+                })
+                .mockResolvedValue({
+                    ok: true,
+                    json: async () => ({ items: [], total: 5 }),
+                })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual(['valid-1', 'valid-2'])
+        })
+
+        it('breaks when data has no items field', async () => {
+            fetchMock.mockResolvedValue({
+                ok: true,
+                json: async () => ({ total: 10 }),
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toEqual([])
+        })
+
+        it('stops early when data.total matches accumulated count', async () => {
+            let callCount = 0
+            fetchMock.mockImplementation(async () => {
+                callCount++
+                return {
+                    ok: true,
+                    json: async () => ({
+                        items: [{ track: { id: `t${callCount}` } }],
+                        total: 1,
+                    }),
+                }
+            })
+
+            const result = await getUserSavedTracks('token')
+
+            expect(result).toHaveLength(1)
+            expect(fetchMock).toHaveBeenCalledTimes(1)
         })
     })
 })

@@ -10,13 +10,17 @@ import {
 } from '@lucky/shared/services'
 import {
     getArtistPopularity,
+    getArtistGenres,
 } from '../../../spotify/spotifyApi'
 import { detectSessionMood, type SessionMood } from './sessionMood'
+import { getRecentSkipCount } from '../../../handlers/player/trackHandlers'
 import {
     collectRecommendationCandidates,
+    SERTANEJO_TAGS,
 } from './candidateCollector'
 import {
     createArtistTagFetcher,
+    hasGenreTag,
     type ArtistTagFetcher,
 } from './artistTagCache'
 import { getGenreFamilies } from './candidateScorer'
@@ -28,6 +32,7 @@ import {
     purgeDuplicatesOfCurrentTrack,
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
+import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../searchQueryCleaner'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
@@ -100,7 +105,10 @@ async function _replenishQueue(
         const bufferSize = (await premiumService.isPremium(queue.guild.id))
             ? AUTOPLAY_BUFFER_SIZE_PREMIUM
             : AUTOPLAY_BUFFER_SIZE
-        const missingTracks = bufferSize - queue.tracks.size
+        const autoplayInQueue = [...queue.tracks.toArray()].filter(
+            (t) => (t.metadata as { isAutoplay?: boolean } | undefined)?.isAutoplay === true,
+        ).length
+        const missingTracks = bufferSize - autoplayInQueue
         if (missingTracks <= 0) return
 
         const allHistoryTracks = getAllHistoryTracks(queue)
@@ -111,7 +119,7 @@ async function _replenishQueue(
             Math.abs(allHistoryTracks.length - guildMoodCache.historyLen) < 3
                 ? guildMoodCache.mood
                 : (() => {
-                      const mood = detectSessionMood(allHistoryTracks, 0 /* TODO: wire recentSkipCount from skip tracking */)
+                      const mood = detectSessionMood(allHistoryTracks, getRecentSkipCount(replenishGuildId))
                       sessionMoodCache.set(replenishGuildId, {
                           mood,
                           historyLen: allHistoryTracks.length,
@@ -223,16 +231,33 @@ async function _replenishQueue(
             : null
         const replenishCount = replenishCounters.get(guildId) ?? 0
 
-        // Tag-driven genre context (Phase 2). One Last.fm artist-tag cache for
-        // the whole pass — every candidate collector reuses it, plus the
-        // current track + recent history. Falls through to no-op when Last.fm
-        // is not configured.
-        const getArtistTags: ArtistTagFetcher = createArtistTagFetcher()
+        // Tag-driven genre context (Phase 2). One artist-tag cache for the
+        // whole pass — every candidate collector reuses it. When Last.fm is not
+        // linked the fetcher falls back to Spotify genre strings so the
+        // cross-locale veto can still reject Spanish gospel tracks whose
+        // title/author carry no Spanish text markers.
+        const spotifyToken = requestedBy?.id
+            ? await Promise.resolve(
+                  spotifyLinkService.getValidAccessToken(requestedBy.id),
+              ).catch(() => null)
+            : null
+        const getArtistTags: ArtistTagFetcher = createArtistTagFetcher(
+            spotifyToken
+                ? (artist) => getArtistGenres(spotifyToken, artist)
+                : undefined,
+        )
         const currentTrackTags = await getArtistTags(currentTrack.author)
         const sessionGenreFamilies = await detectSessionGenreFamilies(
             historyTracks,
             getArtistTags,
         )
+        const seedIsSertanejo = currentTrackTags.length > 0
+            ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
+            : false
+        // Block sertanejo candidates unless the seed itself is sertanejo — fail-open
+        // when tags are absent (Last.fm unlinked) to avoid over-filtering.
+        const blockSertanejo = !seedIsSertanejo
+
         const candidateGenreContext = {
             getArtistTags,
             currentTrackTags,
@@ -244,6 +269,7 @@ async function _replenishQueue(
                 guildId,
                 currentTrackTagCount: currentTrackTags.length,
                 sessionGenreFamilies: Array.from(sessionGenreFamilies),
+                blockSertanejo,
             },
         })
         const candidates = await collectRecommendationCandidates(
@@ -266,6 +292,7 @@ async function _replenishQueue(
             sessionMood,
             currentFeatures,
             candidateGenreContext,
+            blockSertanejo,
         )
         sourcesCounts.recommendation = candidates.size
         candidatePoolSize = candidates.size
@@ -328,6 +355,10 @@ async function _replenishQueue(
                     implicitDislikeKeys,
                     implicitLikeKeys,
                     sessionMood,
+                    genreContext: {
+                        currentTrackTags,
+                        sessionGenreFamilies,
+                    },
                 },
             )
             sourcesCounts.genre = candidates.size - beforeGenre
@@ -361,6 +392,7 @@ async function _replenishQueue(
                 implicitDislikeKeys,
                 implicitLikeKeys,
                 sessionMood,
+                candidateGenreContext,
             )
             sourcesCounts.fallback = candidates.size - beforeFallback
             debugLog({
@@ -466,7 +498,7 @@ async function _replenishQueue(
                     title: s.track.title,
                     author: s.track.author,
                     score: s.score.toFixed(3),
-                    reason: s.reason,
+                    reason: serializeBasis(s.basis),
                     url: s.track.url,
                 })),
             },

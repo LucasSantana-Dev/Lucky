@@ -74,6 +74,29 @@ describe('languageHeuristics', () => {
 			).toBe(false)
 		})
 
+		it('should detect Spanish worship titles without ñ/¿/¡', () => {
+			// These slip through when Last.fm tags are absent — common gospel titles
+			expect(detectSpanishMarkers('Eres Fiel', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Fuego de Tu Presencia', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Los Cielos Cuentan', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Tiempo de Alabanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Tu Gracia', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Gracias a Dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Nuevo Corazon', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Pueblo de Dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Llena Mi Copa', undefined)).toBe(true)
+			expect(detectSpanishMarkers('Una Noche Mas', undefined)).toBe(true)
+		})
+
+		it('should not flag English or Portuguese tracks on new tokens', () => {
+			expect(detectSpanishMarkers('Amazing Grace', undefined)).toBe(false)
+			expect(detectSpanishMarkers('Hillsong United', undefined)).toBe(false)
+			// Portuguese "presença" uses ç — won't match "presencia"
+			expect(detectSpanishMarkers('Presença de Deus', undefined)).toBe(false)
+			// Portuguese "graça" uses ç — won't match "gracia"
+			expect(detectSpanishMarkers('Graça e Paz', undefined)).toBe(false)
+		})
+
 		it('should let Portuguese veto win when both signals appear', () => {
 			// Brazilian artist Anitta has English/Spanish/Portuguese mixes.
 			// "El Que Espera Por Mim" — has Spanish stopwords ("el") but
@@ -81,6 +104,46 @@ describe('languageHeuristics', () => {
 			expect(
 				detectSpanishMarkers('Não te quiero pero também não te perdono', undefined),
 			).toBe(false)
+		})
+
+		it('should detect new Spanish worship genre markers', () => {
+			expect(detectSpanishMarkers(undefined, ['latin worship'])).toBe(true)
+			expect(detectSpanishMarkers(undefined, ['ccm en español'])).toBe(true)
+			expect(detectSpanishMarkers(undefined, ['spanish ccm'])).toBe(true)
+		})
+
+		it('should detect new Spanish gospel distinct tokens', () => {
+			expect(detectSpanishMarkers('eres mi todo', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestro padre celestial', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestra esperanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestros corazones', undefined)).toBe(true)
+			expect(detectSpanishMarkers('nuestras vidas', undefined)).toBe(true)
+			expect(detectSpanishMarkers('siervo fiel', undefined)).toBe(true)
+			expect(detectSpanishMarkers('sierva del señor', undefined)).toBe(true)
+			expect(detectSpanishMarkers('digno de alabanza', undefined)).toBe(true)
+			expect(detectSpanishMarkers('fuego de dios', undefined)).toBe(true)
+			expect(detectSpanishMarkers('reina en los cielos', undefined)).toBe(true)
+		})
+
+		it('should not false-positive English text with new tokens', () => {
+			// "eres" is not an English word
+			expect(detectSpanishMarkers('Greatest Hits Vol 1', undefined)).toBe(false)
+			// "fuego" does not appear in ordinary English titles
+			expect(detectSpanishMarkers('Fire and Rain', undefined)).toBe(false)
+		})
+
+		it('should not classify Portuguese text containing overlapping words as Spanish', () => {
+			// "nosso" (not "nuestro") is the Portuguese equivalent; must not match
+			expect(detectSpanishMarkers('O Nosso Amor', undefined)).toBe(false)
+			// "servo" is the Portuguese word, not "siervo"; must not match
+			expect(detectSpanishMarkers('Servo Fiel do Senhor', undefined)).toBe(false)
+		})
+
+		it('should detect Spanish gospel title via multiple new tokens together', () => {
+			// "Eres digno" — common Spanish worship song title fragment
+			expect(detectSpanishMarkers('Eres Digno y Santo', undefined)).toBe(true)
+			// "Nuestro Dios" — title of a popular Spanish worship song
+			expect(detectSpanishMarkers('Nuestro Dios', undefined)).toBe(true)
 		})
 	})
 

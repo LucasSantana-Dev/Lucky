@@ -2,7 +2,7 @@ name: Bundle Size
 
 on:
     pull_request:
-        branches: [main]
+        branches: [main, 'release/**']
         paths:
             - 'packages/frontend/**'
             - 'package.json'
