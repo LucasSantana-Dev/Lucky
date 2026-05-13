@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-05-13
+
+### Added
+- feat(bot): Spotify API 429 retry with `Retry-After` header parsing — covers both delta-seconds and HTTP-date formats, hardened against unparseable values (#808)
+- feat(autoplay): wire `recentSkipCount` into mood detection so the recommender adapts faster to user skips (#829)
+
+### Changed
+- refactor(autoplay): replace `reason` string with structured `RecommendationBasis { source, signals[] }`; serialization boundary via `serializeBasis()` (#830)
+
+### Fixed
+- fix(autoplay): block Spanish-language gospel tracks from autoplay when Last.fm is not linked, using Spotify-genre fallback and detector hardening (#818, #819, #820, #827)
+- fix(autoplay): prioritize user tracks + Spotify-liked seeds, add sertanejo genre filter, expand Last.fm limits (#817)
+- fix(lastfm): resolve canonical metadata for album art and multi-artist scrobbles (#821)
+- fix(player): harden stream bridge error handling and add 57 missing tests covering reconnect + format negotiation
+- fix(autoplay): remove YouTube fallback from seed search to prevent cross-language drift (#827)
+
+### Internal
+- chore(ci): revamp PR review tooling — Claude review action + Danger rules + chilled CodeRabbit profile, delegated to org-level reusable workflows (#838)
+- ci(bot): pin coverage threshold floor before phase-2 test cleanup (#835)
+- ci: extend workflow triggers to `release/**` branches for trunk-based-with-release-branches flow (#816)
+- test(player): add `streamBridge` and `soundcloudMatcher` test suites
+- chore(deps-dev): bump dev-dependencies group with 14 updates (#833)
+- chore(deps): bump trufflesecurity/trufflehog action SHA (#832)
+- chore(deps): bump base image from `node:22-alpine` to `node:26-alpine` (#831)
+
 ## [2.9.0] - 2026-05-05
 
 ### Added
