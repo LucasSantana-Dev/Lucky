@@ -4,7 +4,7 @@
 // Goal: enforce conventions that humans forget (and AI reviewers
 // rate-limit out of) so the merge rule has more to lean on.
 
-import { danger, fail, message, warn } from 'danger'
+import { danger, fail, message, schedule, warn } from 'danger'
 
 const pr = danger.github.pr
 const modified = danger.git.modified_files
@@ -163,7 +163,8 @@ async function runAsyncChecks(): Promise<void> {
     await Promise.all([checkConsoleLogs(), checkLargeFiles()])
 }
 
-// Schedule the runner. Danger's `--failOnErrors` runner awaits the dangerfile
-// module's default export and any pending top-level promises before exiting,
-// so this top-level `await` is safe.
-await runAsyncChecks()
+// Hand the async work to Danger's scheduler. Danger awaits any promises
+// registered via schedule() before exit. Using schedule() instead of a
+// top-level await keeps the dangerfile CommonJS-loadable (Danger v12 uses
+// require(), which rejects top-level await with ERR_REQUIRE_ASYNC_MODULE).
+schedule(runAsyncChecks())
