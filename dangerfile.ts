@@ -61,12 +61,16 @@ const userFacingChange = all.some((p) =>
 )
 // Match conventional-commit prefixes with separator (colon, slash, parens)
 // so titles like "refactoring auth" don't accidentally count as `refactor`.
+// Narrowed to truly non-user-facing prefixes: only deps, ci, build, style, docs.
+// Dropped: chore/test/refactor/perf — they often touch user-facing code.
 const TITLE_PREFIX_SKIP =
-    /^(chore|test|docs|refactor|ci|build|style|perf)(\([^)]*\))?:\s/
-if (userFacingChange && !changelogTouched && !TITLE_PREFIX_SKIP.test(pr.title)) {
-    message(
+    /^(chore\(deps(-dev)?\)|ci|build|style|docs)(\([^)]*\))?:\s/
+const hasSkipLabel = pr.labels?.some((l: { name: string }) => l.name === 'skip-changelog') ?? false
+if (userFacingChange && !changelogTouched && !TITLE_PREFIX_SKIP.test(pr.title) && !hasSkipLabel) {
+    warn(
         `User-facing change without a CHANGELOG.md update. ` +
-            `Add a line under \`## [Unreleased]\` if this should appear in release notes.`,
+            `Add a line under \`## [Unreleased]\` if this should appear in release notes. ` +
+            `(Or apply the \`skip-changelog\` label if this PR does not affect end users.)`,
     )
 }
 
