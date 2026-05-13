@@ -19,6 +19,9 @@ env:
     REGISTRY: ghcr.io
     IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/lucky
 
+permissions:
+    contents: read
+
 jobs:
     build-and-push:
         runs-on: ubuntu-latest
