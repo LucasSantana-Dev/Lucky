@@ -187,8 +187,8 @@ describe('queueStateManager', () => {
             const stats = getQueueStats(mockQueue)
             expect(stats.totalTracks).toBe(3)
             expect(stats.totalDuration).toBe(620000)
-            // 620000/3 with bit-or-zero truncation in source = 206666
-            expect(stats.averageDuration).toBeGreaterThan(0)
+            // 620000/3 = 206666.666...
+            expect(stats.averageDuration).toBeCloseTo(206666.66666666666, 5)
         })
 
         it('coerces string durations into the totals', () => {
@@ -230,6 +230,18 @@ describe('queueStateManager', () => {
             expect(stats.averageDuration).toBe(300000)
         })
 
+
+        it('aggregates equal-duration tracks with exact average', () => {
+            withTracks([
+                { duration: 200000, author: 'Artist' },
+                { duration: 200000, author: 'Artist' },
+                { duration: 200000, author: 'Artist' },
+            ])
+            const stats = getQueueStats(mockQueue)
+            expect(stats.totalTracks).toBe(3)
+            expect(stats.totalDuration).toBe(600000)
+            expect(stats.averageDuration).toBe(200000)
+        })
         it('returns the documented default stats on exception and logs it', () => {
             withTracksThrow()
             expect(getQueueStats(mockQueue)).toEqual({

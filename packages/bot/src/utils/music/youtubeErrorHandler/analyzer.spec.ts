@@ -59,6 +59,15 @@ describe('YouTubeErrorAnalyzer', () => {
             expect(result[flag as keyof YouTubeErrorInfo]).toBe(true)
         })
 
+
+        it.each([
+            ['parser error (no composite or hype)', 'InnerTubeError: Test', { isParserError: true, isCompositeVideoError: false, isHypePointsError: false }],
+            ['composite error (no parser or type-mismatch)', 'CompositeVideoError: Test', { isCompositeVideoError: true, isParserError: false, isTypeMismatchError: false }],
+            ['hype points error (no grid-shelf or section-header)', 'HypePoints: Test', { isHypePointsError: true, isGridShelfViewError: false, isSectionHeaderViewError: false }],
+        ] as const)('detects %s with explicit negative flags', (_label, message, expectedFlags) => {
+            const result = analyzer.analyzeError(new Error(message))
+            expect(result).toMatchObject(expectedFlags)
+        })
         it('detects parser error from youtubei.js stack frame even with unrelated message', () => {
             const error = new Error('Failed to fetch')
             error.stack = 'Error: Failed to fetch\n    at youtubei.js:123:45'
