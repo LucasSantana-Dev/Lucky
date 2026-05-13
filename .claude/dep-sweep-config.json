@@ -1,0 +1,28 @@
+{
+  "base_branch": "release/v2.10.0",
+  "base_branch_strategy": "versioned",
+  "sensitive": [
+    "discord.js",
+    "@discordjs/voice",
+    "discord-player",
+    "@prisma/client",
+    "prisma",
+    "next",
+    "vite",
+    "react",
+    "react-dom",
+    "express"
+  ],
+  "always_hold": [
+    "react",
+    "react-dom",
+    "vite",
+    "next",
+    "@types/node",
+    "@types/react",
+    "discord.js"
+  ],
+  "auto_merge_minor": false,
+  "auto_merge_dev_deps": true,
+  "notes": "Lucky uses versioned release branches (release/vX.Y.Z). 'base_branch' points at the currently-active release-staging branch and is bumped when a new release is cut. Bot deps (discord.js, discord-player) and ORM (prisma) are sensitive — manual review even on patches. Frontend frameworks always hold for review."
+}
