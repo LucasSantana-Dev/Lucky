@@ -21,6 +21,19 @@ WORKDIR /app
 FROM node:${NODE_VERSION} AS base-runtime-backend
 WORKDIR /app
 
+# Development stage — full deps + native build tools + media binaries.
+# Source is bind-mounted by docker-compose.dev.yml (`.:/app`), so this
+# image only needs the runtime + global tooling. node_modules is preserved
+# inside the container via an anonymous volume.
+FROM base-runtime AS development
+RUN apk add --no-cache git build-base python3-dev opus-dev && rm -rf /var/cache/apk/*
+WORKDIR /app
+ENV NODE_ENV=development \
+    NPM_CONFIG_LOGLEVEL=warn
+# Compose mounts host source over /app; node_modules is installed at first
+# run via the entrypoint to populate the anonymous volume.
+CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma generate && npm run dev --workspace=packages/bot"]
+
 # Build stage — installs all deps, generates prisma, builds shared + target
 FROM node:${NODE_VERSION} AS build
 
