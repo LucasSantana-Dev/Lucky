@@ -43,7 +43,9 @@ async function countSourceAdditions(): Promise<number> {
     )
     return diffs.reduce((sum, d) => {
         if (!d?.added) return sum
-        return sum + d.added.split('\n').filter((l) => l.startsWith('+')).length
+        // Danger's TextDiff.added is the raw added content (no `+` prefix).
+        // Count non-empty lines instead of filtering by leading `+`.
+        return sum + d.added.split('\n').filter((l) => l.trim().length > 0).length
     }, 0)
 }
 
@@ -72,7 +74,8 @@ if (userFacingChange && !changelogTouched && !TITLE_PREFIX_SKIP.test(pr.title)) 
 // package.json without package-lock.json (or vice versa) usually means
 // someone forgot to commit one half of a dependency change.
 const packageJsonChanged = modified.some((p) => /(^|\/)package\.json$/.test(p))
-const lockChanged = modified.some((p) => p === 'package-lock.json')
+// Cover both modified and newly-created lockfiles (first-time npm install case).
+const lockChanged = all.some((p) => p === 'package-lock.json')
 if (packageJsonChanged && !lockChanged) {
     fail(
         `**\`package.json\` changed but \`package-lock.json\` did not.** ` +
@@ -102,9 +105,10 @@ async function checkConsoleLogs(): Promise<void> {
     for (const file of sourceTouched) {
         const diff = await danger.git.diffForFile(file)
         if (!diff) continue
+        // Danger's TextDiff.added is the raw added content (no `+` prefix).
         const addedLines = diff.added
             .split('\n')
-            .filter((l) => l.startsWith('+'))
+            .filter((l) => l.trim().length > 0)
             .filter((l) => /\bconsole\.(log|debug)\b/.test(l))
         if (addedLines.length > 0) {
             warn(

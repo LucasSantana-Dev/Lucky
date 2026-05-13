@@ -86,8 +86,10 @@ the broader Forge-Space-era audit (2026-03-07).
 - Re-evaluate Greptile if they introduce per-org pricing
 - Tune `.coderabbit.yaml` if `chill` proves too quiet — `path_filters` or
   `auto_review.base_branches` are the levers
-- Update Claude review prompt in `.github/workflows/claude-review.yml` when
-  the `workflow.md` merge rule evolves
+- Update the centralized Claude review prompt in `LucasSantana-Dev/.github`
+  (`.github/workflows/claude-review.yml`, referenced by
+  `.github/workflows/review-tools.yml@v1`) when the `workflow.md` merge rule
+  evolves — that's the single source of truth for the review prompt
 - `dangerfile.ts` is the place to encode any new convention that humans keep
   forgetting — cheaper than re-asking AI bots to remember it
 
