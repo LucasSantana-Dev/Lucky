@@ -1,7 +1,7 @@
-# Pinned to almir/webhook 2.8.3 (released 2026-02-12). Avoid :latest because
-# this service has /var/run/docker.sock mounted — any silent base-image change
-# is a supply-chain incident waiting to happen.
-FROM almir/webhook:2.8.3
+# Pinned to almir/webhook 2.8.3 by manifest digest (released 2026-02-12). The
+# tag alone is mutable on Docker Hub — the digest guarantees immutability since
+# this service has /var/run/docker.sock mounted (supply-chain risk).
+FROM almir/webhook:2.8.3@sha256:f77cc91c91d1527b48052280af38b50791e842ad8dd291e9b360a0c13c9ca991
 
 # NOSONAR: privileged operations required for apk and docker socket mount
 USER root

@@ -44,7 +44,7 @@ Single PR (`chore/docker-overhaul`) ships eight focused commits:
 6. `almir/webhook` pinned to `2.8.3`.
 7. Stage consolidation, venv-based yt-dlp, frontend dev image aligned to
    node 22, BuildKit cache mount preserved.
-8. This ADR + audit doc.
+8. This ADR (audit findings inline above; no separate audit doc).
 
 ## Consequences
 
