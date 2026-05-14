@@ -1,9 +1,10 @@
 # ADR — Keep `Dockerfile.frontend` separate (deferred consolidation)
 
-- **Status:** Accepted (deferred)
+- **Status:** Superseded by [PR #851 — `refactor/dockerfile-frontend-consolidation`](https://github.com/LucasSantana-Dev/Lucky/pull/851)
 - **Date:** 2026-05-13
+- **Superseded:** 2026-05-14
 - **Decided by:** `/research-and-decide` composite
-- **Related:** PR #848 (`chore/docker-overhaul`), PR #846 (Node 26 revert)
+- **Related:** PR #848 (`chore/docker-overhaul`), PR #846 (Node 26 revert), PR #851 (consolidation)
 
 ## Context
 
@@ -23,6 +24,8 @@ The Phase-1 research evaluated five options:
 **Keep `Dockerfile.frontend` separate for now (option 1). Mark consolidation as 12-month tech debt with a hard re-evaluation trigger.**
 
 The status quo is defensible *now* because PR #848 just stabilized it (non-root, healthcheck, pinned base) and adding refactor risk inside a security-hardening PR was not worth the blast radius.
+
+**This decision was superseded on 2026-05-14.** PR #851 (`refactor/dockerfile-frontend-consolidation`) consolidates `Dockerfile.frontend` into the main `Dockerfile` as a `production-frontend` multi-stage target, addressing the root cause identified in the Revisit trigger #1 below (the frontend Dockerfile installing bot native deps). See PR #851 for the full rationale.
 
 ## Alternatives considered
 
@@ -47,7 +50,7 @@ The status quo is defensible *now* because PR #848 just stabilized it (non-root,
 
 Hard triggers (any one flips this to option 3 or option 5):
 
-1. **PR #846-class break recurs**: another native bot dep ships without prebuilts for the chosen Node version → frontend Dockerfile must stop installing bot deps.
+1. **PR #846-class break recurs**: another native bot dep ships without prebuilts for the chosen Node version → frontend Dockerfile must stop installing bot deps. *(This trigger was hit — see PR #851.)*
 2. **Frontend ship cadence ≥5×/week** and bot ship cadence ≤2/month for 4 consecutive weeks → invalidation isolation matters less than cache reuse.
 3. **CI build time > 8 min** for the frontend image → option 5 (Turborepo prune) becomes justified.
 4. **12 months elapsed (2027-05-13)** with no other trigger → re-evaluate anyway. Defer-forever is a failure mode.
@@ -56,5 +59,6 @@ Hard triggers (any one flips this to option 3 or option 5):
 
 - PR #848 — `chore/docker-overhaul`
 - PR #846 — `fix(docker): revert frontend image to node:22-alpine`
+- PR #851 — `refactor/dockerfile-frontend-consolidation` (supersedes this ADR)
 - Critic review captured in this composite's Phase 2
 - `feedback_tbd_release_branches` memory
