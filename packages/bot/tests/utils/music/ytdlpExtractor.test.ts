@@ -1,11 +1,17 @@
 import { spawn } from 'child_process'
 import { EventEmitter } from 'events'
 import { Readable } from 'stream'
+import { YtDlpExtractorService } from '../../../src/utils/music/ytdlpExtractor/service'
 
 jest.mock('child_process')
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     debugLog: jest.fn(),
+}))
+jest.mock('discord-player', () => ({
+    BaseExtractor: class MockBase {
+        constructor() {}
+    },
 }))
 
 const mockSpawn = spawn as jest.MockedFunction<typeof spawn>
@@ -31,15 +37,6 @@ describe('YtDlpExtractorService', () => {
 
     describe('validate', () => {
         it('validates YouTube URLs', async () => {
-            jest.mock('discord-player', () => ({
-                BaseExtractor: class MockBase {
-                    constructor() {}
-                },
-            }))
-
-            const { YtDlpExtractorService } =
-                await import('../../../src/utils/music/ytdlpExtractor/service')
-
             const extractor = new YtDlpExtractorService({} as any, {})
 
             expect(
@@ -51,6 +48,81 @@ describe('YtDlpExtractorService', () => {
                     'https://youtube.com/playlist?list=PLxyz',
                 ),
             ).toBe(true)
+        })
+    })
+
+    describe('retry behavior', () => {
+        async function flushMicrotasks(n = 4) {
+            for (let i = 0; i < n; i++) await Promise.resolve()
+        }
+
+        it('returns tracks on the first successful attempt', async () => {
+            const proc = createMockProcess()
+            mockSpawn.mockReturnValue(proc as any)
+
+            const extractor = new YtDlpExtractorService({} as any, { timeout: 30000 })
+            const handlePromise = extractor.handle('https://youtube.com/watch?v=test', {} as any)
+
+            proc.emit('close', 0)
+
+            const result = await handlePromise
+            expect(result.tracks).toEqual([])
+            expect(mockSpawn).toHaveBeenCalledTimes(1)
+        })
+
+        it('retries after first failure and succeeds on second attempt', async () => {
+            const proc1 = createMockProcess()
+            const proc2 = createMockProcess()
+            mockSpawn.mockReturnValueOnce(proc1 as any).mockReturnValueOnce(proc2 as any)
+
+            const extractor = new YtDlpExtractorService({} as any, { timeout: 30000 })
+            const handlePromise = extractor.handle('https://youtube.com/watch?v=test', {} as any)
+
+            proc1.emit('close', 1)
+            await flushMicrotasks()
+
+            proc2.emit('close', 0)
+
+            const result = await handlePromise
+            expect(result.tracks).toEqual([])
+            expect(mockSpawn).toHaveBeenCalledTimes(2)
+        })
+
+        it('throws after all three attempts fail', async () => {
+            const procs = [createMockProcess(), createMockProcess(), createMockProcess()]
+            procs.forEach((p) => mockSpawn.mockReturnValueOnce(p as any))
+
+            const extractor = new YtDlpExtractorService({} as any, { timeout: 30000 })
+            const handlePromise = extractor.handle('https://youtube.com/watch?v=test', {} as any)
+
+            procs[0].emit('close', 1)
+            await flushMicrotasks()
+            procs[1].emit('close', 1)
+            await flushMicrotasks()
+            procs[2].emit('close', 1)
+
+            await expect(handlePromise).rejects.toThrow()
+            expect(mockSpawn).toHaveBeenCalledTimes(3)
+        })
+
+        it('kills the process and retries on timeout', async () => {
+            const proc1 = createMockProcess()
+            const proc2 = createMockProcess()
+            mockSpawn.mockReturnValueOnce(proc1 as any).mockReturnValueOnce(proc2 as any)
+
+            const extractor = new YtDlpExtractorService({} as any, { timeout: 1000 })
+            const handlePromise = extractor.handle('https://youtube.com/watch?v=test', {} as any)
+
+            jest.advanceTimersByTime(1000)
+            await flushMicrotasks()
+
+            expect(proc1.kill).toHaveBeenCalled()
+
+            proc2.emit('close', 0)
+
+            const result = await handlePromise
+            expect(result.tracks).toEqual([])
+            expect(mockSpawn).toHaveBeenCalledTimes(2)
         })
     })
 

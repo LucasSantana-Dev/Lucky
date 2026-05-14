@@ -95,69 +95,69 @@ export class YtDlpExtractorService extends BaseExtractor {
         ]
     }
 
-    private setupProcessHandlers(
-        process: {
-            stdout?: {
-                on: (event: string, callback: (data: Buffer) => void) => void
+    private spawnYtDlp(query: string, timeoutMs: number): Promise<YtDlpExtractorResult> {
+        return new Promise((resolve) => {
+            const args = this.buildYtDlpArgs(query)
+            const proc = spawn(this.options.executablePath, args, {
+                stdio: ['pipe', 'pipe', 'pipe'],
+            })
+
+            let stdout = ''
+            let stderr = ''
+            let settled = false
+
+            const settle = (result: YtDlpExtractorResult): void => {
+                if (settled) return
+                settled = true
+                clearTimeout(timer)
+                resolve(result)
             }
-            stderr?: {
-                on: (event: string, callback: (data: Buffer) => void) => void
-            }
-            on: (event: string, callback: (code: number | null) => void) => void
-            kill: () => void
-        },
-        resolve: (result: YtDlpExtractorResult) => void,
-    ): void {
-        let stdout = ''
-        let stderr = ''
 
-        process.stdout?.on('data', (data: Buffer) => {
-            stdout += data.toString()
-        })
+            const timer = setTimeout(() => {
+                proc.kill()
+                settle({ success: false, error: 'yt-dlp timeout' })
+            }, timeoutMs)
 
-        process.stderr?.on('data', (data: Buffer) => {
-            stderr += data.toString()
-        })
+            proc.stdout?.on('data', (data: Buffer) => { stdout += data.toString() })
+            proc.stderr?.on('data', (data: Buffer) => { stderr += data.toString() })
 
-        process.on('close', (code: number | null) => {
-            if (code === 0) {
-                const tracks = this.parseOutput(stdout)
-                resolve({
-                    success: true,
-                    tracks,
-                })
-            } else {
-                resolve({
+            proc.on('close', (code: number | null) => {
+                if (code === 0) {
+                    settle({ success: true, tracks: this.parseOutput(stdout) })
+                } else {
+                    settle({ success: false, error: stderr || `Process exited with code ${code}` })
+                }
+            })
+
+            proc.on('error', (error: unknown) => {
+                settle({
                     success: false,
-                    error: stderr || `Process exited with code ${code}`,
+                    error: error instanceof Error ? error.message : 'Unknown error',
                 })
-            }
-        })
-
-        process.on('error', (error: unknown) => {
-            resolve({
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
             })
         })
-
-        setTimeout(() => {
-            process.kill()
-            resolve({
-                success: false,
-                error: 'yt-dlp timeout',
-            })
-        }, this.options.timeout)
     }
 
     private async executeYtDlp(query: string): Promise<YtDlpExtractorResult> {
-        return new Promise((resolve) => {
-            const args = this.buildYtDlpArgs(query)
-            const process = spawn(this.options.executablePath, args, {
-                stdio: ['pipe', 'pipe', 'pipe'],
-            })
-            this.setupProcessHandlers(process, resolve)
-        })
+        const baseTimeout = this.options.timeout
+        const timeouts = [baseTimeout, Math.round(baseTimeout * 1.5), baseTimeout * 2]
+
+        for (let attempt = 0; attempt < timeouts.length; attempt++) {
+            if (attempt > 0) {
+                debugLog({ message: `yt-dlp retry attempt ${attempt + 1} for query: ${query}` })
+            }
+
+            const result = await this.spawnYtDlp(query, timeouts[attempt])
+
+            if (result.success) return result
+
+            const isLastAttempt = attempt === timeouts.length - 1
+            if (isLastAttempt) return result
+
+            debugLog({ message: `yt-dlp attempt ${attempt + 1} failed (${result.error}), retrying…` })
+        }
+
+        return { success: false, error: 'yt-dlp exhausted all retries' }
     }
 
     private parseOutput(_output: string): unknown[] {
