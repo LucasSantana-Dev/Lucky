@@ -80,3 +80,8 @@ jobs:
                   build-args: COMMIT_SHA=${{ github.sha }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
+
+            - name: Smoke test yt-dlp
+              if: matrix.service == 'bot'
+              run: |
+                  docker run --rm ${{ env.IMAGE_PREFIX }}-bot:${{ github.sha }} yt-dlp --version
