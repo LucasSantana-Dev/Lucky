@@ -14,6 +14,36 @@ x-large-svc: &large-svc
     cpus: 1.0
     restart: unless-stopped
 
+# Environment shared by bot + backend. Both apps connect to the same
+# postgres, redis, Discord auth pair, Sentry org, and integrations
+# (last.fm + spotify). Service-specific vars stay inline in each
+# service's `environment:` block.
+x-common-app-env: &common-app-env
+    NODE_ENV: production
+    DISCORD_TOKEN: ${DISCORD_TOKEN}
+    CLIENT_ID: ${CLIENT_ID}
+    SENTRY_DSN: ${SENTRY_DSN:-}
+    SENTRY_ENABLED: ${SENTRY_ENABLED:-true}
+    SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+    SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+    SENTRY_SERVER_NAME: ${SENTRY_SERVER_NAME:-}
+    SENTRY_APP_NAME: ${SENTRY_APP_NAME:-lucky}
+    SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
+    SENTRY_PROFILES_SAMPLE_RATE: ${SENTRY_PROFILES_SAMPLE_RATE:-}
+    DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    REDIS_DB: ${REDIS_DB:-0}
+    LASTFM_API_KEY: ${LASTFM_API_KEY:-}
+    LASTFM_API_SECRET: ${LASTFM_API_SECRET:-}
+    LASTFM_LINK_SECRET: ${LASTFM_LINK_SECRET:-}
+    SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+    SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+    SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI:-}
+    SPOTIFY_LINK_SECRET: ${SPOTIFY_LINK_SECRET:-}
+    WEBAPP_REDIRECT_URI: ${WEBAPP_REDIRECT_URI:-}
+    WEBAPP_SESSION_SECRET: ${WEBAPP_SESSION_SECRET:-}
+
 services:
     postgres:
         <<: *large-svc
@@ -78,42 +108,19 @@ services:
             redis:
                 condition: service_healthy
         environment:
-            - NODE_ENV=production
-            - DISCORD_TOKEN=${DISCORD_TOKEN}
-            - CLIENT_ID=${CLIENT_ID}
-            - SENTRY_DSN=${SENTRY_DSN:-}
-            - SENTRY_ENABLED=${SENTRY_ENABLED:-true}
-            - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
-            - SENTRY_RELEASE=${SENTRY_RELEASE:-}
-            - SENTRY_SERVER_NAME=${SENTRY_SERVER_NAME:-}
-            - SENTRY_APP_NAME=${SENTRY_APP_NAME:-lucky}
-            - SENTRY_SERVICE_NAME=${SENTRY_SERVICE_NAME:-bot}
-            - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-}
-            - SENTRY_PROFILES_SAMPLE_RATE=${SENTRY_PROFILES_SAMPLE_RATE:-}
-            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
-            - REDIS_HOST=redis
-            - REDIS_PORT=6379
-            - REDIS_DB=${REDIS_DB:-0}
-            - BOT_NAME=${BOT_NAME:-Lucky}
-            - LASTFM_API_KEY=${LASTFM_API_KEY:-}
-            - LASTFM_API_SECRET=${LASTFM_API_SECRET:-}
-            - LASTFM_SESSION_KEY=${LASTFM_SESSION_KEY:-}
-            - LASTFM_LINK_SECRET=${LASTFM_LINK_SECRET:-}
-            - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
-            - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
-            - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI:-}
-            - SPOTIFY_LINK_SECRET=${SPOTIFY_LINK_SECRET:-}
-            - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI:-}
-            - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET:-}
-            - PLAYER_CONNECTION_TIMEOUT=${PLAYER_CONNECTION_TIMEOUT:-15000}
-            - MUSIC_WATCHDOG_RECOVERY_WAIT_MS=${MUSIC_WATCHDOG_RECOVERY_WAIT_MS:-5000}
-            - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
-            - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
-            - TWITCH_ACCESS_TOKEN=${TWITCH_ACCESS_TOKEN:-}
-            - TWITCH_REFRESH_TOKEN=${TWITCH_REFRESH_TOKEN:-}
-            - AI_DEV_TOOLKIT_BOARD_ENABLED=${AI_DEV_TOOLKIT_BOARD_ENABLED:-false}
-            - AI_DEV_TOOLKIT_CHANNEL_ID=${AI_DEV_TOOLKIT_CHANNEL_ID:-}
-            - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+            <<: *common-app-env
+            SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-bot}
+            BOT_NAME: ${BOT_NAME:-Lucky}
+            LASTFM_SESSION_KEY: ${LASTFM_SESSION_KEY:-}
+            PLAYER_CONNECTION_TIMEOUT: ${PLAYER_CONNECTION_TIMEOUT:-15000}
+            MUSIC_WATCHDOG_RECOVERY_WAIT_MS: ${MUSIC_WATCHDOG_RECOVERY_WAIT_MS:-5000}
+            TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID:-}
+            TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET:-}
+            TWITCH_ACCESS_TOKEN: ${TWITCH_ACCESS_TOKEN:-}
+            TWITCH_REFRESH_TOKEN: ${TWITCH_REFRESH_TOKEN:-}
+            AI_DEV_TOOLKIT_BOARD_ENABLED: ${AI_DEV_TOOLKIT_BOARD_ENABLED:-false}
+            AI_DEV_TOOLKIT_CHANNEL_ID: ${AI_DEV_TOOLKIT_CHANNEL_ID:-}
+            GITHUB_TOKEN: ${GITHUB_TOKEN:-}
         volumes:
             - ./downloads:/app/downloads
             - ./logs:/app/logs
@@ -144,37 +151,14 @@ services:
             redis:
                 condition: service_healthy
         environment:
-            - NODE_ENV=production
-            - DISCORD_TOKEN=${DISCORD_TOKEN}
-            - LUCKY_NOTIFY_API_KEY=${LUCKY_NOTIFY_API_KEY:-}
-            - CLIENT_ID=${CLIENT_ID}
-            - CLIENT_SECRET=${CLIENT_SECRET}
-            - SENTRY_DSN=${SENTRY_DSN:-}
-            - SENTRY_ENABLED=${SENTRY_ENABLED:-true}
-            - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
-            - SENTRY_RELEASE=${SENTRY_RELEASE:-}
-            - SENTRY_SERVER_NAME=${SENTRY_SERVER_NAME:-}
-            - SENTRY_APP_NAME=${SENTRY_APP_NAME:-lucky}
-            - SENTRY_SERVICE_NAME=${SENTRY_SERVICE_NAME:-backend}
-            - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-}
-            - SENTRY_PROFILES_SAMPLE_RATE=${SENTRY_PROFILES_SAMPLE_RATE:-}
-            - DATABASE_URL=postgresql://discordbot:${POSTGRES_PASSWORD?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
-            - REDIS_HOST=redis
-            - REDIS_PORT=6379
-            - REDIS_DB=${REDIS_DB:-0}
-            - WEBAPP_PORT=3000
-            - WEBAPP_REDIRECT_URI=${WEBAPP_REDIRECT_URI}
-            - WEBAPP_SESSION_SECRET=${WEBAPP_SESSION_SECRET}
-            - DEVELOPER_USER_IDS=${DEVELOPER_USER_IDS:-}
-            - LASTFM_API_KEY=${LASTFM_API_KEY:-}
-            - LASTFM_API_SECRET=${LASTFM_API_SECRET:-}
-            - LASTFM_LINK_SECRET=${LASTFM_LINK_SECRET:-}
-            - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
-            - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
-            - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI:-}
-            - SPOTIFY_LINK_SECRET=${SPOTIFY_LINK_SECRET:-}
-            - WEBAPP_FRONTEND_URL=${WEBAPP_FRONTEND_URL:-}
-            - WEBAPP_BACKEND_URL=${WEBAPP_BACKEND_URL:-}
+            <<: *common-app-env
+            SENTRY_SERVICE_NAME: ${SENTRY_SERVICE_NAME:-backend}
+            LUCKY_NOTIFY_API_KEY: ${LUCKY_NOTIFY_API_KEY:-}
+            CLIENT_SECRET: ${CLIENT_SECRET}
+            WEBAPP_PORT: 3000
+            DEVELOPER_USER_IDS: ${DEVELOPER_USER_IDS:-}
+            WEBAPP_FRONTEND_URL: ${WEBAPP_FRONTEND_URL:-}
+            WEBAPP_BACKEND_URL: ${WEBAPP_BACKEND_URL:-}
         networks:
             - lucky-network
         logging:
@@ -188,7 +172,8 @@ services:
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-latest}
         build:
             context: .
-            dockerfile: Dockerfile.frontend
+            dockerfile: Dockerfile
+            target: production-frontend
         container_name: lucky-frontend
         networks:
             - lucky-network
