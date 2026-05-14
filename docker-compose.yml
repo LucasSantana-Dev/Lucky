@@ -188,7 +188,8 @@ services:
         image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-latest}
         build:
             context: .
-            dockerfile: Dockerfile.frontend
+            dockerfile: Dockerfile
+            target: production-frontend
         container_name: lucky-frontend
         networks:
             - lucky-network
