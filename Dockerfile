@@ -6,20 +6,34 @@ ARG NODE_VERSION=22-alpine
 
 FROM node:${NODE_VERSION} AS base-runtime
 
+# yt-dlp is installed into a dedicated venv at /opt/ytdlp so we avoid
+# `--break-system-packages` (Alpine's PEP 668 marker). The venv binary
+# is symlinked into /usr/local/bin so callers don't need to know the path.
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
     opus \
     opus-tools \
-    && rm -rf /var/cache/apk/*
-
-RUN pip3 install --break-system-packages --no-cache-dir yt-dlp
+    && python3 -m venv /opt/ytdlp \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip yt-dlp \
+    && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+    && rm -rf /var/cache/apk/* /root/.cache
 
 WORKDIR /app
 
-FROM node:${NODE_VERSION} AS base-runtime-backend
+# Development stage — full deps + native build tools + media binaries.
+# Source is bind-mounted by docker-compose.dev.yml (`.:/app`), so this
+# image only needs the runtime + global tooling. node_modules is preserved
+# inside the container via an anonymous volume.
+FROM base-runtime AS development
+RUN apk add --no-cache git build-base python3-dev opus-dev && rm -rf /var/cache/apk/*
 WORKDIR /app
+ENV NODE_ENV=development \
+    NPM_CONFIG_LOGLEVEL=warn
+# Compose mounts host source over /app; node_modules is installed at first
+# run via the entrypoint to populate the anonymous volume.
+CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma generate && npm run dev --workspace=packages/bot"]
 
 # Build stage — installs all deps, generates prisma, builds shared + target
 FROM node:${NODE_VERSION} AS build
@@ -99,20 +113,24 @@ RUN mkdir -p downloads logs && \
 
 USER bot
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "console.log('Service is running')" || exit 1
+# Liveness via Redis TCP PING — confirms node can run AND the bot's
+# Redis dependency is reachable. A wedged node process or broken Redis
+# link both fail this; the old `console.log` check did neither.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD node -e "const net=require('net');const s=net.createConnection({host:process.env.REDIS_HOST||'redis',port:+(process.env.REDIS_PORT||6379)},()=>s.write('*1\r\n\$4\r\nPING\r\n'));s.on('data',d=>process.exit(d.toString().startsWith('+PONG')?0:1));s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);" || exit 1
 
 CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
 
-# Production stage — backend (slim runtime, no media tools)
-FROM base-runtime-backend AS production-backend
+# Production stage — backend (slim runtime, no media tools).
+# Derives directly from node:${NODE_VERSION} instead of a no-op intermediate
+# `base-runtime-backend` stage.
+FROM node:${NODE_VERSION} AS production-backend
+WORKDIR /app
 
 ARG COMMIT_SHA
 ENV NODE_ENV=production \
     NPM_CONFIG_LOGLEVEL=silent \
     COMMIT_SHA=$COMMIT_SHA
-
-WORKDIR /app
 
 COPY --from=deps-production /app/node_modules ./node_modules
 COPY --from=deps-production /app/package*.json ./
