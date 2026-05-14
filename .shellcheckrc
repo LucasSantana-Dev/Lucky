@@ -1,3 +1,1 @@
-# SC2016: Expressions don't expand in single quotes.
-# Intentional in deploy.yml curl commands where $WEBHOOK_SECRET must not expand.
-disable=SC2016
+
