@@ -39,8 +39,8 @@ jobs:
                       dockerfile: Dockerfile
                       target: production-backend
                     - service: frontend
-                      dockerfile: Dockerfile.frontend
-                      target: ''
+                      dockerfile: Dockerfile
+                      target: production-frontend
                     - service: nginx
                       dockerfile: Dockerfile.nginx
                       target: ''

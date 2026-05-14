@@ -65,6 +65,15 @@ RUN npm run build:shared
 RUN npm run build --workspace=packages/bot
 RUN npm run build --workspace=packages/backend
 
+# Frontend build — inherits the build stage's deps + toolchain, so we get
+# build-base + python3-dev + opus-dev "for free." Previously the standalone
+# Dockerfile.frontend re-ran `npm ci` for ~all workspace deps (including
+# @discordjs/opus) but lacked the C toolchain, which broke node:26-alpine
+# in PR #846. Sharing the build stage eliminates that class of failure.
+FROM build AS build-frontend
+COPY packages/frontend ./packages/frontend
+RUN npm run build --workspace=packages/frontend
+
 # Production deps — slim install (no dev deps)
 FROM node:${NODE_VERSION} AS deps-production
 
@@ -155,3 +164,17 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://127.0.0.1:3000/api/toggles/global', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))" || exit 1
 
 CMD ["node", "packages/backend/dist/index.js"]
+
+# Production stage — frontend (static SPA served by non-root nginx).
+# Replaces the former standalone Dockerfile.frontend.
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS production-frontend
+
+COPY --from=build-frontend /app/packages/frontend/dist /usr/share/nginx/html
+COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -q --spider http://127.0.0.1:8080/ || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
