@@ -23,12 +23,23 @@ import { reactionRolesService } from '@lucky/shared/services'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../utils/music/namedSessions'
 import { cleanupGuildState } from './player/trackNowPlaying'
+import {
+    recordGuildJoin,
+    recordGuildLeave,
+    syncGuildsOnReady,
+} from '../services/guildMembershipService'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
         infoLog({ message: `Logged in as ${client.user?.tag}!` })
         debugLog({
             message: `Bot is ready with ${(client as CustomClient).commands.size} commands loaded`,
+        })
+        syncGuildsOnReady(client).catch((error) => {
+            errorLog({
+                message: 'guildMembershipService: on-ready sync failed',
+                error,
+            })
         })
         if (process.env.AI_DEV_TOOLKIT_BOARD_ENABLED === 'true') {
             aiDevToolkitService.start(client).catch((error) => {
@@ -38,6 +49,21 @@ function handleClientReady(client: Client): void {
                 })
             })
         }
+    })
+}
+
+function handleGuildCreate(client: Client): void {
+    client.on(Events.GuildCreate, (guild) => {
+        infoLog({
+            message: 'Joined guild',
+            data: { guildId: guild.id, name: guild.name },
+        })
+        recordGuildJoin(guild).catch((error) => {
+            errorLog({
+                message: 'Error recording guild join',
+                error,
+            })
+        })
     })
 }
 
@@ -196,6 +222,16 @@ function handleDebug(client: Client): void {
 
 function handleGuildDelete(client: Client): void {
     client.on(Events.GuildDelete, async (guild) => {
+        infoLog({
+            message: 'Left guild',
+            data: { guildId: guild.id, name: guild.name },
+        })
+        await recordGuildLeave(guild.id, guild.name).catch((error) => {
+            errorLog({
+                message: 'Error recording guild leave',
+                error,
+            })
+        })
         try {
             const duplicateDetection =
                 (await import('../utils/music/duplicateDetection/index.js')) as {
@@ -243,6 +279,7 @@ export default function handleEvents(client: Client) {
     handleError(client)
     handleWarn(client)
     handleDebug(client)
+    handleGuildCreate(client)
     handleGuildDelete(client)
     handleChannelDelete(client)
 }

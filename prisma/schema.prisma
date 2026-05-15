@@ -51,13 +51,15 @@ model UserPreferences {
 
 // Guild Management
 model Guild {
-  id        String   @id @default(cuid())
-  discordId String   @unique
+  id        String    @id @default(cuid())
+  discordId String    @unique
   name      String
   icon      String?
   ownerId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  joinedAt  DateTime?
+  leftAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Relations
   settings            GuildSettings?
@@ -68,6 +70,26 @@ model Guild {
   featureToggles      GuildFeatureToggle[]
 
   @@map("guilds")
+}
+
+enum GuildMembershipEventKind {
+  JOIN
+  LEAVE
+}
+
+/// Immutable audit trail of bot join/leave events per guild.
+/// Keyed by Discord snowflake so the log survives Guild row deletion;
+/// useful for "servers over time" historical analytics and churn detection.
+model GuildMembershipEvent {
+  id             String                   @id @default(cuid())
+  guildDiscordId String
+  guildName      String
+  kind           GuildMembershipEventKind
+  occurredAt     DateTime                 @default(now())
+
+  @@index([guildDiscordId, occurredAt])
+  @@index([occurredAt])
+  @@map("guild_membership_events")
 }
 
 model GuildFeatureToggle {
