@@ -43,7 +43,6 @@ x-common-app-env: &common-app-env
     SPOTIFY_LINK_SECRET: ${SPOTIFY_LINK_SECRET:-}
     WEBAPP_REDIRECT_URI: ${WEBAPP_REDIRECT_URI:-}
     WEBAPP_SESSION_SECRET: ${WEBAPP_SESSION_SECRET:-}
-
 services:
     postgres:
         <<: *large-svc

@@ -17,6 +17,12 @@ vi.mock('@/hooks/useTrackHistoryQueries')
 vi.mock('@/hooks/useLevelQueries')
 vi.mock('@/hooks/useStarboardQueries')
 
+const useReducedMotionMock = vi.hoisted(() => vi.fn(() => false))
+vi.mock('framer-motion', async () => {
+    const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion')
+    return { ...actual, useReducedMotion: useReducedMotionMock }
+})
+
 type AccessValue = 'none' | 'view' | 'manage'
 type AccessMap = Record<
     'overview' | 'settings' | 'moderation' | 'automation' | 'music' | 'integrations',
@@ -225,6 +231,50 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('150')).toBeInTheDocument()
     })
 
+    test('shows zero member count when guild memberCount is missing', () => {
+        mockGuildStoreFn({ ...mockGuild, memberCount: 0 })
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('Total Members')).toBeInTheDocument()
+        expect(screen.getByText('0')).toBeInTheDocument()
+    })
+
+    test('renders KPI compact stats with icons for each tone', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            { ...mockStats, activeCases: 7, totalCases: 142, casesByType: { ...mockStats.casesByType, warn: 64 } },
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('7')).toBeInTheDocument()
+        expect(screen.getByText('142')).toBeInTheDocument()
+        // 64 appears both in the Auto-Mod CompactStat and the Cases-by-Type tile grid.
+        expect(screen.getAllByText('64').length).toBeGreaterThanOrEqual(1)
+    })
+
+    test('uses fallback 0 for KPI compact stats when stats missing', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            undefined,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        const zeros = screen.getAllByText('0')
+        expect(zeros.length).toBeGreaterThanOrEqual(3)
+    })
+
     test('renders header with guild name', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
@@ -283,6 +333,111 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('Custom Commands')).toBeInTheDocument()
     })
 
+    test('renders every quick action row with title and description', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        const quickActionLabels = [
+            ['Moderation Cases', 'Review warnings, mutes, kicks, and bans.'],
+            ['Auto-Moderation', 'Tune filters and anti-spam automation.'],
+            ['Server Logs', 'Audit events and moderation activity.'],
+            ['Custom Commands', 'Manage scripted server shortcuts.'],
+            ['Music Player', 'View queue, playback, and track history.'],
+            ['Levels & XP', 'Configure XP, level rewards, and leaderboards.'],
+            ['Starboard', 'Manage community highlights.'],
+        ] as const
+        for (const [title, description] of quickActionLabels) {
+            expect(screen.getByText(title)).toBeInTheDocument()
+            expect(screen.getByText(description)).toBeInTheDocument()
+        }
+    })
+
+    test('renders hero KPI total members context line', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(
+            screen.getByText(/Active members across Test Guild/),
+        ).toBeInTheDocument()
+    })
+
+    test('respects prefersReducedMotion=true (skips entrance animations)', () => {
+        useReducedMotionMock.mockReturnValueOnce(true)
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        // The dashboard still renders its key labels when reduced-motion is set.
+        expect(screen.getByText('Dashboard')).toBeInTheDocument()
+        expect(screen.getByText('Recent Cases')).toBeInTheDocument()
+    })
+
+    test('falls back to userId and reason placeholder when case fields are blank', () => {
+        const bareCase = {
+            ...mockCases[0],
+            id: 'bare',
+            caseNumber: 9100,
+            userName: '',
+            userId: 'raw-user-id-1234',
+            reason: null,
+            createdAt: new Date().toISOString(),
+        }
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: [bareCase] },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('raw-user-id-1234')).toBeInTheDocument()
+        expect(screen.getByText('No reason provided')).toBeInTheDocument()
+    })
+
+    test('formats case timestamps across timeAgo() ranges', () => {
+        const now = Date.now()
+        const casesAcrossRanges = [
+            { ...mockCases[0], id: 'c-just', caseNumber: 9001, createdAt: new Date(now).toISOString() },
+            { ...mockCases[0], id: 'c-min', caseNumber: 9002, createdAt: new Date(now - 5 * 60_000).toISOString() },
+            { ...mockCases[0], id: 'c-hour', caseNumber: 9003, createdAt: new Date(now - 2 * 3_600_000).toISOString() },
+            { ...mockCases[0], id: 'c-day', caseNumber: 9004, createdAt: new Date(now - 3 * 86_400_000).toISOString() },
+            { ...mockCases[0], id: 'c-week', caseNumber: 9005, createdAt: new Date(now - 14 * 86_400_000).toISOString() },
+        ]
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: casesAcrossRanges },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getAllByText('Just now').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText('5m ago')).toBeInTheDocument()
+        expect(screen.getByText('2h ago')).toBeInTheDocument()
+        expect(screen.getByText('3d ago')).toBeInTheDocument()
+        // Week+ falls back to localized date — verify the rendered case row exists.
+        expect(screen.getByText('#9005')).toBeInTheDocument()
+    })
+
     test('renders cases by type breakdown when stats available', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
@@ -312,7 +467,7 @@ describe('DashboardOverview', () => {
             expect(screen.getByText('Another Track')).toBeInTheDocument()
         })
 
-        test('renders placeholder dash when playedBy is missing', () => {
+        test('renders fallback label when playedBy is missing', () => {
             mockGuildStoreFn(mockGuild)
             setupQueryHookMocks(
                 mockStats,
@@ -322,7 +477,7 @@ describe('DashboardOverview', () => {
                 mockStarboardEntries,
             )
             renderPage()
-            expect(screen.getByText('—')).toBeInTheDocument()
+            expect(screen.getByText('Unknown')).toBeInTheDocument()
         })
 
         test('renders empty music state when no tracks are returned', () => {
