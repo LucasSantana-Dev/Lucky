@@ -37,7 +37,7 @@ describe('Changelog', () => {
         renderPage()
         const prLinks = screen.getAllByRole('link', { name: /^#\d+/ })
         expect(prLinks.length).toBeGreaterThanOrEqual(1)
-        expect(prLinks[0]).toHaveAttribute('href', expect.stringMatching(/github\.com\/LucasSantana-Dev\/Lucky\/pull\/\d+/))
+        expect(prLinks[0]).toHaveAttribute('href', expect.stringMatching(/^https:\/\/github\.com\/LucasSantana-Dev\/Lucky\/pull\/\d+$/))
     })
 
     test('renders version sidebar', () => {

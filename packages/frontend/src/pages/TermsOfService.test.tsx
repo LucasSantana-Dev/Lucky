@@ -32,7 +32,7 @@ describe('TermsOfService', () => {
             'Suspension and termination',
             'Contact',
         ]) {
-            expect(screen.getAllByText(new RegExp(h, 'i')).length).toBeGreaterThanOrEqual(1)
+            expect(screen.getAllByText(h).length).toBeGreaterThanOrEqual(1)
         }
     })
 
@@ -46,7 +46,7 @@ describe('TermsOfService', () => {
     test('contact link points to github issues', () => {
         renderPage()
         const link = screen.getByRole('link', {
-            name: /github\.com\/LucasSantana-Dev\/Lucky\/issues/i,
+            name: /^github\.com\/LucasSantana-Dev\/Lucky\/issues$/i,
         })
         expect(link).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky/issues')
     })

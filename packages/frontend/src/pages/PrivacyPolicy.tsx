@@ -1,40 +1,8 @@
 import DocsShell, {
-    type DocsNavGroup,
     type DocsTocItem,
 } from '@/components/DocsShell/DocsShell'
+import { LEGAL_NAV } from '@/components/DocsShell/legalNav'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
-
-const NAV: DocsNavGroup[] = [
-    {
-        heading: 'Legal',
-        items: [
-            { label: 'Terms of Service', href: '/terms' },
-            { label: 'Privacy Policy', href: '/privacy' },
-        ],
-    },
-    {
-        heading: 'Product',
-        items: [
-            { label: 'Docs', href: '/docs' },
-            { label: 'Changelog', href: '/changelog' },
-        ],
-    },
-    {
-        heading: 'External',
-        items: [
-            {
-                label: 'GitHub',
-                href: 'https://github.com/LucasSantana-Dev/Lucky',
-                external: true,
-            },
-            {
-                label: 'Issues',
-                href: 'https://github.com/LucasSantana-Dev/Lucky/issues',
-                external: true,
-            },
-        ],
-    },
-]
 
 const TOC: DocsTocItem[] = [
     { id: 'scope', label: 'Scope and controller' },
@@ -58,7 +26,7 @@ export default function PrivacyPolicyPage() {
 
     return (
         <DocsShell
-            nav={NAV}
+            nav={LEGAL_NAV}
             toc={TOC}
             breadcrumb='Legal / Privacy'
             title='Privacy Policy'

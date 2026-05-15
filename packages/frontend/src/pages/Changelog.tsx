@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowUpRight, Menu, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import changelogMd from '../../../../CHANGELOG.md?raw'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
+import PublicHeader from '@/components/DocsShell/PublicHeader'
+import { useActiveHeading } from '@/hooks/useActiveHeading'
 
 type ChangelogSection = {
     heading: string
@@ -65,7 +65,6 @@ function formatDate(date: string | null): string {
 }
 
 function renderInlineMd(text: string): React.ReactNode {
-    // Handle code spans (backticks) and PR refs (#NNN)
     const parts: React.ReactNode[] = []
     const codeSplit = text.split(/(`[^`]+`)/g)
     codeSplit.forEach((chunk, ci) => {
@@ -121,77 +120,18 @@ export default function ChangelogPage() {
 
     const entries = useMemo(() => parseChangelog(changelogMd), [])
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const [activeVersion, setActiveVersion] = useState<string | null>(null)
-
-    useEffect(() => {
-        const ids = entries.map((e) => `v-${e.version}`)
-        const els = ids
-            .map((id) => document.getElementById(id))
-            .filter((el): el is HTMLElement => Boolean(el))
-        if (!els.length) return
-        const obs = new IntersectionObserver(
-            (events) => {
-                const visible = events
-                    .filter((e) => e.isIntersecting)
-                    .sort(
-                        (a, b) =>
-                            a.boundingClientRect.top - b.boundingClientRect.top,
-                    )
-                if (visible[0]) {
-                    const id = visible[0].target.id
-                    setActiveVersion(id.replace(/^v-/, ''))
-                }
-            },
-            { rootMargin: '-80px 0px -65% 0px', threshold: 0.1 },
-        )
-        els.forEach((el) => obs.observe(el))
-        return () => obs.disconnect()
-    }, [entries])
+    const ids = useMemo(() => entries.map((e) => `v-${e.version}`), [entries])
+    const activeId = useActiveHeading(ids)
+    const activeVersion = activeId ? activeId.replace(/^v-/, '') : null
 
     return (
         <div className='min-h-screen bg-lucky-surface-canvas text-white'>
-            <header className='sticky top-0 z-30 border-b border-lucky-border-soft bg-lucky-surface-canvas/85 backdrop-blur supports-[backdrop-filter]:bg-lucky-surface-canvas/65'>
-                <div className='mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 md:px-6'>
-                    <div className='flex items-center gap-2'>
-                        <button
-                            onClick={() => setSidebarOpen((v) => !v)}
-                            aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
-                            className='lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-lucky-text-muted hover:bg-lucky-surface-panel hover:text-lucky-text-strong'
-                        >
-                            {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
-                        </button>
-                        <Link
-                            to='/'
-                            className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
-                        >
-                            <img src='/lucky-logo.png' alt='Lucky' width='24' height='24' className='h-6 w-6 rounded-full' loading='eager' />
-                            <span className='font-mono text-sm font-semibold tracking-tight'>
-                                lucky<span className='text-lucky-brand'>.</span>
-                            </span>
-                        </Link>
-                        <span className='ml-1 hidden text-lucky-border-strong md:inline'>/</span>
-                        <span className='hidden font-mono text-xs uppercase tracking-[0.2em] text-lucky-text-muted md:inline'>
-                            Changelog
-                        </span>
-                    </div>
-                    <nav className='flex items-center gap-1 font-mono text-xs text-lucky-text-muted'>
-                        <Link to='/docs' className='hidden sm:inline-flex items-center rounded-md px-2.5 py-1.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors'>
-                            docs
-                        </Link>
-                        <Link to='/changelog' className='hidden sm:inline-flex items-center rounded-md px-2.5 py-1.5 bg-lucky-surface-panel text-lucky-text-strong'>
-                            changelog
-                        </Link>
-                        <a
-                            href='https://github.com/LucasSantana-Dev/Lucky'
-                            target='_blank'
-                            rel='noreferrer'
-                            className='inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors'
-                        >
-                            github <ArrowUpRight size={11} aria-hidden />
-                        </a>
-                    </nav>
-                </div>
-            </header>
+            <PublicHeader
+                breadcrumb='Changelog'
+                activeNav='changelog'
+                sidebarOpen={sidebarOpen}
+                onToggleSidebar={() => setSidebarOpen((v) => !v)}
+            />
 
             <div className='mx-auto grid max-w-7xl gap-0 px-0 md:px-6 lg:grid-cols-[16rem_minmax(0,1fr)_14rem]'>
                 <aside
