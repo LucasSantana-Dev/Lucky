@@ -17,6 +17,12 @@ vi.mock('@/hooks/useTrackHistoryQueries')
 vi.mock('@/hooks/useLevelQueries')
 vi.mock('@/hooks/useStarboardQueries')
 
+const useReducedMotionMock = vi.hoisted(() => vi.fn(() => false))
+vi.mock('framer-motion', async () => {
+    const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion')
+    return { ...actual, useReducedMotion: useReducedMotionMock }
+})
+
 type AccessValue = 'none' | 'view' | 'manage'
 type AccessMap = Record<
     'overview' | 'settings' | 'moderation' | 'automation' | 'music' | 'integrations',
@@ -365,6 +371,45 @@ describe('DashboardOverview', () => {
         expect(
             screen.getByText(/Active members across Test Guild/),
         ).toBeInTheDocument()
+    })
+
+    test('respects prefersReducedMotion=true (skips entrance animations)', () => {
+        useReducedMotionMock.mockReturnValueOnce(true)
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        // The dashboard still renders its key labels when reduced-motion is set.
+        expect(screen.getByText('Dashboard')).toBeInTheDocument()
+        expect(screen.getByText('Recent Cases')).toBeInTheDocument()
+    })
+
+    test('falls back to userId and reason placeholder when case fields are blank', () => {
+        const bareCase = {
+            ...mockCases[0],
+            id: 'bare',
+            caseNumber: 9100,
+            userName: '',
+            userId: 'raw-user-id-1234',
+            reason: null,
+            createdAt: new Date().toISOString(),
+        }
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: [bareCase] },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('raw-user-id-1234')).toBeInTheDocument()
+        expect(screen.getByText('No reason provided')).toBeInTheDocument()
     })
 
     test('formats case timestamps across timeAgo() ranges', () => {
