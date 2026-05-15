@@ -83,4 +83,8 @@ jobs:
 
             - name: Smoke test yt-dlp
               if: matrix.service == 'bot'
-              run: docker run --rm "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.meta.outputs.version }}" yt-dlp --version
+              run: |
+                # Docker registry refs must be lowercase; IMAGE_PREFIX preserves
+                # the GitHub owner's case (LucasSantana-Dev), so normalize here.
+                IMAGE="$(printf '%s' "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')"
+                docker run --rm "$IMAGE:${{ steps.meta.outputs.version }}" yt-dlp --version
