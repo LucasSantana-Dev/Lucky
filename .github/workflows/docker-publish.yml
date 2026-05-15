@@ -1,6 +1,7 @@
 name: Build & Push Docker Images
 
 on:
+    workflow_dispatch:
     push:
         branches: [main]
         paths:
@@ -10,6 +11,7 @@ on:
             - 'Dockerfile.*'
             - 'nginx/**'
             - 'package*.json'
+            - '.github/workflows/docker-publish.yml'
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
