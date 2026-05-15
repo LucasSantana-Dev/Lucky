@@ -1,0 +1,20 @@
+name: Quality Gates
+
+on:
+    push:
+        branches: ['release/**', main]
+    pull_request:
+        branches: ['release/**', main]
+
+jobs:
+    quality:
+        uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@39ebcddcd62666b363e0cc240e6547a805ba92e5
+        with:
+            node-version: '22'
+            has-dockerfile: true
+            run-deadcode: true
+            package-manager: npm
+        permissions:
+            contents: read
+            security-events: write
+            actions: read
