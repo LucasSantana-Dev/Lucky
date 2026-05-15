@@ -23,7 +23,7 @@ describe('LastFmPage', () => {
     test('shows loading spinner initially', () => {
         vi.mocked(api.lastfm.status).mockReturnValue(new Promise(() => {}))
         renderPage()
-        expect(document.querySelector('.animate-spin')).toBeInTheDocument()
+        expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
     })
 
     test('shows not configured when lastfm is not set up', async () => {
@@ -66,7 +66,7 @@ describe('LastFmPage', () => {
             expect(screen.getByText('Connect Your Account')).toBeInTheDocument()
         })
 
-        expect(screen.getByText('Connect Last.fm')).toBeInTheDocument()
+        expect(screen.getByText('Connect with Last.fm')).toBeInTheDocument()
     })
 
     test('shows error on fetch failure', async () => {
