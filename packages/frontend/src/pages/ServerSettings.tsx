@@ -473,7 +473,7 @@ export default function ServerSettingsPage() {
                     rbacGrants.map((grant, index) => (
                         <div
                             key={`${grant.roleId}:${grant.module}:${grant.mode}:${index}`}
-                            className='grid grid-cols-1 gap-3 rounded-xl border border-lucky-border bg-lucky-bg-tertiary/50 p-3 md:grid-cols-[1.4fr_1fr_1fr_auto]'
+                            className='surface-card grid grid-cols-1 gap-3 p-4 md:grid-cols-[1.5fr_1.2fr_1fr_48px]'
                         >
                             <Select
                                 value={grant.roleId}
@@ -483,7 +483,7 @@ export default function ServerSettingsPage() {
                                     })
                                 }
                             >
-                                <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
+                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border/60 text-lucky-text-primary text-sm'>
                                     <SelectValue placeholder='Role' />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
@@ -503,7 +503,7 @@ export default function ServerSettingsPage() {
                                     })
                                 }
                             >
-                                <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
+                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border/60 text-lucky-text-primary text-sm'>
                                     <SelectValue placeholder='Module' />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
@@ -523,7 +523,7 @@ export default function ServerSettingsPage() {
                                     })
                                 }
                             >
-                                <SelectTrigger className='bg-lucky-bg-secondary border-lucky-border text-white'>
+                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border/60 text-lucky-text-primary text-sm'>
                                     <SelectValue placeholder='Mode' />
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
@@ -535,8 +535,10 @@ export default function ServerSettingsPage() {
                             <Button
                                 type='button'
                                 variant='ghost'
-                                className='text-lucky-text-tertiary hover:text-lucky-error'
+                                size='sm'
+                                className='text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors'
                                 onClick={() => removeRbacGrant(index)}
+                                title='Remove rule'
                             >
                                 <Trash2 className='w-4 h-4' />
                             </Button>
@@ -736,15 +738,14 @@ export default function ServerSettingsPage() {
                         </Select>
                     )}
                     {(settings.managerRoles ?? []).length > 0 ? (
-                        <div className='flex flex-wrap gap-1.5'>
+                        <div className='flex flex-wrap gap-2'>
                             {(settings.managerRoles ?? []).map((id) => (
                                 <Badge
                                     key={id}
-                                    variant='outline'
-                                    className='bg-lucky-bg-tertiary border-lucky-border text-lucky-text-secondary text-xs gap-1 pr-1'
+                                    className='bg-lucky-brand/15 border border-lucky-brand/40 text-lucky-text-primary text-xs gap-1.5 px-2.5 py-1.5 hover:bg-lucky-brand/20 transition-colors'
                                 >
-                                    <Shield className='w-3 h-3' />
-                                    {getManagerRoleName(id)}
+                                    <Shield className='w-3 h-3 text-lucky-brand' />
+                                    <span className='font-medium'>{getManagerRoleName(id)}</span>
                                     <button
                                         onClick={() =>
                                             update(
@@ -754,7 +755,8 @@ export default function ServerSettingsPage() {
                                                 ),
                                             )
                                         }
-                                        className='hover:text-lucky-error transition-colors p-0.5'
+                                        className='ml-0.5 hover:text-lucky-error transition-colors'
+                                        aria-label='Remove role'
                                     >
                                         <X className='w-3 h-3' />
                                     </button>
@@ -762,7 +764,7 @@ export default function ServerSettingsPage() {
                             ))}
                         </div>
                     ) : (
-                        <p className='type-meta text-lucky-text-tertiary'>
+                        <p className='type-body-sm text-lucky-text-tertiary'>
                             No manager roles configured.
                         </p>
                     )}
@@ -822,17 +824,18 @@ export default function ServerSettingsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
             >
-                <Card className='p-5 space-y-4'>
+                <Card className='p-5 space-y-4 border-l-4 border-l-lucky-warning'>
                     <div className='flex items-center justify-between gap-4'>
-                        <div className='flex items-center gap-2'>
-                            <WandSparkles className='w-5 h-5 text-lucky-warning' />
+                        <div className='flex items-center gap-3'>
+                            <div className='p-2 rounded-lg bg-lucky-warning/15'>
+                                <WandSparkles className='w-5 h-5 text-lucky-warning' />
+                            </div>
                             <div>
                                 <h2 className='type-title text-lucky-text-primary'>
                                     Criativaria Baseline
                                 </h2>
-                                <p className='type-meta text-lucky-text-tertiary'>
-                                    Apply the migration baseline from legacy bots
-                                    with safe reconcile defaults.
+                                <p className='type-body-sm text-lucky-text-tertiary mt-0.5'>
+                                    Apply the migration baseline from legacy bots with safe reconcile defaults.
                                 </p>
                             </div>
                         </div>
@@ -840,14 +843,14 @@ export default function ServerSettingsPage() {
                             type='button'
                             onClick={handleApplyCriativariaPreset}
                             disabled={!canManageRbac || applyingCriativariaPreset}
-                            className='gap-2'
+                            className='gap-2 shrink-0'
                         >
                             {applyingCriativariaPreset ? (
                                 <Loader2 className='w-4 h-4 animate-spin' />
                             ) : (
                                 <WandSparkles className='w-4 h-4' />
                             )}
-                            Apply Criativaria Baseline
+                            Apply
                         </Button>
                     </div>
                 </Card>
@@ -860,13 +863,15 @@ export default function ServerSettingsPage() {
             >
                 <Card className='p-5 space-y-5'>
                     <div className='flex items-center justify-between gap-4'>
-                        <div className='flex items-center gap-2'>
-                            <Shield className='w-5 h-5 text-lucky-text-secondary' />
+                        <div className='flex items-center gap-3'>
+                            <div className='p-2 rounded-lg bg-lucky-brand/10'>
+                                <Shield className='w-5 h-5 text-lucky-brand' />
+                            </div>
                             <div>
                                 <h2 className='type-title text-lucky-text-primary'>
                                     Access Control
                                 </h2>
-                                <p className='type-meta text-lucky-text-tertiary'>
+                                <p className='type-body-sm text-lucky-text-tertiary mt-0.5'>
                                     Assign role-based web dashboard permissions
                                 </p>
                             </div>
