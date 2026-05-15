@@ -31,10 +31,12 @@ const mockLogin = vi.fn()
 function setupMocks(overrides?: {
     prefersReducedMotion?: boolean
     statsData?: { totalGuilds: number; totalUsers: number; uptimeSeconds: number; serversOnline: number }
+    statsError?: Error
 }) {
     const {
         prefersReducedMotion = false,
-        statsData = { totalGuilds: 100, totalUsers: 500, uptimeSeconds: 86400, serversOnline: 1 }
+        statsData = { totalGuilds: 100, totalUsers: 500, uptimeSeconds: 86400, serversOnline: 1 },
+        statsError,
     } = overrides || {}
 
     vi.mocked(useAuthStore).mockImplementation(
@@ -48,7 +50,9 @@ function setupMocks(overrides?: {
     vi.mocked(useReducedMotion).mockReturnValue(prefersReducedMotion)
 
     vi.mocked(api).stats = {
-        getPublic: vi.fn().mockResolvedValue({ data: statsData })
+        getPublic: statsError
+            ? vi.fn().mockRejectedValue(statsError)
+            : vi.fn().mockResolvedValue({ data: statsData })
     } as any
 }
 
@@ -277,5 +281,28 @@ describe('Landing', () => {
 
         const faqHeading = screen.getByRole('heading', { name: /Frequently Asked Questions/i })
         expect(faqHeading).toBeInTheDocument()
+    })
+
+    test('logs and recovers when stats fetch rejects', async () => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        setupMocks({ statsError: new Error('boom') })
+        render(<Landing />)
+        // Allow the promise rejection + finally to flush.
+        await new Promise((r) => setTimeout(r, 0))
+        expect(errorSpy).toHaveBeenCalled()
+        errorSpy.mockRestore()
+    })
+
+    test('hides plus-sign suffix when both stats are zero', async () => {
+        setupMocks({
+            prefersReducedMotion: true,
+            statsData: { totalGuilds: 0, totalUsers: 0, uptimeSeconds: 0, serversOnline: 0 },
+        })
+        render(<Landing />)
+        // Wait for the post-fetch render with zero counts.
+        await new Promise((r) => setTimeout(r, 0))
+        // Zero counts render without the '+' suffix; both metrics should be the literal '0'.
+        const zeros = await screen.findAllByText('0')
+        expect(zeros.length).toBeGreaterThanOrEqual(2)
     })
 })
