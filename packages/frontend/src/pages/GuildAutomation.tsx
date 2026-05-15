@@ -304,7 +304,7 @@ export default function GuildAutomation() {
             <div className='surface-panel rounded-lg border border-lucky-border p-4 space-y-4'>
                 <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-3'>
-                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Status</h2>
+                        <h2 className='text-sm font-semibold text-lucky-text-strong'>Automation Status</h2>
                         {loading ? (
                             <Skeleton className='h-5 w-20 rounded' />
                         ) : status ? (
@@ -394,6 +394,7 @@ export default function GuildAutomation() {
             <div className='surface-panel rounded-lg border border-lucky-border overflow-hidden'>
                 <button
                     onClick={() => setManifestExpanded(!manifestExpanded)}
+                    aria-label='Expand'
                     className='w-full p-4 flex items-center justify-between gap-2 hover:bg-lucky-bg-active/30 transition-colors text-left'
                 >
                     <div className='flex items-center gap-2'>

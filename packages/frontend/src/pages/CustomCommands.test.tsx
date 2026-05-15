@@ -450,7 +450,7 @@ describe('CustomCommandsPage', () => {
 
         const coinflipCard = screen
             .getByText('/coinflip')
-            .closest('[class*="p-4"]')
+            .closest('[class*="surface-panel"]')
         expect(coinflipCard).toHaveClass('opacity-60')
     })
 
