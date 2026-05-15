@@ -225,6 +225,50 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('150')).toBeInTheDocument()
     })
 
+    test('shows zero member count when guild memberCount is missing', () => {
+        mockGuildStoreFn({ ...mockGuild, memberCount: undefined })
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('Total Members')).toBeInTheDocument()
+        expect(screen.getByText('0')).toBeInTheDocument()
+    })
+
+    test('renders KPI compact stats with icons for each tone', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            { ...mockStats, activeCases: 7, totalCases: 142, casesByType: { ...mockStats.casesByType, warn: 64 } },
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('7')).toBeInTheDocument()
+        expect(screen.getByText('142')).toBeInTheDocument()
+        // 64 appears both in the Auto-Mod CompactStat and the Cases-by-Type tile grid.
+        expect(screen.getAllByText('64').length).toBeGreaterThanOrEqual(1)
+    })
+
+    test('uses fallback 0 for KPI compact stats when stats missing', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            undefined,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        const zeros = screen.getAllByText('0')
+        expect(zeros.length).toBeGreaterThanOrEqual(3)
+    })
+
     test('renders header with guild name', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
