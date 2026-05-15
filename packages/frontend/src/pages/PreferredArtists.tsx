@@ -41,7 +41,12 @@ function ArtistTile({
     onBlock,
 }: ArtistTileProps) {
     const [isHovered, setIsHovered] = useState(false)
+    const [imageBroken, setImageBroken] = useState(false)
     const prefersReducedMotion = useReducedMotion()
+
+    useEffect(() => {
+        setImageBroken(false)
+    }, [artist.imageUrl])
 
     const sizeClasses = {
         sm: 'w-14 h-14',
@@ -87,16 +92,18 @@ function ArtistTile({
                     !prefersReducedMotion && isHovered && 'scale-105',
                 )}
             >
-                {artist.imageUrl ? (
+                {artist.imageUrl && !imageBroken ? (
                     <img
                         src={artist.imageUrl}
                         alt={artist.name}
                         className='w-full h-full object-cover'
                         loading='lazy'
+                        referrerPolicy='no-referrer'
+                        onError={() => setImageBroken(true)}
                     />
                 ) : (
                     <div className='w-full h-full bg-lucky-bg-active flex items-center justify-center'>
-                        <span className='font-semibold text-lucky-text-secondary'>
+                        <span className='font-semibold text-lucky-text-secondary text-xl'>
                             {initial}
                         </span>
                     </div>
@@ -516,7 +523,7 @@ export default function PreferredArtistsPage() {
                         {!searching && displayArtists.length > 0 && (
                             <motion.div
                                 layout
-                                className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5'
+                                className='mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 isolate relative z-0'
                             >
                                 <AnimatePresence mode='popLayout'>
                                     {displayArtists.map((artist) => {

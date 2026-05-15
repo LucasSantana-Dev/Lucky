@@ -103,10 +103,12 @@ const createDefaultToggles = (): FeatureToggleState => {
         'WEBAPP',
         'TWITCH_NOTIFICATIONS',
         'LASTFM_INTEGRATION',
+        'SPOTIFY_INTEGRATION',
         'WELCOME_MESSAGES',
     ]
+    const disabledByDefault: FeatureToggleName[] = ['LYRICS', 'SPOTIFY_INTEGRATION']
     return toggleNames.reduce((acc, name) => {
-        acc[name] = true
+        acc[name] = !disabledByDefault.includes(name)
         return acc
     }, {} as FeatureToggleState)
 }

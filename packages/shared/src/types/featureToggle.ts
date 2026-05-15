@@ -15,6 +15,7 @@ export type FeatureToggleName =
     | 'WEBAPP'
     | 'TWITCH_NOTIFICATIONS'
     | 'LASTFM_INTEGRATION'
+    | 'SPOTIFY_INTEGRATION'
     | 'WELCOME_MESSAGES'
     | 'ARTIST_COMMAND'
     | 'ALBUM_COMMAND'

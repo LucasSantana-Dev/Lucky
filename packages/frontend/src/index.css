@@ -113,15 +113,17 @@
   --color-lucky-shadow-panel: 0 8px 32px rgb(0 0 0 / 0.4);
   --color-lucky-shadow-focus: 0 0 0 3px rgb(88 101 242 / 0.4);
 
-  /* Legacy aliases for backward compat */
-  --color-lucky-purple-400: #5865f2;
-  --color-lucky-purple-500: #4752c4;
-  --color-lucky-gold-500: #5865f2;
-  --color-lucky-gold-400: #6d7af4;
-  --color-lucky-gold-300: #8891f6;
-  --color-lucky-red: #5865f2;
-  --color-lucky-blue: #5865f2;
-  --color-lucky-purple: #5865f2;
+  /* Legacy aliases for backward compat — re-pointed to brand pink so
+     the old --lucky-red / --lucky-blue / --lucky-purple classes no longer
+     render Discord blurple. Direct usages should migrate to --color-lucky-brand. */
+  --color-lucky-purple-400: #ec4899;
+  --color-lucky-purple-500: #db2777;
+  --color-lucky-gold-500: #ec4899;
+  --color-lucky-gold-400: #f472b6;
+  --color-lucky-gold-300: #f9a8d4;
+  --color-lucky-red: #ec4899;
+  --color-lucky-blue: #ec4899;
+  --color-lucky-purple: #ec4899;
 
   /* Short-form aliases for the 2026-04-21 redesign port.
      Values match the existing --color-lucky-* tokens. Keep both during

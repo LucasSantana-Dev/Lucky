@@ -51,7 +51,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
         try {
             setError(null)
             const response = await apiClient.get<{ genres: string[] }>(
-                `/api/guilds/${guildId}/autoplay/genres`,
+                `/guilds/${guildId}/autoplay/genres`,
             )
             setGenres(response.data.genres || [])
         } catch (err) {
@@ -92,7 +92,7 @@ export default function AutoplayGenres({ guildId }: AutoplayGenresProps) {
         setIsLoading(true)
         try {
             setError(null)
-            await apiClient.put(`/api/guilds/${guildId}/autoplay/genres`, {
+            await apiClient.put(`/guilds/${guildId}/autoplay/genres`, {
                 genres: updatedGenres,
             })
             setGenres(updatedGenres)

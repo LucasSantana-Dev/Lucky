@@ -314,7 +314,7 @@ function RankingCard({
                             </div>
                             <div className='h-1 bg-lucky-bg-active rounded-full overflow-hidden'>
                                 <div
-                                    className='h-full bg-lucky-red rounded-full'
+                                    className='h-full bg-lucky-brand rounded-full'
                                     style={{
                                         width: `${(item.count / max) * 100}%`,
                                     }}
