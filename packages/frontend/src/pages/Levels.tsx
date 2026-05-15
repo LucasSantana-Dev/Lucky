@@ -27,9 +27,9 @@ interface LevelReward {
 }
 
 interface LevelsPageProps {
-  leaderboard: UserLevel[];
-  rewards: LevelReward[];
-  settings: {
+  leaderboard?: UserLevel[];
+  rewards?: LevelReward[];
+  settings?: {
     enabled: boolean;
     announcement: string;
     minMessageLength: number;
@@ -134,9 +134,9 @@ const LeaderboardRowCompact = ({ user, rank }: { user: UserLevel; rank: number }
 };
 
 export const LevelsPage = ({
-  leaderboard,
-  rewards,
-  settings,
+  leaderboard = [],
+  rewards = [],
+  settings = { enabled: false, announcement: '', minMessageLength: 1, cooldown: 0 },
   isLoading = false,
   onSettingsChange,
   onRewardsChange,

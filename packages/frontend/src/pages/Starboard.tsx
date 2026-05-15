@@ -30,9 +30,9 @@ interface StarboardSettings {
 }
 
 interface StarboardPageProps {
-  entries: StarboardEntry[];
-  settings: StarboardSettings;
-  channels: Array<{ id: string; name: string }>;
+  entries?: StarboardEntry[];
+  settings?: StarboardSettings;
+  channels?: Array<{ id: string; name: string }>;
   isLoading?: boolean;
   onSettingsChange?: (settings: StarboardSettings) => void;
   onRemoveEntry?: (messageId: string) => void;
@@ -94,9 +94,9 @@ const EntryCard = ({ entry, onRemove }: { entry: StarboardEntry; onRemove: () =>
 };
 
 export const StarboardPage = ({
-  entries,
-  settings,
-  channels,
+  entries = [],
+  settings = { enabled: false, requiredStars: 1, selfStarAllowed: false, emoji: '⭐' },
+  channels = [],
   isLoading = false,
   onSettingsChange,
   onRemoveEntry,
