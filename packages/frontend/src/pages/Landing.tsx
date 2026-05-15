@@ -103,7 +103,7 @@ function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
                     href='/'
                     className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
                 >
-                    <img src='/lucky-logo.png' alt='Lucky' width='28' height='28' className='h-7 w-7' loading='eager' />
+                    <img src='/lucky-logo.png' alt='Lucky' width='28' height='28' className='h-7 w-7 rounded-full' loading='eager' />
                     <span className='font-mono text-sm font-semibold tracking-tight'>
                         lucky<span className='text-lucky-brand'>.</span>
                     </span>
@@ -178,7 +178,7 @@ function Hero({ stats, prefersReducedMotion }: HeroProps) {
                             alt='Lucky'
                             width='88'
                             height='88'
-                            className='h-20 w-20 md:h-22 md:w-22 drop-shadow-[0_18px_36px_rgba(236,72,153,0.35)]'
+                            className='h-20 w-20 md:h-22 md:w-22 rounded-full drop-shadow-[0_18px_36px_rgba(236,72,153,0.35)]'
                             loading='eager'
                             decoding='async'
                             fetchPriority='high'

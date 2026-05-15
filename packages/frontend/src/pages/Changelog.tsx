@@ -164,7 +164,7 @@ export default function ChangelogPage() {
                             to='/'
                             className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
                         >
-                            <img src='/lucky-logo.png' alt='Lucky' width='24' height='24' className='h-6 w-6' loading='eager' />
+                            <img src='/lucky-logo.png' alt='Lucky' width='24' height='24' className='h-6 w-6 rounded-full' loading='eager' />
                             <span className='font-mono text-sm font-semibold tracking-tight'>
                                 lucky<span className='text-lucky-brand'>.</span>
                             </span>
