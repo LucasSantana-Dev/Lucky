@@ -1,7 +1,7 @@
 {
   "name": "lucky-bot",
   "version": "2.10.0",
-  "description": "All-in-one Discord bot platform \u2014 music, moderation, auto-mod, custom commands, and web dashboard",
+  "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -91,7 +91,9 @@
     "prisma": "^7.8.0",
     "secretlint": "^13.0.0",
     "ts-jest": "^29.4.9",
-    "unfetch": "^5.0.0"
+    "unfetch": "^5.0.0",
+    "vite": "^8.0.13",
+    "vitest": "^4.1.6"
   },
   "dependencies": {
     "@discord-player/extractor": "^7.2.0",
