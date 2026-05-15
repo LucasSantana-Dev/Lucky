@@ -172,11 +172,11 @@
     },
     "hero": {
       "eyebrow": "Open source · Apache 2.0",
-      "headlineLine1": "A Discord bot you can",
-      "headlineLine2": "actually run yourself.",
-      "subtitle": "100+ commands. Spotify-fed autoplay. Moderation suite. Web dashboard. Free forever. No premium tier. Your guild data stays on your box.",
-      "ctaPrimary": "Self-host on your box",
-      "ctaSecondary": "Add hosted version"
+      "headlineLine1": "A Discord bot built right.",
+      "headlineLine2": "And yours to run.",
+      "subtitle": "Music, moderation, custom commands, and a full web dashboard. Use the hosted version in two clicks, or run it on your own box if you'd rather.",
+      "ctaPrimary": "Add to Discord",
+      "ctaSecondary": "Self-host on GitHub"
     },
     "repoCard": {
       "name": "LucasSantana-Dev / Lucky",
@@ -243,8 +243,8 @@
       "more": "+ 100 more in the dashboard"
     },
     "stack": {
-      "heading": "What you're running",
-      "subheading": "Standard Node/Postgres stack. Nothing exotic. `docker compose up` and you're online.",
+      "heading": "For developers — what you're running",
+      "subheading": "Standard Node + Postgres stack. Nothing exotic. `docker compose up` and you're online. Skip this if you're using the hosted version.",
       "items": {
         "bot": {
           "name": "lucky-bot",
@@ -288,6 +288,32 @@
       "changelog": "Changelog",
       "discord": "Support server",
       "copyright": "© 2026 Lucky. Apache 2.0."
+    },
+    "features": {
+      "heading": "What Lucky does",
+      "subheading": "Everything most servers need, in one bot. No premium tier paywalling the good parts.",
+      "items": {
+        "music": {
+          "title": "Music with smart autoplay",
+          "description": "Queue from Spotify, YouTube, or SoundCloud. Autoplay matches the mood and won't drift into the wrong language."
+        },
+        "moderation": {
+          "title": "Moderation that doesn't sleep",
+          "description": "Auto-mod for spam, caps, links, and invites. Tempbans with reasons, audit log entries, and per-server rules."
+        },
+        "customCommands": {
+          "title": "Custom commands",
+          "description": "Build replies, role-toggles, embeds, and shortcuts without writing code. Variable interpolation included."
+        },
+        "dashboard": {
+          "title": "A real web dashboard",
+          "description": "Configure everything from your browser. Discord OAuth login, no JSON files, no SSH."
+        },
+        "embeds": {
+          "title": "Embed builder",
+          "description": "Compose rich Discord embeds with a live preview. Save templates, send on schedule, edit in place."
+        }
+      }
     }
   },
   "login": {

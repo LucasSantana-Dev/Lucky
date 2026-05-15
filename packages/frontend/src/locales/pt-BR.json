@@ -172,11 +172,11 @@
     },
     "hero": {
       "eyebrow": "Open source · Apache 2.0",
-      "headlineLine1": "Um bot do Discord que",
-      "headlineLine2": "você pode rodar você mesmo.",
-      "subtitle": "100+ comandos. Autoplay com Spotify. Suíte de moderação. Painel web. Grátis para sempre. Sem tier premium. Os dados do seu servidor ficam na sua máquina.",
-      "ctaPrimary": "Auto-hospedar agora",
-      "ctaSecondary": "Usar versão hospedada"
+      "headlineLine1": "Um bot do Discord bem feito.",
+      "headlineLine2": "E você que manda.",
+      "subtitle": "Música, moderação, comandos personalizados e um painel web completo. Use a versão hospedada em dois cliques, ou rode no seu próprio box se preferir.",
+      "ctaPrimary": "Adicionar ao Discord",
+      "ctaSecondary": "Auto-hospedar no GitHub"
     },
     "repoCard": {
       "name": "LucasSantana-Dev / Lucky",
@@ -243,8 +243,8 @@
       "more": "+ 100 outros no painel"
     },
     "stack": {
-      "heading": "O que você está rodando",
-      "subheading": "Stack Node/Postgres padrão. Nada exótico. `docker compose up` e você está online.",
+      "heading": "Para desenvolvedores — o que você está rodando",
+      "subheading": "Stack padrão Node + Postgres. Nada exótico. `docker compose up` e você está online. Pule esta seção se está usando a versão hospedada.",
       "items": {
         "bot": {
           "name": "lucky-bot",
@@ -288,6 +288,32 @@
       "changelog": "Changelog",
       "discord": "Servidor de suporte",
       "copyright": "© 2026 Lucky. Apache 2.0."
+    },
+    "features": {
+      "heading": "O que o Lucky faz",
+      "subheading": "Tudo que a maioria dos servidores precisa, em um bot só. Sem tier premium escondendo o que importa.",
+      "items": {
+        "music": {
+          "title": "Música com autoplay inteligente",
+          "description": "Adicione tracks do Spotify, YouTube ou SoundCloud. O autoplay acompanha o mood e não troca de idioma."
+        },
+        "moderation": {
+          "title": "Moderação que não dorme",
+          "description": "Auto-mod para spam, caps, links e convites. Tempbans com motivo, registro no audit log e regras por servidor."
+        },
+        "customCommands": {
+          "title": "Comandos personalizados",
+          "description": "Crie respostas, toggles de role, embeds e atalhos sem escrever código. Com interpolação de variáveis."
+        },
+        "dashboard": {
+          "title": "Um painel web de verdade",
+          "description": "Configure tudo direto do navegador. Login com OAuth do Discord, sem arquivos JSON, sem SSH."
+        },
+        "embeds": {
+          "title": "Construtor de embeds",
+          "description": "Monte embeds ricos com prévia ao vivo. Salve templates, envie agendado, edite no lugar."
+        }
+      }
     }
   },
   "login": {

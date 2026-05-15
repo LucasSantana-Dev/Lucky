@@ -1,6 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import Landing from './Landing'
 import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
@@ -81,29 +80,38 @@ describe('Landing', () => {
         expect(githubLinks[0]).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
     })
 
-    test('renders hero with eyebrow, headline lines and self-host CTA', () => {
+    test('renders hero with cat logo, eyebrow and headline', () => {
         render(<Landing />)
+        const logos = screen.getAllByAltText('Lucky')
+        expect(logos.length).toBeGreaterThanOrEqual(2)
         const eyebrows = screen.getAllByText(/Open source/i)
         expect(eyebrows.length).toBeGreaterThanOrEqual(1)
-        expect(screen.getByText(/A Discord bot you can/i)).toBeInTheDocument()
-        expect(screen.getByText(/actually run yourself\./i)).toBeInTheDocument()
-        const selfHost = screen.getByRole('link', { name: /Self-host on your box/i })
+        expect(screen.getByText(/A Discord bot built right\./i)).toBeInTheDocument()
+        expect(screen.getByText(/And yours to run\./i)).toBeInTheDocument()
+    })
+
+    test('renders Add to Discord primary CTA in hero and nav', () => {
+        render(<Landing />)
+        const inviteLinks = screen.getAllByRole('link', { name: /Add to Discord/i })
+        expect(inviteLinks.length).toBeGreaterThanOrEqual(2)
+        inviteLinks.forEach((link) => {
+            expect(link).toHaveAttribute('href', expect.stringContaining('discord.com/oauth2/authorize'))
+            expect(link).toHaveAttribute('target', '_blank')
+            expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+        })
+    })
+
+    test('renders Self-host on GitHub secondary CTA in hero', () => {
+        render(<Landing />)
+        const selfHost = screen.getByRole('link', { name: /Self-host on GitHub/i })
         expect(selfHost).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
-        expect(screen.getByRole('button', { name: /Add hosted version/i })).toBeInTheDocument()
+        expect(selfHost).toHaveAttribute('target', '_blank')
     })
 
-    test('hosted CTA triggers login', () => {
+    test('dashboard nav button triggers login', () => {
         render(<Landing />)
-        fireEvent.click(screen.getByRole('button', { name: /Add hosted version/i }))
+        fireEvent.click(screen.getByRole('button', { name: /dashboard/i }))
         expect(mockLogin).toHaveBeenCalled()
-    })
-
-    test('renders Add to Discord link in top nav', () => {
-        render(<Landing />)
-        const addBtn = screen.getByRole('link', { name: /^add/i })
-        expect(addBtn).toHaveAttribute('href', expect.stringContaining('discord.com/oauth2/authorize'))
-        expect(addBtn).toHaveAttribute('target', '_blank')
-        expect(addBtn).toHaveAttribute('rel', 'noopener noreferrer')
     })
 
     test('renders repo card with name, license and language', async () => {
@@ -132,6 +140,15 @@ describe('Landing', () => {
         render(<Landing />)
         const ellipses = screen.getAllByText('…')
         expect(ellipses.length).toBeGreaterThanOrEqual(3)
+    })
+
+    test('renders features section with five user-facing items', () => {
+        render(<Landing />)
+        expect(screen.getByText(/Music with smart autoplay/i)).toBeInTheDocument()
+        expect(screen.getByText(/Moderation that doesn't sleep/i)).toBeInTheDocument()
+        expect(screen.getAllByText(/Custom commands/i).length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText(/A real web dashboard/i)).toBeInTheDocument()
+        expect(screen.getByText(/Embed builder/i)).toBeInTheDocument()
     })
 
     test('repo card copy button writes clone command to clipboard', async () => {
@@ -231,7 +248,7 @@ describe('Landing', () => {
     test('respects prefers-reduced-motion', () => {
         setupMocks({ prefersReducedMotion: true })
         render(<Landing />)
-        expect(screen.getByText(/A Discord bot you can/i)).toBeInTheDocument()
+        expect(screen.getByText(/A Discord bot built right\./i)).toBeInTheDocument()
     })
 
     test('shows zero stats correctly when api returns zeros', async () => {

@@ -4,7 +4,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { motion, useReducedMotion } from 'framer-motion'
 import { api } from '@/services/api'
-import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import {
     Star,
     GitFork,
@@ -19,6 +18,9 @@ import {
     Music2,
     Shield,
     Wrench,
+    SlidersHorizontal,
+    LayoutDashboard,
+    Sparkles,
 } from 'lucide-react'
 
 function GithubMark({ size = 16, className }: { size?: number; className?: string }) {
@@ -81,10 +83,11 @@ export default function Landing() {
 
     return (
         <div className='lucky-shell min-h-screen dark text-white bg-lucky-surface-canvas'>
-            <TopNav />
-            <Hero onAddHosted={login} stats={repoStats} prefersReducedMotion={prefersReducedMotion ?? false} />
-            <WhySelfHost />
+            <TopNav onOpenDashboard={login} />
+            <Hero stats={repoStats} prefersReducedMotion={prefersReducedMotion ?? false} />
+            <FeatureGrid />
             <CommandList />
+            <WhySelfHost />
             <StackList />
             <RepoFooterBanner />
             <FooterSection />
@@ -92,13 +95,18 @@ export default function Landing() {
     )
 }
 
-function TopNav() {
+function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
     return (
         <header className='sticky top-0 z-30 border-b border-lucky-border-soft bg-lucky-surface-canvas/85 backdrop-blur supports-[backdrop-filter]:bg-lucky-surface-canvas/65'>
-            <div className='mx-auto flex h-12 max-w-6xl items-center justify-between px-4 md:px-8'>
-                <a href='/' className='inline-flex items-baseline gap-2 font-mono text-sm font-semibold tracking-tight text-lucky-text-strong hover:text-lucky-brand transition-colors'>
-                    <span>lucky</span>
-                    <span className='text-lucky-brand'>.</span>
+            <div className='mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-8'>
+                <a
+                    href='/'
+                    className='inline-flex items-center gap-2 text-lucky-text-strong hover:text-lucky-brand transition-colors'
+                >
+                    <img src='/lucky-logo.png' alt='Lucky' width='28' height='28' className='h-7 w-7' loading='eager' />
+                    <span className='font-mono text-sm font-semibold tracking-tight'>
+                        lucky<span className='text-lucky-brand'>.</span>
+                    </span>
                 </a>
                 <nav className='flex items-center gap-1 font-mono text-xs text-lucky-text-muted'>
                     <a
@@ -115,15 +123,20 @@ function TopNav() {
                     >
                         docs
                     </a>
+                    <button
+                        onClick={onOpenDashboard}
+                        className='hidden sm:inline-flex items-center rounded-md px-2.5 py-1.5 hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                    >
+                        dashboard
+                    </button>
                     <a
                         href={BOT_INVITE_URL}
                         target='_blank'
                         rel='noopener noreferrer'
                         className='ml-1 inline-flex items-center gap-1 rounded-md bg-lucky-brand px-3 py-1.5 font-semibold text-white hover:bg-lucky-brand-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas'
                     >
-                        add <ArrowUpRight size={12} aria-hidden />
+                        add to discord <ArrowUpRight size={12} aria-hidden />
                     </a>
-                    <LanguageSwitcher />
                 </nav>
             </div>
         </header>
@@ -131,12 +144,11 @@ function TopNav() {
 }
 
 type HeroProps = {
-    onAddHosted: () => void
     stats: RepoStats
     prefersReducedMotion: boolean
 }
 
-function Hero({ onAddHosted, stats, prefersReducedMotion }: HeroProps) {
+function Hero({ stats, prefersReducedMotion }: HeroProps) {
     const { t, i18n } = useTranslation()
     const locale = i18n.resolvedLanguage ?? i18n.language
 
@@ -148,11 +160,30 @@ function Hero({ onAddHosted, stats, prefersReducedMotion }: HeroProps) {
               transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const },
           }
 
+    const catFloat = prefersReducedMotion
+        ? {}
+        : {
+              animate: { y: [0, -6, 0] },
+              transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' as const },
+          }
+
     return (
-        <section className='relative overflow-hidden px-4 py-20 md:py-28 md:px-8'>
+        <section className='relative overflow-hidden px-4 py-16 md:py-24 md:px-8'>
             <BlueprintGrid />
             <div className='relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.05fr_1fr] lg:items-center'>
                 <motion.div {...animProps}>
+                    <motion.div {...catFloat} className='mb-6 inline-block'>
+                        <img
+                            src='/lucky-logo.png'
+                            alt='Lucky'
+                            width='88'
+                            height='88'
+                            className='h-20 w-20 md:h-22 md:w-22 drop-shadow-[0_18px_36px_rgba(236,72,153,0.35)]'
+                            loading='eager'
+                            decoding='async'
+                            fetchPriority='high'
+                        />
+                    </motion.div>
                     <p className='mb-5 inline-flex items-center gap-2 rounded-full border border-lucky-border-soft bg-lucky-surface-panel px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-lucky-text-muted'>
                         <span className='h-1.5 w-1.5 rounded-full bg-lucky-success' aria-hidden />
                         {t('landing.hero.eyebrow')}
@@ -166,20 +197,22 @@ function Hero({ onAddHosted, stats, prefersReducedMotion }: HeroProps) {
                     </p>
                     <div className='flex flex-col gap-2.5 sm:flex-row sm:items-center'>
                         <a
-                            href={REPO_URL}
+                            href={BOT_INVITE_URL}
                             target='_blank'
-                            rel='noreferrer'
+                            rel='noopener noreferrer'
                             className='group inline-flex h-11 items-center justify-center gap-2 rounded-md bg-lucky-brand px-5 font-semibold text-white shadow-[0_6px_24px_-8px_rgba(236,72,153,0.55)] hover:bg-lucky-brand-strong transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
                         >
                             {t('landing.hero.ctaPrimary')}
                             <ArrowUpRight size={15} className='transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5' aria-hidden />
                         </a>
-                        <button
-                            onClick={onAddHosted}
+                        <a
+                            href={REPO_URL}
+                            target='_blank'
+                            rel='noreferrer'
                             className='inline-flex h-11 items-center justify-center gap-2 rounded-md border border-lucky-border-strong bg-transparent px-5 font-semibold text-lucky-text-body hover:bg-lucky-surface-panel hover:text-lucky-text-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand focus-visible:ring-offset-2 focus-visible:ring-offset-lucky-surface-canvas active:scale-[0.98]'
                         >
-                            {t('landing.hero.ctaSecondary')}
-                        </button>
+                            <GithubMark size={14} /> {t('landing.hero.ctaSecondary')}
+                        </a>
                     </div>
                 </motion.div>
 
@@ -194,6 +227,52 @@ function Hero({ onAddHosted, stats, prefersReducedMotion }: HeroProps) {
                 >
                     <RepoCard stats={stats} locale={locale} />
                 </motion.div>
+            </div>
+        </section>
+    )
+}
+
+function FeatureGrid() {
+    const { t } = useTranslation()
+    const features = [
+        { key: 'music', icon: Music2, span: 'md:col-span-2' },
+        { key: 'moderation', icon: Shield, span: 'md:col-span-1' },
+        { key: 'customCommands', icon: SlidersHorizontal, span: 'md:col-span-1' },
+        { key: 'dashboard', icon: LayoutDashboard, span: 'md:col-span-2' },
+        { key: 'embeds', icon: Sparkles, span: 'md:col-span-3' },
+    ] as const
+
+    return (
+        <section className='border-t border-lucky-border-soft px-4 py-20 md:px-8'>
+            <div className='mx-auto max-w-6xl'>
+                <div className='mb-10 max-w-2xl'>
+                    <h2 className='mb-3 text-3xl font-semibold tracking-tight text-lucky-text-strong md:text-4xl'>
+                        {t('landing.features.heading')}
+                    </h2>
+                    <p className='text-base text-lucky-text-body leading-relaxed'>{t('landing.features.subheading')}</p>
+                </div>
+                <ul className='grid gap-3 md:grid-cols-3'>
+                    {features.map(({ key, icon: Icon, span }) => {
+                        const isWide = span !== 'md:col-span-1'
+                        return (
+                            <li key={key} className={span}>
+                                <article className='surface-panel h-full flex flex-col gap-4 rounded-xl p-6 md:p-7'>
+                                    <span className='inline-flex h-10 w-10 items-center justify-center rounded-lg bg-lucky-surface-elevated text-lucky-brand'>
+                                        <Icon size={18} aria-hidden />
+                                    </span>
+                                    <div>
+                                        <h3 className={`mb-2 font-semibold text-lucky-text-strong tracking-tight ${isWide ? 'text-lg md:text-xl' : 'text-base'}`}>
+                                            {t(`landing.features.items.${key}.title`)}
+                                        </h3>
+                                        <p className='text-sm text-lucky-text-body leading-relaxed'>
+                                            {t(`landing.features.items.${key}.description`)}
+                                        </p>
+                                    </div>
+                                </article>
+                            </li>
+                        )
+                    })}
+                </ul>
             </div>
         </section>
     )
