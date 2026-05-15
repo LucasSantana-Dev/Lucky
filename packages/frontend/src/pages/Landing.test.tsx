@@ -285,12 +285,13 @@ describe('Landing', () => {
 
     test('logs and recovers when stats fetch rejects', async () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-        setupMocks({ statsError: new Error('boom') })
-        render(<Landing />)
-        // Allow the promise rejection + finally to flush.
-        await new Promise((r) => setTimeout(r, 0))
-        expect(errorSpy).toHaveBeenCalled()
-        errorSpy.mockRestore()
+        try {
+            setupMocks({ statsError: new Error('boom') })
+            render(<Landing />)
+            await waitFor(() => expect(errorSpy).toHaveBeenCalled())
+        } finally {
+            errorSpy.mockRestore()
+        }
     })
 
     test('hides plus-sign suffix when both stats are zero', async () => {
@@ -299,8 +300,6 @@ describe('Landing', () => {
             statsData: { totalGuilds: 0, totalUsers: 0, uptimeSeconds: 0, serversOnline: 0 },
         })
         render(<Landing />)
-        // Wait for the post-fetch render with zero counts.
-        await new Promise((r) => setTimeout(r, 0))
         // Zero counts render without the '+' suffix; both metrics should be the literal '0'.
         const zeros = await screen.findAllByText('0')
         expect(zeros.length).toBeGreaterThanOrEqual(2)
