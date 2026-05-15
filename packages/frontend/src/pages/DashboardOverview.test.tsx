@@ -367,6 +367,32 @@ describe('DashboardOverview', () => {
         ).toBeInTheDocument()
     })
 
+    test('formats case timestamps across timeAgo() ranges', () => {
+        const now = Date.now()
+        const casesAcrossRanges = [
+            { ...mockCases[0], id: 'c-just', caseNumber: 9001, createdAt: new Date(now).toISOString() },
+            { ...mockCases[0], id: 'c-min', caseNumber: 9002, createdAt: new Date(now - 5 * 60_000).toISOString() },
+            { ...mockCases[0], id: 'c-hour', caseNumber: 9003, createdAt: new Date(now - 2 * 3_600_000).toISOString() },
+            { ...mockCases[0], id: 'c-day', caseNumber: 9004, createdAt: new Date(now - 3 * 86_400_000).toISOString() },
+            { ...mockCases[0], id: 'c-week', caseNumber: 9005, createdAt: new Date(now - 14 * 86_400_000).toISOString() },
+        ]
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: casesAcrossRanges },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getAllByText('Just now').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText('5m ago')).toBeInTheDocument()
+        expect(screen.getByText('2h ago')).toBeInTheDocument()
+        expect(screen.getByText('3d ago')).toBeInTheDocument()
+        // Week+ falls back to localized date — verify the rendered case row exists.
+        expect(screen.getByText('#9005')).toBeInTheDocument()
+    })
+
     test('renders cases by type breakdown when stats available', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
