@@ -32,7 +32,11 @@ WORKDIR /app
 ENV NODE_ENV=development \
     NPM_CONFIG_LOGLEVEL=warn
 # Compose mounts host source over /app; node_modules is installed at first
-# run via the entrypoint to populate the anonymous volume.
+# run via the entrypoint to populate the anonymous volume. Dev stage runs as
+# root because the bind-mounted host source needs write access matching the
+# host user's UID and `npm ci` writes the anonymous volume's node_modules.
+# Production stages below all set a non-root USER.
+# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma generate && npm run dev --workspace=packages/bot"]
 
 # Build stage — installs all deps, generates prisma, builds shared + target
