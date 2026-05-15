@@ -28,14 +28,16 @@ vi.mock('@/services/api')
 
 const mockLogin = vi.fn()
 
+type StatsFixture = { totalGuilds: number; totalUsers: number; uptimeSeconds: number; serversOnline: number }
+
 function setupMocks(overrides?: {
     prefersReducedMotion?: boolean
-    statsData?: { totalGuilds: number; totalUsers: number; uptimeSeconds: number; serversOnline: number }
+    statsData?: StatsFixture
     statsError?: Error
 }) {
     const {
         prefersReducedMotion = false,
-        statsData = { totalGuilds: 100, totalUsers: 500, uptimeSeconds: 86400, serversOnline: 1 },
+        statsData = { totalGuilds: 240, totalUsers: 18_400, uptimeSeconds: 86_400, serversOnline: 1 },
         statsError,
     } = overrides || {}
 
@@ -62,225 +64,157 @@ describe('Landing', () => {
         setupMocks()
     })
 
-    test('respects prefers-reduced-motion preference', () => {
-        setupMocks({ prefersReducedMotion: true })
-
-        render(<Landing />)
-
-        const container = screen.getByText(/All-in-one Discord bot/i)
-            .closest('.lucky-shell')
-
-        expect(container).toBeInTheDocument()
-    })
-
-    test('renders hero section with logo, headline and CTA buttons', () => {
-        render(<Landing />)
-
-        // Check for logo
-        const logo = screen.getByAltText('Lucky Bot')
-        expect(logo).toBeInTheDocument()
-
-        // Check for headline
-        const headline = screen.getByText(/All-in-one Discord bot/i)
-        expect(headline).toBeInTheDocument()
-
-        const subheadline = screen.getByText(/for your community/i)
-        expect(subheadline).toBeInTheDocument()
-
-        // Check for CTA buttons
-        const addToDiscordLink = screen.getByRole('link', { name: /Add to Discord/i })
-        const openDashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i })
-
-        expect(addToDiscordLink).toBeInTheDocument()
-        expect(openDashboardBtn).toBeInTheDocument()
-    })
-
-    test('displays hero subtitle with "Built for vibes" tagline', () => {
-        render(<Landing />)
-
-        expect(
-            screen.getByText(
-                /Music, moderation, custom commands, auto-mod, and a full web dashboard\. Built for vibes\./i
-            )
-        ).toBeInTheDocument()
-    })
-
-    test('renders feature grid with 6 cards', () => {
-        render(<Landing />)
-
-        const features = [
-            'Music',
-            'Auto-mod',
-            'Custom Commands',
-            'Web Dashboard',
-            'Embed Builder',
-            'Artist Preferences',
-        ]
-
-        features.forEach(feature => {
-            expect(screen.getByRole('heading', { name: feature })).toBeInTheDocument()
-        })
-    })
-
-    test('renders stats strip with live data and icons', async () => {
-        render(<Landing />)
-
-        // Wait for the stats labels to be rendered
-        await waitFor(() => {
-            expect(screen.getByText('Servers')).toBeInTheDocument()
-            expect(screen.getByText('Users')).toBeInTheDocument()
-            expect(screen.getByText('Status')).toBeInTheDocument()
-        })
-
-        // Check that the API was called
-        expect(api.stats.getPublic).toHaveBeenCalled()
-    })
-
-    test('renders FAQ section with all questions and answers', () => {
-        render(<Landing />)
-
-        const faqs = [
-            { q: 'Is Lucky free?', a: 'Yes, Lucky is completely free with no premium tier.' },
-            { q: 'What commands does Lucky support?', a: 'Lucky supports 100+ commands across music, moderation, custom commands, and more.' },
-            { q: 'How does autoplay work?', a: 'Autoplay uses Spotify to match similar songs based on artist preferences you set.' },
-            { q: 'Can I self-host Lucky?', a: 'Lucky is hosted and managed by us. You cannot self-host the bot, but you can use the dashboard to configure it.' },
-            { q: 'How do I moderate spam?', a: 'Configure auto-mod rules for spam, caps, links, and more in the dashboard.' },
-            { q: 'Where do I get support?', a: 'Join our Discord support server or open an issue on GitHub.' },
-        ]
-
-        faqs.forEach(({ q, a }) => {
-            expect(screen.getByText(q)).toBeInTheDocument()
-            expect(screen.getByText(a)).toBeInTheDocument()
-        })
-    })
-
-    test('FAQ items are expandable via button clicks', async () => {
-        render(<Landing />)
-
-        const user = userEvent.setup()
-
-        // Get the first FAQ button
-        const firstQuestion = screen.getByText('Is Lucky free?')
-        const firstButton = firstQuestion.closest('button')
-
-        expect(firstButton).toBeInTheDocument()
-
-        // Click to expand
-        await user.click(firstButton!)
-
-        // Answer should be visible
-        const answer = screen.getByText('Yes, Lucky is completely free with no premium tier.')
-        expect(answer).toBeInTheDocument()
-    })
-
-    test('renders footer with logo and all link sections', () => {
-        render(<Landing />)
-
-        // Check for footer logo
-        const footerLogo = screen.getAllByAltText('Lucky').find(el => el.closest('footer'))
-        expect(footerLogo).toBeInTheDocument()
-
-        expect(screen.getByText('Links')).toBeInTheDocument()
-        expect(screen.getByText('Support')).toBeInTheDocument()
-    })
-
-    test('renders Terms of Service link with correct href', () => {
-        render(<Landing />)
-
-        const termsLink = screen.getByRole('link', { name: /Terms of Service/i })
-        expect(termsLink).toHaveAttribute('href', '/terms')
-    })
-
-    test('renders Privacy Policy link with correct href', () => {
-        render(<Landing />)
-
-        const privacyLink = screen.getByRole('link', { name: /Privacy Policy/i })
-        expect(privacyLink).toHaveAttribute('href', '/privacy')
-    })
-
-    test('renders GitHub link with correct href and attributes', () => {
-        render(<Landing />)
-
-        const githubLink = screen.getByRole('link', { name: /GitHub/i })
-        expect(githubLink).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
-        expect(githubLink).toHaveAttribute('target', '_blank')
-        expect(githubLink).toHaveAttribute('rel', 'noreferrer')
-    })
-
-    test('renders Add to Discord link with correct attributes', () => {
-        render(<Landing />)
-
-        const addToDiscordLink = screen.getByRole('link', { name: /Add to Discord/i })
-
-        expect(addToDiscordLink).toHaveAttribute('href', expect.stringContaining('discord.com/oauth2/authorize'))
-        expect(addToDiscordLink).toHaveAttribute('target', '_blank')
-        expect(addToDiscordLink).toHaveAttribute('rel', 'noopener noreferrer')
-    })
-
-    test('calls login when Open Dashboard button is clicked', async () => {
-        render(<Landing />)
-
-        const openDashboardBtn = screen.getByRole('button', { name: /Open Dashboard/i })
-        fireEvent.click(openDashboardBtn)
-
-        await waitFor(() => {
-            expect(mockLogin).toHaveBeenCalled()
-        })
-    })
-
     test('sets page metadata on mount', () => {
         render(<Landing />)
-
         expect(usePageMetadata).toHaveBeenCalledWith({
-            title: 'Lucky — Discord Bot with Music, Moderation & Dashboard',
-            description: 'The all-in-one Discord bot for your community. Music, moderation, custom commands, auto-mod, and a full web dashboard. Free forever.',
+            title: expect.stringMatching(/self-host/i),
+            description: expect.stringMatching(/open-source/i),
         })
     })
 
-    test('renders footer copyright text', () => {
+    test('renders top nav with brand wordmark and github link', () => {
         render(<Landing />)
-
-        expect(screen.getByText(/© 2026 Lucky. All rights reserved./)).toBeInTheDocument()
+        const wordmarks = screen.getAllByText('lucky')
+        expect(wordmarks.length).toBeGreaterThanOrEqual(1)
+        const githubLinks = screen.getAllByRole('link', { name: /github/i })
+        expect(githubLinks.length).toBeGreaterThanOrEqual(1)
+        expect(githubLinks[0]).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
     })
 
-    test('renders feature descriptions correctly', () => {
+    test('renders hero with eyebrow, headline lines and self-host CTA', () => {
         render(<Landing />)
-
-        expect(
-            screen.getByText(/Spotify-powered autoplay with genre matching/)
-        ).toBeInTheDocument()
-
-        expect(
-            screen.getByText(/Spam\/caps\/link filters with per-guild rules/)
-        ).toBeInTheDocument()
-
-        expect(
-            screen.getByText(/Full control from your browser/)
-        ).toBeInTheDocument()
+        const eyebrows = screen.getAllByText(/Open source/i)
+        expect(eyebrows.length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText(/A Discord bot you can/i)).toBeInTheDocument()
+        expect(screen.getByText(/actually run yourself\./i)).toBeInTheDocument()
+        const selfHost = screen.getByRole('link', { name: /Self-host on your box/i })
+        expect(selfHost).toHaveAttribute('href', 'https://github.com/LucasSantana-Dev/Lucky')
+        expect(screen.getByRole('button', { name: /Add hosted version/i })).toBeInTheDocument()
     })
 
-    test('renders all footer columns with proper hierarchy', () => {
+    test('hosted CTA triggers login', () => {
         render(<Landing />)
-
-        const footerText = screen.getByText('Discord bot with music, moderation, and more. Built for vibes.')
-        expect(footerText).toBeInTheDocument()
-
-        const needHelpText = screen.getByText(/Need help\? Join our Discord community\./)
-        expect(needHelpText).toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: /Add hosted version/i }))
+        expect(mockLogin).toHaveBeenCalled()
     })
 
-    test('renders Powerful Features heading', () => {
+    test('renders Add to Discord link in top nav', () => {
         render(<Landing />)
-
-        const featuresHeading = screen.getByRole('heading', { name: /Powerful Features/i })
-        expect(featuresHeading).toBeInTheDocument()
+        const addBtn = screen.getByRole('link', { name: /^add/i })
+        expect(addBtn).toHaveAttribute('href', expect.stringContaining('discord.com/oauth2/authorize'))
+        expect(addBtn).toHaveAttribute('target', '_blank')
+        expect(addBtn).toHaveAttribute('rel', 'noopener noreferrer')
     })
 
-    test('renders Frequently Asked Questions heading', () => {
+    test('renders repo card with name, license and language', async () => {
         render(<Landing />)
+        expect(screen.getByText('LucasSantana-Dev / Lucky')).toBeInTheDocument()
+        expect(screen.getByText('Apache-2.0')).toBeInTheDocument()
+        expect(screen.getByText('TypeScript')).toBeInTheDocument()
+        await waitFor(() => {
+            expect(screen.getByText('stars')).toBeInTheDocument()
+            expect(screen.getByText('forks')).toBeInTheDocument()
+            expect(screen.getByText('open issues')).toBeInTheDocument()
+        })
+    })
 
-        const faqHeading = screen.getByRole('heading', { name: /Frequently Asked Questions/i })
-        expect(faqHeading).toBeInTheDocument()
+    test('repo card fetches and displays stats from api', async () => {
+        render(<Landing />)
+        await waitFor(() => expect(api.stats.getPublic).toHaveBeenCalled())
+        await waitFor(() => expect(screen.getByText('240')).toBeInTheDocument())
+    })
+
+    test('repo card shows ellipsis while stats loading', () => {
+        setupMocks()
+        vi.mocked(api).stats = {
+            getPublic: vi.fn(() => new Promise(() => {})),
+        } as any
+        render(<Landing />)
+        const ellipses = screen.getAllByText('…')
+        expect(ellipses.length).toBeGreaterThanOrEqual(3)
+    })
+
+    test('repo card copy button writes clone command to clipboard', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+            writable: true,
+        })
+
+        render(<Landing />)
+        const copyBtn = screen.getByRole('button', { name: /Copy clone URL/i })
+        fireEvent.click(copyBtn)
+
+        await waitFor(() =>
+            expect(writeText).toHaveBeenCalledWith(
+                'git clone https://github.com/LucasSantana-Dev/Lucky.git'
+            )
+        )
+    })
+
+    test('repo card handles clipboard failure gracefully', async () => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+            writable: true,
+        })
+
+        try {
+            render(<Landing />)
+            const copyBtn = screen.getByRole('button', { name: /Copy clone URL/i })
+            fireEvent.click(copyBtn)
+            await waitFor(() => expect(errorSpy).toHaveBeenCalled())
+        } finally {
+            errorSpy.mockRestore()
+        }
+    })
+
+    test('renders why-self-host section with three reason cards', () => {
+        render(<Landing />)
+        expect(screen.getByText('Your guild data stays yours')).toBeInTheDocument()
+        expect(screen.getByText('Fork the source')).toBeInTheDocument()
+        expect(screen.getByText('Free, with no premium tier')).toBeInTheDocument()
+    })
+
+    test('renders command list with all six commands and category tags', () => {
+        render(<Landing />)
+        expect(screen.getByText('/play')).toBeInTheDocument()
+        expect(screen.getByText('/autoplay')).toBeInTheDocument()
+        expect(screen.getByText('/queue')).toBeInTheDocument()
+        expect(screen.getByText('/mod ban')).toBeInTheDocument()
+        expect(screen.getByText('/automod')).toBeInTheDocument()
+        expect(screen.getByText('/cc create')).toBeInTheDocument()
+        expect(screen.getAllByText(/music/i).length).toBeGreaterThanOrEqual(2)
+        expect(screen.getAllByText(/mod$/i).length).toBeGreaterThanOrEqual(1)
+        expect(screen.getByText('+ 100 more in the dashboard')).toBeInTheDocument()
+    })
+
+    test('renders stack list with all six services', () => {
+        render(<Landing />)
+        expect(screen.getByText('lucky-bot')).toBeInTheDocument()
+        expect(screen.getByText('lucky-backend')).toBeInTheDocument()
+        expect(screen.getByText('lucky-frontend')).toBeInTheDocument()
+        expect(screen.getByText('postgres')).toBeInTheDocument()
+        expect(screen.getByText('redis')).toBeInTheDocument()
+        expect(screen.getByText('nginx')).toBeInTheDocument()
+    })
+
+    test('renders repo footer banner and footer copyright', () => {
+        render(<Landing />)
+        expect(screen.getByText(/Open source under Apache 2.0/i)).toBeInTheDocument()
+        expect(screen.getByText(/© 2026 Lucky\. Apache 2\.0\./)).toBeInTheDocument()
+    })
+
+    test('renders footer with Terms, Privacy and Discord support links', () => {
+        render(<Landing />)
+        expect(screen.getByRole('link', { name: /Terms/i })).toHaveAttribute('href', '/terms')
+        expect(screen.getByRole('link', { name: /Privacy/i })).toHaveAttribute('href', '/privacy')
+        const supportLink = screen.getByRole('link', { name: /Support server/i })
+        expect(supportLink).toHaveAttribute('target', '_blank')
+        expect(supportLink).toHaveAttribute('rel', 'noreferrer')
     })
 
     test('logs and recovers when stats fetch rejects', async () => {
@@ -294,14 +228,19 @@ describe('Landing', () => {
         }
     })
 
-    test('hides plus-sign suffix when both stats are zero', async () => {
-        setupMocks({
-            prefersReducedMotion: true,
-            statsData: { totalGuilds: 0, totalUsers: 0, uptimeSeconds: 0, serversOnline: 0 },
-        })
+    test('respects prefers-reduced-motion', () => {
+        setupMocks({ prefersReducedMotion: true })
         render(<Landing />)
-        // Zero counts render without the '+' suffix; both metrics should be the literal '0'.
+        expect(screen.getByText(/A Discord bot you can/i)).toBeInTheDocument()
+    })
+
+    test('shows zero stats correctly when api returns zeros', async () => {
+        setupMocks({ statsData: { totalGuilds: 0, totalUsers: 0, uptimeSeconds: 0, serversOnline: 0 } })
+        render(<Landing />)
+        await waitFor(() => expect(api.stats.getPublic).toHaveBeenCalled())
         const zeros = await screen.findAllByText('0')
-        expect(zeros.length).toBeGreaterThanOrEqual(2)
+        // Three stats columns (stars/forks/issues): forks/issues are floored from Math.max(1, …)
+        // so when totalGuilds=0 stars=0; forks=max(1, 0)=1; issues=max(1, 0)=1 → only stars is 0
+        expect(zeros.length).toBeGreaterThanOrEqual(1)
     })
 })
