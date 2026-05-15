@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerSettingsPage from './ServerSettings'
@@ -522,9 +522,9 @@ describe('ServerSettingsPage', () => {
 
         renderPage()
 
-        const applyButton = await screen.findByRole('button', {
-            name: /Apply Criativaria Baseline/i,
-        })
+        const heading = await screen.findByText('Criativaria Baseline')
+        const card = heading.closest('section') || heading.closest('div[class*="space-y"]')?.parentElement as HTMLElement
+        const applyButton = within(card).getByRole('button', { name: /Apply/i })
         await user.click(applyButton)
 
         await waitFor(() => {
@@ -556,9 +556,9 @@ describe('ServerSettingsPage', () => {
 
         renderPage()
 
-        const applyButton = await screen.findByRole('button', {
-            name: /Apply Criativaria Baseline/i,
-        })
+        const heading = await screen.findByText('Criativaria Baseline')
+        const card = heading.closest('section') || heading.closest('div[class*="space-y"]')?.parentElement as HTMLElement
+        const applyButton = within(card).getByRole('button', { name: /Apply/i })
         await user.click(applyButton)
 
         await waitFor(() => {
