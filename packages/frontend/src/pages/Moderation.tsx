@@ -11,12 +11,7 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
-    Eye,
-    Hash,
-    User,
-    Calendar,
     BarChart3,
-    ChevronDown,
 } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -34,7 +29,6 @@ import {
 import Skeleton from '@/components/ui/Skeleton'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
-import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { ModerationCase, ModerationStats } from '@/types'
 

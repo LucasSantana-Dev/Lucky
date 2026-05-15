@@ -34,7 +34,6 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
-import { cn } from '@/lib/utils'
 import type {
     AutoModSettings,
     AutoModTemplate,
