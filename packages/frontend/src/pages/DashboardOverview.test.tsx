@@ -312,7 +312,7 @@ describe('DashboardOverview', () => {
             expect(screen.getByText('Another Track')).toBeInTheDocument()
         })
 
-        test('renders placeholder dash when playedBy is missing', () => {
+        test('renders fallback label when playedBy is missing', () => {
             mockGuildStoreFn(mockGuild)
             setupQueryHookMocks(
                 mockStats,
@@ -322,7 +322,7 @@ describe('DashboardOverview', () => {
                 mockStarboardEntries,
             )
             renderPage()
-            expect(screen.getByText('—')).toBeInTheDocument()
+            expect(screen.getByText('Unknown')).toBeInTheDocument()
         })
 
         test('renders empty music state when no tracks are returned', () => {
