@@ -250,13 +250,17 @@ function StatsSection({ statsLoading, guildCount, userCount, serversOnline }: St
     const scaleStats = [
         {
             icon: Server,
-            value: statsLoading ? '—' : `${guildCount.toLocaleString(locale)}${guildCount > 0 ? '+' : ''}`,
+            value: statsLoading
+                ? '…'
+                : `${guildCount.toLocaleString(locale)}${guildCount > 0 ? '+' : ''}`,
             label: t('landing.stats.servers'),
             size: 'text-5xl md:text-6xl' as const,
         },
         {
             icon: Users,
-            value: statsLoading ? '—' : `${userCount.toLocaleString(locale)}+`,
+            value: statsLoading
+                ? '…'
+                : `${userCount.toLocaleString(locale)}${userCount > 0 ? '+' : ''}`,
             label: t('landing.stats.users'),
             size: 'text-4xl md:text-5xl' as const,
         },

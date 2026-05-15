@@ -320,7 +320,6 @@ export default function DashboardOverview() {
                                 value={stats?.activeCases || 0}
                                 icon={<Shield className='h-3.5 w-3.5' />}
                                 tone='accent'
-                                delta={stats?.recentCases ? 12 : undefined}
                             />
                             <CompactStat
                                 label='Total Cases'
