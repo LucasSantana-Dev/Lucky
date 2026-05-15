@@ -23,6 +23,9 @@ const namedSessionListMock = jest.fn()
 const cleanupGuildStateMock = jest.fn()
 const aiDevToolkitStartMock = jest.fn()
 const handleReactionRolesMock = jest.fn()
+const recordGuildJoinMock = jest.fn(async () => undefined)
+const recordGuildLeaveMock = jest.fn(async () => undefined)
+const syncGuildsOnReadyMock = jest.fn(async () => undefined)
 
 jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
@@ -89,6 +92,14 @@ jest.mock('../services/AiDevToolkitService', () => ({
     aiDevToolkitService: {
         start: (...args: unknown[]) => aiDevToolkitStartMock(...args),
     },
+}))
+
+jest.mock('../services/guildMembershipService', () => ({
+    recordGuildJoin: async (...args: unknown[]) => recordGuildJoinMock(...args),
+    recordGuildLeave: async (...args: unknown[]) =>
+        recordGuildLeaveMock(...args),
+    syncGuildsOnReady: async (...args: unknown[]) =>
+        syncGuildsOnReadyMock(...args),
 }))
 
 function createMockClient() {
