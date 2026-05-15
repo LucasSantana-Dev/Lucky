@@ -21,6 +21,7 @@ export type FeatureToggleName =
     | 'WEBAPP'
     | 'TWITCH_NOTIFICATIONS'
     | 'LASTFM_INTEGRATION'
+    | 'SPOTIFY_INTEGRATION'
     | 'WELCOME_MESSAGES'
 
 export type FeatureToggleState = Record<FeatureToggleName, boolean>
