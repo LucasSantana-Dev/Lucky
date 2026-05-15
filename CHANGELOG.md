@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-05-15
+
+### Added
+- feat(reliability): yt-dlp 3× exponential backoff + snapshot restore 2s timeout — hardens audio extraction against transient failures and bounds player restart latency (#850)
+- ui(landing): redesigned with /ui-expert four-gate workflow — Vercel grid background + Stripe-style asymmetric scale strip + Notion-warm FAQ; named anchors enforced via slop audit
+- ui(dashboard): asymmetric Stripe-style KPI hero + Linear-style Quick Actions list — replaces 4-tile identical-card layout with a focused information hierarchy
+
+### Changed
+- chore(docker): consolidate container surface — multi-stage Dockerfile, venv-packaged yt-dlp, node 22 alignment for frontend dev, /dev/tcp healthcheck for production-frontend, non-root nginx UID 101 (#848, #851, #856)
+- refactor(compose): dedupe bot+backend env vars via `x-common-app-env` YAML anchor (#852)
+
+### Fixed
+- fix(docker): use /dev/tcp healthcheck in production-frontend stage to avoid wget/curl dependency (#851)
+
+### Internal
+- chore(ci): add explicit top-level `permissions:` to 8 workflows for least-privilege GITHUB_TOKEN scoping (#849)
+- chore(ci): call org-wide reusable quality workflow — consolidates lint/typecheck/test/coverage gates (#855)
+- chore(ci): smoke-test yt-dlp --version after bot image push to catch regression in audio pipeline (#854)
+- docs(adr): Docker surface decisions — keep compose, keep node:22-alpine, consolidate Dockerfiles (#853)
+
 ## [2.10.0] - 2026-05-13
 
 ### Added
