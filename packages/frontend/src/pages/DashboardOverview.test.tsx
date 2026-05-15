@@ -327,6 +327,46 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('Custom Commands')).toBeInTheDocument()
     })
 
+    test('renders every quick action row with title and description', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        const quickActionLabels = [
+            ['Moderation Cases', 'Review warnings, mutes, kicks, and bans.'],
+            ['Auto-Moderation', 'Tune filters and anti-spam automation.'],
+            ['Server Logs', 'Audit events and moderation activity.'],
+            ['Custom Commands', 'Manage scripted server shortcuts.'],
+            ['Music Player', 'View queue, playback, and track history.'],
+            ['Levels & XP', 'Configure XP, level rewards, and leaderboards.'],
+            ['Starboard', 'Manage community highlights.'],
+        ] as const
+        for (const [title, description] of quickActionLabels) {
+            expect(screen.getByText(title)).toBeInTheDocument()
+            expect(screen.getByText(description)).toBeInTheDocument()
+        }
+    })
+
+    test('renders hero KPI total members context line', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(
+            screen.getByText(/Active members across Test Guild/),
+        ).toBeInTheDocument()
+    })
+
     test('renders cases by type breakdown when stats available', () => {
         mockGuildStoreFn(mockGuild)
         setupQueryHookMocks(
