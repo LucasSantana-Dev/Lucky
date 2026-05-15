@@ -6,6 +6,10 @@ on:
     pull_request:
         branches: [main, 'release/**']
 
+permissions:
+    contents: read
+    pull-requests: read
+
 jobs:
     sonarcloud:
         name: SonarCloud Scan

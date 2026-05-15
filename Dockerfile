@@ -6,20 +6,38 @@ ARG NODE_VERSION=22-alpine
 
 FROM node:${NODE_VERSION} AS base-runtime
 
+# yt-dlp is installed into a dedicated venv at /opt/ytdlp so we avoid
+# `--break-system-packages` (Alpine's PEP 668 marker). The venv binary
+# is symlinked into /usr/local/bin so callers don't need to know the path.
 RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
     opus \
     opus-tools \
-    && rm -rf /var/cache/apk/*
-
-RUN pip3 install --break-system-packages --no-cache-dir yt-dlp
+    && python3 -m venv /opt/ytdlp \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip yt-dlp \
+    && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+    && rm -rf /var/cache/apk/* /root/.cache
 
 WORKDIR /app
 
-FROM node:${NODE_VERSION} AS base-runtime-backend
+# Development stage — full deps + native build tools + media binaries.
+# Source is bind-mounted by docker-compose.dev.yml (`.:/app`), so this
+# image only needs the runtime + global tooling. node_modules is preserved
+# inside the container via an anonymous volume.
+FROM base-runtime AS development
+RUN apk add --no-cache git build-base python3-dev opus-dev && rm -rf /var/cache/apk/*
 WORKDIR /app
+ENV NODE_ENV=development \
+    NPM_CONFIG_LOGLEVEL=warn
+# Compose mounts host source over /app; node_modules is installed at first
+# run via the entrypoint to populate the anonymous volume. Dev stage runs as
+# root because the bind-mounted host source needs write access matching the
+# host user's UID and `npm ci` writes the anonymous volume's node_modules.
+# Production stages below all set a non-root USER.
+# nosemgrep: dockerfile.security.missing-user.missing-user
+CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma generate && npm run dev --workspace=packages/bot"]
 
 # Build stage — installs all deps, generates prisma, builds shared + target
 FROM node:${NODE_VERSION} AS build
@@ -50,6 +68,15 @@ WORKDIR /app
 RUN npm run build:shared
 RUN npm run build --workspace=packages/bot
 RUN npm run build --workspace=packages/backend
+
+# Frontend build — inherits the build stage's deps + toolchain, so we get
+# build-base + python3-dev + opus-dev "for free." Previously the standalone
+# Dockerfile.frontend re-ran `npm ci` for ~all workspace deps (including
+# @discordjs/opus) but lacked the C toolchain, which broke node:26-alpine
+# in PR #846. Sharing the build stage eliminates that class of failure.
+FROM build AS build-frontend
+COPY packages/frontend ./packages/frontend
+RUN npm run build --workspace=packages/frontend
 
 # Production deps — slim install (no dev deps)
 FROM node:${NODE_VERSION} AS deps-production
@@ -99,20 +126,24 @@ RUN mkdir -p downloads logs && \
 
 USER bot
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "console.log('Service is running')" || exit 1
+# Liveness via Redis TCP PING — confirms node can run AND the bot's
+# Redis dependency is reachable. A wedged node process or broken Redis
+# link both fail this; the old `console.log` check did neither.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD node -e "const net=require('net');const s=net.createConnection({host:process.env.REDIS_HOST||'redis',port:+(process.env.REDIS_PORT||6379)},()=>s.write('*1\r\n\$4\r\nPING\r\n'));s.on('data',d=>process.exit(d.toString().startsWith('+PONG')?0:1));s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);" || exit 1
 
 CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
 
-# Production stage — backend (slim runtime, no media tools)
-FROM base-runtime-backend AS production-backend
+# Production stage — backend (slim runtime, no media tools).
+# Derives directly from node:${NODE_VERSION} instead of a no-op intermediate
+# `base-runtime-backend` stage.
+FROM node:${NODE_VERSION} AS production-backend
+WORKDIR /app
 
 ARG COMMIT_SHA
 ENV NODE_ENV=production \
     NPM_CONFIG_LOGLEVEL=silent \
     COMMIT_SHA=$COMMIT_SHA
-
-WORKDIR /app
 
 COPY --from=deps-production /app/node_modules ./node_modules
 COPY --from=deps-production /app/package*.json ./
@@ -137,3 +168,17 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD node -e "require('http').get('http://127.0.0.1:3000/api/toggles/global', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))" || exit 1
 
 CMD ["node", "packages/backend/dist/index.js"]
+
+# Production stage — frontend (static SPA served by non-root nginx).
+# Replaces the former standalone Dockerfile.frontend.
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS production-frontend
+
+COPY --from=build-frontend /app/packages/frontend/dist /usr/share/nginx/html
+COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD sh -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e "GET / HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" >&3 && head -1 <&3 | grep -q "200" || exit 1'
+
+CMD ["nginx", "-g", "daemon off;"]

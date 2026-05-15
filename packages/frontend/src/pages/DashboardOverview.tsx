@@ -21,7 +21,6 @@ import Skeleton from '@/components/ui/Skeleton'
 import SectionHeader from '@/components/ui/SectionHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import StatTile from '@/components/ui/StatTile'
-import ActionPanel from '@/components/ui/ActionPanel'
 import { useGuildStore } from '@/stores/guildStore'
 import { hasModuleAccess } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
@@ -69,6 +68,67 @@ function timeAgo(dateStr: string): string {
     if (days < 7) return `${days}d ago`
 
     return new Date(dateStr).toLocaleDateString()
+}
+
+type CompactStatTone = 'brand' | 'accent' | 'success' | 'warning' | 'neutral'
+
+const compactToneClass: Record<CompactStatTone, string> = {
+    brand: 'bg-lucky-brand/15 text-lucky-brand',
+    accent: 'bg-lucky-brand/15 text-lucky-brand',
+    success: 'bg-lucky-success/15 text-lucky-success',
+    warning: 'bg-lucky-warning/15 text-lucky-warning',
+    neutral: 'bg-lucky-bg-active text-lucky-text-tertiary',
+}
+
+function CompactStat({
+    label,
+    value,
+    icon,
+    tone = 'neutral',
+    delta,
+}: {
+    label: string
+    value: string | number
+    icon?: ReactElement
+    tone?: CompactStatTone
+    delta?: number
+}) {
+    return (
+        <div className='flex items-center justify-between gap-3 px-4 py-3'>
+            <div className='flex items-center gap-2.5 min-w-0'>
+                {icon && (
+                    <span
+                        className={cn(
+                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                            compactToneClass[tone],
+                        )}
+                        aria-hidden='true'
+                    >
+                        {icon}
+                    </span>
+                )}
+                <p className='type-meta truncate text-lucky-text-tertiary'>{label}</p>
+            </div>
+            <div className='flex items-center gap-2'>
+                {delta !== undefined && (
+                    <span
+                        className={cn(
+                            'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                            delta >= 0
+                                ? 'bg-lucky-success/10 text-lucky-success'
+                                : 'bg-lucky-error/10 text-lucky-error',
+                        )}
+                    >
+                        {delta >= 0 ? '+' : ''}
+                        {delta}%
+                    </span>
+                )}
+                <p className='font-[var(--font-lucky-display)] text-lg font-semibold text-lucky-text-primary tabular-nums'>
+                    {typeof value === 'number' ? value.toLocaleString() : value}
+                </p>
+            </div>
+        </div>
+    )
 }
 
 function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
@@ -219,42 +279,61 @@ export default function DashboardOverview() {
                 eyebrow='Server analytics'
             />
 
-            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+            <div className='grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]'>
                 {loading ? (
-                    Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className='surface-panel p-5'>
-                            <Skeleton className='mb-3 h-4 w-20' />
-                            <Skeleton className='mb-2 h-8 w-16' />
-                            <Skeleton className='h-3 w-28' />
+                    <>
+                        <div className='surface-panel flex flex-col justify-between gap-6 p-6'>
+                            <Skeleton className='h-4 w-28' />
+                            <Skeleton className='h-12 w-32' />
+                            <Skeleton className='h-4 w-44' />
                         </div>
-                    ))
+                        <div className='surface-panel divide-y divide-lucky-border/40'>
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className='flex items-center justify-between px-4 py-3'>
+                                    <Skeleton className='h-3 w-24' />
+                                    <Skeleton className='h-5 w-12' />
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 ) : (
                     <>
-                        <StatTile
-                            label='Total Members'
-                            value={selectedGuild.memberCount ?? '—'}
-                            icon={<Users className='h-4 w-4' />}
-                            tone='brand'
-                        />
-                        <StatTile
-                            label='Active Cases'
-                            value={stats?.activeCases || 0}
-                            delta={stats?.recentCases ? 12 : undefined}
-                            icon={<Shield className='h-4 w-4' />}
-                            tone='accent'
-                        />
-                        <StatTile
-                            label='Total Cases'
-                            value={stats?.totalCases || 0}
-                            icon={<MessageSquare className='h-4 w-4' />}
-                            tone='neutral'
-                        />
-                        <StatTile
-                            label='Auto-Mod Actions'
-                            value={stats?.casesByType?.warn || 0}
-                            icon={<ShieldAlert className='h-4 w-4' />}
-                            tone='warning'
-                        />
+                        <article className='surface-panel flex flex-col justify-between gap-6 p-6'>
+                            <div className='flex items-center justify-between gap-3'>
+                                <p className='type-meta text-lucky-text-tertiary'>Total Members</p>
+                                <span className='rounded-lg bg-lucky-brand/15 p-2.5 text-lucky-brand'>
+                                    <Users className='h-4 w-4' aria-hidden='true' />
+                                </span>
+                            </div>
+                            <p className='font-[var(--font-lucky-display)] text-5xl font-semibold leading-none tracking-tight text-lucky-text-strong'>
+                                {typeof selectedGuild.memberCount === 'number'
+                                    ? selectedGuild.memberCount.toLocaleString()
+                                    : '0'}
+                            </p>
+                            <p className='type-body-sm text-lucky-text-tertiary'>
+                                Active members across {selectedGuild.name}
+                            </p>
+                        </article>
+                        <div className='surface-panel divide-y divide-lucky-border/40'>
+                            <CompactStat
+                                label='Active Cases'
+                                value={stats?.activeCases || 0}
+                                icon={<Shield className='h-3.5 w-3.5' />}
+                                tone='accent'
+                            />
+                            <CompactStat
+                                label='Total Cases'
+                                value={stats?.totalCases || 0}
+                                icon={<MessageSquare className='h-3.5 w-3.5' />}
+                                tone='neutral'
+                            />
+                            <CompactStat
+                                label='Auto-Mod Actions'
+                                value={stats?.casesByType?.warn || 0}
+                                icon={<ShieldAlert className='h-3.5 w-3.5' />}
+                                tone='warning'
+                            />
+                        </div>
                     </>
                 )}
             </div>
@@ -323,30 +402,46 @@ export default function DashboardOverview() {
                 </motion.section>
 
                 <motion.section
-                    className='space-y-4'
+                    className='space-y-3'
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: prefersReducedMotion ? 0 : 0.3 }}
+                    aria-labelledby='quick-actions-heading'
                 >
-                    <h2 className='type-title text-lucky-text-primary'>
+                    <h2
+                        id='quick-actions-heading'
+                        className='type-title text-lucky-text-primary'
+                    >
                         Quick Actions
                     </h2>
-                    {visibleQuickActions.map((action) => (
-                        <ActionPanel
-                            key={action.href}
-                            title={action.title}
-                            description={action.description}
-                            icon={action.icon}
-                            action={
-                                <Link
-                                    to={action.href}
-                                    className='type-body-sm rounded-lg border border-lucky-border px-3 py-1.5 text-lucky-text-secondary hover:text-lucky-text-primary'
+                    <nav className='surface-panel divide-y divide-lucky-border/40 overflow-hidden'>
+                        {visibleQuickActions.map((action) => (
+                            <Link
+                                key={action.href}
+                                to={action.href}
+                                className='group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-lucky-bg-tertiary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand/60'
+                            >
+                                <span
+                                    className='flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-lucky-bg-tertiary text-lucky-text-secondary transition-colors group-hover:bg-lucky-brand/15 group-hover:text-lucky-brand'
+                                    aria-hidden='true'
                                 >
-                                    Open
-                                </Link>
-                            }
-                        />
-                    ))}
+                                    {action.icon}
+                                </span>
+                                <div className='min-w-0 flex-1'>
+                                    <p className='type-body-sm font-medium text-lucky-text-primary'>
+                                        {action.title}
+                                    </p>
+                                    <p className='truncate text-xs text-lucky-text-tertiary'>
+                                        {action.description}
+                                    </p>
+                                </div>
+                                <ArrowRight
+                                    className='h-3.5 w-3.5 shrink-0 text-lucky-text-tertiary opacity-0 transition-opacity group-hover:opacity-100'
+                                    aria-hidden='true'
+                                />
+                            </Link>
+                        ))}
+                    </nav>
                 </motion.section>
             </div>
 
@@ -413,7 +508,7 @@ export default function DashboardOverview() {
                                         </p>
                                     </div>
                                     <p className='type-body-sm text-lucky-text-secondary'>
-                                        {track.playedBy || '—'}
+                                        {track.playedBy || 'Unknown'}
                                     </p>
                                     <p className='text-xs text-lucky-text-tertiary text-right'>
                                         {timeAgo(

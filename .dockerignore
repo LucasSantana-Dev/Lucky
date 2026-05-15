@@ -3,6 +3,22 @@
 .gitignore
 .gitattributes
 
+# Worktrees (4.5GB+ of duplicated trees — must be excluded)
+.worktrees/
+worktrees/
+.wt-specs/
+
+# AI agent state / caches (115MB+ — never needed at build time)
+.claude/
+.claude-env/
+.claude-mem/
+.claude-server-commander/
+.agents/
+
+# Archived branches + downloaded media (host-only)
+archive/
+downloads/
+
 # Documentation
 docs/
 *.md
