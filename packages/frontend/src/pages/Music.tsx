@@ -6,7 +6,6 @@ import {
     Play,
     Pause,
     SkipForward,
-    SkipBack,
     Shuffle,
     Repeat,
     Repeat1,
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { useMusicPlayer } from '@/hooks/useMusicPlayer'
-import NowPlaying from '@/components/Music/NowPlaying'
 import SearchBar from '@/components/Music/SearchBar'
 import ImportPlaylist from '@/components/Music/ImportPlaylist'
 import QueueList from '@/components/Music/QueueList'
@@ -90,10 +88,8 @@ export default function MusicPage() {
                 state={player.state}
                 onPlayPause={handlePlayPause}
                 onSkip={() => player.skip()}
-                onSkipPrev={() => player.skipPrev?.()}
                 onShuffle={() => player.shuffle()}
                 onRepeatCycle={handleRepeatCycle}
-                onSeek={(ms) => player.seek(ms)}
                 onVolumeChange={(v) => player.setVolume(v)}
             />
 
@@ -140,19 +136,15 @@ function NowPlayingHero({
     state,
     onPlayPause,
     onSkip,
-    onSkipPrev,
     onShuffle,
     onRepeatCycle,
-    onSeek,
     onVolumeChange,
 }: {
     state: any
     onPlayPause: () => void
     onSkip: () => void
-    onSkipPrev: () => void
     onShuffle: () => void
     onRepeatCycle: () => void
-    onSeek: (ms: number) => void
     onVolumeChange: (v: number) => void
 }) {
     const currentTrack = state.tracks[0]
@@ -253,11 +245,6 @@ function NowPlayingHero({
                             onClick={onShuffle}
                             active={state.isShuffle}
                             aria-label='Shuffle'
-                        />
-                        <ControlButton
-                            icon={<SkipBack className='h-5 w-5' />}
-                            onClick={onSkipPrev}
-                            aria-label='Previous track'
                         />
                         <button
                             onClick={onPlayPause}
