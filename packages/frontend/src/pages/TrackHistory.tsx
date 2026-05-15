@@ -236,45 +236,74 @@ export default function TrackHistoryPage() {
                             />
                         ) : (
                             <div className='space-y-1'>
-                                {history.map((track, i) => (
-                                    <div
-                                        key={`${track.trackId}-${i}`}
-                                        className='flex items-center gap-3 px-3 py-2.5 rounded-lg bg-lucky-bg-tertiary hover:bg-lucky-bg-active transition-colors'
-                                    >
-                                        <div className='w-8 h-8 rounded bg-lucky-bg-active flex items-center justify-center text-lucky-text-tertiary type-meta shrink-0'>
-                                            {i + 1}
+                                <div
+                                    className='surface-panel rounded-lg border border-lucky-border divide-y divide-lucky-border overflow-hidden'
+                                    role='list'
+                                >
+                                    {history.map((track, i) => (
+                                        <div
+                                            key={`${track.trackId}-${i}`}
+                                            className='flex items-center gap-4 px-4 py-3 hover:bg-lucky-bg-active transition-colors'
+                                            role='listitem'
+                                        >
+                                            <span className='type-meta text-lucky-text-tertiary w-6 text-center shrink-0'>
+                                                {i + 1}
+                                            </span>
+
+                                            <div className='flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 items-start'>
+                                                <div className='min-w-0'>
+                                                    <a
+                                                        href={track.url}
+                                                        target='_blank'
+                                                        rel='noopener noreferrer'
+                                                        className='type-body text-lucky-text-primary truncate block hover:text-lucky-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-brand'
+                                                    >
+                                                        {track.title}
+                                                    </a>
+                                                    <p className='type-body-sm text-lucky-text-tertiary truncate'>
+                                                        {track.author}
+                                                    </p>
+                                                </div>
+
+                                                <div className='hidden sm:block min-w-0'>
+                                                    <p className='type-body-sm text-lucky-text-tertiary'>
+                                                        {track.duration}
+                                                    </p>
+                                                    {track.playedBy && (
+                                                        <p className='type-body-sm text-lucky-text-tertiary'>
+                                                            By{' '}
+                                                            <span className='text-lucky-text-secondary font-medium'>
+                                                                {track.playedBy}
+                                                            </span>
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className='hidden sm:flex sm:justify-end sm:items-start'>
+                                                    <span className='type-body-sm text-lucky-text-tertiary'>
+                                                        {formatTimeAgo(
+                                                            track.timestamp,
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <span className='type-body-sm text-lucky-text-tertiary sm:hidden shrink-0'>
+                                                {formatTimeAgo(track.timestamp)}
+                                            </span>
                                         </div>
-                                        <div className='flex-1 min-w-0'>
-                                            <a
-                                                href={track.url}
-                                                target='_blank'
-                                                rel='noopener noreferrer'
-                                                className='type-body text-lucky-text-primary truncate block hover:text-lucky-brand transition-colors'
-                                            >
-                                                {track.title}
-                                            </a>
-                                            <p className='type-body-sm text-lucky-text-tertiary truncate'>
-                                                {track.author} ·{' '}
-                                                {track.duration}
-                                                {track.playedBy
-                                                    ? ` · Played by ${track.playedBy}`
-                                                    : ''}
-                                            </p>
-                                        </div>
-                                        <span className='type-body-sm text-lucky-text-tertiary shrink-0'>
-                                            {formatTimeAgo(track.timestamp)}
-                                        </span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+
                                 {history.length < total && (
                                     <button
                                         onClick={handleLoadMore}
                                         disabled={isLoadingMore}
-                                        className='w-full mt-4 px-3 py-2 rounded-lg border border-lucky-border text-lucky-text-secondary hover:text-lucky-text-primary hover:bg-lucky-bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed type-body-sm font-medium'
+                                        className='w-full mt-4 px-4 py-3 rounded-lg border border-lucky-border text-lucky-text-secondary type-body-sm font-medium hover:text-lucky-text-primary hover:bg-lucky-bg-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                                     >
                                         {isLoadingMore
                                             ? 'Loading...'
-                                            : 'Load More Tracks'}
+                                            : `Load More (${total - history.length} remaining)`}
                                     </button>
                                 )}
                             </div>
