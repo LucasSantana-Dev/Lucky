@@ -233,16 +233,6 @@ export default function CustomCommandsPage() {
                                         </p>
                                         <p>{cmd.description}</p>
                                     </div>
-                                    {cmd.usage && (
-                                        <div>
-                                            <p className='font-medium text-lucky-text-primary mb-1'>
-                                                Usage
-                                            </p>
-                                            <code className='font-mono bg-lucky-bg-primary/50 px-2 py-1 rounded text-lucky-text-muted'>
-                                                {cmd.usage}
-                                            </code>
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </div>
