@@ -1,371 +1,330 @@
-import { useCallback, useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Star, Zap, Settings, Plus, Trash2, Save, Loader2, Hash } from 'lucide-react'
-import Card from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
-import EmptyState from '@/components/ui/EmptyState'
-import Skeleton from '@/components/ui/Skeleton'
-import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import SectionHeader from '@/components/ui/SectionHeader'
-import { toast } from 'sonner'
-import { api } from '@/services/api'
-import { ApiError } from '@/services/ApiError'
-import { useGuildStore } from '@/stores/guildStore'
-import type { MemberXP, LevelReward } from '@/services/levelsApi'
-import { xpNeededForLevel } from '@/services/levelsApi'
-import type { GuildRoleOption } from '@/types'
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PlusIcon, TrashIcon, GripVerticalIcon } from 'lucide-react';
 
-function XpBar({ xp, level }: { xp: number; level: number }) {
-    const needed = xpNeededForLevel(level + 1)
-    const prev = xpNeededForLevel(level)
-    const progress = needed > prev ? Math.min(((xp - prev) / (needed - prev)) * 100, 100) : 100
-    return (
-        <div className='mt-1 h-1.5 rounded-full bg-lucky-bg-active/60 overflow-hidden'>
-            <div
-                className='h-full rounded-full transition-all duration-500'
-                style={{
-                    width: `${progress}%`,
-                    background: 'linear-gradient(90deg, #8b5cf6 0%, #d4a017 100%)',
-                }}
+interface UserLevel {
+  userId: string;
+  username: string;
+  currentXp: number;
+  nextLevelXp: number;
+  level: number;
+  avatarUrl?: string;
+  roles: Array<{ id: string; name: string; color?: string }>;
+}
+
+interface LevelReward {
+  levelThreshold: number;
+  roleId?: string;
+  roleName?: string;
+}
+
+interface LevelsPageProps {
+  leaderboard: UserLevel[];
+  rewards: LevelReward[];
+  settings: {
+    enabled: boolean;
+    announcement: string;
+    minMessageLength: number;
+    cooldown: number;
+  };
+  isLoading?: boolean;
+  onSettingsChange?: (settings: any) => void;
+  onRewardsChange?: (rewards: LevelReward[]) => void;
+}
+
+const XpBar = ({ current, next }: { current: number; next: number }) => {
+  const percentage = Math.min((current / next) * 100, 100);
+  return (
+    <div className="w-full bg-lucky-surface-highlight rounded-full h-1.5 overflow-hidden">
+      <motion.div
+        className="h-full bg-lucky-brand"
+        initial={{ width: 0 }}
+        animate={{ width: `${percentage}%` }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      />
+    </div>
+  );
+};
+
+const LeaderboardRowPrimary = ({ user, rank }: { user: UserLevel; rank: number }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.1 }}
+      className="p-6 rounded-xl bg-gradient-to-br from-lucky-surface-panel to-lucky-surface-elevated border border-lucky-border/50"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.username}
+              className="w-16 h-16 rounded-lg border border-lucky-border"
             />
+          ) : (
+            <div className="w-16 h-16 rounded-lg bg-lucky-surface-highlight border border-lucky-border flex items-center justify-center text-2xl font-bold text-lucky-brand">
+              {user.username[0]?.toUpperCase()}
+            </div>
+          )}
         </div>
-    )
-}
-
-function LeaderboardRow({ entry, index }: { entry: MemberXP; index: number }) {
-    const medals = ['🥇', '🥈', '🥉']
-    const medal = medals[index] ?? null
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.04 }}
-            className='flex items-center gap-3 p-3 rounded-lg bg-lucky-bg-secondary/60 border border-lucky-border'
-        >
-            <div className='w-8 text-center text-sm font-bold text-lucky-text-muted'>
-                {medal ?? `#${index + 1}`}
-            </div>
-            <div className='flex-1 min-w-0'>
-                <div className='flex items-center gap-2'>
-                    <span className='text-sm font-medium text-lucky-text-body truncate'>
-                        {entry.userId}
-                    </span>
-                    <Badge variant='secondary' className='text-xs shrink-0'>
-                        Lv.{entry.level}
-                    </Badge>
-                </div>
-                <XpBar xp={entry.xp} level={entry.level} />
-                <p className='text-xs text-lucky-text-muted mt-1'>{entry.xp.toLocaleString()} XP</p>
-            </div>
-        </motion.div>
-    )
-}
-
-function SkeletonRow() {
-    return (
-        <div className='flex items-center gap-3 p-3 rounded-lg bg-lucky-bg-secondary/60 border border-lucky-border'>
-            <Skeleton className='h-5 w-8 rounded' />
-            <div className='flex-1 space-y-2'>
-                <Skeleton className='h-4 w-32 rounded' />
-                <Skeleton className='h-1.5 w-full rounded-full' />
-            </div>
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2 mb-1">
+            <h3 className="text-3xl font-bold text-lucky-brand">#{rank}</h3>
+            <p className="text-xl font-semibold text-lucky-text-primary">{user.username}</p>
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            {user.roles.slice(0, 2).map((role) => (
+              <Badge key={role.id} variant="outline" className="text-xs">
+                {role.name}
+              </Badge>
+            ))}
+          </div>
+          <div className="mb-3">
+            <Badge variant="secondary" className="bg-lucky-brand/20 text-lucky-brand font-bold">
+              Level {user.level}
+            </Badge>
+          </div>
+          <XpBar current={user.currentXp} next={user.nextLevelXp} />
+          <div className="flex items-center justify-between mt-2 text-xs text-lucky-text-muted">
+            <span>{user.currentXp.toLocaleString()} XP</span>
+            <span>{(user.nextLevelXp - user.currentXp).toLocaleString()} to level up</span>
+          </div>
         </div>
-    )
-}
+      </div>
+    </motion.div>
+  );
+};
 
-export default function Levels() {
-    const { selectedGuild } = useGuildStore()
-    const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState(false)
-    const [leaderboard, setLeaderboard] = useState<MemberXP[]>([])
-    const [rewards, setRewards] = useState<LevelReward[]>([])
-    const [roles, setRoles] = useState<GuildRoleOption[]>([])
+const LeaderboardRowCompact = ({ user, rank }: { user: UserLevel; rank: number }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -4 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.05 * (rank - 1) }}
+      className="p-3 flex items-center gap-3 border-b border-lucky-border/30 hover:bg-lucky-surface-highlight/40 transition-colors"
+    >
+      <span className="w-6 text-center font-mono text-sm font-semibold text-lucky-accent">
+        {rank}
+      </span>
+      <img
+        src={user.avatarUrl || ''}
+        alt={user.username}
+        className="w-8 h-8 rounded border border-lucky-border flex-shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-lucky-text-primary truncate">{user.username}</p>
+        <p className="text-xs text-lucky-text-muted">
+          Level {user.level} · {user.currentXp.toLocaleString()} XP
+        </p>
+      </div>
+      <Badge variant="outline" className="text-xs flex-shrink-0">
+        Lv {user.level}
+      </Badge>
+    </motion.div>
+  );
+};
 
-    // Config form state
-    const [enabled, setEnabled] = useState(false)
-    const [xpPerMessage, setXpPerMessage] = useState('15')
-    const [xpCooldownMs, setXpCooldownMs] = useState('60000')
-    const [announceChannel, setAnnounceChannel] = useState('')
+export const LevelsPage = ({
+  leaderboard,
+  rewards,
+  settings,
+  isLoading = false,
+  onSettingsChange,
+  onRewardsChange,
+}: LevelsPageProps) => {
+  const [expandedReward, setExpandedReward] = useState<number | null>(null);
+  const [newReward, setNewReward] = useState({ level: '', roleId: '' });
 
-    // Reward form state
-    const [newRewardLevel, setNewRewardLevel] = useState('')
-    const [newRewardRoleId, setNewRewardRoleId] = useState('')
-    const [addingReward, setAddingReward] = useState(false)
-
-    const fetchData = useCallback(async () => {
-        if (!selectedGuild) return
-        setLoading(true)
-        try {
-            const [cfg, lb, rwd, rbac] = await Promise.all([
-                api.levels.getConfig(selectedGuild.id),
-                api.levels.getLeaderboard(selectedGuild.id, 20),
-                api.levels.getRewards(selectedGuild.id),
-                api.guilds.getRbac(selectedGuild.id).then(r => r.data.roles).catch(() => [] as GuildRoleOption[]),
-            ])
-            setLeaderboard(lb)
-            setRewards(rwd)
-            setRoles(rbac)
-            if (cfg) {
-                setEnabled(cfg.enabled)
-                setXpPerMessage(String(cfg.xpPerMessage))
-                setXpCooldownMs(String(cfg.xpCooldownMs))
-                setAnnounceChannel(cfg.announceChannel ?? '')
-            }
-        } catch (err) {
-            if (err instanceof ApiError && err.status !== 404) {
-                toast.error('Failed to load level settings')
-            }
-        } finally {
-            setLoading(false)
-        }
-    }, [selectedGuild])
-
-    useEffect(() => {
-        void fetchData()
-    }, [fetchData])
-
-    const handleSaveConfig = async () => {
-        if (!selectedGuild) return
-        setSaving(true)
-        try {
-            await api.levels.updateConfig(selectedGuild.id, {
-                enabled,
-                xpPerMessage: Number(xpPerMessage) || 15,
-                xpCooldownMs: Number(xpCooldownMs) || 60000,
-                announceChannel: announceChannel.trim() || null,
-            })
-            toast.success('Level settings saved')
-        } catch {
-            toast.error('Failed to save settings')
-        } finally {
-            setSaving(false)
-        }
+  const handleAddReward = useCallback(() => {
+    if (newReward.level && newReward.roleId) {
+      onRewardsChange?.([
+        ...rewards,
+        { levelThreshold: parseInt(newReward.level), roleId: newReward.roleId },
+      ]);
+      setNewReward({ level: '', roleId: '' });
     }
+  }, [newReward, rewards, onRewardsChange]);
 
-    const handleAddReward = async () => {
-        if (!selectedGuild || !newRewardLevel || !newRewardRoleId) return
-        setAddingReward(true)
-        try {
-            const reward = await api.levels.addReward(selectedGuild.id, {
-                level: Number(newRewardLevel),
-                roleId: newRewardRoleId,
-            })
-            setRewards(prev => [...prev, reward].sort((a, b) => a.level - b.level))
-            setNewRewardLevel('')
-            setNewRewardRoleId('')
-            toast.success(`Reward added for level ${reward.level}`)
-        } catch {
-            toast.error('Failed to add reward')
-        } finally {
-            setAddingReward(false)
-        }
-    }
+  const handleRemoveReward = useCallback(
+    (index: number) => {
+      onRewardsChange?.(rewards.filter((_, i) => i !== index));
+    },
+    [rewards, onRewardsChange]
+  );
 
-    const handleRemoveReward = async (level: number) => {
-        if (!selectedGuild) return
-        try {
-            await api.levels.removeReward(selectedGuild.id, level)
-            setRewards(prev => prev.filter(r => r.level !== level))
-            toast.success('Reward removed')
-        } catch {
-            toast.error('Failed to remove reward')
-        }
-    }
-
-    if (!selectedGuild) {
-        return (
-            <EmptyState
-                icon={<Trophy className='h-8 w-8' />}
-                title='No server selected'
-                description='Select a server to view level settings'
-            />
-        )
-    }
-
+  if (isLoading) {
     return (
-        <div className='space-y-6'>
-            <SectionHeader
-                title='Level System'
-                description='XP leaderboard, role rewards, and level settings'
-            />
+      <div className="space-y-4">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-12" />
+        <Skeleton className="h-12" />
+      </div>
+    );
+  }
 
-            <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-                {/* Leaderboard */}
-                <div className='lg:col-span-2 space-y-3'>
-                    <h3 className='text-sm font-semibold text-lucky-text-muted uppercase tracking-wider flex items-center gap-2'>
-                        <Star size={14} />
-                        Leaderboard
-                    </h3>
-                    {loading ? (
-                        <div className='space-y-2'>
-                            {Array.from({ length: 5 }).map((_, i) => (
-                                <SkeletonRow key={i} />
-                            ))}
-                        </div>
-                    ) : leaderboard.length === 0 ? (
-                        <EmptyState
-                            icon={<Trophy className='h-8 w-8' />}
-                            title='No data yet'
-                            description='Members gain XP by chatting once the level system is enabled'
-                        />
-                    ) : (
-                        <div className='space-y-2'>
-                            <AnimatePresence>
-                                {leaderboard.map((entry, i) => (
-                                    <LeaderboardRow key={entry.id} entry={entry} index={i} />
-                                ))}
-                            </AnimatePresence>
-                        </div>
-                    )}
-                </div>
+  const topUser = leaderboard[0];
+  const restLeaderboard = leaderboard.slice(1, 11);
 
-                {/* Settings panel */}
-                <div className='space-y-4'>
-                    {/* Config card */}
-                    <Card className='p-4 space-y-4'>
-                        <h3 className='text-sm font-semibold text-lucky-text-muted uppercase tracking-wider flex items-center gap-2'>
-                            <Settings size={14} />
-                            Settings
-                        </h3>
+  return (
+    <div className="space-y-6">
+      <section>
+        <h2 className="text-2xl font-bold text-lucky-text-primary mb-4">Leaderboard</h2>
 
-                        <div className='flex items-center justify-between'>
-                            <Label htmlFor='lvl-enabled' className='text-lucky-text-body text-sm'>
-                                Enable XP
-                            </Label>
-                            <Switch
-                                id='lvl-enabled'
-                                checked={enabled}
-                                onCheckedChange={setEnabled}
-                            />
-                        </div>
+        {topUser ? (
+          <div className="mb-6">
+            <LeaderboardRowPrimary user={topUser} rank={1} />
+          </div>
+        ) : (
+          <EmptyState
+            icon="🏆"
+            title="No users yet"
+            description="Users will appear here as they gain XP."
+          />
+        )}
 
-                        <div className='space-y-1'>
-                            <Label className='text-xs text-lucky-text-muted'>XP per message</Label>
-                            <Input
-                                type='number'
-                                min={1}
-                                max={1000}
-                                value={xpPerMessage}
-                                onChange={e => setXpPerMessage(e.target.value)}
-                            />
-                        </div>
-
-                        <div className='space-y-1'>
-                            <Label className='text-xs text-lucky-text-muted'>Cooldown (ms)</Label>
-                            <Input
-                                type='number'
-                                min={1000}
-                                value={xpCooldownMs}
-                                onChange={e => setXpCooldownMs(e.target.value)}
-                            />
-                        </div>
-
-                        <div className='space-y-1'>
-                            <Label className='text-xs text-lucky-text-muted flex items-center gap-1'>
-                                <Hash size={12} /> Announce channel ID
-                            </Label>
-                            <Input
-                                placeholder='Channel ID (optional)'
-                                value={announceChannel}
-                                onChange={e => setAnnounceChannel(e.target.value)}
-                            />
-                        </div>
-
-                        <Button
-                            onClick={handleSaveConfig}
-                            disabled={saving}
-                            className='w-full'
-                        >
-                            {saving ? (
-                                <Loader2 size={14} className='animate-spin' />
-                            ) : (
-                                <Save size={14} />
-                            )}
-                            Save Settings
-                        </Button>
-                    </Card>
-
-                    {/* Rewards card */}
-                    <Card className='p-4 space-y-4'>
-                        <h3 className='text-sm font-semibold text-lucky-text-muted uppercase tracking-wider flex items-center gap-2'>
-                            <Zap size={14} />
-                            Role Rewards
-                        </h3>
-
-                        <div className='space-y-2'>
-                            {rewards.length === 0 ? (
-                                <p className='text-xs text-lucky-text-subtle'>No rewards configured</p>
-                            ) : (
-                                rewards.map(r => {
-                                    const role = roles.find(ro => ro.id === r.roleId)
-                                    return (
-                                        <div
-                                            key={r.id}
-                                            className='flex items-center justify-between gap-2 p-2 rounded bg-lucky-bg-secondary/50 border border-lucky-border'
-                                        >
-                                            <div className='text-xs text-lucky-text-body'>
-                                                <span className='font-semibold text-lucky-brand'>Lv.{r.level}</span>
-                                                {' → '}
-                                                {role ? (
-                                                    <span>{role.name}</span>
-                                                ) : (
-                                                    <span className='font-mono'>{r.roleId}</span>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={() => void handleRemoveReward(r.level)}
-                                                className='text-lucky-text-subtle hover:text-red-400 transition-colors'
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
-                                        </div>
-                                    )
-                                })
-                            )}
-                        </div>
-
-                        <div className='space-y-2 pt-2 border-t border-lucky-border'>
-                            <div className='grid grid-cols-2 gap-2'>
-                                <div className='space-y-1'>
-                                    <Label className='text-xs text-lucky-text-muted'>Level</Label>
-                                    <Input
-                                        type='number'
-                                        min={1}
-                                        placeholder='e.g. 5'
-                                        value={newRewardLevel}
-                                        onChange={e => setNewRewardLevel(e.target.value)}
-                                    />
-                                </div>
-                                <div className='space-y-1'>
-                                    <Label className='text-xs text-lucky-text-muted'>Role ID</Label>
-                                    <Input
-                                        placeholder='Role ID'
-                                        value={newRewardRoleId}
-                                        onChange={e => setNewRewardRoleId(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <Button
-                                variant='secondary'
-                                onClick={handleAddReward}
-                                disabled={addingReward || !newRewardLevel || !newRewardRoleId}
-                                className='w-full'
-                            >
-                                {addingReward ? (
-                                    <Loader2 size={14} className='animate-spin' />
-                                ) : (
-                                    <Plus size={14} />
-                                )}
-                                Add Reward
-                            </Button>
-                        </div>
-                    </Card>
-                </div>
+        {restLeaderboard.length > 0 && (
+          <Card className="overflow-hidden">
+            <div className="divide-y divide-lucky-border/30">
+              {restLeaderboard.map((user, idx) => (
+                <LeaderboardRowCompact key={user.userId} user={user} rank={idx + 2} />
+              ))}
             </div>
-        </div>
-    )
-}
+          </Card>
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-lucky-text-primary mb-4">Settings</h3>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Levels Enabled</Label>
+              <Switch
+                checked={settings.enabled}
+                onCheckedChange={(enabled) =>
+                  onSettingsChange?.({ ...settings, enabled })
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="announcement">Announcement Channel</Label>
+              <Input
+                id="announcement"
+                value={settings.announcement}
+                onChange={(e) =>
+                  onSettingsChange?.({ ...settings, announcement: e.target.value })
+                }
+                placeholder="Select channel"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="minLength">Min. Message Length</Label>
+              <Input
+                id="minLength"
+                type="number"
+                value={settings.minMessageLength}
+                onChange={(e) =>
+                  onSettingsChange?.({
+                    ...settings,
+                    minMessageLength: parseInt(e.target.value),
+                  })
+                }
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="cooldown">XP Cooldown (sec)</Label>
+              <Input
+                id="cooldown"
+                type="number"
+                value={settings.cooldown}
+                onChange={(e) =>
+                  onSettingsChange?.({ ...settings, cooldown: parseInt(e.target.value) })
+                }
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-lucky-text-primary mb-4">Rewards</h3>
+          <AnimatePresence mode="popLayout">
+            {rewards.map((reward, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 8 }}
+                className="flex items-center justify-between p-2 rounded bg-lucky-surface-highlight/30 mb-2"
+              >
+                <div className="flex items-center gap-2">
+                  <GripVerticalIcon className="w-4 h-4 text-lucky-text-muted" />
+                  <span className="text-sm">Level {reward.levelThreshold}</span>
+                  <Badge variant="outline" className="text-xs">
+                    {reward.roleName || 'Unknown'}
+                  </Badge>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleRemoveReward(idx)}
+                  className="h-7 w-7 p-0"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </Button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          <div className="space-y-1.5 pt-2 border-t border-lucky-border/30 mt-3">
+            <div>
+              <Label htmlFor="newLevel" className="text-xs">
+                Level
+              </Label>
+              <Input
+                id="newLevel"
+                type="number"
+                placeholder="5"
+                value={newReward.level}
+                onChange={(e) => setNewReward({ ...newReward, level: e.target.value })}
+                className="mt-0.5 h-8"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newRole" className="text-xs">
+                Role ID
+              </Label>
+              <Input
+                id="newRole"
+                placeholder="Role ID"
+                value={newReward.roleId}
+                onChange={(e) => setNewReward({ ...newReward, roleId: e.target.value })}
+                className="mt-0.5 h-8"
+              />
+            </div>
+            <Button
+              onClick={handleAddReward}
+              className="w-full h-8 text-xs gap-1"
+              disabled={!newReward.level || !newReward.roleId}
+            >
+              <PlusIcon className="w-3 h-3" />
+              Add Reward
+            </Button>
+          </div>
+        </Card>
+      </section>
+    </div>
+  );
+};
+
+export default LevelsPage;
