@@ -39,8 +39,8 @@ jobs:
                       dockerfile: Dockerfile
                       target: production-backend
                     - service: frontend
-                      dockerfile: Dockerfile.frontend
-                      target: ''
+                      dockerfile: Dockerfile
+                      target: production-frontend
                     - service: nginx
                       dockerfile: Dockerfile.nginx
                       target: ''
@@ -83,5 +83,4 @@ jobs:
 
             - name: Smoke test yt-dlp
               if: matrix.service == 'bot'
-              run: |
-                  docker run --rm ${{ env.IMAGE_PREFIX }}-bot:${{ github.sha }} yt-dlp --version
+              run: docker run --rm "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.meta.outputs.version }}" yt-dlp --version
