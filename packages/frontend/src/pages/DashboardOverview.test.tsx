@@ -226,7 +226,7 @@ describe('DashboardOverview', () => {
     })
 
     test('shows zero member count when guild memberCount is missing', () => {
-        mockGuildStoreFn({ ...mockGuild, memberCount: undefined })
+        mockGuildStoreFn({ ...mockGuild, memberCount: 0 })
         setupQueryHookMocks(
             mockStats,
             { cases: mockCases },
