@@ -1,5 +1,5 @@
 import type { CustomClient } from '../../types'
-import { simplifiedHealthCheck } from './SimplifiedTelemetry'
+import { simplifiedHealthCheck } from './clients'
 
 export function checkRedisHealth(_client: CustomClient): boolean {
     if (!_client.redis) return false

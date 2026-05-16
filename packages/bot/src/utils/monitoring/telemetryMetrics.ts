@@ -1,5 +1,5 @@
 import type { CustomClient } from '../../types'
-import { simplifiedMetrics } from './SimplifiedTelemetry'
+import { simplifiedMetrics } from './clients'
 
 export function recordCommandMetric(
     client: CustomClient,
