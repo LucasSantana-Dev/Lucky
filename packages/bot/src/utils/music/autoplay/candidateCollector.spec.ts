@@ -55,7 +55,14 @@ jest.mock('./candidateScorer', () => ({
 }))
 
 jest.mock('./scoringUtils', () => ({
-    normalizeText: jest.fn((val) => (val ?? '').toLowerCase()),
+    normalizeText: jest.fn((val) => {
+        const s = (val ?? '')
+            .normalize('NFKC')
+            .toLowerCase()
+            .replaceAll(/[^\p{L}\p{N}]+/gu, '')
+            .trim()
+        return s
+    }),
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 
