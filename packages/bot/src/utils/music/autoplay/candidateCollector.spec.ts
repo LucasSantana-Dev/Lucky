@@ -49,12 +49,13 @@ const normalizeTrackKeyMock = jest.fn((title?: string, author?: string) =>
     `${author}|${title}`.toLowerCase(),
 )
 
-jest.mock('../queueManipulation', () => ({
+jest.mock('./candidateScorer', () => ({
     calculateRecommendationScore: (...args: unknown[]) =>
         calculateRecommendationScoreMock(...args),
 }))
 
 jest.mock('./scoringUtils', () => ({
+    normalizeText: jest.fn((val) => (val ?? '').toLowerCase()),
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 
