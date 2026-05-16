@@ -30,6 +30,9 @@ jobs:
         permissions:
             contents: read
             packages: write
+            # Required by github/codeql-action/upload-sarif so trivy findings
+            # land in the repo's Code Scanning tab. See ADR 2026-05-16.
+            security-events: write
 
         strategy:
             matrix:
@@ -90,3 +93,33 @@ jobs:
                 # the GitHub owner's case (LucasSantana-Dev), so normalize here.
                 IMAGE="$(printf '%s' "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')"
                 docker run --rm "$IMAGE:${{ steps.meta.outputs.version }}" yt-dlp --version
+
+            # Phase A of the image-scan rollout (ADR 2026-05-16). Runs against
+            # the freshly-pushed image — audit-only, exit-code 0, never blocks
+            # CI. Findings land in the Code Scanning tab via SARIF upload, one
+            # category per service so matrix runs don't overwrite each other.
+            # Phase B will tighten to severity HIGH,CRITICAL + exit-code 1
+            # after 2 weeks of clean audits.
+            - name: Normalize image ref
+              id: imgref
+              run: |
+                IMAGE="$(printf '%s' "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')"
+                echo "ref=${IMAGE}:${{ steps.meta.outputs.version }}" >> "$GITHUB_OUTPUT"
+
+            - name: Trivy image scan (audit-only)
+              uses: aquasecurity/trivy-action@0.36.0
+              with:
+                  image-ref: ${{ steps.imgref.outputs.ref }}
+                  format: sarif
+                  output: trivy-image-${{ matrix.service }}.sarif
+                  severity: MEDIUM,HIGH,CRITICAL
+                  ignore-unfixed: true
+                  exit-code: '0'
+                  vuln-type: os,library
+
+            - name: Upload Trivy SARIF
+              if: always()
+              uses: github/codeql-action/upload-sarif@v3
+              with:
+                  sarif_file: trivy-image-${{ matrix.service }}.sarif
+                  category: trivy-image-${{ matrix.service }}
