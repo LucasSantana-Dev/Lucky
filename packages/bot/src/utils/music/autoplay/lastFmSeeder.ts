@@ -9,15 +9,10 @@ import {
 } from './lastFmSeeds'
 import { getSimilarTracks, getTagTopTracks } from '../../../lastfm'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
-import {
-    cleanSearchQuery,
-    cleanTitle,
-} from '../searchQueryCleaner'
+import { cleanSearchQuery, cleanTitle } from '../searchQueryCleaner'
 import type { SessionMood } from './sessionMood'
 import { calculateRecommendationScore } from './candidateScorer'
-import {
-    normalizeTrackKey,
-} from '../queueManipulation'
+import { normalizeTrackKey } from './scoringUtils'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
@@ -26,8 +21,8 @@ import type { QueueMetadata } from '../../../types/QueueMetadata'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 
-const LASTFM_SCORE_BOOST = 0.20
-const LOVED_SEED_EXTRA_BOOST = 0.10
+const LASTFM_SCORE_BOOST = 0.2
+const LOVED_SEED_EXTRA_BOOST = 0.1
 const MAX_SIMILAR_LOOKUPS = 15
 const SEARCH_RESULTS_LIMIT = 8
 const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
@@ -135,11 +130,16 @@ export async function collectLastFmCandidates(
                     sessionGenreFamilies,
                 },
             })
-            upsertScoredCandidate(candidates, track, {
-                score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
-                source: 'lastfm-loved',
-                signals: rec.signals,
-            }, auditCollector)
+            upsertScoredCandidate(
+                candidates,
+                track,
+                {
+                    score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
+                    source: 'lastfm-loved',
+                    signals: rec.signals,
+                },
+                auditCollector,
+            )
         }
 
         const similar = await getSimilarTracks(
@@ -180,11 +180,17 @@ export async function collectLastFmCandidates(
                         sessionGenreFamilies,
                     },
                 })
-                upsertScoredCandidate(candidates, track, {
-                    score: (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
-                    source: 'lastfm-similar',
-                    signals: rec.signals,
-                }, auditCollector)
+                upsertScoredCandidate(
+                    candidates,
+                    track,
+                    {
+                        score:
+                            (rec.score + LASTFM_SCORE_BOOST) * (s.match / 100),
+                        source: 'lastfm-similar',
+                        signals: rec.signals,
+                    },
+                    auditCollector,
+                )
             }
             if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         }
@@ -208,7 +214,11 @@ export async function collectLastFmCandidates(
                 )
                 for (const track of found) {
                     if (
-                        !shouldIncludeCandidate(track, excludedUrls, excludedKeys)
+                        !shouldIncludeCandidate(
+                            track,
+                            excludedUrls,
+                            excludedKeys,
+                        )
                     )
                         continue
                     const normalizedKey = normalizeTrackKey(
@@ -239,11 +249,16 @@ export async function collectLastFmCandidates(
                             sessionGenreFamilies,
                         },
                     })
-                    upsertScoredCandidate(candidates, track, {
-                        score: rec.score + LASTFM_SCORE_BOOST,
-                        source: 'lastfm-genre-fallback',
-                        signals: rec.signals,
-                    }, auditCollector)
+                    upsertScoredCandidate(
+                        candidates,
+                        track,
+                        {
+                            score: rec.score + LASTFM_SCORE_BOOST,
+                            source: 'lastfm-genre-fallback',
+                            signals: rec.signals,
+                        },
+                        auditCollector,
+                    )
                 }
                 if (candidates.size >= 3) break
             }

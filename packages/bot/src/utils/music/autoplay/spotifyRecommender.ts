@@ -1,8 +1,4 @@
-import {
-    QueryType,
-    type Track,
-    type GuildQueue,
-} from 'discord-player'
+import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
 import { logAndSwallow } from '@lucky/shared/utils/error'
@@ -22,12 +18,14 @@ import {
 } from '../searchQueryCleaner'
 import type { SessionMood } from './sessionMood'
 import {
-    shouldIncludeCandidate,
-    upsertScoredCandidate,
     normalizeTrackKey,
     normalizeText,
     extractSpotifyTrackId,
-} from '../queueManipulation'
+} from './scoringUtils'
+import {
+    shouldIncludeCandidate,
+    upsertScoredCandidate,
+} from './candidateCollector'
 import { calculateRecommendationScore } from './candidateScorer'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'
@@ -146,12 +144,15 @@ export async function collectSpotifyRecommendationCandidates(
         // When Last.fm is not linked, fall back to Spotify genres so the
         // cross-locale veto can still catch Spanish gospel tracks whose
         // title/artist name has no Spanish text markers.
-        const tags = lastFmTags.length > 0
-            ? lastFmTags
-            : await getArtistGenres(token, track.author).catch((err) => {
-                logAndSwallow(err, 'spotifyRecommender:getArtistGenres', { trackAuthor: track.author })
-                return [] as string[]
-            })
+        const tags =
+            lastFmTags.length > 0
+                ? lastFmTags
+                : await getArtistGenres(token, track.author).catch((err) => {
+                      logAndSwallow(err, 'spotifyRecommender:getArtistGenres', {
+                          trackAuthor: track.author,
+                      })
+                      return [] as string[]
+                  })
         const rec = calculateRecommendationScore({
             candidate: track,
             currentTrack,
@@ -183,11 +184,16 @@ export async function collectSpotifyRecommendationCandidates(
             }
         }
 
-        upsertScoredCandidate(candidates, track, {
-            score,
-            source,
-            signals,
-        }, auditCollector)
+        upsertScoredCandidate(
+            candidates,
+            track,
+            {
+                score,
+                source,
+                signals,
+            },
+            auditCollector,
+        )
     }
 }
 
@@ -233,8 +239,7 @@ export async function searchSeedCandidates(
         const tracks = searchResult.tracks
             .filter(
                 (t) =>
-                    !t.durationMS ||
-                    t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                    !t.durationMS || t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
             )
             .slice(0, SEARCH_RESULTS_LIMIT)
 

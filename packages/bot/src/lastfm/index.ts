@@ -15,8 +15,12 @@ export {
     updateNowPlaying,
     scrobble,
 } from './lastFmApi'
-export type { LastFmTopTrack, LastFmPeriod, LastFmTrackMetadata } from './lastFmApi'
+export type {
+    LastFmTopTrack,
+    LastFmPeriod,
+    LastFmTrackMetadata,
+} from './lastFmApi'
 export {
     consumeLastFmSeedSlice,
     consumeBlendedSeedSlice,
-} from '../utils/music/autoplay/lastFmSeeds'
+} from '../utils/music/autoplay/lastFmExports'

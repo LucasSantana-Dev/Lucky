@@ -181,7 +181,9 @@ async function handleQueueReplenishment(
     )
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
         try {
-            await replenishQueue(queue)
+            await replenishQueue(queue, undefined, () =>
+                getRecentSkipCount(queue.guild.id),
+            )
             debugLog({
                 message: 'Queue replenished after track start',
                 data: {
@@ -196,7 +198,9 @@ async function handleQueueReplenishment(
                 error: String(error),
             })
             setTimeout(() => {
-                replenishQueue(queue).catch((retryErr) => {
+                replenishQueue(queue, undefined, () =>
+                    getRecentSkipCount(queue.guild.id),
+                ).catch((retryErr) => {
                     warnLog({
                         message: 'Replenish retry failed',
                         error: retryErr,
@@ -260,7 +264,9 @@ async function replenishIfAutoplay(
     }
     const autoplayEnabled = await isAutoplayReplenishmentEnabled(queue)
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
-        await replenishQueue(queue, finishedTrack)
+        await replenishQueue(queue, finishedTrack, () =>
+            getRecentSkipCount(queue.guild.id),
+        )
     }
 }
 
@@ -328,7 +334,8 @@ const handlePlayerSkip = async (
                 const skipRatio = (Date.now() - startTime) / track.durationMS
                 if (skipRatio < 0.3) {
                     await recordImplicitTrackFeedback(track, 'implicit_dislike')
-                    const current = guildRecentSkipCounts.get(queue.guild.id) ?? 0
+                    const current =
+                        guildRecentSkipCounts.get(queue.guild.id) ?? 0
                     guildRecentSkipCounts.set(queue.guild.id, current + 1)
                 }
             }

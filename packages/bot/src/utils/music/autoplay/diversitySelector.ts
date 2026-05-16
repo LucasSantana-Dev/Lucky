@@ -4,6 +4,7 @@ import { trackHistoryService } from '@lucky/shared/services'
 import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
 import { markAsAutoplayTrack } from '../queueManipulation'
+import { extractYouTubeVideoId } from './scoringUtils'
 import type { RecommendationBasis } from './recommendationBasis.js'
 import { serializeBasis } from './recommendationBasis.js'
 
@@ -19,22 +20,6 @@ const FUZZY_TITLE_THRESHOLD = 0.75
 
 function randomJitter(max: number): number {
     return Math.random() * max // NOSONAR - non-cryptographic jitter for diversity selection
-}
-
-function extractYouTubeVideoId(url: string): string | null {
-    const idx = url.indexOf('v=')
-    if (idx !== -1) {
-        const id = url.slice(idx + 2, idx + 13).replace(/[^a-zA-Z0-9_-]/g, '')
-        return id.length >= 8 ? id : null
-    }
-    const shortIdx = url.indexOf('youtu.be/')
-    if (shortIdx !== -1) {
-        const id = url
-            .slice(shortIdx + 9, shortIdx + 20)
-            .replace(/[^a-zA-Z0-9_-]/g, '')
-        return id.length >= 8 ? id : null
-    }
-    return null
 }
 
 function normalizeText(value?: string): string {
@@ -72,7 +57,11 @@ function stripFeaturing(author: string): string {
         const close = result.indexOf(')', open + 1)
         if (close === -1) break
         const inner = result.slice(open + 1, close).toLowerCase()
-        if (inner.includes('feat') || inner.startsWith('ft ') || inner.startsWith('ft.')) {
+        if (
+            inner.includes('feat') ||
+            inner.startsWith('ft ') ||
+            inner.startsWith('ft.')
+        ) {
             result = (result.slice(0, open) + result.slice(close + 1)).trim()
             i = 0
         } else {
@@ -83,17 +72,34 @@ function stripFeaturing(author: string): string {
 }
 
 const VARIANT_KEYWORDS = [
-    'remastered', 'remaster', 'remixed', 'remix',
-    'radio edit', 'extended mix', 'club mix', 'vip mix',
-    'edit', 'version', 'acoustic', 'live', 'cover',
+    'remastered',
+    'remaster',
+    'remixed',
+    'remix',
+    'radio edit',
+    'extended mix',
+    'club mix',
+    'vip mix',
+    'edit',
+    'version',
+    'acoustic',
+    'live',
+    'cover',
 ]
 
 function startsWithYear(s: string): boolean {
-    return s.length >= 5 && s[4] === ' ' &&
-        s[0] >= '0' && s[0] <= '9' &&
-        s[1] >= '0' && s[1] <= '9' &&
-        s[2] >= '0' && s[2] <= '9' &&
-        s[3] >= '0' && s[3] <= '9'
+    return (
+        s.length >= 5 &&
+        s[4] === ' ' &&
+        s[0] >= '0' &&
+        s[0] <= '9' &&
+        s[1] >= '0' &&
+        s[1] <= '9' &&
+        s[2] >= '0' &&
+        s[2] <= '9' &&
+        s[3] >= '0' &&
+        s[3] <= '9'
+    )
 }
 
 function stripVariantSuffix(title: string): string {
@@ -101,13 +107,22 @@ function stripVariantSuffix(title: string): string {
     const trimmedLower = lower.trimEnd()
 
     // Strip parenthetical variant suffix at end: (Remastered) or [2015 Live]
-    for (const [openChar, closeChar] of [['(', ')'], ['[', ']']] as [string, string][]) {
+    for (const [openChar, closeChar] of [
+        ['(', ')'],
+        ['[', ']'],
+    ] as [string, string][]) {
         if (trimmedLower[trimmedLower.length - 1] !== closeChar) continue
         const lastOpen = trimmedLower.lastIndexOf(openChar)
         if (lastOpen < 0) continue
-        let inner = trimmedLower.slice(lastOpen + 1, trimmedLower.length - 1).trim()
+        let inner = trimmedLower
+            .slice(lastOpen + 1, trimmedLower.length - 1)
+            .trim()
         if (startsWithYear(inner)) inner = inner.slice(5)
-        if (VARIANT_KEYWORDS.some((v) => inner === v || inner.startsWith(v + ' '))) {
+        if (
+            VARIANT_KEYWORDS.some(
+                (v) => inner === v || inner.startsWith(v + ' '),
+            )
+        ) {
             return title.slice(0, lastOpen).trimEnd()
         }
     }
@@ -118,7 +133,9 @@ function stripVariantSuffix(title: string): string {
         if (idx < 0) continue
         let rest = lower.slice(idx + sep.length).trimEnd()
         if (startsWithYear(rest)) rest = rest.slice(5)
-        if (VARIANT_KEYWORDS.some((v) => rest === v || rest.startsWith(v + ' '))) {
+        if (
+            VARIANT_KEYWORDS.some((v) => rest === v || rest.startsWith(v + ' '))
+        ) {
             return title.slice(0, idx).trimEnd()
         }
     }
@@ -206,8 +223,11 @@ export function isDuplicateCandidate(
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
 
     const candidateTitle = normalizeTitleOnly(track.title)
-    const candidateTitleStripped = normalizeTitleOnly(stripVariantSuffix(track.title ?? ''))
-    if (candidateTitleStripped && excludedKeys.has(candidateTitleStripped)) return true
+    const candidateTitleStripped = normalizeTitleOnly(
+        stripVariantSuffix(track.title ?? ''),
+    )
+    if (candidateTitleStripped && excludedKeys.has(candidateTitleStripped))
+        return true
     if (candidateTitle.length >= 5) {
         for (const key of excludedKeys) {
             if (key.includes('::') || key.length < 5) continue
@@ -249,7 +269,8 @@ export function selectDiverseCandidates(
         const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (candidate.track.source ?? 'unknown').toLowerCase()
         const titleKey = normalizeTitleOnly(candidate.track.title)
-        const albumName = (candidate.track.raw as any)?.album?.name?.toLowerCase() ?? ''
+        const albumName =
+            (candidate.track.raw as any)?.album?.name?.toLowerCase() ?? ''
         const core = extractSongCore(
             candidate.track.title ?? '',
             candidate.track.author,
@@ -289,7 +310,11 @@ export async function addSelectedTracks(
     const historyWrites: Promise<boolean>[] = []
 
     for (const candidate of selected) {
-        markAsAutoplayTrack(candidate.track, serializeBasis(candidate.basis), requestedById)
+        markAsAutoplayTrack(
+            candidate.track,
+            serializeBasis(candidate.basis),
+            requestedById,
+        )
         queue.addTrack(candidate.track)
         // Update local exclusion sets for this replenish call
         excludedUrls.add(candidate.track.url)
