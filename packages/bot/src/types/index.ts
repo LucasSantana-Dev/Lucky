@@ -1,25 +1,8 @@
-import type {
-    Client,
-    Collection,
-    ChatInputCommandInteraction,
-} from 'discord.js'
-import type { Player } from 'discord-player'
-import type Command from '../models/Command'
+// Pure barrel — re-exports only. Concrete type declarations live in
+// sibling modules so importers can target them directly without
+// round-tripping through this file. See
+// docs/decisions/2026-05-16-next-refactor-target-bot-circular-deps.md
+// (fixed madge cycles 1-2).
 
-export type CustomClient = Client & {
-    commands: Collection<string, Command>
-    player: Player
-    cooldowns: Collection<string, number>
-    redis?: unknown
-    metrics?: unknown
-    tracer?: unknown
-    token?: string
-    clientId?: string
-}
-
-export type CommandType = {
-    data: unknown
-    execute: (_interaction: ChatInputCommandInteraction) => Promise<void>
-}
-
+export type { CommandType, CustomClient } from './CustomClient'
 export type { QueueMetadata } from './QueueMetadata'

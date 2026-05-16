@@ -1,5 +1,5 @@
 import type { TextChannel, User } from 'discord.js'
-import type { CustomClient } from './index'
+import type { CustomClient } from './CustomClient'
 
 export interface QueueMetadata {
     channel?: TextChannel | null
