@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 import { infoLog } from '@lucky/shared/utils'
-import type { ScoredTrack } from './candidateCollector'
+import type { ScoredTrack } from './diversitySelector'
 import { serializeBasis } from './recommendationBasis.js'
 import type { SessionMood } from './sessionMood'
 
