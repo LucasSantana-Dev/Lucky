@@ -125,6 +125,10 @@ services:
             - ./logs:/app/logs
         networks:
             - lucky-network
+            # Shared monitoring network so the homelab Prometheus
+            # container can scrape /metrics on port 9091 without
+            # exposing it on the host. See homelab PR #135.
+            - lucky-monitoring
         logging:
             driver: "json-file"
             options:
@@ -160,6 +164,10 @@ services:
             WEBAPP_BACKEND_URL: ${WEBAPP_BACKEND_URL:-}
         networks:
             - lucky-network
+            # Shared monitoring network so the homelab Prometheus
+            # container can scrape /metrics on the backend without
+            # exposing it on the host. See homelab PR #135.
+            - lucky-monitoring
         logging:
             driver: "json-file"
             options:
@@ -259,4 +267,10 @@ volumes:
 
 networks:
     lucky-network:
+        driver: bridge
+    # External network shared with the homelab monitoring stack
+    # (Prometheus, Grafana). Lucky owns/creates it; homelab joins it
+    # as `external: true`. See homelab PR #135.
+    lucky-monitoring:
+        name: lucky-monitoring
         driver: bridge
