@@ -45,16 +45,17 @@ const calculateRecommendationScoreMock = jest.fn(() => ({
     score: 0.5,
     signals: [],
 }))
-const normalizeTrackKeyMock = jest.fn(
-    (title?: string, author?: string) =>
-        `${author}|${title}`.toLowerCase(),
+const normalizeTrackKeyMock = jest.fn((title?: string, author?: string) =>
+    `${author}|${title}`.toLowerCase(),
 )
 
 jest.mock('../queueManipulation', () => ({
     calculateRecommendationScore: (...args: unknown[]) =>
         calculateRecommendationScoreMock(...args),
-    normalizeTrackKey: (...args: unknown[]) =>
-        normalizeTrackKeyMock(...args),
+}))
+
+jest.mock('./scoringUtils', () => ({
+    normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
 }))
 
 function createTrack(overrides: Partial<Track> = {}): Track {
@@ -92,7 +93,11 @@ describe('candidateCollector', () => {
             const excludedUrls = new Set<string>()
             const excludedKeys = new Set<string>()
 
-            const result = shouldIncludeCandidate(track, excludedUrls, excludedKeys)
+            const result = shouldIncludeCandidate(
+                track,
+                excludedUrls,
+                excludedKeys,
+            )
 
             expect(result).toBe(true)
         })
@@ -108,7 +113,11 @@ describe('candidateCollector', () => {
             ])
             const excludedKeys = new Set<string>()
 
-            const result = shouldIncludeCandidate(track, excludedUrls, excludedKeys)
+            const result = shouldIncludeCandidate(
+                track,
+                excludedUrls,
+                excludedKeys,
+            )
 
             expect(result).toBe(false)
         })
@@ -118,7 +127,11 @@ describe('candidateCollector', () => {
         it('should add new candidate to pool', () => {
             const candidates = new Map<string, ScoredTrack>()
             const track = createTrack({ title: 'Song 1', author: 'Artist 1' })
-            const recommendation = { score: 0.8, source: 'spotify-rec' as const, signals: [] }
+            const recommendation = {
+                score: 0.8,
+                source: 'spotify-rec' as const,
+                signals: [],
+            }
 
             upsertScoredCandidate(candidates, track, recommendation)
 
@@ -140,11 +153,13 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track1, {
                 score: 0.5,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
             upsertScoredCandidate(candidates, track2, {
                 score: 0.8,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             expect(candidates.size).toBe(1)
@@ -159,11 +174,13 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.9,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
             upsertScoredCandidate(candidates, track, {
                 score: 0.3,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             const entry = Array.from(candidates.values())[0]
@@ -180,7 +197,8 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: -Infinity,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             expect(candidates.size).toBe(0)
@@ -188,15 +206,20 @@ describe('candidateCollector', () => {
 
         it('drops -Infinity even when an existing entry could be displaced', () => {
             const candidates = new Map<string, ScoredTrack>()
-            const track = createTrack({ title: 'Same Song', author: 'Same Artist' })
+            const track = createTrack({
+                title: 'Same Song',
+                author: 'Same Artist',
+            })
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.5,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
             upsertScoredCandidate(candidates, track, {
                 score: -Infinity,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             expect(candidates.size).toBe(1)
@@ -211,7 +234,8 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: Number.NaN,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             expect(candidates.size).toBe(0)
@@ -227,7 +251,8 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.5,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             expect(candidates.size).toBe(1)
@@ -244,7 +269,8 @@ describe('candidateCollector', () => {
 
             upsertScoredCandidate(candidates, track, {
                 score: 0.5,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             expect(candidates.size).toBe(1)
@@ -257,7 +283,8 @@ describe('candidateCollector', () => {
             isDuplicateCandidateMock.mockReturnValue(false)
             calculateRecommendationScoreMock.mockReturnValue({
                 score: 0.5,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
             normalizeTrackKeyMock.mockImplementation(
                 (title?: string, author?: string) =>
@@ -268,7 +295,20 @@ describe('candidateCollector', () => {
         it('should collect candidates from Spotify API', async () => {
             // Mock Spotify recommender to add candidates
             collectSpotifyRecommendationCandidatesMock.mockImplementation(
-                async (_queue, _seeds, _requestedBy, _excludedUrls, _excludedKeys, _disliked, _liked, _preferred, _blocked, _current, _recent, candidates) => {
+                async (
+                    _queue,
+                    _seeds,
+                    _requestedBy,
+                    _excludedUrls,
+                    _excludedKeys,
+                    _disliked,
+                    _liked,
+                    _preferred,
+                    _blocked,
+                    _current,
+                    _recent,
+                    candidates,
+                ) => {
                     upsertScoredCandidate(
                         candidates,
                         createTrack({
@@ -301,7 +341,9 @@ describe('candidateCollector', () => {
             )
 
             expect(result.size).toBe(1)
-            expect(collectSpotifyRecommendationCandidatesMock).toHaveBeenCalled()
+            expect(
+                collectSpotifyRecommendationCandidatesMock,
+            ).toHaveBeenCalled()
         })
 
         it('should collect seed-based search candidates', async () => {
@@ -425,7 +467,8 @@ describe('candidateCollector', () => {
             // Mock score calculation to return -Infinity
             calculateRecommendationScoreMock.mockReturnValue({
                 score: -Infinity,
-                source: 'spotify-rec', signals: [],
+                source: 'spotify-rec',
+                signals: [],
             })
 
             const queue = createGuildQueue()
@@ -533,8 +576,13 @@ describe('candidateCollector', () => {
         })
 
         it('blocks sertanejo candidates when blockSertanejo=true and tags match', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
-            const serTanejoTrack = createTrack({ title: 'Saudade do Nordeste', author: 'Jorge e Mateus' })
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
+                undefined,
+            )
+            const serTanejoTrack = createTrack({
+                title: 'Saudade do Nordeste',
+                author: 'Jorge e Mateus',
+            })
             searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
 
             const getArtistTags = jest.fn().mockResolvedValue(['sertanejo'])
@@ -566,8 +614,13 @@ describe('candidateCollector', () => {
         })
 
         it('allows sertanejo candidates when blockSertanejo=false', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
-            const serTanejoTrack = createTrack({ title: 'Saudade do Nordeste', author: 'Jorge e Mateus' })
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
+                undefined,
+            )
+            const serTanejoTrack = createTrack({
+                title: 'Saudade do Nordeste',
+                author: 'Jorge e Mateus',
+            })
             searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
 
             const getArtistTags = jest.fn().mockResolvedValue(['sertanejo'])
@@ -599,8 +652,13 @@ describe('candidateCollector', () => {
         })
 
         it('does not block sertanejo when tags are empty (fail-open when Last.fm unavailable)', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
-            const serTanejoTrack = createTrack({ title: 'Saudade do Nordeste', author: 'Jorge e Mateus' })
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
+                undefined,
+            )
+            const serTanejoTrack = createTrack({
+                title: 'Saudade do Nordeste',
+                author: 'Jorge e Mateus',
+            })
             searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
 
             const getArtistTags = jest.fn().mockResolvedValue([]) // no tags returned
@@ -632,11 +690,18 @@ describe('candidateCollector', () => {
         })
 
         it('falls back to empty tags when getArtistTags rejects', async () => {
-            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(undefined)
-            const track = createTrack({ title: 'Some Song', author: 'Some Artist' })
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
+                undefined,
+            )
+            const track = createTrack({
+                title: 'Some Song',
+                author: 'Some Artist',
+            })
             searchSeedCandidatesMock.mockResolvedValue([track])
 
-            const getArtistTags = jest.fn().mockRejectedValue(new Error('Last.fm down'))
+            const getArtistTags = jest
+                .fn()
+                .mockRejectedValue(new Error('Last.fm down'))
 
             const result = await collectRecommendationCandidates(
                 createGuildQueue(),
