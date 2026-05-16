@@ -32,6 +32,11 @@ jest.mock('../../../spotify/spotifyApi', () => ({
     getArtistGenres: (...args: unknown[]) => getArtistGenresMock(...args),
 }))
 
+jest.mock('./scoringUtils', () => ({
+    normalizeText: jest.fn((val) => (val ?? '').toLowerCase()),
+    normalizeTrackKey: jest.fn((title, author) => `${title}::${author}`),
+}))
+
 function createTrack(overrides: Partial<Track> = {}): Track {
     return {
         title: 'Test Song',
@@ -299,7 +304,10 @@ describe('candidateScorer', () => {
         })
 
         it('does not reject Spanish candidates when session has Spanish history', () => {
-            const current = createTrack({ title: 'Despacito', author: 'Luis Fonsi' })
+            const current = createTrack({
+                title: 'Despacito',
+                author: 'Luis Fonsi',
+            })
             const candidate = createTrack({ title: 'Reggaeton Song' })
             const mood: SessionMood = {
                 dominantLocale: 'spanish',
@@ -518,7 +526,10 @@ describe('candidateScorer', () => {
 
         it('relaxes genre family penalty by 50% during skip storms (recentSkipCount >= 3)', () => {
             const current = createTrack({ author: 'Rap Artist' })
-            const candidate = createTrack({ author: 'Pop Artist', source: 'youtube' })
+            const candidate = createTrack({
+                author: 'Pop Artist',
+                source: 'youtube',
+            })
             const recentArtists = new Set(['other'])
             const moodWithSkips: SessionMood = {
                 dominantLocale: null,
@@ -543,7 +554,10 @@ describe('candidateScorer', () => {
                 dislikedWeights: new Map(),
                 sessionMood: moodWithSkips,
                 skipNoveltyBoost: false,
-                genreContext: { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
+                genreContext: {
+                    candidateTags: ['pop'],
+                    currentTrackTags: ['hip hop', 'rap'],
+                },
             })
             const withoutSkips = calculateRecommendationScore({
                 candidate: candidate,
@@ -559,7 +573,10 @@ describe('candidateScorer', () => {
                 dislikedWeights: new Map(),
                 sessionMood: null,
                 skipNoveltyBoost: false,
-                genreContext: { candidateTags: ['pop'], currentTrackTags: ['hip hop', 'rap'] },
+                genreContext: {
+                    candidateTags: ['pop'],
+                    currentTrackTags: ['hip hop', 'rap'],
+                },
             })
 
             expect(withSkips.score).toBeGreaterThan(withoutSkips.score)
@@ -567,7 +584,11 @@ describe('candidateScorer', () => {
 
         it('boosts candidates in popular mode based on liked weight', () => {
             const current = createTrack()
-            const candidate = createTrack({ title: 'Hit Song', author: 'Test Artist', source: 'youtube' })
+            const candidate = createTrack({
+                title: 'Hit Song',
+                author: 'Test Artist',
+                source: 'youtube',
+            })
             const likedWeights = new Map([['hitsong::testartist', 0.8]])
             const recentArtists = new Set(['other'])
 
@@ -658,9 +679,7 @@ describe('candidateScorer', () => {
         })
 
         it('identifies genres in multiple families', () => {
-            const families = getGenreFamilies(
-                ['rock', 'jazz', 'reggaeton'],
-            )
+            const families = getGenreFamilies(['rock', 'jazz', 'reggaeton'])
             expect(families.size).toBeGreaterThanOrEqual(3)
         })
 
@@ -712,18 +731,19 @@ describe('candidateScorer', () => {
         it('returns tracks unchanged when no Spotify tracks found', async () => {
             const tracks = [
                 {
-                    track: createTrack({ url: 'https://youtube.com/watch?v=123' }),
+                    track: createTrack({
+                        url: 'https://youtube.com/watch?v=123',
+                    }),
                     score: 1,
                     signals: [],
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+            } as SpotifyAudioFeatures)
 
             expect(result).toEqual(tracks)
         })
@@ -739,11 +759,10 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockRejectedValue(new Error('API error'))
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+            } as SpotifyAudioFeatures)
 
             expect(result).toEqual(tracks)
         })
@@ -757,7 +776,9 @@ describe('candidateScorer', () => {
                 },
             ]
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
-            getArtistGenresMock.mockRejectedValue(new Error('Genre fetch failed'))
+            getArtistGenresMock.mockRejectedValue(
+                new Error('Genre fetch failed'),
+            )
 
             const result = await enrichWithAudioFeatures(
                 tracks,
@@ -790,11 +811,10 @@ describe('candidateScorer', () => {
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeGreaterThan(1)
         })
@@ -820,11 +840,10 @@ describe('candidateScorer', () => {
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeGreaterThan(1)
         })
@@ -850,11 +869,10 @@ describe('candidateScorer', () => {
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.1, valence: 0.1 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.1,
+                valence: 0.1,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeLessThan(1)
         })
@@ -864,15 +882,24 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
-                    ['testid', { energy: 0.5, valence: 0.5, tempo: 180, acousticness: 0.3 } as SpotifyAudioFeatures],
+                    [
+                        'testid',
+                        {
+                            energy: 0.5,
+                            valence: 0.5,
+                            tempo: 180,
+                            acousticness: 0.3,
+                        } as SpotifyAudioFeatures,
+                    ],
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5, tempo: 100, acousticness: 0.3 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+                tempo: 100,
+                acousticness: 0.3,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeLessThan(1)
         })
@@ -882,15 +909,24 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
-                    ['testid', { energy: 0.5, valence: 0.5, tempo: 120, acousticness: 0.8 } as SpotifyAudioFeatures],
+                    [
+                        'testid',
+                        {
+                            energy: 0.5,
+                            valence: 0.5,
+                            tempo: 120,
+                            acousticness: 0.8,
+                        } as SpotifyAudioFeatures,
+                    ],
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5, tempo: 120, acousticness: 0.5 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+                tempo: 120,
+                acousticness: 0.5,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeGreaterThan(1)
         })
@@ -900,15 +936,24 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
-                    ['testid', { energy: 0.95, valence: 0.95, tempo: 120, acousticness: 0.05 } as SpotifyAudioFeatures],
+                    [
+                        'testid',
+                        {
+                            energy: 0.95,
+                            valence: 0.95,
+                            tempo: 120,
+                            acousticness: 0.05,
+                        } as SpotifyAudioFeatures,
+                    ],
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.1, valence: 0.1, tempo: 120, acousticness: 0.8 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.1,
+                valence: 0.1,
+                tempo: 120,
+                acousticness: 0.8,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeLessThan(1)
         })
@@ -918,15 +963,24 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
-                    ['testid', { energy: 0.4, valence: 0.4, tempo: 90, acousticness: 0.75 } as SpotifyAudioFeatures],
+                    [
+                        'testid',
+                        {
+                            energy: 0.4,
+                            valence: 0.4,
+                            tempo: 90,
+                            acousticness: 0.75,
+                        } as SpotifyAudioFeatures,
+                    ],
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.4, valence: 0.4, tempo: 90, acousticness: 0.7 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.4,
+                valence: 0.4,
+                tempo: 90,
+                acousticness: 0.7,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeGreaterThan(1)
         })
@@ -936,15 +990,24 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(
                 new Map([
-                    ['testid', { energy: 0.95, valence: 0.95, tempo: 120, acousticness: 0.8 } as SpotifyAudioFeatures],
+                    [
+                        'testid',
+                        {
+                            energy: 0.95,
+                            valence: 0.95,
+                            tempo: 120,
+                            acousticness: 0.8,
+                        } as SpotifyAudioFeatures,
+                    ],
                 ]),
             )
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.1, valence: 0.1, tempo: 120, acousticness: 0.1 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.1,
+                valence: 0.1,
+                tempo: 120,
+                acousticness: 0.1,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeLessThan(1)
         })
@@ -971,11 +1034,10 @@ describe('candidateScorer', () => {
             spotifyLinkServiceMock.mockResolvedValue('valid-token')
             getBatchAudioFeaturesMock.mockResolvedValue(new Map())
 
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'user-123',
-                { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-            )
+            const result = await enrichWithAudioFeatures(tracks, 'user-123', {
+                energy: 0.5,
+                valence: 0.5,
+            } as SpotifyAudioFeatures)
 
             expect(result[0].score).toBeGreaterThan(result[1].score)
         })
