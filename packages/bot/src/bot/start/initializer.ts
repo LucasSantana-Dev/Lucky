@@ -4,6 +4,10 @@ import { createPlayer } from '../../handlers/playerHandler'
 import { setCommands } from '../../handlers/commandsHandler'
 import { getCommands } from '../../register'
 import handleEvents from '../../handlers/eventHandler'
+import {
+    startMetricsServer,
+    stopMetricsServer,
+} from '../../utils/monitoring/metricsServer'
 import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
@@ -108,6 +112,7 @@ export class BotInitializer {
             this.setupEventHandlers(options)
             if (this.client) {
                 await startClient({ client: this.client })
+                startMetricsServer(this.client)
             }
             this.setInitializationState()
 
@@ -156,6 +161,11 @@ export class BotInitializer {
             } catch (error) {
                 errorLog({ message: 'Error during bot shutdown:', error })
             }
+        }
+        try {
+            await stopMetricsServer()
+        } catch (error) {
+            errorLog({ message: 'Error stopping metrics server:', error })
         }
     }
 }
