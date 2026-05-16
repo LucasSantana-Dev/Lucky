@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import path from 'path'
 import { setupSessionMiddleware } from './session'
 import { requestLogger } from './requestLogger'
+import { metricsMiddleware } from './metrics'
 import { getFrontendOrigins } from '../utils/frontendOrigin'
 
 export function setupMiddleware(app: Express): void {
@@ -59,6 +60,7 @@ export function setupMiddleware(app: Express): void {
     )
 
     app.use(requestLogger)
+    app.use(metricsMiddleware)
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
     app.use(cookieParser())

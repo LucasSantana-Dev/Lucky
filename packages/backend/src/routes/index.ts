@@ -26,6 +26,7 @@ import { requireAdmin } from '../middleware/requireAdmin'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { errorHandler } from '../middleware/errorHandler'
 import { setupHealthRoutes } from './health'
+import { setupMetricsRoute } from './metrics'
 import { setupStatsRoutes } from './stats'
 import { setupInviteRoute } from './invite'
 
@@ -84,6 +85,7 @@ const routeSetups = [
 export function setupRoutes(app: Express): void {
     setupInviteRoute(app)
     setupHealthRoutes(app)
+    setupMetricsRoute(app)
     setupStatsRoutes(app)
     setupInternalNotifyRoutes(app)
     setupWebhookPublicRoutes(app)
