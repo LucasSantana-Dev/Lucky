@@ -1,9 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-const initMock = vi.fn()
-const captureExceptionMock = vi.fn()
-const reactRouterV7IntegrationMock = vi.fn(() => ({ name: 'react-router-v7' }))
-const replayIntegrationMock = vi.fn(() => ({ name: 'replay' }))
+// Mocks use variadic `unknown[]` signatures so the forwarding wrappers
+// in vi.mock below can spread args without TS2556 narrowing them to a
+// concrete tuple shape.
+const initMock = vi.fn<(...args: unknown[]) => unknown>()
+const captureExceptionMock = vi.fn<(...args: unknown[]) => unknown>()
+const reactRouterV7IntegrationMock = vi.fn(
+    (..._args: unknown[]) => ({ name: 'react-router-v7' }),
+)
+const replayIntegrationMock = vi.fn(
+    (..._args: unknown[]) => ({ name: 'replay' }),
+)
 
 vi.mock('@sentry/react', () => ({
     init: (...args: unknown[]) => initMock(...args),
