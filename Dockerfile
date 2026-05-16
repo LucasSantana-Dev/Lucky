@@ -173,6 +173,12 @@ CMD ["node", "packages/backend/dist/index.js"]
 # Replaces the former standalone Dockerfile.frontend.
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS production-frontend
 
+# Patch Alpine OS packages to current Alpine 3.21 package index versions.
+# See Dockerfile.nginx for context (same base image, same CVE exposure).
+USER root
+RUN apk upgrade --no-cache && rm -rf /var/cache/apk/*
+USER nginx
+
 COPY --from=build-frontend /app/packages/frontend/dist /usr/share/nginx/html
 COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
