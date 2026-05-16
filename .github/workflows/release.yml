@@ -26,6 +26,12 @@ jobs:
                   cache: 'npm'
 
             - name: Install dependencies
+              # Authenticate postinstall scripts that hit GitHub releases
+              # (e.g. youtube-dl-exec) so shared-runner IPs don't hit the
+              # 60 req/hr unauthenticated cap. See #874.
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  YOUTUBE_DL_SKIP_DOWNLOAD: 'true'
               run: npm ci
 
             - name: Build project
