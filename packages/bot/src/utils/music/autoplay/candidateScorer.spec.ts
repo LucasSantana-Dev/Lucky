@@ -32,18 +32,6 @@ jest.mock('../../../spotify/spotifyApi', () => ({
     getArtistGenres: (...args: unknown[]) => getArtistGenresMock(...args),
 }))
 
-jest.mock('./scoringUtils', () => ({
-    normalizeText: jest.fn((val) => {
-        const s = (val ?? '')
-            .normalize('NFKC')
-            .toLowerCase()
-            .replaceAll(/[^\p{L}\p{N}]+/gu, '')
-            .trim()
-        return s
-    }),
-    normalizeTrackKey: jest.fn((title, author) => `${title}::${author}`),
-}))
-
 function createTrack(overrides: Partial<Track> = {}): Track {
     return {
         title: 'Test Song',
