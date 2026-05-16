@@ -171,7 +171,7 @@ CMD ["node", "packages/backend/dist/index.js"]
 
 # Production stage — frontend (static SPA served by non-root nginx).
 # Replaces the former standalone Dockerfile.frontend.
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS production-frontend
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS production-frontend
 
 COPY --from=build-frontend /app/packages/frontend/dist /usr/share/nginx/html
 COPY nginx/frontend.conf /etc/nginx/conf.d/default.conf
