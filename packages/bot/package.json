@@ -32,7 +32,7 @@
         "play-dl": "^1.9.7",
         "ws": "^8.19.0",
         "youtube-dl-exec": "^3.1.6",
-        "youtubei.js": "^17.0.1"
+        "youtubei.js": "^16.0.1"
     },
     "devDependencies": {
         "@types/jest": "^30.0.0",

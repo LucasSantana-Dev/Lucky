@@ -54,6 +54,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.54.0
         version: 8.58.2(eslint@10.2.0(jiti@2.6.1))(typescript@6.0.3)
+      eslint:
+        specifier: ^10.0.3
+        version: 10.2.0(jiti@2.6.1)
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@10.2.0(jiti@2.6.1))
