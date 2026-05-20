@@ -3,35 +3,44 @@ import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 const mockFetch = jest.fn<any>()
 global.fetch = mockFetch as any
 
-jest.mock('@lucky/shared/services', () => ({
-    autoMessageService: {
+jest.mock('@lucky/shared/services', () => {
+    const autoMessageServiceMock = {
         getWelcomeMessage: jest.fn<any>(),
         getLeaveMessage: jest.fn<any>(),
         createMessage: jest.fn<any>(),
         updateMessage: jest.fn<any>(),
-    },
-    autoModService: {
-        getSettings: jest.fn<any>(),
-        updateSettings: jest.fn<any>(),
-    },
-    getModerationSettings: jest.fn<any>(),
-    updateModerationSettings: jest.fn<any>(),
-    guildAutomationService: {
-        getManifest: jest.fn<any>(),
-    },
-    guildRoleAccessService: {
-        listRoleGrants: jest.fn<any>(),
-        replaceRoleGrants: jest.fn<any>(),
-    },
-    reactionRolesService: {
-        listReactionRoleMessages: jest.fn<any>(),
-    },
-    roleManagementService: {
-        listExclusiveRoles: jest.fn<any>(),
-        setExclusiveRole: jest.fn<any>(),
-        removeExclusiveRole: jest.fn<any>(),
-    },
-}))
+    }
+    const { createAutoMessagesExecutor } = jest.requireActual(
+        '@lucky/shared/services/guildAutomation/autoMessagesExecutor',
+    )
+    return {
+        autoMessageService: autoMessageServiceMock,
+        autoMessagesExecutor: createAutoMessagesExecutor({
+            autoMessageService: autoMessageServiceMock,
+        }),
+        autoModService: {
+            getSettings: jest.fn<any>(),
+            updateSettings: jest.fn<any>(),
+        },
+        getModerationSettings: jest.fn<any>(),
+        updateModerationSettings: jest.fn<any>(),
+        guildAutomationService: {
+            getManifest: jest.fn<any>(),
+        },
+        guildRoleAccessService: {
+            listRoleGrants: jest.fn<any>(),
+            replaceRoleGrants: jest.fn<any>(),
+        },
+        reactionRolesService: {
+            listReactionRoleMessages: jest.fn<any>(),
+        },
+        roleManagementService: {
+            listExclusiveRoles: jest.fn<any>(),
+            setExclusiveRole: jest.fn<any>(),
+            removeExclusiveRole: jest.fn<any>(),
+        },
+    }
+})
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -1340,15 +1349,33 @@ describe('GuildAutomationExecutionService', () => {
             })
             const actual = createMinimalManifest()
             const plan = createMinimalPlan([
-                { module: 'onboarding', action: 'update', protected: false, description: 'Update' },
+                {
+                    module: 'onboarding',
+                    action: 'update',
+                    protected: false,
+                    description: 'Update',
+                },
             ])
-            mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) })
-            const result = await guildAutomationExecutionService.executeApplyPlan({
-                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({}),
             })
+            const result =
+                await guildAutomationExecutionService.executeApplyPlan({
+                    guildId: GUILD_ID,
+                    plan,
+                    desired,
+                    actual,
+                    allowProtected: false,
+                })
             expect(result.diagnostics.appliedModules).toContain('onboarding')
-            const body = JSON.parse((mockFetch.mock.calls[0] as any[])[1].body as string)
-            expect(body.prompts[0].options[0].channel_ids).toEqual([CHANNEL_ID_1])
+            const body = JSON.parse(
+                (mockFetch.mock.calls[0] as any[])[1].body as string,
+            )
+            expect(body.prompts[0].options[0].channel_ids).toEqual([
+                CHANNEL_ID_1,
+            ])
             expect(body.prompts[0].options[0].role_ids).toEqual([ROLE_ID_1])
         })
 
@@ -1356,24 +1383,42 @@ describe('GuildAutomationExecutionService', () => {
             const desired = createMinimalManifest({
                 commandaccess: {
                     grants: [
-                        { roleId: ROLE_ID_1, module: 'music', mode: 'allow' as any },
+                        {
+                            roleId: ROLE_ID_1,
+                            module: 'music',
+                            mode: 'allow' as any,
+                        },
                     ],
                 },
             })
             const actual = createMinimalManifest()
             const plan = createMinimalPlan([
-                { module: 'commandaccess', action: 'update', protected: false, description: 'Update' },
+                {
+                    module: 'commandaccess',
+                    action: 'update',
+                    protected: false,
+                    description: 'Update',
+                },
             ])
-            const { guildRoleAccessService } = await import('@lucky/shared/services')
-            ;(guildRoleAccessService.replaceRoleGrants as jest.Mock).mockResolvedValue(undefined)
-            const result = await guildAutomationExecutionService.executeApplyPlan({
-                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
-            })
+            const { guildRoleAccessService } =
+                await import('@lucky/shared/services')
+            ;(
+                guildRoleAccessService.replaceRoleGrants as jest.Mock
+            ).mockResolvedValue(undefined)
+            const result =
+                await guildAutomationExecutionService.executeApplyPlan({
+                    guildId: GUILD_ID,
+                    plan,
+                    desired,
+                    actual,
+                    allowProtected: false,
+                })
             expect(result.diagnostics.appliedModules).toContain('commandaccess')
-            expect(guildRoleAccessService.replaceRoleGrants as jest.Mock).toHaveBeenCalledWith(
-                GUILD_ID,
-                [{ roleId: ROLE_ID_1, module: 'music', mode: 'allow' }],
-            )
+            expect(
+                guildRoleAccessService.replaceRoleGrants as jest.Mock,
+            ).toHaveBeenCalledWith(GUILD_ID, [
+                { roleId: ROLE_ID_1, module: 'music', mode: 'allow' },
+            ])
         })
 
         test('should update existing channel by ID', async () => {
@@ -1381,7 +1426,14 @@ describe('GuildAutomationExecutionService', () => {
                 roles: {
                     roles: [],
                     channels: [
-                        { id: CHANNEL_ID_1, name: 'updated-name', type: 'GuildText', parentId: null, topic: null, readonly: false },
+                        {
+                            id: CHANNEL_ID_1,
+                            name: 'updated-name',
+                            type: 'GuildText',
+                            parentId: null,
+                            topic: null,
+                            readonly: false,
+                        },
                     ],
                 },
             })
@@ -1389,17 +1441,38 @@ describe('GuildAutomationExecutionService', () => {
                 roles: {
                     roles: [],
                     channels: [
-                        { id: CHANNEL_ID_1, name: 'old-name', type: 'GuildText', parentId: null, topic: null, readonly: false },
+                        {
+                            id: CHANNEL_ID_1,
+                            name: 'old-name',
+                            type: 'GuildText',
+                            parentId: null,
+                            topic: null,
+                            readonly: false,
+                        },
                     ],
                 },
             })
             const plan = createMinimalPlan([
-                { module: 'roles', action: 'update', protected: false, description: 'Update channel' },
+                {
+                    module: 'roles',
+                    action: 'update',
+                    protected: false,
+                    description: 'Update channel',
+                },
             ])
-            mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) })
-            const result = await guildAutomationExecutionService.executeApplyPlan({
-                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => ({}),
             })
+            const result =
+                await guildAutomationExecutionService.executeApplyPlan({
+                    guildId: GUILD_ID,
+                    plan,
+                    desired,
+                    actual,
+                    allowProtected: false,
+                })
             expect(result.diagnostics.appliedModules).toContain('roles')
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining(`/channels/${CHANNEL_ID_1}`),
@@ -1412,7 +1485,14 @@ describe('GuildAutomationExecutionService', () => {
                 roles: {
                     roles: [],
                     channels: [
-                        { id: CHANNEL_ID_1, name: 'keep', type: 'GuildText', parentId: null, topic: null, readonly: false },
+                        {
+                            id: CHANNEL_ID_1,
+                            name: 'keep',
+                            type: 'GuildText',
+                            parentId: null,
+                            topic: null,
+                            readonly: false,
+                        },
                     ],
                 },
             })
@@ -1420,18 +1500,45 @@ describe('GuildAutomationExecutionService', () => {
                 roles: { roles: [], channels: [] },
             })
             const plan = createMinimalPlan([
-                { module: 'roles', action: 'delete', protected: true, description: 'Delete stale' },
+                {
+                    module: 'roles',
+                    action: 'delete',
+                    protected: true,
+                    description: 'Delete stale',
+                },
             ])
             mockFetch
-                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: CHANNEL_ID_1, name: 'keep' }) })  // POST create channel
-                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] })  // GET roles for prune
-                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [  // GET channels for prune
-                    { id: CHANNEL_ID_2, name: 'stale' },
-                ] })
-                .mockResolvedValueOnce({ ok: true, status: 204, json: async () => undefined })  // DELETE stale channel
-            const result = await guildAutomationExecutionService.executeApplyPlan({
-                guildId: GUILD_ID, plan, desired, actual, allowProtected: true,
-            })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    json: async () => ({ id: CHANNEL_ID_1, name: 'keep' }),
+                }) // POST create channel
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    json: async () => [],
+                }) // GET roles for prune
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    json: async () => [
+                        // GET channels for prune
+                        { id: CHANNEL_ID_2, name: 'stale' },
+                    ],
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 204,
+                    json: async () => undefined,
+                }) // DELETE stale channel
+            const result =
+                await guildAutomationExecutionService.executeApplyPlan({
+                    guildId: GUILD_ID,
+                    plan,
+                    desired,
+                    actual,
+                    allowProtected: true,
+                })
             expect(result.diagnostics.appliedModules).toContain('roles')
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining(`/channels/${CHANNEL_ID_2}`),
@@ -1447,37 +1554,122 @@ describe('GuildAutomationExecutionService', () => {
 
             const desired = createMinimalManifest({
                 roles: {
-                    roles: [{ id: OLD_ROLE, name: 'Member', color: 0, hoist: false, mentionable: false }],
-                    channels: [{ id: OLD_CHANNEL, name: 'general', type: 'GuildText', parentId: null, topic: null, readonly: false }],
+                    roles: [
+                        {
+                            id: OLD_ROLE,
+                            name: 'Member',
+                            color: 0,
+                            hoist: false,
+                            mentionable: false,
+                        },
+                    ],
+                    channels: [
+                        {
+                            id: OLD_CHANNEL,
+                            name: 'general',
+                            type: 'GuildText',
+                            parentId: null,
+                            topic: null,
+                            readonly: false,
+                        },
+                    ],
                 },
-                onboarding: { enabled: true, mode: 0, defaultChannelIds: [OLD_CHANNEL], prompts: [] },
+                onboarding: {
+                    enabled: true,
+                    mode: 0,
+                    defaultChannelIds: [OLD_CHANNEL],
+                    prompts: [],
+                },
                 moderation: {
-                    automod: { exemptRoles: [OLD_ROLE], exemptChannels: [OLD_CHANNEL] } as any,
-                    moderationSettings: { muteRoleId: OLD_ROLE, modRoleIds: [OLD_ROLE], adminRoleIds: [] } as any,
+                    automod: {
+                        exemptRoles: [OLD_ROLE],
+                        exemptChannels: [OLD_CHANNEL],
+                    } as any,
+                    moderationSettings: {
+                        muteRoleId: OLD_ROLE,
+                        modRoleIds: [OLD_ROLE],
+                        adminRoleIds: [],
+                    } as any,
                 },
                 automessages: {
-                    welcome: { enabled: true, channelId: OLD_CHANNEL, message: 'hi' },
-                    leave: { enabled: true, channelId: OLD_CHANNEL, message: 'bye' },
+                    welcome: {
+                        enabled: true,
+                        channelId: OLD_CHANNEL,
+                        message: 'hi',
+                    },
+                    leave: {
+                        enabled: true,
+                        channelId: OLD_CHANNEL,
+                        message: 'bye',
+                    },
                 },
                 reactionroles: {
-                    messages: [{ id: 'm1', messageId: 'dm1', channelId: OLD_CHANNEL, mappings: [{ roleId: OLD_ROLE, label: 'x', emoji: undefined, style: undefined }] }],
-                    exclusiveRoles: [{ roleId: OLD_ROLE, excludedRoleId: OLD_ROLE }],
+                    messages: [
+                        {
+                            id: 'm1',
+                            messageId: 'dm1',
+                            channelId: OLD_CHANNEL,
+                            mappings: [
+                                {
+                                    roleId: OLD_ROLE,
+                                    label: 'x',
+                                    emoji: undefined,
+                                    style: undefined,
+                                },
+                            ],
+                        },
+                    ],
+                    exclusiveRoles: [
+                        { roleId: OLD_ROLE, excludedRoleId: OLD_ROLE },
+                    ],
                 },
-                commandaccess: { grants: [{ roleId: OLD_ROLE, module: 'music', mode: 'allow' as any }] },
+                commandaccess: {
+                    grants: [
+                        {
+                            roleId: OLD_ROLE,
+                            module: 'music',
+                            mode: 'allow' as any,
+                        },
+                    ],
+                },
             })
-            const actual = createMinimalManifest({ roles: { roles: [], channels: [] } })
+            const actual = createMinimalManifest({
+                roles: { roles: [], channels: [] },
+            })
             const plan = createMinimalPlan([
-                { module: 'roles', action: 'create', protected: false, description: 'Create' },
+                {
+                    module: 'roles',
+                    action: 'create',
+                    protected: false,
+                    description: 'Create',
+                },
             ])
             mockFetch
-                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: NEW_ROLE, name: 'Member' }) })
-                .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: NEW_CHANNEL, name: 'general' }) })
-            const result = await guildAutomationExecutionService.executeApplyPlan({
-                guildId: GUILD_ID, plan, desired, actual, allowProtected: false,
-            })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    json: async () => ({ id: NEW_ROLE, name: 'Member' }),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    json: async () => ({ id: NEW_CHANNEL, name: 'general' }),
+                })
+            const result =
+                await guildAutomationExecutionService.executeApplyPlan({
+                    guildId: GUILD_ID,
+                    plan,
+                    desired,
+                    actual,
+                    allowProtected: false,
+                })
             expect(result.remappedManifest).toBeDefined()
-            expect(result.diagnostics.roleIdRemaps).toEqual({ [OLD_ROLE]: NEW_ROLE })
-            expect(result.diagnostics.channelIdRemaps).toEqual({ [OLD_CHANNEL]: NEW_CHANNEL })
+            expect(result.diagnostics.roleIdRemaps).toEqual({
+                [OLD_ROLE]: NEW_ROLE,
+            })
+            expect(result.diagnostics.channelIdRemaps).toEqual({
+                [OLD_CHANNEL]: NEW_CHANNEL,
+            })
         })
 
         test('should note when reactionroles messages require manual setup', async () => {
@@ -1629,7 +1821,10 @@ describe('GuildAutomationExecutionService', () => {
                 })
                 .mockResolvedValueOnce({
                     ok: true,
-                    json: async () => [{ id: GUILD_ID, name: '@everyone' }, { id: ROLE_ID_1, name: 'Member' }],
+                    json: async () => [
+                        { id: GUILD_ID, name: '@everyone' },
+                        { id: ROLE_ID_1, name: 'Member' },
+                    ],
                 })
                 .mockResolvedValueOnce({
                     ok: true,
@@ -1695,7 +1890,10 @@ describe('GuildAutomationExecutionService', () => {
                 })
                 .mockResolvedValueOnce({
                     ok: true,
-                    json: async () => [{ id: GUILD_ID, name: '@everyone' }, { id: ROLE_ID_1, name: 'Admin' }],
+                    json: async () => [
+                        { id: GUILD_ID, name: '@everyone' },
+                        { id: ROLE_ID_1, name: 'Admin' },
+                    ],
                 })
                 .mockResolvedValueOnce({
                     ok: true,
@@ -1862,7 +2060,10 @@ describe('GuildAutomationExecutionService', () => {
         it('isExpectedDeleteError should identify forbidden and not found errors', () => {
             const err403 = new GuildAutomationExecutionError('Forbidden', 403)
             const err404 = new GuildAutomationExecutionError('Not found', 404)
-            const err500 = new GuildAutomationExecutionError('Server error', 500)
+            const err500 = new GuildAutomationExecutionError(
+                'Server error',
+                500,
+            )
             const nonError = new Error('Regular error')
 
             expect(isExpectedDeleteError(err403)).toBe(true)

@@ -14,29 +14,43 @@ const removeExclusiveRoleMock = jest.fn()
 const setExclusiveRoleMock = jest.fn()
 const updateModerationSettingsMock = jest.fn()
 
-jest.mock('@lucky/shared/services', () => ({
-    autoMessageService: {
-        getWelcomeMessage: (...args: unknown[]) => getWelcomeMessageMock(...args),
+jest.mock('@lucky/shared/services', () => {
+    const autoMessageServiceMock = {
+        getWelcomeMessage: (...args: unknown[]) =>
+            getWelcomeMessageMock(...args),
         getLeaveMessage: (...args: unknown[]) => getLeaveMessageMock(...args),
         createMessage: (...args: unknown[]) => createMessageMock(...args),
         updateMessage: (...args: unknown[]) => updateMessageMock(...args),
-    },
-    autoModService: {
-        updateSettings: (...args: unknown[]) => updateSettingsMock(...args),
-    },
-    manifestOnboardingToDiscordEdit: (...args: unknown[]) =>
-        manifestOnboardingToDiscordEditMock(...args),
-    guildRoleAccessService: {
-        replaceRoleGrants: (...args: unknown[]) => replaceRoleGrantsMock(...args),
-    },
-    roleManagementService: {
-        listExclusiveRoles: (...args: unknown[]) => listExclusiveRolesMock(...args),
-        removeExclusiveRole: (...args: unknown[]) => removeExclusiveRoleMock(...args),
-        setExclusiveRole: (...args: unknown[]) => setExclusiveRoleMock(...args),
-    },
-    updateModerationSettings: (...args: unknown[]) =>
-        updateModerationSettingsMock(...args),
-}))
+    }
+    const { createAutoMessagesExecutor } = jest.requireActual(
+        '@lucky/shared/services/guildAutomation/autoMessagesExecutor',
+    )
+    return {
+        autoMessageService: autoMessageServiceMock,
+        autoMessagesExecutor: createAutoMessagesExecutor({
+            autoMessageService: autoMessageServiceMock,
+        }),
+        autoModService: {
+            updateSettings: (...args: unknown[]) => updateSettingsMock(...args),
+        },
+        manifestOnboardingToDiscordEdit: (...args: unknown[]) =>
+            manifestOnboardingToDiscordEditMock(...args),
+        guildRoleAccessService: {
+            replaceRoleGrants: (...args: unknown[]) =>
+                replaceRoleGrantsMock(...args),
+        },
+        roleManagementService: {
+            listExclusiveRoles: (...args: unknown[]) =>
+                listExclusiveRolesMock(...args),
+            removeExclusiveRole: (...args: unknown[]) =>
+                removeExclusiveRoleMock(...args),
+            setExclusiveRole: (...args: unknown[]) =>
+                setExclusiveRoleMock(...args),
+        },
+        updateModerationSettings: (...args: unknown[]) =>
+            updateModerationSettingsMock(...args),
+    }
+})
 
 const errorLogMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
@@ -200,7 +214,14 @@ describe('applyAutomationModules', () => {
             roles: {
                 cache: new Map([
                     ['guild-1', { id: 'guild-1', editable: false }],
-                    ['legacy-role', { id: 'legacy-role', editable: true, delete: deleteRoleMock }],
+                    [
+                        'legacy-role',
+                        {
+                            id: 'legacy-role',
+                            editable: true,
+                            delete: deleteRoleMock,
+                        },
+                    ],
                 ]),
                 create: jest.fn().mockResolvedValue(undefined),
             },
@@ -234,7 +255,8 @@ describe('applyAutomationModules', () => {
         expect(deleteRoleMock).toHaveBeenCalled()
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Failed to delete channel during guild automation apply',
+                message:
+                    'Failed to delete channel during guild automation apply',
                 data: expect.objectContaining({
                     guildId: 'guild-1',
                     channelId: 'old-channel',
@@ -253,7 +275,9 @@ describe('applyAutomationModules', () => {
                         {
                             id: 'channel-x',
                             name: 'channel-x',
-                            delete: jest.fn().mockRejectedValue(new Error('boom')),
+                            delete: jest
+                                .fn()
+                                .mockRejectedValue(new Error('boom')),
                         },
                     ],
                 ]),
@@ -281,7 +305,9 @@ describe('applyAutomationModules', () => {
         const channelCreateMock = jest.fn().mockResolvedValue(undefined)
         const guild = createGuild({
             roles: {
-                cache: new Map([['guild-1', { id: 'guild-1', editable: false }]]),
+                cache: new Map([
+                    ['guild-1', { id: 'guild-1', editable: false }],
+                ]),
                 create: roleCreateMock,
             },
             channels: {
@@ -376,7 +402,9 @@ describe('applyAutomationModules', () => {
         const staleDeleteMock = jest.fn().mockRejectedValue('delete-failed')
         const guild = createGuild({
             roles: {
-                cache: new Map([['guild-1', { id: 'guild-1', editable: false }]]),
+                cache: new Map([
+                    ['guild-1', { id: 'guild-1', editable: false }],
+                ]),
                 create: jest.fn().mockResolvedValue(undefined),
             },
             channels: {
@@ -550,7 +578,12 @@ describe('applyAutomationModules', () => {
         expect(result.appliedModules).toEqual(['roles'])
     })
 
-    it('skips auto-message upsert when payload message is missing', async () => {
+    it('skips auto-message writes when payload message is missing', async () => {
+        // Post Module Executor pilot: Capture always reads live state (one
+        // batched lookup) before Diff. The lazy "skip the DB read entirely"
+        // optimization the old upsertAutoMessage impl had is gone, but the
+        // end-to-end behavior (no create/update writes) is unchanged.
+        // See docs/decisions/2026-05-19-guild-automation-module-executors.md.
         const guild = createGuild()
 
         const result = await applyAutomationModules({
@@ -569,8 +602,6 @@ describe('applyAutomationModules', () => {
             allowProtected: false,
         })
 
-        expect(getWelcomeMessageMock).not.toHaveBeenCalled()
-        expect(getLeaveMessageMock).not.toHaveBeenCalled()
         expect(createMessageMock).not.toHaveBeenCalled()
         expect(updateMessageMock).not.toHaveBeenCalled()
         expect(result.appliedModules).toEqual(['automessages'])
