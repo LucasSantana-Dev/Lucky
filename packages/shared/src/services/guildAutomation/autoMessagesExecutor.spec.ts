@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals'
 import { createAutoMessagesExecutor } from './autoMessagesExecutor'
 
 type ServiceRow = {
@@ -7,6 +8,18 @@ type ServiceRow = {
     enabled: boolean
 } | null
 
+type GetMessageFn = (guildId: string) => Promise<ServiceRow>
+type CreateMessageFn = (
+    guildId: string,
+    type: 'welcome' | 'leave',
+    data: { message: string },
+    options?: { channelId?: string },
+) => Promise<{ id: string }>
+type UpdateMessageFn = (
+    id: string,
+    data: Record<string, unknown>,
+) => Promise<void>
+
 function makeService(
     overrides: Partial<{
         welcome: ServiceRow
@@ -15,27 +28,21 @@ function makeService(
 ) {
     return {
         getWelcomeMessage: jest
-            .fn<Promise<ServiceRow>, [string]>()
+            .fn<GetMessageFn>()
             .mockResolvedValue(overrides.welcome ?? null),
         getLeaveMessage: jest
-            .fn<Promise<ServiceRow>, [string]>()
+            .fn<GetMessageFn>()
             .mockResolvedValue(overrides.leave ?? null),
         createMessage: jest
-            .fn<
-                Promise<{ id: string }>,
-                [
-                    string,
-                    'welcome' | 'leave',
-                    { message: string },
-                    { channelId?: string } | undefined,
-                ]
-            >()
-            .mockImplementation((_g, type) =>
-                Promise.resolve({ id: `new-${type}` }),
+            .fn<CreateMessageFn>()
+            .mockImplementation(
+                (
+                    _guildId: string,
+                    type: 'welcome' | 'leave',
+                ): Promise<{ id: string }> =>
+                    Promise.resolve({ id: `new-${type}` }),
             ),
-        updateMessage: jest
-            .fn<Promise<void>, [string, Record<string, unknown>]>()
-            .mockResolvedValue(undefined),
+        updateMessage: jest.fn<UpdateMessageFn>().mockResolvedValue(undefined),
     }
 }
 
