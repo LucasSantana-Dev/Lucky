@@ -67,7 +67,6 @@ model Guild {
   trackHistory        TrackHistory[]
   commandUsage        CommandUsage[]
   twitchNotifications TwitchNotification[]
-  featureToggles      GuildFeatureToggle[]
 
   @@map("guilds")
 }
@@ -92,17 +91,8 @@ model GuildMembershipEvent {
   @@map("guild_membership_events")
 }
 
-model GuildFeatureToggle {
-  id      String @id @default(cuid())
-  guildId String
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  name    String
-  enabled Boolean
-
-  @@unique([guildId, name])
-  @@index([guildId])
-  @@map("guild_feature_toggles")
-}
+// GuildFeatureToggle was retired in PR #801 (admin panel for global toggles).
+// See docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md for context.
 
 model GlobalFeatureToggle {
   id      String  @id @default(cuid())

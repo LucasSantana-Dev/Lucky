@@ -1,11 +1,15 @@
 import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals'
 
-const mockFindUnique = jest.fn<any>()
-const mockUpsert = jest.fn<any>()
+// Per-guild feature toggles were retired in PR #801 (admin panel for global
+// toggles). See docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md.
+// This spec only covers the surviving global Vercel-flag + DB-override path.
+
+const mockGlobalFindUnique = jest.fn<any>()
+const mockGlobalUpsert = jest.fn<any>()
 const mockPrismaClient = {
-    guildFeatureToggle: {
-        findUnique: (...args: unknown[]) => mockFindUnique(...args),
-        upsert: (...args: unknown[]) => mockUpsert(...args),
+    globalFeatureToggle: {
+        findUnique: (...args: unknown[]) => mockGlobalFindUnique(...args),
+        upsert: (...args: unknown[]) => mockGlobalUpsert(...args),
     },
 }
 const mockEvaluate = jest.fn<any>()
@@ -53,10 +57,11 @@ describe('FeatureToggleService', () => {
     beforeEach(async () => {
         jest.resetModules()
         delete process.env.FLAGS
-        mockFindUnique.mockReset()
-        mockUpsert.mockReset()
+        mockGlobalFindUnique.mockReset()
+        mockGlobalUpsert.mockReset()
         mockEvaluate.mockReset()
         mockCreateClient.mockClear()
+        mockGlobalFindUnique.mockResolvedValue(null)
 
         const mod = await import('./FeatureToggleService')
         service = mod.featureToggleService as unknown as typeof service
@@ -68,111 +73,6 @@ describe('FeatureToggleService', () => {
         } else {
             process.env.FLAGS = originalFlags
         }
-    })
-
-    describe('getDbOverride (via isEnabledForGuild)', () => {
-        it('returns db value when row exists (enabled=true)', async () => {
-            mockFindUnique.mockResolvedValue({ enabled: true })
-            const result = await (
-                service as unknown as {
-                    getDbOverride(
-                        guildId: string,
-                        name: string,
-                    ): Promise<boolean | null>
-                }
-            ).getDbOverride('guild-1', 'DOWNLOAD_AUDIO')
-            expect(result).toBe(true)
-        })
-
-        it('returns db value when row exists (enabled=false)', async () => {
-            mockFindUnique.mockResolvedValue({ enabled: false })
-            const result = await (
-                service as unknown as {
-                    getDbOverride(
-                        guildId: string,
-                        name: string,
-                    ): Promise<boolean | null>
-                }
-            ).getDbOverride('guild-1', 'DOWNLOAD_AUDIO')
-            expect(result).toBe(false)
-        })
-
-        it('returns null when no row found', async () => {
-            mockFindUnique.mockResolvedValue(null)
-            const result = await (
-                service as unknown as {
-                    getDbOverride(
-                        guildId: string,
-                        name: string,
-                    ): Promise<boolean | null>
-                }
-            ).getDbOverride('guild-1', 'DOWNLOAD_AUDIO')
-            expect(result).toBeNull()
-        })
-
-        it('returns null when db throws', async () => {
-            mockFindUnique.mockRejectedValue(new Error('DB connection failed'))
-            const result = await (
-                service as unknown as {
-                    getDbOverride(
-                        guildId: string,
-                        name: string,
-                    ): Promise<boolean | null>
-                }
-            ).getDbOverride('guild-1', 'DOWNLOAD_AUDIO')
-            expect(result).toBeNull()
-        })
-    })
-
-    describe('setGuildFeatureToggle', () => {
-        it('upserts the toggle with correct args', async () => {
-            mockUpsert.mockResolvedValue({})
-            await service.setGuildFeatureToggle(
-                'guild-1',
-                'DOWNLOAD_VIDEO',
-                true,
-            )
-            expect(mockUpsert).toHaveBeenCalledWith({
-                where: {
-                    guildId_name: {
-                        guildId: 'guild-1',
-                        name: 'DOWNLOAD_VIDEO',
-                    },
-                },
-                update: { enabled: true },
-                create: {
-                    guildId: 'guild-1',
-                    name: 'DOWNLOAD_VIDEO',
-                    enabled: true,
-                },
-            })
-        })
-
-        it('upserts with enabled=false', async () => {
-            mockUpsert.mockResolvedValue({})
-            await service.setGuildFeatureToggle(
-                'guild-1',
-                'DOWNLOAD_AUDIO',
-                false,
-            )
-            expect(mockUpsert).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    update: { enabled: false },
-                    create: expect.objectContaining({ enabled: false }),
-                }),
-            )
-        })
-
-        it('propagates db errors', async () => {
-            mockUpsert.mockRejectedValue(new Error('DB write failed'))
-            await expect(
-                service.setGuildFeatureToggle(
-                    'guild-1',
-                    'DOWNLOAD_VIDEO',
-                    true,
-                ),
-            ).rejects.toThrow('DB write failed')
-        })
     })
 
     describe('global Vercel flags', () => {
@@ -270,50 +170,6 @@ describe('FeatureToggleService', () => {
             expect(mod.featureToggleService.getGlobalToggleProvider()).toBe(
                 'vercel',
             )
-        })
-    })
-
-    describe('isEnabledForGuild with DB override', () => {
-        it('returns db override (true) without checking Vercel', async () => {
-            mockFindUnique.mockResolvedValue({ enabled: true })
-            const result = await service.isEnabledForGuild(
-                'DOWNLOAD_AUDIO',
-                'guild-1',
-            )
-            expect(result).toBe(true)
-        })
-
-        it('returns db override (false) without checking Vercel', async () => {
-            process.env.FLAGS = 'vf_test'
-            mockEvaluate.mockResolvedValue({
-                value: true,
-                reason: 'fallthrough',
-            })
-            mockFindUnique.mockResolvedValue({ enabled: false })
-            const result = await service.isEnabledForGuild(
-                'DOWNLOAD_VIDEO',
-                'guild-1',
-            )
-            expect(result).toBe(false)
-            expect(mockEvaluate).not.toHaveBeenCalled()
-        })
-
-        it('falls back to fallback toggle when no db override', async () => {
-            mockFindUnique.mockResolvedValue(null)
-            const result = await service.isEnabledForGuild(
-                'DOWNLOAD_VIDEO',
-                'guild-1',
-            )
-            expect(result).toBe(true)
-        })
-
-        it('falls back to fallback toggle when db throws', async () => {
-            mockFindUnique.mockRejectedValue(new Error('DB error'))
-            const result = await service.isEnabledForGuild(
-                'DOWNLOAD_VIDEO',
-                'guild-1',
-            )
-            expect(result).toBe(true)
         })
     })
 })

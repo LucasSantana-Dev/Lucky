@@ -20,18 +20,16 @@ jest.mock('../../../src/utils/developerAccess', () => ({
     isDeveloperUser: (userId?: string) => userId === '123456789',
 }))
 
-const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
 const mockSetGlobalFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
 
+// Per-guild toggles retired in PR #801. See
+// docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md.
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {
         getAllToggles: jest.fn(),
         getGlobalToggleProvider: jest.fn(),
         getGlobalToggleStatus: jest.fn(),
         isEnabledGlobal: jest.fn(),
-        isEnabledForGuild: jest.fn(),
-        setGuildFeatureToggle: (...args: any[]) =>
-            mockSetGuildFeatureToggle(...args),
         setGlobalFeatureToggle: (...args: any[]) =>
             mockSetGlobalFeatureToggle(...args),
     },
@@ -337,5 +335,4 @@ describe('Toggles Routes Integration', () => {
             })
         })
     })
-
 })
