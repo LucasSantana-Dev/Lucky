@@ -117,3 +117,8 @@ docs/LOVABLE_PROMPT.md
 docs/FRONTEND_AI_STUDIO_CONTEXT.md
 **/LIBRARY_RECOMMENDATIONS.md
 **/CODE_EXAMPLES.md
+
+# graphify knowledge-graph build artifacts (graph.json, GRAPH_REPORT.md, cache/, manifest.json, cost.json).
+# Rebuild with `/graphify --update`; do not track.
+graphify-out/
+

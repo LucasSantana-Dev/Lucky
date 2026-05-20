@@ -1,0 +1,150 @@
+import { createAutoMessagesExecutor } from './autoMessagesExecutor'
+
+type ServiceRow = {
+    id: string
+    channelId: string | null
+    message: string | null
+    enabled: boolean
+} | null
+
+function makeService(
+    overrides: Partial<{
+        welcome: ServiceRow
+        leave: ServiceRow
+    }> = {},
+) {
+    return {
+        getWelcomeMessage: jest
+            .fn<Promise<ServiceRow>, [string]>()
+            .mockResolvedValue(overrides.welcome ?? null),
+        getLeaveMessage: jest
+            .fn<Promise<ServiceRow>, [string]>()
+            .mockResolvedValue(overrides.leave ?? null),
+        createMessage: jest
+            .fn<
+                Promise<{ id: string }>,
+                [
+                    string,
+                    'welcome' | 'leave',
+                    { message: string },
+                    { channelId?: string } | undefined,
+                ]
+            >()
+            .mockImplementation((_g, type) =>
+                Promise.resolve({ id: `new-${type}` }),
+            ),
+        updateMessage: jest
+            .fn<Promise<void>, [string, Record<string, unknown>]>()
+            .mockResolvedValue(undefined),
+    }
+}
+
+describe('autoMessagesExecutor', () => {
+    it('Apply creates welcome and leave when neither exists', async () => {
+        const service = makeService()
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { message: 'Hi', channelId: '1' },
+            leave: { message: 'Bye', channelId: '2' },
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(service.createMessage).toHaveBeenCalledTimes(2)
+        expect(service.createMessage).toHaveBeenCalledWith(
+            'guild-1',
+            'welcome',
+            { message: 'Hi' },
+            { channelId: '1' },
+        )
+        expect(service.createMessage).toHaveBeenCalledWith(
+            'guild-1',
+            'leave',
+            { message: 'Bye' },
+            { channelId: '2' },
+        )
+        expect(service.updateMessage).not.toHaveBeenCalled()
+        expect(result.applied).toEqual([
+            { type: 'welcome', action: 'create' },
+            { type: 'leave', action: 'create' },
+        ])
+    })
+
+    it('Apply updates welcome when row already exists; leaves leave untouched when manifest omits it', async () => {
+        const service = makeService({
+            welcome: {
+                id: 'welcome-row',
+                channelId: 'old-1',
+                message: 'old hi',
+                enabled: true,
+            },
+        })
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { message: 'new hi', channelId: 'new-1', enabled: false },
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(service.createMessage).not.toHaveBeenCalled()
+        expect(service.updateMessage).toHaveBeenCalledTimes(1)
+        expect(service.updateMessage).toHaveBeenCalledWith('welcome-row', {
+            message: 'new hi',
+            channelId: 'new-1',
+            enabled: false,
+        })
+        expect(result.applied).toEqual([
+            { type: 'welcome', action: 'update' },
+            { type: 'leave', action: 'noop' },
+        ])
+    })
+
+    it('Apply is noop when manifest payload has no message (matches monolith skip-on-empty behavior)', async () => {
+        const service = makeService()
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { channelId: '1' }, // no message — should be noop
+            leave: {},
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(service.createMessage).not.toHaveBeenCalled()
+        expect(service.updateMessage).not.toHaveBeenCalled()
+        expect(result.applied).toEqual([
+            { type: 'welcome', action: 'noop' },
+            { type: 'leave', action: 'noop' },
+        ])
+    })
+
+    it('Apply is noop when manifest section is empty', async () => {
+        const service = makeService()
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {})
+        const result = await executor.apply(diff, ctx)
+
+        expect(service.createMessage).not.toHaveBeenCalled()
+        expect(service.updateMessage).not.toHaveBeenCalled()
+        expect(result.applied).toEqual([
+            { type: 'welcome', action: 'noop' },
+            { type: 'leave', action: 'noop' },
+        ])
+    })
+})
