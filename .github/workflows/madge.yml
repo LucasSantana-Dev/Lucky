@@ -38,13 +38,15 @@ jobs:
                       | tee madge-bot.txt
                   COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt || echo 0)
                   echo "bot_cycles=$COUNT" >> "$GITHUB_OUTPUT"
-                  echo "## madge circular deps — packages/bot/src" >> "$GITHUB_STEP_SUMMARY"
-                  echo "" >> "$GITHUB_STEP_SUMMARY"
-                  echo "**Cycle count:** $COUNT" >> "$GITHUB_STEP_SUMMARY"
-                  echo "" >> "$GITHUB_STEP_SUMMARY"
-                  echo '```' >> "$GITHUB_STEP_SUMMARY"
-                  cat madge-bot.txt >> "$GITHUB_STEP_SUMMARY"
-                  echo '```' >> "$GITHUB_STEP_SUMMARY"
+                  {
+                      echo "## madge circular deps — packages/bot/src"
+                      echo ""
+                      echo "**Cycle count:** $COUNT"
+                      echo ""
+                      echo '```'
+                      cat madge-bot.txt
+                      echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
               id: madge
 
             - name: Upload madge report
