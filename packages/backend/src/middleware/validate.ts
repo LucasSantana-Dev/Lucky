@@ -1,7 +1,10 @@
 import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 
-type Schema<TOutput> = z.ZodType<TOutput, z.ZodTypeDef, unknown>
+// Zod 4 dropped the second `Def` type parameter; the equivalent surface is
+// `z.ZodType<TOutput, unknown>`. Keeping the function-level TOutput generic
+// preserves caller-side inference exactly.
+type Schema<TOutput> = z.ZodType<TOutput, unknown>
 
 export function validateBody<TOutput>(schema: Schema<TOutput>) {
     return (req: Request, res: Response, next: NextFunction) => {
