@@ -7,10 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-05-21
+
+### Added
+- feat(shared): Guild Automation Module Executor seam + AutoMessages pilot — `Capture / Diff / Apply` lifecycle behind a port; first executor (AutoMessages) composed at orchestrator roots (#901)
+- feat(frontend): Sentry React SDK + Router v7 tracing + replay — production frontend observability (#876)
+- feat(backend): Prometheus `/metrics` endpoint + request middleware (#875)
+- feat(bot): Prometheus `/metrics` endpoint + guild count gauge (#873)
+- feat(bot): track guild join/leave history (#872)
+- feat(ci): trivy image-scan on docker-publish — Phase A audit-only (#883)
+- ui(landing): self-hosted developer-tooling register redesign (#868)
+
+### Changed
+- refactor(backend): migrate `validate.ts` + `autoMessages` schemas to Zod 4 API — closes the Zod 3/4 drift that was masking the brace-expansion CVE patch (#919)
+- refactor(bot): break Cluster A + D circular dependencies (#885)
+- refactor(bot): break monitoring telemetry cycles (Cluster B, #886)
+- refactor(bot): break Cluster C autoplay cycles (#888)
+
+### Fixed
+- fix(deps): patch `brace-expansion` 5.0.5 → 5.0.6 (CVE-2024-45049 / GHSA-jxxr-4gwj-5jf2) and `ws` to 8.20.1 (GHSA-58qx-3vcg-4xpx) — `npm audit` clean (#921)
+- fix(shared): import jest globals explicitly in autoMessagesExecutor spec (#902)
+- fix(security): apk upgrade `nginx-alpine` base on build to patch CVEs (#881)
+- fix(ci): unblock postinstall scripts hitting GitHub API rate limit (#878)
+- fix(ci): group `$GITHUB_STEP_SUMMARY` redirects in madge workflow to satisfy shellcheck SC2129 (#905)
+
 ### Internal
-- fix(ci): group $GITHUB_STEP_SUMMARY redirects in madge workflow to satisfy shellcheck SC2129 (#905)
-- test(shared): add `coverageThreshold` gate to `packages/shared/jest.config.cjs` (no-regression floor at current baseline -2%, statements=19/branches=16/functions=15/lines=18) (#909)
+- test(shared): add `coverageThreshold` gate to `packages/shared/jest.config.cjs` — no-regression floor at current baseline -2% (statements=19/branches=16/functions=15/lines=18) (#909)
 - chore(process): add Feature-removal sweep checklist to PR template + advisory dangerfile guard that flags PRs with removal-pattern commits missing the sweep (#908)
+- chore(docker): join bot+backend to shared `lucky-monitoring` network (#877)
+- chore(docs): delete AI-generated noise + add policy ADR (#879)
+- chore(docs): wire up AI-doc policy enforcement (gitignore + pre-commit) (#880)
+- ci(madge): audit-only circular-deps gate (#887)
+- docs(adr): trivy image-scan in CI, keep Snyk dashboard only (#882)
+- docs(adr): pick #871 (bot circular-deps) as next refactor-pipeline target (#884)
+- docs(adr): backend Zod 3 → 4 migration rationale + plan
+- docs(adr): replace plan-limited PR review tools — drop Snyk/Greptile/CodeRabbit, adopt OSV-Scanner
+- docs(adr): DiscordWriteAdapter port for Module Executors (design)
+- docs(context): add `CONTEXT.md` with Module / Interface / Adapter / Seam vocabulary + Guild Automation glossary
 
 ## [2.11.0] - 2026-05-15
 
