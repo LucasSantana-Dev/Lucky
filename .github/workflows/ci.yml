@@ -60,6 +60,9 @@ jobs:
             - name: Run music incident regression suite
               run: npm run test:music:incident
 
+            - name: Run YouTube integration smoke test
+              run: npm run test:youtube:smoke
+
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend
 

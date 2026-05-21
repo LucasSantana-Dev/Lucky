@@ -1,7 +1,7 @@
 {
   "name": "lucky-bot",
   "version": "2.11.0",
-  "description": "All-in-one Discord bot platform \u2014 music, moderation, auto-mod, custom commands, and web dashboard",
+  "description": "All-in-one Discord bot platform — music, moderation, auto-mod, custom commands, and web dashboard",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -44,7 +44,8 @@
     "db:studio": "prisma studio --config prisma/prisma.config.ts",
     "deploy:remote": "./scripts/deploy-remote.sh",
     "deploy:homelab": "./scripts/deploy-remote.sh main",
-    "test:shared": "npm run test:ci --workspace=packages/shared"
+    "test:shared": "npm run test:ci --workspace=packages/shared",
+    "test:youtube:smoke": "tsx packages/bot/scripts/youtube-smoke.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
