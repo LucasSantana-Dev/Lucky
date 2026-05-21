@@ -17,6 +17,14 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
+  coverageThreshold: {
+    global: {
+      statements: 19,
+      branches: 16,
+      functions: 15,
+      lines: 18
+    }
+  },
   testTimeout: 30000,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
