@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- fix(deps): pin `brace-expansion` >=5.0.6 (CVE-2024-45049 / GHSA-jxxr-4gwj-5jf2) and `ws` 8.20.1 (GHSA-58qx-3vcg-4xpx) via `package.json` overrides — `npm audit` clean (#907)
+
 ### Internal
 - fix(ci): group $GITHUB_STEP_SUMMARY redirects in madge workflow to satisfy shellcheck SC2129 (#905)
 
