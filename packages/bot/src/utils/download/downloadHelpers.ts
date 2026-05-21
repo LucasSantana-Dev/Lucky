@@ -2,30 +2,41 @@
  * Download helper utilities
  */
 
+const SUPPORTED_HOSTS: ReadonlyArray<string> = [
+	'youtube.com',
+	'youtu.be',
+	'soundcloud.com',
+	'bandcamp.com',
+	'spotify.com',
+]
+
+function parseHostname(url: string): string | null {
+	try {
+		return new URL(url).hostname.toLowerCase()
+	} catch {
+		return null
+	}
+}
+
+function hostMatches(host: string, domain: string): boolean {
+	return host === domain || host.endsWith(`.${domain}`)
+}
+
 export function isSupportedPlatformUrl(url: string): boolean {
-	const supportedDomains = [
-		'youtube.com',
-		'youtu.be',
-		'soundcloud.com',
-		'bandcamp.com',
-		'spotify.com',
-	]
-	return supportedDomains.some((domain) => url.toLowerCase().includes(domain))
+	const host = parseHostname(url)
+	if (!host) return false
+	return SUPPORTED_HOSTS.some((domain) => hostMatches(host, domain))
 }
 
 export function getPlatformFromUrl(url: string): string {
-	if (url.includes('youtube.com') || url.includes('youtu.be')) {
+	const host = parseHostname(url)
+	if (!host) return 'unknown'
+	if (hostMatches(host, 'youtube.com') || hostMatches(host, 'youtu.be')) {
 		return 'youtube'
 	}
-	if (url.includes('soundcloud.com')) {
-		return 'soundcloud'
-	}
-	if (url.includes('bandcamp.com')) {
-		return 'bandcamp'
-	}
-	if (url.includes('spotify.com')) {
-		return 'spotify'
-	}
+	if (hostMatches(host, 'soundcloud.com')) return 'soundcloud'
+	if (hostMatches(host, 'bandcamp.com')) return 'bandcamp'
+	if (hostMatches(host, 'spotify.com')) return 'spotify'
 	return 'unknown'
 }
 

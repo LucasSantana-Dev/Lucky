@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { unlink } from 'fs/promises'
 
 const unlinkMock = jest.fn()
 const errorLogMock = jest.fn()

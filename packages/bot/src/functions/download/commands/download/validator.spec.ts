@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { DownloadOptions } from './types.js'
 
 const isSupportedPlatformUrlMock = jest.fn((url: string) => {
-	return url.includes('youtube.com') || url.includes('youtu.be') || url.includes('soundcloud.com')
+	return /youtube\.com|youtu\.be|soundcloud\.com/.test(url)
 })
 
 const getPlatformFromUrlMock = jest.fn((url: string) => {
@@ -32,7 +32,7 @@ describe('DownloadValidator', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
 		isSupportedPlatformUrlMock.mockImplementation((url: string) => {
-			return url.includes('youtube.com') || url.includes('youtu.be') || url.includes('soundcloud.com')
+			return /youtube\.com|youtu\.be|soundcloud\.com/.test(url)
 		})
 		getPlatformFromUrlMock.mockImplementation((url: string) => {
 			if (url.includes('youtube') || url.includes('youtu.be')) return 'youtube'
