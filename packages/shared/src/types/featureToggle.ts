@@ -19,6 +19,7 @@ export type FeatureToggleName =
     | 'WELCOME_MESSAGES'
     | 'ARTIST_COMMAND'
     | 'ALBUM_COMMAND'
+    | 'EMBED_BUILDER'
 
 export type FeatureToggleConfig = {
     name: FeatureToggleName
