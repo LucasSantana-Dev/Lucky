@@ -13,11 +13,11 @@ import {
     getArtistGenres,
 } from '../../../spotify/spotifyApi'
 import { detectSessionMood, type SessionMood } from './sessionMood'
-import { getRecentSkipCount } from '../../../handlers/player/trackHandlers'
 import {
     collectRecommendationCandidates,
     SERTANEJO_TAGS,
 } from './candidateCollector'
+import type { SkipStateProvider } from './skipStateProvider'
 import {
     createArtistTagFetcher,
     hasGenreTag,
@@ -71,10 +71,13 @@ const sessionMoodCache = new Map<
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
+    skipStateProvider?: SkipStateProvider,
 ): Promise<void> {
     const guildId = queue.guild.id
     const prev = replenishLocks.get(guildId) ?? Promise.resolve()
-    const next = prev.then(() => _replenishQueue(queue, finishedTrack))
+    const next = prev.then(() =>
+        _replenishQueue(queue, finishedTrack, skipStateProvider),
+    )
     replenishLocks.set(
         guildId,
         next.catch(() => {}),
@@ -85,11 +88,17 @@ export function replenishQueue(
 async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
+    skipStateProvider?: SkipStateProvider,
 ): Promise<void> {
     const startTime = Date.now()
     const guildId = queue.guild.id
     let candidatePoolSize = 0
-    const sourcesCounts = { recommendation: 0, lastfm: 0, fallback: 0, genre: 0 }
+    const sourcesCounts = {
+        recommendation: 0,
+        lastfm: 0,
+        fallback: 0,
+        genre: 0,
+    }
 
     try {
         debugLog({
@@ -106,7 +115,9 @@ async function _replenishQueue(
             ? AUTOPLAY_BUFFER_SIZE_PREMIUM
             : AUTOPLAY_BUFFER_SIZE
         const autoplayInQueue = [...queue.tracks.toArray()].filter(
-            (t) => (t.metadata as { isAutoplay?: boolean } | undefined)?.isAutoplay === true,
+            (t) =>
+                (t.metadata as { isAutoplay?: boolean } | undefined)
+                    ?.isAutoplay === true,
         ).length
         const missingTracks = bufferSize - autoplayInQueue
         if (missingTracks <= 0) return
@@ -119,7 +130,10 @@ async function _replenishQueue(
             Math.abs(allHistoryTracks.length - guildMoodCache.historyLen) < 3
                 ? guildMoodCache.mood
                 : (() => {
-                      const mood = detectSessionMood(allHistoryTracks, getRecentSkipCount(replenishGuildId))
+                      const mood = detectSessionMood(
+                          allHistoryTracks,
+                          skipStateProvider?.() ?? 0,
+                      )
                       sessionMoodCache.set(replenishGuildId, {
                           mood,
                           historyLen: allHistoryTracks.length,
@@ -251,9 +265,10 @@ async function _replenishQueue(
             historyTracks,
             getArtistTags,
         )
-        const seedIsSertanejo = currentTrackTags.length > 0
-            ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
-            : false
+        const seedIsSertanejo =
+            currentTrackTags.length > 0
+                ? hasGenreTag(currentTrackTags, SERTANEJO_TAGS)
+                : false
         // Block sertanejo candidates unless the seed itself is sertanejo — fail-open
         // when tags are absent (Last.fm unlinked) to avoid over-filtering.
         const blockSertanejo = !seedIsSertanejo
@@ -480,7 +495,8 @@ async function _replenishQueue(
             })
             replenishCounters.set(guildId, replenishCount + 1)
             debugLog({
-                message: 'Autoplay replenish exhausted: all candidate sources returned empty',
+                message:
+                    'Autoplay replenish exhausted: all candidate sources returned empty',
                 data: {
                     guildId,
                     currentTrack: currentTrack?.title,

@@ -3,7 +3,7 @@ import type {
     SlashCommandSubcommandsOnlyBuilder,
     SlashCommandOptionsOnlyBuilder,
 } from '@discordjs/builders'
-import type { CustomClient } from './index'
+import type { CustomClient } from './CustomClient'
 import type { ChatInputCommandInteraction } from 'discord.js'
 
 export type TCommandData =

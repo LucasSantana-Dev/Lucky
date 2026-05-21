@@ -4,7 +4,7 @@ import {
     getRecentTracks,
     getSimilarTracks,
     getLovedTracks,
-} from '../../../lastfm'
+} from '../../../lastfm/lastFmApi'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { cleanTitle } from '../searchQueryCleaner'
 

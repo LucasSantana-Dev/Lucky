@@ -48,16 +48,22 @@ const LastFmPage = lazy(() => import('./pages/LastFm'))
 const SpotifyPage = lazy(() => import('./pages/Spotify'))
 const TermsOfServicePage = lazy(() => import('./pages/TermsOfService'))
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicy'))
+const DocsPage = lazy(() => import('./pages/Docs'))
+const ChangelogPage = lazy(() => import('./pages/Changelog'))
 
-const LEGAL_PATHS = [
+const PUBLIC_PATH_PREFIXES = [
     '/terms-of-service',
     '/terms',
     '/privacy-policy',
     '/privacy',
+    '/docs',
+    '/changelog',
 ]
 
-function isLegalPath(pathname: string) {
-    return LEGAL_PATHS.includes(pathname)
+function isPublicPath(pathname: string) {
+    return PUBLIC_PATH_PREFIXES.some(
+        (p) => pathname === p || pathname.startsWith(`${p}/`),
+    )
 }
 
 function ForbiddenModulePage({ module }: { module: ModuleKey }) {
@@ -218,13 +224,15 @@ function AuthenticatedRoutes() {
     )
 }
 
-function LegalRoutes() {
+function PublicRoutes() {
     return (
         <Routes>
             <Route path='/terms-of-service' element={<TermsOfServicePage />} />
             <Route path='/terms' element={<TermsOfServicePage />} />
             <Route path='/privacy-policy' element={<PrivacyPolicyPage />} />
             <Route path='/privacy' element={<PrivacyPolicyPage />} />
+            <Route path='/docs' element={<DocsPage />} />
+            <Route path='/changelog' element={<ChangelogPage />} />
             <Route
                 path='*'
                 element={<Navigate to='/terms-of-service' replace />}
@@ -248,12 +256,12 @@ function App() {
             .catch(() => setIsReady(true))
     }, [checkAuth])
 
-    if (isLegalPath(location.pathname)) {
+    if (isPublicPath(location.pathname)) {
         return (
             <div className='dark'>
                 <ErrorBoundary>
                     <Suspense fallback={<PageLoader />}>
-                        <LegalRoutes />
+                        <PublicRoutes />
                     </Suspense>
                 </ErrorBoundary>
                 <Analytics />

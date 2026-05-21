@@ -2,6 +2,15 @@
 # publishing maps host 8080 → container 8080.
 FROM nginxinc/nginx-unprivileged:1.31-alpine
 
+# Patch Alpine OS packages (openssl, libxml2, libpng, expat, etc.) to
+# their current versions in the Alpine 3.21 package index. The upstream
+# nginx-unprivileged:1.27-alpine tag rebuilds infrequently, so its OS
+# packages drift behind published CVE fixes. Snyk Critical+High audit
+# 2026-05-15: 3C + 11H, all OS-layer.
+USER root
+RUN apk upgrade --no-cache && rm -rf /var/cache/apk/*
+USER nginx
+
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080

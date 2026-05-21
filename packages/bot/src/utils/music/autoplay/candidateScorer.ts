@@ -6,7 +6,7 @@ import type { SessionMood } from './sessionMood'
 import type { RecommendationSignal } from './recommendationBasis.js'
 import { cleanAuthor } from '../searchQueryCleaner'
 import { detectSpanishMarkers } from '../languageHeuristics'
-import { normalizeText, normalizeTrackKey } from '../queueManipulation'
+import { normalizeText, normalizeTrackKey } from './scoringUtils'
 import type { ScoredTrack } from './diversitySelector'
 
 const SCORE_SAME_ARTIST = 0.3
@@ -68,15 +68,42 @@ export interface GenreContext {
 const GENRE_FAMILIES = {
     rap_hiphop: ['hip hop', 'rap', 'trap', 'drill', 'gangster rap', 'g-funk'],
     rnb_soul: ['r&b', 'soul', 'neo soul'],
-    electronic: ['edm', 'house', 'techno', 'trance', 'dubstep', 'drum and bass', 'electro', 'synthwave'],
+    electronic: [
+        'edm',
+        'house',
+        'techno',
+        'trance',
+        'dubstep',
+        'drum and bass',
+        'electro',
+        'synthwave',
+    ],
     rock_metal: ['rock', 'metal', 'punk', 'grunge', 'alternative'],
     pop: ['pop', 'dance pop', 'latin pop', 'k-pop', 'indie pop'],
-    latin: ['reggaeton', 'forró', 'samba', 'bossa nova', 'latin trap', 'trap latino'],
+    latin: [
+        'reggaeton',
+        'forró',
+        'samba',
+        'bossa nova',
+        'latin trap',
+        'trap latino',
+    ],
     country_folk: ['country', 'folk', 'bluegrass'],
     jazz_classical: ['jazz', 'classical', 'orchestral'],
     world: ['afrobeat', 'desi', 'bhangra'],
     ambient_chill: ['lofi', 'chillwave', 'downtempo', 'ambient'],
-    gospel_christian: ['gospel', 'christian', 'christian music', 'contemporary christian music', 'ccm', 'worship', 'christian rock', 'christian pop', 'praise & worship', 'religious'],
+    gospel_christian: [
+        'gospel',
+        'christian',
+        'christian music',
+        'contemporary christian music',
+        'ccm',
+        'worship',
+        'christian rock',
+        'christian pop',
+        'praise & worship',
+        'religious',
+    ],
 }
 
 const AMBIENT_NOISE_RE =
@@ -84,7 +111,6 @@ const AMBIENT_NOISE_RE =
 
 const EDM_MIX_RE =
     /\b(?:dj set|festival set|\d+ ?(?:hour|hr) mix|extended mix|club mix|nightclub mix|edm mix|trance mix)\b/i // NOSONAR S5852 — trusted track title from internal API, not user input
-
 
 export function getGenreFamilies(genres: string[]): Set<string> {
     const families = new Set<string>()
@@ -128,31 +154,32 @@ export function calculateGenreFamilyPenalty(
 }
 
 export interface ScoringContext {
-  // Required properties
-  candidate: Track
-  currentTrack: Track
-  recentArtists: Set<string>
-  // Optional properties with defaults
-  likedWeights?: Map<string, number>
-  preferredArtistKeys?: Set<string>
-  blockedArtistKeys?: Set<string>
-  autoplayMode?: 'similar' | 'discover' | 'popular'
-  artistFrequency?: Map<string, number>
-  implicitDislikeKeys?: Set<string>
-  implicitLikeKeys?: Set<string>
-  dislikedWeights?: Map<string, number>
-  sessionMood?: SessionMood | null
-  skipNoveltyBoost?: boolean
-  genreContext?: {
-    candidateTags?: string[]
-    currentTrackTags?: string[]
-    sessionGenreFamilies?: Set<string>
-  }
+    // Required properties
+    candidate: Track
+    currentTrack: Track
+    recentArtists: Set<string>
+    // Optional properties with defaults
+    likedWeights?: Map<string, number>
+    preferredArtistKeys?: Set<string>
+    blockedArtistKeys?: Set<string>
+    autoplayMode?: 'similar' | 'discover' | 'popular'
+    artistFrequency?: Map<string, number>
+    implicitDislikeKeys?: Set<string>
+    implicitLikeKeys?: Set<string>
+    dislikedWeights?: Map<string, number>
+    sessionMood?: SessionMood | null
+    skipNoveltyBoost?: boolean
+    genreContext?: {
+        candidateTags?: string[]
+        currentTrackTags?: string[]
+        sessionGenreFamilies?: Set<string>
+    }
 }
 
-export function calculateRecommendationScore(
-    ctx: ScoringContext,
-): { score: number; signals: RecommendationSignal[] } {
+export function calculateRecommendationScore(ctx: ScoringContext): {
+    score: number
+    signals: RecommendationSignal[]
+} {
     const {
         candidate,
         currentTrack,
@@ -171,7 +198,8 @@ export function calculateRecommendationScore(
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
-    const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
+    const sessionGenreFamilies =
+        genreContext.sessionGenreFamilies ?? new Set<string>()
     const currentArtist = currentTrack.author.toLowerCase()
     const candidateArtist = candidate.author.toLowerCase()
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
@@ -220,7 +248,11 @@ export function calculateRecommendationScore(
     // audio-features endpoint.
     // Skip the hard veto during skip storms so the candidate pool broadens.
     const inSkipStorm = (sessionMood?.recentSkipCount ?? 0) >= 3
-    if (!inSkipStorm && sessionGenreFamilies.size > 0 && candidateTags.length > 0) {
+    if (
+        !inSkipStorm &&
+        sessionGenreFamilies.size > 0 &&
+        candidateTags.length > 0
+    ) {
         const candidateFamilies = getGenreFamilies(candidateTags)
         if (candidateFamilies.size > 0) {
             let intersects = false
@@ -281,7 +313,8 @@ export function calculateRecommendationScore(
     const deepDiveArtist = sessionMood?.deepDiveArtist
         ? cleanAuthor(sessionMood.deepDiveArtist).toLowerCase()
         : null
-    const isDeepDive = deepDiveArtist !== null && candidateArtist === deepDiveArtist
+    const isDeepDive =
+        deepDiveArtist !== null && candidateArtist === deepDiveArtist
     if (candidateArtist === currentArtist) {
         if (!isDeepDive) {
             score += SCORE_IMPLICIT_DISLIKE
@@ -298,7 +331,11 @@ export function calculateRecommendationScore(
             score += SCORE_TITLE_SIM_BONUS
             signals.push('deep-dive artist')
         }
-    } else if (!skipNoveltyBoost && !recentArtists.has(candidateArtist) && !isDeepDive) {
+    } else if (
+        !skipNoveltyBoost &&
+        !recentArtists.has(candidateArtist) &&
+        !isDeepDive
+    ) {
         score += SCORE_DURATION_MATCH
         signals.push('session novelty')
     }
@@ -324,10 +361,16 @@ export function calculateRecommendationScore(
         currentTrack.durationMS > 0
     ) {
         const ratio = candidate.durationMS / currentTrack.durationMS
-        if (ratio >= DURATION_RATIO_TIGHT_LOW && ratio <= DURATION_RATIO_TIGHT_HIGH) {
+        if (
+            ratio >= DURATION_RATIO_TIGHT_LOW &&
+            ratio <= DURATION_RATIO_TIGHT_HIGH
+        ) {
             score += SCORE_DURATION_RATIO_TIGHT
             signals.push('similar energy')
-        } else if (ratio >= DURATION_RATIO_LOOSE_LOW && ratio <= DURATION_RATIO_LOOSE_HIGH) {
+        } else if (
+            ratio >= DURATION_RATIO_LOOSE_LOW &&
+            ratio <= DURATION_RATIO_LOOSE_HIGH
+        ) {
             score += SCORE_DURATION_RATIO_LOOSE
         }
     }
@@ -347,9 +390,11 @@ export function calculateRecommendationScore(
             signals.push('deep dive')
         }
         if (sessionMood.preferLong && durationMs > 0) {
-            const durationBonus = 0.15 * Math.tanh((durationMs - 300_000) / 60_000)
+            const durationBonus =
+                0.15 * Math.tanh((durationMs - 300_000) / 60_000)
             score += durationBonus
-            if (durationBonus > SCORE_DURATION_BONUS_THRESHOLD) signals.push('long track match')
+            if (durationBonus > SCORE_DURATION_BONUS_THRESHOLD)
+                signals.push('long track match')
         }
         if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
             score += SCORE_ACOUSTICNESS_MATCH
@@ -500,7 +545,6 @@ export async function enrichWithAudioFeatures(
         const track = idToTrack.get(id)
         if (!track) continue
 
-
         const energyDelta = Math.abs(feature.energy - currentFeatures.energy)
         const valenceDelta = Math.abs(feature.valence - currentFeatures.valence)
 
@@ -515,7 +559,8 @@ export async function enrichWithAudioFeatures(
         if (currentFeatures.tempo && feature.tempo) {
             const tempoDelta = Math.abs(currentFeatures.tempo - feature.tempo)
             if (tempoDelta > 40) track.score += SCORE_TEMPO_PENALTY_LARGE
-            else if (tempoDelta > TEMPO_DELTA_SMALL) track.score += SCORE_TEMPO_PENALTY_SMALL
+            else if (tempoDelta > TEMPO_DELTA_SMALL)
+                track.score += SCORE_TEMPO_PENALTY_SMALL
         }
 
         if (

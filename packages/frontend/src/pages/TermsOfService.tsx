@@ -1,113 +1,119 @@
+import DocsShell, {
+    type DocsTocItem,
+} from '@/components/DocsShell/DocsShell'
+import { LEGAL_NAV } from '@/components/DocsShell/legalNav'
+import { usePageMetadata } from '@/hooks/usePageMetadata'
+
+const TOC: DocsTocItem[] = [
+    { id: 'acceptance', label: 'Acceptance' },
+    { id: 'service-scope', label: 'Service scope' },
+    { id: 'acceptable-use', label: 'Acceptable use' },
+    { id: 'third-party', label: 'Third-party services' },
+    { id: 'availability', label: 'Availability' },
+    { id: 'suspension', label: 'Suspension and termination' },
+    { id: 'disclaimers', label: 'Disclaimers and liability' },
+    { id: 'changes', label: 'Changes to these terms' },
+    { id: 'contact', label: 'Contact' },
+]
+
 export default function TermsOfServicePage() {
+    usePageMetadata({
+        title: 'Terms of Service · Lucky',
+        description:
+            'Terms governing your use of the Lucky Discord bot and web dashboard.',
+    })
+
     return (
-        <main className='min-h-screen bg-lucky-bg px-6 py-10 text-lucky-text-primary'>
-            <div className='mx-auto w-full max-w-4xl space-y-8'>
-                <header className='space-y-3'>
-                    <p className='type-meta text-lucky-text-tertiary'>Legal</p>
-                    <h1 className='type-h1'>Terms of Service</h1>
-                    <p className='type-body text-lucky-text-secondary'>
-                        Last updated: March 18, 2026
-                    </p>
-                </header>
+        <DocsShell
+            nav={LEGAL_NAV}
+            toc={TOC}
+            breadcrumb='Legal / Terms'
+            title='Terms of Service'
+            lastUpdated='March 18, 2026'
+        >
+            <p>
+                By using Lucky, you agree to these Terms of Service. If you use
+                Lucky on behalf of a server, team, or organization, you confirm
+                you are authorized to accept these terms for that entity.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Acceptance</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        By using Lucky, you agree to these Terms of Service. If
-                        you use Lucky on behalf of a server, team, or
-                        organization, you confirm you are authorized to accept
-                        these terms for that entity.
-                    </p>
-                </section>
+            <h2 id='acceptance'>Acceptance</h2>
+            <p>
+                These terms form a binding agreement between you and the Lucky
+                maintainers. If you do not agree, do not install or use the
+                bot, and do not access the dashboard.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Service scope</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        Lucky provides Discord bot functionality and a web
-                        dashboard for server management, moderation, automation,
-                        engagement, and integrations. Features may change over
-                        time.
-                    </p>
-                </section>
+            <h2 id='service-scope'>Service scope</h2>
+            <p>
+                Lucky provides Discord bot functionality and a web dashboard for
+                server management, moderation, automation, engagement, and
+                integrations. Features may change over time as we ship
+                improvements and respond to platform changes.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Acceptable use</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        You must comply with Discord terms, applicable law, and
-                        your own server rules. You may not abuse the service,
-                        attempt unauthorized access, bypass limits, or use Lucky
-                        for spam, harassment, malware distribution, or illegal
-                        activity.
-                    </p>
-                </section>
+            <h2 id='acceptable-use'>Acceptable use</h2>
+            <p>
+                You must comply with the Discord Terms of Service, applicable
+                law, and your own server rules. You may not abuse the service,
+                attempt unauthorized access, bypass rate limits, or use Lucky
+                for spam, harassment, malware distribution, or illegal
+                activity.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Third-party services</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        Lucky relies on third-party services including Discord,
-                        and optional Last.fm and Twitch integrations. We are not
-                        responsible for outages, API changes, policy decisions,
-                        or account actions taken by those providers.
-                    </p>
-                </section>
+            <h2 id='third-party'>Third-party services</h2>
+            <p>
+                Lucky relies on third-party services including Discord, and
+                optional Last.fm, Spotify, and Twitch integrations. We are not
+                responsible for outages, API changes, policy decisions, or
+                account actions taken by those providers.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Availability and modifications</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        Lucky is provided on an "as is" and "as available"
-                        basis. We may add, modify, limit, or remove features at
-                        any time to improve security, performance, or
-                        compliance.
-                    </p>
-                </section>
+            <h2 id='availability'>Availability and modifications</h2>
+            <p>
+                Lucky is provided on an &quot;as is&quot; and &quot;as
+                available&quot; basis. We may add, modify, limit, or remove
+                features at any time to improve security, performance, or
+                compliance. Self-hosters control their own deployments.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Suspension and termination</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        We may suspend or terminate access if we reasonably
-                        believe there is abuse, legal risk, or a security threat
-                        to the platform or other users. You may stop using Lucky
-                        at any time by removing the bot and disconnecting
-                        integrations.
-                    </p>
-                </section>
+            <h2 id='suspension'>Suspension and termination</h2>
+            <p>
+                We may suspend or terminate access to the hosted bot if we
+                reasonably believe there is abuse, legal risk, or a security
+                threat to the platform or other users. You may stop using
+                Lucky at any time by removing the bot and disconnecting
+                integrations.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Disclaimers and liability</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        To the maximum extent permitted by law, Lucky and its
-                        maintainers disclaim implied warranties and are not
-                        liable for indirect, incidental, special, or
-                        consequential damages arising from use of the service.
-                    </p>
-                </section>
+            <h2 id='disclaimers'>Disclaimers and liability</h2>
+            <p>
+                To the maximum extent permitted by law, Lucky and its
+                maintainers disclaim implied warranties and are not liable for
+                indirect, incidental, special, or consequential damages
+                arising from use of the service.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Changes to these terms</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        We may update these terms from time to time. Continued
-                        use after updates are posted means you accept the
-                        revised terms.
-                    </p>
-                </section>
+            <h2 id='changes'>Changes to these terms</h2>
+            <p>
+                We may update these terms from time to time. Continued use
+                after updates are posted means you accept the revised terms.
+                Material changes will be noted with a revised &quot;Last
+                updated&quot; date.
+            </p>
 
-                <section className='space-y-3'>
-                    <h2 className='type-h2'>Contact</h2>
-                    <p className='type-body text-lucky-text-secondary'>
-                        For support or legal requests, use the official issue
-                        tracker:{' '}
-                        <a
-                            className='text-lucky-accent underline'
-                            href='https://github.com/LucasSantana-Dev/Lucky/issues'
-                            rel='noreferrer'
-                            target='_blank'
-                        >
-                            https://github.com/LucasSantana-Dev/Lucky/issues
-                        </a>
-                        .
-                    </p>
-                </section>
-            </div>
-        </main>
+            <h2 id='contact'>Contact</h2>
+            <p>
+                For support or legal requests, open an issue at{' '}
+                <a
+                    href='https://github.com/LucasSantana-Dev/Lucky/issues'
+                    target='_blank'
+                    rel='noreferrer'
+                >
+                    github.com/LucasSantana-Dev/Lucky/issues
+                </a>
+                .
+            </p>
+        </DocsShell>
     )
 }

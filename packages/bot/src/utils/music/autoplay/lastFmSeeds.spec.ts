@@ -33,7 +33,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-jest.mock('../../../lastfm', () => ({
+jest.mock('../../../lastfm/lastFmApi', () => ({
     getTopTracks: (...args: unknown[]) => getTopTracksMock(...args),
     getRecentTracks: (...args: unknown[]) => getRecentTracksMock(...args),
     getLovedTracks: (...args: unknown[]) => getLovedTracksMock(...args),
@@ -569,14 +569,20 @@ describe('consumeBlendedSeedSlice', () => {
                     { artist: 'H2', title: 'T2', playCount: 1 },
                     { artist: 'H3', title: 'T3', playCount: 1 },
                 ])
-            return Promise.resolve([{ artist: 'L1', title: 'T4', playCount: 1 }])
+            return Promise.resolve([
+                { artist: 'L1', title: 'T4', playCount: 1 },
+            ])
         })
 
         const weights = new Map<string, number>([
             ['heavy', 3],
             ['light', 1],
         ])
-        const slice = await consumeBlendedSeedSlice(['heavy', 'light'], 3, weights)
+        const slice = await consumeBlendedSeedSlice(
+            ['heavy', 'light'],
+            3,
+            weights,
+        )
 
         expect(slice.length).toBeLessThanOrEqual(3)
     })
@@ -609,18 +615,16 @@ describe('consumeBlendedSeedSlice', () => {
             ['user-1', 2],
             ['user-2', 1],
         ])
-        const slice = await consumeBlendedSeedSlice(['user-1', 'user-2'], 3, weights)
+        const slice = await consumeBlendedSeedSlice(
+            ['user-1', 'user-2'],
+            3,
+            weights,
+        )
 
         expect(slice.length).toBeLessThanOrEqual(3)
-        const user1Tracks = slice.filter((t) =>
-            t.artist.includes('User1'),
-        )
-        const user2Tracks = slice.filter((t) =>
-            t.artist.includes('User2'),
-        )
-        expect(user1Tracks.length).toBeGreaterThanOrEqual(
-            user2Tracks.length,
-        )
+        const user1Tracks = slice.filter((t) => t.artist.includes('User1'))
+        const user2Tracks = slice.filter((t) => t.artist.includes('User2'))
+        expect(user1Tracks.length).toBeGreaterThanOrEqual(user2Tracks.length)
     })
 })
 
@@ -644,7 +648,9 @@ describe('isLovedSeed', () => {
 
         await getLastFmSeedTracks('loved-user')
 
-        expect(isLovedSeed('loved-user', 'Loved Artist', 'Loved Song')).toBe(true)
+        expect(isLovedSeed('loved-user', 'Loved Artist', 'Loved Song')).toBe(
+            true,
+        )
     })
 
     it('returns false when track is not in the loved keys set', async () => {
@@ -656,6 +662,8 @@ describe('isLovedSeed', () => {
 
         await getLastFmSeedTracks('loved-user-2')
 
-        expect(isLovedSeed('loved-user-2', 'Other Artist', 'Other Song')).toBe(false)
+        expect(isLovedSeed('loved-user-2', 'Other Artist', 'Other Song')).toBe(
+            false,
+        )
     })
 })

@@ -7,7 +7,7 @@ const messageIdParam = guildIdParam.extend({
 
 const createMessageBody = z.object({
     type: z.enum(['welcome', 'leave', 'auto_response'], {
-        required_error: 'Type is required',
+        error: () => 'Type is required',
     }),
     message: z.string().min(1, 'Message is required').max(2000),
     channelId: z
@@ -34,7 +34,7 @@ const updateMessageBody = z
     .strict()
 
 const toggleBody = z.object({
-    enabled: z.boolean({ required_error: 'Enabled is required' }),
+    enabled: z.boolean({ error: () => 'Enabled is required' }),
 })
 
 const messagesQuery = z.object({

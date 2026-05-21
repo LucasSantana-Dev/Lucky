@@ -26,8 +26,8 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     },
     LYRICS: {
         name: 'LYRICS',
-        enabled: true,
-        description: 'Enable lyrics display',
+        enabled: false,
+        description: 'Enable lyrics display (Genius API)',
     },
     QUEUE_MANAGEMENT: {
         name: 'QUEUE_MANAGEMENT',
@@ -86,6 +86,11 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
         name: 'LASTFM_INTEGRATION',
         enabled: true,
         description: 'Enable Last.fm scrobbling and profile linking',
+    },
+    SPOTIFY_INTEGRATION: {
+        name: 'SPOTIFY_INTEGRATION',
+        enabled: false,
+        description: 'Enable Spotify account linking and personalized autoplay seeds',
     },
     WELCOME_MESSAGES: {
         name: 'WELCOME_MESSAGES',
