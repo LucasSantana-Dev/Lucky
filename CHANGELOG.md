@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 - fix(ci): group $GITHUB_STEP_SUMMARY redirects in madge workflow to satisfy shellcheck SC2129 (#905)
+- test(shared): add `coverageThreshold` gate to `packages/shared/jest.config.cjs` (no-regression floor at current baseline -2%, statements=19/branches=16/functions=15/lines=18) (#909)
 
 ## [2.11.0] - 2026-05-15
 
