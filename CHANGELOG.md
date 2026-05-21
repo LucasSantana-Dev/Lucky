@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+- fix(ci): group $GITHUB_STEP_SUMMARY redirects in madge workflow to satisfy shellcheck SC2129 (#905)
+
 ## [2.11.0] - 2026-05-15
 
 ### Added
