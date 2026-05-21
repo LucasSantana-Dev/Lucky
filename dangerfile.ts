@@ -139,19 +139,24 @@ if (!validPrefixes.test(headRef) && !headRef.startsWith('worktree-')) {
 // --- 9. Feature-removal sweep guard -----------------------------------------
 // When a commit message indicates feature/route/model removal,
 // flag if the PR body doesn't mention the sweep checklist.
-const removalPattern = /^(remove|delete|retire|drop|deprecate).*\b(route|handler|endpoint|model|toggle|feature)\b/i
+const removalVerb = /\b(remove|delete|retire|drop|deprecate)\b/i
+const removalTarget = /\b(route|handler|endpoint|model|toggle|feature)\b/i
 const prBody = pr.body || ''
-const hasSweepChecklistInBody = prBody.includes('Feature-removal sweep')
-const hasRemovalCommit = danger.git.commits.some((c) =>
-    removalPattern.test(c.message),
+const hasSweepChecklistInBody = /feature-removal sweep/i.test(prBody)
+const hasRemovalCommit = danger.git.commits.some(
+    (c) => removalVerb.test(c.message) && removalTarget.test(c.message),
 )
 
 if (hasRemovalCommit && !hasSweepChecklistInBody) {
+    const baseRepo = pr.base.repo.full_name
+    const baseRef = pr.base.ref
+    const adrPath = 'docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md'
+    const adrUrl = `https://github.com/${baseRepo}/blob/${baseRef}/${adrPath}`
     warn(
         `This PR appears to remove a feature or route (detected in commit message). ` +
             `Please fill in the **Feature-removal sweep** checklist in the PR template ` +
             `to ensure no orphan code (models, tests, types, imports) is left behind. ` +
-            `[See docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md](${pr.html_url}) for context.`,
+            `[See ${adrPath}](${adrUrl}) for context.`,
     )
 }
 
