@@ -135,6 +135,26 @@ if (!validPrefixes.test(headRef) && !headRef.startsWith('worktree-')) {
     )
 }
 
+
+// --- 9. Feature-removal sweep guard -----------------------------------------
+// When a commit message indicates feature/route/model removal,
+// flag if the PR body doesn't mention the sweep checklist.
+const removalPattern = /^(remove|delete|retire|drop|deprecate).*\b(route|handler|endpoint|model|toggle|feature)\b/i
+const prBody = pr.body || ''
+const hasSweepChecklistInBody = prBody.includes('Feature-removal sweep')
+const hasRemovalCommit = danger.git.commits.some((c) =>
+    removalPattern.test(c.message),
+)
+
+if (hasRemovalCommit && !hasSweepChecklistInBody) {
+    warn(
+        `This PR appears to remove a feature or route (detected in commit message). ` +
+            `Please fill in the **Feature-removal sweep** checklist in the PR template ` +
+            `to ensure no orphan code (models, tests, types, imports) is left behind. ` +
+            `[See docs/decisions/2026-05-19-retire-per-guild-feature-toggles.md](${pr.html_url}) for context.`,
+    )
+}
+
 // --- 8. Big-file warning ----------------------------------------------------
 // Files > 500 lines are review-hostile. Flag new ones.
 async function checkLargeFiles(): Promise<void> {
