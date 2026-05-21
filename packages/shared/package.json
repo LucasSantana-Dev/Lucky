@@ -51,9 +51,9 @@
         "@npmcli/agent": "^5.0.0",
         "@npmcli/fs": "^5.0.0",
         "@prisma/client": "^7.8.0",
-        "@sentry/node": "^10.52.0",
+        "@sentry/node": "^10.53.1",
         "@vercel/flags-core": "^1.4.0",
-        "axios": "^1.16.0",
+        "axios": "^1.16.1",
         "chalk": "^5.6.2",
         "dotenv": "^17.4.2",
         "fs-minipass": "^3.0.3",
@@ -76,7 +76,7 @@
     "devDependencies": {
         "@swc/cli": "^0.8.1",
         "@swc/core": "^1.15.33",
-        "@types/node": "^25.6.2",
+        "@types/node": "^25.8.0",
         "glob": "^13.0.6",
         "typescript": "^6.0.3"
     }

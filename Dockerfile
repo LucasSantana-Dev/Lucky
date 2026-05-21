@@ -171,7 +171,7 @@ CMD ["node", "packages/backend/dist/index.js"]
 
 # Production stage — frontend (static SPA served by non-root nginx).
 # Replaces the former standalone Dockerfile.frontend.
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS production-frontend
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS production-frontend
 
 # Patch Alpine OS packages to current Alpine 3.21 package index versions.
 # See Dockerfile.nginx for context (same base image, same CVE exposure).

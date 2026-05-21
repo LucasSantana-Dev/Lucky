@@ -5,10 +5,18 @@ updates:
       schedule:
           interval: 'weekly'
       groups:
-          dev-dependencies:
+          dev-patches:
               dependency-type: 'development'
-          production-dependencies:
+              update-types: ['patch', 'minor']
+          dev-majors:
+              dependency-type: 'development'
+              update-types: ['major']
+          production-patches:
               dependency-type: 'production'
+              update-types: ['patch', 'minor']
+          production-majors:
+              dependency-type: 'production'
+              update-types: ['major']
 
     - package-ecosystem: 'docker'
       directory: '/'

@@ -1,6 +1,6 @@
 # Non-root nginx listening on 8080 (UID 101). Cloudflared / docker port
 # publishing maps host 8080 → container 8080.
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 
 # Patch Alpine OS packages (openssl, libxml2, libpng, expat, etc.) to
 # their current versions in the Alpine 3.21 package index. The upstream
