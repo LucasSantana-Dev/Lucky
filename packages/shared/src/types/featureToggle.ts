@@ -20,6 +20,7 @@ export type FeatureToggleName =
     | 'ARTIST_COMMAND'
     | 'ALBUM_COMMAND'
     | 'EMBED_BUILDER'
+    | 'COLLABORATIVE_PLAYLIST'
 
 export type FeatureToggleConfig = {
     name: FeatureToggleName
