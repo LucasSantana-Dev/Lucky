@@ -10,6 +10,7 @@ import {
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
 import { isDuplicateCandidate } from './diversitySelector'
+import { shouldIncludeCandidate, upsertScoredCandidate } from './candidateContracts'
 import {
     createArtistTagFetcher,
     hasGenreTag,
@@ -30,6 +31,7 @@ export type {
     RecommendationSource,
     RecommendationSignal,
 } from './recommendationBasis.js'
+export { shouldIncludeCandidate, upsertScoredCandidate } from './candidateContracts'
 
 export const SERTANEJO_TAGS = [
     'sertanejo',
@@ -43,13 +45,7 @@ export const SERTANEJO_TAGS = [
  * Include a candidate in the pool if it hasn't been played recently
  * and isn't in the disliked set.
  */
-export function shouldIncludeCandidate(
-    track: Track,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-): boolean {
-    return !isDuplicateCandidate(track, excludedUrls, excludedKeys)
-}
+
 
 /**
  * Add or update a candidate in the scored pool.
@@ -62,67 +58,7 @@ export function shouldIncludeCandidate(
  * `-Infinity` base stays non-finite, so this gate covers the boosted-score
  * caller patterns too.
  */
-export function upsertScoredCandidate(
-    candidates: Map<string, ScoredTrack>,
-    candidate: Track,
-    scored: {
-        score: number
-        source: RecommendationSource
-        signals: RecommendationSignal[]
-    },
-    auditCollector?: AutoplayAuditCollector,
-): void {
-    if (!Number.isFinite(scored.score)) {
-        debugLog({
-            message: 'Autoplay hard-reject',
-            data: {
-                title: candidate.title,
-                author: candidate.author,
-                score: scored.score,
-                source: scored.source,
-                note: 'empty signals indicate hard-reject at scorer stage (blocked artist, too long, ambient noise, edm mix, spanish locale, disliked, or cross-genre drift)',
-            },
-        })
-        const basis: RecommendationBasis = {
-            source: scored.source,
-            signals: scored.signals,
-        }
-        auditCollector?.recordEvaluated(
-            candidate,
-            scored.score,
-            serializeBasis(basis),
-            'rejected',
-        )
-        return
-    }
 
-    const basis: RecommendationBasis = {
-        source: scored.source,
-        signals: scored.signals,
-    }
-    const normalizedKey = normalizeTrackKey(candidate.title, candidate.author)
-    const candidateKey =
-        normalizedKey !== '::'
-            ? normalizedKey
-            : candidate.id ||
-              candidate.url ||
-              normalizeTrackKey(candidate.title, candidate.author)
-    const existing = candidates.get(candidateKey)
-
-    if (!existing || scored.score > existing.score) {
-        candidates.set(candidateKey, {
-            track: candidate,
-            score: scored.score,
-            basis,
-        })
-        auditCollector?.recordEvaluated(
-            candidate,
-            scored.score,
-            serializeBasis(basis),
-            'accepted',
-        )
-    }
-}
 
 /**
  * Collect recommendation candidates from multiple sources:
