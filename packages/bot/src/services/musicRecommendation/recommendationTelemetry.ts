@@ -1,57 +1,63 @@
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 import { errorLog, warnLog } from '@lucky/shared/utils/general/log'
 import { recommendationSourceToPrisma } from '../../utils/music/autoplay/recommendationSourceMapping'
-import { serializeBasis, type RecommendationBasis } from '../../utils/music/autoplay/recommendationBasis'
+import {
+    serializeBasis,
+    type RecommendationBasis,
+} from '../../utils/music/autoplay/recommendationBasis'
 
 export interface RecordPickInput {
-	guildId: string
-	discordUserId?: string
-	trackId: string
-	title: string
-	author: string
-	url: string
-	thumbnail?: string
-	basis: RecommendationBasis
-	confidence?: number
+    guildId: string
+    discordUserId?: string
+    trackId: string
+    title: string
+    author: string
+    url: string
+    thumbnail?: string
+    basis: RecommendationBasis
+    confidence?: number
 }
 
 export interface RecordOutcomeArgs {
-	guildId: string
-	trackId: string
-	outcome: 'accepted' | 'rejected'
+    guildId: string
+    trackId: string
+    outcome: 'accepted' | 'rejected'
 }
 
 /**
  * Records a music recommendation pick into the database.
  * Non-blocking: swallows DB errors and logs them without throwing.
  */
-export async function recordRecommendationPick(input: RecordPickInput): Promise<void> {
-	try {
-		const prisma = getPrismaClient()
-		const prismaSource = recommendationSourceToPrisma(input.basis.source)
-		const reason = serializeBasis(input.basis)
+export async function recordRecommendationPick(
+    input: RecordPickInput,
+): Promise<void> {
+    try {
+        const prisma = getPrismaClient()
+        const prismaSource = recommendationSourceToPrisma(input.basis.source)
+        const reason = serializeBasis(input.basis)
 
-		await prisma.recommendation.create({
-			data: {
-				guildId: input.guildId,
-				discordUserId: input.discordUserId ?? null,
-				trackId: input.trackId,
-				title: input.title,
-				author: input.author,
-				url: input.url,
-				thumbnail: input.thumbnail ?? null,
-				source: prismaSource,
-				signals: input.basis.signals,
-				reason,
-				confidence: input.confidence,
-			},
-		})
-	} catch (err) {
-		errorLog({
-			context: 'recordRecommendationPick',
-			error: err instanceof Error ? err.message : String(err),
-		})
-	}
+        await prisma.recommendation.create({
+            data: {
+                guildId: input.guildId,
+                discordUserId: input.discordUserId ?? null,
+                trackId: input.trackId,
+                title: input.title,
+                author: input.author,
+                url: input.url,
+                thumbnail: input.thumbnail ?? null,
+                source: prismaSource,
+                signals: input.basis.signals,
+                reason,
+                confidence: input.confidence ?? null,
+            },
+        })
+    } catch (err) {
+        errorLog({
+            message:
+                '[recordRecommendationPick] failed to insert Recommendation row',
+            error: err,
+        })
+    }
 }
 
 /**
@@ -62,41 +68,44 @@ export async function recordRecommendationPick(input: RecordPickInput): Promise<
  * Non-blocking: swallows DB errors and logs them without throwing.
  * If no matching recommendation is found, logs a warning and returns.
  */
-export async function recordRecommendationOutcome(args: RecordOutcomeArgs): Promise<void> {
-	try {
-		const prisma = getPrismaClient()
+export async function recordRecommendationOutcome(
+    args: RecordOutcomeArgs,
+): Promise<void> {
+    try {
+        const prisma = getPrismaClient()
 
-		const recommendation = await prisma.recommendation.findFirst({
-			where: {
-				guildId: args.guildId,
-				trackId: args.trackId,
-			},
-			orderBy: {
-				createdAt: 'desc',
-			},
-			take: 1,
-		})
+        const recommendation = await prisma.recommendation.findFirst({
+            where: {
+                guildId: args.guildId,
+                trackId: args.trackId,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            take: 1,
+        })
 
-		if (!recommendation) {
-			warnLog({
-				context: 'recordRecommendationOutcome',
-				message: `No Recommendation found for guildId=${args.guildId}, trackId=${args.trackId}`,
-			})
-			return
-		}
+        if (!recommendation) {
+            warnLog({
+                message: `[recordRecommendationOutcome] no Recommendation found for guildId=${args.guildId}, trackId=${args.trackId}`,
+            })
+            return
+        }
 
-		const updateData = args.outcome === 'accepted'
-			? { isAccepted: true }
-			: { isRejected: true }
+        const updateData =
+            args.outcome === 'accepted'
+                ? { isAccepted: true }
+                : { isRejected: true }
 
-		await prisma.recommendation.update({
-			where: { id: recommendation.id },
-			data: updateData,
-		})
-	} catch (err) {
-		errorLog({
-			context: 'recordRecommendationOutcome',
-			error: err instanceof Error ? err.message : String(err),
-		})
-	}
+        await prisma.recommendation.update({
+            where: { id: recommendation.id },
+            data: updateData,
+        })
+    } catch (err) {
+        errorLog({
+            message:
+                '[recordRecommendationOutcome] failed to update Recommendation row',
+            error: err,
+        })
+    }
 }
