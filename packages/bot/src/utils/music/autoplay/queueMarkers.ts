@@ -1,4 +1,7 @@
 import type { Track } from 'discord-player'
+import type { RecommendationBasis } from './recommendationBasis'
+import { serializeBasis } from './recommendationBasis'
+import { recordRecommendationPick } from '../../../services/musicRecommendation/recommendationTelemetry'
 
 /**
  * Mark a track as autoplay-generated with optional metadata.
@@ -46,4 +49,40 @@ export function markAsAutoplayTrack(
         configurable: true,
         enumerable: true,
     })
+}
+
+/**
+ * Mark a track as autoplay-generated AND record the pick to the recommendation telemetry database.
+ * Combines the metadata mutation with non-blocking telemetry write in a single call.
+ *
+ * Both operations are non-throwing: the metadata mutation is synchronous and safe;
+ * recordRecommendationPick swallows DB errors internally.
+ *
+ * @param track - The discord-player Track object to mark
+ * @param basis - The RecommendationBasis (source + signals) for this pick
+ * @param guildId - The guild where the track is being queued
+ * @param discordUserId - Optional: the Discord user who initiated the replenish
+ */
+export async function markAndRecordAutoplayTrack(
+	track: Track,
+	basis: RecommendationBasis,
+	guildId: string,
+	discordUserId?: string,
+): Promise<void> {
+	// Mark the track synchronously with serialized reason
+	const serializedReason = serializeBasis(basis)
+	markAsAutoplayTrack(track, serializedReason, discordUserId)
+
+	// Fire telemetry asynchronously (non-blocking)
+	// recordRecommendationPick is non-throwing, so we don't need try/catch
+	await recordRecommendationPick({
+		guildId,
+		discordUserId,
+		trackId: track.id || track.url,
+		title: track.title ?? '',
+		author: track.author ?? '',
+		url: track.url,
+		thumbnail: undefined,
+		basis,
+	})
 }
