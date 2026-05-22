@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals'
-import { validateGuildAutomationManifest } from '@lucky/shared/services/guildAutomation/manifestSchema'
+import { validateGuildAutomationManifest } from './manifestSchema'
 
 describe('guildAutomationManifestSchema', () => {
     it('accepts a valid manifest payload', () => {

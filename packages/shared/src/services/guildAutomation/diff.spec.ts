@@ -1,9 +1,6 @@
 import { describe, it, expect } from '@jest/globals'
-import {
-    createAutomationPlan,
-    isPlanIdempotent,
-} from '@lucky/shared/services/guildAutomation/diff'
-import type { GuildAutomationManifestDocument as ManifestType } from '@lucky/shared/services/guildAutomation/types'
+import { createAutomationPlan, isPlanIdempotent } from './diff'
+import type { GuildAutomationManifestDocument as ManifestType } from './types'
 
 function baseManifest(): ManifestType {
     return {
