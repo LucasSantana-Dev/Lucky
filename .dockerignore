@@ -23,6 +23,7 @@ downloads/
 docs/
 *.md
 !README.md
+!CHANGELOG.md
 
 # Logs
 logs/
