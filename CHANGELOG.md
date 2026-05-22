@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - refactor(bot): break the last runtime circular dependency in `packages/bot/src` (Cycle C, #889) by extracting `getTrackAudioFeatures`/`audioFeatureCache` to `autoplay/audioFeatures.ts` and `buildVcContributionWeights` to `autoplay/vcWeights.ts`. Public surface preserved via re-export.
 - chore(prisma): repurpose unused `Recommendation` model for autoplay closed-loop telemetry (Phase A of the recommendation roadmap, ADR `2026-05-21-autoplay-recommendation-roadmap`). Adds `RecommendationSource` enum, `signals: Jsonb`, `discordUserId`, and a `(guildId, source, createdAt)` aggregation index; drops the unused `algorithm` column.
 
+### Added
+- feat(bot): autoplay closed-loop telemetry writers (Phase B of the recommendation roadmap). `recordRecommendationPick` inserts a `Recommendation` row at every autoplay pick (wired via the new `markAndRecordAutoplayTrack` wrapper in `diversitySelector.addSelectedTracks`); `recordRecommendationOutcome` flips `isAccepted`/`isRejected` on `playerFinish` (played > 30%) and `playerSkip` (< 5s). Thresholds exported as `OUTCOME_ACCEPT_PLAY_RATIO` / `OUTCOME_REJECT_EARLY_SKIP_MS` for Phase C tuning. All telemetry is non-throwing; failures never block queue replenishment or player events.
+
 ## [2.13.0] - 2026-05-21
 
 ### Added
