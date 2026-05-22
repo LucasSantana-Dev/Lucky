@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- refactor(bot): break the last runtime circular dependency in `packages/bot/src` (Cycle C, #889) by extracting `getTrackAudioFeatures`/`audioFeatureCache` to `autoplay/audioFeatures.ts` and `buildVcContributionWeights` to `autoplay/vcWeights.ts`. Public surface preserved via re-export.
+
 ## [2.13.0] - 2026-05-21
 
 ### Added

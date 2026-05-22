@@ -39,10 +39,10 @@ import {
     collectBroadFallbackCandidates,
     collectGenreCandidates,
     enrichWithAudioFeatures,
-    getTrackAudioFeatures,
     interleaveByArtist,
-    buildVcContributionWeights,
-} from '../queueManipulation'
+} from '../candidateFallback'
+import { buildVcContributionWeights } from './vcWeights'
+import { getTrackAudioFeatures } from './audioFeatures'
 
 // Autoplay backfill target. Non-premium guilds keep the existing 8-song
 // runway; premium guilds get 2× (16) so large listening sessions rarely
