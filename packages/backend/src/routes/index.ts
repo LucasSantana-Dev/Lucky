@@ -8,6 +8,7 @@ import { setupLastFmRoutes } from './lastfm'
 import { setupSpotifyRoutes } from './spotify'
 import { setupGuildSettingsRoutes } from './guildSettings'
 import { setupTrackHistoryRoutes } from './trackHistory'
+import { setupRecommendationsRoutes } from './recommendations'
 import { setupTwitchRoutes } from './twitch'
 import { setupLyricsRoutes } from './lyrics'
 import { setupRolesRoutes } from './roles'
@@ -59,6 +60,7 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     { path: '/api/guilds/:id/features', module: 'automation' },
     { path: '/api/guilds/:guildId/levels', module: 'settings' },
     { path: '/api/guilds/:guildId/starboard', module: 'settings' },
+    { path: '/api/guilds/:guildId/recommendations', module: 'settings' },
 ]
 
 const routeSetups = [
@@ -71,6 +73,7 @@ const routeSetups = [
     setupSpotifyRoutes,
     setupGuildSettingsRoutes,
     setupTrackHistoryRoutes,
+    setupRecommendationsRoutes,
     setupTwitchRoutes,
     setupLyricsRoutes,
     setupRolesRoutes,
