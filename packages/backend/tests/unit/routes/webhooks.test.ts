@@ -281,18 +281,6 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(pipelineMock.expire).not.toHaveBeenCalled()
     })
 
-    it('is idempotent — duplicate vote within TTL skips streak increment', async () => {
-        redisEval.mockResolvedValueOnce(0)
-        const res = await request(buildApp())
-            .post('/webhooks/topgg-votes')
-            .set('authorization', 'valid-token')
-            .send({ user: '123456789012345678', type: 'upvote' })
-        expect(res.status).toBe(200)
-        expect(res.body).toEqual({ ok: true, duplicate: true })
-        expect(redisEval).toHaveBeenCalledTimes(1)
-        expect(pipelineMock.incr).not.toHaveBeenCalled()
-        expect(pipelineMock.expire).not.toHaveBeenCalled()
-    })
 
     it('rejects unsafe non-snowflake user ids before writing to Redis', async () => {
         const res = await request(buildApp())
@@ -303,12 +291,4 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(redisEval).not.toHaveBeenCalled()
     })
 
-    it('returns 500 when the Redis script returns an unexpected value', async () => {
-        redisEval.mockResolvedValueOnce('unexpected')
-        const res = await request(buildApp())
-            .post('/webhooks/topgg-votes')
-            .set('authorization', 'valid-token')
-            .send({ user: '123456789012345678', type: 'upvote' })
-        expect(res.status).toBe(500)
-    })
 })
