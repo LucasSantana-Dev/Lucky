@@ -3,12 +3,7 @@ import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { validateParams, validateQuery } from '../middleware/validate'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
-import {
-    getPerSourceAcceptance,
-    getSummary,
-    type PerSourceRow,
-    type Summary,
-} from '@lucky/shared/services'
+import { getPerSourceAcceptance, getSummary } from '@lucky/shared/services'
 import { z } from 'zod'
 
 function p(val: string | string[]): string {
