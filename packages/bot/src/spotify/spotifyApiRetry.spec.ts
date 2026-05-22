@@ -43,7 +43,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 )
             })
 
-            const result = await spotifyApi.getAudioFeatures('test-token', 'track1')
+            const result = await spotifyApi.getAudioFeatures(
+                'test-token',
+                'track1',
+            )
 
             expect(attemptCount).toBe(2)
             expect(result).not.toBeNull()
@@ -61,7 +64,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 throw error
             })
 
-            const result = await spotifyApi.getAudioFeatures('test-token', 'track1')
+            const result = await spotifyApi.getAudioFeatures(
+                'test-token',
+                'track1',
+            )
 
             // maxRetries default is 2, so we expect: initial attempt + 2 retries = 3 total
             expect(attemptCount).toBe(3)
@@ -75,7 +81,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 throw new Response(null, { status: 401 })
             })
 
-            const result = await spotifyApi.getAudioFeatures('test-token', 'track1')
+            const result = await spotifyApi.getAudioFeatures(
+                'test-token',
+                'track1',
+            )
 
             // No retry — only 1 attempt
             expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -107,7 +116,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 )
             })
 
-            const result = await spotifyApi.getAudioFeatures('test-token', 'track1')
+            const result = await spotifyApi.getAudioFeatures(
+                'test-token',
+                'track1',
+            )
 
             expect(attemptCount).toBe(2)
             expect(result).not.toBeNull()
@@ -144,9 +156,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 )
             })
 
-            const result = await spotifyApi.getSpotifyRecommendations('test-token', [
-                'seed1',
-            ])
+            const result = await spotifyApi.getSpotifyRecommendations(
+                'test-token',
+                ['seed1'],
+            )
 
             expect(attemptCount).toBe(2)
             expect(result).toHaveLength(1)
@@ -163,7 +176,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 throw error
             })
 
-            const result = await spotifyApi.getSpotifyRecommendations('test-token', ['seed1'])
+            const result = await spotifyApi.getSpotifyRecommendations(
+                'test-token',
+                ['seed1'],
+            )
 
             expect(attemptCount).toBe(3) // initial + 2 retries
             expect(warnLog).toHaveBeenCalled()
@@ -198,7 +214,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 )
             })
 
-            const result = await spotifyApi.getBatchAudioFeatures('test-token', ['batch1'])
+            const result = await spotifyApi.getBatchAudioFeatures(
+                'test-token',
+                ['batch1'],
+            )
 
             expect(attemptCount).toBe(2)
             expect(result.size).toBe(1)
@@ -210,7 +229,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 throw new Response(null, { status: 429 })
             })
 
-            const result = await spotifyApi.getBatchAudioFeatures('test-token', ['batch1'])
+            const result = await spotifyApi.getBatchAudioFeatures(
+                'test-token',
+                ['batch1'],
+            )
 
             expect(result.size).toBe(0)
             expect(logAndSwallow).toHaveBeenCalled()
@@ -234,7 +256,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 )
             })
 
-            const result = await spotifyApi.getArtistPopularity('test-token', 'Retry Artist Popularity')
+            const result = await spotifyApi.getArtistPopularity(
+                'test-token',
+                'Retry Artist Popularity',
+            )
 
             expect(attemptCount).toBe(2)
             expect(result).toBe(82)
@@ -243,7 +268,10 @@ describe('Spotify API 429 Retry Logic', () => {
         it('should return null after network error', async () => {
             fetchMock.mockRejectedValue(new Error('network failure'))
 
-            const result = await spotifyApi.getArtistPopularity('test-token', 'Failing Artist Popularity')
+            const result = await spotifyApi.getArtistPopularity(
+                'test-token',
+                'Failing Artist Popularity',
+            )
 
             expect(result).toBeNull()
         })
@@ -266,7 +294,10 @@ describe('Spotify API 429 Retry Logic', () => {
                 )
             })
 
-            const result = await spotifyApi.getArtistGenres('test-token', 'Retry Artist Genres')
+            const result = await spotifyApi.getArtistGenres(
+                'test-token',
+                'Retry Artist Genres',
+            )
 
             expect(attemptCount).toBe(2)
             expect(result).toEqual(['pop', 'rock'])
@@ -275,7 +306,10 @@ describe('Spotify API 429 Retry Logic', () => {
         it('should return empty array after network error', async () => {
             fetchMock.mockRejectedValue(new Error('network failure'))
 
-            const result = await spotifyApi.getArtistGenres('test-token', 'Failing Artist Genres')
+            const result = await spotifyApi.getArtistGenres(
+                'test-token',
+                'Failing Artist Genres',
+            )
 
             expect(result).toEqual([])
         })

@@ -60,10 +60,7 @@ describe('onboarding mapper', () => {
             ]),
         } as any
 
-        const result = onboardingToManifest(
-            '123456789012345678',
-            onboarding,
-        )
+        const result = onboardingToManifest('123456789012345678', onboarding)
 
         expect(result?.enabled).toBe(true)
         expect(result?.defaultChannelIds).toEqual(['123456789012345678'])
