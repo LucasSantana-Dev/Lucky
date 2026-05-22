@@ -11,12 +11,18 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+jest.mock('./queueMarkers', () => ({
+    markAsAutoplayTrack: jest.fn(),
+    markAndRecordAutoplayTrack: jest.fn(() => Promise.resolve()),
+}))
+
 import {
     buildExcludedUrls,
     buildExcludedKeys,
     isDuplicateCandidate,
     selectDiverseCandidates,
     purgeDuplicatesOfCurrentTrack,
+    addSelectedTracks,
 } from './diversitySelector'
 
 describe('diversitySelector', () => {
@@ -638,6 +644,131 @@ describe('diversitySelector', () => {
             }).not.toThrow()
 
             expect(queueRemove).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('addSelectedTracks', () => {
+        let markAndRecordAutoplayTrackMock: jest.Mock
+
+        beforeEach(() => {
+            jest.clearAllMocks()
+            const { markAndRecordAutoplayTrack } = require('./queueMarkers')
+            markAndRecordAutoplayTrackMock = markAndRecordAutoplayTrack as jest.Mock
+        })
+
+        test('should call markAndRecordAutoplayTrack for each selected track', async () => {
+            const mockQueueWithAdd: Partial<GuildQueue> = {
+                ...mockQueue,
+                guild: { id: 'guild-id-123' },
+                tracks: {
+                    toArray: jest.fn(() => []),
+                },
+                addTrack: jest.fn(),
+            }
+
+            const track1: Partial<Track> = {
+                url: 'https://youtube.com/track1',
+                title: 'Track 1',
+                author: 'Artist 1',
+                id: 'track-1',
+            }
+
+            const track2: Partial<Track> = {
+                url: 'https://youtube.com/track2',
+                title: 'Track 2',
+                author: 'Artist 2',
+                id: 'track-2',
+            }
+
+            const selected = [
+                {
+                    track: track1 as Track,
+                    score: 0.8,
+                    basis: {
+                        source: 'spotify-rec' as const,
+                        signals: ['preferred artist'],
+                    },
+                },
+                {
+                    track: track2 as Track,
+                    score: 0.7,
+                    basis: {
+                        source: 'lastfm-similar' as const,
+                        signals: ['liked artist', 'energy match'],
+                    },
+                },
+            ]
+
+            await addSelectedTracks(
+                mockQueueWithAdd as GuildQueue,
+                selected,
+                new Set(),
+                new Set(),
+                'requesting-user-id',
+            )
+
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenCalledTimes(2)
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenNthCalledWith(1, 
+                track1,
+                {
+                    source: 'spotify-rec',
+                    signals: ['preferred artist'],
+                },
+                'guild-id-123',
+                'requesting-user-id',
+            )
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenNthCalledWith(2,
+                track2,
+                {
+                    source: 'lastfm-similar',
+                    signals: ['liked artist', 'energy match'],
+                },
+                'guild-id-123',
+                'requesting-user-id',
+            )
+        })
+
+        test('should pass undefined discordUserId when not provided', async () => {
+            const mockQueueWithAdd: Partial<GuildQueue> = {
+                ...mockQueue,
+                guild: { id: 'guild-id-456' },
+                tracks: {
+                    toArray: jest.fn(() => []),
+                },
+                addTrack: jest.fn(),
+            }
+
+            const track: Partial<Track> = {
+                url: 'https://youtube.com/track1',
+                title: 'Track 1',
+                author: 'Artist 1',
+                id: 'track-1',
+            }
+
+            const selected = [
+                {
+                    track: track as Track,
+                    score: 0.8,
+                    basis: {
+                        source: 'spotify-rec' as const,
+                        signals: [],
+                    },
+                },
+            ]
+
+            await addSelectedTracks(
+                mockQueueWithAdd as GuildQueue,
+                selected,
+                new Set(),
+                new Set(),
+            )
+
+            expect(markAndRecordAutoplayTrackMock).toHaveBeenCalledWith(
+                track,
+                { source: 'spotify-rec', signals: [] },
+                'guild-id-456',
+                undefined,
+            )
         })
     })
 })

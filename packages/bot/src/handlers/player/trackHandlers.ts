@@ -27,9 +27,14 @@ import {
     setReplenishSuppressed,
 } from '../../utils/music/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
+import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 
 const MAX_GUILD_ENTRIES = 500
 const TRACK_STATE_TTL_MS = 30 * 60 * 1000
+
+// Autoplay recommendation outcome thresholds (tune via Phase C data)
+export const OUTCOME_ACCEPT_PLAY_RATIO = 0.30
+export const OUTCOME_REJECT_EARLY_SKIP_MS = 5_000
 
 export const lastPlayedTracks = new LRUCache<string, Track>({
     max: MAX_GUILD_ENTRIES,
@@ -77,6 +82,11 @@ function isAutoplayTrack(track: Track, clientUserId?: string): boolean {
     return (
         metadata?.isAutoplay === true || track.requestedBy?.id === clientUserId
     )
+}
+
+function isRecommendationAutoplay(track: Track): boolean {
+    const metadata = track.metadata as { isAutoplay?: boolean } | undefined
+    return metadata?.isAutoplay === true
 }
 
 function normalizeTrackKeyForFeedback(title: string, author: string): string {
@@ -296,6 +306,14 @@ const handlePlayerFinish = async (
                     await recordImplicitTrackFeedback(track, 'implicit_like')
                     guildRecentSkipCounts.delete(queue.guild.id)
                 }
+                // Record autoplay recommendation outcome on natural finish
+                if (isRecommendationAutoplay(track) && completionRatio > OUTCOME_ACCEPT_PLAY_RATIO) {
+                    await recordRecommendationOutcome({
+                        guildId: queue.guild.id,
+                        trackId: track.id,
+                        outcome: 'accepted',
+                    })
+                }
             }
             guildTrackStartTimes.delete(queue.guild.id)
         }
@@ -332,11 +350,24 @@ const handlePlayerSkip = async (
             const startTime = guildTrackStartTimes.get(queue.guild.id)
             if (startTime && track.durationMS && track.durationMS > 20_000) {
                 const skipRatio = (Date.now() - startTime) / track.durationMS
+                const skipElapsedMs = Date.now() - startTime
                 if (skipRatio < 0.3) {
                     await recordImplicitTrackFeedback(track, 'implicit_dislike')
                     const current =
                         guildRecentSkipCounts.get(queue.guild.id) ?? 0
                     guildRecentSkipCounts.set(queue.guild.id, current + 1)
+                }
+                // Record autoplay recommendation outcome on skip
+                if (isRecommendationAutoplay(track)) {
+                    if (skipElapsedMs <= OUTCOME_REJECT_EARLY_SKIP_MS) {
+                        // Early skip within 5s threshold: rejected
+                        await recordRecommendationOutcome({
+                            guildId: queue.guild.id,
+                            trackId: track.id,
+                            outcome: 'rejected',
+                        })
+                    }
+                    // else: skip after 5s but before 30% is ambiguous, do not record
                 }
             }
             guildTrackStartTimes.delete(queue.guild.id)
