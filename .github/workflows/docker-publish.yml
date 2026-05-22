@@ -107,7 +107,7 @@ jobs:
                 echo "ref=${IMAGE}:${{ steps.meta.outputs.version }}" >> "$GITHUB_OUTPUT"
 
             - name: Trivy image scan (audit-only)
-              uses: aquasecurity/trivy-action@0.36.0
+              uses: aquasecurity/trivy-action@v0.36.0
               with:
                   image-ref: ${{ steps.imgref.outputs.ref }}
                   format: sarif
