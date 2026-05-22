@@ -108,6 +108,12 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     },
 }))
 
+const recordRecommendationOutcomeMock = jest.fn()
+jest.mock('../../services/musicRecommendation/recommendationTelemetry', () => ({
+    recordRecommendationOutcome: (...args: unknown[]) =>
+        recordRecommendationOutcomeMock(...args),
+}))
+
 jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (title: string) => title,
     cleanAuthor: (author: string) => author,
@@ -191,6 +197,7 @@ describe('trackHandlers autoplay replenishment', () => {
         scrobbleCurrentTrackIfLastFmMock.mockResolvedValue(undefined)
         saveSnapshotMock.mockResolvedValue(undefined)
         recordImplicitFeedbackMock.mockResolvedValue(undefined)
+        recordRecommendationOutcomeMock.mockResolvedValue(undefined)
     })
 
     afterEach(() => {
@@ -401,5 +408,129 @@ describe('trackHandlers autoplay replenishment', () => {
             'metadatatrack::metadataartist',
             'implicit_like',
         )
+    })
+
+    describe('autoplay recommendation outcome recording', () => {
+        it('records accepted outcome on playerFinish when autoplay track played past 30%', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerFinish = handlers.playerFinish
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const autoplayTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-track-1',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, autoplayTrack)
+            jest.advanceTimersByTime(35000) // 35% through track
+            await playerFinish(queue, autoplayTrack)
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'autoplay-track-1',
+                outcome: 'accepted',
+            })
+        })
+
+        it('records rejected outcome on playerSkip when autoplay track skipped within 5s', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerSkip = handlers.playerSkip
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const autoplayTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-track-2',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, autoplayTrack)
+            jest.advanceTimersByTime(3000) // 3s into track
+            await playerSkip(queue, autoplayTrack)
+
+            expect(recordRecommendationOutcomeMock).toHaveBeenCalledWith({
+                guildId: 'guild-1',
+                trackId: 'autoplay-track-2',
+                outcome: 'rejected',
+            })
+        })
+
+        it('does not record outcome for ambiguous mid-play skip (after 5s but before 30%)', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerSkip = handlers.playerSkip
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const autoplayTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-track-3',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, autoplayTrack)
+            jest.advanceTimersByTime(15000) // 15% through (after 5s, before 30%)
+            await playerSkip(queue, autoplayTrack)
+
+            expect(recordRecommendationOutcomeMock).not.toHaveBeenCalled()
+        })
+
+        it('does not record outcome for non-autoplay tracks on playerFinish', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerFinish = handlers.playerFinish
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const manualTrack = {
+                ...createTrack('listener-1'),
+                id: 'manual-track-1',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, manualTrack)
+            jest.advanceTimersByTime(85000)
+            await playerFinish(queue, manualTrack)
+
+            expect(recordRecommendationOutcomeMock).not.toHaveBeenCalled()
+        })
+
+        it('does not record outcome for non-autoplay tracks on playerSkip', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerSkip = handlers.playerSkip
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const manualTrack = {
+                ...createTrack('listener-1'),
+                id: 'manual-track-2',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, manualTrack)
+            jest.advanceTimersByTime(3000)
+            await playerSkip(queue, manualTrack)
+
+            expect(recordRecommendationOutcomeMock).not.toHaveBeenCalled()
+        })
+
+        it('does not record outcome for autoplay track skipped after 30% completion', async () => {
+            jest.useFakeTimers()
+            const handlers = setupHandlers()
+            const playerStart = handlers.playerStart
+            const playerSkip = handlers.playerSkip
+            const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+            const autoplayTrack = {
+                ...createAutoplayTrack('listener-1'),
+                id: 'autoplay-track-4',
+                durationMS: 100000,
+            } as unknown as Track
+
+            await playerStart(queue, autoplayTrack)
+            jest.advanceTimersByTime(35000) // 35% through (past the 30% threshold)
+            await playerSkip(queue, autoplayTrack)
+
+            expect(recordRecommendationOutcomeMock).not.toHaveBeenCalled()
+        })
     })
 })

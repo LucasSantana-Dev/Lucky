@@ -3,7 +3,7 @@ import { debugLog } from '@lucky/shared/utils'
 import { trackHistoryService } from '@lucky/shared/services'
 import { extractSongCore, cleanTitle, cleanAuthor } from '../searchQueryCleaner'
 import { calculateStringSimilarity } from '../duplicateDetection/similarityChecker'
-import { markAsAutoplayTrack } from '../queueManipulation'
+import { markAsAutoplayTrack, markAndRecordAutoplayTrack } from './queueMarkers'
 import { extractYouTubeVideoId } from './scoringUtils'
 import type { RecommendationBasis } from './recommendationBasis.js'
 import { serializeBasis } from './recommendationBasis.js'
@@ -308,12 +308,17 @@ export async function addSelectedTracks(
     requestedById?: string,
 ): Promise<void> {
     const historyWrites: Promise<boolean>[] = []
+    const telemetryWrites: Promise<void>[] = []
+    const guildId = queue.guild.id
 
     for (const candidate of selected) {
-        markAsAutoplayTrack(
-            candidate.track,
-            serializeBasis(candidate.basis),
-            requestedById,
+        telemetryWrites.push(
+            markAndRecordAutoplayTrack(
+                candidate.track,
+                candidate.basis,
+                guildId,
+                requestedById,
+            ),
         )
         queue.addTrack(candidate.track)
         // Update local exclusion sets for this replenish call
@@ -346,7 +351,7 @@ export async function addSelectedTracks(
         )
     }
 
-    await Promise.all(historyWrites)
+    await Promise.all([...historyWrites, ...telemetryWrites])
 }
 
 export function purgeDuplicatesOfCurrentTrack(

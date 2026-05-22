@@ -25,7 +25,7 @@ import {
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
-} from './candidateCollector'
+} from './candidateContracts'
 import { calculateRecommendationScore } from './candidateScorer'
 import { createArtistTagFetcher, type ArtistTagFetcher } from './artistTagCache'
 import type { ScoredTrack } from './diversitySelector'

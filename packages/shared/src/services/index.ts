@@ -58,6 +58,22 @@ export {
     GuildRoleGrantStorageError,
 } from './GuildRoleAccessService'
 export { redisClient } from './redis/index.js'
-export { starboardService, type StarboardConfig, type StarboardEntry } from './StarboardService.js'
-export { levelService, type LevelConfig, type MemberXP, type LevelReward, xpNeededForLevel } from './LevelService.js'
+export {
+    starboardService,
+    type StarboardConfig,
+    type StarboardEntry,
+} from './StarboardService.js'
+export {
+    levelService,
+    type LevelConfig,
+    type MemberXP,
+    type LevelReward,
+    xpNeededForLevel,
+} from './LevelService.js'
 export { autoroleService, type AutoRoleEntry } from './AutoRoleService.js'
+export {
+    getPerSourceAcceptance,
+    getSummary,
+    type PerSourceRow,
+    type Summary,
+} from './recommendationTelemetryReadService'

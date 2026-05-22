@@ -1,78 +1,56 @@
-import { EmbedBuilder } from 'discord.js'
-import { messages } from '../general/messages'
+/**
+ * Download helper utilities
+ */
 
-export function createErrorEmbed(error: string, user: string): EmbedBuilder {
-    return new EmbedBuilder()
-        .setColor('#FF0000')
-        .setTitle(messages.error.downloadFailed)
-        .setDescription(`<@${user}>, ${error}`)
-        .setTimestamp()
+const SUPPORTED_HOSTS: ReadonlyArray<string> = [
+	'youtube.com',
+	'youtu.be',
+	'soundcloud.com',
+	'bandcamp.com',
+	'spotify.com',
+]
+
+function parseHostname(url: string): string | null {
+	try {
+		return new URL(url).hostname.toLowerCase()
+	} catch {
+		return null
+	}
 }
 
-export function isYouTubeUrl(str: string): boolean {
-    return str.includes('youtube.com') || str.includes('youtu.be')
+function hostMatches(host: string, domain: string): boolean {
+	return host === domain || host.endsWith(`.${domain}`)
 }
 
-export function isInstagramUrl(str: string): boolean {
-    return str.includes('instagram.com') || str.includes('instagr.am')
-}
-
-export function isTwitterUrl(str: string): boolean {
-    return str.includes('twitter.com') || str.includes('x.com')
-}
-
-export function isTikTokUrl(str: string): boolean {
-    return str.includes('tiktok.com')
-}
-
-export function isSupportedPlatformUrl(str: string): boolean {
-    return (
-        isYouTubeUrl(str) ||
-        isInstagramUrl(str) ||
-        isTwitterUrl(str) ||
-        isTikTokUrl(str)
-    )
+export function isSupportedPlatformUrl(url: string): boolean {
+	const host = parseHostname(url)
+	if (!host) return false
+	return SUPPORTED_HOSTS.some((domain) => hostMatches(host, domain))
 }
 
 export function getPlatformFromUrl(url: string): string {
-    if (isYouTubeUrl(url)) return 'YouTube'
-    if (isInstagramUrl(url)) return 'Instagram'
-    if (isTwitterUrl(url)) return 'X (Twitter)'
-    if (isTikTokUrl(url)) return 'TikTok'
-    return 'Unknown'
+	const host = parseHostname(url)
+	if (!host) return 'unknown'
+	if (hostMatches(host, 'youtube.com') || hostMatches(host, 'youtu.be')) {
+		return 'youtube'
+	}
+	if (hostMatches(host, 'soundcloud.com')) return 'soundcloud'
+	if (hostMatches(host, 'bandcamp.com')) return 'bandcamp'
+	if (hostMatches(host, 'spotify.com')) return 'spotify'
+	return 'unknown'
+}
+
+export function createErrorEmbed(title: string, description: string): unknown {
+	return {
+		title,
+		description,
+		color: 0xff0000, // Red
+	}
 }
 
 export function formatDuration(seconds: number): string {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const remainingSeconds = seconds % 60
-    if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-    } else {
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-    }
-}
-
-export function createVideoEmbed(
-    video: unknown,
-    format: string,
-    user: { tag: string; displayAvatarURL: () => string },
-): EmbedBuilder {
-    return new EmbedBuilder()
-        .setColor('#FF0000')
-        .setTitle(
-            `🎥 ${(video as { title?: string }).title ?? 'Unknown Video'}`,
-        )
-        .setDescription(
-            `**Channel:** ${(video as { channel?: { name?: string } }).channel?.name ?? 'Unknown'}\n**Duration:** ${formatDuration((video as { durationInSec: number }).durationInSec)}\n**Format:** ${format === 'video' ? '🎬 Video' : '🎵 Audio'}`,
-        )
-        .setThumbnail(
-            (video as { thumbnails?: { url?: string }[] }).thumbnails?.[0]
-                ?.url ?? '',
-        )
-        .setTimestamp()
-        .setFooter({
-            text: `Requested by ${user.tag}`,
-            iconURL: user.displayAvatarURL(),
-        })
+	if (seconds <= 0) return '0:00'
+	const minutes = Math.floor(seconds / 60)
+	const secs = seconds % 60
+	return `${minutes}:${secs.toString().padStart(2, '0')}`
 }

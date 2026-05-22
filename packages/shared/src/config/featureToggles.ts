@@ -107,6 +107,16 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
         enabled: true,
         description: 'Enable /album command to queue all tracks from an album',
     },
+    EMBED_BUILDER: {
+        name: 'EMBED_BUILDER',
+        enabled: true,
+        description: 'Enable /embed command for interactive embed template builder',
+    },
+    COLLABORATIVE_PLAYLIST: {
+        name: 'COLLABORATIVE_PLAYLIST',
+        enabled: true,
+        description: 'Enable collaborative queue mode (/playlist collaborative)',
+    },
 }
 
 function parseEnvironmentToggle(

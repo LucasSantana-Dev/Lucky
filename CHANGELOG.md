@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-05-22
+
+### Added
+- feat(bot): autoplay closed-loop telemetry writers (Phase B of the recommendation roadmap, ADR `2026-05-21-autoplay-recommendation-roadmap`). `recordRecommendationPick` inserts a `Recommendation` row at every autoplay pick (wired via the new `markAndRecordAutoplayTrack` wrapper in `diversitySelector.addSelectedTracks`); `recordRecommendationOutcome` flips `isAccepted`/`isRejected` on `playerFinish` (played > 30%) and `playerSkip` (< 5s). Thresholds exported as `OUTCOME_ACCEPT_PLAY_RATIO` / `OUTCOME_REJECT_EARLY_SKIP_MS` for Phase C tuning. All telemetry is non-throwing; failures never block queue replenishment or player events. (#933)
+- feat(backend): autoplay telemetry read path — `GET /api/guilds/:guildId/recommendations/history?days=<n>` (Phase C of the recommendation roadmap). Returns per-source acceptance rate + global summary aggregated over the requested window (default 7 days, clamped to [1, 30]). Backed by the new `recommendationTelemetryReadService` in `@lucky/shared/services`. Read-only; zero regression risk. (#935)
+- feat(download): cover and re-enable `/download` command behind `DOWNLOAD_VIDEO` / `DOWNLOAD_AUDIO` toggles. 37 new tests + URL-hostname-parsing helpers to satisfy CodeQL substring-sanitization. (#930)
+- feat(music): cover and re-enable collaborative playlist mode behind `COLLABORATIVE_PLAYLIST` toggle. 51 new tests. (#929)
+- feat(management): add test coverage for `/customcommand`. 25 new tests, no behavioural change. (#928)
+- feat(management): cover and re-enable `/embed` builder behind `EMBED_BUILDER` toggle. 19 new tests. (#927)
+- test(bot/recommendation): cover 4 untested recommendation handlers. 18 new tests. (#926)
+
+### Changed
+- refactor(bot): break the last runtime circular dependency in `packages/bot/src` (Cycle C, #889) by extracting `getTrackAudioFeatures`/`audioFeatureCache` to `autoplay/audioFeatures.ts` and `buildVcContributionWeights` to `autoplay/vcWeights.ts`. Public surface preserved via re-export. madge runtime cycles: 2 → 1 (only the deferred type-only `types/CustomClient` cycle remains). Unblocks promoting `.github/workflows/madge.yml` to a blocking gate. (#931)
+- refactor(bot/autoplay): break Cycles A + B residuals (partial #889) by extracting `queueMarkers.ts` and `candidateContracts.ts`. madge runtime cycles: 4 → 2. (#925)
+- chore(prisma): repurpose unused `Recommendation` model for autoplay closed-loop telemetry (Phase A of the recommendation roadmap). Adds `RecommendationSource` enum, `signals: Jsonb`, `discordUserId`, and a `(guildId, source, createdAt)` aggregation index; drops the unused `algorithm` column. (#932)
+
 ## [2.13.0] - 2026-05-21
 
 ### Added
@@ -827,3 +843,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deploy pipeline**: Wait for `docker-publish` to complete before firing the homelab webhook. Fail closed when no docker-publish run is found for the commit SHA (opt-out via `FORCE_UNVERIFIED_DEPLOY=true`).
 - **deploy pipeline**: New *Validate deployed version* step polls `/api/health/version` until the deployed `commitSha` matches `github.sha` before proceeding to OAuth smoke checks — eliminates false-positive green deploys against stale images.
 - **docker build**: `COMMIT_SHA` build arg injected in `docker-publish.yml` and set as `ENV` in the backend stage of the Dockerfile.
+
