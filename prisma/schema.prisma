@@ -93,9 +93,9 @@ model GuildMembershipEvent {
 }
 
 model GuildFeatureToggle {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   guildId String
-  guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  guild   Guild   @relation(fields: [guildId], references: [id], onDelete: Cascade)
   name    String
   enabled Boolean
 
@@ -126,13 +126,11 @@ model TwitchNotification {
   @@map("twitch_notifications")
 }
 
-
 enum AutoplayMode {
   similar
   discover
   popular
 }
-
 
 model GuildSettings {
   id      String @id @default(cuid())
@@ -140,13 +138,13 @@ model GuildSettings {
   guild   Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   // Music settings
-  defaultVolume   Int     @default(50)
-  maxQueueSize    Int     @default(100)
-  autoPlayEnabled Boolean @default(true)
+  defaultVolume   Int          @default(50)
+  maxQueueSize    Int          @default(100)
+  autoPlayEnabled Boolean      @default(true)
   autoplayMode    AutoplayMode @default(similar)
-  autoplayGenres  String[] @default([])
-  repeatMode      Int     @default(0)
-  shuffleEnabled  Boolean @default(false)
+  autoplayGenres  String[]     @default([])
+  repeatMode      Int          @default(0)
+  shuffleEnabled  Boolean      @default(false)
 
   // Bot settings
   prefix     String? @default("/")
@@ -167,7 +165,7 @@ model GuildSettings {
   // Optional role granted for the day. Scheduler reconciles membership each
   // tick against today's birthday set, so revocation is automatic when the
   // clock rolls over.
-  birthdayRoleId String?
+  birthdayRoleId    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,16 +189,16 @@ model GuildRoleGrant {
 }
 
 model GuildAutomationManifest {
-  id               String   @id @default(cuid())
-  guildId          String   @unique
-  version          Int      @default(1)
-  manifest         Json
-  moduleOwnership  Json?
+  id                String    @id @default(cuid())
+  guildId           String    @unique
+  version           Int       @default(1)
+  manifest          Json
+  moduleOwnership   Json?
   lastCapturedState Json?
-  lastCapturedAt   DateTime?
-  createdBy        String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  lastCapturedAt    DateTime?
+  createdBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([guildId])
   @@map("guild_automation_manifests")
@@ -368,16 +366,16 @@ model Download {
 
 // Artist Preferences (per Discord user per guild)
 model UserArtistPreference {
-  id          String   @id @default(cuid())
+  id            String   @id @default(cuid())
   discordUserId String
-  guildId     String
-  artistKey   String  // normalized: lowercase alphanumeric
-  artistName  String  // display name
-  spotifyId   String?
-  imageUrl    String?
-  preference  String  @default("prefer") // "prefer" | "block"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  guildId       String
+  artistKey     String // normalized: lowercase alphanumeric
+  artistName    String // display name
+  spotifyId     String?
+  imageUrl      String?
+  preference    String   @default("prefer") // "prefer" | "block"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([discordUserId, guildId, artistKey])
   @@index([discordUserId, guildId])
@@ -385,11 +383,37 @@ model UserArtistPreference {
 }
 
 // Music Recommendations
+//
+// Closed-loop telemetry for the autoplay engine: each track the engine picks is
+// recorded here at pick time; outcome is back-filled when the track plays
+// through (`isAccepted = true`) or is skipped early (`isRejected = true`).
+//
+// Source/signals come from the in-code `RecommendationBasis` shape
+// (packages/bot/src/utils/music/autoplay/recommendationBasis.ts). `reason`
+// stays as the denormalized human-readable serialization for Discord display.
+//
+// See docs/decisions/2026-05-21-autoplay-recommendation-roadmap.md for the
+// 4-phase roadmap; this table is the substrate for Phases A-C.
+enum RecommendationSource {
+  SPOTIFY_REC
+  SPOTIFY_TASTE
+  LASTFM_LOVED
+  LASTFM_SIMILAR
+  LASTFM_GENRE_FALLBACK
+  ARTIST_FALLBACK
+  GENRE_TAG
+}
+
 model Recommendation {
   id      String @id @default(cuid())
   guildId String
 
-  // Recommendation data
+  // The Discord user whose listening session produced this pick. Optional
+  // because some autoplay paths run without a clear single user (e.g.
+  // multi-listener voice channels — vcWeights chooses a contributor).
+  discordUserId String?
+
+  // Track identity
   trackId   String
   title     String
   author    String
@@ -397,11 +421,16 @@ model Recommendation {
   thumbnail String?
 
   // Recommendation metadata
-  algorithm  String // collaborative, content-based, hybrid
-  confidence Float // 0.0 - 1.0
+  source     RecommendationSource?
+  // RecommendationSignal[] from in-code basis. Stored as JSON for forward-
+  // compatibility — the TS union evolves more often than this schema should.
+  signals    Json                  @default("[]")
+  confidence Float? // 0.0 - 1.0 (Phase D may surface this; null for now)
+  // Denormalized human-readable serialization of source + signals. Computed
+  // by serializeBasis(). Kept for Discord display and ad-hoc query inspection.
   reason     String?
 
-  // User interaction
+  // Phase B closed-loop outcome
   isAccepted Boolean?
   isRejected Boolean?
   feedback   String?
@@ -410,6 +439,7 @@ model Recommendation {
   updatedAt DateTime @updatedAt
 
   @@index([guildId, createdAt])
+  @@index([guildId, source, createdAt])
   @@map("recommendations")
 }
 
@@ -459,15 +489,15 @@ model LastFmLink {
 
 // Spotify per-user linking (OAuth tokens stored per Discord user)
 model SpotifyLink {
-  id             String   @id @default(cuid())
-  discordId      String   @unique
-  spotifyId      String
-  accessToken    String
-  refreshToken   String
-  tokenExpiresAt DateTime
+  id              String   @id @default(cuid())
+  discordId       String   @unique
+  spotifyId       String
+  accessToken     String
+  refreshToken    String
+  tokenExpiresAt  DateTime
   spotifyUsername String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("spotify_links")
 }
@@ -537,24 +567,24 @@ model ModerationSettings {
 }
 
 model AutoModSettings {
-  id             String   @id @default(cuid())
-  guildId        String   @unique
-  enabled        Boolean  @default(false)
-  spamEnabled    Boolean  @default(false)
-  spamThreshold  Int      @default(5)
-  spamTimeWindow Int      @default(5)
-  capsEnabled    Boolean  @default(false)
-  capsThreshold  Int      @default(70)
-  linksEnabled   Boolean  @default(false)
-  allowedDomains      String[] @default([])
-  linkExemptChannels  String[] @default([])
-  invitesEnabled      Boolean  @default(false)
-  wordsEnabled        Boolean  @default(false)
-  bannedWords         String[] @default([])
-  exemptRoles         String[] @default([])
-  exemptChannels      String[] @default([])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  guildId            String   @unique
+  enabled            Boolean  @default(false)
+  spamEnabled        Boolean  @default(false)
+  spamThreshold      Int      @default(5)
+  spamTimeWindow     Int      @default(5)
+  capsEnabled        Boolean  @default(false)
+  capsThreshold      Int      @default(70)
+  linksEnabled       Boolean  @default(false)
+  allowedDomains     String[] @default([])
+  linkExemptChannels String[] @default([])
+  invitesEnabled     Boolean  @default(false)
+  wordsEnabled       Boolean  @default(false)
+  bannedWords        String[] @default([])
+  exemptRoles        String[] @default([])
+  exemptChannels     String[] @default([])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("automod_settings")
 }
