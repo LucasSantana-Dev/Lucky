@@ -76,6 +76,10 @@ RUN npm run build --workspace=packages/backend
 # in PR #846. Sharing the build stage eliminates that class of failure.
 FROM build AS build-frontend
 COPY packages/frontend ./packages/frontend
+# Frontend's /changelog page imports the repo-root CHANGELOG.md via
+# `import md from '../../../../CHANGELOG.md?raw'` (vite raw loader). The
+# build context's project root is /app, so the file must be present there.
+COPY CHANGELOG.md ./CHANGELOG.md
 RUN npm run build --workspace=packages/frontend
 
 # Production deps — slim install (no dev deps)
