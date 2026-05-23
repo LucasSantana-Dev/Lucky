@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.1] - 2026-05-23
+
+### Fixed
+- fix(docker): include repo-root `CHANGELOG.md` in the frontend build stage context — resolves broken production frontend image since v2.13.0 (#937)
+
+### Internal
+- ci: split sequential `quality-gates` job into four parallel test jobs; absorb `sonarcloud.yml` into `ci.yml` — tests run once with coverage, SonarCloud downloads artifacts. PR wall time ~8–10 min vs ~13–15 min (#942)
+- chore(tests): three-phase bot + backend test cleanup — ~77 tests + ~5k LOC removed (#938 #939 #940)
+- chore: add `.husky/post-merge` hook to auto-prune local branches whose remote was deleted (#941)
+
 ## [2.14.0] - 2026-05-22
 
 ### Added
