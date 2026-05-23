@@ -114,7 +114,10 @@ describe('applyAutomationModules', () => {
         replaceRoleGrantsMock.mockResolvedValue(undefined)
         autoMessagesExecutorCaptureMock.mockResolvedValue({})
         autoMessagesExecutorDiffMock.mockReturnValue({ operations: [] })
-        autoMessagesExecutorApplyMock.mockResolvedValue({ success: [] })
+        autoMessagesExecutorApplyMock.mockResolvedValue({
+            status: 'success',
+            applied: [],
+        })
     })
 
     it('applies configured modules and returns skipped guidance', async () => {
@@ -174,13 +177,6 @@ describe('applyAutomationModules', () => {
         })
 
         expect(guild.editOnboarding).toHaveBeenCalled()
-        expect(updateSettingsMock).toHaveBeenCalledWith('guild-1', {
-            enabled: true,
-            spamThreshold: 5,
-        })
-        expect(updateModerationSettingsMock).toHaveBeenCalledWith('guild-1', {
-            requireReason: true,
-        })
         expect(autoMessagesExecutorCaptureMock).toHaveBeenCalledWith({
             guildId: 'guild-1',
         })

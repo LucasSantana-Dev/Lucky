@@ -1,3 +1,5 @@
+import type { ExecutorApplyResult, ExecutorOpError } from './types'
+
 type AutoMessageType = 'welcome' | 'leave'
 
 type AutoMessageSnapshot = {
@@ -115,31 +117,52 @@ export function createAutoMessagesExecutor(deps: {
         async apply(
             diff: AutoMessagesDiff,
             ctx: ExecutorContext,
-        ): Promise<AutoMessagesResult> {
+        ): Promise<ExecutorApplyResult<AutoMessagesResult['applied']>> {
             const applied: AutoMessagesResult['applied'] = []
-            for (const op of diff.ops) {
-                if (op.kind === 'create') {
-                    await svc.createMessage(
-                        ctx.guildId,
-                        op.type,
-                        { message: op.message },
-                        { channelId: op.channelId },
-                    )
-                    applied.push({ type: op.type, action: 'create' })
-                    continue
-                }
-                if (op.kind === 'update') {
-                    await svc.updateMessage(op.id, {
-                        message: op.message,
-                        channelId: op.channelId,
-                        enabled: op.enabled,
+            const errors: ExecutorOpError[] = []
+
+            for (let opIndex = 0; opIndex < diff.ops.length; opIndex++) {
+                const op = diff.ops[opIndex]
+                try {
+                    if (op.kind === 'create') {
+                        await svc.createMessage(
+                            ctx.guildId,
+                            op.type,
+                            { message: op.message },
+                            { channelId: op.channelId },
+                        )
+                        applied.push({ type: op.type, action: 'create' })
+                        continue
+                    }
+                    if (op.kind === 'update') {
+                        await svc.updateMessage(op.id, {
+                            message: op.message,
+                            channelId: op.channelId,
+                            enabled: op.enabled,
+                        })
+                        applied.push({ type: op.type, action: 'update' })
+                        continue
+                    }
+                    applied.push({ type: op.type, action: 'noop' })
+                } catch (err) {
+                    errors.push({
+                        opIndex,
+                        opKind: op.kind,
+                        reason: String(err),
                     })
-                    applied.push({ type: op.type, action: 'update' })
-                    continue
                 }
-                applied.push({ type: op.type, action: 'noop' })
             }
-            return { applied }
+
+            if (errors.length === 0) {
+                return { status: 'success', applied }
+            }
+            if (applied.length > 0) {
+                return { status: 'partial', applied, errors }
+            }
+            return {
+                status: 'failed',
+                error: errors.map((e) => e.reason).join('; '),
+            }
         },
     }
 }

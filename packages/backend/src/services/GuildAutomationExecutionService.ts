@@ -1137,7 +1137,19 @@ class GuildAutomationExecutionService {
             live,
             desired.automessages ?? {},
         )
-        await this.autoMessagesExecutor.apply(diff, { guildId })
+        const result = await this.autoMessagesExecutor.apply(diff, { guildId })
+        if (result.status !== 'success') {
+            this.warnLog({
+                message: `AutoMessages executor apply: ${result.status}`,
+                data: {
+                    guildId,
+                    errors:
+                        result.status === 'failed'
+                            ? undefined
+                            : (result as any).errors,
+                },
+            })
+        }
         appliedModules.push('automessages')
     }
 

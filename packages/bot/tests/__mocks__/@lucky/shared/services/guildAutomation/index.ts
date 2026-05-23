@@ -5,3 +5,11 @@ export function createAutoMessagesExecutor() {
         apply: jest.fn().mockResolvedValue({ success: [] }),
     }
 }
+
+export function createModerationExecutor() {
+    return {
+        capture: jest.fn().mockReturnValue({}),
+        diff: jest.fn().mockReturnValue({ ops: [] }),
+        apply: jest.fn().mockResolvedValue({ status: 'success', applied: [] }),
+    }
+}
