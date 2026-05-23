@@ -61,6 +61,9 @@ export default function ServersPage() {
                     <p className='text-lg font-semibold text-lucky-text-primary'>
                         {user?.username}
                     </p>
+                    <p className='text-sm text-lucky-text-secondary'>
+                        @{user?.username}
+                    </p>
                 </div>
 
                 <div className='ml-auto text-right flex-shrink-0'>
@@ -76,19 +79,43 @@ export default function ServersPage() {
             <div className='space-y-6'>
                 <div className='flex items-baseline justify-between'>
                     <div>
-                        <h1 className='text-3xl font-bold text-lucky-text-primary' style={{ fontFamily: 'var(--font-lucky-display)' }}>
+                        <div className='flex items-center gap-2'>
+                            <h2 className='text-xs uppercase tracking-wider text-lucky-text-tertiary'>
+                                Servers
+                            </h2>
+                        </div>
+                        <h1
+                            className='text-3xl font-bold text-lucky-text-primary mt-2'
+                            style={{ fontFamily: 'var(--font-lucky-display)' }}
+                        >
                             Your Servers
                         </h1>
                         <p className='text-sm text-lucky-text-tertiary mt-2'>
-                            {withBotCount} of {guilds.length} with Lucky installed
+                            {guilds.length} servers — {withBotCount} with Lucky
+                            installed
                         </p>
                     </div>
                     <nav className='flex gap-2'>
                         {(
                             [
-                                { label: 'All', icon: LayoutGrid, active: true, onClick: undefined },
-                                { label: 'Premium', icon: Crown, active: false, onClick: () => navigate('/features') },
-                                { label: 'Settings', icon: Settings, active: false, onClick: () => navigate('/settings') },
+                                {
+                                    label: 'Servers',
+                                    icon: LayoutGrid,
+                                    active: true,
+                                    onClick: undefined,
+                                },
+                                {
+                                    label: 'Premium',
+                                    icon: Crown,
+                                    active: false,
+                                    onClick: () => navigate('/features'),
+                                },
+                                {
+                                    label: 'Settings',
+                                    icon: Settings,
+                                    active: false,
+                                    onClick: () => navigate('/settings'),
+                                },
                             ] as const
                         ).map(({ label, icon: Icon, active, onClick }) => (
                             <button
@@ -115,10 +142,14 @@ export default function ServersPage() {
                             Recently Active
                         </h2>
                         <button
-                            onClick={() => navigate(`/guild/${primaryGuild.id}`)}
+                            onClick={() =>
+                                navigate(`/guild/${primaryGuild.id}`)
+                            }
                             className={cn(
                                 'surface-panel w-full p-6 text-left border-2 transition-all hover:border-lucky-brand/50',
-                                primaryGuild.botAdded ? 'border-lucky-border-strong' : 'border-lucky-border',
+                                primaryGuild.botAdded
+                                    ? 'border-lucky-border-strong'
+                                    : 'border-lucky-border',
                             )}
                         >
                             <div className='flex items-start gap-4'>
@@ -128,7 +159,9 @@ export default function ServersPage() {
                                         alt={primaryGuild.name}
                                     />
                                     <AvatarFallback className='bg-lucky-brand/15 text-lucky-brand font-semibold'>
-                                        {primaryGuild.name.substring(0, 2).toUpperCase()}
+                                        {primaryGuild.name
+                                            .substring(0, 2)
+                                            .toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div className='flex-1 min-w-0'>
