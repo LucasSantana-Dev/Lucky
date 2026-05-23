@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { SpotifyArtist } from '@lucky/shared/utils'
 import {
+    type SpotifyArtist,
     errorLog,
     getPrismaClient,
     searchSpotifyArtists,
