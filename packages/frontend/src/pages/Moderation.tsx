@@ -30,6 +30,7 @@ import Skeleton from '@/components/ui/Skeleton'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import type { ModerationCase, ModerationStats } from '@/types'
 
 const ACTION_STYLES: Record<
@@ -108,7 +109,6 @@ function timeAgo(dateStr: string): string {
     return formatDate(dateStr)
 }
 
-
 function CaseDetailPanel({
     caseData,
     open,
@@ -141,13 +141,19 @@ function CaseDetailPanel({
                         initial={{ x: '100%' }}
                         animate={{ x: 0 }}
                         exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        transition={{
+                            type: 'spring',
+                            damping: 25,
+                            stiffness: 300,
+                        }}
                         className='fixed right-0 top-0 h-screen w-96 bg-lucky-bg-secondary border-l border-lucky-border z-50 flex flex-col'
                     >
                         <div className='flex items-center justify-between p-6 border-b border-lucky-border'>
                             <div className='flex items-center gap-3'>
                                 <div className={cn('p-2 rounded-lg', style.bg)}>
-                                    <ActionIcon className={cn('w-5 h-5', style.text)} />
+                                    <ActionIcon
+                                        className={cn('w-5 h-5', style.text)}
+                                    />
                                 </div>
                                 <h2 className='type-title text-lucky-text-primary'>
                                     Case #{caseData.caseNumber}
@@ -176,7 +182,8 @@ function CaseDetailPanel({
                                     Moderator
                                 </p>
                                 <p className='type-body text-lucky-text-primary'>
-                                    {caseData.moderatorName || caseData.moderatorId}
+                                    {caseData.moderatorName ||
+                                        caseData.moderatorId}
                                 </p>
                             </div>
 
@@ -221,7 +228,9 @@ function CaseDetailPanel({
                                         Duration
                                     </p>
                                     <p className='type-body-sm text-lucky-text-secondary'>
-                                        {Math.floor(caseData.duration / 60)} minutes
+                                        Duration:{' '}
+                                        {Math.floor(caseData.duration / 60)}{' '}
+                                        minutes
                                     </p>
                                 </div>
                             )}
@@ -261,7 +270,9 @@ function CaseDetailPanel({
                                     variant='destructive'
                                     className='w-full'
                                 >
-                                    {deactivating ? 'Deactivating...' : 'Deactivate Case'}
+                                    {deactivating
+                                        ? 'Deactivating...'
+                                        : 'Deactivate Case'}
                                 </Button>
                             </div>
                         )}
@@ -271,6 +282,9 @@ function CaseDetailPanel({
         </AnimatePresence>
     )
 }
+
+// Alias for consistency with usage
+const CaseDetailModal = CaseDetailPanel
 
 export default function ModerationPage() {
     const prefersReducedMotion = useReducedMotion()
@@ -479,21 +493,16 @@ export default function ModerationPage() {
             <Card className='overflow-hidden p-0'>
                 {/* Header */}
                 <div className='hidden md:grid grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-4 px-6 py-3 border-b border-lucky-border bg-lucky-bg-tertiary/20'>
-                    {[
-                        '#',
-                        'User',
-                        'Moderator',
-                        'Type',
-                        'Status',
-                        'Date',
-                    ].map((h) => (
-                        <span
-                            key={h}
-                            className='type-meta text-lucky-text-tertiary text-xs'
-                        >
-                            {h}
-                        </span>
-                    ))}
+                    {['#', 'User', 'Moderator', 'Type', 'Status', 'Date'].map(
+                        (h) => (
+                            <span
+                                key={h}
+                                className='type-meta text-lucky-text-tertiary text-xs'
+                            >
+                                {h}
+                            </span>
+                        ),
+                    )}
                 </div>
 
                 {/* Rows */}
@@ -522,11 +531,17 @@ export default function ModerationPage() {
                                 return (
                                     <motion.div
                                         key={c.id}
-                                        initial={prefersReducedMotion ? false : { opacity: 0 }}
+                                        initial={
+                                            prefersReducedMotion
+                                                ? false
+                                                : { opacity: 0 }
+                                        }
                                         animate={{ opacity: 1 }}
                                         transition={{
                                             duration: 0.15,
-                                            delay: prefersReducedMotion ? 0 : i * 0.02,
+                                            delay: prefersReducedMotion
+                                                ? 0
+                                                : i * 0.02,
                                         }}
                                         className='grid grid-cols-1 md:grid-cols-[40px_1fr_1fr_80px_80px_120px] gap-2 md:gap-4 px-6 py-3 items-center hover:bg-[rgba(236,72,153,0.04)] transition-colors cursor-pointer'
                                         onClick={() => setSelectedCase(c)}
@@ -569,7 +584,9 @@ export default function ModerationPage() {
                                                 )}
                                             />
                                             <span className='text-xs'>
-                                                {c.active ? 'Active' : 'Expired'}
+                                                {c.active
+                                                    ? 'Active'
+                                                    : 'Expired'}
                                             </span>
                                         </div>
                                         <span className='type-body-sm text-lucky-text-tertiary text-xs'>
@@ -581,7 +598,12 @@ export default function ModerationPage() {
                         </AnimatePresence>
                     ) : (
                         <EmptyState
-                            icon={<Shield className='w-10 h-10' aria-hidden='true' />}
+                            icon={
+                                <Shield
+                                    className='w-10 h-10'
+                                    aria-hidden='true'
+                                />
+                            }
                             title='No cases found'
                             description={
                                 searchQuery || typeFilter !== 'all'
