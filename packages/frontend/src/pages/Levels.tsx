@@ -1,330 +1,367 @@
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import { PlusIcon, TrashIcon, GripVerticalIcon } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import Skeleton from '@/components/ui/Skeleton'
+import { toast } from 'sonner'
+import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
+import { useGuildStore } from '@/stores/guildStore'
+import { TrashIcon } from 'lucide-react'
+import type { MemberXP, LevelReward, LevelConfig } from '@/services/levelsApi'
+import type { GuildRoleOption } from '@/types'
 
-interface UserLevel {
-  userId: string;
-  username: string;
-  currentXp: number;
-  nextLevelXp: number;
-  level: number;
-  avatarUrl?: string;
-  roles: Array<{ id: string; name: string; color?: string }>;
-}
+function Levels() {
+    const { selectedGuild } = useGuildStore()
+    const [loading, setLoading] = useState(true)
+    const [leaderboard, setLeaderboard] = useState<MemberXP[]>([])
+    const [config, setConfig] = useState<LevelConfig | null>(null)
+    const [rewards, setRewards] = useState<LevelReward[]>([])
+    const [roles, setRoles] = useState<GuildRoleOption[]>([])
+    const [saving, setSaving] = useState(false)
+    const [adding, setAdding] = useState(false)
+    const [newLevel, setNewLevel] = useState('')
+    const [newRoleId, setNewRoleId] = useState('')
 
-interface LevelReward {
-  levelThreshold: number;
-  roleId?: string;
-  roleName?: string;
-}
+    // Form state
+    const [enabled, setEnabled] = useState(false)
+    const [xpPerMessage, setXpPerMessage] = useState(0)
+    const [xpCooldownMs, setXpCooldownMs] = useState(0)
+    const [announceChannel, setAnnounceChannel] = useState('')
 
-interface LevelsPageProps {
-  leaderboard?: UserLevel[];
-  rewards?: LevelReward[];
-  settings?: {
-    enabled: boolean;
-    announcement: string;
-    minMessageLength: number;
-    cooldown: number;
-  };
-  isLoading?: boolean;
-  onSettingsChange?: (settings: any) => void;
-  onRewardsChange?: (rewards: LevelReward[]) => void;
-}
+    useEffect(() => {
+        if (!selectedGuild) {
+            setLoading(false)
+            return
+        }
 
-const XpBar = ({ current, next }: { current: number; next: number }) => {
-  const percentage = Math.min((current / next) * 100, 100);
-  return (
-    <div className="w-full bg-lucky-surface-highlight rounded-full h-1.5 overflow-hidden">
-      <motion.div
-        className="h-full bg-lucky-brand"
-        initial={{ width: 0 }}
-        animate={{ width: `${percentage}%` }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-      />
-    </div>
-  );
-};
+        const loadData = async () => {
+            setLoading(true)
+            try {
+                const [configData, leaderboardData, rewardsData, rbacData] =
+                    await Promise.all([
+                        api.levels.getConfig(selectedGuild.id),
+                        api.levels.getLeaderboard(selectedGuild.id, 20),
+                        api.levels.getRewards(selectedGuild.id),
+                        api.guilds
+                            .getRbac(selectedGuild.id)
+                            .catch(() => ({ data: { roles: [] } })),
+                    ])
 
-const LeaderboardRowPrimary = ({ user, rank }: { user: UserLevel; rank: number }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className="p-6 rounded-xl bg-gradient-to-br from-lucky-surface-panel to-lucky-surface-elevated border border-lucky-border/50"
-    >
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0">
-          {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt={user.username}
-              className="w-16 h-16 rounded-lg border border-lucky-border"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-lg bg-lucky-surface-highlight border border-lucky-border flex items-center justify-center text-2xl font-bold text-lucky-brand">
-              {user.username[0]?.toUpperCase()}
-            </div>
-          )}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2 mb-1">
-            <h3 className="text-3xl font-bold text-lucky-brand">#{rank}</h3>
-            <p className="text-xl font-semibold text-lucky-text-primary">{user.username}</p>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            {user.roles.slice(0, 2).map((role) => (
-              <Badge key={role.id} variant="outline" className="text-xs">
-                {role.name}
-              </Badge>
-            ))}
-          </div>
-          <div className="mb-3">
-            <Badge variant="secondary" className="bg-lucky-brand/20 text-lucky-brand font-bold">
-              Level {user.level}
-            </Badge>
-          </div>
-          <XpBar current={user.currentXp} next={user.nextLevelXp} />
-          <div className="flex items-center justify-between mt-2 text-xs text-lucky-text-muted">
-            <span>{user.currentXp.toLocaleString()} XP</span>
-            <span>{(user.nextLevelXp - user.currentXp).toLocaleString()} to level up</span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
+                setLeaderboard(leaderboardData)
+                setRewards(rewardsData)
+                setRoles(rbacData.data.roles)
 
-const LeaderboardRowCompact = ({ user, rank }: { user: UserLevel; rank: number }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -4 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.05 * (rank - 1) }}
-      className="p-3 flex items-center gap-3 border-b border-lucky-border/30 hover:bg-lucky-surface-highlight/40 transition-colors"
-    >
-      <span className="w-6 text-center font-mono text-sm font-semibold text-lucky-accent">
-        {rank}
-      </span>
-      <img
-        src={user.avatarUrl || ''}
-        alt={user.username}
-        className="w-8 h-8 rounded border border-lucky-border flex-shrink-0"
-      />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-lucky-text-primary truncate">{user.username}</p>
-        <p className="text-xs text-lucky-text-muted">
-          Level {user.level} · {user.currentXp.toLocaleString()} XP
-        </p>
-      </div>
-      <Badge variant="outline" className="text-xs flex-shrink-0">
-        Lv {user.level}
-      </Badge>
-    </motion.div>
-  );
-};
+                if (configData) {
+                    setConfig(configData)
+                    setEnabled(configData.enabled)
+                    setXpPerMessage(configData.xpPerMessage)
+                    setXpCooldownMs(configData.xpCooldownMs)
+                    setAnnounceChannel(configData.announceChannel || '')
+                } else {
+                    setConfig(null)
+                    setEnabled(false)
+                    setXpPerMessage(0)
+                    setXpCooldownMs(0)
+                    setAnnounceChannel('')
+                }
+            } catch (error) {
+                if (error instanceof ApiError) {
+                    toast.error('Failed to load level settings')
+                }
+            } finally {
+                setLoading(false)
+            }
+        }
 
-export const LevelsPage = ({
-  leaderboard = [],
-  rewards = [],
-  settings = { enabled: false, announcement: '', minMessageLength: 1, cooldown: 0 },
-  isLoading = false,
-  onSettingsChange,
-  onRewardsChange,
-}: LevelsPageProps) => {
-  const [expandedReward, setExpandedReward] = useState<number | null>(null);
-  const [newReward, setNewReward] = useState({ level: '', roleId: '' });
+        loadData()
+    }, [selectedGuild])
 
-  const handleAddReward = useCallback(() => {
-    if (newReward.level && newReward.roleId) {
-      onRewardsChange?.([
-        ...rewards,
-        { levelThreshold: parseInt(newReward.level), roleId: newReward.roleId },
-      ]);
-      setNewReward({ level: '', roleId: '' });
+    const handleSaveSettings = async () => {
+        if (!selectedGuild) return
+
+        setSaving(true)
+        try {
+            await api.levels.updateConfig(selectedGuild.id, {
+                enabled,
+                xpPerMessage,
+                xpCooldownMs,
+                announceChannel: announceChannel || null,
+            })
+            toast.success('Level settings saved')
+        } catch (error) {
+            toast.error('Failed to save settings')
+        } finally {
+            setSaving(false)
+        }
     }
-  }, [newReward, rewards, onRewardsChange]);
 
-  const handleRemoveReward = useCallback(
-    (index: number) => {
-      onRewardsChange?.(rewards.filter((_, i) => i !== index));
-    },
-    [rewards, onRewardsChange]
-  );
+    const handleAddReward = async () => {
+        if (!selectedGuild || !newLevel || !newRoleId) return
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-32" />
-        <Skeleton className="h-12" />
-        <Skeleton className="h-12" />
-      </div>
-    );
-  }
+        setAdding(true)
+        try {
+            const reward = await api.levels.addReward(selectedGuild.id, {
+                level: parseInt(newLevel),
+                roleId: newRoleId,
+            })
+            setRewards([...rewards, reward])
+            setNewLevel('')
+            setNewRoleId('')
+            toast.success(`Reward added for level ${parseInt(newLevel)}`)
+        } catch (error) {
+            toast.error('Failed to add reward')
+        } finally {
+            setAdding(false)
+        }
+    }
 
-  const topUser = leaderboard[0];
-  const restLeaderboard = leaderboard.slice(1, 11);
+    const handleRemoveReward = async (level: number) => {
+        if (!selectedGuild) return
 
-  return (
-    <div className="space-y-6">
-      <section>
-        <h2 className="text-2xl font-bold text-lucky-text-primary mb-4">Leaderboard</h2>
+        try {
+            await api.levels.removeReward(selectedGuild.id, level)
+            setRewards(rewards.filter((r) => r.level !== level))
+            toast.success('Reward removed')
+        } catch (error) {
+            toast.error('Failed to remove reward')
+        }
+    }
 
-        {topUser ? (
-          <div className="mb-6">
-            <LeaderboardRowPrimary user={topUser} rank={1} />
-          </div>
-        ) : (
-          <EmptyState
-            icon="🏆"
-            title="No users yet"
-            description="Users will appear here as they gain XP."
-          />
-        )}
-
-        {restLeaderboard.length > 0 && (
-          <Card className="overflow-hidden">
-            <div className="divide-y divide-lucky-border/30">
-              {restLeaderboard.map((user, idx) => (
-                <LeaderboardRowCompact key={user.userId} user={user} rank={idx + 2} />
-              ))}
-            </div>
-          </Card>
-        )}
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-lucky-text-primary mb-4">Settings</h3>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label>Levels Enabled</Label>
-              <Switch
-                checked={settings.enabled}
-                onCheckedChange={(enabled) =>
-                  onSettingsChange?.({ ...settings, enabled })
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="announcement">Announcement Channel</Label>
-              <Input
-                id="announcement"
-                value={settings.announcement}
-                onChange={(e) =>
-                  onSettingsChange?.({ ...settings, announcement: e.target.value })
-                }
-                placeholder="Select channel"
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="minLength">Min. Message Length</Label>
-              <Input
-                id="minLength"
-                type="number"
-                value={settings.minMessageLength}
-                onChange={(e) =>
-                  onSettingsChange?.({
-                    ...settings,
-                    minMessageLength: parseInt(e.target.value),
-                  })
-                }
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="cooldown">XP Cooldown (sec)</Label>
-              <Input
-                id="cooldown"
-                type="number"
-                value={settings.cooldown}
-                onChange={(e) =>
-                  onSettingsChange?.({ ...settings, cooldown: parseInt(e.target.value) })
-                }
-                className="mt-1.5"
-              />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-lucky-text-primary mb-4">Rewards</h3>
-          <AnimatePresence mode="popLayout">
-            {rewards.map((reward, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                className="flex items-center justify-between p-2 rounded bg-lucky-surface-highlight/30 mb-2"
-              >
-                <div className="flex items-center gap-2">
-                  <GripVerticalIcon className="w-4 h-4 text-lucky-text-muted" />
-                  <span className="text-sm">Level {reward.levelThreshold}</span>
-                  <Badge variant="outline" className="text-xs">
-                    {reward.roleName || 'Unknown'}
-                  </Badge>
+    if (!selectedGuild) {
+        return (
+            <div className='flex flex-col items-center justify-center py-12'>
+                <div className='text-center'>
+                    <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
+                        No server selected
+                    </p>
+                    <p className='text-sm text-lucky-text-secondary'>
+                        Select a server to view level settings
+                    </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleRemoveReward(idx)}
-                  className="h-7 w-7 p-0"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </Button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          <div className="space-y-1.5 pt-2 border-t border-lucky-border/30 mt-3">
-            <div>
-              <Label htmlFor="newLevel" className="text-xs">
-                Level
-              </Label>
-              <Input
-                id="newLevel"
-                type="number"
-                placeholder="5"
-                value={newReward.level}
-                onChange={(e) => setNewReward({ ...newReward, level: e.target.value })}
-                className="mt-0.5 h-8"
-              />
             </div>
-            <div>
-              <Label htmlFor="newRole" className="text-xs">
-                Role ID
-              </Label>
-              <Input
-                id="newRole"
-                placeholder="Role ID"
-                value={newReward.roleId}
-                onChange={(e) => setNewReward({ ...newReward, roleId: e.target.value })}
-                className="mt-0.5 h-8"
-              />
-            </div>
-            <Button
-              onClick={handleAddReward}
-              className="w-full h-8 text-xs gap-1"
-              disabled={!newReward.level || !newReward.roleId}
-            >
-              <PlusIcon className="w-3 h-3" />
-              Add Reward
-            </Button>
-          </div>
-        </Card>
-      </section>
-    </div>
-  );
-};
+        )
+    }
 
-export default LevelsPage;
+    if (loading) {
+        return (
+            <div className='space-y-4'>
+                <Skeleton className='h-16 rounded' />
+                <Skeleton className='h-32 rounded' />
+                <Skeleton className='h-32 rounded' />
+            </div>
+        )
+    }
+
+    const getRoleName = (roleId: string): string => {
+        const role = roles.find((r) => r.id === roleId)
+        return role?.name || roleId
+    }
+
+    return (
+        <div className='space-y-6'>
+            {/* Leaderboard */}
+            <section>
+                <h2 className='text-2xl font-bold text-lucky-text-primary mb-4'>
+                    Leaderboard
+                </h2>
+                {leaderboard.length === 0 ? (
+                    <Card className='p-8 text-center'>
+                        <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
+                            No data yet
+                        </p>
+                        <p className='text-sm text-lucky-text-secondary'>
+                            Members gain XP by chatting once the level system is
+                            enabled
+                        </p>
+                    </Card>
+                ) : (
+                    <Card className='overflow-hidden'>
+                        <div className='divide-y divide-lucky-border'>
+                            {leaderboard.map((member) => (
+                                <div
+                                    key={member.userId}
+                                    className='flex items-center justify-between p-4 hover:bg-lucky-bg-secondary/50 transition-colors'
+                                >
+                                    <div className='flex-1'>
+                                        <p className='font-medium text-lucky-text-primary'>
+                                            {member.userId}
+                                        </p>
+                                        <p className='text-sm text-lucky-text-secondary'>
+                                            Level {member.level}
+                                        </p>
+                                    </div>
+                                    <div className='text-right'>
+                                        <p className='font-semibold text-lucky-accent'>
+                                            {member.xp.toLocaleString()} XP
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+                )}
+            </section>
+
+            <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+                {/* Config Settings */}
+                <Card className='p-6'>
+                    <h3 className='text-lg font-semibold text-lucky-text-primary mb-4'>
+                        Settings
+                    </h3>
+                    <div className='space-y-4'>
+                        <div className='flex items-center justify-between'>
+                            <Label>Enable XP</Label>
+                            <Switch
+                                aria-label='Enable XP'
+                                checked={enabled}
+                                onCheckedChange={setEnabled}
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor='xpPerMsg' className='text-sm'>
+                                XP Per Message
+                            </Label>
+                            <Input
+                                id='xpPerMsg'
+                                type='number'
+                                value={xpPerMessage}
+                                onChange={(e) =>
+                                    setXpPerMessage(
+                                        parseInt(e.target.value) || 0,
+                                    )
+                                }
+                                min='1'
+                                max='1000'
+                                className='mt-1.5'
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor='cooldown' className='text-sm'>
+                                Cooldown (ms)
+                            </Label>
+                            <Input
+                                id='cooldown'
+                                type='number'
+                                value={xpCooldownMs}
+                                onChange={(e) =>
+                                    setXpCooldownMs(
+                                        parseInt(e.target.value) || 0,
+                                    )
+                                }
+                                className='mt-1.5'
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor='channel' className='text-sm'>
+                                Announce Channel
+                            </Label>
+                            <Input
+                                id='channel'
+                                type='text'
+                                value={announceChannel}
+                                onChange={(e) =>
+                                    setAnnounceChannel(e.target.value)
+                                }
+                                placeholder='Channel ID (optional)'
+                                className='mt-1.5'
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handleSaveSettings}
+                            disabled={saving}
+                            className='w-full'
+                        >
+                            {saving ? 'Saving...' : 'Save Settings'}
+                        </Button>
+                    </div>
+                </Card>
+
+                {/* Rewards */}
+                <Card className='p-6'>
+                    <h3 className='text-lg font-semibold text-lucky-text-primary mb-4'>
+                        Level Rewards
+                    </h3>
+
+                    <div className='space-y-3 mb-4'>
+                        {rewards.length === 0 ? (
+                            <p className='text-sm text-lucky-text-secondary'>
+                                No rewards configured
+                            </p>
+                        ) : (
+                            rewards.map((reward) => (
+                                <div
+                                    key={reward.id}
+                                    className='flex items-center justify-between p-3 rounded bg-lucky-bg-secondary/50'
+                                >
+                                    <div className='flex-1'>
+                                        <p className='text-lucky-brand'>
+                                            Lv.{reward.level}
+                                        </p>
+                                        <p className='text-sm text-lucky-text-secondary'>
+                                            {getRoleName(reward.roleId)}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() =>
+                                            handleRemoveReward(reward.level)
+                                        }
+                                        className='p-1.5 hover:bg-lucky-bg-tertiary rounded transition-colors'
+                                    >
+                                        <TrashIcon className='w-4 h-4 text-lucky-text-secondary hover:text-lucky-brand' />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className='space-y-3 pt-4 border-t border-lucky-border'>
+                        <div>
+                            <Label htmlFor='newLevel' className='text-sm'>
+                                Level
+                            </Label>
+                            <Input
+                                id='newLevel'
+                                type='number'
+                                placeholder='e.g. 5'
+                                value={newLevel}
+                                onChange={(e) => setNewLevel(e.target.value)}
+                                className='mt-1.5'
+                            />
+                        </div>
+
+                        <div>
+                            <Label htmlFor='newRole' className='text-sm'>
+                                Role ID
+                            </Label>
+                            <Input
+                                id='newRole'
+                                type='text'
+                                placeholder='Role ID'
+                                value={newRoleId}
+                                onChange={(e) => setNewRoleId(e.target.value)}
+                                className='mt-1.5'
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handleAddReward}
+                            disabled={adding || !newLevel || !newRoleId}
+                            className='w-full'
+                        >
+                            {adding ? 'Adding...' : 'Add Reward'}
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        </div>
+    )
+}
+
+export default Levels

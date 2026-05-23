@@ -1,251 +1,277 @@
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/empty-state';
-import { StarIcon, TrashIcon } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import Skeleton from '@/components/ui/Skeleton'
+import { toast } from 'sonner'
+import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
+import { useGuildStore } from '@/stores/guildStore'
+import type { StarboardConfig, StarboardEntry } from '@/services/starboardApi'
 
-interface StarboardEntry {
-  messageId: string;
-  authorId: string;
-  authorName: string;
-  authorAvatarUrl?: string;
-  content: string;
-  starCount: number;
-  createdAt: Date;
-  channelId: string;
-  channelName: string;
-}
+function Starboard() {
+    const { selectedGuild } = useGuildStore()
+    const [loading, setLoading] = useState(true)
+    const [entries, setEntries] = useState<StarboardEntry[]>([])
+    const [config, setConfig] = useState<StarboardConfig | null>(null)
+    const [saving, setSaving] = useState(false)
+    const [channelId, setChannelId] = useState('')
+    const [emoji, setEmoji] = useState('⭐')
+    const [threshold, setThreshold] = useState(3)
+    const [selfStar, setSelfStar] = useState(false)
 
-interface StarboardSettings {
-  enabled: boolean;
-  requiredStars: number;
-  selfStarAllowed: boolean;
-  emoji: string;
-}
+    useEffect(() => {
+        if (!selectedGuild) {
+            setLoading(false)
+            return
+        }
 
-interface StarboardPageProps {
-  entries?: StarboardEntry[];
-  settings?: StarboardSettings;
-  channels?: Array<{ id: string; name: string }>;
-  isLoading?: boolean;
-  onSettingsChange?: (settings: StarboardSettings) => void;
-  onRemoveEntry?: (messageId: string) => void;
-}
+        const loadData = async () => {
+            setLoading(true)
+            try {
+                const [configData, entriesData] = await Promise.all([
+                    api.starboard.getConfig(selectedGuild.id),
+                    api.starboard.getTopEntries(selectedGuild.id, 20),
+                ])
 
-const SkeletonCard = () => (
-  <div className="p-4 rounded-xl bg-lucky-surface-panel border border-lucky-border/50">
-    <div className="flex gap-3 mb-3">
-      <Skeleton className="w-1 h-20 rounded-full" />
-      <div className="flex-1 space-y-2">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
-      </div>
-    </div>
-    <Skeleton className="h-16" />
-    <Skeleton className="h-3 w-2/3 mt-3" />
-  </div>
-);
+                setEntries(entriesData)
 
-const EntryCard = ({ entry, onRemove }: { entry: StarboardEntry; onRemove: () => void }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.3 }}
-      className="p-4 rounded-xl bg-lucky-surface-panel border border-lucky-border/50 hover:border-lucky-border/80 transition-colors group"
-    >
-      <div className="flex gap-3">
-        <div className="w-1 rounded-full bg-lucky-brand/60 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm leading-relaxed text-lucky-text-primary line-clamp-4 mb-3">
-            {entry.content}
-          </p>
-          <div className="flex items-center justify-between pt-2 border-t border-lucky-border/30 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-mono font-semibold text-lucky-accent flex items-center gap-1">
-                <StarIcon className="w-3 h-3" />
-                {entry.starCount}
-              </span>
-              <span className="text-lucky-text-muted">{entry.authorName}</span>
-              <span className="text-lucky-text-muted">
-                {new Date(entry.createdAt).toLocaleDateString()}
-              </span>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={onRemove}
-              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <TrashIcon className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-};
-
-export const StarboardPage = ({
-  entries = [],
-  settings = { enabled: false, requiredStars: 1, selfStarAllowed: false, emoji: '⭐' },
-  channels = [],
-  isLoading = false,
-  onSettingsChange,
-  onRemoveEntry,
-}: StarboardPageProps) => {
-  const [activeTab, setActiveTab] = useState<'entries' | 'settings'>('entries');
-
-  const handleSettingChange = useCallback(
-    (key: keyof StarboardSettings, value: any) => {
-      onSettingsChange?.({ ...settings, [key]: value });
-    },
-    [settings, onSettingsChange]
-  );
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex gap-2 border-b border-lucky-border/30">
-        <Button
-          variant={activeTab === 'entries' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('entries')}
-          className="rounded-b-none"
-        >
-          Entries
-        </Button>
-        <Button
-          variant={activeTab === 'settings' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('settings')}
-          className="rounded-b-none"
-        >
-          Settings
-        </Button>
-      </div>
-
-      {activeTab === 'entries' && (
-        <section>
-          <h2 className="text-2xl font-bold text-lucky-text-primary mb-4">Top Starred Messages</h2>
-          {entries.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3">
-              <AnimatePresence mode="popLayout">
-                {entries.map((entry) => (
-                  <EntryCard
-                    key={entry.messageId}
-                    entry={entry}
-                    onRemove={() => onRemoveEntry?.(entry.messageId)}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <EmptyState
-              icon="⭐"
-              title="No starred messages yet"
-              description="Messages that reach the star threshold will appear here."
-            />
-          )}
-        </section>
-      )}
-
-      {activeTab === 'settings' && (
-        <section>
-          <h2 className="text-2xl font-bold text-lucky-text-primary mb-4">Settings</h2>
-          <Card className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Starboard Enabled</Label>
-                <p className="text-xs text-lucky-text-muted mt-0.5">
-                  Enable or disable the starboard feature
-                </p>
-              </div>
-              <Switch
-                checked={settings.enabled}
-                onCheckedChange={(enabled) => handleSettingChange('enabled', enabled)}
-              />
-            </div>
-
-            <div className="border-t border-lucky-border/30 pt-4">
-              <Label htmlFor="threshold">Required Stars</Label>
-              <Input
-                id="threshold"
-                type="number"
-                value={settings.requiredStars}
-                onChange={(e) =>
-                  handleSettingChange('requiredStars', parseInt(e.target.value) || 0)
+                if (configData) {
+                    setConfig(configData)
+                    setChannelId(configData.channelId)
+                    setEmoji(configData.emoji || '⭐')
+                    setThreshold(configData.threshold)
+                    setSelfStar(configData.selfStar)
+                } else {
+                    setConfig(null)
+                    setChannelId('')
+                    setEmoji('⭐')
+                    setThreshold(3)
+                    setSelfStar(false)
                 }
-                min="1"
-                className="mt-1.5"
-              />
-              <p className="text-xs text-lucky-text-muted mt-1">
-                Messages need this many stars to be added
-              </p>
-            </div>
+            } catch (error) {
+                if (error instanceof ApiError) {
+                    toast.error('Failed to load starboard settings')
+                }
+            } finally {
+                setLoading(false)
+            }
+        }
 
-            <div className="border-t border-lucky-border/30 pt-4">
-              <Label htmlFor="emoji">Star Emoji</Label>
-              <Input
-                id="emoji"
-                value={settings.emoji}
-                onChange={(e) => handleSettingChange('emoji', e.target.value)}
-                maxLength={2}
-                className="mt-1.5"
-              />
-              <p className="text-xs text-lucky-text-muted mt-1">
-                The emoji used for starring messages
-              </p>
-            </div>
+        loadData()
+    }, [selectedGuild])
 
-            <div className="border-t border-lucky-border/30 pt-4 flex items-center justify-between">
-              <div>
-                <Label>Self-Star Allowed</Label>
-                <p className="text-xs text-lucky-text-muted mt-0.5">
-                  Allow users to star their own messages
-                </p>
-              </div>
-              <Switch
-                checked={settings.selfStarAllowed}
-                onCheckedChange={(selfStar) => handleSettingChange('selfStarAllowed', selfStar)}
-              />
-            </div>
+    const handleSave = async () => {
+        if (!selectedGuild) return
 
-            <div className="border-t border-lucky-border/30 pt-4">
-              <Label>Target Channel</Label>
-              <div className="mt-1.5 space-y-2">
-                <div className="flex items-center gap-2 p-2 rounded bg-lucky-surface-highlight/30 border border-lucky-border/30">
-                  <Badge variant="secondary" className="text-xs">
-                    Active
-                  </Badge>
-                  <span className="text-sm text-lucky-text-primary">General</span>
+        setSaving(true)
+        try {
+            await api.starboard.updateConfig(selectedGuild.id, {
+                channelId,
+                emoji: emoji || '⭐',
+                threshold: threshold || 3,
+                selfStar,
+            })
+            toast.success('Starboard settings saved')
+        } catch (error) {
+            toast.error('Failed to save settings')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleDisable = async () => {
+        if (!selectedGuild) return
+
+        setSaving(true)
+        try {
+            await api.starboard.deleteConfig(selectedGuild.id)
+            setConfig(null)
+            setChannelId('')
+            setEmoji('⭐')
+            setThreshold(3)
+            setSelfStar(false)
+            toast.success('Starboard disabled')
+        } catch (error) {
+            toast.error('Failed to delete starboard config')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (!selectedGuild) {
+        return (
+            <div className='flex flex-col items-center justify-center py-12'>
+                <div className='text-center'>
+                    <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
+                        No server selected
+                    </p>
+                    <p className='text-sm text-lucky-text-secondary'>
+                        Select a server to view starboard settings
+                    </p>
                 </div>
-              </div>
-              <p className="text-xs text-lucky-text-muted mt-2">
-                Starred messages are posted to this channel
-              </p>
             </div>
-          </Card>
-        </section>
-      )}
-    </div>
-  );
-};
+        )
+    }
 
-export default StarboardPage;
+    if (loading) {
+        return (
+            <div className='space-y-4'>
+                <Skeleton className='h-16 rounded' />
+                <Skeleton className='h-32 rounded' />
+                <Skeleton className='h-32 rounded' />
+            </div>
+        )
+    }
+
+    const formatDate = (dateString: string): string => {
+        const date = new Date(dateString)
+        return date.toLocaleDateString('en-US', {
+            month: 'numeric',
+            day: 'numeric',
+            year: 'numeric',
+        })
+    }
+
+    return (
+        <div className='space-y-6'>
+            {/* Entries */}
+            <section>
+                <h2 className='text-2xl font-bold text-lucky-text-primary mb-4'>
+                    Top Starred Messages
+                </h2>
+                {entries.length === 0 ? (
+                    <Card className='p-8 text-center'>
+                        <p className='text-lg font-semibold text-lucky-text-primary mb-2'>
+                            No starred messages yet
+                        </p>
+                        <p className='text-sm text-lucky-text-secondary'>
+                            Configure the starboard below and members can start
+                            starring messages
+                        </p>
+                    </Card>
+                ) : (
+                    <div className='grid grid-cols-1 gap-3'>
+                        {entries.map((entry) => (
+                            <Card key={entry.id} className='p-4'>
+                                {entry.content && (
+                                    <p className='text-sm text-lucky-text-primary mb-3'>
+                                        {entry.content}
+                                    </p>
+                                )}
+                                <div className='flex items-center justify-between pt-2 border-t border-lucky-border text-xs'>
+                                    <div className='flex items-center gap-3'>
+                                        <span className='font-semibold text-lucky-brand'>
+                                            {entry.starCount}
+                                        </span>
+                                        <span className='text-lucky-text-secondary'>
+                                            {formatDate(entry.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* Settings */}
+            <section>
+                <h2 className='text-2xl font-bold text-lucky-text-primary mb-4'>
+                    Settings
+                </h2>
+                <Card className='p-6 space-y-4'>
+                    {config && (
+                        <div className='mb-4'>
+                            <Badge className='bg-green-600'>Active</Badge>
+                        </div>
+                    )}
+
+                    <div>
+                        <Label htmlFor='channel' className='text-sm'>
+                            Channel ID
+                        </Label>
+                        <Input
+                            id='channel'
+                            type='text'
+                            value={channelId}
+                            onChange={(e) => setChannelId(e.target.value)}
+                            placeholder='Channel ID'
+                            className='mt-1.5'
+                        />
+                    </div>
+
+                    <div>
+                        <Label htmlFor='emoji' className='text-sm'>
+                            Emoji
+                        </Label>
+                        <Input
+                            id='emoji'
+                            type='text'
+                            value={emoji}
+                            onChange={(e) => setEmoji(e.target.value)}
+                            placeholder='⭐'
+                            className='mt-1.5'
+                        />
+                    </div>
+
+                    <div>
+                        <Label htmlFor='threshold' className='text-sm'>
+                            Star Threshold
+                        </Label>
+                        <Input
+                            id='threshold'
+                            type='number'
+                            value={threshold}
+                            onChange={(e) =>
+                                setThreshold(
+                                    e.target.value
+                                        ? parseInt(e.target.value)
+                                        : 3,
+                                )
+                            }
+                            max='100'
+                            className='mt-1.5'
+                        />
+                    </div>
+
+                    <div className='flex items-center justify-between pt-2 border-t border-lucky-border'>
+                        <Label htmlFor='selfStar' className='text-sm'>
+                            Allow Self-Star
+                        </Label>
+                        <Switch
+                            id='selfStar'
+                            aria-label='Allow self-star'
+                            checked={selfStar}
+                            onCheckedChange={setSelfStar}
+                        />
+                    </div>
+
+                    <div className='flex gap-2 pt-4'>
+                        <Button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className='flex-1'
+                        >
+                            {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                        {config && (
+                            <Button
+                                onClick={handleDisable}
+                                disabled={saving}
+                                variant='outline'
+                            >
+                                Disable Starboard
+                            </Button>
+                        )}
+                    </div>
+                </Card>
+            </section>
+        </div>
+    )
+}
+
+export default Starboard
