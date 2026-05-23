@@ -19,16 +19,19 @@ export function handleMessageCreate(client: Client): void {
         try {
             if (!message.guild || !message.member) return
 
-            const featureToggles = {
-                AUTOMOD: await featureToggleService.isEnabled('AUTOMOD', {
-                    guildId: message.guild.id,
-                }),
-                CUSTOM_COMMANDS: await featureToggleService.isEnabled(
-                    'CUSTOM_COMMANDS',
-                    {
+            const [automod, customCommands] = await Promise.all([
+                featureToggleService
+                    .isEnabled('AUTOMOD', { guildId: message.guild.id })
+                    .catch(() => false),
+                featureToggleService
+                    .isEnabled('CUSTOM_COMMANDS', {
                         guildId: message.guild.id,
-                    },
-                ),
+                    })
+                    .catch(() => false),
+            ])
+            const featureToggles = {
+                AUTOMOD: automod,
+                CUSTOM_COMMANDS: customCommands,
             }
 
             const context: MessageContext = {
