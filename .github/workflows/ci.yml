@@ -14,54 +14,158 @@ permissions:
     contents: read
 
 jobs:
-    quality-gates:
-        name: Quality Gates
+    checks:
+        name: Checks
         runs-on: ubuntu-latest
-
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v6
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v6
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
               with:
                   node-version: '22'
                   cache: 'npm'
-
             - name: Install dependencies
               run: npm ci --legacy-peer-deps --ignore-scripts
-
             - name: Generate Prisma client
               run: npx prisma generate
-
-            - name: Lint code
+            - name: Lint
               run: |
                   npm run lint --workspace=packages/frontend
                   npm run lint --workspace=packages/backend
-
             - name: Build shared package
               run: npm run build:shared
-
             - name: Verify shared package exports
               run: npm run verify:shared-exports
-
             - name: Type check
               run: npm run type:check
-
             - name: Build project
               run: npm run build
 
+    test-backend:
+        name: Test — backend
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - run: npm ci --legacy-peer-deps --ignore-scripts
+            - run: npx prisma generate && npm run build:shared
             - name: Run backend tests
-              run: npm run test:ci
+              run: npm run test --workspace=packages/backend -- --ci --coverage
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: coverage-backend
+                  path: packages/backend/coverage/lcov.info
+                  retention-days: 1
 
+    test-bot:
+        name: Test — bot
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - run: npm ci --legacy-peer-deps --ignore-scripts
+            - run: npx prisma generate && npm run build:shared
             - name: Run bot tests
-              run: npm run test --workspace=packages/bot -- --ci
-
-            - name: Run music incident regression suite
+              run: npm run test --workspace=packages/bot -- --ci --coverage
+            - name: Run music incident regression
               run: npm run test:music:incident
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: coverage-bot
+                  path: packages/bot/coverage/lcov.info
+                  retention-days: 1
 
+    test-frontend:
+        name: Test — frontend
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - run: npm ci --legacy-peer-deps --ignore-scripts
+            - run: npx prisma generate && npm run build:shared
             - name: Run frontend tests
-              run: npm run test --workspace=packages/frontend
+              run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: coverage-frontend
+                  path: packages/frontend/coverage/lcov.info
+                  retention-days: 1
+
+    quality-gate:
+        name: Quality Gates
+        runs-on: ubuntu-latest
+        needs: [checks, test-backend, test-bot, test-frontend]
+        if: always()
+        steps:
+            - name: Assert all jobs passed
+              run: |
+                  checks="${{ needs.checks.result }}"
+                  backend="${{ needs.test-backend.result }}"
+                  bot="${{ needs.test-bot.result }}"
+                  frontend="${{ needs.test-frontend.result }}"
+                  if [[ "$checks" != "success" || "$backend" != "success" || "$bot" != "success" || "$frontend" != "success" ]]; then
+                      echo "Job results: checks=$checks  test-backend=$backend  test-bot=$bot  test-frontend=$frontend"
+                      exit 1
+                  fi
+
+    sonar:
+        name: SonarCloud Scan
+        runs-on: ubuntu-latest
+        needs: [test-backend, test-bot, test-frontend]
+        permissions:
+            contents: read
+            pull-requests: read
+        env:
+            SONAR_TOKEN_PRESENT: ${{ secrets.SONAR_TOKEN != '' }}
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+            - uses: actions/download-artifact@v4
+              with:
+                  name: coverage-backend
+                  path: packages/backend/coverage
+            - uses: actions/download-artifact@v4
+              with:
+                  name: coverage-bot
+                  path: packages/bot/coverage
+            - uses: actions/download-artifact@v4
+              with:
+                  name: coverage-frontend
+                  path: packages/frontend/coverage
+            - name: Validate Sonar token policy
+              if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor != 'dependabot[bot]'
+              run: |
+                  echo "::error::SONAR_TOKEN is required for non-Dependabot runs."
+                  exit 1
+            - name: Skip Sonar scan for Dependabot without token
+              if: env.SONAR_TOKEN_PRESENT != 'true' && github.actor == 'dependabot[bot]'
+              run: echo "Skipping SonarCloud scan — no token for Dependabot."
+            - name: SonarCloud Scan (PR — quality gate blocks merge)
+              if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request'
+              uses: SonarSource/sonarqube-scan-action@v8
+              with:
+                  args: -Dsonar.qualitygate.wait=true
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            - name: SonarCloud Scan (main — informational, non-blocking)
+              if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'push'
+              uses: SonarSource/sonarqube-scan-action@v8
+              with:
+                  args: -Dsonar.qualitygate.wait=false
+              env:
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     security:
         name: Security
@@ -69,34 +173,24 @@ jobs:
         concurrency:
             group: ${{ github.workflow }}-security-${{ github.ref }}
             cancel-in-progress: true
-
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v6
+            - uses: actions/checkout@v6
               with:
                   fetch-depth: 0
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v6
+            - uses: actions/setup-node@v6
               with:
                   node-version: '22'
                   cache: 'npm'
-
-            - name: Install dependencies
-              run: npm ci --legacy-peer-deps --ignore-scripts
-
+            - run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Security audit
               run: npm run audit:high
-
             - name: Secrets scan
               run: npx secretlint "**/*"
-
             - name: TruffleHog secret scan
               uses: trufflesecurity/trufflehog@0fa069c12f0c7baf431041cd1e564a9c5058846c  # post-v3.95.2 (2026-05-07)
               with:
                   extra_args: --only-verified
               continue-on-error: true
-
             - name: Socket.dev supply chain scan
               run: echo "Socket.dev scan -- GitHub App (apps/socket-security) covers PR-level blocking"
               # SocketDev/socket-security-action@v1 is unavailable; removed to unblock CI
