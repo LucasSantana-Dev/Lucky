@@ -508,6 +508,7 @@ describe('ArtistSuggestionService', () => {
             mockRedis.get.mockResolvedValue(null)
             mockRedis.setex.mockResolvedValue('OK')
 
+            const originalFetch = global.fetch
             const fetch = jest.fn().mockResolvedValue({
                 ok: true,
                 json: async () => ({
@@ -525,9 +526,10 @@ describe('ArtistSuggestionService', () => {
 
             global.fetch = fetch
 
-            const suggestions = await service.getSuggestions('user_123')
+            await service.getSuggestions('user_123')
 
             expect(mockRedis.setex).toHaveBeenCalled()
+            global.fetch = originalFetch
         })
 
         test('should return cached value on subsequent requests', async () => {

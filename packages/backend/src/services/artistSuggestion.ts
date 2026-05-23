@@ -452,8 +452,8 @@ export class ArtistSuggestionService {
             guildId: z.string().min(1),
             artistKey: z.string().min(1),
             artistName: z.string().min(1),
-            spotifyId: z.string().optional(),
-            imageUrl: z.string().optional(),
+            spotifyId: z.string().nullable().optional(),
+            imageUrl: z.string().nullable().optional(),
             preference: z.enum(['prefer', 'block']).default('prefer'),
         })
 
