@@ -37,6 +37,8 @@ function Levels() {
             return
         }
 
+        let mounted = true
+
         const loadData = async () => {
             setLoading(true)
             try {
@@ -49,6 +51,8 @@ function Levels() {
                             .getRbac(selectedGuild.id)
                             .catch(() => ({ data: { roles: [] } })),
                     ])
+
+                if (!mounted) return
 
                 setLeaderboard(leaderboardData)
                 setRewards(rewardsData)
@@ -68,16 +72,21 @@ function Levels() {
                     setAnnounceChannel('')
                 }
             } catch (error) {
+                if (!mounted) return
                 if (error instanceof ApiError) {
+                    console.error(error)
                     toast.error('Failed to load level settings')
                 }
             } finally {
-                setLoading(false)
+                if (mounted) setLoading(false)
             }
         }
 
         loadData()
-    }, [selectedGuild])
+        return () => {
+            mounted = false
+        }
+    }, [selectedGuild?.id])
 
     const handleSaveSettings = async () => {
         if (!selectedGuild) return
@@ -92,6 +101,7 @@ function Levels() {
             })
             toast.success('Level settings saved')
         } catch (error) {
+            console.error(error)
             toast.error('Failed to save settings')
         } finally {
             setSaving(false)
@@ -101,17 +111,21 @@ function Levels() {
     const handleAddReward = async () => {
         if (!selectedGuild || !newLevel || !newRoleId) return
 
+        const levelNum = parseInt(newLevel)
+        if (isNaN(levelNum)) return
+
         setAdding(true)
         try {
             const reward = await api.levels.addReward(selectedGuild.id, {
-                level: parseInt(newLevel),
+                level: levelNum,
                 roleId: newRoleId,
             })
             setRewards([...rewards, reward])
             setNewLevel('')
             setNewRoleId('')
-            toast.success(`Reward added for level ${parseInt(newLevel)}`)
+            toast.success(`Reward added for level ${levelNum}`)
         } catch (error) {
+            console.error(error)
             toast.error('Failed to add reward')
         } finally {
             setAdding(false)
@@ -126,6 +140,7 @@ function Levels() {
             setRewards(rewards.filter((r) => r.level !== level))
             toast.success('Reward removed')
         } catch (error) {
+            console.error(error)
             toast.error('Failed to remove reward')
         }
     }

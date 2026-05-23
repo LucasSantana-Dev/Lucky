@@ -29,6 +29,8 @@ function Starboard() {
             return
         }
 
+        let mounted = true
+
         const loadData = async () => {
             setLoading(true)
             try {
@@ -36,6 +38,8 @@ function Starboard() {
                     api.starboard.getConfig(selectedGuild.id),
                     api.starboard.getTopEntries(selectedGuild.id, 20),
                 ])
+
+                if (!mounted) return
 
                 setEntries(entriesData)
 
@@ -53,30 +57,38 @@ function Starboard() {
                     setSelfStar(false)
                 }
             } catch (error) {
+                if (!mounted) return
                 if (error instanceof ApiError) {
+                    console.error(error)
                     toast.error('Failed to load starboard settings')
                 }
             } finally {
-                setLoading(false)
+                if (mounted) setLoading(false)
             }
         }
 
         loadData()
-    }, [selectedGuild])
+        return () => {
+            mounted = false
+        }
+    }, [selectedGuild?.id])
 
     const handleSave = async () => {
         if (!selectedGuild) return
+
+        const trimmedEmoji = emoji.trim() || '⭐'
 
         setSaving(true)
         try {
             await api.starboard.updateConfig(selectedGuild.id, {
                 channelId,
-                emoji: emoji || '⭐',
+                emoji: trimmedEmoji,
                 threshold: threshold || 3,
                 selfStar,
             })
             toast.success('Starboard settings saved')
         } catch (error) {
+            console.error(error)
             toast.error('Failed to save settings')
         } finally {
             setSaving(false)
@@ -96,6 +108,7 @@ function Starboard() {
             setSelfStar(false)
             toast.success('Starboard disabled')
         } catch (error) {
+            console.error(error)
             toast.error('Failed to delete starboard config')
         } finally {
             setSaving(false)
@@ -233,6 +246,7 @@ function Starboard() {
                                         : 3,
                                 )
                             }
+                            min='1'
                             max='100'
                             className='mt-1.5'
                         />
