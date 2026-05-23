@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { SpotifyArtist } from '@lucky/shared/utils'
 import {
     errorLog,
@@ -363,5 +364,215 @@ export class ArtistSuggestionService {
         } catch (error) {
             errorLog({ message: 'Failed to prewarm suggestions cache', error })
         }
+    }
+
+    // Route handlers — handle validation and return responses or throw errors
+
+    private normalizeArtistKey(name: string): string {
+        return name.toLowerCase().replace(/[^a-z0-9]/g, '')
+    }
+
+    async handleGetSuggestions(
+        discordUserId: string | undefined,
+    ): Promise<ArtistSuggestion[]> {
+        if (!discordUserId) {
+            throw { status: 401, error: 'Not authenticated' }
+        }
+        if (!isSpotifyAuthConfigured()) {
+            throw { status: 503, error: 'Spotify not configured' }
+        }
+
+        const suggestions = await this.getSuggestions(discordUserId)
+        if (suggestions.length === 0) {
+            throw {
+                status: 503,
+                error: 'Artist suggestions temporarily unavailable',
+            }
+        }
+        return suggestions
+    }
+
+    async handleSearchArtists(query: unknown): Promise<SpotifyArtist[]> {
+        const q = typeof query === 'string' ? query.trim() : ''
+        if (!q) {
+            throw { status: 400, error: 'Missing query parameter q' }
+        }
+        if (!isSpotifyAuthConfigured()) {
+            throw { status: 503, error: 'Spotify not configured' }
+        }
+        const token = await getSpotifyClientToken()
+        if (!token) {
+            throw { status: 503, error: 'Failed to get Spotify token' }
+        }
+        return searchSpotifyArtists(token, q, 12)
+    }
+
+    async handleGetRelatedArtists(
+        artistId: string | undefined,
+    ): Promise<SpotifyArtist[]> {
+        if (!artistId) {
+            throw { status: 400, error: 'Missing artistId parameter' }
+        }
+        if (!isSpotifyAuthConfigured()) {
+            throw { status: 503, error: 'Spotify not configured' }
+        }
+        const token = await getSpotifyClientToken()
+        if (!token) {
+            throw { status: 503, error: 'Failed to get Spotify token' }
+        }
+        return getSpotifyRelatedArtists(token, artistId)
+    }
+
+    async handleGetPreferredArtists(
+        discordUserId: string | undefined,
+        guildId: unknown,
+    ): Promise<unknown[]> {
+        if (!discordUserId) {
+            throw { status: 401, error: 'Not authenticated' }
+        }
+        const db = getPrismaClient()
+        const guild = typeof guildId === 'string' ? guildId : undefined
+        return db.userArtistPreference.findMany({
+            where: { discordUserId, ...(guild ? { guildId: guild } : {}) },
+            orderBy: { createdAt: 'desc' },
+        })
+    }
+
+    async handleSavePreferredArtist(
+        discordUserId: string | undefined,
+        body: unknown,
+    ): Promise<unknown> {
+        if (!discordUserId) {
+            throw { status: 401, error: 'Not authenticated' }
+        }
+
+        const schema = z.object({
+            guildId: z.string().min(1),
+            artistKey: z.string().min(1),
+            artistName: z.string().min(1),
+            spotifyId: z.string().optional(),
+            imageUrl: z.string().optional(),
+            preference: z.enum(['prefer', 'block']).default('prefer'),
+        })
+
+        const parsed = schema.safeParse(body)
+        if (!parsed.success) {
+            throw { status: 400, error: parsed.error.message }
+        }
+
+        const { guildId, artistName, spotifyId, imageUrl, preference } =
+            parsed.data
+        const artistKey = this.normalizeArtistKey(
+            parsed.data.artistKey || artistName,
+        )
+        const db = getPrismaClient()
+        return db.userArtistPreference.upsert({
+            where: {
+                discordUserId_guildId_artistKey: {
+                    discordUserId,
+                    guildId,
+                    artistKey,
+                },
+            },
+            update: { artistName, spotifyId, imageUrl, preference },
+            create: {
+                discordUserId,
+                guildId,
+                artistKey,
+                artistName,
+                spotifyId,
+                imageUrl,
+                preference,
+            },
+        })
+    }
+
+    async handleBatchSavePreferences(
+        discordUserId: string | undefined,
+        body: unknown,
+    ): Promise<unknown[]> {
+        if (!discordUserId) {
+            throw { status: 401, error: 'Not authenticated' }
+        }
+
+        const schema = z.object({
+            guildId: z.string().min(1),
+            items: z.array(
+                z.object({
+                    artistId: z.string().min(1),
+                    artistKey: z.string().min(1),
+                    artistName: z.string().min(1),
+                    imageUrl: z.string().nullable(),
+                    preference: z.enum(['prefer', 'block']),
+                }),
+            ),
+        })
+
+        const parsed = schema.safeParse(body)
+        if (!parsed.success) {
+            throw { status: 400, error: parsed.error.message }
+        }
+
+        const { guildId, items } = parsed.data
+        const db = getPrismaClient()
+        const results: unknown[] = []
+        for (const item of items) {
+            const artistKey = this.normalizeArtistKey(
+                item.artistKey || item.artistName,
+            )
+            const pref = await db.userArtistPreference.upsert({
+                where: {
+                    discordUserId_guildId_artistKey: {
+                        discordUserId,
+                        guildId,
+                        artistKey,
+                    },
+                },
+                update: {
+                    artistName: item.artistName,
+                    spotifyId: item.artistId,
+                    imageUrl: item.imageUrl,
+                    preference: item.preference,
+                },
+                create: {
+                    discordUserId,
+                    guildId,
+                    artistKey,
+                    artistName: item.artistName,
+                    spotifyId: item.artistId,
+                    imageUrl: item.imageUrl,
+                    preference: item.preference,
+                },
+            })
+            results.push(pref)
+        }
+        return results
+    }
+
+    async handleDeletePreferredArtist(
+        discordUserId: string | undefined,
+        artistKey: string | undefined,
+        guildId: unknown,
+    ): Promise<void> {
+        if (!discordUserId) {
+            throw { status: 401, error: 'Not authenticated' }
+        }
+        if (!artistKey) {
+            throw { status: 400, error: 'Missing artistKey parameter' }
+        }
+        const guild = typeof guildId === 'string' ? guildId : undefined
+        if (!guild) {
+            throw { status: 400, error: 'Missing guildId query param' }
+        }
+        const db = getPrismaClient()
+        await db.userArtistPreference.delete({
+            where: {
+                discordUserId_guildId_artistKey: {
+                    discordUserId,
+                    guildId: guild,
+                    artistKey,
+                },
+            },
+        })
     }
 }
