@@ -5,7 +5,6 @@ export {
     resetAutoplayCount,
     clearAllAutoplayCounters,
     getAutoplayRecommendations,
-    updateRecommendationConfig,
     getRecommendationConfig,
     getAutoplayStats,
     shouldEnableAutoplay,
