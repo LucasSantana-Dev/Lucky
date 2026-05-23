@@ -7,6 +7,7 @@ import {
 import {
     autoMessageService,
     autoModService,
+    createAutoMessagesExecutor,
     manifestOnboardingToDiscordEdit,
     guildRoleAccessService,
     roleManagementService,
@@ -16,18 +17,19 @@ import {
 } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
 
+const autoMessagesExecutor = createAutoMessagesExecutor({
+    autoMessageService,
+})
+
 type ApplyResult = {
     appliedModules: string[]
     skippedModules: string[]
 }
 
-type ReconciliableChannelType = Exclude<GuildChannelCreateOptions['type'], undefined>
-
-type ManagedAutoMessage = {
-    enabled?: boolean
-    channelId?: string
-    message?: string
-}
+type ReconciliableChannelType = Exclude<
+    GuildChannelCreateOptions['type'],
+    undefined
+>
 
 function toPermissions(value: string | undefined) {
     if (!value) {
@@ -64,41 +66,6 @@ function shouldApplyModule(
             operation.module === module &&
             (allowProtected || operation.protected === false),
     )
-}
-
-async function upsertAutoMessage(
-    guildId: string,
-    type: 'welcome' | 'leave',
-    payload: ManagedAutoMessage | undefined,
-): Promise<void> {
-    if (!payload?.message) {
-        return
-    }
-
-    const existing =
-        type === 'welcome'
-            ? await autoMessageService.getWelcomeMessage(guildId)
-            : await autoMessageService.getLeaveMessage(guildId)
-
-    if (!existing) {
-        await autoMessageService.createMessage(
-            guildId,
-            type,
-            {
-                message: payload.message,
-            },
-            {
-                channelId: payload.channelId,
-            },
-        )
-        return
-    }
-
-    await autoMessageService.updateMessage(existing.id, {
-        message: payload.message,
-        channelId: payload.channelId,
-        enabled: payload.enabled,
-    })
 }
 
 function findChannel(guild: Guild, id: string): GuildBasedChannel | null {
@@ -183,7 +150,9 @@ async function applyRolesAndChannels(
     }
 
     const desiredRoleIds = new Set(desiredRoles.map((role) => role.id))
-    const desiredChannelIds = new Set(desiredChannels.map((channel) => channel.id))
+    const desiredChannelIds = new Set(
+        desiredChannels.map((channel) => channel.id),
+    )
 
     for (const role of guild.roles.cache.values()) {
         if (role.id === guild.id || desiredRoleIds.has(role.id)) {
@@ -201,7 +170,9 @@ async function applyRolesAndChannels(
         }
 
         try {
-            await channel.delete('Lucky guild automation protected-delete apply')
+            await channel.delete(
+                'Lucky guild automation protected-delete apply',
+            )
         } catch (error) {
             if (shouldIgnoreProtectedDeleteError(error)) {
                 errorLog({
@@ -295,8 +266,9 @@ export async function applyAutomationModules(params: {
     }
 
     if (shouldApplyModule(plan, 'automessages', allowProtected)) {
-        await upsertAutoMessage(guild.id, 'welcome', desired.automessages?.welcome)
-        await upsertAutoMessage(guild.id, 'leave', desired.automessages?.leave)
+        const live = await autoMessagesExecutor.capture({ guildId: guild.id })
+        const diff = autoMessagesExecutor.diff(live, desired.automessages ?? {})
+        await autoMessagesExecutor.apply(diff, { guildId: guild.id })
         appliedModules.push('automessages')
     }
 

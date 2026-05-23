@@ -3,10 +3,7 @@ export {
     validateGuildAutomationManifest,
     type GuildAutomationManifestInput,
 } from './manifestSchema'
-export {
-    createAutomationPlan,
-    isPlanIdempotent,
-} from './diff'
+export { createAutomationPlan, isPlanIdempotent } from './diff'
 export {
     onboardingToManifest,
     manifestOnboardingToDiscordEdit,
@@ -29,3 +26,11 @@ export {
     type GuildAutomationDiffOperation,
     type GuildAutomationStatus,
 } from './types'
+export {
+    createAutoMessagesExecutor,
+    type AutoMessagesLiveState,
+    type AutoMessagesManifestSection,
+    type AutoMessagesDiff,
+    type AutoMessagesResult,
+    type AutoMessagesPort,
+} from './autoMessagesExecutor'
