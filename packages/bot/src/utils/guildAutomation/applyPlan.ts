@@ -15,7 +15,7 @@ import {
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
 import { createAutoMessagesExecutor } from '@lucky/shared/services/guildAutomation'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 
 const autoMessagesExecutor = createAutoMessagesExecutor({
     autoMessageService,
@@ -268,7 +268,21 @@ export async function applyAutomationModules(params: {
     if (shouldApplyModule(plan, 'automessages', allowProtected)) {
         const live = await autoMessagesExecutor.capture({ guildId: guild.id })
         const diff = autoMessagesExecutor.diff(live, desired.automessages ?? {})
-        await autoMessagesExecutor.apply(diff, { guildId: guild.id })
+        const applyResult = await autoMessagesExecutor.apply(diff, {
+            guildId: guild.id,
+        })
+        if (applyResult.status !== 'success') {
+            warnLog({
+                message: `AutoMessages executor apply: ${applyResult.status}`,
+                data: {
+                    guildId: guild.id,
+                    errors:
+                        'errors' in applyResult
+                            ? applyResult.errors
+                            : applyResult.error,
+                },
+            })
+        }
         appliedModules.push('automessages')
     }
 

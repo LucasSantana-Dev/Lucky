@@ -43,8 +43,10 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 const autoMessagesExecutorCaptureMock = jest.fn()
@@ -629,5 +631,84 @@ describe('applyAutomationModules', () => {
 
         expect(guild.editOnboarding).not.toHaveBeenCalled()
         expect(result.appliedModules).toEqual([])
+    })
+
+    it('logs warnLog when automessages executor returns partial status', async () => {
+        const guild = createGuild()
+        autoMessagesExecutorApplyMock.mockResolvedValue({
+            status: 'partial',
+            applied: [],
+            errors: [
+                {
+                    opIndex: 0,
+                    opKind: 'update',
+                    reason: 'Message not found',
+                },
+            ],
+        })
+
+        const result = await applyAutomationModules({
+            guild: guild as any,
+            desired: {
+                automessages: {
+                    welcome: {
+                        channelId: 'welcome-channel',
+                        message: 'Welcome',
+                    },
+                },
+            } as any,
+            plan: buildPlan(['automessages']) as any,
+            allowProtected: false,
+        })
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'AutoMessages executor apply: partial',
+                data: expect.objectContaining({
+                    guildId: 'guild-1',
+                    errors: expect.arrayContaining([
+                        expect.objectContaining({
+                            opIndex: 0,
+                            opKind: 'update',
+                            reason: 'Message not found',
+                        }),
+                    ]),
+                }),
+            }),
+        )
+        expect(result.appliedModules).toEqual(['automessages'])
+    })
+
+    it('logs warnLog when automessages executor returns failed status', async () => {
+        const guild = createGuild()
+        autoMessagesExecutorApplyMock.mockResolvedValue({
+            status: 'failed',
+            error: 'Guild not found',
+        })
+
+        const result = await applyAutomationModules({
+            guild: guild as any,
+            desired: {
+                automessages: {
+                    welcome: {
+                        channelId: 'welcome-channel',
+                        message: 'Welcome',
+                    },
+                },
+            } as any,
+            plan: buildPlan(['automessages']) as any,
+            allowProtected: false,
+        })
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'AutoMessages executor apply: failed',
+                data: expect.objectContaining({
+                    guildId: 'guild-1',
+                    errors: 'Guild not found',
+                }),
+            }),
+        )
+        expect(result.appliedModules).toEqual(['automessages'])
     })
 })

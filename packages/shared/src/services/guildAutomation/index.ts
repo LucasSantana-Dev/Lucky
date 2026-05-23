@@ -25,6 +25,8 @@ export {
     type GuildAutomationPlan,
     type GuildAutomationDiffOperation,
     type GuildAutomationStatus,
+    type ExecutorApplyResult,
+    type ExecutorOpError,
 } from './types'
 export {
     createAutoMessagesExecutor,
