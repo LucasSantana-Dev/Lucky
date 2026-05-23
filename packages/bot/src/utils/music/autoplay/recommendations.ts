@@ -1,10 +1,7 @@
 import { type Track } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { trackHistoryService } from '@lucky/shared/services'
-import {
-    MusicRecommendationService,
-    type RecommendationConfig,
-} from '../../../services/musicRecommendation'
+import { MusicRecommendationService } from '../../../services/musicRecommendation'
 
 const recommendationService = new MusicRecommendationService({
     maxRecommendations: 8,
@@ -35,51 +32,45 @@ export async function getAutoplayRecommendations(
             guildId,
             10,
         )
-        const historyTracks = recentHistory.map((entry) => entry.url)
 
-        let recommendations: Track[] = []
+        // Convert history entries to Track objects
+        // Note: recommendation engine only reads id, url, title, author, and duration from Track;
+        // metadata is optional and safely defaults to undefined in the similarity calculation
+        const historyTracks = recentHistory.map(
+            (entry) =>
+                ({
+                    id: entry.trackId,
+                    title: entry.title,
+                    author: entry.author,
+                    duration: entry.duration,
+                    url: entry.url,
+                }) as unknown as Track,
+        )
 
-        if (currentTrack) {
-            // Get recommendations based on current track
-            // const _seedTrack = currentTrack // Unused for now
-            const availableTracks = await getAvailableTracks(guildId)
+        const availableTracks = await getAvailableTracks(guildId)
 
-            if (availableTracks.length > 0) {
-                const personalizedRecommendations =
-                    await recommendationService.getPersonalizedRecommendations(
-                        guildId,
-                        availableTracks,
-                        limit,
-                    )
-
-                recommendations = personalizedRecommendations.map(
-                    (rec) => rec.track,
-                )
-            }
-        } else if (historyTracks.length > 0) {
-            // Get recommendations based on history
-            const availableTracks = await getAvailableTracks(guildId)
-
-            if (availableTracks.length > 0) {
-                const personalizedRecommendations =
-                    await recommendationService.getRecommendationsBasedOnHistory(
-                        guildId,
-                        availableTracks,
-                        limit,
-                    )
-
-                recommendations = personalizedRecommendations.map(
-                    (rec) => rec.track,
-                )
-            }
+        if (availableTracks.length === 0) {
+            return []
         }
+
+        // Use recommendTracks with 'auto' strategy for flexibility
+        const recommendations = await recommendationService.recommendTracks({
+            guildId,
+            seedTracks: currentTrack ? [currentTrack] : [],
+            trackHistory: historyTracks,
+            availableTracks,
+            strategy: 'auto',
+            limit,
+        })
+
+        const recommendedTracks = recommendations.map((rec) => rec.track)
 
         debugLog({
             message: 'Autoplay recommendations generated',
-            data: { guildId, count: recommendations.length },
+            data: { guildId, count: recommendedTracks.length },
         })
 
-        return recommendations
+        return recommendedTracks
     } catch (error) {
         errorLog({ message: 'Error getting autoplay recommendations:', error })
         return []
@@ -96,18 +87,8 @@ async function getAvailableTracks(_guildId: string): Promise<Track[]> {
 }
 
 /**
- * Update recommendation configuration
- */
-export function updateRecommendationConfig(
-    config: Partial<RecommendationConfig>,
-): void {
-    recommendationService.updateConfig(config)
-    debugLog({ message: 'Updated recommendation configuration', data: config })
-}
-
-/**
  * Get current recommendation configuration
  */
-export function getRecommendationConfig(): RecommendationConfig {
+export function getRecommendationConfig() {
     return recommendationService.getConfig()
 }
