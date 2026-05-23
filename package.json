@@ -110,7 +110,6 @@
         "path-to-regexp": ">=8.4.0",
         "fast-xml-parser": ">=5.5.6",
         "tar": ">=7.5.11",
-        "//": "undici pinned to 7.24.1: undici 8.x breaks jsdom in vitest (missing wrap-handler.js). Revisit when jsdom supports undici 8.x.",
         "undici": "7.24.1",
         "flatted": "^3.4.2",
         "effect": "^3.20.0",
