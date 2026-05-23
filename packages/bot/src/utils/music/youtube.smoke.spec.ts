@@ -88,18 +88,20 @@ describeIfEnabled(
                 // Package not available
             }
 
-            // At least one YouTube package should be available in CI
+            // At least one YouTube package should be available in CI.
+            // In non-CI environments, skip this assertion.
             if (
-                process.env.CI === 'true' ||
-                process.env.GITHUB_ACTIONS === 'true'
-            ) {
-                expect(youtubeiAvailable || discordPlayerYoutubeAvailable).toBe(
-                    true,
+                !(
+                    process.env.CI === 'true' ||
+                    process.env.GITHUB_ACTIONS === 'true'
                 )
-            } else {
-                // In non-CI environments, we only verify the check passes
-                expect(true).toBe(true)
+            ) {
+                return
             }
+
+            expect(youtubeiAvailable || discordPlayerYoutubeAvailable).toBe(
+                true,
+            )
         })
 
         it('should validate video metadata structure', () => {

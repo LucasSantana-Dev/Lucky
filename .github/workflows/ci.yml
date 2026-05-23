@@ -85,6 +85,7 @@ jobs:
     test-youtube-smoke:
         name: Test — YouTube smoke (dependabot guard)
         runs-on: ubuntu-latest
+        # Only runs on dependabot pull_request events; the push trigger never matches dependabot.
         if: |
           github.actor == 'dependabot[bot]' && (
             contains(github.event.pull_request.title, 'youtubei.js') ||
@@ -131,6 +132,7 @@ jobs:
                   retention-days: 1
 
     quality-gate:
+        # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
         runs-on: ubuntu-latest
         needs: [checks, test-backend, test-bot, test-frontend]
