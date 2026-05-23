@@ -4,8 +4,13 @@ import { userEvent } from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import LoginPage from './Login'
 import { useAuthStore } from '@/stores/authStore'
+import * as framerMotion from 'framer-motion'
 
 vi.mock('@/stores/authStore')
+vi.mock('framer-motion', async (importOriginal) => {
+    const actual = await importOriginal<typeof framerMotion>()
+    return { ...actual, useReducedMotion: vi.fn().mockReturnValue(false) }
+})
 
 vi.mock('@/hooks/useAuthRedirect', () => ({
     useAuthRedirect: vi.fn(),
@@ -111,5 +116,16 @@ describe('Login', () => {
         expect(
             screen.getByText(/© 2026 Lucky. All rights reserved./i),
         ).toBeInTheDocument()
+    })
+
+    test('applies reduced-motion styles when prefersReducedMotion is true', () => {
+        vi.mocked(framerMotion.useReducedMotion).mockReturnValue(true)
+        mockAuthStore(false)
+
+        const { container } = renderLogin()
+
+        const section = container.querySelector('section')
+        expect(section).not.toHaveStyle('animation-delay: 100ms')
+        expect(screen.getByText('Lucky')).toBeInTheDocument()
     })
 })
