@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
-import { errorLog, debugLog } from '@lucky/shared/utils'
+import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { twitchNotificationService } from '@lucky/shared/services'
 import { getTwitchUserAccessToken } from './token'
 
@@ -119,20 +119,34 @@ export async function handleStreamOnline(
         try {
             const channel = await client.channels.fetch(notif.discordChannelId)
             if (!channel) {
-                debugLog({
-                    message: `Twitch EventSub: channel ${notif.discordChannelId} not found`,
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel not found (may be deleted or inaccessible)',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
                 })
                 continue
             }
             if (!channel.isTextBased()) {
-                debugLog({
-                    message: `Twitch EventSub: channel ${notif.discordChannelId} is not a text channel`,
+                warnLog({
+                    message: 'Twitch EventSub: channel is not a text channel',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
                 })
                 continue
             }
             if (channel.isDMBased()) {
-                debugLog({
-                    message: `Twitch EventSub: channel ${notif.discordChannelId} is a DM channel, skipping`,
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel is a DM channel, skipping',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        twitchLogin: notif.twitchLogin,
+                    },
                 })
                 continue
             }

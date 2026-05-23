@@ -12,6 +12,7 @@ const getTwitchUserAccessTokenMock = jest.fn()
 const getDistinctTwitchUserIdsMock = jest.fn()
 const getNotificationsByTwitchUserIdMock = jest.fn()
 const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
 jest.mock('./token', () => ({
@@ -28,6 +29,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: errorLogMock,
     debugLog: debugLogMock,
+    warnLog: warnLogMock,
 }))
 
 import {
@@ -307,10 +309,9 @@ describe('eventsubSubscriptions', () => {
             await handleStreamOnline(payload as any, mockClient as Client)
 
             expect(mockChannel.send).not.toHaveBeenCalled()
-            expect(debugLogMock).toHaveBeenCalledWith(
+            expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    message:
-                        'Twitch EventSub: channel channel1 is not a text channel',
+                    message: 'Twitch EventSub: channel is not a text channel',
                 }),
             )
         })
@@ -349,10 +350,10 @@ describe('eventsubSubscriptions', () => {
             await handleStreamOnline(payload as any, mockClient as Client)
 
             expect(mockChannel.send).not.toHaveBeenCalled()
-            expect(debugLogMock).toHaveBeenCalledWith(
+            expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message:
-                        'Twitch EventSub: channel channel1 is a DM channel, skipping',
+                        'Twitch EventSub: channel is a DM channel, skipping',
                 }),
             )
         })
@@ -487,10 +488,10 @@ describe('eventsubSubscriptions', () => {
 
             await handleStreamOnline(payload as any, mockClient as Client)
 
-            expect(debugLogMock).toHaveBeenCalledWith(
+            expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message:
-                        'Twitch EventSub: channel deleted-channel not found',
+                        'Twitch EventSub: channel not found (may be deleted or inaccessible)',
                 }),
             )
             expect(mockChannel.send).not.toHaveBeenCalled()
