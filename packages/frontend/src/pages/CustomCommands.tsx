@@ -28,7 +28,9 @@ export default function CustomCommandsPage() {
     const [commands, setCommands] = useState<Command[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(
+        null,
+    )
     const [expandedCommand, setExpandedCommand] = useState<string | null>(null)
 
     useEffect(() => {
@@ -50,7 +52,9 @@ export default function CustomCommandsPage() {
             const matchesSearch =
                 !searchQuery ||
                 cmd.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                cmd.description.toLowerCase().includes(searchQuery.toLowerCase())
+                cmd.description
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase())
             const matchesCat =
                 !selectedCategory || cmd.category === selectedCategory
             return matchesSearch && matchesCat
@@ -125,7 +129,7 @@ export default function CustomCommandsPage() {
                             className={cn(
                                 'px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
                                 !selectedCategory
-                                    ? 'bg-lucky-red/20 text-lucky-red border-lucky-red/40'
+                                    ? 'bg-lucky-error/10 text-lucky-error border-lucky-error/40'
                                     : 'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border hover:bg-lucky-surface-elevated',
                             )}
                         >
@@ -143,11 +147,16 @@ export default function CustomCommandsPage() {
                                     'px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
                                     selectedCategory === cat
                                         ? CATEGORY_COLORS[cat] ||
-                                              'bg-lucky-brand/20 text-lucky-brand border-lucky-brand/40'
+                                              'bg-lucky-error/10 text-lucky-error border-lucky-error/40'
                                         : 'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border hover:bg-lucky-surface-elevated',
                                 )}
                             >
-                                {cat} ({commands.filter((c) => c.category === cat).length})
+                                {cat} (
+                                {
+                                    commands.filter((c) => c.category === cat)
+                                        .length
+                                }
+                                )
                             </button>
                         ))}
                     </div>
@@ -183,7 +192,9 @@ export default function CustomCommandsPage() {
                             <button
                                 onClick={() =>
                                     setExpandedCommand(
-                                        expandedCommand === cmd.id ? null : cmd.id,
+                                        expandedCommand === cmd.id
+                                            ? null
+                                            : cmd.id,
                                     )
                                 }
                                 className='w-full px-4 py-3 flex items-center gap-3 hover:bg-lucky-surface-elevated transition-colors'
@@ -213,12 +224,15 @@ export default function CustomCommandsPage() {
                                 <div className='flex items-center gap-2 shrink-0'>
                                     <Switch
                                         checked={cmd.enabled}
-                                        onCheckedChange={() => handleToggle(cmd)}
+                                        onCheckedChange={() =>
+                                            handleToggle(cmd)
+                                        }
                                     />
                                     <ChevronDown
                                         className={cn(
                                             'w-4 h-4 text-lucky-text-tertiary transition-transform',
-                                            expandedCommand === cmd.id && 'rotate-180',
+                                            expandedCommand === cmd.id &&
+                                                'rotate-180',
                                         )}
                                     />
                                 </div>
