@@ -188,6 +188,7 @@ export class ArtistSuggestionService {
         accessToken: string,
     ): Promise<SpotifyArtist[]> {
         const collected: SpotifyArtist[] = []
+        const seen = new Set<string>()
         const timeRanges = ['short_term', 'medium_term', 'long_term'] as const
 
         try {
@@ -227,7 +228,8 @@ export class ArtistSuggestionService {
                             popularity: artist.popularity ?? 0,
                             genres: artist.genres ?? [],
                         }
-                        if (!collected.some((a) => a.id === artist.id)) {
+                        if (!seen.has(artist.id)) {
+                            seen.add(artist.id)
                             collected.push(entry)
                         }
                     }
