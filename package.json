@@ -90,7 +90,7 @@
         "prettier": "^3.8.3",
         "prisma": "^7.8.0",
         "secretlint": "^13.0.2",
-        "ts-jest": "^29.4.9",
+        "ts-jest": "^29.4.11",
         "unfetch": "^5.0.0"
     },
     "dependencies": {
