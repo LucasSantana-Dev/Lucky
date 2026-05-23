@@ -34,6 +34,8 @@ export async function getAutoplayRecommendations(
         )
 
         // Convert history entries to Track objects
+        // Note: recommendation engine only reads id, url, title, author, and duration from Track;
+        // metadata is optional and safely defaults to undefined in the similarity calculation
         const historyTracks = recentHistory.map(
             (entry) =>
                 ({

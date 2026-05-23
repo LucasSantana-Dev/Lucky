@@ -4,13 +4,11 @@ import type {
     RecommendationConfig,
     RecommendationInput,
 } from './types'
-import type { TrackHistoryEntry } from '@lucky/shared/services'
 import {
     generateRecommendations,
     generateUserPreferenceRecommendations,
     generateHistoryBasedRecommendations,
 } from './recommendationEngine'
-import { trackHistoryService } from '@lucky/shared/services'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export class MusicRecommendationService {
@@ -95,7 +93,7 @@ export class MusicRecommendationService {
                 return results.slice(0, limit)
             }
 
-            // For 'auto' and 'contextual' strategies, use fallback logic
+            // For 'auto' strategy, use fallback logic
             if (seedTracks.length > 0) {
                 debugLog({
                     message: 'Auto strategy: using seed track',
@@ -141,18 +139,6 @@ export class MusicRecommendationService {
     getConfig(): RecommendationConfig {
         return { ...this.config }
     }
-}
-
-function historyEntryToTrack(h: TrackHistoryEntry): Track {
-    return {
-        id: h.trackId,
-        title: h.title,
-        author: h.author,
-        duration: h.duration,
-        url: h.url,
-        requestedBy: h.playedBy ? { id: h.playedBy } : null,
-        metadata: { isAutoplay: h.isAutoplay || false },
-    } as unknown as Track
 }
 
 export type {

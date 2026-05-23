@@ -48,6 +48,6 @@ export type RecommendationInput = {
     trackHistory: Track[]
     availableTracks: Track[]
     userPreferences?: UserPreferenceInput
-    strategy: 'history' | 'preference' | 'contextual' | 'auto'
+    strategy: 'history' | 'preference' | 'auto'
     limit: number
 }

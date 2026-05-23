@@ -212,30 +212,6 @@ describe('MusicRecommendationService', () => {
             expect(errorLogMock).toHaveBeenCalled()
         })
 
-        it('contextual strategy behaves like auto', async () => {
-            const service = new MusicRecommendationService()
-            const expected: RecommendationResult[] = [
-                {
-                    track: { id: 'recommended-track' } as Track,
-                    score: 0.87,
-                    reasons: ['contextual-match'],
-                },
-            ]
-            generateRecommendationsMock.mockResolvedValue(expected)
-
-            const result = await service.recommendTracks({
-                guildId: 'guild-9',
-                seedTracks: [{ id: 'seed-track' } as Track],
-                trackHistory: [],
-                availableTracks: [{ id: 'candidate-track' } as Track],
-                strategy: 'contextual',
-                limit: 5,
-            })
-
-            expect(result).toEqual(expected)
-            expect(generateRecommendationsMock).toHaveBeenCalledTimes(1)
-        })
-
         it('excludes recent track IDs from all strategies', async () => {
             const service = new MusicRecommendationService()
             const expected: RecommendationResult[] = [
