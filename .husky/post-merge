@@ -2,7 +2,7 @@
 # Auto-prune local branches whose remote was deleted (e.g. after PR merge + GitHub auto-delete).
 # Fires on: git pull, git merge
 git fetch --prune --quiet
-gone=$(git branch -v | grep '\[gone\]' | sed 's/^[+* ]*//' | awk '{print $1}')
+gone=$(git branch -vv | grep '\[gone\]' | sed 's/^[+* ]*//' | awk '{print $1}')
 if [ -n "$gone" ]; then
   echo "post-merge: pruning gone branches..."
   echo "$gone" | xargs git branch -D
