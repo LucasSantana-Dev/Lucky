@@ -21,7 +21,9 @@ describe('SpotifyPage', () => {
     })
 
     test('shows loading spinner initially', () => {
-        vi.mocked(api.spotify.status).mockReturnValue(new Promise(() => {}))
+        vi.mocked(api.spotify.status).mockImplementation(
+            () => new Promise(() => {}),
+        )
         renderPage()
         expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
     })
