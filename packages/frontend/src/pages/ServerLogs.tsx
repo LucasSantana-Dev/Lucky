@@ -88,7 +88,12 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
             transition={{ duration: 0.15, delay: index * 0.015 }}
             className='flex items-start gap-3 px-4 py-3.5 hover:bg-lucky-bg-tertiary/40 transition-colors group border-b border-lucky-border/20 last:border-b-0'
         >
-            <div className={cn('p-2 rounded-md mt-0.5 shrink-0 flex-center', config.bg)}>
+            <div
+                className={cn(
+                    'p-2 rounded-md mt-0.5 shrink-0 flex-center',
+                    config.bg,
+                )}
+            >
                 <Icon className={cn('w-3.5 h-3.5', config.color)} />
             </div>
             <div className='flex-1 min-w-0'>
@@ -116,7 +121,9 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                     <div className='flex items-center gap-3 mt-2 text-[10px] text-lucky-text-tertiary'>
                         {log.userName && (
                             <span>
-                                <span className='text-lucky-text-tertiary'>User:</span>{' '}
+                                <span className='text-lucky-text-tertiary'>
+                                    User:
+                                </span>{' '}
                                 <span className='text-lucky-text-secondary font-medium'>
                                     {log.userName}
                                 </span>
@@ -124,7 +131,9 @@ function LogEntry({ log, index }: { log: ServerLog; index: number }) {
                         )}
                         {log.channelName && (
                             <span>
-                                <span className='text-lucky-text-tertiary'>Channel:</span>{' '}
+                                <span className='text-lucky-text-tertiary'>
+                                    Channel:
+                                </span>{' '}
                                 <span className='text-lucky-text-secondary font-medium'>
                                     #{log.channelName}
                                 </span>
@@ -161,9 +170,6 @@ export default function ServerLogsPage() {
         if (!selectedGuild?.id) return
         setLoading(true)
         try {
-            const filters: Record<string, string | number | undefined> = {}
-            if (levelFilter !== 'all') filters.level = levelFilter
-            if (debouncedSearch) filters.search = debouncedSearch
             const pageLimit = limit * page
             const res =
                 levelFilter !== 'all'
@@ -179,7 +185,9 @@ export default function ServerLogsPage() {
             const allLogs = res.data.logs
             setLogs(allLogs.slice((page - 1) * limit, page * limit))
             setTotal(res.data.total)
-        } catch {
+        } catch (error) {
+            console.error('Failed to load logs:', error)
+            toast.error('Failed to load logs. Please try again.')
             setLogs([])
             setTotal(0)
         } finally {
@@ -271,10 +279,7 @@ export default function ServerLogsPage() {
                             </button>
                         )}
                     </div>
-                    <Select
-                        value={levelFilter}
-                        onValueChange={setLevelFilter}
-                    >
+                    <Select value={levelFilter} onValueChange={setLevelFilter}>
                         <SelectTrigger className='sm:w-[140px] bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary'>
                             <SelectValue placeholder='All levels' />
                         </SelectTrigger>
@@ -283,7 +288,9 @@ export default function ServerLogsPage() {
                             <SelectItem value='info'>Info</SelectItem>
                             <SelectItem value='warn'>Warnings</SelectItem>
                             <SelectItem value='error'>Errors</SelectItem>
-                            <SelectItem value='moderation'>Moderation</SelectItem>
+                            <SelectItem value='moderation'>
+                                Moderation
+                            </SelectItem>
                             <SelectItem value='automod'>Auto-Mod</SelectItem>
                             <SelectItem value='system'>System</SelectItem>
                         </SelectContent>
@@ -320,13 +327,21 @@ export default function ServerLogsPage() {
                         >
                             <div className='flex items-center gap-2 mb-2 w-full'>
                                 <Icon
-                                    className={cn('w-4 h-4 shrink-0', config.color)}
+                                    className={cn(
+                                        'w-4 h-4 shrink-0',
+                                        config.color,
+                                    )}
                                 />
                                 <p className='text-[9px] uppercase font-semibold text-lucky-text-tertiary tracking-wider'>
                                     {level}
                                 </p>
                             </div>
-                            <p className={cn('font-semibold text-lucky-text-primary', isLead ? 'text-2xl' : 'text-lg')}>
+                            <p
+                                className={cn(
+                                    'font-semibold text-lucky-text-primary',
+                                    isLead ? 'text-2xl' : 'text-lg',
+                                )}
+                            >
                                 {count}
                             </p>
                         </button>

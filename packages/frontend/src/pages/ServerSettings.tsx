@@ -42,7 +42,13 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { useGuildStore } from '@/stores/guildStore'
-import { RBAC_MODULES, type RoleGrant, type ServerSettings, type GuildChannelOption, type GuildRoleOption } from '@/types'
+import {
+    RBAC_MODULES,
+    type RoleGrant,
+    type ServerSettings,
+    type GuildChannelOption,
+    type GuildRoleOption,
+} from '@/types'
 
 const TIMEZONES = [
     'UTC',
@@ -94,7 +100,8 @@ function classifySettingsLoadError(error: unknown): SettingsLoadError {
         if (error.status === 0) {
             return {
                 kind: 'network',
-                message: 'Unable to reach API. Check your connection and retry.',
+                message:
+                    'Unable to reach API. Check your connection and retry.',
             }
         }
 
@@ -131,7 +138,9 @@ export default function ServerSettingsPage() {
     >([])
     const [rbacGrants, setRbacGrants] = useState<RoleGrant[]>([])
     const [channels, setChannels] = useState<GuildChannelOption[]>([])
-    const [managerRoleOptions, setManagerRoleOptions] = useState<GuildRoleOption[]>([])
+    const [managerRoleOptions, setManagerRoleOptions] = useState<
+        GuildRoleOption[]
+    >([])
     const rbacRequestIdRef = useRef(0)
     const settingsRequestVersion = useRef(0)
 
@@ -156,6 +165,7 @@ export default function ServerSettingsPage() {
                 )
             }
         } catch (error) {
+            console.error(error)
             if (requestId !== rbacRequestIdRef.current) {
                 return
             }
@@ -223,14 +233,28 @@ export default function ServerSettingsPage() {
 
     useEffect(() => {
         if (!selectedGuild?.id) return
+        let mounted = true
+
         api.guilds
             .getChannels(selectedGuild.id)
-            .then((res) => setChannels(res.data.channels))
-            .catch(() => setChannels([]))
+            .then((res) => {
+                if (mounted) setChannels(res.data.channels)
+            })
+            .catch(() => {
+                if (mounted) setChannels([])
+            })
         api.guilds
             .getRbac(selectedGuild.id)
-            .then((res) => setManagerRoleOptions(res.data.roles))
-            .catch(() => setManagerRoleOptions([]))
+            .then((res) => {
+                if (mounted) setManagerRoleOptions(res.data.roles)
+            })
+            .catch(() => {
+                if (mounted) setManagerRoleOptions([])
+            })
+
+        return () => {
+            mounted = false
+        }
     }, [selectedGuild?.id])
 
     const update = <K extends keyof ServerSettings>(
@@ -488,7 +512,10 @@ export default function ServerSettingsPage() {
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                     {rbacRoles.map((role) => (
-                                        <SelectItem key={role.id} value={role.id}>
+                                        <SelectItem
+                                            key={role.id}
+                                            value={role.id}
+                                        >
                                             {role.name}
                                         </SelectItem>
                                     ))}
@@ -528,7 +555,9 @@ export default function ServerSettingsPage() {
                                 </SelectTrigger>
                                 <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                     <SelectItem value='view'>view</SelectItem>
-                                    <SelectItem value='manage'>manage</SelectItem>
+                                    <SelectItem value='manage'>
+                                        manage
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
 
@@ -664,9 +693,14 @@ export default function ServerSettingsPage() {
                             </Label>
                             {channels.length > 0 ? (
                                 <Select
-                                    value={settings.updatesChannel || '__none__'}
+                                    value={
+                                        settings.updatesChannel || '__none__'
+                                    }
                                     onValueChange={(v) =>
-                                        update('updatesChannel', v === '__none__' ? '' : v)
+                                        update(
+                                            'updatesChannel',
+                                            v === '__none__' ? '' : v,
+                                        )
                                     }
                                 >
                                     <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
@@ -674,10 +708,15 @@ export default function ServerSettingsPage() {
                                     </SelectTrigger>
                                     <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
                                         <SelectItem value='__none__'>
-                                            <span className='text-lucky-text-tertiary'>None</span>
+                                            <span className='text-lucky-text-tertiary'>
+                                                None
+                                            </span>
                                         </SelectItem>
                                         {channels.map((ch) => (
-                                            <SelectItem key={ch.id} value={ch.id}>
+                                            <SelectItem
+                                                key={ch.id}
+                                                value={ch.id}
+                                            >
                                                 <span className='flex items-center gap-2'>
                                                     <Hash className='w-3 h-3 text-lucky-text-tertiary' />
                                                     {ch.name}
@@ -719,24 +758,31 @@ export default function ServerSettingsPage() {
                             </p>
                         </div>
                     </div>
-                    {managerRoleOptions.length > 0 && availableManagerRoles.length > 0 && (
-                        <Select
-                            onValueChange={(id) => {
-                                update('managerRoles', [...(settings.managerRoles ?? []), id])
-                            }}
-                        >
-                            <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white h-9 text-sm'>
-                                <SelectValue placeholder='Add a manager role...' />
-                            </SelectTrigger>
-                            <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                {availableManagerRoles.map((role) => (
-                                    <SelectItem key={role.id} value={role.id}>
-                                        {role.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
+                    {managerRoleOptions.length > 0 &&
+                        availableManagerRoles.length > 0 && (
+                            <Select
+                                onValueChange={(id) => {
+                                    update('managerRoles', [
+                                        ...(settings.managerRoles ?? []),
+                                        id,
+                                    ])
+                                }}
+                            >
+                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white h-9 text-sm'>
+                                    <SelectValue placeholder='Add a manager role...' />
+                                </SelectTrigger>
+                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                    {availableManagerRoles.map((role) => (
+                                        <SelectItem
+                                            key={role.id}
+                                            value={role.id}
+                                        >
+                                            {role.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                     {(settings.managerRoles ?? []).length > 0 ? (
                         <div className='flex flex-wrap gap-2'>
                             {(settings.managerRoles ?? []).map((id) => (
@@ -745,14 +791,16 @@ export default function ServerSettingsPage() {
                                     className='bg-lucky-brand/15 border border-lucky-brand/40 text-lucky-text-primary text-xs gap-1.5 px-2.5 py-1.5 hover:bg-lucky-brand/20 transition-colors'
                                 >
                                     <Shield className='w-3 h-3 text-lucky-brand' />
-                                    <span className='font-medium'>{getManagerRoleName(id)}</span>
+                                    <span className='font-medium'>
+                                        {getManagerRoleName(id)}
+                                    </span>
                                     <button
                                         onClick={() =>
                                             update(
                                                 'managerRoles',
-                                                (settings.managerRoles ?? []).filter(
-                                                    (r) => r !== id,
-                                                ),
+                                                (
+                                                    settings.managerRoles ?? []
+                                                ).filter((r) => r !== id),
                                             )
                                         }
                                         className='ml-0.5 hover:text-lucky-error transition-colors'
@@ -835,14 +883,17 @@ export default function ServerSettingsPage() {
                                     Criativaria Baseline
                                 </h2>
                                 <p className='type-body-sm text-lucky-text-tertiary mt-0.5'>
-                                    Apply the migration baseline from legacy bots with safe reconcile defaults.
+                                    Apply the migration baseline from legacy
+                                    bots with safe reconcile defaults.
                                 </p>
                             </div>
                         </div>
                         <Button
                             type='button'
                             onClick={handleApplyCriativariaPreset}
-                            disabled={!canManageRbac || applyingCriativariaPreset}
+                            disabled={
+                                !canManageRbac || applyingCriativariaPreset
+                            }
                             className='gap-2 shrink-0'
                         >
                             {applyingCriativariaPreset ? (
@@ -886,8 +937,8 @@ export default function ServerSettingsPage() {
                                     disabled={rbacLoading}
                                     title={
                                         !rbacLoading && rbacRoles.length === 0
-                                            ? rbacRolesError ??
-                                              'No assignable roles available right now.'
+                                            ? (rbacRolesError ??
+                                              'No assignable roles available right now.')
                                             : undefined
                                     }
                                 >
