@@ -137,10 +137,12 @@ npm run test:e2e        # Playwright smoke tests
 - [CI/CD Pipeline](docs/CI_CD.md)
 - [Testing Strategy](docs/TESTING.md)
 - [Docker Setup](docs/DOCKER.md)
+- [Release Cadence](docs/RELEASE_CADENCE.md)
 - [Cloudflare Tunnel](docs/CLOUDFLARE_TUNNEL_SETUP.md)
 - [Twitch Integration](docs/TWITCH_SETUP.md)
 - [Last.fm Integration](docs/LASTFM_SETUP.md)
 - [Environment Variables](.env.example)
+- [AI Agent Contracts](docs/agents/) — behavioral contracts for agent-based workflows (issue tracker, triage labels, domain layout)
 
 ### Admin Panel
 
