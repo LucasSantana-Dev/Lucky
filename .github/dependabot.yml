@@ -1,5 +1,8 @@
 version: 2
 updates:
+    # NOTE: YouTube dependency groups (discord-player-youtubei, etc.) are gated by
+    # the test-youtube-smoke CI job (see .github/workflows/ci.yml). Review smoke test
+    # results before merging PRs affecting these packages.
     - package-ecosystem: 'npm'
       directory: '/'
       schedule:
