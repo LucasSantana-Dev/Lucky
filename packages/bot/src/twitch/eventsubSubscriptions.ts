@@ -118,9 +118,25 @@ export async function handleStreamOnline(
     for (const notif of notifications) {
         try {
             const channel = await client.channels.fetch(notif.discordChannelId)
-            if (channel?.isTextBased() && !channel.isDMBased()) {
-                await channel.send({ embeds: [embed] })
+            if (!channel) {
+                debugLog({
+                    message: `Twitch EventSub: channel ${notif.discordChannelId} not found`,
+                })
+                continue
             }
+            if (!channel.isTextBased()) {
+                debugLog({
+                    message: `Twitch EventSub: channel ${notif.discordChannelId} is not a text channel`,
+                })
+                continue
+            }
+            if (channel.isDMBased()) {
+                debugLog({
+                    message: `Twitch EventSub: channel ${notif.discordChannelId} is a DM channel, skipping`,
+                })
+                continue
+            }
+            await channel.send({ embeds: [embed] })
         } catch (err) {
             errorLog({
                 message: `Twitch EventSub: failed to send notification to channel ${notif.discordChannelId}`,
