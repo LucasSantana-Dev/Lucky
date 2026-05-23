@@ -106,7 +106,6 @@ describe('customCommandHandler', () => {
                 [
                     {
                         name: 'hello',
-                        trigger: '!hello',
                         response: 'Hello there!',
                     },
                 ],
@@ -115,7 +114,7 @@ describe('customCommandHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
-                content: '!goodbye',
+                content: 'goodbye',
                 reply: jest.fn(),
             } as unknown as Message
 
@@ -135,7 +134,6 @@ describe('customCommandHandler', () => {
                 [
                     {
                         name: 'hello',
-                        trigger: '!hello',
                         response: 'Hello there!',
                     },
                 ],
@@ -147,7 +145,7 @@ describe('customCommandHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
-                content: '!hello',
+                content: 'hello',
                 reply: jest.fn().mockResolvedValue(undefined),
             } as unknown as Message
 
@@ -174,7 +172,6 @@ describe('customCommandHandler', () => {
                 [
                     {
                         name: 'greet',
-                        trigger: '!greet',
                         response: 'Hi there!',
                     },
                 ],
@@ -186,7 +183,7 @@ describe('customCommandHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
-                content: '!greet @user',
+                content: 'greet @user',
                 reply: jest.fn().mockResolvedValue(undefined),
             } as unknown as Message
 
@@ -210,7 +207,7 @@ describe('customCommandHandler', () => {
 
         it('should return stop: false after successful command execution', async () => {
             ;(customCommandService.listCommands as jest.Mock).mockResolvedValue(
-                [{ name: 'help', trigger: '!help', response: 'Here is help' }],
+                [{ name: 'help', response: 'Here is help' }],
             )
             ;(
                 customCommandService.incrementUsage as jest.Mock
@@ -219,7 +216,7 @@ describe('customCommandHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
-                content: '!help',
+                content: 'help',
                 reply: jest.fn().mockResolvedValue(undefined),
             } as unknown as Message
 
@@ -241,7 +238,7 @@ describe('customCommandHandler', () => {
             const message = {
                 author: { id: 'user1', bot: false },
                 channelId: 'channel1',
-                content: '!hello',
+                content: 'hello',
                 reply: jest.fn(),
             } as unknown as Message
 

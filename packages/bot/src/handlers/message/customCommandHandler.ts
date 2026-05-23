@@ -1,6 +1,7 @@
 import type { Message } from 'discord.js'
 import { customCommandService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
+import type { CustomCommandModel } from '@lucky/shared/generated/prisma/models/CustomCommand'
 import type {
     MessageContext,
     MessageHandler,
@@ -32,10 +33,10 @@ export const customCommandHandler: MessageHandler = {
                 return { stop: false }
             }
 
-            const matchedCommand = commands.find((cmd: any) => {
+            const matchedCommand = commands.find((cmd: CustomCommandModel) => {
                 return (
-                    message.content === cmd.trigger ||
-                    message.content.startsWith(cmd.trigger + ' ')
+                    message.content === cmd.name ||
+                    message.content.startsWith(cmd.name + ' ')
                 )
             })
 
