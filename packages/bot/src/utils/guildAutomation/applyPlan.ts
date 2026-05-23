@@ -7,7 +7,6 @@ import {
 import {
     autoMessageService,
     autoModService,
-    createAutoMessagesExecutor,
     manifestOnboardingToDiscordEdit,
     guildRoleAccessService,
     roleManagementService,
@@ -15,6 +14,7 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
+import { createAutoMessagesExecutor } from '@lucky/shared/services/guildAutomation'
 import { errorLog } from '@lucky/shared/utils'
 
 const autoMessagesExecutor = createAutoMessagesExecutor({

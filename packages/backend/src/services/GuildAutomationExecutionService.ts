@@ -1,7 +1,6 @@
 import {
     autoMessageService,
     autoModService,
-    createAutoMessagesExecutor,
     getModerationSettings,
     guildAutomationService,
     guildRoleAccessService,
@@ -11,6 +10,7 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
+import { createAutoMessagesExecutor } from '@lucky/shared/services/guildAutomation'
 import {
     type GuildAutomationRole,
     type GuildAutomationChannel,
