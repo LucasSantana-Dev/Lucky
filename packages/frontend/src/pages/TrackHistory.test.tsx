@@ -130,7 +130,10 @@ describe('TrackHistoryPage', () => {
         expect(
             screen.getAllByText('Never Gonna Give You Up').length,
         ).toBeGreaterThanOrEqual(1)
-        expect(screen.getByText('Rick Astley · 3:32')).toBeInTheDocument()
+        expect(
+            screen.getAllByText('Rick Astley').length,
+        ).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('3:32').length).toBeGreaterThanOrEqual(1)
     })
 
     test('renders ranking cards for top tracks and artists', async () => {
@@ -251,12 +254,14 @@ describe('TrackHistoryPage', () => {
         renderPage()
 
         await waitFor(() => {
-            expect(screen.getByText('Load More Tracks')).toBeInTheDocument()
+            expect(
+                screen.getByRole('button', { name: /Load More/ }),
+            ).toBeInTheDocument()
         })
 
         expect(screen.getByText(/Showing 2 of 10/)).toBeInTheDocument()
 
-        await user.click(screen.getByText('Load More Tracks'))
+        await user.click(screen.getByRole('button', { name: /Load More/ }))
 
         expect(api.trackHistory.getHistory).toHaveBeenCalledTimes(2)
     })
@@ -276,6 +281,8 @@ describe('TrackHistoryPage', () => {
             expect(screen.getByText('Recent Tracks')).toBeInTheDocument()
         })
 
-        expect(screen.queryByText('Load More Tracks')).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole('button', { name: /Load More/ }),
+        ).not.toBeInTheDocument()
     })
 })

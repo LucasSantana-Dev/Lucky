@@ -18,6 +18,7 @@ import ImportPlaylist from '@/components/Music/ImportPlaylist'
 import QueueList from '@/components/Music/QueueList'
 import AutoplayGenres from '@/components/Music/AutoplayGenres'
 import EmptyState from '@/components/ui/EmptyState'
+import type { QueueState } from '@/types'
 
 export default function MusicPage() {
     const { selectedGuild } = useGuildSelection()
@@ -140,7 +141,7 @@ function NowPlayingHero({
     onRepeatCycle,
     onVolumeChange,
 }: {
-    state: any
+    state: QueueState
     onPlayPause: () => void
     onSkip: () => void
     onShuffle: () => void
