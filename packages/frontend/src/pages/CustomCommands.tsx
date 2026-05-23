@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Terminal, Search, X, Code } from 'lucide-react'
-import Card from '@/components/ui/Card'
+import { Search, X, Code, ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -33,6 +31,7 @@ export default function CustomCommandsPage() {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(
         null,
     )
+    const [expandedCommand, setExpandedCommand] = useState<string | null>(null)
 
     useEffect(() => {
         if (!selectedGuild?.id) return
@@ -79,7 +78,7 @@ export default function CustomCommandsPage() {
     if (!selectedGuild) {
         return (
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
-                <Terminal className='w-16 h-16 text-lucky-text-tertiary mb-4' />
+                <Code className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='type-h2 text-lucky-text-primary mb-2'>
                     No Server Selected
                 </h2>
@@ -92,6 +91,7 @@ export default function CustomCommandsPage() {
 
     return (
         <div className='space-y-6'>
+            {/* Header */}
             <header>
                 <h1 className='type-h1 text-lucky-text-primary'>
                     Custom Commands
@@ -101,38 +101,36 @@ export default function CustomCommandsPage() {
                 </p>
             </header>
 
-            {/* Filters */}
-            <Card className='p-4'>
-                <div className='flex flex-col sm:flex-row gap-3'>
-                    <div className='relative flex-1'>
-                        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
-                        <Input
-                            placeholder='Search commands...'
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-white placeholder:text-lucky-text-tertiary'
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className='absolute right-3 top-1/2 -translate-y-1/2 text-lucky-text-tertiary hover:text-white'
-                            >
-                                <X className='w-4 h-4' />
-                            </button>
-                        )}
-                    </div>
+            {/* Search + Filters */}
+            <div className='surface-panel rounded-lg p-4 space-y-3 border border-lucky-border'>
+                <div className='relative'>
+                    <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lucky-text-tertiary' />
+                    <Input
+                        placeholder='Search commands...'
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className='pl-9 bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary placeholder:text-lucky-text-tertiary'
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className='absolute right-3 top-1/2 -translate-y-1/2 text-lucky-text-tertiary hover:text-lucky-text-primary transition-colors'
+                        >
+                            <X className='w-4 h-4' />
+                        </button>
+                    )}
                 </div>
 
                 {/* Category chips */}
                 {categories.length > 0 && (
-                    <div className='flex flex-wrap gap-1.5 mt-3'>
+                    <div className='flex flex-wrap gap-2'>
                         <button
                             onClick={() => setSelectedCategory(null)}
                             className={cn(
-                                'px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
+                                'px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
                                 !selectedCategory
-                                    ? 'bg-lucky-red/15 text-lucky-red border-lucky-red/30'
-                                    : 'bg-lucky-bg-tertiary text-lucky-text-secondary border-lucky-border hover:text-white',
+                                    ? 'bg-lucky-error/10 text-lucky-error border-lucky-error/40'
+                                    : 'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border hover:bg-lucky-surface-elevated',
                             )}
                         >
                             All ({commands.length})
@@ -146,11 +144,11 @@ export default function CustomCommandsPage() {
                                     )
                                 }
                                 className={cn(
-                                    'px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
+                                    'px-3 py-1.5 rounded-full text-xs font-medium transition-all border',
                                     selectedCategory === cat
                                         ? CATEGORY_COLORS[cat] ||
-                                              'bg-lucky-bg-active text-white border-lucky-border'
-                                        : 'bg-lucky-bg-tertiary text-lucky-text-secondary border-lucky-border hover:text-white',
+                                              'bg-lucky-error/10 text-lucky-error border-lucky-error/40'
+                                        : 'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border hover:bg-lucky-surface-elevated',
                                 )}
                             >
                                 {cat} (
@@ -163,85 +161,103 @@ export default function CustomCommandsPage() {
                         ))}
                     </div>
                 )}
-            </Card>
+            </div>
 
-            {/* Commands Grid */}
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'>
+            {/* Commands List */}
+            <div className='space-y-1'>
                 {loading ? (
-                    Array.from({ length: 9 }).map((_, i) => (
-                        <Card key={i} className='p-4 space-y-3'>
-                            <div className='flex items-center gap-3'>
-                                <Skeleton className='w-8 h-8 rounded-lg' />
-                                <div className='flex-1'>
-                                    <Skeleton className='h-4 w-24 mb-1' />
-                                    <Skeleton className='h-3 w-16' />
-                                </div>
-                                <Skeleton className='w-10 h-5 rounded-full' />
+                    Array.from({ length: 6 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className='surface-panel rounded-lg p-4 border border-lucky-border flex items-center gap-3'
+                        >
+                            <Skeleton className='w-8 h-8 rounded' />
+                            <div className='flex-1'>
+                                <Skeleton className='h-4 w-40 mb-2' />
+                                <Skeleton className='h-3 w-60' />
                             </div>
-                            <Skeleton className='h-3 w-full' />
-                        </Card>
+                            <Skeleton className='w-10 h-6 rounded' />
+                        </div>
                     ))
                 ) : filtered.length > 0 ? (
-                    <AnimatePresence mode='popLayout'>
-                        {filtered.map((cmd, i) => (
-                            <motion.div
-                                key={cmd.id}
-                                layout
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.15, delay: i * 0.02 }}
+                    filtered.map((cmd) => (
+                        <div
+                            key={cmd.id}
+                            className={cn(
+                                'surface-panel rounded-lg border border-lucky-border transition-all',
+                                !cmd.enabled && 'opacity-60',
+                            )}
+                        >
+                            {/* Row header */}
+                            <button
+                                onClick={() =>
+                                    setExpandedCommand(
+                                        expandedCommand === cmd.id
+                                            ? null
+                                            : cmd.id,
+                                    )
+                                }
+                                className='w-full px-4 py-3 flex items-center gap-3 hover:bg-lucky-surface-elevated transition-colors'
                             >
-                                <Card
-                                    className={cn(
-                                        'p-4 transition-all hover:border-lucky-border/80',
-                                        !cmd.enabled && 'opacity-60',
-                                    )}
-                                >
-                                    <div className='flex items-start gap-3'>
-                                        <div className='p-2 rounded-lg bg-lucky-bg-active shrink-0'>
-                                            <Code className='w-4 h-4 text-lucky-text-secondary' />
-                                        </div>
-                                        <div className='flex-1 min-w-0'>
-                                            <div className='flex items-center gap-2'>
-                                                <h3 className='type-body-sm font-semibold text-lucky-text-primary truncate'>
-                                                    /{cmd.name}
-                                                </h3>
-                                                <Badge
-                                                    variant='outline'
-                                                    className={cn(
-                                                        'text-[9px] uppercase border',
-                                                        CATEGORY_COLORS[
-                                                            cmd.category
-                                                        ] ||
-                                                            'bg-lucky-bg-tertiary text-lucky-text-secondary border-lucky-border',
-                                                    )}
-                                                >
-                                                    {cmd.category}
-                                                </Badge>
-                                            </div>
-                                            <p className='text-xs text-lucky-text-tertiary mt-1 line-clamp-2'>
-                                                {cmd.description}
-                                            </p>
-                                        </div>
-                                        <Switch
-                                            checked={cmd.enabled}
-                                            onCheckedChange={() =>
-                                                handleToggle(cmd)
-                                            }
-                                        />
+                                <div className='p-2 rounded bg-lucky-bg-active shrink-0'>
+                                    <Code className='w-4 h-4 text-lucky-text-secondary' />
+                                </div>
+                                <div className='flex-1 min-w-0 text-left'>
+                                    <div className='flex items-center gap-2 mb-1'>
+                                        <h3 className='type-body-sm font-semibold text-lucky-text-primary truncate'>
+                                            /{cmd.name}
+                                        </h3>
+                                        <Badge
+                                            className={cn(
+                                                'text-[10px] uppercase border shrink-0',
+                                                CATEGORY_COLORS[cmd.category] ||
+                                                    'bg-lucky-bg-active text-lucky-text-secondary border-lucky-border',
+                                            )}
+                                        >
+                                            {cmd.category}
+                                        </Badge>
                                     </div>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
+                                    <p className='text-xs text-lucky-text-tertiary line-clamp-1'>
+                                        {cmd.description}
+                                    </p>
+                                </div>
+                                <div className='flex items-center gap-2 shrink-0'>
+                                    <Switch
+                                        checked={cmd.enabled}
+                                        onCheckedChange={() =>
+                                            handleToggle(cmd)
+                                        }
+                                    />
+                                    <ChevronDown
+                                        className={cn(
+                                            'w-4 h-4 text-lucky-text-tertiary transition-transform',
+                                            expandedCommand === cmd.id &&
+                                                'rotate-180',
+                                        )}
+                                    />
+                                </div>
+                            </button>
+
+                            {/* Expanded details */}
+                            {expandedCommand === cmd.id && (
+                                <div className='border-t border-lucky-border px-4 py-3 bg-lucky-bg-tertiary/30 text-xs text-lucky-text-secondary space-y-2'>
+                                    <div>
+                                        <p className='font-medium text-lucky-text-primary mb-1'>
+                                            Description
+                                        </p>
+                                        <p>{cmd.description}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))
                 ) : (
-                    <div className='col-span-full py-16 text-center'>
-                        <Terminal className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
-                        <p className='text-sm text-lucky-text-secondary'>
+                    <div className='surface-panel rounded-lg p-12 border border-lucky-border text-center'>
+                        <Code className='w-12 h-12 text-lucky-text-tertiary mx-auto mb-3' />
+                        <p className='text-sm text-lucky-text-secondary mb-1'>
                             No commands found
                         </p>
-                        <p className='text-xs text-lucky-text-tertiary mt-1'>
+                        <p className='text-xs text-lucky-text-tertiary'>
                             {searchQuery || selectedCategory
                                 ? 'Try adjusting your filters'
                                 : 'Commands will appear here'}
