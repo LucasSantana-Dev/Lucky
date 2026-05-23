@@ -17,7 +17,6 @@ updates:
           production-majors:
               dependency-type: 'production'
               update-types: ['major']
-
     - package-ecosystem: 'docker'
       directory: '/'
       schedule:
