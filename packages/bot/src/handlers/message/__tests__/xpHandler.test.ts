@@ -303,5 +303,76 @@ describe('xpHandler', () => {
                 10,
             )
         })
+
+        it('should handle error when channels.fetch fails on level up', async () => {
+            const now = Date.now()
+            ;(levelService.getConfig as jest.Mock).mockResolvedValue({
+                enabled: true,
+                xpCooldownMs: 60000,
+                xpPerMessage: 10,
+                announceChannel: 'announce1',
+            })
+            ;(levelService.getMemberXP as jest.Mock).mockResolvedValue({
+                lastXpAt: new Date(now - 61000),
+            })
+            ;(levelService.addXP as jest.Mock).mockResolvedValue({
+                leveledUp: true,
+                newLevel: 5,
+            })
+
+            const message = {
+                author: {
+                    id: 'user1',
+                    bot: false,
+                    toString: jest.fn(() => '<@user1>'),
+                },
+                channelId: 'channel1',
+                client: {
+                    channels: {
+                        fetch: jest
+                            .fn()
+                            .mockRejectedValue(new Error('Channel not found')),
+                    },
+                },
+            } as unknown as Message
+
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: { roles: { add: jest.fn() } } as any,
+                featureToggles: {},
+            }
+
+            const result = await xpHandler.handle(message, context)
+            expect(result.stop).toBe(false)
+        })
+
+        it('should handle error when addXP throws', async () => {
+            const now = Date.now()
+            ;(levelService.getConfig as jest.Mock).mockResolvedValue({
+                enabled: true,
+                xpCooldownMs: 60000,
+                xpPerMessage: 10,
+            })
+            ;(levelService.getMemberXP as jest.Mock).mockResolvedValue({
+                lastXpAt: new Date(now - 61000),
+            })
+            ;(levelService.addXP as jest.Mock).mockRejectedValue(
+                new Error('Database error'),
+            )
+
+            const message = {
+                author: { id: 'user1', bot: false },
+                channelId: 'channel1',
+            } as unknown as Message
+
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: {} as any,
+                featureToggles: {},
+            }
+
+            const result = await xpHandler.handle(message, context)
+            expect(result.stop).toBe(false)
+        })
     })
 })

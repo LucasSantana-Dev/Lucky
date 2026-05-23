@@ -160,5 +160,27 @@ describe('spamHandler', () => {
             expect(result.stop).toBe(false)
             expect(message.delete).not.toHaveBeenCalled()
         })
+
+        it('should handle error when trackMessageAndCheckSpam throws', async () => {
+            const error = new Error('Service error')
+            ;(
+                autoModService.trackMessageAndCheckSpam as jest.Mock
+            ).mockRejectedValue(error)
+
+            const message = {
+                author: { id: 'user1', bot: false },
+                channelId: 'channel1',
+                delete: jest.fn(),
+            } as unknown as Message
+
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: {} as any,
+                featureToggles: { AUTOMOD: true },
+            }
+
+            const result = await spamHandler.handle(message, context)
+            expect(result.stop).toBe(false)
+        })
     })
 })

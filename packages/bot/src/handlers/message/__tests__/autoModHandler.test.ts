@@ -88,7 +88,9 @@ describe('autoModHandler', () => {
 
             const context: MessageContext = {
                 guild: { id: 'guild1' } as any,
-                member: { roles: { cache: new Map() } } as any,
+                member: {
+                    roles: { cache: { map: jest.fn().mockReturnValue([]) } },
+                } as any,
                 featureToggles: { AUTOMOD: true },
             }
 
@@ -114,7 +116,9 @@ describe('autoModHandler', () => {
 
             const context: MessageContext = {
                 guild: { id: 'guild1' } as any,
-                member: { roles: { cache: new Map() } } as any,
+                member: {
+                    roles: { cache: { map: jest.fn().mockReturnValue([]) } },
+                } as any,
                 featureToggles: { AUTOMOD: true },
             }
 
@@ -132,8 +136,6 @@ describe('autoModHandler', () => {
                 wordsEnabled: true,
             })
 
-            const roleMap = new Map([['role1', { id: 'role1' }]])
-
             const message = {
                 author: { id: 'user1', bot: false, tag: 'user#1' },
                 channelId: 'channel2',
@@ -142,7 +144,11 @@ describe('autoModHandler', () => {
 
             const context: MessageContext = {
                 guild: { id: 'guild1' } as any,
-                member: { roles: { cache: roleMap } } as any,
+                member: {
+                    roles: {
+                        cache: { map: jest.fn().mockReturnValue(['role1']) },
+                    },
+                } as any,
                 featureToggles: { AUTOMOD: true },
             }
 
@@ -309,7 +315,9 @@ describe('autoModHandler', () => {
 
             const context: MessageContext = {
                 guild: { id: 'guild1' } as any,
-                member: { roles: { cache: new Map() } } as any,
+                member: {
+                    roles: { cache: { map: jest.fn().mockReturnValue([]) } },
+                } as any,
                 featureToggles: { AUTOMOD: true },
             }
 

@@ -252,5 +252,29 @@ describe('customCommandHandler', () => {
             expect(result.stop).toBe(false)
             expect(message.reply).not.toHaveBeenCalled()
         })
+
+        it('should handle error when listCommands throws', async () => {
+            const error = new Error('Service error')
+            ;(customCommandService.listCommands as jest.Mock).mockRejectedValue(
+                error,
+            )
+
+            const message = {
+                author: { id: 'user1', bot: false },
+                channelId: 'channel1',
+                content: 'hello',
+                reply: jest.fn(),
+            } as unknown as Message
+
+            const context: MessageContext = {
+                guild: { id: 'guild1' } as any,
+                member: {} as any,
+                featureToggles: { CUSTOM_COMMANDS: true },
+            }
+
+            const result = await customCommandHandler.handle(message, context)
+            expect(result.stop).toBe(false)
+            expect(message.reply).not.toHaveBeenCalled()
+        })
     })
 })
