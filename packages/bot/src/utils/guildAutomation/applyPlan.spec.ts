@@ -53,12 +53,21 @@ const autoMessagesExecutorCaptureMock = jest.fn()
 const autoMessagesExecutorDiffMock = jest.fn()
 const autoMessagesExecutorApplyMock = jest.fn()
 
+const moderationExecutorCaptureMock = jest.fn()
+const moderationExecutorDiffMock = jest.fn()
+const moderationExecutorApplyMock = jest.fn()
+
 jest.mock('@lucky/shared/services/guildAutomation', () => ({
     createAutoMessagesExecutor: jest.fn(() => ({
         capture: (...args: unknown[]) =>
             autoMessagesExecutorCaptureMock(...args),
         diff: (...args: unknown[]) => autoMessagesExecutorDiffMock(...args),
         apply: (...args: unknown[]) => autoMessagesExecutorApplyMock(...args),
+    })),
+    createModerationExecutor: jest.fn(() => ({
+        capture: (...args: unknown[]) => moderationExecutorCaptureMock(...args),
+        diff: (...args: unknown[]) => moderationExecutorDiffMock(...args),
+        apply: (...args: unknown[]) => moderationExecutorApplyMock(...args),
     })),
 }))
 
@@ -117,6 +126,12 @@ describe('applyAutomationModules', () => {
         autoMessagesExecutorCaptureMock.mockResolvedValue({})
         autoMessagesExecutorDiffMock.mockReturnValue({ operations: [] })
         autoMessagesExecutorApplyMock.mockResolvedValue({
+            status: 'success',
+            applied: [],
+        })
+        moderationExecutorCaptureMock.mockReturnValue({})
+        moderationExecutorDiffMock.mockReturnValue({ ops: [] })
+        moderationExecutorApplyMock.mockResolvedValue({
             status: 'success',
             applied: [],
         })

@@ -36,3 +36,11 @@ export {
     type AutoMessagesResult,
     type AutoMessagesPort,
 } from './autoMessagesExecutor'
+export {
+    createModerationExecutor,
+    type ModerationLiveState,
+    type ModerationManifestSection,
+    type ModerationDiff,
+    type ModerationResult,
+    type ModerationPort,
+} from './moderationExecutor'

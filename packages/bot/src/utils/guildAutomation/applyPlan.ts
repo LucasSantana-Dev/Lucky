@@ -14,11 +14,29 @@ import {
     type GuildAutomationManifestDocument,
     type GuildAutomationPlan,
 } from '@lucky/shared/services'
-import { createAutoMessagesExecutor } from '@lucky/shared/services/guildAutomation'
+import {
+    createAutoMessagesExecutor,
+    createModerationExecutor,
+} from '@lucky/shared/services/guildAutomation'
 import { errorLog, warnLog } from '@lucky/shared/utils'
 
 const autoMessagesExecutor = createAutoMessagesExecutor({
     autoMessageService,
+})
+
+const moderationExecutor = createModerationExecutor({
+    port: {
+        updateAutoModSettings: (guildId, settings) =>
+            autoModService.updateSettings(
+                guildId,
+                settings as Parameters<typeof autoModService.updateSettings>[1],
+            ),
+        updateModerationSettings: (guildId, settings) =>
+            updateModerationSettings(
+                guildId,
+                settings as Parameters<typeof updateModerationSettings>[1],
+            ),
+    },
 })
 
 type ApplyResult = {
@@ -248,20 +266,20 @@ export async function applyAutomationModules(params: {
     }
 
     if (shouldApplyModule(plan, 'moderation', allowProtected)) {
-        if (desired.moderation?.automod) {
-            await autoModService.updateSettings(
-                guild.id,
-                desired.moderation.automod as never,
-            )
+        const live = moderationExecutor.capture()
+        const diff = moderationExecutor.diff(live, desired.moderation ?? {})
+        const result = await moderationExecutor.apply(diff, {
+            guildId: guild.id,
+        })
+        if (result.status !== 'success') {
+            errorLog({
+                message: `Moderation executor apply: ${result.status}`,
+                data: {
+                    guildId: guild.id,
+                    errors: 'errors' in result ? result.errors : result.error,
+                },
+            })
         }
-
-        if (desired.moderation?.moderationSettings) {
-            await updateModerationSettings(
-                guild.id,
-                desired.moderation.moderationSettings as never,
-            )
-        }
-
         appliedModules.push('moderation')
     }
 
