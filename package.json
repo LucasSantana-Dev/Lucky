@@ -7,6 +7,7 @@
         "packages/*"
     ],
     "scripts": {
+        "prepare": "husky",
         "build": "npm run db:generate && npm run build --workspace=packages/shared && npm run build --workspace=packages/bot && npm run build --workspace=packages/backend && npm run build --workspace=packages/frontend",
         "build:shared": "npm run build --workspace=packages/shared",
         "build:bot": "npm run build --workspace=packages/bot",
@@ -86,7 +87,9 @@
         "eslint": "^10.4.0",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^17.6.0",
+        "husky": "^9.1.7",
         "jest": "^30.4.2",
+        "lint-staged": "^16.4.0",
         "prettier": "^3.8.3",
         "prisma": "^7.8.0",
         "secretlint": "^13.0.2",
