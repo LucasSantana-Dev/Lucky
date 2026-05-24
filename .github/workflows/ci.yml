@@ -187,7 +187,7 @@ jobs:
             - name: Secrets scan
               run: npx secretlint "**/*"
             - name: TruffleHog secret scan
-              uses: trufflesecurity/trufflehog@0fa069c12f0c7baf431041cd1e564a9c5058846c  # post-v3.95.2 (2026-05-07)
+              uses: trufflesecurity/trufflehog@0ec3634f6cf66a61912a923fee9d20cc45633a67  # post-v3.95.2 (2026-05-07)
               with:
                   extra_args: --only-verified
               continue-on-error: true
