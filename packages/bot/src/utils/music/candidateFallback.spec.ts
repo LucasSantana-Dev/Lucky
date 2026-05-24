@@ -452,34 +452,6 @@ describe('collectGenreCandidates', () => {
         }
     }
 
-    function createAutoplayContext(
-        overrides: Partial<AutoplayContext> = {},
-    ): AutoplayContext {
-        return {
-            queue: { player: { search: jest.fn() } } as never,
-            excludedUrls: new Set(),
-            excludedKeys: new Set(),
-            dislikedWeights: new Map(),
-            likedWeights: new Map(),
-            preferredArtistKeys: new Set(),
-            blockedArtistKeys: new Set(),
-            currentTrack: {
-                author: 'Artist',
-                title: 'Song',
-                url: 'u1',
-                durationMS: 200_000,
-            } as never,
-            recentArtists: new Set(),
-            autoplayMode: 'similar',
-            artistFrequency: new Map(),
-            implicitDislikeKeys: new Set(),
-            implicitLikeKeys: new Set(),
-            sessionMood: null,
-            genreContext: {},
-            ...overrides,
-        }
-    }
-
     it('does nothing when genres array is empty', async () => {
         const queue = { player: { search: jest.fn() } } as never
         const ctx = createCtx()
