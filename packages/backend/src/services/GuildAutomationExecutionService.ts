@@ -16,7 +16,7 @@ import {
     type GuildAutomationChannel,
     type GuildAutomationParity,
 } from '@lucky/shared/services/guildAutomation/types'
-import { debugLog } from '@lucky/shared/utils'
+import { debugLog, warnLog } from '@lucky/shared/utils'
 
 const DISCORD_API_BASE_URL = 'https://discord.com/api/v10'
 const DEFAULT_SOURCE = 'discord-capture'
@@ -1139,7 +1139,7 @@ class GuildAutomationExecutionService {
         )
         const result = await this.autoMessagesExecutor.apply(diff, { guildId })
         if (result.status !== 'success') {
-            this.warnLog({
+            warnLog({
                 message: `AutoMessages executor apply: ${result.status}`,
                 data: {
                     guildId,
