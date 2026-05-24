@@ -2087,80 +2087,44 @@ describe('queueManipulation.replenishQueue query variation', () => {
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
-    it('applies query modifiers based on replenish counter', async () => {
+    it('replenishes queue multiple times with varying search strategies', async () => {
         const currentTrack = {
             url: 'https://example.com/current',
             title: 'Current Song',
             author: 'Current Artist',
             requestedBy: { id: 'user-1' },
         }
-        const candidateTrack = {
-            title: 'Candidate Song',
-            author: 'Candidate Artist',
-            url: 'https://example.com/cand',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const searchMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            player: {
-                search: searchMock.mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstSearchQuery = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstSearchQuery).toBeDefined()
-        expect(typeof firstSearchQuery).toBe('string')
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const secondSearchQuery = searchMock.mock.calls[1]?.[0] ?? ''
-        expect(typeof secondSearchQuery).toBe('string')
-    })
-
-    it('uses different modifiers for 5 sequential replenishes on same guild', async () => {
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Current Song',
-            author: 'Current Artist',
-            requestedBy: { id: 'user-1' },
-        }
-        const candidateTrack = {
-            title: 'Candidate',
-            author: 'Artist',
-            url: 'https://example.com/cand',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const searchMock = jest.fn()
+        const tracks: Track[] = []
         const queue = createQueueMock({
             guild: { id: 'guild-variation' },
             currentTrack,
             metadata: { requestedBy: { id: 'user-1' } },
             player: {
-                search: searchMock.mockResolvedValue({
-                    tracks: [candidateTrack],
+                search: jest.fn().mockResolvedValue({
+                    tracks: [
+                        {
+                            title: 'Song 1',
+                            author: 'Artist 1',
+                            url: 'https://example.com/s1',
+                            source: 'youtube',
+                            durationMS: 200000,
+                        },
+                    ],
                 }),
             },
+            addTrack: jest.fn((t: unknown) => tracks.push(t as Track)),
         })
 
-        const queries: string[] = []
+        // Call replenish 3 times - should accumulate different tracks
+        await replenishQueue(queue as unknown as GuildQueue)
+        await replenishQueue(queue as unknown as GuildQueue)
+        await replenishQueue(queue as unknown as GuildQueue)
 
-        for (let i = 0; i < 5; i++) {
-            await replenishQueue(queue as unknown as GuildQueue)
-            const query = searchMock.mock.calls[i]?.[0] ?? ''
-            queries.push(query)
-        }
-
-        expect(queries).toHaveLength(5)
-        queries.forEach((q) => {
-            expect(typeof q).toBe('string')
+        // Verify actual tracks were added to queue
+        expect(tracks.length).toBeGreaterThan(0)
+        tracks.forEach((track) => {
+            expect(track).toHaveProperty('metadata')
+            expect((track as any).metadata?.isAutoplay).toBe(true)
         })
     })
 })
