@@ -14,21 +14,23 @@ describe('tagExtractor', () => {
     })
 
     describe('extractTags', () => {
-        it('extracts genre tags from track title', () => {
+        it('extracts genre tags and filters by minimum word length', () => {
             const track = {
-                title: 'Rock Song Live Performance',
+                title: 'The Rock Music Live Performance',
                 author: 'Artist',
                 description: undefined,
             } as Track
 
             const tags = extractTags(track)
 
+            // Should contain genre keywords and filter short words
             expect(tags).toContain('rock')
+            expect(tags).not.toContain('the')
         })
 
-        it('handles title with special characters and punctuation', () => {
+        it('normalizes uppercase and removes punctuation', () => {
             const track = {
-                title: 'Country Song (Remix)',
+                title: 'Country Song (Remix) [JAZZ remix]',
                 author: 'Artist Name',
                 description: undefined,
             } as Track
@@ -36,90 +38,47 @@ describe('tagExtractor', () => {
             const tags = extractTags(track)
 
             expect(tags).toContain('country')
+            expect(tags).toContain('jazz')
             expect(tags).not.toContain('(')
-            expect(tags).not.toContain(')')
+            expect(tags).not.toContain('[')
         })
 
-        it('excludes words with 3 or fewer characters', () => {
+        it('extracts tags from multiple sources: title, description, and author', () => {
             const track = {
-                title: 'The Soul Music',
-                author: 'Artist',
-                description: undefined,
-            } as Track
-
-            const tags = extractTags(track)
-
-            expect(tags).toContain('soul')
-            expect(tags).not.toContain('the')
-        })
-
-        it('includes words with 4 or more characters', () => {
-            const track = {
-                title: 'Rock Song Classical Piece',
-                author: 'Artist',
-                description: undefined,
-            } as Track
-
-            const tags = extractTags(track)
-
-            expect(tags).toContain('rock')
-            expect(tags).toContain('classical')
-        })
-
-        it('normalizes uppercase to lowercase for matching', () => {
-            const track = {
-                title: 'ROCK SONG JAZZ MUSIC',
-                author: 'Artist',
-                description: undefined,
+                title: 'Rock and Jazz',
+                author: 'Rock Artist Metal Man',
+                description: 'A funk piece with soul and electronic elements',
             } as Track
 
             const tags = extractTags(track)
 
             expect(tags).toContain('rock')
             expect(tags).toContain('jazz')
-        })
-
-        it('extracts tags from description when present', () => {
-            const track = {
-                title: 'Song Title',
-                author: 'Artist',
-                description: 'A wonderful jazz piece with soul',
-            } as Track
-
-            const tags = extractTags(track)
-
-            expect(tags).toContain('jazz')
-            expect(tags).toContain('soul')
-        })
-
-        it('extracts tags from author field', () => {
-            const track = {
-                title: 'Song Title',
-                author: 'Rock Band Metal Artists',
-                description: undefined,
-            } as Track
-
-            const tags = extractTags(track)
-
-            expect(tags).toContain('rock')
             expect(tags).toContain('metal')
+            expect(tags).toContain('funk')
+            expect(tags).toContain('soul')
+            expect(tags).toContain('electronic')
         })
 
-        it('handles track with no description field', () => {
+        it('combines tags without duplicates even when present in multiple sources', () => {
             const track = {
-                title: 'Rock Song',
-                author: 'Artist',
+                title: 'Rock and Jazz',
+                author: 'Rock Artist Jazz Man',
+                description: 'A rock and jazz fusion piece',
             } as Track
 
             const tags = extractTags(track)
 
-            expect(tags).toContain('rock')
-            expect(debugLogMock).not.toHaveBeenCalled()
+            const rockCount = tags.filter((t) => t === 'rock').length
+            const jazzCount = tags.filter((t) => t === 'jazz').length
+
+            expect(rockCount).toBe(1)
+            expect(jazzCount).toBe(1)
         })
 
         it('returns empty array when no genres match', () => {
             const track = {
-                title: 'Some Random Title',
+                title: 'Some Random Title Here',
                 author: 'Unknown Artist',
                 description: undefined,
             } as Track
@@ -129,7 +88,19 @@ describe('tagExtractor', () => {
             expect(tags).toEqual([])
         })
 
-        it('handles errors gracefully and logs them', () => {
+        it('handles track with missing optional fields gracefully', () => {
+            const track = {
+                title: 'Rock Song',
+                author: undefined,
+            } as Track
+
+            const tags = extractTags(track)
+
+            expect(tags).toContain('rock')
+            expect(debugLogMock).not.toHaveBeenCalled()
+        })
+
+        it('handles errors during tag extraction and logs them', () => {
             const track = {
                 title: 'Rock Song',
                 author: 'Artist',
@@ -147,65 +118,57 @@ describe('tagExtractor', () => {
             )
         })
 
-        it('handles null/undefined author gracefully', () => {
+        it.each([
+            ['rock', 'Rock Music Band'],
+            ['funk', 'Funk Music Band'],
+            ['electronic', 'Electronic Dance Music'],
+            ['acoustic', 'Acoustic Music Band'],
+            ['instrumental', 'Instrumental Piece Performance'],
+        ])('extracts %s genre from track title', (expectedGenre, title) => {
             const track = {
-                title: 'Rock Song',
-                author: undefined,
-                description: undefined,
-            } as any
-
-            const tags = extractTags(track)
-
-            expect(tags).toContain('rock')
-        })
-
-        it('combines tags from multiple sources without duplicates', () => {
-            const track = {
-                title: 'Rock and Jazz',
-                author: 'Rock Artist Jazz Man',
-                description: 'A rock and jazz fusion piece with soul',
-            } as Track
-
-            const tags = extractTags(track)
-
-            const rockCount = tags.filter((t) => t === 'rock').length
-            const jazzCount = tags.filter((t) => t === 'jazz').length
-
-            expect(rockCount).toBe(1)
-            expect(jazzCount).toBe(1)
-        })
-
-        it('extracts funk genre from track with sufficient word length', () => {
-            const track = {
-                title: 'Funk Music Band Song',
+                title,
                 author: 'Artist',
                 description: undefined,
             } as Track
 
             const tags = extractTags(track)
 
-            expect(tags).toContain('funk')
+            expect(tags).toContain(expectedGenre)
         })
     })
 
     describe('extractGenre', () => {
-        it('returns first matching genre from tags', () => {
+        it('returns first matching genre when multiple genres present in track metadata', () => {
             const track = {
-                title: 'Rock Song Jazz Piece',
+                title: 'Rock Jazz Classical',
                 author: 'Artist',
                 description: undefined,
             } as Track
 
             const genre = extractGenre(track)
 
+            // Should return one of the genres present
+            expect(['rock', 'jazz', 'classical']).toContain(genre)
             expect(genre).toBeDefined()
-            expect(['rock', 'jazz']).toContain(genre)
         })
 
-        it('returns undefined when no genres in tags', () => {
+        it('prioritizes genres in order of discovery: title -> description -> author', () => {
             const track = {
-                title: 'Some Random Title',
-                author: 'Unknown Artist',
+                title: 'Rock Music',
+                author: 'Pop Singer',
+                description: 'Jazz influenced piece',
+            } as Track
+
+            const genre = extractGenre(track)
+
+            // Rock appears first (in title), so it should be returned
+            expect(genre).toBe('rock')
+        })
+
+        it('returns undefined when no genres match the known genre list', () => {
+            const track = {
+                title: 'Some Random Title Here',
+                author: 'Unknown Artist Name',
                 description: undefined,
             } as Track
 
@@ -214,19 +177,7 @@ describe('tagExtractor', () => {
             expect(genre).toBeUndefined()
         })
 
-        it('returns undefined for empty tag array', () => {
-            const track = {
-                title: 'No genres here xyz',
-                author: 'Unknown',
-                description: undefined,
-            } as Track
-
-            const genre = extractGenre(track)
-
-            expect(genre).toBeUndefined()
-        })
-
-        it('returns genre from description tags', () => {
+        it('extracts genre from description when not in title or author', () => {
             const track = {
                 title: 'Title',
                 author: 'Artist',
@@ -236,54 +187,6 @@ describe('tagExtractor', () => {
             const genre = extractGenre(track)
 
             expect(genre).toBe('electronic')
-        })
-
-        it('prioritizes genres in order of discovery', () => {
-            const track = {
-                title: 'Rock Music',
-                author: 'Pop Singer',
-                description: 'Jazz influenced piece',
-            } as Track
-
-            const genre = extractGenre(track)
-
-            expect(genre).toBe('rock')
-        })
-
-        it('returns first genre from tag list when multiple genres present', () => {
-            const track = {
-                title: 'Rock Jazz Classical',
-                author: 'Artist',
-                description: undefined,
-            } as Track
-
-            const genre = extractGenre(track)
-
-            expect(['rock', 'jazz', 'classical']).toContain(genre)
-        })
-
-        it('handles tracks with acoustic in title', () => {
-            const track = {
-                title: 'Acoustic Music Band',
-                author: 'Artist',
-                description: undefined,
-            } as Track
-
-            const genre = extractGenre(track)
-
-            expect(genre).toBe('acoustic')
-        })
-
-        it('extracts instrumental from tag list', () => {
-            const track = {
-                title: 'Instrumental Piece Performance',
-                author: 'Artist',
-                description: undefined,
-            } as Track
-
-            const genre = extractGenre(track)
-
-            expect(genre).toBe('instrumental')
         })
 
         it('matches genres case-insensitively', () => {
