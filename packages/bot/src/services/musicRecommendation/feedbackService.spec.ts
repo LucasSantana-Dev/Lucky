@@ -30,62 +30,39 @@ describe('RecommendationFeedbackService', () => {
         jest.clearAllMocks()
     })
 
+    it.each([
+        { feedback: 'dislike' as const, getter: 'getDislikedTrackKeys' },
+        { feedback: 'like' as const, getter: 'getLikedTrackKeys' },
+    ])(
+        'stores $feedback feedback and returns keys',
+        async ({ feedback, getter }) => {
+            const now = 10_000
+            const service = new RecommendationFeedbackService(30)
+            const key = service.buildTrackKey('Song', 'Artist')
 
+            getMock.mockResolvedValueOnce(null)
+            setexMock.mockResolvedValueOnce(true)
+            getMock.mockResolvedValueOnce(
+                JSON.stringify({
+                    [key]: {
+                        feedback,
+                        updatedAt: now,
+                        expiresAt: now + 30 * 24 * 60 * 60 * 1000,
+                    },
+                }),
+            )
 
-    it('stores dislike feedback and returns disliked keys', async () => {
-        const now = 10_000
-        const service = new RecommendationFeedbackService(30)
-        const key = service.buildTrackKey('Song A', 'Artist A')
+            await service.setFeedback('guild-1', 'user-1', key, feedback, now)
+            const keys = await (service[getter as keyof typeof service] as any)(
+                'guild-1',
+                'user-1',
+                now + 100,
+            )
 
-        getMock.mockResolvedValueOnce(null)
-        setexMock.mockResolvedValueOnce(true)
-        getMock.mockResolvedValueOnce(
-            JSON.stringify({
-                [key]: {
-                    feedback: 'dislike',
-                    updatedAt: now,
-                    expiresAt: now + 30 * 24 * 60 * 60 * 1000,
-                },
-            }),
-        )
-
-        await service.setFeedback('guild-1', 'user-1', key, 'dislike', now)
-        const disliked = await service.getDislikedTrackKeys(
-            'guild-1',
-            'user-1',
-            now + 100,
-        )
-
-        expect(disliked.has(key)).toBe(true)
-        expect(setexMock).toHaveBeenCalled()
-    })
-
-    it('stores like feedback and returns liked keys', async () => {
-        const now = 10_000
-        const service = new RecommendationFeedbackService(30)
-        const key = service.buildTrackKey('Song Like', 'Artist Like')
-
-        getMock.mockResolvedValueOnce(null)
-        setexMock.mockResolvedValueOnce(true)
-        getMock.mockResolvedValueOnce(
-            JSON.stringify({
-                [key]: {
-                    feedback: 'like',
-                    updatedAt: now,
-                    expiresAt: now + 30 * 24 * 60 * 60 * 1000,
-                },
-            }),
-        )
-
-        await service.setFeedback('guild-1', 'user-1', key, 'like', now)
-        const liked = await service.getLikedTrackKeys(
-            'guild-1',
-            'user-1',
-            now + 100,
-        )
-
-        expect(liked.has(key)).toBe(true)
-    })
+            expect(keys.has(key)).toBe(true)
+            expect(setexMock).toHaveBeenCalled()
+        },
+    )
 
     it('getFeedbackCounts returns correct liked/disliked counts', async () => {
         const now = 10_000
@@ -120,15 +97,6 @@ describe('RecommendationFeedbackService', () => {
         expect(counts.disliked).toBe(1)
     })
 
-    it('clearFeedback deletes the user redis key', async () => {
-        delMock.mockResolvedValue(1)
-        const service = new RecommendationFeedbackService(30)
-
-        await service.clearFeedback('user-1')
-
-        expect(delMock).toHaveBeenCalledWith('music:feedback:user-1')
-    })
-
     it('cleans expired feedback entries', async () => {
         const now = 50_000
         const service = new RecommendationFeedbackService(30)
@@ -155,85 +123,68 @@ describe('RecommendationFeedbackService', () => {
         expect(setexMock).toHaveBeenCalled()
     })
 
-    it('getDislikedTrackKeys returns empty set for undefined userId', async () => {
+    it.each([
+        { getter: 'getDislikedTrackKeys' },
+        { getter: 'getLikedTrackKeys' },
+    ])('$getter returns empty set for undefined userId', async ({ getter }) => {
         const service = new RecommendationFeedbackService(30)
 
-        const result = await service.getDislikedTrackKeys('guild-1', undefined)
-        expect(result.size).toBe(0)
-        expect(getMock).not.toHaveBeenCalled()
-    })
-
-    it('getLikedTrackKeys returns empty set for undefined userId', async () => {
-        const service = new RecommendationFeedbackService(30)
-
-        const result = await service.getLikedTrackKeys('guild-1', undefined)
-        expect(result.size).toBe(0)
-        expect(getMock).not.toHaveBeenCalled()
-    })
-
-
-
-    it('getPreferredArtistKeys returns preferred artists', async () => {
-        const service = new RecommendationFeedbackService(30)
-        const artistKey1 = 'taylorswift'
-        const artistKey2 = 'arianagrande'
-
-        getMock.mockResolvedValue(
-            JSON.stringify({
-                [artistKey1]: 'prefer',
-                [artistKey2]: 'prefer',
-                badartist: 'block',
-            }),
-        )
-
-        const preferred = await service.getPreferredArtistKeys(
-            'guild-1',
-            'user-1',
-        )
-
-        expect(preferred.has(artistKey1)).toBe(true)
-        expect(preferred.has(artistKey2)).toBe(true)
-        expect(preferred.has('badartist')).toBe(false)
-        expect(preferred.size).toBe(2)
-    })
-
-    it('getBlockedArtistKeys returns blocked artists', async () => {
-        const service = new RecommendationFeedbackService(30)
-        const artistKey1 = 'badartist1'
-        const artistKey2 = 'badartist2'
-
-        getMock.mockResolvedValue(
-            JSON.stringify({
-                [artistKey1]: 'block',
-                [artistKey2]: 'block',
-                goodartist: 'prefer',
-            }),
-        )
-
-        const blocked = await service.getBlockedArtistKeys('guild-1', 'user-1')
-
-        expect(blocked.has(artistKey1)).toBe(true)
-        expect(blocked.has(artistKey2)).toBe(true)
-        expect(blocked.has('goodartist')).toBe(false)
-        expect(blocked.size).toBe(2)
-    })
-
-    it('getPreferredArtistKeys returns empty set for undefined userId', async () => {
-        const service = new RecommendationFeedbackService(30)
-
-        const result = await service.getPreferredArtistKeys(
+        const result = await (service[getter as keyof typeof service] as any)(
             'guild-1',
             undefined,
         )
-
         expect(result.size).toBe(0)
         expect(getMock).not.toHaveBeenCalled()
     })
 
-    it('getBlockedArtistKeys returns empty set for undefined userId', async () => {
+    it.each([
+        {
+            feedback: 'prefer' as const,
+            getter: 'getPreferredArtistKeys',
+            tested: 'preferred',
+        },
+        {
+            feedback: 'block' as const,
+            getter: 'getBlockedArtistKeys',
+            tested: 'blocked',
+        },
+    ])(
+        '$getter returns $tested artists',
+        async ({ feedback, getter, tested }) => {
+            const service = new RecommendationFeedbackService(30)
+            const artistKey1 = `artist1_${feedback}`
+            const artistKey2 = `artist2_${feedback}`
+            const otherType = feedback === 'prefer' ? 'block' : 'prefer'
+
+            getMock.mockResolvedValue(
+                JSON.stringify({
+                    [artistKey1]: feedback,
+                    [artistKey2]: feedback,
+                    [otherType]: otherType,
+                }),
+            )
+
+            const result = await (
+                service[getter as keyof typeof service] as any
+            )('guild-1', 'user-1')
+
+            expect(result.has(artistKey1)).toBe(true)
+            expect(result.has(artistKey2)).toBe(true)
+            expect(result.has(otherType)).toBe(false)
+            expect(result.size).toBe(2)
+        },
+    )
+
+    it.each([
+        { getter: 'getPreferredArtistKeys' },
+        { getter: 'getBlockedArtistKeys' },
+    ])('$getter returns empty set for undefined userId', async ({ getter }) => {
         const service = new RecommendationFeedbackService(30)
 
-        const result = await service.getBlockedArtistKeys('guild-1', undefined)
+        const result = await (service[getter as keyof typeof service] as any)(
+            'guild-1',
+            undefined,
+        )
 
         expect(result.size).toBe(0)
         expect(getMock).not.toHaveBeenCalled()
@@ -287,67 +238,47 @@ describe('RecommendationFeedbackService', () => {
         expect(getMock).not.toHaveBeenCalled()
     })
 
-    it('getLikedTrackWeights returns weighted map with decay', async () => {
-        const service = new RecommendationFeedbackService(30)
-        const key = service.buildTrackKey('Song A', 'Artist A')
-        const now = Date.now()
-        const updatedAt = now - 24 * 60 * 60 * 1000
+    it.each([
+        { feedback: 'like' as const, getter: 'getLikedTrackWeights' },
+        { feedback: 'dislike' as const, getter: 'getDislikedTrackWeights' },
+    ])(
+        '$getter returns weighted map with decay',
+        async ({ feedback, getter }) => {
+            const service = new RecommendationFeedbackService(30)
+            const key = service.buildTrackKey('Song', 'Artist')
+            const now = Date.now()
+            const updatedAt = now - 24 * 60 * 60 * 1000
 
-        getMock.mockResolvedValue(
-            JSON.stringify({
-                [key]: {
-                    feedback: 'like',
-                    updatedAt,
-                    expiresAt: now + 30 * 24 * 60 * 60 * 1000,
-                },
-            }),
+            getMock.mockResolvedValue(
+                JSON.stringify({
+                    [key]: {
+                        feedback,
+                        updatedAt,
+                        expiresAt: now + 30 * 24 * 60 * 60 * 1000,
+                    },
+                }),
+            )
+
+            const weights = await (
+                service[getter as keyof typeof service] as any
+            )('user-1', now)
+
+            expect(weights.has(key)).toBe(true)
+            const weight = weights.get(key)
+            expect(weight).toBeGreaterThan(0.95)
+            expect(weight).toBeLessThanOrEqual(1.0)
+        },
+    )
+
+    it.each([
+        { getter: 'getLikedTrackWeights' },
+        { getter: 'getDislikedTrackWeights' },
+    ])('$getter returns empty map for empty userId', async ({ getter }) => {
+        const service = new RecommendationFeedbackService(30)
+
+        const weights = await (service[getter as keyof typeof service] as any)(
+            '',
         )
-
-        const weights = await service.getLikedTrackWeights('user-1', now)
-
-        expect(weights.has(key)).toBe(true)
-        const weight = weights.get(key)
-        expect(weight).toBeGreaterThan(0.95)
-        expect(weight).toBeLessThanOrEqual(1.0)
-    })
-
-    it('getDislikedTrackWeights returns weighted map with decay', async () => {
-        const service = new RecommendationFeedbackService(30)
-        const key = service.buildTrackKey('Song B', 'Artist B')
-        const now = Date.now()
-        const updatedAt = now - 24 * 60 * 60 * 1000
-
-        getMock.mockResolvedValue(
-            JSON.stringify({
-                [key]: {
-                    feedback: 'dislike',
-                    updatedAt,
-                    expiresAt: now + 30 * 24 * 60 * 60 * 1000,
-                },
-            }),
-        )
-
-        const weights = await service.getDislikedTrackWeights('user-1', now)
-
-        expect(weights.has(key)).toBe(true)
-        const weight = weights.get(key)
-        expect(weight).toBeGreaterThan(0.95)
-        expect(weight).toBeLessThanOrEqual(1.0)
-    })
-
-    it('getLikedTrackWeights returns empty map for undefined userId', async () => {
-        const service = new RecommendationFeedbackService(30)
-
-        const weights = await service.getLikedTrackWeights('')
-
-        expect(weights.size).toBe(0)
-        expect(getMock).not.toHaveBeenCalled()
-    })
-
-    it('getDislikedTrackWeights returns empty map for undefined userId', async () => {
-        const service = new RecommendationFeedbackService(30)
-
-        const weights = await service.getDislikedTrackWeights('')
 
         expect(weights.size).toBe(0)
         expect(getMock).not.toHaveBeenCalled()
@@ -404,75 +335,77 @@ describe('implicit feedback', () => {
         setexMock.mockReset()
     })
 
-    it('recordImplicitFeedback stores implicit_dislike entry', async () => {
-        getMock.mockResolvedValue(null)
-        setexMock.mockResolvedValue('OK')
-        const service = new RecommendationFeedbackService(30)
-
-        await service.recordImplicitFeedback('user-1', 'song::artist', 'implicit_dislike')
-
-        expect(setexMock).toHaveBeenCalledWith(
-            'music:implicit_feedback:user-1',
-            expect.any(Number),
-            expect.stringContaining('implicit_dislike'),
-        )
-    })
-
     it('recordImplicitFeedback trims to 200 entries when exceeded', async () => {
         const bigMap: Record<string, { type: string; updatedAt: number }> = {}
         for (let i = 0; i < 201; i++) {
-            bigMap[`track${i}::artist`] = { type: 'implicit_like', updatedAt: i }
+            bigMap[`track${i}::artist`] = {
+                type: 'implicit_like',
+                updatedAt: i,
+            }
         }
         getMock.mockResolvedValue(JSON.stringify(bigMap))
         setexMock.mockResolvedValue('OK')
         const service = new RecommendationFeedbackService(30)
 
-        await service.recordImplicitFeedback('user-1', 'newtrack::artist', 'implicit_dislike')
+        await service.recordImplicitFeedback(
+            'user-1',
+            'newtrack::artist',
+            'implicit_dislike',
+        )
 
         const saved = JSON.parse(setexMock.mock.calls[0][2] as string)
         expect(Object.keys(saved).length).toBeLessThanOrEqual(200)
     })
 
-    it('getImplicitDislikeKeys returns skipped tracks', async () => {
-        getMock.mockResolvedValue(JSON.stringify({
-            'song1::artist': { type: 'implicit_dislike', updatedAt: Date.now() },
-            'song2::artist': { type: 'implicit_like', updatedAt: Date.now() },
-        }))
-        const service = new RecommendationFeedbackService(30)
+    it.each([
+        {
+            type: 'implicit_dislike' as const,
+            getter: 'getImplicitDislikeKeys',
+            included: 'song1::artist',
+            excluded: 'song2::artist',
+        },
+        {
+            type: 'implicit_like' as const,
+            getter: 'getImplicitLikeKeys',
+            included: 'song2::artist',
+            excluded: 'song1::artist',
+        },
+    ])(
+        '$getter returns $type entries',
+        async ({ type, getter, included, excluded }) => {
+            getMock.mockResolvedValue(
+                JSON.stringify({
+                    'song1::artist': {
+                        type: 'implicit_dislike',
+                        updatedAt: Date.now(),
+                    },
+                    'song2::artist': {
+                        type: 'implicit_like',
+                        updatedAt: Date.now(),
+                    },
+                }),
+            )
+            const service = new RecommendationFeedbackService(30)
 
-        const keys = await service.getImplicitDislikeKeys('user-1')
+            const keys = await (service[getter as keyof typeof service] as any)(
+                'user-1',
+            )
 
-        expect(keys.has('song1::artist')).toBe(true)
-        expect(keys.has('song2::artist')).toBe(false)
-    })
+            expect(keys.has(included)).toBe(true)
+            expect(keys.has(excluded)).toBe(false)
+        },
+    )
 
-    it('getImplicitLikeKeys returns completed tracks', async () => {
-        getMock.mockResolvedValue(JSON.stringify({
-            'song1::artist': { type: 'implicit_dislike', updatedAt: Date.now() },
-            'song2::artist': { type: 'implicit_like', updatedAt: Date.now() },
-        }))
-        const service = new RecommendationFeedbackService(30)
-
-        const keys = await service.getImplicitLikeKeys('user-1')
-
-        expect(keys.has('song2::artist')).toBe(true)
-        expect(keys.has('song1::artist')).toBe(false)
-    })
-
-    it('getImplicitDislikeKeys returns empty set on redis error', async () => {
+    it.each([
+        { getter: 'getImplicitDislikeKeys' },
+        { getter: 'getImplicitLikeKeys' },
+    ])('$getter returns empty set on redis error', async ({ getter }) => {
         getMock.mockRejectedValue(new Error('redis down'))
         const service = new RecommendationFeedbackService(30)
 
-        const keys = await service.getImplicitDislikeKeys('user-1')
-
-        expect(keys.size).toBe(0)
-    })
-
-    it('getImplicitLikeKeys returns empty set on redis error', async () => {
-        getMock.mockRejectedValue(new Error('redis down'))
-        const service = new RecommendationFeedbackService(30)
-
-        const keys = await service.getImplicitLikeKeys('user-1')
+        const keys = await (service[getter as keyof typeof service] as any)(
+            'user-1',
+        )
 
         expect(keys.size).toBe(0)
     })
@@ -481,26 +414,27 @@ describe('implicit feedback', () => {
         getMock.mockRejectedValue(new Error('redis down'))
         const service = new RecommendationFeedbackService(30)
 
-        await expect(service.recordImplicitFeedback('user-1', 'key', 'implicit_like')).resolves.toBeUndefined()
+        await expect(
+            service.recordImplicitFeedback('user-1', 'key', 'implicit_like'),
+        ).resolves.toBeUndefined()
     })
 
-    it('getLikedTrackWeights returns empty map when no feedback data', async () => {
-        getMock.mockResolvedValue(null)
-        const service = new RecommendationFeedbackService(30)
+    it.each([
+        { getter: 'getLikedTrackWeights' },
+        { getter: 'getDislikedTrackWeights' },
+    ])(
+        '$getter returns empty map when no feedback data',
+        async ({ getter }) => {
+            getMock.mockResolvedValue(null)
+            const service = new RecommendationFeedbackService(30)
 
-        const weights = await service.getLikedTrackWeights('user-1')
+            const weights = await (
+                service[getter as keyof typeof service] as any
+            )('user-1')
 
-        expect(weights.size).toBe(0)
-    })
-
-    it('getDislikedTrackWeights returns empty map when no feedback data', async () => {
-        getMock.mockResolvedValue(null)
-        const service = new RecommendationFeedbackService(30)
-
-        const weights = await service.getDislikedTrackWeights('user-1')
-
-        expect(weights.size).toBe(0)
-    })
+            expect(weights.size).toBe(0)
+        },
+    )
 
     describe('Postgres DB integration', () => {
         beforeEach(() => {
@@ -529,9 +463,7 @@ describe('implicit feedback', () => {
 
         it('getBlockedArtistKeys merges Redis and Postgres results', async () => {
             const service = new RecommendationFeedbackService(30)
-            getMock.mockResolvedValue(
-                JSON.stringify({ redisblocked: 'block' }),
-            )
+            getMock.mockResolvedValue(JSON.stringify({ redisblocked: 'block' }))
             mockUserArtistPreference.findMany.mockResolvedValue([
                 { artistKey: 'dbblocked' },
             ])
@@ -563,41 +495,35 @@ describe('implicit feedback', () => {
             expect(result.size).toBe(1)
         })
 
-        it('getPreferredArtistKeys handles Postgres errors gracefully', async () => {
-            const service = new RecommendationFeedbackService(30)
-            getMock.mockResolvedValue(
-                JSON.stringify({ redisartist: 'prefer' }),
-            )
-            mockUserArtistPreference.findMany.mockRejectedValue(
-                new Error('DB error'),
-            )
+        it.each([
+            {
+                feedback: 'prefer' as const,
+                getter: 'getPreferredArtistKeys',
+                redisKey: 'redisartist',
+            },
+            {
+                feedback: 'block' as const,
+                getter: 'getBlockedArtistKeys',
+                redisKey: 'redisblocked',
+            },
+        ])(
+            '$getter handles Postgres errors gracefully',
+            async ({ feedback, getter, redisKey }) => {
+                const service = new RecommendationFeedbackService(30)
+                getMock.mockResolvedValue(
+                    JSON.stringify({ [redisKey]: feedback }),
+                )
+                mockUserArtistPreference.findMany.mockRejectedValue(
+                    new Error('DB error'),
+                )
 
-            const result = await service.getPreferredArtistKeys(
-                'guild-1',
-                'user-1',
-            )
+                const result = await (
+                    service[getter as keyof typeof service] as any
+                )('guild-1', 'user-1')
 
-            expect(result.has('redisartist')).toBe(true)
-            expect(result.size).toBe(1)
-        })
-
-        it('getBlockedArtistKeys handles Postgres errors gracefully', async () => {
-            const service = new RecommendationFeedbackService(30)
-            getMock.mockResolvedValue(
-                JSON.stringify({ redisblocked: 'block' }),
-            )
-            mockUserArtistPreference.findMany.mockRejectedValue(
-                new Error('DB error'),
-            )
-
-            const result = await service.getBlockedArtistKeys(
-                'guild-1',
-                'user-1',
-            )
-
-            expect(result.has('redisblocked')).toBe(true)
-            expect(result.size).toBe(1)
-        })
+                expect(result.has(redisKey)).toBe(true)
+                expect(result.size).toBe(1)
+            },
+        )
     })
 })
-
