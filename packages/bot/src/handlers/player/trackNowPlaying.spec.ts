@@ -17,7 +17,10 @@ import {
     updateLastFmNowPlaying,
     scrobbleCurrentTrackIfLastFm,
 } from './trackNowPlaying'
-import { createMockGuild, createMockTextChannel } from '../../../tests/__mocks__/discord'
+import {
+    createMockGuild,
+    createMockTextChannel,
+} from '../../../tests/__mocks__/discord'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -50,15 +53,19 @@ jest.mock('../../utils/music/autoplayManager', () => ({
 }))
 
 jest.mock('../../utils/music/buttonComponents', () => ({
-    createMusicControlButtons: (...args: unknown[]) => createMusicControlButtonsMock(...args),
-    createMusicActionButtons: (...args: unknown[]) => createMusicActionButtonsMock(...args),
+    createMusicControlButtons: (...args: unknown[]) =>
+        createMusicControlButtonsMock(...args),
+    createMusicActionButtons: (...args: unknown[]) =>
+        createMusicActionButtonsMock(...args),
 }))
 
 jest.mock('../../lastfm', () => ({
     isLastFmConfigured: (...args: unknown[]) => isLastFmConfiguredMock(...args),
-    getSessionKeyForUser: (...args: unknown[]) => getSessionKeyForUserMock(...args),
+    getSessionKeyForUser: (...args: unknown[]) =>
+        getSessionKeyForUserMock(...args),
     getTrackMetadata: (...args: unknown[]) => getTrackMetadataMock(...args),
-    updateNowPlaying: (...args: unknown[]) => lastFmUpdateNowPlayingMock(...args),
+    updateNowPlaying: (...args: unknown[]) =>
+        lastFmUpdateNowPlayingMock(...args),
     scrobble: (...args: unknown[]) => lastFmScrobbleMock(...args),
 }))
 
@@ -96,7 +103,10 @@ describe('trackNowPlaying handlers', () => {
             registerNowPlayingMessage(guildId, 'message-2', 'channel-2')
 
             const result = getSongInfoMessage(guildId)
-            expect(result).toEqual({ messageId: 'message-2', channelId: 'channel-2' })
+            expect(result).toEqual({
+                messageId: 'message-2',
+                channelId: 'channel-2',
+            })
         })
     })
 
@@ -144,7 +154,7 @@ describe('trackNowPlaying handlers', () => {
                 expect.objectContaining({
                     message: 'Cleaned up now-playing state for guild',
                     data: { guildId },
-                })
+                }),
             )
         })
 
@@ -177,7 +187,7 @@ describe('trackNowPlaying handlers', () => {
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Cleaned up now-playing state for guild',
-                })
+                }),
             )
         })
     })
@@ -228,7 +238,9 @@ describe('trackNowPlaying handlers', () => {
 
             await sendNowPlayingEmbed(mockQueue, mockTrack, false)
 
-            expect(createMusicControlButtonsMock).toHaveBeenCalledWith(mockQueue)
+            expect(createMusicControlButtonsMock).toHaveBeenCalledWith(
+                mockQueue,
+            )
             expect(mockChannel.send).toHaveBeenCalledWith(
                 expect.objectContaining({
                     embeds: [{ title: 'test embed' }],
@@ -249,7 +261,7 @@ describe('trackNowPlaying handlers', () => {
                 expect.objectContaining({
                     title: '🎵 Now Playing',
                     color: '#1DB954',
-                })
+                }),
             )
         })
 
@@ -267,7 +279,7 @@ describe('trackNowPlaying handlers', () => {
             expect(createEmbedMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     footer: 'Added by TestUser',
-                })
+                }),
             )
         })
 
@@ -282,7 +294,7 @@ describe('trackNowPlaying handlers', () => {
             expect(createEmbedMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     footer: 'Autoplay • 5/50 songs',
-                })
+                }),
             )
         })
 
@@ -303,13 +315,17 @@ describe('trackNowPlaying handlers', () => {
                         name: '🌐 Source',
                         value: 'YouTube',
                     }),
-                ])
+                ]),
             )
         })
 
         it('edits previous message if it still exists in channel', async () => {
             const prevMessageId = 'prev-msg-123'
-            registerNowPlayingMessage(mockGuild.id, prevMessageId, mockChannel.id)
+            registerNowPlayingMessage(
+                mockGuild.id,
+                prevMessageId,
+                mockChannel.id,
+            )
 
             const prevMessage = {
                 id: prevMessageId,
@@ -325,15 +341,21 @@ describe('trackNowPlaying handlers', () => {
                 expect.objectContaining({
                     embeds: [{ title: 'test embed' }],
                     components: [[], []],
-                })
+                }),
             )
         })
 
         it('sends new message if previous message fetch fails', async () => {
             const prevMessageId = 'prev-msg-123'
-            registerNowPlayingMessage(mockGuild.id, prevMessageId, mockChannel.id)
+            registerNowPlayingMessage(
+                mockGuild.id,
+                prevMessageId,
+                mockChannel.id,
+            )
 
-            const fetchMock = jest.fn().mockRejectedValue(new Error('Not found'))
+            const fetchMock = jest
+                .fn()
+                .mockRejectedValue(new Error('Not found'))
             mockChannel.messages = { fetch: fetchMock } as unknown as any
 
             const newMessage = { id: 'new-msg-456' } as unknown as Message
@@ -345,7 +367,7 @@ describe('trackNowPlaying handlers', () => {
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('Failed to update'),
-                })
+                }),
             )
         })
 
@@ -362,7 +384,7 @@ describe('trackNowPlaying handlers', () => {
 
             const embedCall = createEmbedMock.mock.calls[0][0]
             const sourceField = embedCall.fields.find(
-                (f: any) => f.name === '🌐 Source'
+                (f: any) => f.name === '🌐 Source',
             )
             expect(sourceField.value).toBe('YouTube')
         })
@@ -380,7 +402,7 @@ describe('trackNowPlaying handlers', () => {
 
             const embedCall = createEmbedMock.mock.calls[0][0]
             const sourceField = embedCall.fields.find(
-                (f: any) => f.name === '🌐 Source'
+                (f: any) => f.name === '🌐 Source',
             )
             expect(sourceField.value).toBe('Spotify')
         })
@@ -420,93 +442,7 @@ describe('trackNowPlaying handlers', () => {
             expect(lastFmUpdateNowPlayingMock).not.toHaveBeenCalled()
         })
 
-        it('calls lastfm update with track and session info', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key-123')
-            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
-
-            await updateLastFmNowPlaying(mockQueue, mockTrack)
-
-            expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
-                'Test Artist',
-                'Test Song',
-                225,
-                'session-key-123',
-                undefined
-            )
-        })
-
-        it('handles 403 auth error from last.fm', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            const error = new Error('403 Forbidden')
-            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
-
-            await updateLastFmNowPlaying(mockQueue, mockTrack)
-
-            expect(warnLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('session expired'),
-                })
-            )
-        })
-
-        it('handles non-403 errors from last.fm', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            const error = new Error('Network error')
-            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
-
-            await updateLastFmNowPlaying(mockQueue, mockTrack)
-
-            expect(errorLogMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: expect.stringContaining('updateNowPlaying failed'),
-                })
-            )
-        })
-
-        it('handles track with no duration', async () => {
-            const trackNoDuration = {
-                ...mockTrack,
-                durationMS: 0,
-            } as unknown as Track
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
-
-            await updateLastFmNowPlaying(mockQueue, trackNoDuration)
-
-            expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.anything(),
-                undefined,
-                expect.anything(),
-                undefined
-            )
-        })
-
-        it('logs when metadata is not found', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            getTrackMetadataMock.mockResolvedValue(null)
-            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
-            debugLogMock.mockClear()
-
-            await updateLastFmNowPlaying(mockQueue, mockTrack)
-
-            // Should have called debugLog when metadata not found
-            const debugLogCalls = debugLogMock.mock.calls
-            const metadataNotFoundCall = debugLogCalls.find(
-                (call: any[]) =>
-                    call[0]?.message?.includes('metadata not found')
-            )
-            expect(metadataNotFoundCall).toBeDefined()
-        })
-
-        it('forwards metadata to lastFmUpdateNowPlaying when available', async () => {
-            // Match the real LastFmTrackMetadata shape so the spec catches
-            // regressions if the type tightens or new required fields are added.
+        it('updates last.fm now playing with track info and metadata', async () => {
             const testMetadata = {
                 artist: 'Test Artist',
                 title: 'Test Song',
@@ -522,13 +458,79 @@ describe('trackNowPlaying handlers', () => {
 
             await updateLastFmNowPlaying(mockQueue, mockTrack)
 
+            // Verify the actual update was called with correct parameters including metadata
             expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
                 'Test Artist',
                 'Test Song',
                 225,
                 'session-key',
-                testMetadata
+                testMetadata,
             )
+
+            // Test with no duration
+            lastFmUpdateNowPlayingMock.mockClear()
+            getTrackMetadataMock.mockResolvedValue(null)
+            const trackNoDuration = {
+                ...mockTrack,
+                durationMS: 0,
+            } as unknown as Track
+
+            await updateLastFmNowPlaying(mockQueue, trackNoDuration)
+
+            expect(lastFmUpdateNowPlayingMock).toHaveBeenCalledWith(
+                'Test Artist',
+                'Test Song',
+                undefined,
+                'session-key',
+                undefined,
+            )
+        })
+
+        it('handles 403 auth error from last.fm', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            const error = new Error('403 Forbidden')
+            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('session expired'),
+                }),
+            )
+        })
+
+        it('handles non-403 errors from last.fm', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            const error = new Error('Network error')
+            lastFmUpdateNowPlayingMock.mockRejectedValue(error)
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('updateNowPlaying failed'),
+                }),
+            )
+        })
+
+        it('logs when metadata is not found', async () => {
+            isLastFmConfiguredMock.mockReturnValue(true)
+            getSessionKeyForUserMock.mockResolvedValue('session-key')
+            getTrackMetadataMock.mockResolvedValue(null)
+            lastFmUpdateNowPlayingMock.mockResolvedValue(undefined)
+            debugLogMock.mockClear()
+
+            await updateLastFmNowPlaying(mockQueue, mockTrack)
+
+            // Should have called debugLog when metadata not found
+            const debugLogCalls = debugLogMock.mock.calls
+            const metadataNotFoundCall = debugLogCalls.find((call: any[]) =>
+                call[0]?.message?.includes('metadata not found'),
+            )
+            expect(metadataNotFoundCall).toBeDefined()
         })
     })
 
@@ -574,11 +576,20 @@ describe('trackNowPlaying handlers', () => {
             expect(lastFmScrobbleMock).not.toHaveBeenCalled()
         })
 
-        it('scrobbles provided track if available', async () => {
+        it('scrobbles track with correct parameters and metadata', async () => {
             isLastFmConfiguredMock.mockReturnValue(true)
             getSessionKeyForUserMock.mockResolvedValue('session-key')
+            getTrackMetadataMock.mockResolvedValue({
+                artist: 'Test Artist',
+                title: 'Test Song',
+                album: 'Test Album',
+                albumArtist: 'Test Artist',
+                mbid: 'test-mbid',
+                duration: 225000,
+            })
             lastFmScrobbleMock.mockResolvedValue(undefined)
 
+            // Test with provided track
             await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
 
             expect(lastFmScrobbleMock).toHaveBeenCalledWith(
@@ -587,14 +598,16 @@ describe('trackNowPlaying handlers', () => {
                 expect.any(Number),
                 225,
                 'session-key',
-                undefined
+                expect.objectContaining({
+                    mbid: 'test-mbid',
+                    album: 'Test Album',
+                }),
             )
-        })
 
-        it('uses current queue track if no track provided', async () => {
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            lastFmScrobbleMock.mockResolvedValue(undefined)
+            // Test with queue's current track (no track provided)
+            lastFmScrobbleMock.mockClear()
+            getSessionKeyForUserMock.mockClear()
+            getTrackMetadataMock.mockResolvedValue(null)
 
             await scrobbleCurrentTrackIfLastFm(mockQueue)
 
@@ -604,7 +617,7 @@ describe('trackNowPlaying handlers', () => {
                 expect.any(Number),
                 200,
                 'session-key',
-                undefined
+                undefined,
             )
         })
 
@@ -619,7 +632,7 @@ describe('trackNowPlaying handlers', () => {
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('session expired'),
-                })
+                }),
             )
         })
 
@@ -634,7 +647,7 @@ describe('trackNowPlaying handlers', () => {
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('scrobble failed'),
-                })
+                }),
             )
         })
 
@@ -655,7 +668,7 @@ describe('trackNowPlaying handlers', () => {
                 expect.any(Number),
                 undefined,
                 expect.anything(),
-                undefined
+                undefined,
             )
         })
 
@@ -679,39 +692,10 @@ describe('trackNowPlaying handlers', () => {
 
             // Should have called debugLog when metadata not found
             const debugLogCalls = debugLogMock.mock.calls
-            const metadataNotFoundCall = debugLogCalls.find(
-                (call: any[]) =>
-                    call[0]?.message?.includes('metadata not found')
+            const metadataNotFoundCall = debugLogCalls.find((call: any[]) =>
+                call[0]?.message?.includes('metadata not found'),
             )
             expect(metadataNotFoundCall).toBeDefined()
-        })
-
-        it('forwards metadata to lastFmScrobble when available', async () => {
-            // Match the real LastFmTrackMetadata shape so the spec catches
-            // regressions if the type tightens or new required fields are added.
-            const testMetadata = {
-                artist: 'Test Artist',
-                title: 'Test Song',
-                album: 'Test Album',
-                albumArtist: 'Test Artist',
-                mbid: 'test-mbid',
-                duration: 225000,
-            }
-            isLastFmConfiguredMock.mockReturnValue(true)
-            getSessionKeyForUserMock.mockResolvedValue('session-key')
-            getTrackMetadataMock.mockResolvedValue(testMetadata)
-            lastFmScrobbleMock.mockResolvedValue(undefined)
-
-            await scrobbleCurrentTrackIfLastFm(mockQueue, mockTrack)
-
-            expect(lastFmScrobbleMock).toHaveBeenCalledWith(
-                'Test Artist',
-                'Test Song',
-                expect.any(Number),
-                225,
-                'session-key',
-                testMetadata
-            )
         })
     })
 })
