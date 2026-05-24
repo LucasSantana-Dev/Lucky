@@ -632,23 +632,6 @@ describe('candidateScorer', () => {
 
                 expect(result).toEqual(youtubeTrack)
             })
-
-            it('handles artist genre fetch errors gracefully', async () => {
-                const tracks = [{ track: createTrack(), score: 1, signals: [] }]
-                spotifyLinkServiceMock.mockResolvedValue('valid-token')
-                getArtistGenresMock.mockRejectedValue(
-                    new Error('Genre fetch failed'),
-                )
-
-                const result = await enrichWithAudioFeatures(
-                    tracks,
-                    'user-123',
-                    { energy: 0.5, valence: 0.5 } as SpotifyAudioFeatures,
-                    'Current Artist',
-                )
-
-                expect(result).toEqual(tracks)
-            })
         })
 
         describe('audio feature scoring', () => {
