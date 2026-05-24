@@ -19,3 +19,4 @@ if [ -n "$denied" ]; then
 fi
 
 npx lint-staged
+npm run type:check
