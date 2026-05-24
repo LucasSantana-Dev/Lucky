@@ -227,6 +227,7 @@ describe('automod command', () => {
                 { invitesEnabled: true },
             )
             const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.embeds).toHaveLength(1)
             expect(reply.content.embeds[0].data.fields).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
