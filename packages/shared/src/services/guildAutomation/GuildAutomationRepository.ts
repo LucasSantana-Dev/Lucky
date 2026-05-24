@@ -64,38 +64,45 @@ export class GuildAutomationRepository implements IGuildAutomationRepository {
         capturedState: GuildAutomationManifestDocument,
         initiatedBy?: string,
     ) {
-        const manifestRow = await this.prisma.guildAutomationManifest.upsert({
-            where: { guildId },
-            create: {
-                guildId,
-                version: capturedState.version,
-                manifest: toJsonValue(capturedState),
-                lastCapturedState: toJsonValue(capturedState),
-                lastCapturedAt: new Date(),
-                createdBy: initiatedBy,
-            },
-            update: {
-                lastCapturedState: toJsonValue(capturedState),
-                lastCapturedAt: new Date(),
-            },
-        })
+        const capturedAt = new Date()
+        const { manifestRow, run } = await this.prisma.$transaction(
+            async (tx) => {
+                const manifestRow = await tx.guildAutomationManifest.upsert({
+                    where: { guildId },
+                    create: {
+                        guildId,
+                        version: capturedState.version,
+                        manifest: toJsonValue(capturedState),
+                        lastCapturedState: toJsonValue(capturedState),
+                        lastCapturedAt: capturedAt,
+                        createdBy: initiatedBy,
+                    },
+                    update: {
+                        lastCapturedState: toJsonValue(capturedState),
+                        lastCapturedAt: capturedAt,
+                    },
+                })
 
-        const run = await this.prisma.guildAutomationRun.create({
-            data: {
-                guildId,
-                manifestId: manifestRow.id,
-                type: 'capture',
-                status: 'completed',
-                summary: toJsonValue({
-                    capturedAt: new Date().toISOString(),
-                    modules: Object.keys(capturedState).filter(
-                        (key) => key !== 'guild' && key !== 'version',
-                    ),
-                }),
-                initiatedBy,
-                completedAt: new Date(),
+                const run = await tx.guildAutomationRun.create({
+                    data: {
+                        guildId,
+                        manifestId: manifestRow.id,
+                        type: 'capture',
+                        status: 'completed',
+                        summary: toJsonValue({
+                            capturedAt: capturedAt.toISOString(),
+                            modules: Object.keys(capturedState).filter(
+                                (key) => key !== 'guild' && key !== 'version',
+                            ),
+                        }),
+                        initiatedBy,
+                        completedAt: capturedAt,
+                    },
+                })
+
+                return { manifestRow, run }
             },
-        })
+        )
 
         return {
             manifestId: manifestRow.id,
@@ -251,27 +258,36 @@ export class GuildAutomationRepository implements IGuildAutomationRepository {
         checklist: unknown[],
         initiatedBy?: string,
     ) {
-        const manifestRow = await this.prisma.guildAutomationManifest.update({
-            where: { guildId },
-            data: {
-                manifest: toJsonValue(nextManifest),
-            },
-        })
+        const { manifestRow, run } = await this.prisma.$transaction(
+            async (tx) => {
+                const manifestRow = await tx.guildAutomationManifest.update({
+                    where: { guildId },
+                    data: {
+                        version: nextManifest.version,
+                        manifest: toJsonValue(nextManifest),
+                    },
+                })
 
-        const run = await this.prisma.guildAutomationRun.create({
-            data: {
-                guildId,
-                manifestId: manifestRow.id,
-                type: 'cutover',
-                status: 'completed',
-                summary: toJsonValue({
-                    checklistComplete: true,
-                    externalBots: nextManifest.parity?.externalBots ?? [],
-                }),
-                initiatedBy,
-                completedAt: new Date(),
+                const run = await tx.guildAutomationRun.create({
+                    data: {
+                        guildId,
+                        manifestId: manifestRow.id,
+                        type: 'cutover',
+                        status: 'completed',
+                        summary: toJsonValue({
+                            checklistComplete: true,
+                            checklist,
+                            externalBots:
+                                nextManifest.parity?.externalBots ?? [],
+                        }),
+                        initiatedBy,
+                        completedAt: new Date(),
+                    },
+                })
+
+                return { manifestRow, run }
             },
-        })
+        )
 
         return {
             id: run.id,
