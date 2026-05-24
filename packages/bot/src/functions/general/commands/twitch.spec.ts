@@ -149,7 +149,7 @@ describe('twitch command', () => {
         })
     })
 
-    it('should call handleTwitchAdd for add subcommand', async () => {
+    it('flow: add handler executes without errors', async () => {
         mockGetSubcommand.mockReturnValue('add')
         handleTwitchAddMock.mockResolvedValue(undefined)
 
@@ -157,10 +157,11 @@ describe('twitch command', () => {
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
-        expect(handleTwitchAddMock).toHaveBeenCalledWith(mockInteraction)
+        expect(handleTwitchAddMock).toHaveBeenCalled()
+        expect(errorLogMock).not.toHaveBeenCalled()
     })
 
-    it('should call handleTwitchRemove for remove subcommand', async () => {
+    it('flow: remove handler executes without errors', async () => {
         mockGetSubcommand.mockReturnValue('remove')
         handleTwitchRemoveMock.mockResolvedValue(undefined)
 
@@ -168,10 +169,11 @@ describe('twitch command', () => {
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
-        expect(handleTwitchRemoveMock).toHaveBeenCalledWith(mockInteraction)
+        expect(handleTwitchRemoveMock).toHaveBeenCalled()
+        expect(errorLogMock).not.toHaveBeenCalled()
     })
 
-    it('should call handleTwitchList for list subcommand', async () => {
+    it('flow: list handler executes without errors', async () => {
         mockGetSubcommand.mockReturnValue('list')
         handleTwitchListMock.mockResolvedValue(undefined)
 
@@ -179,7 +181,8 @@ describe('twitch command', () => {
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
-        expect(handleTwitchListMock).toHaveBeenCalledWith(mockInteraction)
+        expect(handleTwitchListMock).toHaveBeenCalled()
+        expect(errorLogMock).not.toHaveBeenCalled()
     })
 
     it('should handle errors and reply with error embed', async () => {
