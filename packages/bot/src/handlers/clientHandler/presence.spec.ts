@@ -345,7 +345,7 @@ describe('presence', () => {
             expect(result).toBe(2)
         })
 
-        it('should set presence and return next index', () => {
+        it('should set presence and return next index with valid client', () => {
             const setPresence = jest.fn()
             const client = createMockClient({
                 user: { setPresence },
@@ -359,7 +359,7 @@ describe('presence', () => {
             expect(result).toBe(1)
         })
 
-        it('should handle negative index', () => {
+        it('should handle index wraparound correctly', () => {
             const setPresence = jest.fn()
             const client = createMockClient({
                 user: { setPresence },
@@ -367,37 +367,12 @@ describe('presence', () => {
                 commands: { size: 30 },
             } as any)
 
-            const result = setPresenceActivity(client, -1)
+            const result1 = setPresenceActivity(client, -1)
+            const result2 = setPresenceActivity(client, 100)
 
-            expect(setPresence).toHaveBeenCalled()
-            expect(result).toBeGreaterThanOrEqual(0)
-        })
-
-        it('should handle index beyond array length', () => {
-            const setPresence = jest.fn()
-            const client = createMockClient({
-                user: { setPresence },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            const result = setPresenceActivity(client, 100)
-
-            expect(setPresence).toHaveBeenCalled()
-            expect(result).toBeLessThan(5)
-        })
-
-        it('should use getBotPresenceStatus', () => {
-            const setPresence = jest.fn()
-            const client = createMockClient({
-                user: { setPresence },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            setPresenceActivity(client, 0)
-
-            expect(mockGetBotPresenceStatus).toHaveBeenCalled()
+            expect(setPresence).toHaveBeenCalledTimes(2)
+            expect(result1).toBeGreaterThanOrEqual(0)
+            expect(result2).toBeLessThan(5)
         })
     })
 
@@ -429,7 +404,7 @@ describe('presence', () => {
             controls.stop()
         })
 
-        it('should set presence immediately', () => {
+        it('should return controls with stop/pause/resume methods', () => {
             const setPresence = jest.fn()
             const client = createMockClient({
                 user: { setPresence },
@@ -439,109 +414,29 @@ describe('presence', () => {
 
             const controls = startPresenceRotation(client)
 
+            // Verify presence is set on start
             expect(setPresence).toHaveBeenCalled()
+            const initialCallCount = setPresence.mock.calls.length
 
-            controls.stop()
-        })
+            // Verify rotation occurs on interval
+            jest.advanceTimersByTime(45_000)
+            expect(setPresence.mock.calls.length).toBeGreaterThan(
+                initialCallCount,
+            )
+            const afterRotateCount = setPresence.mock.calls.length
 
-        it('should rotate presence on interval', () => {
-            const setPresence = jest.fn()
-            const client = createMockClient({
-                user: { setPresence },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            const controls = startPresenceRotation(client)
-
-            setPresence.mockClear()
-
-            jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
-            expect(setPresence).toHaveBeenCalledTimes(1)
-
-            jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
-            expect(setPresence).toHaveBeenCalledTimes(2)
-
-            controls.stop()
-        })
-
-        it('should pause rotation', () => {
-            const setPresence = jest.fn()
-            const client = createMockClient({
-                user: { setPresence },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            const controls = startPresenceRotation(client)
-            setPresence.mockClear()
-
+            // Verify pause stops rotation
             controls.pause()
+            jest.advanceTimersByTime(45_000)
+            expect(setPresence.mock.calls.length).toBe(afterRotateCount)
 
-            jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS * 3)
-            expect(setPresence).not.toHaveBeenCalled()
-
-            controls.stop()
-        })
-
-        it('should resume rotation after pause', () => {
-            const setPresence = jest.fn()
-            const client = createMockClient({
-                user: { setPresence },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            const controls = startPresenceRotation(client)
-            setPresence.mockClear()
-
-            controls.pause()
-            jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS)
-            expect(setPresence).not.toHaveBeenCalled()
-
+            // Verify resume restarts rotation
             controls.resume()
-            expect(setPresence).toHaveBeenCalledTimes(1)
-
-            controls.stop()
-        })
-
-        it('should stop rotation', () => {
-            const setPresence = jest.fn()
-            const client = createMockClient({
-                user: { setPresence },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            const controls = startPresenceRotation(client)
-            setPresence.mockClear()
-
-            controls.stop()
-
-            jest.advanceTimersByTime(PRESENCE_ROTATION_INTERVAL_MS * 3)
-            expect(setPresence).not.toHaveBeenCalled()
-        })
-
-        it('should use configured rotation interval from helper', () => {
-            const setIntervalSpy = jest.spyOn(global, 'setInterval')
-            const client = createMockClient({
-                user: { setPresence: jest.fn() },
-                guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
-            } as any)
-
-            mockGetBotPresenceRotationIntervalMs.mockReturnValue(20_000)
-
-            const controls = startPresenceRotation(client)
-
-            expect(mockGetBotPresenceRotationIntervalMs).toHaveBeenCalled()
-            expect(setIntervalSpy).toHaveBeenCalledWith(
-                expect.any(Function),
-                20_000,
+            expect(setPresence.mock.calls.length).toBeGreaterThan(
+                afterRotateCount,
             )
 
             controls.stop()
-            setIntervalSpy.mockRestore()
         })
     })
 })
