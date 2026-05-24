@@ -566,6 +566,186 @@ describe('ServerSettingsPage', () => {
         })
     })
 
+    test('shows forbidden error with re-authenticate link on 403', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockRejectedValue(
+            new ApiError(403, 'Forbidden'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Unable to load server settings'),
+            ).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByText(
+                'You no longer have access to this server settings.',
+            ),
+        ).toBeInTheDocument()
+        expect(screen.getByText('Re-authenticate')).toBeInTheDocument()
+    })
+
+    test('shows upstream error when plain Error is thrown', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockRejectedValue(
+            new Error('Connection refused'),
+        )
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Unable to load server settings'),
+            ).toBeInTheDocument()
+        })
+
+        expect(screen.getByText('Connection refused')).toBeInTheDocument()
+    })
+
+    test('shows generic error for unknown error type', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockRejectedValue({ code: 42 })
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Unable to load server settings'),
+            ).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByText('Failed to load server settings.'),
+        ).toBeInTheDocument()
+    })
+
+    test('handles getChannels failure gracefully', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(
+            new Error('network'),
+        )
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+
+        expect(
+            screen.getByPlaceholderText('Channel ID for bot updates'),
+        ).toBeInTheDocument()
+    })
+
+    test('handles getRbac failure in mounted effect gracefully', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+        vi.mocked(api.guilds.getRbac).mockRejectedValue(new Error('net'))
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+
+        expect(
+            screen.queryByText('Unable to load server settings'),
+        ).not.toBeInTheDocument()
+    })
+
+    test('removes a grant when trash button is clicked', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(
+            { ...mockGuild, canManageRbac: true },
+            {
+                canManageRbac: true,
+                effectiveAccess: defaultAccess,
+            },
+        )
+        vi.mocked(api.guilds.getRbac).mockResolvedValue({
+            data: {
+                guildId: mockGuild.id,
+                modules: Object.keys(defaultAccess),
+                grants: [
+                    {
+                        roleId: '222222222222222222',
+                        module: 'moderation',
+                        mode: 'view',
+                    },
+                ],
+                roles: [{ id: '222222222222222222', name: 'Mods' }],
+                effectiveAccess: defaultAccess,
+                canManageRbac: true,
+            },
+        } as any)
+
+        renderPage()
+
+        const removeBtn = await screen.findByTitle('Remove rule')
+        await user.click(removeBtn)
+
+        expect(screen.queryByTitle('Remove rule')).not.toBeInTheDocument()
+    })
+
+    test('updates nickname on input change', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        const nicknameInput = await screen.findByPlaceholderText('Lucky')
+        await user.clear(nicknameInput)
+        await user.type(nicknameInput, 'BotName')
+
+        expect(nicknameInput).toHaveValue('BotName')
+    })
+
+    test('updates commandPrefix on input change', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        const prefixInput = await screen.findByPlaceholderText('!')
+        await user.clear(prefixInput)
+        await user.type(prefixInput, '/')
+
+        expect(prefixInput).toHaveValue('/')
+    })
+
+    test('updates updatesChannel via input when no channels available', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as any)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: mockSettings },
+        } as any)
+
+        renderPage()
+
+        const channelInput = await screen.findByPlaceholderText(
+            'Channel ID for bot updates',
+        )
+        await user.type(channelInput, '987654321')
+
+        expect(channelInput).toHaveValue('987654321')
+    })
+
     test('retries RBAC role loading from warning card', async () => {
         const user = userEvent.setup()
         vi.mocked(api.guilds.getRbac)
