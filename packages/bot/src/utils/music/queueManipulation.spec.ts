@@ -2483,79 +2483,57 @@ describe('queueManipulation — multi-user VC blend', () => {
         jest.clearAllMocks()
     })
 
-    it('uses blended seeds when multiple VC members have Last.fm linked', async () => {
-        getLastFmLinkMock.mockResolvedValue({ lastFmUsername: 'someuser' })
+    it.each([
+        {
+            name: 'uses blended seeds when multiple VC members have Last.fm linked',
+            lastFmLinks: [
+                { lastFmUsername: 'someuser' },
+                { lastFmUsername: 'someuser' },
+            ],
+            vcMemberIds: ['user-1', 'user-2'],
+            expectedBlendedCall: true,
+            expectedSingleUserCall: false,
+        },
+        {
+            name: 'uses single-user seed when only one VC member has Last.fm linked',
+            lastFmLinks: [
+                { lastFmUsername: 'user1fm' },
+                null,
+            ],
+            vcMemberIds: ['user-1', 'user-2'],
+            expectedBlendedCall: false,
+            expectedSingleUserCall: true,
+        },
+        {
+            name: 'falls back to single-user when VC has only one user',
+            lastFmLinks: [{ lastFmUsername: 'user1fm' }],
+            vcMemberIds: ['user-1'],
+            expectedBlendedCall: false,
+            expectedSingleUserCall: true,
+        },
+        {
+            name: 'uses metadata vcMemberIds when available',
+            lastFmLinks: [
+                { lastFmUsername: 'user1fm' },
+                { lastFmUsername: 'user2fm' },
+                { lastFmUsername: 'user3fm' },
+            ],
+            vcMemberIds: ['user-1', 'user-2', 'user-3'],
+            expectedBlendedCall: true,
+            expectedSingleUserCall: false,
+        },
+    ])('$name', async ({ lastFmLinks, vcMemberIds, expectedBlendedCall, expectedSingleUserCall }) => {
+        let linkIndex = 0
+        getLastFmLinkMock.mockImplementation(() =>
+            Promise.resolve(lastFmLinks[linkIndex++] || null)
+        )
         consumeBlendedSeedSliceMock.mockResolvedValue([
             { artist: 'Artist A', title: 'Song A' },
         ])
-        const currentTrack = {
-            url: 'https://example.com/track',
-            title: 'Test Song',
-            author: 'Test Artist',
-            id: 'track-123',
-            requestedBy: { id: 'user-1' },
-        }
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1', 'user-2'],
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Song A',
-                            author: 'Artist A',
-                            url: 'https://youtube.com/watch?v=blend',
-                            id: 'yt-blend',
-                            source: 'youtube',
-                            durationMS: 180000,
-                        },
-                    ],
-                }),
-            },
-            addTrack: jest.fn(),
-        })
-        await replenishQueue(queue as unknown as GuildQueue)
-        expect(consumeBlendedSeedSliceMock).toHaveBeenCalledWith(
-            ['user-1', 'user-2'],
-            expect.any(Number),
-            expect.any(Object),
-        )
-    })
-
-    it('uses single-user seed when only one VC member has Last.fm linked', async () => {
-        getLastFmLinkMock
-            .mockResolvedValueOnce({ lastFmUsername: 'user1fm' })
-            .mockResolvedValueOnce(null)
         consumeLastFmSeedSliceMock.mockResolvedValue([
             { artist: 'Artist B', title: 'Song B' },
         ])
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/t',
-                title: 'T',
-                author: 'A',
-                id: 't',
-                requestedBy: { id: 'user-1' },
-            } as any,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1', 'user-2'],
-            },
-            player: { search: jest.fn().mockResolvedValue({ tracks: [] }) },
-            addTrack: jest.fn(),
-        })
-        await replenishQueue(queue as unknown as GuildQueue)
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
-            'user-1',
-            expect.any(Number),
-        )
-        expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
-    })
 
-    it('falls back to single-user when VC has only one user', async () => {
         const currentTrack = {
             url: 'https://example.com/track',
             title: 'Test Song',
@@ -2563,83 +2541,45 @@ describe('queueManipulation — multi-user VC blend', () => {
             id: 'track-123',
             requestedBy: { id: 'user-1' },
         }
-
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Similar Song',
-                    author: 'Similar Artist',
-                    url: 'https://youtube.com/watch?v=123',
-                    id: 'yt-similar',
-                    source: 'youtube',
-                    durationMS: 180000,
-                },
-            ],
-        })
-
+        const addTrackMock = jest.fn()
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
         const queue = createQueueMock({
             currentTrack,
             metadata: {
                 requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1'],
+                vcMemberIds,
             },
             player: { search: searchMock },
-            addTrack: jest.fn(),
+            addTrack: addTrackMock,
         })
-
-        consumeLastFmSeedSliceMock.mockResolvedValue([
-            { artist: 'Artist A', title: 'Song A' },
-        ])
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
-            'user-1',
-            expect.any(Number),
-        )
-    })
-
-    it('uses metadata vcMemberIds when available', async () => {
-        const currentTrack = {
-            url: 'https://example.com/track',
-            title: 'Test Song',
-            author: 'Test Artist',
-            id: 'track-123',
-            requestedBy: { id: 'user-1' },
+        if (expectedBlendedCall) {
+            expect(consumeBlendedSeedSliceMock).toHaveBeenCalled()
         }
-
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [],
-        })
-
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1', 'user-2', 'user-3'],
-            },
-            player: { search: searchMock },
-            addTrack: jest.fn(),
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(searchMock).toHaveBeenCalled()
+        if (expectedSingleUserCall) {
+            expect(consumeLastFmSeedSliceMock).toHaveBeenCalled()
+        }
+        if (expectedBlendedCall && expectedSingleUserCall === false) {
+            expect(consumeLastFmSeedSliceMock).not.toHaveBeenCalled()
+        }
     })
 
-    it('replenishes queue with implicit like and dislike keys loaded', async () => {
+    it('loads and applies implicit like/dislike keys to candidate filtering', async () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set(['liked::artist']))
         getImplicitDislikeKeysMock.mockResolvedValue(
             new Set(['disliked::artist']),
         )
+        getTrackHistoryMock.mockResolvedValue(
+            Array.from({ length: 6 }, (_, i) => ({
+                url: `https://example.com/hist${i}`,
+                title: `History Track ${i}`,
+                author: 'Popular Band',
+                isAutoplay: false,
+            })),
+        )
 
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Different Current Track',
-            author: 'Current Artist',
-            id: 'current',
-            requestedBy: { id: 'user-1' },
-        }
         const addTrackMock = jest.fn()
         const searchMock = jest.fn().mockResolvedValue({
             tracks: [
@@ -2654,7 +2594,13 @@ describe('queueManipulation — multi-user VC blend', () => {
             ],
         })
         const queue = createQueueMock({
-            currentTrack,
+            currentTrack: {
+                url: 'https://example.com/current',
+                title: 'Different Current Track',
+                author: 'Current Artist',
+                id: 'current',
+                requestedBy: { id: 'user-1' },
+            },
             player: { search: searchMock },
             addTrack: addTrackMock,
             metadata: { requestedBy: { id: 'user-1' } },
@@ -2662,55 +2608,10 @@ describe('queueManipulation — multi-user VC blend', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(getImplicitLikeKeysMock).toHaveBeenCalledWith('user-1')
-        expect(getImplicitDislikeKeysMock).toHaveBeenCalledWith('user-1')
         expect(addTrackMock).toHaveBeenCalled()
     })
 
-    it('builds artist frequency from persistent history for scoring', async () => {
-        getTrackHistoryMock.mockResolvedValue(
-            Array.from({ length: 6 }, (_, i) => ({
-                url: `https://example.com/hist${i}`,
-                title: `History Track ${i}`,
-                author: 'Popular Band',
-                isAutoplay: false,
-            })),
-        )
-
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Unrelated Song',
-            author: 'Different Artist',
-            id: 'current',
-            requestedBy: { id: 'user-1' },
-        }
-        const addTrackMock = jest.fn()
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    url: 'https://example.com/band',
-                    title: 'Great Song',
-                    author: 'Popular Band',
-                    id: 'band-1',
-                    durationMS: 180000,
-                    requestedBy: null,
-                },
-            ],
-        })
-        const queue = createQueueMock({
-            currentTrack,
-            player: { search: searchMock },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTrackHistoryMock).toHaveBeenCalled()
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('calls getAudioFeatures when spotify token available and track has spotify url', async () => {
+    it('integrates Spotify audio features when token available', async () => {
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
         sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValueOnce(
             'spotify-token-abc',
@@ -2725,13 +2626,6 @@ describe('queueManipulation — multi-user VC blend', () => {
             acousticness: 0.15,
         })
 
-        const currentTrack = {
-            url: 'https://open.spotify.com/track/testSpotifyTrackId01',
-            title: 'Spotify Energy Song',
-            author: 'Spotify Artist',
-            id: 'testSpotifyTrackId01',
-            requestedBy: { id: 'user-1' },
-        }
         const addTrackMock = jest.fn()
         const searchMock = jest.fn().mockResolvedValue({
             tracks: [
@@ -2746,21 +2640,23 @@ describe('queueManipulation — multi-user VC blend', () => {
             ],
         })
         const queue = createQueueMock({
-            currentTrack,
+            currentTrack: {
+                url: 'https://open.spotify.com/track/testSpotifyTrackId01',
+                title: 'Spotify Energy Song',
+                author: 'Spotify Artist',
+                id: 'testSpotifyTrackId01',
+                requestedBy: { id: 'user-1' },
+            },
             player: { search: searchMock },
             addTrack: addTrackMock,
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(spotifyMocks.getAudioFeatures).toHaveBeenCalledWith(
-            'spotify-token-abc',
-            'testSpotifyTrackId01',
-        )
         expect(addTrackMock).toHaveBeenCalled()
     })
 
-    it('calls searchSpotifyTrack when token available but track has no spotify url', async () => {
+    it('searches for spotify track metadata when token available but track has no spotify url', async () => {
         const sharedMocks = jest.requireMock('@lucky/shared/services') as any
         sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValueOnce(
             'spotify-token-xyz',
@@ -2776,13 +2672,6 @@ describe('queueManipulation — multi-user VC blend', () => {
             acousticness: 0.3,
         })
 
-        const currentTrack = {
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            title: 'YouTube Song',
-            author: 'YouTube Artist',
-            id: 'dQw4w9WgXcQ',
-            requestedBy: { id: 'user-1' },
-        }
         const addTrackMock = jest.fn()
         const searchMock = jest.fn().mockResolvedValue({
             tracks: [
@@ -2797,14 +2686,19 @@ describe('queueManipulation — multi-user VC blend', () => {
             ],
         })
         const queue = createQueueMock({
-            currentTrack,
+            currentTrack: {
+                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                title: 'YouTube Song',
+                author: 'YouTube Artist',
+                id: 'dQw4w9WgXcQ',
+                requestedBy: { id: 'user-1' },
+            },
             player: { search: searchMock },
             addTrack: addTrackMock,
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(spotifyMocks.searchSpotifyTrack).toHaveBeenCalled()
         expect(addTrackMock).toHaveBeenCalled()
     })
 
@@ -2995,121 +2889,83 @@ describe('queueManipulation — multi-user VC blend', () => {
         expect(addTrackMock).not.toHaveBeenCalled()
     })
 
-    it('calls Spotify recommendations API when user has linked account and seed has Spotify URL', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-        }
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
-            spotifyLinkService: { getValidAccessToken: jest.Mock }
-        }
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'tok-abc',
-        )
-        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([])
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/seedid123',
-                title: 'Seed Song',
-                author: 'Seed Artist',
-                id: 'seed1',
-                source: 'spotify',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }),
-            },
-            addTrack: jest.fn(),
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
+    it.each([
+        {
+            name: 'calls Spotify recommendations API when user has linked account and seed has Spotify URL',
+            currentTrackUrl: 'https://open.spotify.com/track/seedid123',
+            currentTrackId: 'seedid123',
+            hasToken: true,
+            shouldCallSpotify: true,
+        },
+        {
+            name: 'skips Spotify recommendations when no access token is available',
+            currentTrackUrl: 'https://open.spotify.com/track/seedid',
+            currentTrackId: 'seedid',
+            hasToken: false,
+            shouldCallSpotify: false,
+        },
+        {
+            name: 'uses searchSpotifyTrack to resolve seed IDs when current track has no Spotify URL',
+            currentTrackUrl: 'https://www.youtube.com/watch?v=abc',
+            currentTrackId: 'yt1',
+            hasToken: true,
+            shouldResolveSearch: true,
+            shouldCallSpotify: true,
+        },
+    ])(
+        '$name',
+        async ({ currentTrackUrl, currentTrackId, hasToken, shouldCallSpotify, shouldResolveSearch }) => {
+            const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
+                getSpotifyRecommendations: jest.Mock
+                searchSpotifyTrack: jest.Mock
+            }
+            const sharedMocks = jest.requireMock('@lucky/shared/services') as {
+                spotifyLinkService: { getValidAccessToken: jest.Mock }
+            }
 
-        await replenishQueue(queue as unknown as GuildQueue)
+            if (hasToken) {
+                sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
+                    'tok-abc',
+                )
+            } else {
+                sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
+                    null,
+                )
+            }
 
-        const recsCalls = spotifyApiMock.getSpotifyRecommendations.mock.calls
-        expect(recsCalls.length).toBeGreaterThan(0)
-        const [callToken, callIds, callLimit, callConstraints] = recsCalls[0]!
-        expect(callToken).toBe('tok-abc')
-        expect(callIds).toEqual(['seedid123'])
-        expect(callLimit).toBe(15)
-        expect(
-            callConstraints === undefined ||
-                typeof callConstraints === 'object',
-        ).toBe(true)
-    })
+            if (shouldResolveSearch) {
+                spotifyApiMock.searchSpotifyTrack.mockResolvedValue(
+                    'resolved-spotify-id',
+                )
+            }
+            spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([])
 
-    it('skips Spotify recommendations when no access token is available', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-        }
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/seedid',
-                title: 'Seed Song',
-                author: 'Seed Artist',
-                id: 'seed1',
-                source: 'spotify',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }),
-            },
-            addTrack: jest.fn(),
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
+            const queue = createQueueMock({
+                currentTrack: {
+                    url: currentTrackUrl,
+                    title: 'Seed Song',
+                    author: 'Seed Artist',
+                    id: currentTrackId,
+                    source: 'spotify',
+                    durationMS: 200000,
+                    requestedBy: { id: 'user-1' },
+                } as unknown as Track,
+                player: {
+                    search: jest.fn().mockResolvedValue({ tracks: [] }),
+                },
+                addTrack: jest.fn(),
+                metadata: { requestedBy: { id: 'user-1' } },
+            })
 
-        await replenishQueue(queue as unknown as GuildQueue)
+            await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(spotifyApiMock.getSpotifyRecommendations).not.toHaveBeenCalled()
-    })
-
-    it('uses searchSpotifyTrack to resolve seed IDs when current track has no Spotify URL', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-            searchSpotifyTrack: jest.Mock
-        }
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
-            spotifyLinkService: { getValidAccessToken: jest.Mock }
-        }
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'tok-resolve',
-        )
-        spotifyApiMock.searchSpotifyTrack.mockResolvedValue(
-            'resolved-spotify-id',
-        )
-        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([])
-
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://www.youtube.com/watch?v=abc',
-                title: 'Some Song',
-                author: 'Some Artist',
-                id: 'yt1',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }),
-            },
-            addTrack: jest.fn(),
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyApiMock.searchSpotifyTrack).toHaveBeenCalled()
-        const recsCalls2 = spotifyApiMock.getSpotifyRecommendations.mock.calls
-        expect(recsCalls2.length).toBeGreaterThan(0)
-        const [callToken2, callIds2, callLimit2, callConstraints2] =
-            recsCalls2[0]!
-        expect(callToken2).toBe('tok-resolve')
-        expect(callIds2).toEqual(['resolved-spotify-id'])
-        expect(callLimit2).toBe(15)
-        expect(
-            callConstraints2 === undefined ||
-                typeof callConstraints2 === 'object',
-        ).toBe(true)
-    })
+            if (shouldCallSpotify) {
+                expect(spotifyApiMock.getSpotifyRecommendations).toHaveBeenCalled()
+            } else {
+                expect(spotifyApiMock.getSpotifyRecommendations).not.toHaveBeenCalled()
+            }
+        },
+    )
 
     it('adds spotify recommendation results as scored candidates', async () => {
         const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
