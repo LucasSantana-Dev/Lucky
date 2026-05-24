@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
+import type { AutoplayContext } from './autoplayContext'
 
 const lastFmLinkServiceMock = { getByDiscordId: jest.fn() }
 const consumeLastFmSeedSliceMock = jest.fn()
@@ -102,6 +103,29 @@ function createUser(id = 'user-1') {
     return { id } as never
 }
 
+function createAutoplayContext(
+    overrides: Partial<AutoplayContext> = {},
+): AutoplayContext {
+    return {
+        queue: createQueue(),
+        excludedUrls: new Set(),
+        excludedKeys: new Set(),
+        dislikedWeights: new Map(),
+        likedWeights: new Map(),
+        preferredArtistKeys: new Set(),
+        blockedArtistKeys: new Set(),
+        currentTrack: createTrack(),
+        recentArtists: new Set(),
+        autoplayMode: 'similar',
+        artistFrequency: new Map(),
+        implicitDislikeKeys: new Set(),
+        implicitLikeKeys: new Set(),
+        sessionMood: null,
+        genreContext: {},
+        ...overrides,
+    }
+}
+
 describe('searchLastFmQuery', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -195,19 +219,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
@@ -220,19 +233,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
     })
@@ -256,19 +258,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(consumeBlendedSeedSliceMock).toHaveBeenCalled()
     })
@@ -283,19 +274,11 @@ describe('collectLastFmCandidates', () => {
         const dislikedWeights = new Map([['normalized-key', 0.9]])
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
@@ -310,19 +293,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         const call = upsertScoredCandidateMock.mock.calls[0]
         const scoreArg = (call?.[2] as { score: number })?.score
@@ -339,19 +311,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
@@ -368,19 +329,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         // seed track + similar track both call upsertScoredCandidate
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(2)
@@ -405,19 +355,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
@@ -438,19 +377,11 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
@@ -471,19 +402,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
         const calls = upsertScoredCandidateMock.mock.calls
@@ -515,19 +435,11 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         const calls = upsertScoredCandidateMock.mock.calls
         const genreCall = calls.find(
@@ -557,19 +469,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
         expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
@@ -588,20 +489,9 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
+        const ctx = createAutoplayContext({ queue })
         await expect(
-            collectLastFmCandidates(
-                queue,
-                user,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                candidates,
-            ),
+            collectLastFmCandidates(ctx, user, candidates),
         ).resolves.toBeUndefined()
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
     })
@@ -625,19 +515,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         const genreCall = upsertScoredCandidateMock.mock.calls.find(
             (c) =>

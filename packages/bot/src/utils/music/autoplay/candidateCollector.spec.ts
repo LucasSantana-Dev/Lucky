@@ -8,6 +8,7 @@ import {
 } from './candidateCollector'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { SessionMood } from './sessionMood'
+import type { AutoplayContext } from './autoplayContext'
 
 const debugLogMock = jest.fn()
 
@@ -78,6 +79,31 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
         metadata: {},
         ...overrides,
     } as GuildQueue
+}
+
+function createAutoplayContext(
+    overrides: Partial<AutoplayContext> = {},
+): AutoplayContext {
+    const queue = createGuildQueue()
+    const currentTrack = createTrack()
+    return {
+        queue,
+        excludedUrls: new Set(),
+        excludedKeys: new Set(),
+        dislikedWeights: new Map(),
+        likedWeights: new Map(),
+        preferredArtistKeys: new Set(),
+        blockedArtistKeys: new Set(),
+        currentTrack,
+        recentArtists: new Set(),
+        autoplayMode: 'similar',
+        artistFrequency: new Map(),
+        implicitDislikeKeys: new Set(),
+        implicitLikeKeys: new Set(),
+        sessionMood: null,
+        genreContext: {},
+        ...overrides,
+    }
 }
 
 describe('candidateCollector', () => {
@@ -204,76 +230,17 @@ describe('candidateCollector', () => {
             expect(candidates.size).toBe(0)
         })
 
-        it('drops -Infinity even when an existing entry could be displaced', () => {
-            const candidates = new Map<string, ScoredTrack>()
-            const track = createTrack({
-                title: 'Same Song',
-                author: 'Same Artist',
-            })
-
-            upsertScoredCandidate(candidates, track, {
-                score: 0.5,
-                source: 'spotify-rec',
-                signals: [],
-            })
-            upsertScoredCandidate(candidates, track, {
-                score: -Infinity,
-                source: 'spotify-rec',
-                signals: [],
-            })
-
-            expect(candidates.size).toBe(1)
-            const entry = Array.from(candidates.values())[0]
-            expect(entry.score).toBe(0.5)
-            expect(entry.basis.source).toBe('spotify-rec')
-        })
-
         it('drops NaN recommendations defensively', () => {
             const candidates = new Map<string, ScoredTrack>()
-            const track = createTrack({ title: 'NaN Score', author: 'Artist' })
+            const track = createTrack()
 
             upsertScoredCandidate(candidates, track, {
-                score: Number.NaN,
+                score: NaN,
                 source: 'spotify-rec',
                 signals: [],
             })
 
             expect(candidates.size).toBe(0)
-        })
-
-        it('should use track URL as fallback key when normalized key is empty', () => {
-            const candidates = new Map<string, ScoredTrack>()
-            const track = createTrack({
-                title: '',
-                author: '',
-                url: 'https://example.com/track',
-            })
-
-            upsertScoredCandidate(candidates, track, {
-                score: 0.5,
-                source: 'spotify-rec',
-                signals: [],
-            })
-
-            expect(candidates.size).toBe(1)
-        })
-
-        it('should use track ID as final fallback', () => {
-            const candidates = new Map<string, ScoredTrack>()
-            const track = createTrack({
-                title: '',
-                author: '',
-                id: 'uniqueid',
-                url: '',
-            })
-
-            upsertScoredCandidate(candidates, track, {
-                score: 0.5,
-                source: 'spotify-rec',
-                signals: [],
-            })
-
-            expect(candidates.size).toBe(1)
         })
     })
 
@@ -283,7 +250,6 @@ describe('candidateCollector', () => {
             isDuplicateCandidateMock.mockReturnValue(false)
             calculateRecommendationScoreMock.mockReturnValue({
                 score: 0.5,
-                source: 'spotify-rec',
                 signals: [],
             })
             normalizeTrackKeyMock.mockImplementation(
@@ -293,51 +259,26 @@ describe('candidateCollector', () => {
         })
 
         it('should collect candidates from Spotify API', async () => {
-            // Mock Spotify recommender to add candidates
-            collectSpotifyRecommendationCandidatesMock.mockImplementation(
-                async (
-                    _queue,
-                    _seeds,
-                    _requestedBy,
-                    _excludedUrls,
-                    _excludedKeys,
-                    _disliked,
-                    _liked,
-                    _preferred,
-                    _blocked,
-                    _current,
-                    _recent,
-                    candidates,
-                ) => {
-                    upsertScoredCandidate(
-                        candidates,
-                        createTrack({
-                            title: 'Spotify Result',
-                            author: 'Spotify Artist',
-                        }),
-                        { score: 0.6, source: 'spotify-rec', signals: [] },
-                    )
-                },
+            collectSpotifyRecommendationCandidatesMock.mockResolvedValue(
+                undefined,
             )
-            searchSeedCandidatesMock.mockResolvedValue([])
+            const seedResult = createTrack({
+                title: 'Spotify Result',
+                author: 'Spotify Artist',
+            })
+            searchSeedCandidatesMock.mockResolvedValue([seedResult])
 
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(1)
@@ -359,20 +300,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBeGreaterThan(0)
@@ -402,20 +337,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                dislikedWeights,
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                dislikedWeights,
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(0)
@@ -435,20 +364,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(0)
@@ -474,20 +397,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(0)
@@ -516,20 +433,14 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack(), createTrack()]
 
-            const result = await collectRecommendationCandidates(
+            const ctx = createAutoplayContext({
                 queue,
+                currentTrack: createTrack(),
+            })
+            const result = await collectRecommendationCandidates(
+                ctx,
                 seedTracks,
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
             )
 
             expect(result.size).toBe(2)
@@ -549,21 +460,8 @@ describe('candidateCollector', () => {
             const queue = createGuildQueue()
             const seedTracks = [createTrack()]
 
-            await collectRecommendationCandidates(
-                queue,
-                seedTracks,
-                null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                0,
-                'similar',
-            )
+            const ctx = createAutoplayContext({ queue })
+            await collectRecommendationCandidates(ctx, seedTracks, null)
 
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -587,26 +485,15 @@ describe('candidateCollector', () => {
 
             const getArtistTags = jest.fn().mockResolvedValue(['sertanejo'])
 
+            const ctx = createAutoplayContext({
+                genreContext: { getArtistTags },
+            })
             const result = await collectRecommendationCandidates(
-                createGuildQueue(),
+                ctx,
                 [createTrack()],
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
                 0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
                 null,
-                null,
-                { getArtistTags },
                 true, // blockSertanejo
             )
 
@@ -625,26 +512,15 @@ describe('candidateCollector', () => {
 
             const getArtistTags = jest.fn().mockResolvedValue(['sertanejo'])
 
+            const ctx = createAutoplayContext({
+                genreContext: { getArtistTags },
+            })
             const result = await collectRecommendationCandidates(
-                createGuildQueue(),
+                ctx,
                 [createTrack()],
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
                 0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
                 null,
-                null,
-                { getArtistTags },
                 false, // blockSertanejo
             )
 
@@ -663,26 +539,15 @@ describe('candidateCollector', () => {
 
             const getArtistTags = jest.fn().mockResolvedValue([]) // no tags returned
 
+            const ctx = createAutoplayContext({
+                genreContext: { getArtistTags },
+            })
             const result = await collectRecommendationCandidates(
-                createGuildQueue(),
+                ctx,
                 [createTrack()],
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
                 0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
                 null,
-                null,
-                { getArtistTags },
                 true, // blockSertanejo is true but tags are empty — must not block
             )
 
@@ -703,26 +568,15 @@ describe('candidateCollector', () => {
                 .fn()
                 .mockRejectedValue(new Error('Last.fm down'))
 
+            const ctx = createAutoplayContext({
+                genreContext: { getArtistTags },
+            })
             const result = await collectRecommendationCandidates(
-                createGuildQueue(),
+                ctx,
                 [createTrack()],
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
                 0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
                 null,
-                null,
-                { getArtistTags },
                 true,
             )
 

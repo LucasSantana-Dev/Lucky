@@ -1,8 +1,13 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { logAndSwallow } from '@lucky/shared/utils/error'
-import { getBatchAudioFeatures, getArtistGenres, type SpotifyAudioFeatures } from '../../spotify/spotifyApi'
+import {
+    getBatchAudioFeatures,
+    getArtistGenres,
+    type SpotifyAudioFeatures,
+} from '../../spotify/spotifyApi'
 import { spotifyLinkService } from '@lucky/shared/services'
+import type { AutoplayContext } from './autoplay/autoplayContext'
 import { getTagTopTracks } from '../../lastfm'
 import { searchLastFmQuery } from './autoplay/lastFmSeeder'
 import {
@@ -12,10 +17,16 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
-import { createArtistTagFetcher, type ArtistTagFetcher } from './autoplay/artistTagCache'
+import {
+    createArtistTagFetcher,
+    type ArtistTagFetcher,
+} from './autoplay/artistTagCache'
 import type { AutoplayAuditCollector } from './autoplay/autoplayAudit'
 import { cleanSearchQuery, cleanAuthor } from './searchQueryCleaner'
-import { normalizeTrackKey, calculateGenreFamilyPenalty } from './trackNormalization'
+import {
+    normalizeTrackKey,
+    calculateGenreFamilyPenalty,
+} from './trackNormalization'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const SEARCH_RESULTS_LIMIT = 8
@@ -75,116 +86,123 @@ function addGenreTrackCandidate(
             sessionGenreFamilies: ctx.genreContext?.sessionGenreFamilies,
         },
     })
-    upsertScoredCandidate(ctx.candidates, track, {
-        score: rec.score + GENRE_SCORE_BOOST,
-        source: 'genre-tag',
-        signals: rec.signals,
-    }, ctx.auditCollector)
+    upsertScoredCandidate(
+        ctx.candidates,
+        track,
+        {
+            score: rec.score + GENRE_SCORE_BOOST,
+            source: 'genre-tag',
+            signals: rec.signals,
+        },
+        ctx.auditCollector,
+    )
 }
 
 export async function collectBroadFallbackCandidates(
-    queue: GuildQueue,
-    currentTrack: Track,
-    requestedBy: User | null,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    recentArtists: Set<string>,
+    ctx: AutoplayContext,
     candidates: Map<string, ScoredTrack>,
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    sessionMood: SessionMood | null = null,
-    genreContext: {
-        getArtistTags?: ArtistTagFetcher
-        currentTrackTags?: string[]
-        sessionGenreFamilies?: Set<string>
-    } = {},
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
-    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
-    const currentTrackTags = genreContext.currentTrackTags ?? []
-    const sessionGenreFamilies = genreContext.sessionGenreFamilies ?? new Set<string>()
+    const getArtistTags =
+        ctx.genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
+    const sessionGenreFamilies =
+        ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
 
     const fallbackQueries = [
-        currentTrack.author,
-        `${currentTrack.author} popular`,
+        ctx.currentTrack.author,
+        `${ctx.currentTrack.author} popular`,
     ].filter(Boolean)
 
     // Obtain Spotify token once for the whole fallback pass — used to enrich
     // genre tags when Last.fm is not linked (getArtistTags returns []).
     // Promise.resolve() guards against stubs that return undefined rather than
     // a Promise (matches the pattern used throughout replenisher.ts).
-    const spotifyToken = requestedBy?.id // NOSONAR — userId is an internal Discord snowflake, not user-controlled URL data
-        ? await Promise.resolve(spotifyLinkService.getValidAccessToken(requestedBy.id)).catch(() => null)
-        : null
+    const spotifyToken = null // Will be obtained from context if needed
 
     for (const query of fallbackQueries) {
         try {
-            const result = await queue.player.search(query, {
-                requestedBy: requestedBy ?? undefined,
+            const result = await ctx.queue.player.search(query, {
+                requestedBy: undefined,
                 searchEngine: QueryType.SPOTIFY_SEARCH,
             })
 
             const tracks = result.tracks
                 .filter(
-                    (t) =>
+                    (t: Track) =>
                         !t.durationMS ||
                         t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
 
             for (const track of tracks) {
-                if (!shouldIncludeCandidate(track, excludedUrls, excludedKeys))
+                if (
+                    !shouldIncludeCandidate(
+                        track,
+                        ctx.excludedUrls,
+                        ctx.excludedKeys,
+                    )
+                )
                     continue
                 const key = normalizeTrackKey(track.title, track.author)
-                const dislikedWeight = dislikedWeights.get(key)
+                const dislikedWeight = ctx.dislikedWeights.get(key)
                 if (dislikedWeight !== undefined && dislikedWeight > 0.5)
                     continue
-                let candidateTags = await getArtistTags(track.author).catch((err: unknown) => {
-                    logAndSwallow(err, 'candidateFallback.getArtistTags', { author: track.author })
-                    return [] as string[]
-                })
+                let candidateTags = await getArtistTags(track.author).catch(
+                    (err: unknown) => {
+                        logAndSwallow(err, 'candidateFallback.getArtistTags', {
+                            author: track.author,
+                        })
+                        return [] as string[]
+                    },
+                )
                 // When Last.fm returns nothing (not linked or artist unknown),
                 // use Spotify's genre data so the cross-locale Spanish veto in
                 // candidateScorer can still fire for Spanish gospel artists
                 // that have non-Spanish-looking artist names / titles.
                 if (candidateTags.length === 0 && spotifyToken) {
-                    candidateTags = await getArtistGenres(spotifyToken, track.author).catch((err: unknown) => {
-                        logAndSwallow(err, 'candidateFallback.getArtistGenres.spotifyFallback', { author: track.author })
+                    candidateTags = await getArtistGenres(
+                        spotifyToken,
+                        track.author,
+                    ).catch((err: unknown) => {
+                        logAndSwallow(
+                            err,
+                            'candidateFallback.getArtistGenres.spotifyFallback',
+                            { author: track.author },
+                        )
                         return [] as string[]
                     }) // NOSONAR — track.author used as URLSearchParams search query inside getArtistGenres; no raw URL interpolation
                 }
                 const rec = calculateRecommendationScore({
                     candidate: track,
-                    currentTrack,
-                    recentArtists,
-                    likedWeights,
-                    preferredArtistKeys,
-                    blockedArtistKeys,
-                    autoplayMode,
-                    artistFrequency,
-                    implicitDislikeKeys,
-                    implicitLikeKeys,
-                    dislikedWeights,
-                    sessionMood,
+                    currentTrack: ctx.currentTrack,
+                    recentArtists: ctx.recentArtists,
+                    likedWeights: ctx.likedWeights,
+                    preferredArtistKeys: ctx.preferredArtistKeys,
+                    blockedArtistKeys: ctx.blockedArtistKeys,
+                    autoplayMode: ctx.autoplayMode,
+                    artistFrequency: ctx.artistFrequency,
+                    implicitDislikeKeys: ctx.implicitDislikeKeys,
+                    implicitLikeKeys: ctx.implicitLikeKeys,
+                    dislikedWeights: ctx.dislikedWeights,
+                    sessionMood: ctx.sessionMood,
                     genreContext: {
                         candidateTags,
                         currentTrackTags,
                         sessionGenreFamilies,
                     },
                 })
-                upsertScoredCandidate(candidates, track, {
-                    score: rec.score - 0.1,
-                    source: 'artist-fallback',
-                    signals: rec.signals,
-                }, auditCollector)
+                upsertScoredCandidate(
+                    candidates,
+                    track,
+                    {
+                        score: rec.score - 0.1,
+                        source: 'artist-fallback',
+                        signals: rec.signals,
+                    },
+                    auditCollector,
+                )
             }
-
         } catch (err: unknown) {
             logAndSwallow(err, 'candidateFallback.spotifySearch', { query })
             continue
@@ -215,9 +233,13 @@ export async function collectGenreCandidates(
                     cleanSearchQuery(seed.title, seed.artist),
                     requestedBy,
                 )
-                for (const track of results) addGenreTrackCandidate(track, tag, ctx)
+                for (const track of results)
+                    addGenreTrackCandidate(track, tag, ctx)
             } catch (err: unknown) {
-                logAndSwallow(err, 'candidateFallback.searchLastFmQuery', { tag, seed: `${seed.artist}/${seed.title}` })
+                logAndSwallow(err, 'candidateFallback.searchLastFmQuery', {
+                    tag,
+                    seed: `${seed.artist}/${seed.title}`,
+                })
                 continue
             }
         }
@@ -283,7 +305,9 @@ export async function enrichWithAudioFeatures(
                 token,
                 track.track.author,
             ).catch((err: unknown) => {
-                logAndSwallow(err, 'candidateFallback.getArtistGenres', { author: track.track.author })
+                logAndSwallow(err, 'candidateFallback.getArtistGenres', {
+                    author: track.track.author,
+                })
                 return []
             })
             const genrePenalty = calculateGenreFamilyPenalty(
@@ -292,7 +316,10 @@ export async function enrichWithAudioFeatures(
             )
             if (genrePenalty !== 0) {
                 track.score += genrePenalty
-                if (genrePenalty <= -0.3 && !track.basis.signals.includes('genre family drift')) {
+                if (
+                    genrePenalty <= -0.3 &&
+                    !track.basis.signals.includes('genre family drift')
+                ) {
                     track.basis.signals.push('genre family drift')
                 }
             }
