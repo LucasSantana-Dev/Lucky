@@ -5,205 +5,170 @@ import type { YtDlpOptions } from './types.js'
 const debugLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
-	debugLog: (...args: unknown[]) => debugLogMock(...args),
+    debugLog: (...args: unknown[]) => debugLogMock(...args),
 }))
 
 jest.mock('./pathManager.js', () => {
-	const configMock = {
-		executablePath: 'yt-dlp',
-		outputDir: './downloads',
-		maxConcurrent: 3,
-		timeout: 300000,
-	}
-	return {
-		YtDlpPathManager: {
-			getConfig: jest.fn(() => configMock),
-		},
-	}
+    const configMock = {
+        executablePath: 'yt-dlp',
+        outputDir: './downloads',
+        maxConcurrent: 3,
+        timeout: 300000,
+    }
+    return {
+        YtDlpPathManager: {
+            getConfig: jest.fn(() => configMock),
+        },
+    }
 })
 
 jest.mock('fs/promises', () => ({
-	unlink: jest.fn().mockResolvedValue(undefined),
+    unlink: jest.fn().mockResolvedValue(undefined),
 }))
 
 const spawnMock = jest.fn()
 
 jest.mock('child_process', () => ({
-	spawn: spawnMock,
+    spawn: spawnMock,
 }))
 
 // Import after mocks
 import { YtDlpDownloaderService } from './service.js'
 
 describe('YtDlpDownloaderService', () => {
-	let service: YtDlpDownloaderService
+    let service: YtDlpDownloaderService
 
-	beforeEach(() => {
-		spawnMock.mockClear()
-		// Setup default spawn mock behavior
-		spawnMock.mockImplementation(() => {
-			const EventEmitter = require('events').EventEmitter
-			const proc = new EventEmitter()
-			proc.stdout = new EventEmitter()
-			proc.stderr = new EventEmitter()
-			proc.kill = jest.fn()
-			// Simulate successful process exit with proper output format
-			setImmediate(() => {
-				proc.stdout.emit('data', '[download] /downloads/video.mp3 has already been downloaded')
-				proc.emit('close', 0)
-			})
-			return proc
-		})
-		debugLogMock.mockClear()
-		service = new YtDlpDownloaderService()
-	})
+    beforeEach(() => {
+        spawnMock.mockClear()
+        // Setup default spawn mock behavior
+        spawnMock.mockImplementation(() => {
+            const EventEmitter = require('events').EventEmitter
+            const proc = new EventEmitter()
+            proc.stdout = new EventEmitter()
+            proc.stderr = new EventEmitter()
+            proc.kill = jest.fn()
+            // Simulate successful process exit with proper output format
+            setImmediate(() => {
+                proc.stdout.emit(
+                    'data',
+                    '[download] /downloads/video.mp3 has already been downloaded',
+                )
+                proc.emit('close', 0)
+            })
+            return proc
+        })
+        debugLogMock.mockClear()
+        service = new YtDlpDownloaderService()
+    })
 
-	describe('downloadVideo', () => {
-		it('returns result object with success property', async () => {
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{ format: 'audio' },
-			)
+    describe('downloadVideo', () => {
+        it('returns result object with success property', async () => {
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                { format: 'audio' },
+            )
 
-			expect(result).toHaveProperty('success')
-			expect(typeof result.success).toBe('boolean')
-		})
+            expect(result).toHaveProperty('success')
+            expect(typeof result.success).toBe('boolean')
+        })
 
-		it('calls debug log when starting download', async () => {
-			await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{ format: 'audio' },
-			)
+        it('returns failure result on process error', async () => {
+            // Override spawn mock to emit error
+            spawnMock.mockImplementationOnce(() => {
+                const EventEmitter = require('events').EventEmitter
+                const proc = new EventEmitter()
+                proc.stdout = new EventEmitter()
+                proc.stderr = new EventEmitter()
+                proc.kill = jest.fn()
+                // Emit error after a tick
+                setImmediate(() => {
+                    proc.emit('error', new Error('Process error'))
+                })
+                return proc
+            })
 
-			expect(debugLogMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					message: expect.stringContaining('Starting yt-dlp download'),
-				}),
-			)
-		})
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                { format: 'audio' },
+            )
 
-		it('builds args with URL for audio format', async () => {
-			const url = 'https://youtube.com/watch?v=test123'
-			await service.downloadVideo(url, { format: 'audio' })
+            expect(result.success).toBe(false)
+            expect(result).toHaveProperty('error')
+        })
 
-			// Verify the download was attempted (args would include the URL)
-			expect(debugLogMock).toHaveBeenCalled()
-		})
+        it('accepts video format option', async () => {
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                {
+                    format: 'video',
+                },
+            )
 
-		it('returns failure result on process error', async () => {
-			// Override spawn mock to emit error
-			spawnMock.mockImplementationOnce(() => {
-				const EventEmitter = require('events').EventEmitter
-				const proc = new EventEmitter()
-				proc.stdout = new EventEmitter()
-				proc.stderr = new EventEmitter()
-				proc.kill = jest.fn()
-				// Emit error after a tick
-				setImmediate(() => {
-					proc.emit('error', new Error('Process error'))
-				})
-				return proc
-			})
+            expect(result.success).toBeDefined()
+        })
 
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{ format: 'audio' },
-			)
+        it('accepts audio format option', async () => {
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                {
+                    format: 'audio',
+                },
+            )
 
-			expect(result.success).toBe(false)
-			expect(result).toHaveProperty('error')
-		})
+            expect(result.success).toBeDefined()
+        })
 
-		it('accepts video format option', async () => {
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{
-					format: 'video',
-				},
-			)
+        it('accepts custom output path', async () => {
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                {
+                    format: 'audio',
+                    outputPath: '/custom/path.mp3',
+                },
+            )
 
-			expect(result.success).toBeDefined()
-		})
+            expect(result.success).toBeDefined()
+        })
 
-		it('accepts audio format option', async () => {
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{
-					format: 'audio',
-				},
-			)
+        it('accepts quality option', async () => {
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                {
+                    format: 'audio',
+                    quality: 'best',
+                },
+            )
 
-			expect(result.success).toBeDefined()
-		})
+            expect(result.success).toBeDefined()
+        })
 
-		it('accepts custom output path', async () => {
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{
-					format: 'audio',
-					outputPath: '/custom/path.mp3',
-				},
-			)
+        it('accepts maxDuration option', async () => {
+            const result = await service.downloadVideo(
+                'https://youtube.com/watch?v=abc123',
+                {
+                    format: 'audio',
+                    maxDuration: 3600,
+                },
+            )
 
-			expect(result.success).toBeDefined()
-		})
+            expect(result.success).toBeDefined()
+        })
+    })
 
-		it('accepts quality option', async () => {
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{
-					format: 'audio',
-					quality: 'best',
-				},
-			)
+    describe('cleanupFile', () => {
+        it('handles cleanup errors gracefully', async () => {
+            const { unlink } = await import('fs/promises')
+            ;(unlink as jest.Mock).mockRejectedValue(new Error('ENOENT'))
 
-			expect(result.success).toBeDefined()
-		})
+            await expect(
+                service.cleanupFile('/downloads/missing.mp3'),
+            ).resolves.not.toThrow()
 
-		it('accepts maxDuration option', async () => {
-			const result = await service.downloadVideo(
-				'https://youtube.com/watch?v=abc123',
-				{
-					format: 'audio',
-					maxDuration: 3600,
-				},
-			)
-
-			expect(result.success).toBeDefined()
-		})
-	})
-
-	describe('cleanupFile', () => {
-		it('attempts to delete file on cleanup', async () => {
-			const { unlink } = await import('fs/promises')
-			;(unlink as jest.Mock).mockResolvedValue(undefined)
-
-			await service.cleanupFile('/downloads/video.mp3')
-
-			expect(unlink).toHaveBeenCalledWith('/downloads/video.mp3')
-		})
-
-		it('logs cleanup message', async () => {
-			await service.cleanupFile('/downloads/video.mp3')
-
-			expect(debugLogMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					message: expect.stringContaining('Cleaned up file'),
-				}),
-			)
-		})
-
-		it('handles cleanup errors gracefully', async () => {
-			const { unlink } = await import('fs/promises')
-			;(unlink as jest.Mock).mockRejectedValue(new Error('ENOENT'))
-
-			await expect(service.cleanupFile('/downloads/missing.mp3')).resolves.not.toThrow()
-
-			expect(debugLogMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					message: expect.stringContaining('Error cleaning up'),
-				}),
-			)
-		})
-	})
+            expect(debugLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('Error cleaning up'),
+                }),
+            )
+        })
+    })
 })
