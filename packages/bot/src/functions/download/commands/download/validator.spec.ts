@@ -121,103 +121,58 @@ describe('DownloadValidator', () => {
 	})
 
 	describe('validateFormat', () => {
-		it('accepts audio format', () => {
-			expect(DownloadValidator.validateFormat('audio')).toBe(true)
-		})
-
-		it('accepts video format', () => {
-			expect(DownloadValidator.validateFormat('video')).toBe(true)
-		})
-
-		it('rejects invalid format', () => {
-			expect(DownloadValidator.validateFormat('invalid')).toBe(false)
-		})
-
-		it('is case-sensitive', () => {
-			expect(DownloadValidator.validateFormat('AUDIO')).toBe(false)
-			expect(DownloadValidator.validateFormat('Audio')).toBe(false)
+		it.each([
+			['audio', true],
+			['video', true],
+			['invalid', false],
+			['AUDIO', false],
+			['Audio', false],
+		])('returns %s for format "%s"', (format, expected) => {
+			expect(DownloadValidator.validateFormat(format)).toBe(expected)
 		})
 	})
 
 	describe('validateQuality', () => {
-		it('accepts low quality', () => {
-			expect(DownloadValidator.validateQuality('low')).toBe(true)
-		})
-
-		it('accepts medium quality', () => {
-			expect(DownloadValidator.validateQuality('medium')).toBe(true)
-		})
-
-		it('accepts high quality', () => {
-			expect(DownloadValidator.validateQuality('high')).toBe(true)
-		})
-
-		it('accepts best quality', () => {
-			expect(DownloadValidator.validateQuality('best')).toBe(true)
-		})
-
-		it('is case-insensitive', () => {
-			expect(DownloadValidator.validateQuality('LOW')).toBe(true)
-			expect(DownloadValidator.validateQuality('Best')).toBe(true)
-		})
-
-		it('rejects invalid quality', () => {
-			expect(DownloadValidator.validateQuality('ultra')).toBe(false)
+		it.each([
+			['low', true],
+			['medium', true],
+			['high', true],
+			['best', true],
+			['LOW', true],
+			['Best', true],
+			['ultra', false],
+		])('validates quality "%s" as %s', (quality, expected) => {
+			expect(DownloadValidator.validateQuality(quality)).toBe(expected)
 		})
 	})
 
 	describe('validateDuration', () => {
-		it('accepts duration when maxDuration is undefined', () => {
-			expect(DownloadValidator.validateDuration(3600)).toBe(true)
-		})
-
-		it('accepts duration within limit', () => {
-			expect(DownloadValidator.validateDuration(1800, 3600)).toBe(true)
-		})
-
-		it('rejects duration exceeding limit', () => {
-			expect(DownloadValidator.validateDuration(3600, 1800)).toBe(false)
-		})
-
-		it('accepts duration equal to limit', () => {
-			expect(DownloadValidator.validateDuration(3600, 3600)).toBe(true)
-		})
-
-		it('accepts any duration when maxDuration is 0 or negative', () => {
-			expect(DownloadValidator.validateDuration(99999, 0)).toBe(true)
-			expect(DownloadValidator.validateDuration(99999, -1)).toBe(true)
+		it.each([
+			[3600, undefined, true],
+			[1800, 3600, true],
+			[3600, 1800, false],
+			[3600, 3600, true],
+			[99999, 0, true],
+			[99999, -1, true],
+		])('validates duration %s with max %s as %s', (duration, maxDuration, expected) => {
+			expect(DownloadValidator.validateDuration(duration, maxDuration)).toBe(expected)
 		})
 	})
 
 	describe('validateFileSize', () => {
 		const MB = 1024 * 1024
 
-		it('accepts file size when maxFileSize is undefined', () => {
-			expect(DownloadValidator.validateFileSize(100 * MB)).toBe(true)
-		})
-
-		it('accepts file size within limit', () => {
-			expect(DownloadValidator.validateFileSize(20 * MB, 50 * MB)).toBe(true)
-		})
-
-		it('rejects file size exceeding limit', () => {
-			expect(DownloadValidator.validateFileSize(100 * MB, 50 * MB)).toBe(false)
-		})
-
-		it('accepts file size equal to limit', () => {
-			expect(DownloadValidator.validateFileSize(50 * MB, 50 * MB)).toBe(true)
-		})
-
-		it('enforces Discord 25MB free user limit', () => {
-			const discordFreeLimitBytes = 25 * MB
-			expect(DownloadValidator.validateFileSize(20 * MB, discordFreeLimitBytes)).toBe(true)
-			expect(DownloadValidator.validateFileSize(26 * MB, discordFreeLimitBytes)).toBe(false)
-		})
-
-		it('enforces Discord 500MB Nitro limit', () => {
-			const discordNitroLimitBytes = 500 * MB
-			expect(DownloadValidator.validateFileSize(400 * MB, discordNitroLimitBytes)).toBe(true)
-			expect(DownloadValidator.validateFileSize(501 * MB, discordNitroLimitBytes)).toBe(false)
+		it.each([
+			[100 * MB, undefined, true],
+			[20 * MB, 50 * MB, true],
+			[100 * MB, 50 * MB, false],
+			[50 * MB, 50 * MB, true],
+			[20 * MB, 25 * MB, true],
+			[26 * MB, 25 * MB, false],
+			[400 * MB, 500 * MB, true],
+			[501 * MB, 500 * MB, false],
+		])('validates file size %s with max %s as %s', (fileSize, maxFileSize, expected) => {
+			expect(DownloadValidator.validateFileSize(fileSize, maxFileSize)).toBe(expected)
 		})
 	})
 
