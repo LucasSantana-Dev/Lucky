@@ -75,14 +75,16 @@ describe('PlayCommandProcessor', () => {
             expect(handleYouTubeSearchMock).not.toHaveBeenCalled()
         })
 
-        it('routes spotify.com playlist URL to spotify playlist handler', async () => {
+        it('routes spotify.com playlist URL to spotify playlist handler and returns result', async () => {
             handleSpotifyPlaylistMock.mockResolvedValue(SUCCESS_RESULT)
 
-            await processor.processPlayCommand(
+            const result = await processor.processPlayCommand(
                 createOptions('https://open.spotify.com/playlist/abc'),
             )
 
             expect(handleSpotifyPlaylistMock).toHaveBeenCalled()
+            expect(result.success).toBe(true)
+            expect(result.tracks).toEqual(SUCCESS_RESULT.tracks)
         })
 
         it('routes youtube.com URL to YouTube search', async () => {
@@ -96,24 +98,27 @@ describe('PlayCommandProcessor', () => {
             expect(handleSpotifyTrackMock).not.toHaveBeenCalled()
         })
 
-        it('routes youtube.com playlist URL to YouTube playlist handler', async () => {
+        it('routes youtube.com playlist URL to YouTube playlist handler and returns result', async () => {
             handleYouTubePlaylistMock.mockResolvedValue(SUCCESS_RESULT)
 
-            await processor.processPlayCommand(
+            const result = await processor.processPlayCommand(
                 createOptions('https://www.youtube.com/playlist?list=abc'),
             )
 
             expect(handleYouTubePlaylistMock).toHaveBeenCalled()
+            expect(result.success).toBe(true)
+            expect(result.isPlaylist).toBe(SUCCESS_RESULT.isPlaylist)
         })
 
-        it('routes youtu.be short URL to YouTube search', async () => {
+        it('routes youtu.be short URL to YouTube search and returns result', async () => {
             handleYouTubeSearchMock.mockResolvedValue(SUCCESS_RESULT)
 
-            await processor.processPlayCommand(
+            const result = await processor.processPlayCommand(
                 createOptions('https://youtu.be/dQw4w9WgXcQ'),
             )
 
             expect(handleYouTubeSearchMock).toHaveBeenCalled()
+            expect(result.success).toBe(true)
         })
 
         it('routes plain text to Spotify search first, falls back to YouTube', async () => {
@@ -142,14 +147,15 @@ describe('PlayCommandProcessor', () => {
             expect(handleYouTubeSearchMock).not.toHaveBeenCalled()
         })
 
-        it('routes unknown URL (not youtube/spotify) to YouTube search as fallback', async () => {
+        it('routes unknown URL (not youtube/spotify) to YouTube search as fallback and returns result', async () => {
             handleYouTubeSearchMock.mockResolvedValue(SUCCESS_RESULT)
 
-            await processor.processPlayCommand(
+            const result = await processor.processPlayCommand(
                 createOptions('https://soundcloud.com/artist/track'),
             )
 
             expect(handleYouTubeSearchMock).toHaveBeenCalled()
+            expect(result.success).toBe(true)
         })
     })
 
