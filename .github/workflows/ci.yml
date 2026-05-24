@@ -53,7 +53,7 @@ jobs:
             - run: npx prisma generate && npm run build:shared
             - name: Run backend tests
               run: npm run test --workspace=packages/backend -- --ci --coverage
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-backend
@@ -75,7 +75,7 @@ jobs:
               run: npm run test --workspace=packages/bot -- --ci --coverage
             - name: Run music incident regression
               run: npm run test:music:incident
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-bot
@@ -95,7 +95,7 @@ jobs:
             - run: npx prisma generate && npm run build:shared
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: coverage-frontend
