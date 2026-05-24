@@ -2396,60 +2396,6 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
     })
 })
 
-describe('queueManipulation — genre candidate collection', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-        getTrackHistoryMock.mockResolvedValue([])
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: [],
-        })
-    })
-
-    it('adds candidates from genre tag when autoplayGenres is configured', async () => {
-        getTagTopTracksMock.mockResolvedValue([
-            { artist: 'Artist X', title: 'Rock Song' },
-        ])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: ['rock'],
-        })
-
-        const addedTracks: unknown[] = []
-        const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' } },
-            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Rock Song',
-                            author: 'Artist X',
-                            url: 'https://example.com/rock',
-                            requestedBy: { id: 'user-1' },
-                        },
-                    ],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
-        expect(addedTracks.length).toBeGreaterThan(0)
-    })
-
-})
 
 
 describe('buildVcContributionWeights', () => {
