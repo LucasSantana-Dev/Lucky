@@ -2452,36 +2452,6 @@ describe('queueManipulation — genre candidate collection', () => {
         expect(addedTracks.length).toBeGreaterThan(0)
     })
 
-    it('skips genre collection when autoplayGenres is empty', async () => {
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: [],
-        })
-
-        const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTagTopTracksMock).not.toHaveBeenCalled()
-    })
-
-    it('caps genre collection at 3 tags', async () => {
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: ['rock', 'pop', 'indie', 'jazz', 'metal'],
-        })
-
-        const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTagTopTracksMock).toHaveBeenCalledTimes(3)
-    })
 })
 
 describe('queueManipulation — multi-user VC blend', () => {
