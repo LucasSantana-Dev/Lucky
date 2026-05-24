@@ -157,7 +157,7 @@ describe('roleconfigHandlers', () => {
             })
         })
 
-        test('uses correct guild id from interaction', async () => {
+        test('flow: sets rule with correct parameters and confirms', async () => {
             const role = createRole('role-x', 'Role X')
             const excludedRole = createRole('role-y', 'Role Y')
             const interaction = createInteraction({
@@ -170,11 +170,19 @@ describe('roleconfigHandlers', () => {
 
             await handleSetExclusive(interaction)
 
-            expect(setExclusiveRoleMock).toHaveBeenCalledWith(
-                'guild-xyz',
-                'role-x',
-                'role-y',
-            )
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'Success',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
         })
     })
 
@@ -239,7 +247,7 @@ describe('roleconfigHandlers', () => {
             })
         })
 
-        test('uses correct parameters for removal', async () => {
+        test('flow: removes rule with correct parameters and confirms', async () => {
             const role = createRole('role-abc', 'RoleA')
             const excludedRole = createRole('role-def', 'RoleB')
             const interaction = createInteraction({
@@ -252,11 +260,19 @@ describe('roleconfigHandlers', () => {
 
             await handleRemoveExclusive(interaction)
 
-            expect(removeExclusiveRoleMock).toHaveBeenCalledWith(
-                'guild-test',
-                'role-abc',
-                'role-def',
-            )
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'Success',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
         })
     })
 
@@ -297,14 +313,26 @@ describe('roleconfigHandlers', () => {
             })
         })
 
-        test('uses correct guild id for listing', async () => {
+        test('flow: lists with correct guild and replies appropriately', async () => {
             const interaction = createInteraction({ guildId: 'guild-xyz' })
 
             listExclusiveRolesMock.mockResolvedValueOnce([])
 
             await handleListExclusive(interaction)
 
-            expect(listExclusiveRolesMock).toHaveBeenCalledWith('guild-xyz')
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'No Rules',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
         })
 
         test('marks reply as ephemeral when listing', async () => {

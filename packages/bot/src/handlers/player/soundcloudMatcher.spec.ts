@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { PassThrough } from 'stream'
 
 // --- mocks ---
@@ -74,21 +74,27 @@ describe('parseDurationString', () => {
 describe('findMatchingSoundCloudResult – title matching', () => {
     it('matches when all query tokens are in the result name', () => {
         const results = [makeResult('Song Name By Artist')]
-        expect(findMatchingSoundCloudResult('song name', undefined, results)).toBe(
-            results[0],
-        )
+        expect(
+            findMatchingSoundCloudResult('song name', undefined, results),
+        ).toBe(results[0])
     })
 
     it('returns undefined when query normalizes to empty', () => {
         const results = [makeResult('Song')]
-        expect(findMatchingSoundCloudResult('!!!', undefined, results)).toBeUndefined()
+        expect(
+            findMatchingSoundCloudResult('!!!', undefined, results),
+        ).toBeUndefined()
     })
 
     it('returns undefined when no result meets the 75% token threshold', () => {
         // query has 4 tokens, result matches only 1 (25%)
         const results = [makeResult('Song')]
         expect(
-            findMatchingSoundCloudResult('song name by artist', undefined, results),
+            findMatchingSoundCloudResult(
+                'song name by artist',
+                undefined,
+                results,
+            ),
         ).toBeUndefined()
     })
 
@@ -96,7 +102,11 @@ describe('findMatchingSoundCloudResult – title matching', () => {
         // 4 tokens, 3 matched = 75%
         const results = [makeResult('Song Name By')]
         expect(
-            findMatchingSoundCloudResult('song name by artist', undefined, results),
+            findMatchingSoundCloudResult(
+                'song name by artist',
+                undefined,
+                results,
+            ),
         ).toBe(results[0])
     })
 
@@ -109,9 +119,9 @@ describe('findMatchingSoundCloudResult – title matching', () => {
 
     it('is case-insensitive', () => {
         const results = [makeResult('SONG NAME')]
-        expect(findMatchingSoundCloudResult('Song Name', undefined, results)).toBe(
-            results[0],
-        )
+        expect(
+            findMatchingSoundCloudResult('Song Name', undefined, results),
+        ).toBe(results[0])
     })
 
     it('skips results whose normalized name is empty', () => {
@@ -129,7 +139,9 @@ describe('findMatchingSoundCloudResult – title matching', () => {
 describe('findMatchingSoundCloudResult – duration matching', () => {
     it('accepts match within 30 seconds of track duration', () => {
         const results = [makeResult('Song', 200)] // 3:20
-        expect(findMatchingSoundCloudResult('song', '3:30', results)).toBe(results[0])
+        expect(findMatchingSoundCloudResult('song', '3:30', results)).toBe(
+            results[0],
+        )
     })
 
     it('rejects match more than 30 seconds from track duration', () => {
@@ -141,29 +153,35 @@ describe('findMatchingSoundCloudResult – duration matching', () => {
 
     it('accepts exact boundary (30 seconds off)', () => {
         const results = [makeResult('Song', 180)] // exactly 30s off from 3:30 (210s)
-        expect(findMatchingSoundCloudResult('song', '3:30', results)).toBe(results[0])
-    })
-
-    it('skips duration check when trackDuration is missing', () => {
-        const results = [makeResult('Song', 60)]
-        expect(findMatchingSoundCloudResult('song', undefined, results)).toBe(results[0])
-    })
-
-    it('skips duration check when result has no durationInSec', () => {
-        const results = [makeResult('Song')]
-        expect(findMatchingSoundCloudResult('song', '3:30', results)).toBe(results[0])
-    })
-
-    it('skips duration check when trackDuration is unparseable', () => {
-        const results = [makeResult('Song', 60)]
-        expect(findMatchingSoundCloudResult('song', 'bad:duration', results)).toBe(
+        expect(findMatchingSoundCloudResult('song', '3:30', results)).toBe(
             results[0],
         )
     })
 
+    it('skips duration check when trackDuration is missing', () => {
+        const results = [makeResult('Song', 60)]
+        expect(findMatchingSoundCloudResult('song', undefined, results)).toBe(
+            results[0],
+        )
+    })
+
+    it('skips duration check when result has no durationInSec', () => {
+        const results = [makeResult('Song')]
+        expect(findMatchingSoundCloudResult('song', '3:30', results)).toBe(
+            results[0],
+        )
+    })
+
+    it('skips duration check when trackDuration is unparseable', () => {
+        const results = [makeResult('Song', 60)]
+        expect(
+            findMatchingSoundCloudResult('song', 'bad:duration', results),
+        ).toBe(results[0])
+    })
+
     it('returns first result that passes both title and duration checks', () => {
         const results = [
-            makeResult('Song', 60),   // title match, duration fails (150s off 3:30)
+            makeResult('Song', 60), // title match, duration fails (150s off 3:30)
             makeResult('Song Name', 200), // title match, duration ok (10s off 3:30)
         ]
         const match = findMatchingSoundCloudResult('song name', '3:30', results)
@@ -181,11 +199,15 @@ describe('streamViaSoundCloud', () => {
     })
 
     it('throws on empty query', async () => {
-        await expect(streamViaSoundCloud('')).rejects.toThrow('SoundCloud: empty query')
+        await expect(streamViaSoundCloud('')).rejects.toThrow(
+            'SoundCloud: empty query',
+        )
     })
 
     it('throws on whitespace-only query', async () => {
-        await expect(streamViaSoundCloud('   ')).rejects.toThrow('SoundCloud: empty query')
+        await expect(streamViaSoundCloud('   ')).rejects.toThrow(
+            'SoundCloud: empty query',
+        )
     })
 
     it('throws when search returns no results', async () => {
@@ -217,12 +239,17 @@ describe('streamViaSoundCloud', () => {
         )
     })
 
-    it('passes query and limit 5 to playdl.search', async () => {
+    it('successfully streams and passes correct search parameters', async () => {
         mockSearch.mockResolvedValue([makeResult('Song Name', 210)])
-        await streamViaSoundCloud('song name')
+        const result = await streamViaSoundCloud('song name')
+
+        // Verify the search was called with correct parameters
         expect(mockSearch).toHaveBeenCalledWith('song name', {
             source: { soundcloud: 'tracks' },
             limit: 5,
         })
+
+        // Verify that a stream is returned
+        expect(result).toBe(fakeReadable)
     })
 })

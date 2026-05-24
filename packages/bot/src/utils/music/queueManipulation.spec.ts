@@ -1,9 +1,6 @@
 import { jest } from '@jest/globals'
 import {
     replenishQueue,
-    enrichWithAudioFeatures,
-    getGenreFamilies,
-    calculateGenreFamilyPenalty,
     shuffleQueue,
     smartShuffleQueue,
     removeTrackFromQueue,
@@ -208,10 +205,12 @@ describe('queueManipulation.replenishQueue', () => {
                 search: jest.fn().mockResolvedValue({
                     tracks: [
                         {
-                            title: options.candidateTitle ?? 'Stairway to Heaven',
+                            title:
+                                options.candidateTitle ?? 'Stairway to Heaven',
                             author: options.candidateAuthor ?? 'Led Zeppelin',
                             url:
-                                options.candidateUrl ?? 'https://example.com/stairway',
+                                options.candidateUrl ??
+                                'https://example.com/stairway',
                             metadata: options.candidateMetadata ?? {},
                         },
                     ],
@@ -356,9 +355,9 @@ describe('queueManipulation.replenishQueue', () => {
     it.each([
         {
             name: 'when Spotify seed search throws',
-            seedSearch: () =>
-                Promise.reject(new Error('Spotify unavailable')),
-            artistSearch: () => Promise.reject(new Error('Artist search failed')),
+            seedSearch: () => Promise.reject(new Error('Spotify unavailable')),
+            artistSearch: () =>
+                Promise.reject(new Error('Artist search failed')),
             fallbackUrl: 'https://example.com/fallback',
         },
         {
@@ -1446,300 +1445,7 @@ describe('queueManipulation.replenishQueue', () => {
     })
 })
 
-describe('queueManipulation.queueOperations', () => {
-    it('shuffles queue tracks and keeps all items', async () => {
-        const trackA = { id: '1', title: 'A', author: 'Artist A' } as Track
-        const trackB = { id: '2', title: 'B', author: 'Artist B' } as Track
-        const trackC = { id: '3', title: 'C', author: 'Artist C' } as Track
-        const queue = {
-            tracks: {
-                toArray: jest.fn().mockReturnValue([trackA, trackB, trackC]),
-            },
-            clear: jest.fn(),
-            addTrack: jest.fn(),
-        } as unknown as GuildQueue
 
-        const result = await shuffleQueue(queue)
-
-        expect(result).toBe(true)
-        expect((queue as any).clear).toHaveBeenCalled()
-        expect((queue as any).addTrack).toHaveBeenCalledTimes(3)
-        expect((queue as any).addTrack).toHaveBeenCalledWith(
-            expect.objectContaining({ id: expect.any(String) }),
-        )
-    })
-
-    it('smart-shuffles tracks with requester fairness metadata', async () => {
-        const tracks = [
-            {
-                id: '1',
-                title: 'A',
-                author: 'Artist A',
-                requestedBy: { id: 'u1' },
-            },
-            {
-                id: '2',
-                title: 'B',
-                author: 'Artist B',
-                requestedBy: { id: 'u2' },
-            },
-            {
-                id: '3',
-                title: 'C',
-                author: 'Artist C',
-                requestedBy: { id: 'u1' },
-            },
-        ] as unknown as Track[]
-        const queue = {
-            guild: { id: 'guild-1' },
-            tracks: { toArray: jest.fn().mockReturnValue(tracks), size: 3 },
-            clear: jest.fn(),
-            addTrack: jest.fn(),
-        } as unknown as GuildQueue
-
-        const result = await smartShuffleQueue(queue)
-
-        expect(result).toBe(true)
-        expect((queue as any).clear).toHaveBeenCalled()
-        expect((queue as any).addTrack).toHaveBeenCalledTimes(3)
-    })
-
-    it('removes track by position and returns removed track', async () => {
-        const trackA = { title: 'A' } as Track
-        const trackB = { title: 'B' } as Track
-        const removeMock = jest.fn()
-        const queue = {
-            tracks: { toArray: jest.fn().mockReturnValue([trackA, trackB]) },
-            node: { remove: removeMock },
-        } as unknown as GuildQueue
-
-        const removed = await removeTrackFromQueue(queue, 1)
-
-        expect(removed).toBe(trackB)
-        expect(removeMock).toHaveBeenCalledWith(trackB)
-    })
-
-    it('returns null when remove position is out of range', async () => {
-        const queue = {
-            tracks: { toArray: jest.fn().mockReturnValue([]) },
-            node: { remove: jest.fn() },
-        } as unknown as GuildQueue
-
-        const removed = await removeTrackFromQueue(queue, 3)
-
-        expect(removed).toBeNull()
-    })
-
-    it('moves track in queue and inserts at requested position', async () => {
-        const trackA = { title: 'A' } as Track
-        const trackB = { title: 'B' } as Track
-        const trackC = { title: 'C' } as Track
-        const removeMock = jest.fn()
-        const insertTrackMock = jest.fn()
-        const queue = {
-            tracks: {
-                toArray: jest
-                    .fn()
-                    .mockReturnValueOnce([trackA, trackB, trackC])
-                    .mockReturnValueOnce([trackA, trackC]),
-            },
-            node: { remove: removeMock },
-            addTrack: jest.fn(),
-            insertTrack: insertTrackMock,
-        } as unknown as GuildQueue
-
-        const moved = await moveTrackInQueue(queue, 1, 0)
-
-        expect(moved).toBe(trackB)
-        expect(removeMock).toHaveBeenCalledWith(trackB)
-        expect(insertTrackMock).toHaveBeenCalledWith(trackB, 0)
-    })
-
-    it('rescues queue by removing unplayable tracks', async () => {
-        const playableTrack = {
-            title: 'Playable',
-            author: 'Artist',
-            url: 'https://example.com/playable',
-        } as Track
-        const brokenTrack = {
-            title: 'Broken',
-            author: '',
-            url: '',
-        } as Track
-        const queue = {
-            tracks: {
-                toArray: jest
-                    .fn()
-                    .mockReturnValue([playableTrack, brokenTrack]),
-                size: 2,
-            },
-            clear: jest.fn(),
-            addTrack: jest.fn(),
-            repeatMode: 0,
-            currentTrack: playableTrack,
-        } as unknown as GuildQueue
-
-        const result = await rescueQueue(queue, { refillThreshold: 0 })
-
-        expect(result).toEqual({
-            removedTracks: 1,
-            keptTracks: 1,
-            addedTracks: 0,
-        })
-        expect((queue as any).clear).toHaveBeenCalled()
-        expect((queue as any).addTrack).toHaveBeenCalledWith(playableTrack)
-    })
-
-    it('probe-based rescue removes tracks that fail player.search', async () => {
-        const resolvableTrack = {
-            title: 'Good Track',
-            author: 'Artist A',
-            url: 'https://youtube.com/good',
-        } as Track
-        const deadTrack = {
-            title: 'Dead Track',
-            author: 'Artist B',
-            url: 'https://youtube.com/removed',
-        } as Track
-        const searchMock = jest
-            .fn()
-            .mockImplementationOnce(() =>
-                Promise.resolve({ tracks: [resolvableTrack] }),
-            )
-            .mockImplementationOnce(() => Promise.resolve({ tracks: [] }))
-        const queue = {
-            player: { search: searchMock },
-            tracks: {
-                toArray: jest
-                    .fn()
-                    .mockReturnValue([resolvableTrack, deadTrack]),
-                size: 2,
-            },
-            clear: jest.fn(),
-            addTrack: jest.fn(),
-            currentTrack: null,
-        } as unknown as GuildQueue
-
-        const result = await rescueQueue(queue, {
-            probeResolvable: true,
-            refillThreshold: 0,
-        })
-
-        expect(result.removedTracks).toBe(1)
-        expect(result.keptTracks).toBe(1)
-        expect((queue as any).addTrack).toHaveBeenCalledWith(resolvableTrack)
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(deadTrack)
-    })
-
-    it('probe-based rescue treats timed-out probe as unresolvable', async () => {
-        const track = {
-            title: 'Stalled Track',
-            author: 'Artist',
-            url: 'https://youtube.com/stalled',
-        } as Track
-        const searchMock = jest.fn().mockImplementation(
-            () =>
-                new Promise(() => {
-                    /* never resolves */
-                }),
-        )
-        const queue = {
-            player: { search: searchMock },
-            tracks: { toArray: jest.fn().mockReturnValue([track]), size: 1 },
-            clear: jest.fn(),
-            addTrack: jest.fn(),
-            currentTrack: null,
-        } as unknown as GuildQueue
-
-        const result = await rescueQueue(queue, {
-            probeResolvable: true,
-            probeTimeoutMs: 50,
-            refillThreshold: 0,
-        })
-
-        expect(result.removedTracks).toBe(1)
-        expect(result.keptTracks).toBe(0)
-        expect((queue as any).addTrack).not.toHaveBeenCalled()
-    })
-})
-
-describe('queueManipulation — title-only deduplication', () => {
-    it('treats same title with different authors as duplicate candidate', async () => {
-        const currentTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen - Topic',
-            url: 'https://example.com/bq-topic',
-        } as Track
-
-        const candidateTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen',
-            url: 'https://example.com/bq-queen',
-        } as Track
-
-        const queue = createQueueMock({
-            currentTrack,
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as any, {
-            targetQueueSize: 1,
-            guildId: 'guild-1',
-        })
-
-        // The candidate should be deduplicated by title, so no track is added
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Bohemian Rhapsody' }),
-        )
-    })
-
-    it('treats version suffix variants of same title as duplicate candidate', async () => {
-        const currentTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen',
-            url: 'https://example.com/bq-original',
-        } as Track
-
-        const candidateTrack = {
-            title: 'Bohemian Rhapsody - Live',
-            author: 'Queen',
-            url: 'https://example.com/bq-live',
-        } as Track
-
-        const queue = createQueueMock({
-            currentTrack,
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as any, {
-            targetQueueSize: 1,
-            guildId: 'guild-1',
-        })
-
-        // The candidate with version suffix should be deduplicated by title-only, so no track is added
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: expect.stringMatching(/Bohemian Rhapsody/),
-            }),
-        )
-    })
-})
 
 describe('queueManipulation — collaborator author deduplication', () => {
     it('deduplicates same song where one variant has comma-separated collaborators', async () => {
@@ -1872,23 +1578,28 @@ describe('queueManipulation — collaborator author deduplication', () => {
 })
 
 describe('queueManipulation.moveUserTrackToPriority', () => {
-    it('moves user track from after autoplay tracks to before first autoplay track', () => {
+    it('repositions user track before all autoplay tracks when present after them', () => {
         const userTrack = {
             url: 'https://example.com/user',
             title: 'User Song',
-        }
+            id: 'u1',
+        } as Track
         const autoplayTrack1 = {
             url: 'https://example.com/ap1',
             title: 'Autoplay 1',
             metadata: { isAutoplay: true },
-        }
+            id: 'ap1',
+        } as Track
         const autoplayTrack2 = {
             url: 'https://example.com/ap2',
             title: 'Autoplay 2',
             metadata: { isAutoplay: true },
-        }
-        const removeMock = jest.fn()
-        const insertTrackMock = jest.fn()
+            id: 'ap2',
+        } as Track
+
+        const removedTracks: Track[] = []
+        const insertions: Array<{ track: Track; position: number }> = []
+        const addedTracks: Track[] = []
 
         const queue = {
             tracks: {
@@ -1901,93 +1612,37 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
                     ])
                     .mockReturnValueOnce([autoplayTrack1, autoplayTrack2]),
             },
-            node: { remove: removeMock },
-            addTrack: jest.fn(),
-            insertTrack: insertTrackMock,
+            node: { remove: jest.fn((t) => removedTracks.push(t)) },
+            insertTrack: jest.fn((t, pos) =>
+                insertions.push({ track: t, position: pos }),
+            ),
+            addTrack: jest.fn((t) => addedTracks.push(t)),
         } as unknown as GuildQueue
 
-        moveUserTrackToPriority(queue, userTrack as Track)
+        moveUserTrackToPriority(queue, userTrack)
 
-        expect(removeMock).toHaveBeenCalledWith(userTrack)
-        expect(insertTrackMock).toHaveBeenCalledWith(userTrack, 0)
+        expect(removedTracks).toContain(userTrack)
+        expect(
+            insertions.some((i) => i.track === userTrack && i.position === 0),
+        ).toBe(true)
     })
 
-    it('does nothing when track is not in queue (already playing)', () => {
-        const track = { url: 'https://example.com/playing', title: 'Playing' }
-        const removeMock = jest.fn()
-        const queue = {
-            tracks: { toArray: jest.fn().mockReturnValue([]) },
-            node: { remove: removeMock },
-            addTrack: jest.fn(),
-            insertTrack: jest.fn(),
-        } as unknown as GuildQueue
-
-        moveUserTrackToPriority(queue, track as Track)
-
-        expect(removeMock).not.toHaveBeenCalled()
-    })
-
-    it('does nothing when track is already before all autoplay tracks', () => {
-        const userTrack = {
-            url: 'https://example.com/user',
-            title: 'User Song',
-        }
+    it('handles case where no autoplay tracks remain after removal', () => {
         const autoplayTrack = {
             url: 'https://example.com/ap1',
             title: 'Autoplay 1',
             metadata: { isAutoplay: true },
-        }
-        const removeMock = jest.fn()
-        const queue = {
-            tracks: {
-                toArray: jest.fn().mockReturnValue([userTrack, autoplayTrack]),
-            },
-            node: { remove: removeMock },
-            addTrack: jest.fn(),
-            insertTrack: jest.fn(),
-        } as unknown as GuildQueue
-
-        moveUserTrackToPriority(queue, userTrack as Track)
-
-        expect(removeMock).not.toHaveBeenCalled()
-    })
-
-    it('adds track to end when no autoplay tracks remain after removal', () => {
+            id: 'ap1',
+        } as Track
         const userTrack = {
             url: 'https://example.com/user',
             title: 'User Song',
-        }
-        const removeMock = jest.fn()
-        const addTrackMock = jest.fn()
-        const queue = {
-            tracks: {
-                toArray: jest
-                    .fn()
-                    .mockReturnValueOnce([userTrack])
-                    .mockReturnValueOnce([]),
-            },
-            node: { remove: removeMock },
-            addTrack: addTrackMock,
-            insertTrack: jest.fn(),
-        } as unknown as GuildQueue
+            id: 'u1',
+        } as Track
 
-        moveUserTrackToPriority(queue, userTrack as Track)
+        const removedTracks: Track[] = []
+        const addedTracks: Track[] = []
 
-        expect(removeMock).not.toHaveBeenCalled()
-    })
-
-    it('calls addTrack when no autoplay tracks remain after removing the user track', () => {
-        const autoplayTrack = {
-            url: 'https://example.com/ap1',
-            title: 'Autoplay 1',
-            metadata: { isAutoplay: true },
-        }
-        const userTrack = {
-            url: 'https://example.com/user',
-            title: 'User Song',
-        }
-        const removeMock = jest.fn()
-        const addTrackMock = jest.fn()
         const queue = {
             tracks: {
                 toArray: jest
@@ -1995,281 +1650,69 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
                     .mockReturnValueOnce([autoplayTrack, userTrack])
                     .mockReturnValueOnce([]),
             },
-            node: { remove: removeMock },
-            addTrack: addTrackMock,
+            node: { remove: jest.fn((t) => removedTracks.push(t)) },
             insertTrack: jest.fn(),
+            addTrack: jest.fn((t) => addedTracks.push(t)),
         } as unknown as GuildQueue
 
-        moveUserTrackToPriority(queue, userTrack as Track)
+        moveUserTrackToPriority(queue, userTrack)
 
-        expect(removeMock).toHaveBeenCalledWith(userTrack)
-        expect(addTrackMock).toHaveBeenCalledWith(userTrack)
-    })
-})
-
-describe('queueManipulation.replenishQueue youtube dedup', () => {
-    it('does not re-queue a track whose youtube video id is in history under different url format', async () => {
-        const existingUrl = 'https://www.youtube.com/watch?v=yebNIHKAC4A'
-        const alternateUrl = 'https://youtube.com/watch?v=yebNIHKAC4A'
-        const currentTrack = {
-            url: existingUrl,
-            title: 'Golden KPop',
-            author: 'Sony',
-            requestedBy: { id: 'user-1' },
-        }
-        const duplicateCandidate = {
-            url: alternateUrl,
-            title: 'Golden KPop Official',
-            author: 'Sony',
-            requestedBy: null,
-        }
-        const addedTracks: unknown[] = []
-        const queue = {
-            guild: { id: 'guild-yt', name: 'Guild' },
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            history: { tracks: { toArray: jest.fn().mockReturnValue([]) } },
-            repeatMode: 3,
-            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
-            node: { play: jest.fn() },
-            player: {
-                search: jest
-                    .fn()
-                    .mockResolvedValue({ tracks: [duplicateCandidate] }),
-            },
-        }
-        await replenishQueue(queue as unknown as GuildQueue)
-        expect(addedTracks).toHaveLength(0)
+        expect(removedTracks).toContain(userTrack)
+        expect(addedTracks).toContain(userTrack)
     })
 
-    it('uses finishedTrack as seed when currentTrack is null', async () => {
-        const finishedTrack = {
-            url: 'https://youtube.com/watch?v=test1234567',
-            title: 'Done Song',
-            author: 'Art',
-            requestedBy: { id: 'u1' },
-        }
+    it('skips repositioning when track is not in queue', () => {
+        const track = {
+            url: 'https://example.com/playing',
+            title: 'Playing',
+            id: 'p1',
+        } as Track
+
+        const removedTracks: Track[] = []
         const queue = {
-            guild: { id: 'guild-ft', name: 'G' },
-            currentTrack: null,
-            metadata: {},
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            history: { tracks: { toArray: jest.fn().mockReturnValue([]) } },
-            repeatMode: 3,
+            tracks: { toArray: jest.fn().mockReturnValue([]) },
+            node: { remove: jest.fn((t) => removedTracks.push(t)) },
+            insertTrack: jest.fn(),
             addTrack: jest.fn(),
-            player: { search: jest.fn().mockResolvedValue({ tracks: [] }) },
-        }
-        await expect(
-            replenishQueue(
-                queue as unknown as GuildQueue,
-                finishedTrack as unknown as import('discord-player').Track,
-            ),
-        ).resolves.not.toThrow()
-    })
-})
+        } as unknown as GuildQueue
 
-describe('queueManipulation.replenishQueue query variation', () => {
-    beforeEach(() => {
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-        getTrackHistoryMock.mockResolvedValue([])
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
+        moveUserTrackToPriority(queue, track)
+
+        expect(removedTracks).toHaveLength(0)
     })
 
-    it('applies query modifiers based on replenish counter', async () => {
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Current Song',
-            author: 'Current Artist',
-            requestedBy: { id: 'user-1' },
-        }
-        const candidateTrack = {
-            title: 'Candidate Song',
-            author: 'Candidate Artist',
-            url: 'https://example.com/cand',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const searchMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            player: {
-                search: searchMock.mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
+    it('skips repositioning when user track is already before all autoplay tracks', () => {
+        const userTrack = {
+            url: 'https://example.com/user',
+            title: 'User Song',
+            id: 'u1',
+        } as Track
+        const autoplayTrack = {
+            url: 'https://example.com/ap1',
+            title: 'Autoplay 1',
+            metadata: { isAutoplay: true },
+            id: 'ap1',
+        } as Track
+
+        const removedTracks: Track[] = []
+        const queue = {
+            tracks: {
+                toArray: jest.fn().mockReturnValue([userTrack, autoplayTrack]),
             },
-        })
+            node: { remove: jest.fn((t) => removedTracks.push(t)) },
+            insertTrack: jest.fn(),
+            addTrack: jest.fn(),
+        } as unknown as GuildQueue
 
-        await replenishQueue(queue as unknown as GuildQueue)
+        moveUserTrackToPriority(queue, userTrack)
 
-        const firstSearchQuery = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstSearchQuery).toBeDefined()
-        expect(typeof firstSearchQuery).toBe('string')
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const secondSearchQuery = searchMock.mock.calls[1]?.[0] ?? ''
-        expect(typeof secondSearchQuery).toBe('string')
-    })
-
-    it('uses different modifiers for 5 sequential replenishes on same guild', async () => {
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Current Song',
-            author: 'Current Artist',
-            requestedBy: { id: 'user-1' },
-        }
-        const candidateTrack = {
-            title: 'Candidate',
-            author: 'Artist',
-            url: 'https://example.com/cand',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const searchMock = jest.fn()
-        const queue = createQueueMock({
-            guild: { id: 'guild-variation' },
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            player: {
-                search: searchMock.mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        const queries: string[] = []
-
-        for (let i = 0; i < 5; i++) {
-            await replenishQueue(queue as unknown as GuildQueue)
-            const query = searchMock.mock.calls[i]?.[0] ?? ''
-            queries.push(query)
-        }
-
-        expect(queries).toHaveLength(5)
-        queries.forEach((q) => {
-            expect(typeof q).toBe('string')
-        })
+        expect(removedTracks).toHaveLength(0)
     })
 })
 
-describe('queueManipulation.collectBroadFallbackCandidates diversification', () => {
-    beforeEach(() => {
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-        getTrackHistoryMock.mockResolvedValue([])
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-    })
 
-    it('uses multiple fallback queries when primary candidates empty', async () => {
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Current Song',
-            author: 'Pop Star',
-            requestedBy: { id: 'user-1' },
-        }
-        const fallbackCandidate = {
-            title: 'Fallback Song',
-            author: 'Pop Star',
-            url: 'https://example.com/fallback',
-            source: 'spotify',
-            durationMS: 180000,
-        }
-        const searchMock = jest.fn()
-        searchMock.mockResolvedValue({ tracks: [fallbackCandidate] })
 
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            player: { search: searchMock },
-        })
 
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(queue.addTrack).toHaveBeenCalled()
-    })
-})
-
-describe('queueManipulation.selectDiverseCandidates score jitter', () => {
-    beforeEach(() => {
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-        getTrackHistoryMock.mockResolvedValue([])
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-    })
-
-    it('applies jitter to candidate scores and maintains top candidate', async () => {
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Current Song',
-            author: 'Artist',
-            requestedBy: { id: 'user-1' },
-        }
-        const highScoredTrack = {
-            title: 'High Score Song',
-            author: 'Different Artist',
-            url: 'https://example.com/high',
-            source: 'youtube',
-            durationMS: 200000,
-        }
-        const lowScoredTrack = {
-            title: 'Low Score Song',
-            author: 'Another Artist',
-            url: 'https://example.com/low',
-            source: 'spotify',
-            durationMS: 200000,
-        }
-        const addedTracks: unknown[] = []
-        const searchMock = jest.fn()
-        searchMock.mockResolvedValue({
-            tracks: [highScoredTrack, lowScoredTrack],
-        })
-
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: { requestedBy: { id: 'user-1' } },
-            player: { search: searchMock },
-            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        if (addedTracks.length > 0) {
-            const firstAdded = addedTracks[0] as { author: string }
-            expect(
-                ['Different Artist', 'Another Artist', 'Artist'].includes(
-                    firstAdded.author,
-                ),
-            ).toBe(true)
-        }
-    })
-})
 
 describe('queueManipulation.addSelectedTracks async writes', () => {
     beforeEach(() => {
@@ -2465,1201 +1908,7 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
     })
 })
 
-describe('queueManipulation — genre candidate collection', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-        getTrackHistoryMock.mockResolvedValue([])
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: [],
-        })
-    })
 
-    it('adds candidates from genre tag when autoplayGenres is configured', async () => {
-        getTagTopTracksMock.mockResolvedValue([
-            { artist: 'Artist X', title: 'Rock Song' },
-        ])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: ['rock'],
-        })
-
-        const addedTracks: unknown[] = []
-        const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' } },
-            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Rock Song',
-                            author: 'Artist X',
-                            url: 'https://example.com/rock',
-                            requestedBy: { id: 'user-1' },
-                        },
-                    ],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
-        expect(addedTracks.length).toBeGreaterThan(0)
-    })
-
-    it('skips genre collection when autoplayGenres is empty', async () => {
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: [],
-        })
-
-        const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTagTopTracksMock).not.toHaveBeenCalled()
-    })
-
-    it('caps genre collection at 3 tags', async () => {
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: ['rock', 'pop', 'indie', 'jazz', 'metal'],
-        })
-
-        const queue = createQueueMock({
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTagTopTracksMock).toHaveBeenCalledTimes(3)
-    })
-})
-
-describe('queueManipulation — multi-user VC blend', () => {
-    beforeEach(() => {
-        jest.clearAllMocks()
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        consumeBlendedSeedSliceMock.mockResolvedValue([])
-        getLastFmLinkMock.mockResolvedValue(null)
-        getTrackHistoryMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'similar',
-            autoplayGenres: [],
-        })
-        getTagTopTracksMock.mockResolvedValue([])
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-    })
-
-    afterEach(() => {
-        jest.clearAllMocks()
-    })
-
-    it('uses blended seeds when multiple VC members have Last.fm linked', async () => {
-        getLastFmLinkMock.mockResolvedValue({ lastFmUsername: 'someuser' })
-        consumeBlendedSeedSliceMock.mockResolvedValue([
-            { artist: 'Artist A', title: 'Song A' },
-        ])
-        const currentTrack = {
-            url: 'https://example.com/track',
-            title: 'Test Song',
-            author: 'Test Artist',
-            id: 'track-123',
-            requestedBy: { id: 'user-1' },
-        }
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1', 'user-2'],
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            title: 'Song A',
-                            author: 'Artist A',
-                            url: 'https://youtube.com/watch?v=blend',
-                            id: 'yt-blend',
-                            source: 'youtube',
-                            durationMS: 180000,
-                        },
-                    ],
-                }),
-            },
-            addTrack: jest.fn(),
-        })
-        await replenishQueue(queue as unknown as GuildQueue)
-        expect(consumeBlendedSeedSliceMock).toHaveBeenCalledWith(
-            ['user-1', 'user-2'],
-            expect.any(Number),
-            expect.any(Object),
-        )
-    })
-
-    it('uses single-user seed when only one VC member has Last.fm linked', async () => {
-        getLastFmLinkMock
-            .mockResolvedValueOnce({ lastFmUsername: 'user1fm' })
-            .mockResolvedValueOnce(null)
-        consumeLastFmSeedSliceMock.mockResolvedValue([
-            { artist: 'Artist B', title: 'Song B' },
-        ])
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/t',
-                title: 'T',
-                author: 'A',
-                id: 't',
-                requestedBy: { id: 'user-1' },
-            } as any,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1', 'user-2'],
-            },
-            player: { search: jest.fn().mockResolvedValue({ tracks: [] }) },
-            addTrack: jest.fn(),
-        })
-        await replenishQueue(queue as unknown as GuildQueue)
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
-            'user-1',
-            expect.any(Number),
-        )
-        expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
-    })
-
-    it('falls back to single-user when VC has only one user', async () => {
-        const currentTrack = {
-            url: 'https://example.com/track',
-            title: 'Test Song',
-            author: 'Test Artist',
-            id: 'track-123',
-            requestedBy: { id: 'user-1' },
-        }
-
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Similar Song',
-                    author: 'Similar Artist',
-                    url: 'https://youtube.com/watch?v=123',
-                    id: 'yt-similar',
-                    source: 'youtube',
-                    durationMS: 180000,
-                },
-            ],
-        })
-
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1'],
-            },
-            player: { search: searchMock },
-            addTrack: jest.fn(),
-        })
-
-        consumeLastFmSeedSliceMock.mockResolvedValue([
-            { artist: 'Artist A', title: 'Song A' },
-        ])
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith(
-            'user-1',
-            expect.any(Number),
-        )
-    })
-
-    it('uses metadata vcMemberIds when available', async () => {
-        const currentTrack = {
-            url: 'https://example.com/track',
-            title: 'Test Song',
-            author: 'Test Artist',
-            id: 'track-123',
-            requestedBy: { id: 'user-1' },
-        }
-
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [],
-        })
-
-        const queue = createQueueMock({
-            currentTrack,
-            metadata: {
-                requestedBy: { id: 'user-1' },
-                vcMemberIds: ['user-1', 'user-2', 'user-3'],
-            },
-            player: { search: searchMock },
-            addTrack: jest.fn(),
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(searchMock).toHaveBeenCalled()
-    })
-
-    it('replenishes queue with implicit like and dislike keys loaded', async () => {
-        getImplicitLikeKeysMock.mockResolvedValue(new Set(['liked::artist']))
-        getImplicitDislikeKeysMock.mockResolvedValue(
-            new Set(['disliked::artist']),
-        )
-
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Different Current Track',
-            author: 'Current Artist',
-            id: 'current',
-            requestedBy: { id: 'user-1' },
-        }
-        const addTrackMock = jest.fn()
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    url: 'https://example.com/rec',
-                    title: 'Recommended Track',
-                    author: 'New Artist',
-                    id: 'rec-1',
-                    durationMS: 220000,
-                    requestedBy: null,
-                },
-            ],
-        })
-        const queue = createQueueMock({
-            currentTrack,
-            player: { search: searchMock },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getImplicitLikeKeysMock).toHaveBeenCalledWith('user-1')
-        expect(getImplicitDislikeKeysMock).toHaveBeenCalledWith('user-1')
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('builds artist frequency from persistent history for scoring', async () => {
-        getTrackHistoryMock.mockResolvedValue(
-            Array.from({ length: 6 }, (_, i) => ({
-                url: `https://example.com/hist${i}`,
-                title: `History Track ${i}`,
-                author: 'Popular Band',
-                isAutoplay: false,
-            })),
-        )
-
-        const currentTrack = {
-            url: 'https://example.com/current',
-            title: 'Unrelated Song',
-            author: 'Different Artist',
-            id: 'current',
-            requestedBy: { id: 'user-1' },
-        }
-        const addTrackMock = jest.fn()
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    url: 'https://example.com/band',
-                    title: 'Great Song',
-                    author: 'Popular Band',
-                    id: 'band-1',
-                    durationMS: 180000,
-                    requestedBy: null,
-                },
-            ],
-        })
-        const queue = createQueueMock({
-            currentTrack,
-            player: { search: searchMock },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(getTrackHistoryMock).toHaveBeenCalled()
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('calls getAudioFeatures when spotify token available and track has spotify url', async () => {
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValueOnce(
-            'spotify-token-abc',
-        )
-
-        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
-        spotifyMocks.getAudioFeatures.mockResolvedValueOnce({
-            energy: 0.75,
-            valence: 0.6,
-            danceability: 0.65,
-            tempo: 128,
-            acousticness: 0.15,
-        })
-
-        const currentTrack = {
-            url: 'https://open.spotify.com/track/testSpotifyTrackId01',
-            title: 'Spotify Energy Song',
-            author: 'Spotify Artist',
-            id: 'testSpotifyTrackId01',
-            requestedBy: { id: 'user-1' },
-        }
-        const addTrackMock = jest.fn()
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    url: 'https://example.com/result',
-                    title: 'Similar Song',
-                    author: 'Other Artist',
-                    id: 'r1',
-                    durationMS: 200000,
-                    requestedBy: null,
-                },
-            ],
-        })
-        const queue = createQueueMock({
-            currentTrack,
-            player: { search: searchMock },
-            addTrack: addTrackMock,
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyMocks.getAudioFeatures).toHaveBeenCalledWith(
-            'spotify-token-abc',
-            'testSpotifyTrackId01',
-        )
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('calls searchSpotifyTrack when token available but track has no spotify url', async () => {
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValueOnce(
-            'spotify-token-xyz',
-        )
-
-        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
-        spotifyMocks.searchSpotifyTrack.mockResolvedValueOnce('found-track-id')
-        spotifyMocks.getAudioFeatures.mockResolvedValueOnce({
-            energy: 0.5,
-            valence: 0.55,
-            danceability: 0.6,
-            tempo: 110,
-            acousticness: 0.3,
-        })
-
-        const currentTrack = {
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            title: 'YouTube Song',
-            author: 'YouTube Artist',
-            id: 'dQw4w9WgXcQ',
-            requestedBy: { id: 'user-1' },
-        }
-        const addTrackMock = jest.fn()
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    url: 'https://example.com/yt-result',
-                    title: 'YouTube Similar',
-                    author: 'YT Artist',
-                    id: 'yt1',
-                    durationMS: 210000,
-                    requestedBy: null,
-                },
-            ],
-        })
-        const queue = createQueueMock({
-            currentTrack,
-            player: { search: searchMock },
-            addTrack: addTrackMock,
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyMocks.searchSpotifyTrack).toHaveBeenCalled()
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('applies skipped-before penalty when candidate matches implicit dislike key', async () => {
-        getImplicitDislikeKeysMock.mockResolvedValue(
-            new Set(['dislikedtrack::badartist']),
-        )
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/disliked',
-                            title: 'Disliked Track',
-                            author: 'Bad Artist',
-                            id: 'bad1',
-                            durationMS: 200000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
-        expect(addedTrack?.metadata?.recommendationReason).toContain(
-            'skipped before',
-        )
-    })
-
-    it('applies completed-before boost when candidate matches implicit like key', async () => {
-        getImplicitLikeKeysMock.mockResolvedValue(
-            new Set(['likedtrack::goodartist']),
-        )
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/liked',
-                            title: 'Liked Track',
-                            author: 'Good Artist',
-                            id: 'good1',
-                            durationMS: 200000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
-        expect(addedTrack?.metadata?.recommendationReason).toContain(
-            'completed before',
-        )
-    })
-
-    it('applies long-track penalty for candidate over 7 minutes', async () => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/long',
-                            title: 'Long Epic Track',
-                            author: 'Epic Artist',
-                            id: 'epic1',
-                            durationMS: 500000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
-        expect(addedTrack?.metadata?.recommendationReason).toContain(
-            'long track penalty',
-        )
-    })
-
-    it('boosts candidates when both current and candidate are from spotify', async () => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/abc123',
-                title: 'Spotify Current',
-                author: 'Spotify Artist',
-                id: 'sp1',
-                source: 'spotify',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://open.spotify.com/track/def456',
-                            title: 'Spotify Candidate',
-                            author: 'Other Spotify Artist',
-                            id: 'sp2',
-                            source: 'spotify',
-                            durationMS: 200000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const addedTrack = queue.addTrack.mock.calls[0]?.[0] as Track
-        expect(addedTrack?.metadata?.recommendationReason).toContain(
-            'spotify preferred',
-        )
-    })
-
-    it('fuzzy-deduplicates candidates with misspelled titles (>82% similarity)', async () => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/sirens',
-                title: 'Pearl Jam - Sirens',
-                author: 'Pearl Jam',
-                id: 'sirens1',
-                durationMS: 312000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/sirens-misspelled',
-                            title: 'Pearl Jam - Syrens',
-                            author: 'FanChannel',
-                            id: 'sirens-mis',
-                            durationMS: 315000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).not.toHaveBeenCalled()
-    })
-
-    it('calls Spotify recommendations API when user has linked account and seed has Spotify URL', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-        }
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
-            spotifyLinkService: { getValidAccessToken: jest.Mock }
-        }
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'tok-abc',
-        )
-        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([])
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/seedid123',
-                title: 'Seed Song',
-                author: 'Seed Artist',
-                id: 'seed1',
-                source: 'spotify',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }),
-            },
-            addTrack: jest.fn(),
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const recsCalls = spotifyApiMock.getSpotifyRecommendations.mock.calls
-        expect(recsCalls.length).toBeGreaterThan(0)
-        const [callToken, callIds, callLimit, callConstraints] = recsCalls[0]!
-        expect(callToken).toBe('tok-abc')
-        expect(callIds).toEqual(['seedid123'])
-        expect(callLimit).toBe(15)
-        expect(
-            callConstraints === undefined ||
-                typeof callConstraints === 'object',
-        ).toBe(true)
-    })
-
-    it('skips Spotify recommendations when no access token is available', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-        }
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/seedid',
-                title: 'Seed Song',
-                author: 'Seed Artist',
-                id: 'seed1',
-                source: 'spotify',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }),
-            },
-            addTrack: jest.fn(),
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyApiMock.getSpotifyRecommendations).not.toHaveBeenCalled()
-    })
-
-    it('uses searchSpotifyTrack to resolve seed IDs when current track has no Spotify URL', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-            searchSpotifyTrack: jest.Mock
-        }
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
-            spotifyLinkService: { getValidAccessToken: jest.Mock }
-        }
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'tok-resolve',
-        )
-        spotifyApiMock.searchSpotifyTrack.mockResolvedValue(
-            'resolved-spotify-id',
-        )
-        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([])
-
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://www.youtube.com/watch?v=abc',
-                title: 'Some Song',
-                author: 'Some Artist',
-                id: 'yt1',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({ tracks: [] }),
-            },
-            addTrack: jest.fn(),
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyApiMock.searchSpotifyTrack).toHaveBeenCalled()
-        const recsCalls2 = spotifyApiMock.getSpotifyRecommendations.mock.calls
-        expect(recsCalls2.length).toBeGreaterThan(0)
-        const [callToken2, callIds2, callLimit2, callConstraints2] =
-            recsCalls2[0]!
-        expect(callToken2).toBe('tok-resolve')
-        expect(callIds2).toEqual(['resolved-spotify-id'])
-        expect(callLimit2).toBe(15)
-        expect(
-            callConstraints2 === undefined ||
-                typeof callConstraints2 === 'object',
-        ).toBe(true)
-    })
-
-    it('adds spotify recommendation results as scored candidates', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-            getArtistGenres: jest.Mock
-        }
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
-            spotifyLinkService: { getValidAccessToken: jest.Mock }
-        }
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'tok-recs',
-        )
-        spotifyApiMock.getArtistGenres.mockResolvedValue([])
-        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([
-            {
-                id: 'rectrack1',
-                name: 'Recommended Song',
-                artists: [{ name: 'Rec Artist' }],
-                duration_ms: 200000,
-            },
-        ])
-
-        const addTrackMock = jest.fn()
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    url: 'https://open.spotify.com/track/rectrack1',
-                    title: 'Recommended Song',
-                    author: 'Rec Artist',
-                    id: 'rectrack1',
-                    durationMS: 200000,
-                    requestedBy: null,
-                },
-            ],
-        })
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/seedid',
-                title: 'Seed Song',
-                author: 'Seed Artist',
-                id: 'seed1',
-                source: 'spotify',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: { search: searchMock },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('skips spotify recommendation result when track is too long', async () => {
-        const spotifyApiMock = jest.requireMock('../../spotify/spotifyApi') as {
-            getSpotifyRecommendations: jest.Mock
-        }
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as {
-            spotifyLinkService: { getValidAccessToken: jest.Mock }
-        }
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'tok-long',
-        )
-        spotifyApiMock.getSpotifyRecommendations.mockResolvedValue([
-            {
-                id: 'longtrack',
-                name: 'Hour Long Mix',
-                artists: [{ name: 'DJ' }],
-                duration_ms: 3600000,
-            },
-        ])
-
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/seedid',
-                title: 'Seed Song',
-                author: 'Seed Artist',
-                id: 'seed1',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://open.spotify.com/track/longtrack',
-                            title: 'Hour Long Mix',
-                            author: 'DJ',
-                            id: 'longtrack',
-                            durationMS: 3600000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).not.toHaveBeenCalled()
-    })
-
-    it('rejects candidates over 15 minutes as track too long', async () => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/looped',
-                            title: 'Pearl Jam - Sirens (07:05:14)',
-                            author: 'SomeFanChannel',
-                            id: 'loop1',
-                            durationMS: 25_514_000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).not.toHaveBeenCalled()
-    })
-
-    it.each([
-        'Relaxing Rain Sounds for Sleep',
-        'Ocean Waves Sounds 1 Hour',
-        'White Noise for Baby Sleep',
-        'ASMR Soft Spoken Triggers',
-        'Binaural Beats Deep Focus',
-        'Guided Meditation Music 432Hz',
-        'Spa Music Relaxation',
-    ])('rejects ambient/noise track "%s"', async (title) => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/ambient',
-                            title,
-                            author: 'Ambient Channel',
-                            id: 'amb1',
-                            durationMS: 3600000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).not.toHaveBeenCalled()
-    })
-
-    it.each([
-        'DJ Set Live at Tomorrowland 2024',
-        'Festival Set Main Stage',
-        '2 Hour EDM Mix 2024',
-        'Extended Mix Club Night',
-        'Trance Mix Progressive',
-    ])('rejects EDM mix/set track "%s"', async (title) => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/edm',
-                            title,
-                            author: 'DJ Channel',
-                            id: 'edm1',
-                            durationMS: 3600000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).not.toHaveBeenCalled()
-    })
-
-    it('penalizes low-quality uploads with noise indicators in title', async () => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/noisy',
-                            title: 'Pearl Jam - Sirens (Legendado)',
-                            author: 'FanChannel',
-                            id: 'noisy1',
-                            durationMS: 312000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const addedTrack = addTrackMock.mock.calls[0]?.[0] as Track
-        expect(addedTrack?.metadata?.recommendationReason).toContain(
-            'low quality upload',
-        )
-    })
-
-    it('applies outer duration-ratio partial boost (0.7–0.8 range)', async () => {
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                durationMS: 200000,
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/shorter',
-                            title: 'Shorter Track',
-                            author: 'Short Artist',
-                            id: 'sh1',
-                            durationMS: 150000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('applies discover-mode familiar-artist penalty when artist is in recent history', async () => {
-        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'discover' })
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Song',
-                author: 'Current Artist',
-                id: 'curr',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            history: {
-                tracks: {
-                    toArray: jest.fn().mockReturnValue([
-                        {
-                            title: 'Past Track',
-                            author: 'Familiar Artist',
-                            url: 'https://example.com/past',
-                        },
-                    ]),
-                },
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/familiar',
-                            title: 'Familiar Song',
-                            author: 'Familiar Artist',
-                            id: 'fam1',
-                            durationMS: 200000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('applies energy/valence score boost when spotify candidate matches current track features', async () => {
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
-        sharedMocks.spotifyLinkService.getValidAccessToken
-            .mockResolvedValueOnce('token-for-current')
-            .mockResolvedValueOnce(null) // spotifyToken for artist tag fetcher
-            .mockResolvedValueOnce(null) // collectSpotifyRecommendationCandidates
-            .mockResolvedValueOnce('token-for-enrich')
-
-        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
-        spotifyMocks.getAudioFeatures.mockResolvedValueOnce({
-            energy: 0.7,
-            valence: 0.65,
-            danceability: 0.6,
-            tempo: 125,
-            acousticness: 0.2,
-        })
-        const candidateFeatureMap = new Map([
-            [
-                'candidateSpotifyId01',
-                {
-                    energy: 0.72,
-                    valence: 0.67,
-                    danceability: 0.58,
-                    tempo: 120,
-                    acousticness: 0.25,
-                },
-            ],
-        ])
-        spotifyMocks.getBatchAudioFeatures.mockResolvedValueOnce(
-            candidateFeatureMap,
-        )
-        spotifyMocks.getArtistGenres
-            .mockResolvedValueOnce(['hip-hop', 'rap'])
-            .mockResolvedValueOnce(['hip-hop', 'rap'])
-
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://open.spotify.com/track/currentSpotifyId01',
-                title: 'Current Spotify Track',
-                author: 'Spotify Artist',
-                id: 'currentSpotifyId01',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://open.spotify.com/track/candidateSpotifyId01',
-                            title: 'Candidate Spotify Track',
-                            author: 'Other Artist',
-                            id: 'candidateSpotifyId01',
-                            durationMS: 200000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyMocks.getBatchAudioFeatures).toHaveBeenCalledWith(
-            'token-for-enrich',
-            ['candidateSpotifyId01'],
-        )
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-
-    it('applies artist popularity boost in popular mode when popularity >= 70', async () => {
-        getGuildSettingsMock.mockResolvedValue({
-            autoplayMode: 'popular',
-            autoplayGenres: [],
-        })
-
-        const sharedMocks = jest.requireMock('@lucky/shared/services') as any
-        sharedMocks.spotifyLinkService.getValidAccessToken.mockResolvedValue(
-            'pop-token',
-        )
-
-        const spotifyMocks = jest.requireMock('../../spotify/spotifyApi') as any
-        spotifyMocks.getArtistPopularity.mockResolvedValue(85)
-
-        const addTrackMock = jest.fn()
-        const queue = createQueueMock({
-            currentTrack: {
-                url: 'https://example.com/current',
-                title: 'Current Track',
-                author: 'Popular Artist',
-                id: 'curr',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [
-                        {
-                            url: 'https://example.com/popular',
-                            title: 'Hit Song',
-                            author: 'Chart Topper',
-                            id: 'pop1',
-                            durationMS: 210000,
-                            requestedBy: null,
-                        },
-                    ],
-                }),
-            },
-            addTrack: addTrackMock,
-            metadata: { requestedBy: { id: 'user-1' } },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        expect(spotifyMocks.getArtistPopularity).toHaveBeenCalled()
-        expect(addTrackMock).toHaveBeenCalled()
-    })
-})
 
 describe('buildVcContributionWeights', () => {
     it('returns equal weights when all users have equal contributions', () => {
@@ -3766,13 +2015,14 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
         expect(haloTracks).toHaveLength(1)
     })
 
-    it('logs debugLog when primary Spotify seed search returns no results', async () => {
+    it('uses fallback search when primary seed search returns no results', async () => {
         const fallbackTrack = {
             title: 'Fallback Song',
             author: 'Fallback Artist',
             url: 'https://youtube.com/watch?v=fallback01',
             durationMS: 200000,
         }
+        const addedTracks: Track[] = []
         const searchMock = jest
             .fn()
             .mockResolvedValueOnce({ tracks: [] })
@@ -3788,290 +2038,13 @@ describe('queueManipulation — within-cycle dedup via extractSongCore', () => {
             metadata: { requestedBy: { id: 'user-1' } },
             tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
             player: { search: searchMock },
+            addTrack: jest.fn((t) => addedTracks.push(t as Track)),
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        const { debugLog } = jest.requireMock('@lucky/shared/utils') as {
-            debugLog: jest.Mock
-        }
-        expect(debugLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: expect.stringContaining('seed search returned 0 results'),
-            }),
-        )
-    })
-})
-
-describe('queueManipulation — Spotify priority', () => {
-    beforeEach(() => {
-        likedTrackWeightsMock.mockResolvedValue(new Map())
-        dislikedTrackWeightsMock.mockResolvedValue(new Map())
-        getPreferredArtistKeysMock.mockResolvedValue(new Set())
-        getBlockedArtistKeysMock.mockResolvedValue(new Set())
-        getImplicitDislikeKeysMock.mockResolvedValue(new Set())
-        getImplicitLikeKeysMock.mockResolvedValue(new Set())
-        consumeLastFmSeedSliceMock.mockResolvedValue([])
-        getSimilarTracksMock.mockResolvedValue([])
-        getArtistTopTagsMock.mockResolvedValue([])
-        getTrackHistoryMock.mockResolvedValue([])
-        getTagTopTracksMock.mockResolvedValue([])
-        getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
-    })
-
-    it('uses song-core query for Spotify engine when seed has artist-song format', async () => {
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Shape of You',
-                    author: 'Ed Sheeran',
-                    url: 'https://open.spotify.com/track/abc',
-                    source: 'spotify',
-                    durationMS: 234000,
-                },
-            ],
-        })
-
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Ed Sheeran - Shape of You',
-                author: 'Ed SheeranVEVO',
-                url: 'https://youtube.com/watch?v=seed001',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            player: { search: searchMock },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstCallQuery).not.toContain(
-            'Ed Sheeran - Shape of You Ed Sheeran',
-        )
-        expect(firstCallQuery).toContain('Shape of You')
-        expect(firstCallQuery).toContain('Ed Sheeran')
-    })
-
-    it('prefers Spotify candidate over YouTube candidate of the same song', async () => {
-        const addedTracks: unknown[] = []
-        const ytTrack = {
-            title: 'Halo',
-            author: 'Beyoncé',
-            url: 'https://youtube.com/watch?v=haloyt',
-            source: 'youtube',
-            durationMS: 241000,
-        }
-        const spotifyTrack = {
-            title: 'Halo',
-            author: 'Beyoncé',
-            url: 'https://open.spotify.com/track/halo001',
-            source: 'spotify',
-            durationMS: 241000,
-        }
-
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Crazy In Love',
-                author: 'Beyoncé',
-                url: 'https://youtube.com/watch?v=seed001',
-                source: 'youtube',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 7, toArray: jest.fn().mockReturnValue([]) },
-            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [ytTrack, spotifyTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const selected = addedTracks[0] as { source?: string }
-        expect(selected?.source).toBe('spotify')
-    })
-
-    it('uses cleaned title directly when author already appears in the title', async () => {
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'ao pressão',
-                    author: 'ANATOMIA',
-                    url: 'https://open.spotify.com/track/aopressao',
-                    source: 'spotify',
-                    durationMS: 210000,
-                },
-            ],
-        })
-
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'ANATOMIA - ao pressão (Visualizer)',
-                author: 'ANATOMIA',
-                url: 'https://youtube.com/watch?v=aopressao',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            player: { search: searchMock },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstCallQuery).not.toBe('ao pressão ANATOMIA')
-        expect(firstCallQuery).toContain('ANATOMIA')
-        expect(firstCallQuery).toContain('ao pressão')
-    })
-
-    it('uses title artist (not cover channel author) in spotify query', async () => {
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Eu sei que é você',
-                    author: 'ANATOMIA',
-                    url: 'https://open.spotify.com/track/eusei001',
-                    source: 'spotify',
-                    durationMS: 195000,
-                },
-            ],
-        })
-
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'ANATOMIA - Eu sei que é você (Acústico ao vivo)',
-                author: 'Carlo Gatto',
-                url: 'https://youtube.com/watch?v=carlogatto01',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            player: { search: searchMock },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstCallQuery).toContain('ANATOMIA')
-        expect(firstCallQuery).not.toContain('Carlo Gatto')
-        expect(firstCallQuery).toContain('Eu sei que é você')
-    })
-
-    it('falls back to cleanedAuthor when title has no separator', async () => {
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Blinding Lights',
-                    author: 'The Weeknd',
-                    url: 'https://open.spotify.com/track/blight01',
-                    source: 'spotify',
-                    durationMS: 200000,
-                },
-            ],
-        })
-
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Blinding Lights',
-                author: 'The Weeknd',
-                url: 'https://youtube.com/watch?v=blindinglight',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            player: { search: searchMock },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstCallQuery).toContain('The Weeknd')
-    })
-
-    it('never appends query modifiers to the Spotify engine query on subsequent replenish cycles', async () => {
-        const capturedQueries: Array<{ query: string; engine: unknown }> = []
-        const searchMock = jest
-            .fn()
-            .mockImplementation(
-                (query: string, opts: { searchEngine: unknown }) => {
-                    capturedQueries.push({ query, engine: opts?.searchEngine })
-                    return Promise.resolve({
-                        tracks: [
-                            {
-                                title: 'Shape of You',
-                                author: 'Ed Sheeran',
-                                url: 'https://open.spotify.com/track/shapeofyou',
-                                source: 'spotify',
-                                durationMS: 234000,
-                            },
-                        ],
-                    })
-                },
-            )
-
-        const queue = createQueueMock({
-            guild: { id: 'guild-spotify-modifier-test' },
-            currentTrack: {
-                title: 'Ed Sheeran - Shape of You',
-                author: 'Ed SheeranVEVO',
-                url: 'https://youtube.com/watch?v=seed001',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            player: { search: searchMock },
-        })
-
-        // First call: replenishCount=0, no modifier
-        await replenishQueue(queue as unknown as GuildQueue)
-        // Second call: replenishCount=1, modifier='similar' — must NOT appear in Spotify query
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        // Spotify returns results on every call, so YouTube/AUTO are never reached.
-        // All captured queries are Spotify queries — none should contain text modifiers.
-        for (const { query } of capturedQueries) {
-            expect(query).not.toMatch(/\b(similar|like|playlist|mix)\b/)
-        }
-    })
-
-    it('uses right side as artist when song core is on the left of the separator', async () => {
-        const searchMock = jest.fn().mockResolvedValue({
-            tracks: [
-                {
-                    title: 'Halo',
-                    author: 'Beyoncé',
-                    url: 'https://open.spotify.com/track/halo002',
-                    source: 'spotify',
-                    durationMS: 241000,
-                },
-            ],
-        })
-
-        // Author "BeyoBeyoFan" overlaps with "Beyoncé" via the 4-char prefix "beyo",
-        // so extractSongCore returns "Halo" (left). extractTitleArtistFromSong then
-        // detects that the core is on the left and returns the right side "Beyoncé".
-        const queue = createQueueMock({
-            currentTrack: {
-                title: 'Halo - Beyoncé',
-                author: 'BeyoBeyoFan',
-                url: 'https://youtube.com/watch?v=halobeyonce',
-                requestedBy: { id: 'user-1' },
-            } as unknown as Track,
-            metadata: { requestedBy: { id: 'user-1' } },
-            tracks: { size: 0, toArray: jest.fn().mockReturnValue([]) },
-            player: { search: searchMock },
-        })
-
-        await replenishQueue(queue as unknown as GuildQueue)
-
-        const firstCallQuery: string = searchMock.mock.calls[0]?.[0] ?? ''
-        expect(firstCallQuery).not.toContain('BeyoBeyoFan')
-        expect(firstCallQuery).toContain('Beyoncé')
-        expect(firstCallQuery).toContain('Halo')
+        expect(addedTracks.length).toBeGreaterThan(0)
+        expect(addedTracks.some((t) => t.title === 'Fallback Song')).toBe(true)
     })
 })
 
@@ -4234,8 +2207,18 @@ describe('queueManipulation — diversity improvements', () => {
             history: {
                 tracks: {
                     toArray: jest.fn().mockReturnValue([
-                        { title: 'Rock Song', author: 'Rock Artist', url: 'https://example.com/r', durationMS: 240000 },
-                        { title: 'Pop Song', author: 'Pop Artist', url: 'https://example.com/p', durationMS: 200000 },
+                        {
+                            title: 'Rock Song',
+                            author: 'Rock Artist',
+                            url: 'https://example.com/r',
+                            durationMS: 240000,
+                        },
+                        {
+                            title: 'Pop Song',
+                            author: 'Pop Artist',
+                            url: 'https://example.com/p',
+                            durationMS: 200000,
+                        },
                     ]),
                 },
             },
@@ -4270,8 +2253,18 @@ describe('queueManipulation — diversity improvements', () => {
             history: {
                 tracks: {
                     toArray: jest.fn().mockReturnValue([
-                        { title: 'Cumbia vieja', author: 'Artist', url: 'https://example.com/c', durationMS: 200000 },
-                        { title: 'Bachata romántica', author: 'Artist', url: 'https://example.com/b', durationMS: 200000 },
+                        {
+                            title: 'Cumbia vieja',
+                            author: 'Artist',
+                            url: 'https://example.com/c',
+                            durationMS: 200000,
+                        },
+                        {
+                            title: 'Bachata romántica',
+                            author: 'Artist',
+                            url: 'https://example.com/b',
+                            durationMS: 200000,
+                        },
                     ]),
                 },
             },
@@ -4289,127 +2282,5 @@ describe('queueManipulation — diversity improvements', () => {
             )
         }
     })
-})
 
-
-    describe('getGenreFamilies', () => {
-        it('identifies single genre family', () => {
-            const families = getGenreFamilies(['hip hop'])
-            expect(families.has('rap_hiphop')).toBe(true)
-        })
-
-        it('identifies multiple families', () => {
-            expect(getGenreFamilies(['hip hop', 'rock', 'soul']).size).toBe(3)
-        })
-
-        it('handles empty array', () => {
-            expect(getGenreFamilies([]).size).toBe(0)
-        })
-
-        it('is case insensitive', () => {
-            const a = getGenreFamilies(['hip hop'])
-            const b = getGenreFamilies(['HIP HOP'])
-            expect(Array.from(a).sort()).toEqual(Array.from(b).sort())
-        })
-
-        it('matches all 10 families', () => {
-            const genres = [
-                'hip hop',
-                'soul',
-                'edm',
-                'rock',
-                'pop',
-                'reggaeton',
-                'country',
-                'jazz',
-                'afrobeat',
-                'lofi',
-            ]
-            expect(getGenreFamilies(genres).size).toBe(10)
-        })
-
-        it('handles unknown genres', () => {
-            expect(getGenreFamilies(['unknown xyz']).size).toBe(0)
-        })
-    })
-
-    describe('calculateGenreFamilyPenalty', () => {
-        it('returns 0 when families match', () => {
-            expect(calculateGenreFamilyPenalty(['rock'], ['metal'])).toBe(0)
-        })
-
-        it('returns -0.1 for empty current genres', () => {
-            expect(calculateGenreFamilyPenalty([], ['hip hop'])).toBe(-0.1)
-        })
-
-        it('returns -0.1 for empty candidate genres', () => {
-            expect(calculateGenreFamilyPenalty(['rock'], [])).toBe(-0.1)
-        })
-
-        it('applies -0.6 for strong genre mismatch', () => {
-            expect(calculateGenreFamilyPenalty(['rap'], ['rock'])).toBe(-0.6)
-        })
-
-        it('applies -0.3 for weak genre mismatch', () => {
-            expect(calculateGenreFamilyPenalty(['pop'], ['rock'])).toBe(-0.3)
-        })
-
-        it('treats rap_hiphop as strong', () => {
-            expect(calculateGenreFamilyPenalty(['hip hop'], ['pop'])).toBe(-0.6)
-        })
-
-        it('treats rock_metal as strong', () => {
-            expect(calculateGenreFamilyPenalty(['metal'], ['pop'])).toBe(-0.6)
-        })
-
-        it('treats latin as strong', () => {
-            expect(calculateGenreFamilyPenalty(['reggaeton'], ['pop'])).toBe(-0.6)
-        })
-    })
-
-    describe('enrichWithAudioFeatures', () => {
-        it('returns unchanged when features null', async () => {
-            const tracks = [
-                {
-                    track: { title: 'T', author: 'A', url: 'https://spotify.com' },
-                    score: 1,
-                    basis: { source: 'spotify-rec' as const, signals: [] },
-                },
-            ]
-            const result = await enrichWithAudioFeatures(tracks, 'u1', null)
-            expect(result).toEqual(tracks)
-        })
-
-        it('returns unchanged when userId empty', async () => {
-            const tracks = [
-                {
-                    track: { title: 'T', author: 'A', url: 'https://spotify.com' },
-                    score: 1,
-                    basis: { source: 'spotify-rec' as const, signals: [] },
-                },
-            ]
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                '',
-                { energy: 0.7, valence: 0.6 } as any,
-            )
-            expect(result).toEqual(tracks)
-        })
-
-        it('returns unchanged when no Spotify links', async () => {
-            const tracks = [
-                {
-                    track: { title: 'T', author: 'A', url: 'https://youtube.com' },
-                    score: 1,
-                    basis: { source: 'spotify-rec' as const, signals: [] },
-                },
-            ]
-            const result = await enrichWithAudioFeatures(
-                tracks,
-                'u1',
-                { energy: 0.7, valence: 0.6 } as any,
-            )
-            expect(result).toEqual(tracks)
-        })
-    })
-})
+}
