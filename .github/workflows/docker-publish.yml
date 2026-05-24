@@ -121,7 +121,7 @@ jobs:
 
             - name: Upload Trivy SARIF
               if: always()
-              uses: github/codeql-action/upload-sarif@v3
+              uses: github/codeql-action/upload-sarif@v4
               with:
                   sarif_file: trivy-image-${{ matrix.service }}.sarif
                   category: trivy-image-${{ matrix.service }}
