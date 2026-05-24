@@ -299,6 +299,9 @@ describe('recommendationEngine', () => {
                 mockConfig,
             )
 
+            expect(createUserPreferenceSeedMock).toHaveBeenCalledWith(
+                preferences,
+            )
             expect(result).toHaveLength(1)
             expect(result[0].track.id).toBe('track1')
         })
