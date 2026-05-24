@@ -377,19 +377,11 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
@@ -497,20 +489,9 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
+        const ctx = createAutoplayContext({ queue })
         await expect(
-            collectLastFmCandidates(
-                queue,
-                user,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                candidates,
-            ),
+            collectLastFmCandidates(ctx, user, candidates),
         ).resolves.toBeUndefined()
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
     })

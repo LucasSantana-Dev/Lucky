@@ -241,24 +241,17 @@ describe('autoplay pipeline integration', () => {
                 dominantLocale: null,
             }
 
-            const candidates = await collectRecommendationCandidates(
+            const ctx = makeAutoplayContext({
                 queue,
+                currentTrack,
+                recentArtists: new Set(['radiohead']),
+                sessionMood: englishSession,
+            })
+
+            const candidates = await collectRecommendationCandidates(
+                ctx,
                 [currentTrack],
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                currentTrack,
-                new Set(['radiohead']),
-                0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                englishSession,
             )
 
             // English tracks pass the locale veto — at least one should be accepted

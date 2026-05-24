@@ -100,6 +100,34 @@ function createScoredTrack(
     }
 }
 
+function createAutoplayContext(
+    overrides: Partial<AutoplayContext> = {},
+): AutoplayContext {
+    return {
+        queue: { player: { search: jest.fn() } } as never,
+        excludedUrls: new Set(),
+        excludedKeys: new Set(),
+        dislikedWeights: new Map(),
+        likedWeights: new Map(),
+        preferredArtistKeys: new Set(),
+        blockedArtistKeys: new Set(),
+        currentTrack: {
+            author: 'Artist',
+            title: 'Song',
+            url: 'u1',
+            durationMS: 200_000,
+        } as never,
+        recentArtists: new Set(),
+        autoplayMode: 'similar',
+        artistFrequency: new Map(),
+        implicitDislikeKeys: new Set(),
+        implicitLikeKeys: new Set(),
+        sessionMood: null,
+        genreContext: {},
+        ...overrides,
+    }
+}
+
 describe('interleaveByArtist', () => {
     beforeEach(() => {
         cleanAuthorMock.mockImplementation((s: unknown) => s)
@@ -596,19 +624,11 @@ describe('collectBroadFallbackCandidates', () => {
         } as never
         const candidates = new Map<string, ScoredTrack>()
 
-        await collectBroadFallbackCandidates(
+        const ctx = createAutoplayContext({
             queue,
             currentTrack,
-            null,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectBroadFallbackCandidates(ctx, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalled()
     })
@@ -631,19 +651,11 @@ describe('collectBroadFallbackCandidates', () => {
         shouldIncludeCandidateMock.mockReturnValue(false)
         const candidates = new Map<string, ScoredTrack>()
 
-        await collectBroadFallbackCandidates(
+        const ctx = createAutoplayContext({
             queue,
             currentTrack,
-            null,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectBroadFallbackCandidates(ctx, candidates)
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
@@ -727,7 +739,7 @@ describe('collectBroadFallbackCandidates', () => {
         )
     })
 
-    it('uses Spotify genres as fallback tags when Last.fm returns empty', async () => {
+    it('uses Last.fm tags when getArtistTags returns them', async () => {
         const foundTrack = {
             title: 'Hallelujah',
             author: 'Felipe Dutra',
@@ -742,38 +754,19 @@ describe('collectBroadFallbackCandidates', () => {
             url: 'u1',
             durationMS: 200_000,
         } as never
-        const getArtistTagsMock = jest.fn().mockResolvedValue([])
-        getValidAccessTokenMock.mockResolvedValue('spotify-token')
-        getArtistGenresMock.mockResolvedValue([
-            'latin gospel',
-            'latin christian',
-        ])
+        const getArtistTagsMock = jest
+            .fn()
+            .mockResolvedValue(['latin gospel', 'latin christian'])
         const candidates = new Map<string, ScoredTrack>()
 
-        await collectBroadFallbackCandidates(
+        const ctx = createAutoplayContext({
             queue,
             currentTrack,
-            { id: 'user1' } as never,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            new Set(),
-            candidates,
-            'similar',
-            new Map(),
-            new Set(),
-            new Set(),
-            null,
-            { getArtistTags: getArtistTagsMock },
-        )
+            genreContext: { getArtistTags: getArtistTagsMock },
+        })
+        await collectBroadFallbackCandidates(ctx, candidates)
 
-        expect(getArtistGenresMock).toHaveBeenCalledWith(
-            'spotify-token',
-            'Felipe Dutra',
-        )
+        expect(getArtistTagsMock).toHaveBeenCalledWith('Felipe Dutra')
         expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 genreContext: expect.objectContaining({
@@ -802,25 +795,12 @@ describe('collectBroadFallbackCandidates', () => {
         getValidAccessTokenMock.mockResolvedValue('spotify-token')
         const candidates = new Map<string, ScoredTrack>()
 
-        await collectBroadFallbackCandidates(
+        const ctx = createAutoplayContext({
             queue,
             currentTrack,
-            { id: 'user1' } as never,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            new Set(),
-            candidates,
-            'similar',
-            new Map(),
-            new Set(),
-            new Set(),
-            null,
-            { getArtistTags: getArtistTagsMock },
-        )
+            genreContext: { getArtistTags: getArtistTagsMock },
+        })
+        await collectBroadFallbackCandidates(ctx, candidates)
 
         expect(getArtistGenresMock).not.toHaveBeenCalled()
     })
@@ -844,25 +824,12 @@ describe('collectBroadFallbackCandidates', () => {
         getValidAccessTokenMock.mockResolvedValue(null)
         const candidates = new Map<string, ScoredTrack>()
 
-        await collectBroadFallbackCandidates(
+        const ctx = createAutoplayContext({
             queue,
             currentTrack,
-            { id: 'user1' } as never,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            new Set(),
-            candidates,
-            'similar',
-            new Map(),
-            new Set(),
-            new Set(),
-            null,
-            { getArtistTags: getArtistTagsMock },
-        )
+            genreContext: { getArtistTags: getArtistTagsMock },
+        })
+        await collectBroadFallbackCandidates(ctx, candidates)
 
         expect(getArtistGenresMock).not.toHaveBeenCalled()
     })
