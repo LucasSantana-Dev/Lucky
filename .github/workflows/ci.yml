@@ -84,6 +84,35 @@ jobs:
                   path: packages/bot/coverage/lcov.info
                   retention-days: 1
 
+    test-youtube-smoke:
+        name: Test — YouTube smoke (dependabot guard)
+        runs-on: ubuntu-latest
+        # Only runs on dependabot pull_request events; the push trigger never matches dependabot.
+        if: |
+          github.actor == 'dependabot[bot]' && (
+            contains(github.event.pull_request.title, 'youtubei.js') ||
+            contains(github.event.pull_request.title, 'discord-player-youtubei') ||
+            contains(github.event.pull_request.title, 'yt-dlp') ||
+            contains(github.event.pull_request.title, 'youtube-dl-exec') ||
+            contains(github.event.pull_request.title, 'play-dl')
+          )
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+            - run: npm ci --legacy-peer-deps --ignore-scripts
+            - run: npx prisma generate && npm run build:shared
+            - name: Run YouTube smoke test
+              run: YOUTUBE_SMOKE_TEST=true npm run test --workspace=packages/bot -- --testPathPatterns="youtube.smoke" --ci --coverage
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: coverage-bot-youtube-smoke
+                  path: packages/bot/coverage/lcov.info
+                  retention-days: 1
+
     test-frontend:
         name: Test — frontend
         runs-on: ubuntu-latest
@@ -105,6 +134,7 @@ jobs:
                   retention-days: 1
 
     quality-gate:
+        # test-youtube-smoke intentionally excluded: advisory-only, runs on YouTube dependency PRs only
         name: Quality Gates
         runs-on: ubuntu-latest
         needs: [checks, test-backend, test-bot, test-frontend]
