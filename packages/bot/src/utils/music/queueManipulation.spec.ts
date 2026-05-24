@@ -2145,7 +2145,7 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
         getGuildSettingsMock.mockResolvedValue({ autoplayMode: 'similar' })
     })
 
-    it('uses multiple fallback queries when primary candidates empty', async () => {
+    it('uses fallback candidates when primary candidates unavailable', async () => {
         const currentTrack = {
             url: 'https://example.com/current',
             title: 'Current Song',
@@ -2159,18 +2159,23 @@ describe('queueManipulation.collectBroadFallbackCandidates diversification', () 
             source: 'spotify',
             durationMS: 180000,
         }
-        const searchMock = jest.fn()
-        searchMock.mockResolvedValue({ tracks: [fallbackCandidate] })
-
+        const addedTracks: unknown[] = []
         const queue = createQueueMock({
             currentTrack,
             metadata: { requestedBy: { id: 'user-1' } },
-            player: { search: searchMock },
+            player: {
+                search: jest
+                    .fn()
+                    .mockResolvedValue({ tracks: [fallbackCandidate] }),
+            },
+            addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
         })
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        expect(queue.addTrack).toHaveBeenCalled()
+        // Verify queue actually received tracks, not just delegation
+        expect(addedTracks.length).toBeGreaterThan(0)
+        expect(addedTracks[0]).toHaveProperty('url')
     })
 })
 
