@@ -204,3 +204,14 @@ export interface GuildAutomationStatus {
         updatedAt: Date
     }>
 }
+
+export type ExecutorOpError = {
+    opIndex: number
+    opKind: string
+    reason: string
+}
+
+export type ExecutorApplyResult<TApplied> =
+    | { status: 'success'; applied: TApplied }
+    | { status: 'partial'; applied: TApplied; errors: ExecutorOpError[] }
+    | { status: 'failed'; error: string }

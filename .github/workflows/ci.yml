@@ -35,6 +35,8 @@ jobs:
               run: npm run build:shared
             - name: Verify shared package exports
               run: npm run verify:shared-exports
+              env:
+                  DATABASE_URL: postgresql://localhost:5432/test
             - name: Type check
               run: npm run type:check
             - name: Build project

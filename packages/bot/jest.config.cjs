@@ -26,14 +26,20 @@ module.exports = {
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^chalk$': '<rootDir>/tests/__mocks__/chalk.ts',
+        '^@lucky/shared/utils/database/prismaClient$':
+            '<rootDir>/tests/__mocks__/prismaClient.ts',
+        '^@lucky/shared/services/guildAutomation/service$':
+            '<rootDir>/tests/__mocks__/guildAutomationService.ts',
         '^@lucky/shared$': '<rootDir>/../shared/src/index',
         '^@lucky/shared/services$':
             '<rootDir>/../shared/src/services/index',
         '^@lucky/shared/utils$': '<rootDir>/../shared/src/utils/index',
         '^@lucky/shared/config$': '<rootDir>/../shared/src/config/index',
         '^@lucky/shared/types$': '<rootDir>/../shared/src/types/index',
-        '^@lucky/shared/utils/database/prismaClient$':
-            '<rootDir>/tests/__mocks__/prismaClient.ts',
+        '^@lucky/shared/services/guildAutomation$':
+            '<rootDir>/../shared/src/services/guildAutomation/index',
+        '^@lucky/shared/services/guildAutomation/(.*)$':
+            '<rootDir>/../shared/src/services/guildAutomation/$1',
         '^@lucky/shared/(.*)$': '<rootDir>/../shared/src/$1',
     },
     transform: {
