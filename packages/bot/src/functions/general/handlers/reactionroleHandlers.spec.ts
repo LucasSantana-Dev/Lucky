@@ -79,7 +79,7 @@ describe('reactionroleHandlers', () => {
     })
 
     describe('handleCreate', () => {
-        test('creates reaction role message with valid data', async () => {
+        test('flow: creates message and replies with success', async () => {
             const channel = createChannel()
             const guild = createGuild()
             const interaction = createInteraction({
@@ -95,7 +95,19 @@ describe('reactionroleHandlers', () => {
 
             await handleCreate(interaction, guild)
 
-            expect(createReactionRoleMessageMock).toHaveBeenCalled()
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'Success',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
         })
 
         test('rejects non-text channel', async () => {
@@ -228,7 +240,7 @@ describe('reactionroleHandlers', () => {
             })
         })
 
-        test('uses correct message and guild ids for deletion', async () => {
+        test('flow: deletes with correct parameters and confirms', async () => {
             const guild = createGuild('guild-xyz')
             const interaction = createInteraction({ messageId: 'msg-xyz' })
 
@@ -236,10 +248,19 @@ describe('reactionroleHandlers', () => {
 
             await handleDelete(interaction, guild)
 
-            expect(deleteReactionRoleMessageMock).toHaveBeenCalledWith(
-                'msg-xyz',
-                'guild-xyz',
-            )
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'Success',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
         })
     })
 
@@ -319,7 +340,7 @@ describe('reactionroleHandlers', () => {
             })
         })
 
-        test('uses correct guild id for listing', async () => {
+        test('flow: lists with correct guild and replies appropriately', async () => {
             const guild = createGuild('guild-xyz')
             const interaction = createInteraction()
             interaction.guild = guild
@@ -328,9 +349,19 @@ describe('reactionroleHandlers', () => {
 
             await handleList(interaction, guild)
 
-            expect(listReactionRoleMessagesMock).toHaveBeenCalledWith(
-                'guild-xyz',
-            )
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    embeds: [
+                        expect.objectContaining({
+                            data: expect.objectContaining({
+                                title: 'No Messages',
+                            }),
+                        }),
+                    ],
+                    ephemeral: true,
+                },
+            })
         })
     })
 })

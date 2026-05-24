@@ -8,103 +8,55 @@ import {
 } from './searchQueryCleaner'
 
 describe('cleanTitle', () => {
-    it('strips (Official Video) noise', () => {
-        expect(cleanTitle('Bohemian Rhapsody (Official Video)')).toBe(
+    it.each([
+        [
+            'strips (Official Video) noise',
+            'Bohemian Rhapsody (Official Video)',
             'Bohemian Rhapsody',
-        )
-    })
-
-    it('strips [Official Music Video] bracketed noise', () => {
-        expect(cleanTitle('Sunshine [Official Music Video]')).toBe('Sunshine')
-    })
-
-    it('strips [Download] tags', () => {
-        // Real case from the production crash report.
-        expect(cleanTitle('GOLDEN - HUNTR/X [Download]')).toBe(
+        ],
+        [
+            'strips [Official Music Video] bracketed',
+            'Sunshine [Official Music Video]',
+            'Sunshine',
+        ],
+        [
+            'strips [Download] tags',
+            'GOLDEN - HUNTR/X [Download]',
             'GOLDEN - HUNTR/X',
-        )
-    })
-
-    it('strips (Remastered YYYY) variants', () => {
-        expect(cleanTitle('Sunshine (Remastered 2022)')).toBe('Sunshine')
-        expect(cleanTitle('Sunshine (Remastered)')).toBe('Sunshine')
-    })
-
-    it('strips (HD) / (4K) / (Extended) decorators', () => {
-        expect(cleanTitle('Song (HD)')).toBe('Song')
-        expect(cleanTitle('Song (4K)')).toBe('Song')
-        expect(cleanTitle('Song (Extended Mix)')).toBe('Song')
-    })
-
-    it('strips "ft." and "feat." prefixes while keeping the featured name', () => {
-        expect(cleanTitle('Track ft. Jay-Z')).toBe('Track Jay-Z')
-        expect(cleanTitle('Track feat. Jay-Z')).toBe('Track Jay-Z')
-    })
-
-    it('removes empty bracket pairs left behind after stripping', () => {
-        expect(cleanTitle('Track () [Official Video]')).toBe('Track')
-    })
-
-    it('replaces pipe separators with spaces (keeps all informative words)', () => {
-        expect(cleanTitle('Song | Movie OST')).toBe('Song Movie OST')
-    })
-
-    it('normalizes repeated dashes', () => {
-        expect(cleanTitle('Artist - - Song')).toBe('Artist - Song')
-    })
-
-    it('collapses repeated whitespace', () => {
-        expect(cleanTitle('Song  (HD)  Extended')).toBe('Song Extended')
-    })
-
-    it('leaves a clean title alone', () => {
-        expect(cleanTitle('Bohemian Rhapsody')).toBe('Bohemian Rhapsody')
-    })
-
-    it('handles non-ASCII titles without mangling them', () => {
-        expect(cleanTitle('夜に駆ける (Official Video)')).toBe('夜に駆ける')
-    })
-
-    it('strips (Sped Up) / (Speed Up) variants', () => {
-        expect(cleanTitle('Flowers (Sped Up)')).toBe('Flowers')
-        expect(cleanTitle('Flowers [Speed Up Version]')).toBe('Flowers')
-        expect(cleanTitle('Flowers - Sped Up')).toBe('Flowers')
-    })
-
-    it('strips (Slowed) and (Slowed + Reverb) variants', () => {
-        expect(cleanTitle('Flowers (Slowed)')).toBe('Flowers')
-        expect(cleanTitle('Flowers [Slowed Reverb]')).toBe('Flowers')
-        expect(cleanTitle('Flowers - Slowed')).toBe('Flowers')
-    })
-
-    it('strips (Reverb) variants', () => {
-        expect(cleanTitle('Flowers (Reverb)')).toBe('Flowers')
-        expect(cleanTitle('Flowers [Reverb]')).toBe('Flowers')
-    })
-
-    it('strips 8D Audio / Bass Boosted tags', () => {
-        expect(cleanTitle('Flowers [8D Audio]')).toBe('Flowers')
-        expect(cleanTitle('Flowers (Bass Boosted)')).toBe('Flowers')
-    })
-
-    it('strips legendado and traduzido bare words', () => {
-        expect(cleanTitle('Song legendado')).toBe('Song')
-        expect(cleanTitle('Song traduzido')).toBe('Song')
+        ],
+        ['strips (Remastered YYYY)', 'Sunshine (Remastered 2022)', 'Sunshine'],
+        ['strips (HD)/(4K)/(Extended)', 'Song (HD)', 'Song'],
+        ['strips "ft." prefix', 'Track ft. Jay-Z', 'Track Jay-Z'],
+        ['removes empty bracket pairs', 'Track () [Official Video]', 'Track'],
+        ['replaces pipe separators', 'Song | Movie OST', 'Song Movie OST'],
+        ['normalizes repeated dashes', 'Artist - - Song', 'Artist - Song'],
+        [
+            'collapses repeated whitespace',
+            'Song  (HD)  Extended',
+            'Song Extended',
+        ],
+        ['leaves clean title alone', 'Bohemian Rhapsody', 'Bohemian Rhapsody'],
+        [
+            'handles non-ASCII titles',
+            '夜に駆ける (Official Video)',
+            '夜に駆ける',
+        ],
+        ['strips (Sped Up)', 'Flowers (Sped Up)', 'Flowers'],
+        ['strips (Reverb)', 'Flowers (Reverb)', 'Flowers'],
+        ['strips legendado', 'Song legendado', 'Song'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('cleanAuthor', () => {
-    it('strips " - Topic" YouTube auto-generated suffix', () => {
-        expect(cleanAuthor('Queen - Topic')).toBe('Queen')
-    })
-
-    it('strips VEVO suffix', () => {
-        expect(cleanAuthor('QueenVEVO')).toBe('Queen')
-        expect(cleanAuthor('Queen VEVO')).toBe('Queen')
-    })
-
-    it('leaves a clean author alone', () => {
-        expect(cleanAuthor('Queen')).toBe('Queen')
+    it.each([
+        ['strips " - Topic" suffix', 'Queen - Topic', 'Queen'],
+        ['strips QueenVEVO', 'QueenVEVO', 'Queen'],
+        ['strips Queen VEVO', 'Queen VEVO', 'Queen'],
+        ['leaves clean author alone', 'Queen', 'Queen'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanAuthor(input)).toBe(expected)
     })
 })
 
@@ -131,10 +83,6 @@ describe('cleanSearchQuery', () => {
     })
 
     it('handles the GOLDEN/HUNTR/X production crash case', () => {
-        // Title is "GOLDEN - KPOP DEMON HUNTERS - HUNTR/X - Golden Huntrix [Download]"
-        // uploaded by channel "Best Songs" — the bridge was searching SoundCloud
-        // for the full noisy string and finding nothing. The cleaned query is the
-        // seed our fallback retry chain sees.
         const cleaned = cleanSearchQuery(
             'GOLDEN - KPOP DEMON HUNTERS - HUNTR/X - Golden Huntrix [Download]',
             'Best Songs',
@@ -146,384 +94,225 @@ describe('cleanSearchQuery', () => {
 })
 
 describe('cleanTitle — Brazilian noise', () => {
-    it('strips (Tradução) variants', () => {
-        expect(cleanTitle('Beyoncé - Halo (Tradução)')).toBe('Beyoncé - Halo')
-        expect(cleanTitle('Beyoncé - Halo (Tradução/Legendado)')).toBe(
+    it.each([
+        ['strips (Tradução)', 'Beyoncé - Halo (Tradução)', 'Beyoncé - Halo'],
+        [
+            'strips standalone Legendado',
+            'Beyoncé - Halo Legendado',
             'Beyoncé - Halo',
-        )
-        expect(cleanTitle('Beyoncé - Halo (Tradução PT-BR)')).toBe(
+        ],
+        [
+            'strips (Clipe Oficial)',
+            'Beyoncé - Halo (Clipe Oficial)',
             'Beyoncé - Halo',
-        )
-    })
-
-    it('strips standalone Legendado', () => {
-        expect(cleanTitle('Beyoncé - Halo Legendado')).toBe('Beyoncé - Halo')
-    })
-
-    it('strips (Clipe Oficial) variants', () => {
-        expect(cleanTitle('Beyoncé - Halo (Clipe Oficial)')).toBe(
-            'Beyoncé - Halo',
-        )
-        expect(cleanTitle('Beyoncé - Halo (Clipe Oficial HD)')).toBe(
-            'Beyoncé - Halo',
-        )
-    })
-
-    it('strips hashtags', () => {
-        expect(cleanTitle('Beyoncé - Halo #music #lyrics')).toBe(
-            'Beyoncé - Halo',
-        )
-    })
-
-    it('strips bare Lyrics word', () => {
-        expect(cleanTitle('Beyoncé - Halo Lyrics')).toBe('Beyoncé - Halo')
-    })
-
-    it('strips combined Brazilian noise', () => {
-        expect(
-            cleanTitle('Beyonce - Halo (Tradução)( legendado)(Clipe Oficial)'),
-        ).toBe('Beyonce - Halo')
+        ],
+        ['strips hashtags', 'Beyoncé - Halo #music #lyrics', 'Beyoncé - Halo'],
+        [
+            'strips combined Brazilian noise',
+            'Beyonce - Halo (Tradução)( legendado)(Clipe Oficial)',
+            'Beyonce - Halo',
+        ],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('extractSongCore', () => {
-    it('extracts right side of Artist - Song', () => {
-        expect(extractSongCore('Beyoncé - Halo')).toBe('Halo')
-    })
-
-    it('extracts left side when author matches right side (inverted format)', () => {
-        expect(
-            extractSongCore('Halo - Beyoncé (Lyrics)', 'Beyoncé - Topic'),
-        ).toBe('Halo')
-    })
-
-    it('extracts right side when author matches left side', () => {
-        expect(
-            extractSongCore('Beyoncé - Halo (Tradução)', 'Beyoncé - Topic'),
-        ).toBe('Halo')
-    })
-
-    it('trims secondary separators from the extracted core', () => {
-        expect(
-            extractSongCore(
-                'Beyoncé - Halo - VERSÃO FORROZINHO',
-                'Beyoncé - Topic',
-            ),
-        ).toBe('Halo')
-    })
-
-    it('returns null when no separator is found', () => {
-        expect(extractSongCore('Bohemian Rhapsody')).toBeNull()
-    })
-
-    it('strips noise from title before extracting', () => {
-        expect(
-            extractSongCore(
-                'Beyoncé - Halo (Tradução/Legendado)',
-                'Beyoncé - Topic',
-            ),
-        ).toBe('Halo')
-    })
-
-    it('defaults to right side when author does not match either part', () => {
-        expect(extractSongCore('Beyoncé - Halo', 'someuploader123')).toBe(
+    it.each([
+        ['extracts right side', 'Beyoncé - Halo', undefined, 'Halo'],
+        [
+            'extracts left when author matches right (inverted)',
+            'Halo - Beyoncé (Lyrics)',
+            'Beyoncé - Topic',
             'Halo',
-        )
-    })
-
-    it('does not clip inside parenthetical when secondary separator is inside parens', () => {
-        expect(
-            extractSongCore(
-                'Alice In Chains - Nutshell (MTV Unplugged - HD Video)',
-                'Alice In Chains',
-            ),
-        ).toBe('Nutshell')
-    })
-
-    it('still trims bare secondary separator before any parenthetical', () => {
-        // "(2019)" is not a noise term so cleanTitle keeps the paren,
-        // letting extractSongCore exercise the bareRegion guard.
-        expect(
-            extractSongCore('Pearl Jam - Black - Edit (2019)', 'Pearl Jam'),
-        ).toBe('Black')
+        ],
+        [
+            'extracts right when author matches left',
+            'Beyoncé - Halo (Tradução)',
+            'Beyoncé - Topic',
+            'Halo',
+        ],
+        [
+            'trims secondary separators',
+            'Beyoncé - Halo - VERSÃO FORROZINHO',
+            'Beyoncé - Topic',
+            'Halo',
+        ],
+        [
+            'returns null when no separator',
+            'Bohemian Rhapsody',
+            undefined,
+            null,
+        ],
+        [
+            'strips noise before extracting',
+            'Beyoncé - Halo (Tradução/Legendado)',
+            'Beyoncé - Topic',
+            'Halo',
+        ],
+        [
+            'defaults right when author unmatched',
+            'Beyoncé - Halo',
+            'someuploader123',
+            'Halo',
+        ],
+        [
+            'preserves secondary sep in parenthetical',
+            'Alice In Chains - Nutshell (MTV Unplugged - HD Video)',
+            'Alice In Chains',
+            'Nutshell',
+        ],
+        [
+            'trims bare secondary sep before paren',
+            'Pearl Jam - Black - Edit (2019)',
+            'Pearl Jam',
+            'Black',
+        ],
+    ])('%s', (_, input, author, expected) => {
+        if (author === undefined) {
+            expect(extractSongCore(input)).toBe(expected)
+        } else {
+            expect(extractSongCore(input, author)).toBe(expected)
+        }
     })
 })
 
 describe('cleanTitle — unplugged and hd video noise patterns', () => {
-    it('strips (Unplugged) and [Unplugged]', () => {
-        expect(cleanTitle('Nutshell (Unplugged)')).toBe('Nutshell')
-        expect(cleanTitle('Nutshell [Unplugged]')).toBe('Nutshell')
-    })
-
-    it('strips (MTV Unplugged) as unplugged variant', () => {
-        expect(cleanTitle('Nutshell (MTV Unplugged)')).toBe('Nutshell')
-    })
-
-    it('strips (HD Video) variant', () => {
-        expect(cleanTitle('Nutshell (HD Video)')).toBe('Nutshell')
+    it.each([
+        ['strips (Unplugged)', 'Nutshell (Unplugged)', 'Nutshell'],
+        ['strips [Unplugged]', 'Nutshell [Unplugged]', 'Nutshell'],
+        ['strips (MTV Unplugged)', 'Nutshell (MTV Unplugged)', 'Nutshell'],
+        ['strips (HD Video)', 'Nutshell (HD Video)', 'Nutshell'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('isSpamChannel', () => {
-    it('flags "Best Songs" as spam', () => {
-        expect(isSpamChannel('Best Songs')).toBe(true)
-        expect(isSpamChannel('best songs')).toBe(true)
-    })
-
-    it('flags "NCS" / "No Copyright Sounds" as spam', () => {
-        expect(isSpamChannel('NCS')).toBe(true)
-        expect(isSpamChannel('No Copyright Sounds')).toBe(true)
-    })
-
-    it('does not flag legitimate artist channels', () => {
-        expect(isSpamChannel('Queen')).toBe(false)
-        expect(isSpamChannel('HUNTR/X')).toBe(false)
-    })
-
-    it('handles empty author safely', () => {
-        expect(isSpamChannel('')).toBe(false)
-        expect(isSpamChannel('   ')).toBe(false)
+    it.each([
+        ['flags "Best Songs"', 'Best Songs', true],
+        ['flags "best songs" (case-insensitive)', 'best songs', true],
+        ['flags "NCS"', 'NCS', true],
+        ['flags "No Copyright Sounds"', 'No Copyright Sounds', true],
+        ['does not flag legitimate artist', 'Queen', false],
+        ['does not flag another artist', 'HUNTR/X', false],
+        ['handles empty author', '', false],
+        ['handles whitespace-only author', '   ', false],
+    ])('%s', (_, input, expected) => {
+        expect(isSpamChannel(input)).toBe(expected)
     })
 })
 
 describe('cleanTitle — version variant noise patterns', () => {
-    it('strips (Live) and (Live Version)', () => {
-        expect(cleanTitle('Bohemian Rhapsody (Live)')).toBe('Bohemian Rhapsody')
-        expect(cleanTitle('Bohemian Rhapsody (Live Version)')).toBe(
-            'Bohemian Rhapsody',
-        )
-    })
-
-    it('strips (Acoustic) and (Acoustic Version)', () => {
-        expect(cleanTitle('Creep (Acoustic)')).toBe('Creep')
-        expect(cleanTitle('Creep (Acoustic Version)')).toBe('Creep')
-    })
-
-    it('strips (Cover) and (Cover Version)', () => {
-        expect(cleanTitle('Hallelujah (Cover)')).toBe('Hallelujah')
-    })
-
-    it('strips (Remix) and [Remix]', () => {
-        expect(cleanTitle('Blinding Lights (Remix)')).toBe('Blinding Lights')
-        expect(cleanTitle('Blinding Lights [Remix]')).toBe('Blinding Lights')
-    })
-
-    it('strips (Instrumental)', () => {
-        expect(cleanTitle('Shape of You (Instrumental)')).toBe('Shape of You')
-    })
-
-    it('strips (Explicit Version) and (Clean Version)', () => {
-        expect(cleanTitle('Track (Explicit Version)')).toBe('Track')
-        expect(cleanTitle('Track (Clean Version)')).toBe('Track')
-    })
-
-    it('strips (Deluxe Edition) and (Album Version)', () => {
-        expect(cleanTitle('Song (Deluxe Edition)')).toBe('Song')
-        expect(cleanTitle('Song (Album Version)')).toBe('Song')
-    })
-
-    it('strips (Single Version) and (Bonus Track)', () => {
-        expect(cleanTitle('Track (Single Version)')).toBe('Track')
-        expect(cleanTitle('Track (Bonus Track)')).toBe('Track')
+    it.each([
+        ['strips (Live)', 'Bohemian Rhapsody (Live)', 'Bohemian Rhapsody'],
+        ['strips (Acoustic)', 'Creep (Acoustic)', 'Creep'],
+        ['strips (Cover)', 'Hallelujah (Cover)', 'Hallelujah'],
+        ['strips (Remix)', 'Blinding Lights (Remix)', 'Blinding Lights'],
+        [
+            'strips (Instrumental)',
+            'Shape of You (Instrumental)',
+            'Shape of You',
+        ],
+        ['strips (Explicit Version)', 'Track (Explicit Version)', 'Track'],
+        ['strips (Deluxe Edition)', 'Song (Deluxe Edition)', 'Song'],
+        ['strips (Bonus Track)', 'Track (Bonus Track)', 'Track'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('cleanTitle — hyphenated version suffixes', () => {
-    it('strips " – 2011 Remaster" en-dash suffix', () => {
-        expect(cleanTitle('Bohemian Rhapsody – 2011 Remaster')).toBe(
+    it.each([
+        [
+            'strips " – 2011 Remaster" en-dash',
+            'Bohemian Rhapsody – 2011 Remaster',
             'Bohemian Rhapsody',
-        )
-    })
-
-    it('strips " - Live" hyphen suffix', () => {
-        expect(cleanTitle('Song Title - Live')).toBe('Song Title')
-    })
-
-    it('leaves non-keyword suffix unchanged', () => {
-        expect(cleanTitle('Song Title - Some Other Suffix')).toBe(
+        ],
+        ['strips " - Live" hyphen', 'Song Title - Live', 'Song Title'],
+        [
+            'leaves non-keyword suffix',
             'Song Title - Some Other Suffix',
-        )
-    })
-
-    it('handles already-parenthetical versions', () => {
-        expect(cleanTitle('Song Title (Live)')).toBe('Song Title')
-    })
-
-    it('strips " — 2020 Remastered" em-dash suffix', () => {
-        expect(cleanTitle('Classic Song — 2020 Remastered')).toBe(
-            'Classic Song',
-        )
-    })
-
-    it('does not strip suffix when no separator found', () => {
-        expect(cleanTitle('Song Title Remaster')).toBe('Song Title Remaster')
-    })
-
-    it('strips " - Acoustic" suffix', () => {
-        expect(cleanTitle('Track - Acoustic')).toBe('Track')
-    })
-
-    it('strips " - Extended" suffix', () => {
-        expect(cleanTitle('Track - Extended')).toBe('Track')
-    })
-
-    it('strips " - Radio Edit" suffix', () => {
-        expect(cleanTitle('Track - Radio Edit')).toBe('Track')
-    })
-
-    it('strips " - Demo" suffix', () => {
-        expect(cleanTitle('Track - Demo')).toBe('Track')
-    })
-
-    it('strips " - Album Version" suffix', () => {
-        expect(cleanTitle('Track - Album Version')).toBe('Track')
-    })
-
-    it('strips " - Single Version" suffix', () => {
-        expect(cleanTitle('Track - Single Version')).toBe('Track')
-    })
-
-    it('strips year-suffix remaster: "Song - Remastered 2011" → "Song"', () => {
-        expect(cleanTitle('Bohemian Rhapsody - Remastered 2011')).toBe(
+            'Song Title - Some Other Suffix',
+        ],
+        [
+            'does not strip missing separator',
+            'Song Title Remaster',
+            'Song Title Remaster',
+        ],
+        ['strips " - Acoustic"', 'Track - Acoustic', 'Track'],
+        ['strips " - Radio Edit"', 'Track - Radio Edit', 'Track'],
+        [
+            'strips year-remaster suffix',
+            'Bohemian Rhapsody - Remastered 2011',
             'Bohemian Rhapsody',
-        )
-    })
-
-    it('strips year-only: "Song - 2024" → "Song"', () => {
-        expect(cleanTitle('Track - 2024')).toBe('Track')
-    })
-
-    it('strips original mix: "Song - Original Mix" → "Song"', () => {
-        expect(cleanTitle('Electronic Track - Original Mix')).toBe(
+        ],
+        ['strips year-only', 'Track - 2024', 'Track'],
+        [
+            'strips original mix',
+            'Electronic Track - Original Mix',
             'Electronic Track',
-        )
-    })
-
-    it('strips original version: "Song - Original Version" → "Song"', () => {
-        expect(cleanTitle('Classic Song - Original Version')).toBe(
-            'Classic Song',
-        )
-    })
-
-    it('preserves normal title: "Song Name" → "Song Name"', () => {
-        expect(cleanTitle('Song Name')).toBe('Song Name')
-    })
-
-    it('strips " - Versão Forró" suffix', () => {
-        expect(cleanTitle('Halo - Versão Forró')).toBe('Halo')
-    })
-
-    it('strips " - Versão Acústica" suffix', () => {
-        expect(cleanTitle('Let Her Go - Versão Acústica')).toBe('Let Her Go')
-    })
-
-    it('strips "(Versão Forró)" parenthetical', () => {
-        expect(cleanTitle('Halo (Versão Forró)')).toBe('Halo')
-    })
-
-    it('strips " - Ao Vivo" suffix', () => {
-        expect(cleanTitle('Evidências - Ao Vivo')).toBe('Evidências')
-    })
-
-    it('strips " - Ao Vivo em São Paulo" long suffix', () => {
-        expect(cleanTitle('Garota de Ipanema - Ao Vivo em São Paulo')).toBe(
+        ],
+        ['preserves normal title', 'Song Name', 'Song Name'],
+        ['strips " - Versão Forró"', 'Halo - Versão Forró', 'Halo'],
+        ['strips " - Ao Vivo"', 'Evidências - Ao Vivo', 'Evidências'],
+        [
+            'strips long Ao Vivo',
+            'Garota de Ipanema - Ao Vivo em São Paulo',
             'Garota de Ipanema',
-        )
-    })
-
-    it('strips "(Ao Vivo)" parenthetical', () => {
-        expect(cleanTitle('Evidências (Ao Vivo)')).toBe('Evidências')
-    })
-
-    it('strips " - Forró" suffix', () => {
-        expect(cleanTitle('Shape of You - Forró')).toBe('Shape of You')
-    })
-
-    it('leaves artist-prefixed title unchanged when second suffix is not standalone', () => {
-        expect(cleanTitle('Beyoncé - Halo - Versão Forró')).toBe(
+        ],
+        ['strips " - Forró"', 'Shape of You - Forró', 'Shape of You'],
+        [
+            'leaves artist-prefixed with multi-suffix',
             'Beyoncé - Halo - Versão Forró',
-        )
+            'Beyoncé - Halo - Versão Forró',
+        ],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('cleanTitle — Acústico variants', () => {
-    it('strips "(Acústico ao vivo)" parenthetical', () => {
-        expect(
-            cleanTitle('ANATOMIA - Eu sei que é você (Acústico ao vivo)'),
-        ).toBe('ANATOMIA - Eu sei que é você')
-    })
-
-    it('strips "(Acústico)" parenthetical', () => {
-        expect(cleanTitle('Song Title (Acústico)')).toBe('Song Title')
-    })
-
-    it('strips "[Acústico]" bracketed', () => {
-        expect(cleanTitle('Song Title [Acústico]')).toBe('Song Title')
-    })
-
-    it('strips "- Acústico" when it is the direct suffix of a single-separator title', () => {
-        expect(cleanTitle('Música - Acústico')).toBe('Música')
-    })
-
-    it('strips "- Acústico ao vivo" when it is the direct suffix', () => {
-        expect(cleanTitle('Música - Acústico ao vivo')).toBe('Música')
+    it.each([
+        [
+            'strips "(Acústico ao vivo)"',
+            'ANATOMIA - Eu sei que é você (Acústico ao vivo)',
+            'ANATOMIA - Eu sei que é você',
+        ],
+        ['strips "- Acústico" suffix', 'Música - Acústico', 'Música'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('cleanTitle — Cover variants', () => {
-    it('strips "(Cover)" parenthetical', () => {
-        expect(cleanTitle('Hallelujah (Cover)')).toBe('Hallelujah')
-    })
-
-    it('strips "(Cover Version)" parenthetical', () => {
-        expect(cleanTitle('Hallelujah (Cover Version)')).toBe('Hallelujah')
-    })
-
-    it('strips "(Cover by Someone)" parenthetical with extra content', () => {
-        expect(cleanTitle('Água viva (Cover by Carlos)')).toBe('Água viva')
-    })
-
-    it('strips "(Cover - Ao vivo)" parenthetical with dash and extra content', () => {
-        expect(cleanTitle('ANATOMIA - Água viva (Cover - Ao vivo)')).toBe(
-            'ANATOMIA - Água viva',
-        )
-    })
-
-    it('strips "[Cover]" bracketed', () => {
-        expect(cleanTitle('Song Title [Cover]')).toBe('Song Title')
-    })
-
-    it('strips "- Cover" hyphenated suffix', () => {
-        expect(cleanTitle('Água viva - Cover')).toBe('Água viva')
+    it.each([
+        ['strips "(Cover)"', 'Hallelujah (Cover)', 'Hallelujah'],
+        [
+            'strips "(Cover by Someone)"',
+            'Água viva (Cover by Carlos)',
+            'Água viva',
+        ],
+        ['strips "- Cover" suffix', 'Água viva - Cover', 'Água viva'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })
 
 describe('cleanTitle — tribute and duration annotation noise', () => {
-    it('strips "(Tributo ao Batman)" parenthetical', () => {
-        expect(cleanTitle('Pearl Jam - Sirens (Tributo ao Batman)')).toBe(
+    it.each([
+        [
+            'strips "(Tributo ao Batman)"',
+            'Pearl Jam - Sirens (Tributo ao Batman)',
             'Pearl Jam - Sirens',
-        )
-    })
-
-    it('strips "[Tributo a Led Zeppelin]" bracket', () => {
-        expect(cleanTitle('Stairway to Heaven [Tributo a Led Zeppelin]')).toBe(
-            'Stairway to Heaven',
-        )
-    })
-
-    it('strips "(Homenagem a Raul Seixas)" parenthetical', () => {
-        expect(
-            cleanTitle('Metamorfose Ambulante (Homenagem a Raul Seixas)'),
-        ).toBe('Metamorfose Ambulante')
-    })
-
-    it('strips HH:MM:SS duration annotation from title', () => {
-        expect(cleanTitle('Pearl Jam - Sirens (Legendado) (07:05:14)')).toBe(
+        ],
+        [
+            'strips HH:MM:SS duration',
+            'Pearl Jam - Sirens (Legendado) (07:05:14)',
             'Pearl Jam - Sirens',
-        )
-    })
-
-    it('leaves MM:SS intact (only strip 3-part HH:MM:SS)', () => {
-        expect(cleanTitle('Song Title (03:42)')).toBe('Song Title (03:42)')
+        ],
+        ['leaves MM:SS intact', 'Song Title (03:42)', 'Song Title (03:42)'],
+    ])('%s', (_, input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
     })
 })

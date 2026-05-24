@@ -5,8 +5,14 @@ const requireQueueMock = jest.fn()
 const requireCurrentTrackMock = jest.fn()
 const requireIsPlayingMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
 const debugLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const getGuildSettingsMock = jest.fn()
@@ -18,7 +24,8 @@ const hasVotedMock = jest.fn()
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
-    requireCurrentTrack: (...args: unknown[]) => requireCurrentTrackMock(...args),
+    requireCurrentTrack: (...args: unknown[]) =>
+        requireCurrentTrackMock(...args),
     requireIsPlaying: (...args: unknown[]) => requireIsPlayingMock(...args),
 }))
 
@@ -103,7 +110,10 @@ describe('voteskip command', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = createInteraction()
         await voteskipCommand.execute({ client: {}, interaction } as any)
-        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('voice channel'))
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Error',
+            expect.stringContaining('voice channel'),
+        )
     })
 
     it('returns error when no eligible members in voice channel', async () => {
@@ -111,7 +121,10 @@ describe('voteskip command', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = createInteraction()
         await voteskipCommand.execute({ client: {}, interaction } as any)
-        expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.stringContaining('eligible'))
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Error',
+            expect.stringContaining('eligible'),
+        )
     })
 
     it('returns error when user already voted', async () => {
@@ -120,7 +133,10 @@ describe('voteskip command', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = createInteraction()
         await voteskipCommand.execute({ client: {}, interaction } as any)
-        expect(createErrorEmbedMock).toHaveBeenCalledWith('Already voted', expect.any(String))
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Already voted',
+            expect.any(String),
+        )
         expect(addVoteMock).not.toHaveBeenCalled()
     })
 
@@ -132,7 +148,10 @@ describe('voteskip command', () => {
         await voteskipCommand.execute({ client: {}, interaction } as any)
         expect(addVoteMock).toHaveBeenCalledWith('guild-1', 'user-1')
         expect(queue.node.skip).not.toHaveBeenCalled()
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith('🗳️ Vote recorded', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            '🗳️ Vote recorded',
+            expect.any(String),
+        )
     })
 
     it('skips when vote threshold is met', async () => {
@@ -143,10 +162,13 @@ describe('voteskip command', () => {
         await voteskipCommand.execute({ client: {}, interaction } as any)
         expect(queue.node.skip).toHaveBeenCalled()
         expect(clearVotesMock).toHaveBeenCalledWith('guild-1')
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith('⏭️ Vote skip passed', expect.any(String))
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            '⏭️ Vote skip passed',
+            expect.any(String),
+        )
     })
 
-    it('uses default 50% threshold when settings are null', async () => {
+    it('uses default 50% threshold when settings are null and triggers skip', async () => {
         getGuildSettingsMock.mockResolvedValue(null)
         const queue = createQueue(2)
         resolveGuildQueueMock.mockReturnValue({ queue })
@@ -154,5 +176,10 @@ describe('voteskip command', () => {
         const interaction = createInteraction()
         await voteskipCommand.execute({ client: {}, interaction } as any)
         expect(queue.node.skip).toHaveBeenCalled()
+        expect(clearVotesMock).toHaveBeenCalledWith('guild-1')
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            '⏭️ Vote skip passed',
+            expect.any(String),
+        )
     })
 })

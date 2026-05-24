@@ -82,7 +82,9 @@ jobs:
                   push: true
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
-                  build-args: COMMIT_SHA=${{ github.sha }}
+                  build-args: |
+                      COMMIT_SHA=${{ github.sha }}
+                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
 
@@ -119,7 +121,7 @@ jobs:
 
             - name: Upload Trivy SARIF
               if: always()
-              uses: github/codeql-action/upload-sarif@v3
+              uses: github/codeql-action/upload-sarif@v4
               with:
                   sarif_file: trivy-image-${{ matrix.service }}.sarif
                   category: trivy-image-${{ matrix.service }}

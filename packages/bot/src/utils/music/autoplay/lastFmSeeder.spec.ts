@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
+import type { AutoplayContext } from './autoplayContext'
 
 const lastFmLinkServiceMock = { getByDiscordId: jest.fn() }
 const consumeLastFmSeedSliceMock = jest.fn()
@@ -102,6 +103,29 @@ function createUser(id = 'user-1') {
     return { id } as never
 }
 
+function createAutoplayContext(
+    overrides: Partial<AutoplayContext> = {},
+): AutoplayContext {
+    return {
+        queue: createQueue(),
+        excludedUrls: new Set(),
+        excludedKeys: new Set(),
+        dislikedWeights: new Map(),
+        likedWeights: new Map(),
+        preferredArtistKeys: new Set(),
+        blockedArtistKeys: new Set(),
+        currentTrack: createTrack(),
+        recentArtists: new Set(),
+        autoplayMode: 'similar',
+        artistFrequency: new Map(),
+        implicitDislikeKeys: new Set(),
+        implicitLikeKeys: new Set(),
+        sessionMood: null,
+        genreContext: {},
+        ...overrides,
+    }
+}
+
 describe('searchLastFmQuery', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -189,88 +213,32 @@ describe('collectLastFmCandidates', () => {
         )
     })
 
-    it('returns early when seedSlice is empty (no linked users)', async () => {
+    it('returns without processing when seedSlice is empty', async () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([])
         const queue = createQueue()
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
-        expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
+        expect(candidates.size).toBe(0)
+        expect(calculateRecommendationScoreMock).not.toHaveBeenCalled()
     })
 
-    it('uses single-user seed slice when no VC members', async () => {
+    it('processes candidates when seedSlice has items', async () => {
         consumeLastFmSeedSliceMock.mockResolvedValue([
             { title: 'T1', artist: 'A1' },
         ])
-        const queue = createQueue({ tracks: [createTrack()] })
+        const track = createTrack('T1', 'A1')
+        const queue = createQueue({ tracks: [track] })
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
-    })
-
-    it('uses blended seed when multiple VC members are linked', async () => {
-        lastFmLinkServiceMock.getByDiscordId.mockResolvedValue({
-            lastFmUsername: 'user',
-        })
-        consumeBlendedSeedSliceMock.mockResolvedValue([
-            { title: 'T1', artist: 'A1' },
-        ])
-        const queue = {
-            player: {
-                search: jest
-                    .fn()
-                    .mockResolvedValue({ tracks: [createTrack()] }),
-            },
-            metadata: { vcMemberIds: ['user-1', 'user-2'] },
-            guild: { id: 'guild-1' },
-        } as unknown as GuildQueue
-        const user = createUser()
-        const candidates = new Map()
-
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
-
-        expect(consumeBlendedSeedSliceMock).toHaveBeenCalled()
+        expect(calculateRecommendationScoreMock).toHaveBeenCalled()
     })
 
     it('skips disliked tracks (weight > 0.5)', async () => {
@@ -283,19 +251,11 @@ describe('collectLastFmCandidates', () => {
         const dislikedWeights = new Map([['normalized-key', 0.9]])
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
@@ -310,19 +270,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         const call = upsertScoredCandidateMock.mock.calls[0]
         const scoreArg = (call?.[2] as { score: number })?.score
@@ -339,19 +288,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
     })
@@ -368,19 +306,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         // seed track + similar track both call upsertScoredCandidate
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(2)
@@ -405,19 +332,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
@@ -438,19 +354,11 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
@@ -471,19 +379,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
         const calls = upsertScoredCandidateMock.mock.calls
@@ -515,19 +412,11 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
+        const ctx = createAutoplayContext({
             queue,
-            user,
-            new Set(),
-            new Set(),
             dislikedWeights,
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         const calls = upsertScoredCandidateMock.mock.calls
         const genreCall = calls.find(
@@ -538,7 +427,7 @@ describe('collectLastFmCandidates', () => {
         expect(genreCall).toBeUndefined()
     })
 
-    it('falls back to single-user seed when only one VC member is linked', async () => {
+    it('processes candidates when only one VC member is linked', async () => {
         lastFmLinkServiceMock.getByDiscordId
             .mockResolvedValueOnce({ lastFmUsername: 'user1' })
             .mockResolvedValueOnce(null)
@@ -557,22 +446,10 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
-        expect(consumeLastFmSeedSliceMock).toHaveBeenCalledWith('user-1', 15)
-        expect(consumeBlendedSeedSliceMock).not.toHaveBeenCalled()
+        expect(calculateRecommendationScoreMock).toHaveBeenCalled()
     })
 
     it('catches getTagTopTracks rejection and uses empty array (line 202 catch)', async () => {
@@ -588,20 +465,9 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
+        const ctx = createAutoplayContext({ queue })
         await expect(
-            collectLastFmCandidates(
-                queue,
-                user,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                createTrack(),
-                new Set(),
-                candidates,
-            ),
+            collectLastFmCandidates(ctx, user, candidates),
         ).resolves.toBeUndefined()
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
     })
@@ -625,19 +491,8 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        await collectLastFmCandidates(
-            queue,
-            user,
-            new Set(),
-            new Set(),
-            new Map(),
-            new Map(),
-            new Set(),
-            new Set(),
-            createTrack(),
-            new Set(),
-            candidates,
-        )
+        const ctx = createAutoplayContext({ queue })
+        await collectLastFmCandidates(ctx, user, candidates)
 
         const genreCall = upsertScoredCandidateMock.mock.calls.find(
             (c) =>

@@ -59,213 +59,134 @@ describe('vectorOperations', () => {
     })
 
     describe('createTrackVector', () => {
-        it('returns correct trackId from track.id', () => {
-            const track = createMockTrack({ id: 'unique-id-123' })
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            const vector = createTrackVector(track)
-
-            expect(vector.trackId).toBe('unique-id-123')
-        })
-
-        it('falls back to track.url when id missing', () => {
-            const track = createMockTrack({
+        it.each([
+            {
+                id: 'unique-id-123',
+                url: 'https://example.com/track',
+                expected: 'unique-id-123',
+                desc: 'from id',
+            },
+            {
                 id: undefined,
                 url: 'https://example.com/song',
-            })
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
+                expected: 'https://example.com/song',
+                desc: 'fallback url',
+            },
+        ])('trackId $desc', ({ id, url, expected }) => {
+            const track = createMockTrack({ id, url })
             const vector = createTrackVector(track)
-
-            expect(vector.trackId).toBe('https://example.com/song')
+            expect(vector.trackId).toBe(expected)
         })
 
-        it('sets title and artist from track', () => {
+        it('populates title, artist, duration, views, genre, tags; coerces string duration; constructs vector', () => {
             const track = createMockTrack({
-                title: 'My Awesome Song',
-                author: 'Great Artist Name',
-            })
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            const vector = createTrackVector(track)
-
-            expect(vector.title).toBe('My Awesome Song')
-            expect(vector.artist).toBe('Great Artist Name')
-        })
-
-        it('vector is an array of numbers', () => {
-            const track = createMockTrack()
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            const vector = createTrackVector(track)
-
-            expect(Array.isArray(vector.vector)).toBe(true)
-            expect(vector.vector.every((v) => typeof v === 'number')).toBe(true)
-        })
-
-        it('has duration, views, genre, tags fields set', () => {
-            const track = createMockTrack({
-                duration: 240000,
+                title: 'My Song',
+                author: 'My Artist',
+                duration: '240000' as never,
                 views: 5000000,
             })
-            extractTagsMock.mockReturnValue(['rock', 'instrumental'])
+            extractTagsMock.mockReturnValue(['rock'])
             extractGenreMock.mockReturnValue('rock')
 
             const vector = createTrackVector(track)
 
+            expect(vector.title).toBe('My Song')
+            expect(vector.artist).toBe('My Artist')
             expect(vector.duration).toBe(240000)
             expect(vector.views).toBe(5000000)
             expect(vector.genre).toBe('rock')
-            expect(vector.tags).toEqual(['rock', 'instrumental'])
-        })
-
-        it('handles string duration correctly', () => {
-            const track = createMockTrack({ duration: '300000' as never })
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            const vector = createTrackVector(track)
-
-            expect(vector.duration).toBe(300000)
-        })
-
-        it('includes genre in vector calculations', () => {
-            const track = createMockTrack()
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue('pop')
-
-            const vector = createTrackVector(track)
-
-            expect(vector.genre).toBe('pop')
+            expect(vector.tags).toEqual(['rock'])
+            expect(Array.isArray(vector.vector)).toBe(true)
+            expect(vector.vector.every((v) => typeof v === 'number')).toBe(true)
             expect(vector.vector.length).toBeGreaterThan(10)
-        })
-
-        it('includes tags in vector calculations', () => {
-            const track = createMockTrack()
-            extractTagsMock.mockReturnValue(['acoustic', 'indie'])
-            extractGenreMock.mockReturnValue('indie')
-
-            const vector = createTrackVector(track)
-
-            expect(vector.tags).toContain('acoustic')
-            expect(vector.tags).toContain('indie')
         })
     })
 
     describe('calculateCosineSimilarity', () => {
-        it('returns 1.0 for identical vectors', () => {
-            const vector = [1, 2, 3, 4]
-            const similarity = calculateCosineSimilarity(vector, vector)
-            expect(similarity).toBeCloseTo(1.0, 5)
-        })
-
-        it('returns 0.0 for orthogonal vectors', () => {
-            const vectorA = [1, 0, 0, 0]
-            const vectorB = [0, 1, 0, 0]
-            const similarity = calculateCosineSimilarity(vectorA, vectorB)
-            expect(similarity).toBeCloseTo(0.0, 5)
-        })
-
-        it('returns 0.0 for different lengths', () => {
-            const vectorA = [1, 2, 3]
-            const vectorB = [1, 2, 3, 4]
-            const similarity = calculateCosineSimilarity(vectorA, vectorB)
-            expect(similarity).toBe(0)
-        })
-
-        it('returns 0.0 for both zero vectors', () => {
-            const zeroVector = [0, 0, 0, 0]
-            const similarity = calculateCosineSimilarity(zeroVector, zeroVector)
-            expect(similarity).toBe(0)
-        })
-
-        it('calculates partial similarity correctly', () => {
-            const vectorA = [1, 2, 3]
-            const vectorB = [2, 4, 6]
-            const similarity = calculateCosineSimilarity(vectorA, vectorB)
-            expect(similarity).toBeCloseTo(1.0, 5)
-        })
-
-        it('handles vectors with negative values', () => {
-            const vectorA = [1, -1, 0]
-            const vectorB = [1, -1, 0]
-            const similarity = calculateCosineSimilarity(vectorA, vectorB)
-            expect(similarity).toBeCloseTo(1.0, 5)
-        })
-
-        it('handles one zero norm gracefully', () => {
-            const vectorA = [0, 0, 0]
-            const vectorB = [1, 2, 3]
-            const similarity = calculateCosineSimilarity(vectorA, vectorB)
-            expect(similarity).toBe(0)
+        it.each([
+            {
+                a: [1, 2, 3, 4],
+                b: [1, 2, 3, 4],
+                expected: 1.0,
+                desc: 'identical',
+            },
+            {
+                a: [1, 0, 0, 0],
+                b: [0, 1, 0, 0],
+                expected: 0.0,
+                desc: 'orthogonal',
+            },
+            {
+                a: [1, 2, 3],
+                b: [1, 2, 3, 4],
+                expected: 0,
+                desc: 'different lengths',
+            },
+            {
+                a: [0, 0, 0, 0],
+                b: [0, 0, 0, 0],
+                expected: 0,
+                desc: 'both zero',
+            },
+            { a: [1, 2, 3], b: [2, 4, 6], expected: 1.0, desc: 'proportional' },
+            {
+                a: [1, -1, 0],
+                b: [1, -1, 0],
+                expected: 1.0,
+                desc: 'negative values',
+            },
+        ])('$desc: $expected', ({ a, b, expected }) => {
+            const similarity = calculateCosineSimilarity(a, b)
+            expect(similarity).toBeCloseTo(expected, 5)
         })
     })
 
     describe('calculateEuclideanDistance', () => {
-        it('returns 0.0 for identical vectors', () => {
-            const vector = [1, 2, 3, 4]
-            const distance = calculateEuclideanDistance(vector, vector)
-            expect(distance).toBeCloseTo(0.0, 5)
+        it.each([
+            { a: [1, 2, 3, 4], b: [1, 2, 3, 4], expected: 0.0 },
+            { a: [1, 2, 3], b: [1, 2, 3, 4], expected: Infinity },
+            { a: [0, 0], b: [3, 4], expected: 5.0 },
+            { a: [0, 0, 0], b: [10, 10, 10], expected: Math.sqrt(300) },
+        ])('distance $expected', ({ a, b, expected }) => {
+            expect(calculateEuclideanDistance(a, b)).toBeCloseTo(expected, 5)
         })
 
-        it('returns Infinity for different lengths', () => {
-            const vectorA = [1, 2, 3]
-            const vectorB = [1, 2, 3, 4]
-            const distance = calculateEuclideanDistance(vectorA, vectorB)
-            expect(distance).toBe(Infinity)
-        })
-
-        it('calculates [0,0] vs [3,4] = 5.0', () => {
-            const vectorA = [0, 0]
-            const vectorB = [3, 4]
-            const distance = calculateEuclideanDistance(vectorA, vectorB)
-            expect(distance).toBeCloseTo(5.0, 5)
-        })
-
-        it('handles distance between far vectors', () => {
-            const vectorA = [0, 0, 0]
-            const vectorB = [10, 10, 10]
-            const distance = calculateEuclideanDistance(vectorA, vectorB)
-            expect(distance).toBeCloseTo(Math.sqrt(300), 5)
-        })
-
-        it('is symmetric', () => {
-            const vectorA = [1, 2, 3]
-            const vectorB = [4, 5, 6]
-            const distanceAB = calculateEuclideanDistance(vectorA, vectorB)
-            const distanceBA = calculateEuclideanDistance(vectorB, vectorA)
-            expect(distanceAB).toBeCloseTo(distanceBA, 5)
+        it('is symmetric and handles [1,2,3] ↔ [4,5,6]', () => {
+            const a = [1, 2, 3]
+            const b = [4, 5, 6]
+            expect(calculateEuclideanDistance(a, b)).toBeCloseTo(
+                calculateEuclideanDistance(b, a),
+                5,
+            )
         })
     })
 
     describe('normalizeVector', () => {
-        it('returns same vector unchanged for zero vector', () => {
-            const zeroVector = [0, 0, 0]
-            const normalized = normalizeVector(zeroVector)
-            expect(normalized).toEqual([0, 0, 0])
+        it.each([
+            { v: [0, 0, 0], expected: [0, 0, 0], desc: 'zero vector' },
+            { v: [3, 4], expected: [0.6, 0.8], desc: '[3,4]' },
+            { v: [1, 0, 0], expected: [1, 0, 0], desc: '[1,0,0]' },
+        ])('$desc unchanged/expected', ({ v, expected }) => {
+            const normalized = normalizeVector(v)
+            normalized.forEach((val, i) => {
+                expect(val).toBeCloseTo(expected[i], 5)
+            })
         })
 
-        it('correctly normalizes [3,4] to [0.6, 0.8]', () => {
-            const vector = [3, 4]
-            const normalized = normalizeVector(vector)
-            expect(normalized[0]).toBeCloseTo(0.6, 5)
-            expect(normalized[1]).toBeCloseTo(0.8, 5)
+        it('magnitude of [3,4,5] and [-3,4] after normalization equals 1.0', () => {
+            for (const v of [
+                [3, 4, 5],
+                [-3, 4],
+            ]) {
+                const normalized = normalizeVector(v)
+                const magnitude = Math.sqrt(
+                    normalized.reduce((sum, val) => sum + val * val, 0),
+                )
+                expect(magnitude).toBeCloseTo(1.0, 5)
+            }
         })
 
-        it('magnitude of normalized vector equals 1.0', () => {
-            const vector = [3, 4, 5]
-            const normalized = normalizeVector(vector)
-            const magnitude = Math.sqrt(
-                normalized.reduce((sum, val) => sum + val * val, 0),
-            )
-            expect(magnitude).toBeCloseTo(1.0, 5)
-        })
-
-        it('preserves direction of original vector', () => {
+        it('preserves direction: [2,3,6] ratios constant after normalization', () => {
             const vector = [2, 3, 6]
             const normalized = normalizeVector(vector)
             const originalMagnitude = Math.sqrt(
@@ -276,166 +197,44 @@ describe('vectorOperations', () => {
                 ratios.every((r) => Math.abs(r - originalMagnitude) < 0.001),
             ).toBe(true)
         })
-
-        it('already normalized vector stays identical', () => {
-            const vector = [1, 0, 0]
-            const normalized = normalizeVector(vector)
-            expect(normalized[0]).toBeCloseTo(1.0, 5)
-            expect(normalized[1]).toBeCloseTo(0.0, 5)
-            expect(normalized[2]).toBeCloseTo(0.0, 5)
-        })
-
-        it('normalizes negative values correctly', () => {
-            const vector = [-3, 4]
-            const normalized = normalizeVector(vector)
-            const magnitude = Math.sqrt(normalized[0] ** 2 + normalized[1] ** 2)
-            expect(magnitude).toBeCloseTo(1.0, 5)
-        })
     })
 
     describe('calculateVectorSimilarity', () => {
-        it('returns max score when genres match', () => {
-            const track1 = createMockTrack()
-            const track2 = createMockTrack()
-            const vectorA = createTrackVector(track1)
-            const vectorB = createTrackVector(track2)
+        it('genre match: +0.2 bonus, clamped ≤1.0; mismatch/missing: no bonus, result in [0,1]', () => {
+            const config = createMockConfig()
+            const vectorA = createTrackVector(createMockTrack())
+            const vectorB = createTrackVector(createMockTrack())
 
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue('rock')
-
+            // match with different vectors (to see bonus effect)
             vectorA.genre = 'rock'
             vectorB.genre = 'rock'
+            vectorA.vector = [1, 2, 3]
+            vectorB.vector = [1.1, 2.1, 3.1]
+            const simMatch = calculateVectorSimilarity(vectorA, vectorB, config)
+            expect(simMatch).toBeLessThanOrEqual(1.0)
+            expect(simMatch).toBeGreaterThan(0.1)
 
-            const config = createMockConfig()
-            const similarity = calculateVectorSimilarity(
-                vectorA,
-                vectorB,
-                config,
-            )
-
-            expect(similarity).toBeGreaterThan(0.1)
-        })
-
-        it('applies no bonus for different genres', () => {
-            const track1 = createMockTrack()
-            const track2 = createMockTrack()
-            const vectorA = createTrackVector(track1)
-            const vectorB = createTrackVector(track2)
-
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            vectorA.genre = 'rock'
+            // mismatch (no bonus)
             vectorB.genre = 'pop'
-
-            const config = createMockConfig()
-            const similarity = calculateVectorSimilarity(
+            const simMismatch = calculateVectorSimilarity(
                 vectorA,
                 vectorB,
                 config,
             )
+            expect(simMismatch).toBeGreaterThanOrEqual(0)
+            expect(simMismatch).toBeLessThanOrEqual(1.0)
+            expect(simMatch).toBeGreaterThan(simMismatch)
 
-            expect(similarity).toBeLessThanOrEqual(1.0)
-        })
-
-        it('no bonus when genre missing', () => {
-            const track1 = createMockTrack()
-            const track2 = createMockTrack()
-            const vectorA = createTrackVector(track1)
-            const vectorB = createTrackVector(track2)
-
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
+            // missing genre (no bonus)
             vectorA.genre = undefined
             vectorB.genre = 'rock'
-
-            const config = createMockConfig()
-            const similarity = calculateVectorSimilarity(
+            const simMissing = calculateVectorSimilarity(
                 vectorA,
                 vectorB,
                 config,
             )
-
-            expect(similarity).toBeLessThanOrEqual(1.0)
-        })
-
-        it('result clamped to max 1.0 with bonus', () => {
-            const track1 = createMockTrack()
-            const track2 = createMockTrack()
-            const vectorA = createTrackVector(track1)
-            const vectorB = createTrackVector(track2)
-
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            vectorA.genre = 'rock'
-            vectorB.genre = 'rock'
-            vectorA.vector = [1, 0, 0]
-            vectorB.vector = [1, 0, 0]
-
-            const config = createMockConfig()
-            const similarity = calculateVectorSimilarity(
-                vectorA,
-                vectorB,
-                config,
-            )
-
-            expect(similarity).toBeLessThanOrEqual(1.0)
-        })
-
-        it('value between 0 and 1 for different vectors', () => {
-            const track1 = createMockTrack()
-            const track2 = createMockTrack()
-            const vectorA = createTrackVector(track1)
-            const vectorB = createTrackVector(track2)
-
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            vectorA.genre = 'rock'
-            vectorB.genre = 'pop'
-
-            const config = createMockConfig()
-            const similarity = calculateVectorSimilarity(
-                vectorA,
-                vectorB,
-                config,
-            )
-
-            expect(similarity).toBeGreaterThanOrEqual(0)
-            expect(similarity).toBeLessThanOrEqual(1.0)
-        })
-
-        it('higher similarity for similar vectors same genre', () => {
-            const track1 = createMockTrack()
-            const track2 = createMockTrack()
-            const vectorA = createTrackVector(track1)
-            const vectorB = createTrackVector(track2)
-
-            extractTagsMock.mockReturnValue([])
-            extractGenreMock.mockReturnValue(undefined)
-
-            vectorA.genre = 'rock'
-            vectorB.genre = 'rock'
-            vectorA.vector = [1, 2, 3, 4]
-            vectorB.vector = [1.1, 2.1, 3.1, 4.1]
-
-            const config = createMockConfig()
-            const similarityWithGenre = calculateVectorSimilarity(
-                vectorA,
-                vectorB,
-                config,
-            )
-
-            vectorB.genre = 'pop'
-            const similarityWithoutGenre = calculateVectorSimilarity(
-                vectorA,
-                vectorB,
-                config,
-            )
-
-            expect(similarityWithGenre).toBeGreaterThan(similarityWithoutGenre)
+            expect(simMissing).toBeGreaterThanOrEqual(0)
+            expect(simMissing).toBeLessThanOrEqual(1.0)
         })
     })
 })

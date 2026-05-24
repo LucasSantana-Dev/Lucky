@@ -75,10 +75,13 @@ describe('autoMessagesExecutor', () => {
             { channelId: '2' },
         )
         expect(service.updateMessage).not.toHaveBeenCalled()
-        expect(result.applied).toEqual([
-            { type: 'welcome', action: 'create' },
-            { type: 'leave', action: 'create' },
-        ])
+        expect(result).toEqual({
+            status: 'success',
+            applied: [
+                { type: 'welcome', action: 'create' },
+                { type: 'leave', action: 'create' },
+            ],
+        })
     })
 
     it('Apply updates welcome when row already exists; leaves leave untouched when manifest omits it', async () => {
@@ -108,10 +111,13 @@ describe('autoMessagesExecutor', () => {
             channelId: 'new-1',
             enabled: false,
         })
-        expect(result.applied).toEqual([
-            { type: 'welcome', action: 'update' },
-            { type: 'leave', action: 'noop' },
-        ])
+        expect(result).toEqual({
+            status: 'success',
+            applied: [
+                { type: 'welcome', action: 'update' },
+                { type: 'leave', action: 'noop' },
+            ],
+        })
     })
 
     it('Apply is noop when manifest payload has no message (matches monolith skip-on-empty behavior)', async () => {
@@ -130,10 +136,13 @@ describe('autoMessagesExecutor', () => {
 
         expect(service.createMessage).not.toHaveBeenCalled()
         expect(service.updateMessage).not.toHaveBeenCalled()
-        expect(result.applied).toEqual([
-            { type: 'welcome', action: 'noop' },
-            { type: 'leave', action: 'noop' },
-        ])
+        expect(result).toEqual({
+            status: 'success',
+            applied: [
+                { type: 'welcome', action: 'noop' },
+                { type: 'leave', action: 'noop' },
+            ],
+        })
     })
 
     it('Apply is noop when manifest section is empty', async () => {
@@ -149,9 +158,64 @@ describe('autoMessagesExecutor', () => {
 
         expect(service.createMessage).not.toHaveBeenCalled()
         expect(service.updateMessage).not.toHaveBeenCalled()
-        expect(result.applied).toEqual([
-            { type: 'welcome', action: 'noop' },
-            { type: 'leave', action: 'noop' },
-        ])
+        expect(result).toEqual({
+            status: 'success',
+            applied: [
+                { type: 'welcome', action: 'noop' },
+                { type: 'leave', action: 'noop' },
+            ],
+        })
+    })
+
+    it('Apply returns partial result when some ops fail', async () => {
+        const service = makeService()
+        service.createMessage.mockRejectedValueOnce(
+            new Error('Discord API error'),
+        )
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { message: 'Hi', channelId: '1' },
+            leave: { message: 'Bye', channelId: '2' },
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(result.status).toBe('partial')
+        if (result.status === 'partial') {
+            expect(result.applied).toEqual([
+                { type: 'leave', action: 'create' },
+            ])
+            expect(result.errors).toHaveLength(1)
+            expect(result.errors[0]).toMatchObject({
+                opIndex: 0,
+                opKind: 'create',
+            })
+        }
+    })
+
+    it('Apply returns failed result when all ops fail', async () => {
+        const service = makeService()
+        service.createMessage.mockRejectedValue(new Error('Discord API error'))
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { message: 'Hi', channelId: '1' },
+            leave: { message: 'Bye', channelId: '2' },
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(result.status).toBe('failed')
+        if (result.status === 'failed') {
+            expect(result).toHaveProperty('error')
+            expect(result.error).toMatch(/Discord API error/)
+        }
     })
 })
