@@ -1666,56 +1666,14 @@ describe('queueManipulation.queueOperations', () => {
 })
 
 describe('queueManipulation — title-only deduplication', () => {
-    it('treats same title with different authors as duplicate candidate', async () => {
-        const currentTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen - Topic',
-            url: 'https://example.com/bq-topic',
-        } as Track
-
-        const candidateTrack = {
-            title: 'Bohemian Rhapsody',
-            author: 'Queen',
-            url: 'https://example.com/bq-queen',
-        } as Track
-
-        const queue = createQueueMock({
-            currentTrack,
-            tracks: {
-                size: 0,
-                toArray: jest.fn().mockReturnValue([]),
-            },
-            player: {
-                search: jest.fn().mockResolvedValue({
-                    tracks: [candidateTrack],
-                }),
-            },
-        })
-
-        await replenishQueue(queue as any, {
-            targetQueueSize: 1,
-            guildId: 'guild-1',
-        })
-
-        // The candidate should be deduplicated by title, so no track is added
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'Bohemian Rhapsody' }),
-        )
-    })
-
-    it('treats version suffix variants of same title as duplicate candidate', async () => {
+    it('deduplicates candidates by title-only, ignoring authors and version suffixes', async () => {
         const currentTrack = {
             title: 'Bohemian Rhapsody',
             author: 'Queen',
             url: 'https://example.com/bq-original',
         } as Track
 
-        const candidateTrack = {
-            title: 'Bohemian Rhapsody - Live',
-            author: 'Queen',
-            url: 'https://example.com/bq-live',
-        } as Track
-
+        const addedTracks: Track[] = []
         const queue = createQueueMock({
             currentTrack,
             tracks: {
@@ -1724,22 +1682,30 @@ describe('queueManipulation — title-only deduplication', () => {
             },
             player: {
                 search: jest.fn().mockResolvedValue({
-                    tracks: [candidateTrack],
+                    tracks: [
+                        {
+                            title: 'Bohemian Rhapsody',
+                            author: 'Queen - Topic',
+                            url: 'https://example.com/bq-topic',
+                        },
+                        {
+                            title: 'Bohemian Rhapsody - Live',
+                            author: 'Queen',
+                            url: 'https://example.com/bq-live',
+                        },
+                    ],
                 }),
             },
+            addTrack: jest.fn((t) => addedTracks.push(t as Track)),
         })
 
         await replenishQueue(queue as any, {
-            targetQueueSize: 1,
+            targetQueueSize: 2,
             guildId: 'guild-1',
         })
 
-        // The candidate with version suffix should be deduplicated by title-only, so no track is added
-        expect((queue as any).addTrack).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: expect.stringMatching(/Bohemian Rhapsody/),
-            }),
-        )
+        // No duplicate titles should be added despite different authors/versions
+        expect(addedTracks.length).toBe(0)
     })
 })
 
