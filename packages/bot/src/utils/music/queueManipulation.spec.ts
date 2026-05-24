@@ -116,8 +116,11 @@ jest.mock('../../spotify/spotifyApi', () => ({
     getSpotifyRecommendations: jest.fn().mockResolvedValue([]),
 }))
 
+const getUserSpotifySeedsMock = jest.fn()
+
 jest.mock('../../spotify/spotifyUserSeeds', () => ({
-    getUserSpotifySeeds: jest.fn().mockResolvedValue(null),
+    getUserSpotifySeeds: (...args: unknown[]) =>
+        getUserSpotifySeedsMock(...args),
 }))
 
 const dislikedTrackWeightsMock = jest.fn()
@@ -695,7 +698,6 @@ describe('queueManipulation.replenishQueue', () => {
         )
     })
 
-
     it('discover mode prefers new artists over familiar ones', async () => {
         const recentArtist = 'Recent Artist'
         const newArtist = 'New Artist'
@@ -752,7 +754,6 @@ describe('queueManipulation.replenishQueue', () => {
         const addedTracks = queue.addTrack.mock.calls.map((c) => c[0])
         expect(addedTracks.some((t) => t.author === newArtist)).toBe(true)
     })
-
 
     it('prefers a different-source candidate when scores are otherwise close', async () => {
         const queue = createQueueMock({
@@ -1578,7 +1579,6 @@ describe('queueManipulation — collaborator author deduplication', () => {
             addedTracks.filter((t: any) => t.title === 'Puta Mexicana').length,
         ).toBe(0)
     })
-
 })
 
 describe('queueManipulation.moveUserTrackToPriority', () => {
@@ -1664,7 +1664,6 @@ describe('queueManipulation.moveUserTrackToPriority', () => {
         expect(removedTracks).toContain(userTrack)
         expect(addedTracks).toContain(userTrack)
     })
-
 })
 
 describe('queueManipulation.replenishQueue youtube dedup', () => {
@@ -1961,7 +1960,6 @@ describe('queueManipulation.addSelectedTracks async writes', () => {
             expect(arg).toHaveProperty('author')
         }
     })
-
 })
 
 describe('queueManipulation — genre candidate collection', () => {
@@ -2016,7 +2014,6 @@ describe('queueManipulation — genre candidate collection', () => {
         expect(getTagTopTracksMock).toHaveBeenCalledWith('rock', 20)
         expect(addedTracks.length).toBeGreaterThan(0)
     })
-
 })
 
 describe('queueManipulation — multi-user VC blend', () => {
@@ -2039,6 +2036,7 @@ describe('queueManipulation — multi-user VC blend', () => {
         getImplicitLikeKeysMock.mockResolvedValue(new Set())
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
+        getUserSpotifySeedsMock.mockResolvedValue(null)
     })
 
     afterEach(() => {
@@ -3146,9 +3144,7 @@ describe('buildVcContributionWeights', () => {
         expect(weights.get('user-1')).toBe(1)
         expect(weights.get('user-2')).toBe(1)
     })
-
 })
-
 
 describe('queueManipulation — Spotify priority', () => {
     beforeEach(() => {
