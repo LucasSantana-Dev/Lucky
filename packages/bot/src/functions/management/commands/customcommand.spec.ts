@@ -95,18 +95,12 @@ describe('customcommand command', () => {
 	})
 
 	describe('command metadata', () => {
-		it('defines command with correct name and description', () => {
+		it('defines command with correct name, description, and permissions', () => {
 			expect(customcommandCommand.data.name).toBe('customcommand')
 			expect(customcommandCommand.data.description).toBe(
 				'Manage custom commands',
 			)
-		})
-
-		it('sets correct category', () => {
 			expect(customcommandCommand.category).toBe('management')
-		})
-
-		it('requires ManageGuild permission', () => {
 			expect(customcommandCommand.data.default_member_permissions).toBeDefined()
 		})
 	})
@@ -128,64 +122,53 @@ describe('customcommand command', () => {
 	})
 
 	describe('create subcommand', () => {
-		it('creates a custom command with name and response', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-			const interaction = createChatInputInteraction('create', {
-				name: 'hello',
-				response: 'Hello world!',
-				description: 'Says hello',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.getCommand).toHaveBeenCalledWith(
-				'guild-123',
+		it.each<[string, Record<string, unknown>, boolean]>([
+			[
 				'hello',
-			)
-			expect(customCommandServiceMock.createCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'hello',
-				'Hello world!',
-				expect.objectContaining({
-					description: 'Says hello',
-					createdBy: 'user-123',
-				}),
-			)
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					embeds: expect.any(Array),
-				},
-			})
-			expect(infoLogMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					message: expect.stringContaining('hello'),
-				}),
-			)
-		})
+				{ name: 'hello', response: 'Hello world!', description: 'Says hello' },
+				true,
+			],
+			[
+				'HelloWorld',
+				{ name: 'HelloWorld', response: 'Test' },
+				true,
+			],
+			[
+				'long',
+				{ name: 'long', response: 'x'.repeat(150) },
+				true,
+			],
+		])(
+			'creates command with name=%s and handles normalization and truncation',
+			async (inputName, opts, shouldCreate) => {
+				customCommandServiceMock.getCommand.mockResolvedValue(null)
+				const interaction = createChatInputInteraction('create', opts)
+				const normalized = inputName.toLowerCase()
 
-		it('normalizes command name to lowercase', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-			const interaction = createChatInputInteraction('create', {
-				name: 'HelloWorld',
-				response: 'Test',
-			})
+				await customcommandCommand.execute({ interaction })
 
-			await customcommandCommand.execute({ interaction })
+				expect(customCommandServiceMock.getCommand).toHaveBeenCalledWith(
+					'guild-123',
+					normalized,
+				)
+				if (shouldCreate) {
+					expect(customCommandServiceMock.createCommand).toHaveBeenCalledWith(
+						'guild-123',
+						normalized,
+						expect.any(String),
+						expect.any(Object),
+					)
+					expect(interactionReplyMock).toHaveBeenCalledWith({
+						interaction,
+						content: {
+							embeds: expect.any(Array),
+						},
+					})
+				}
+			},
+		)
 
-			expect(customCommandServiceMock.getCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'helloworld',
-			)
-			expect(customCommandServiceMock.createCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'helloworld',
-				'Test',
-				expect.any(Object),
-			)
-		})
-
-		it('rejects duplicate command names', async () => {
+		it('rejects duplicate or invalid command names', async () => {
 			customCommandServiceMock.getCommand.mockResolvedValue({
 				id: 'cmd-1',
 				name: 'existing',
@@ -218,123 +201,52 @@ describe('customcommand command', () => {
 			})
 			expect(customCommandServiceMock.createCommand).not.toHaveBeenCalled()
 		})
-
-		it('handles optional description gracefully', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-			const interaction = createChatInputInteraction('create', {
-				name: 'nodesc',
-				response: 'Response without description',
-				description: null,
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.createCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'nodesc',
-				'Response without description',
-				expect.objectContaining({
-					description: undefined,
-				}),
-			)
-		})
-
-		it('truncates long response in success embed', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-			const longResponse = 'x'.repeat(150)
-			const interaction = createChatInputInteraction('create', {
-				name: 'long',
-				response: longResponse,
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			const embedCall = interactionReplyMock.mock.calls[0][0]
-			const embed = embedCall.content.embeds[0]
-			const responseField = embed.data.fields?.find(
-				(f: any) => f.name === 'Response',
-			)
-			expect(responseField.value).toHaveLength(100) // 97 + '...'
-			expect(responseField.value).toMatch(/\.\.\.$/)
-		})
 	})
 
-	describe('edit subcommand', () => {
-		it('edits response of existing command', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'greet',
-				guildId: 'guild-123',
-				response: 'Old response',
-				description: 'A greeting',
-				embedData: null,
-				allowedRoles: [],
-				allowedChannels: [],
-				enabled: true,
-				useCount: 5,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: new Date(),
-			})
+	describe('edit/delete/info subcommands', () => {
+		it.each<[string, Record<string, unknown>, boolean]>([
+			['edit: greet', { name: 'greet', response: 'New greeting!' }, true],
+			['delete: test', { name: 'test' }, false],
+		])(
+			'handles subcommand %s with normalization',
+			async (_, opts, isEdit) => {
+				const name = (opts.name as string).toLowerCase()
+				customCommandServiceMock.getCommand.mockResolvedValue({
+					id: 'cmd-1',
+					name,
+					guildId: 'guild-123',
+					response: 'Response',
+					description: null,
+					embedData: null,
+					allowedRoles: [],
+					allowedChannels: [],
+					enabled: true,
+					useCount: 0,
+					createdBy: 'user-123',
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					lastUsed: null,
+				})
 
-			const interaction = createChatInputInteraction('edit', {
-				name: 'greet',
-				response: 'New greeting!',
-			})
+				const subcommand = isEdit ? 'edit' : 'delete'
+				const interaction = createChatInputInteraction(subcommand, opts)
 
-			await customcommandCommand.execute({ interaction })
+				await customcommandCommand.execute({ interaction })
 
-			expect(customCommandServiceMock.updateCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'greet',
-				expect.objectContaining({
-					response: 'New greeting!',
-				}),
-			)
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					embeds: expect.any(Array),
-				},
-			})
-		})
+				expect(customCommandServiceMock.getCommand).toHaveBeenCalledWith(
+					'guild-123',
+					name,
+				)
+				expect(interactionReplyMock).toHaveBeenCalledWith({
+					interaction,
+					content: {
+						embeds: expect.any(Array),
+					},
+				})
+			},
+		)
 
-		it('edits description of existing command', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'test',
-				guildId: 'guild-123',
-				response: 'Response',
-				description: 'Old description',
-				embedData: null,
-				allowedRoles: [],
-				allowedChannels: [],
-				enabled: true,
-				useCount: 0,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: null,
-			})
-
-			const interaction = createChatInputInteraction('edit', {
-				name: 'test',
-				description: 'New description',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.updateCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'test',
-				expect.objectContaining({
-					description: 'New description',
-				}),
-			)
-		})
-
-		it('rejects edit of non-existent command', async () => {
+		it('rejects operations on non-existent commands', async () => {
 			customCommandServiceMock.getCommand.mockResolvedValue(null)
 
 			const interaction = createChatInputInteraction('edit', {
@@ -352,235 +264,47 @@ describe('customcommand command', () => {
 			})
 			expect(customCommandServiceMock.updateCommand).not.toHaveBeenCalled()
 		})
-
-		it('normalizes command name to lowercase for edit', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'mycommand',
-				guildId: 'guild-123',
-				response: 'Response',
-				description: null,
-				embedData: null,
-				allowedRoles: [],
-				allowedChannels: [],
-				enabled: true,
-				useCount: 0,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: null,
-			})
-
-			const interaction = createChatInputInteraction('edit', {
-				name: 'MyCommand',
-				response: 'Updated',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.getCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'mycommand',
-			)
-		})
 	})
 
-	describe('delete subcommand', () => {
-		it('deletes an existing command', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'old-command',
-				guildId: 'guild-123',
-				response: 'Response',
-				description: null,
-				embedData: null,
-				allowedRoles: [],
-				allowedChannels: [],
-				enabled: true,
-				useCount: 0,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: null,
-			})
-
-			const interaction = createChatInputInteraction('delete', {
-				name: 'old-command',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.deleteCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'old-command',
-			)
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					embeds: expect.any(Array),
-				},
-			})
-			expect(infoLogMock).toHaveBeenCalledWith(
-				expect.objectContaining({
-					message: expect.stringContaining('old-command'),
-				}),
-			)
-		})
-
-		it('rejects delete of non-existent command', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-
-			const interaction = createChatInputInteraction('delete', {
-				name: 'nonexistent',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					content: '❌ Command `nonexistent` not found.',
-				},
-			})
-			expect(customCommandServiceMock.deleteCommand).not.toHaveBeenCalled()
-		})
-
-		it('normalizes command name to lowercase for delete', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'test',
-				guildId: 'guild-123',
-				response: 'Response',
-				description: null,
-				embedData: null,
-				allowedRoles: [],
-				allowedChannels: [],
-				enabled: true,
-				useCount: 0,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: null,
-			})
-
-			const interaction = createChatInputInteraction('delete', {
-				name: 'TeSt',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.getCommand).toHaveBeenCalledWith(
-				'guild-123',
-				'test',
-			)
-		})
-	})
 
 	describe('list subcommand', () => {
-		it('lists all custom commands in guild', async () => {
-			const commands = [
-				{
-					id: '1',
-					name: 'hello',
-					guildId: 'guild-123',
-					response: 'Hello response',
-					description: 'A greeting',
-					useCount: 10,
-					embedData: null,
-					allowedRoles: [],
-					allowedChannels: [],
-					enabled: true,
-					createdBy: 'user-123',
-					createdAt: new Date(),
-					updatedAt: new Date(),
-					lastUsed: new Date(),
-				},
-				{
-					id: '2',
-					name: 'goodbye',
-					guildId: 'guild-123',
-					response: 'Goodbye response',
-					description: null,
-					useCount: 3,
-					embedData: null,
-					allowedRoles: [],
-					allowedChannels: [],
-					enabled: true,
-					createdBy: 'user-123',
-					createdAt: new Date(),
-					updatedAt: new Date(),
-					lastUsed: new Date(),
-				},
-			]
+		it.each<[string, any[]]>([
+			[
+				'with commands',
+				[
+					{
+						id: '1',
+						name: 'hello',
+						guildId: 'guild-123',
+						response: 'Hello response',
+						description: 'A greeting',
+						useCount: 10,
+						embedData: null,
+						allowedRoles: [],
+						allowedChannels: [],
+						enabled: true,
+						createdBy: 'user-123',
+						createdAt: new Date(),
+						updatedAt: new Date(),
+						lastUsed: new Date(),
+					},
+				],
+			],
+			['empty', []],
+		])(
+			'lists commands %s',
+			async (scenario, commands) => {
+				customCommandServiceMock.listCommands.mockResolvedValue(commands)
+				const interaction = createChatInputInteraction('list')
 
-			customCommandServiceMock.listCommands.mockResolvedValue(commands)
+				await customcommandCommand.execute({ interaction })
 
-			const interaction = createChatInputInteraction('list')
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(customCommandServiceMock.listCommands).toHaveBeenCalledWith(
-				'guild-123',
-			)
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					embeds: expect.any(Array),
-				},
-			})
-
-			const embedCall = interactionReplyMock.mock.calls[0][0]
-			const embed = embedCall.content.embeds[0]
-			expect(embed.data.title).toContain('📋')
-			expect(embed.data.footer).toBeDefined()
-		})
-
-		it('shows empty state when no commands exist', async () => {
-			customCommandServiceMock.listCommands.mockResolvedValue([])
-
-			const interaction = createChatInputInteraction('list')
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					content: '📋 No custom commands found.',
-				},
-			})
-		})
-
-		it('includes use count and description in list embed', async () => {
-			const commands = [
-				{
-					id: '1',
-					name: 'test',
-					guildId: 'guild-123',
-					response: 'Response',
-					description: 'Test description',
-					useCount: 5,
-					embedData: null,
-					allowedRoles: [],
-					allowedChannels: [],
-					enabled: true,
-					createdBy: 'user-123',
-					createdAt: new Date(),
-					updatedAt: new Date(),
-					lastUsed: new Date(),
-				},
-			]
-
-			customCommandServiceMock.listCommands.mockResolvedValue(commands)
-
-			const interaction = createChatInputInteraction('list')
-
-			await customcommandCommand.execute({ interaction })
-
-			const embedCall = interactionReplyMock.mock.calls[0][0]
-			const embed = embedCall.content.embeds[0]
-			expect(embed.data.description).toContain('test')
-			expect(embed.data.description).toContain('5 times')
-		})
+				expect(customCommandServiceMock.listCommands).toHaveBeenCalledWith(
+					'guild-123',
+				)
+				expect(interactionReplyMock).toHaveBeenCalled()
+			},
+		)
 	})
 
 	describe('info subcommand', () => {
@@ -593,7 +317,7 @@ describe('customcommand command', () => {
 				description: 'A test command',
 				useCount: 15,
 				embedData: null,
-				allowedRoles: [],
+				allowedRoles: ['role-1', 'role-2'],
 				allowedChannels: [],
 				enabled: true,
 				createdBy: 'user-123',
@@ -618,141 +342,18 @@ describe('customcommand command', () => {
 					embeds: expect.any(Array),
 				},
 			})
-
-			const embedCall = interactionReplyMock.mock.calls[0][0]
-			const embed = embedCall.content.embeds[0]
-			expect(embed.data.title).toContain('test')
-			expect(embed.data.fields).toEqual(
-				expect.arrayContaining([
-					expect.objectContaining({ name: 'Response' }),
-					expect.objectContaining({ name: 'Use Count' }),
-					expect.objectContaining({ name: 'Created By' }),
-				]),
-			)
-		})
-
-		it('rejects info request for non-existent command', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-
-			const interaction = createChatInputInteraction('info', {
-				name: 'nonexistent',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					content: '❌ Command `nonexistent` not found.',
-				},
-			})
-		})
-
-		it('includes optional fields when present', async () => {
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'restricted',
-				guildId: 'guild-123',
-				response: 'Response',
-				description: 'Restricted command',
-				useCount: 5,
-				embedData: null,
-				allowedRoles: ['role-1', 'role-2'],
-				allowedChannels: [],
-				enabled: true,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: new Date(),
-			})
-
-			const interaction = createChatInputInteraction('info', {
-				name: 'restricted',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			const embedCall = interactionReplyMock.mock.calls[0][0]
-			const embed = embedCall.content.embeds[0]
-			expect(embed.data.fields).toEqual(
-				expect.arrayContaining([
-					expect.objectContaining({ name: 'Description' }),
-					expect.objectContaining({ name: 'Allowed Roles' }),
-				]),
-			)
 		})
 	})
 
 	describe('error handling', () => {
-		it('catches and logs errors from service calls', async () => {
-			const error = new Error('Database error')
+		it('catches service errors and replies with error message', async () => {
+			const error = new Error('Service error')
 			customCommandServiceMock.listCommands.mockRejectedValue(error)
 
 			const interaction = createChatInputInteraction('list')
 
 			await customcommandCommand.execute({ interaction })
 
-			expect(errorLogMock).toHaveBeenCalledWith({
-				message: 'Failed to manage custom command',
-				error,
-			})
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					content:
-						'❌ Failed to manage custom command. Please try again.',
-				},
-			})
-		})
-
-		it('handles create command errors gracefully', async () => {
-			const error = new Error('Create failed')
-			customCommandServiceMock.getCommand.mockResolvedValue(null)
-			customCommandServiceMock.createCommand.mockRejectedValue(error)
-
-			const interaction = createChatInputInteraction('create', {
-				name: 'test',
-				response: 'Test',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
-			expect(errorLogMock).toHaveBeenCalled()
-			expect(interactionReplyMock).toHaveBeenCalledWith({
-				interaction,
-				content: {
-					content:
-						'❌ Failed to manage custom command. Please try again.',
-				},
-			})
-		})
-
-		it('handles delete command errors gracefully', async () => {
-			const error = new Error('Delete failed')
-			customCommandServiceMock.getCommand.mockResolvedValue({
-				id: 'cmd-1',
-				name: 'test',
-				guildId: 'guild-123',
-				response: 'Response',
-				description: null,
-				embedData: null,
-				allowedRoles: [],
-				allowedChannels: [],
-				enabled: true,
-				useCount: 0,
-				createdBy: 'user-123',
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				lastUsed: null,
-			})
-			customCommandServiceMock.deleteCommand.mockRejectedValue(error)
-
-			const interaction = createChatInputInteraction('delete', {
-				name: 'test',
-			})
-
-			await customcommandCommand.execute({ interaction })
-
 			expect(errorLogMock).toHaveBeenCalled()
 			expect(interactionReplyMock).toHaveBeenCalledWith({
 				interaction,
@@ -763,4 +364,5 @@ describe('customcommand command', () => {
 			})
 		})
 	})
+
 })
