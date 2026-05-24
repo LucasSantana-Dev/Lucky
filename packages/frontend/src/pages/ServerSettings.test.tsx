@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ServerSettingsPage from './ServerSettings'
@@ -744,6 +744,152 @@ describe('ServerSettingsPage', () => {
         await user.type(channelInput, '987654321')
 
         expect(channelInput).toHaveValue('987654321')
+    })
+
+    test('removes manager role from list when remove button clicked', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: {
+                settings: {
+                    ...mockSettings,
+                    managerRoles: ['222222222222222222', '333333333333333333'],
+                },
+            },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getAllByRole('button', { name: 'Remove role' }),
+            ).toHaveLength(2)
+        })
+
+        await user.click(
+            screen.getAllByRole('button', { name: 'Remove role' })[0],
+        )
+
+        await waitFor(() => {
+            expect(
+                screen.getAllByRole('button', { name: 'Remove role' }),
+            ).toHaveLength(1)
+        })
+    })
+
+    test('renders updatesChannel Select when channels are available', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch1', name: 'general' }] },
+        } as any)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: { ...mockSettings, updatesChannel: '' } },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+        expect(
+            screen.queryByPlaceholderText('Channel ID for bot updates'),
+        ).not.toBeInTheDocument()
+    })
+
+    test('renders updatesChannel Select with pre-selected channel', async () => {
+        mockGuildStoreFn(mockGuild)
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [{ id: 'ch1', name: 'general' }] },
+        } as any)
+        vi.mocked(api.guilds.getSettings).mockResolvedValue({
+            data: { settings: { ...mockSettings, updatesChannel: 'ch1' } },
+        } as any)
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(screen.getByText('Server Settings')).toBeInTheDocument()
+        })
+        expect(
+            screen.queryByPlaceholderText('Channel ID for bot updates'),
+        ).not.toBeInTheDocument()
+    })
+
+    test('does not setState after unmount on channels/rbac resolve', async () => {
+        let resolveChannels!: (v: any) => void
+        let resolveRbac!: (v: any) => void
+        vi.mocked(api.guilds.getChannels).mockReturnValue(
+            new Promise((r) => {
+                resolveChannels = r
+            }),
+        )
+        vi.mocked(api.guilds.getRbac).mockReturnValue(
+            new Promise((r) => {
+                resolveRbac = r
+            }),
+        )
+        mockGuildStoreFn(mockGuild)
+
+        const { unmount } = renderPage()
+        unmount()
+
+        await act(async () => {
+            resolveChannels({ data: { channels: [] } })
+            resolveRbac({
+                data: {
+                    guildId: mockGuild.id,
+                    modules: [],
+                    grants: [],
+                    roles: [],
+                    effectiveAccess: defaultAccess,
+                    canManageRbac: false,
+                },
+            })
+        })
+    })
+
+    test('does not setState after unmount on channels/rbac reject', async () => {
+        let rejectChannels!: (e: any) => void
+        let rejectRbac!: (e: any) => void
+        vi.mocked(api.guilds.getChannels).mockReturnValue(
+            new Promise((_, r) => {
+                rejectChannels = r
+            }),
+        )
+        vi.mocked(api.guilds.getRbac).mockReturnValue(
+            new Promise((_, r) => {
+                rejectRbac = r
+            }),
+        )
+        mockGuildStoreFn(mockGuild)
+
+        const { unmount } = renderPage()
+        unmount()
+
+        await act(async () => {
+            rejectChannels(new Error('network'))
+            rejectRbac(new Error('network'))
+        })
+    })
+
+    test('Add Rule button is disabled and tooltip-free while rbac loads', async () => {
+        mockGuildStoreFn(managerGuild, {
+            canManageRbac: true,
+            effectiveAccess: defaultAccess,
+        })
+        vi.mocked(api.guilds.getRbac).mockReturnValue(new Promise(() => {}))
+
+        renderPage()
+
+        await waitFor(() => {
+            expect(
+                screen.getByRole('button', { name: /Add Rule/ }),
+            ).toBeDisabled()
+        })
+
+        expect(
+            screen.getByRole('button', { name: /Add Rule/ }),
+        ).not.toHaveAttribute('title')
     })
 
     test('retries RBAC role loading from warning card', async () => {
