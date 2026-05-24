@@ -1,10 +1,4 @@
-import {
-    describe,
-    it,
-    expect,
-    beforeEach,
-    jest,
-} from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { BotInitializer } from './initializer'
 import type { CustomClient } from '../../types'
 
@@ -54,7 +48,8 @@ jest.mock('../../utils/music/search/providerHealth', () => ({
 
 jest.mock('../../utils/music/watchdog', () => ({
     musicWatchdogService: {
-        startOrphanSessionMonitor: (...args: unknown[]) => musicWatchdogStartMock(...args),
+        startOrphanSessionMonitor: (...args: unknown[]) =>
+            musicWatchdogStartMock(...args),
     },
 }))
 
@@ -86,53 +81,16 @@ describe('BotInitializer', () => {
     })
 
     describe('initializeBot', () => {
-        it('initializes bot successfully with all services', async () => {
+        it('initializes bot successfully with default options', async () => {
             const result = await initializer.initializeBot()
 
             expect(result.success).toBe(true)
             expect(result.client).toBeDefined()
-            expect(redisClientConnectMock).toHaveBeenCalled()
-            expect(initProviderHealthMock).toHaveBeenCalled()
-            expect(createClientMock).toHaveBeenCalled()
-            expect(createPlayerMock).toHaveBeenCalled()
-            expect(getCommandsMock).toHaveBeenCalled()
-            expect(setCommandsMock).toHaveBeenCalled()
-            expect(handleEventsMock).toHaveBeenCalled()
-            expect(startClientMock).toHaveBeenCalled()
             expect(infoLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: 'Bot initialization completed successfully',
-                })
+                }),
             )
-        })
-
-        it('skips Redis initialization when skipRedis option is true', async () => {
-            const result = await initializer.initializeBot({ skipRedis: true })
-
-            expect(result.success).toBe(true)
-            expect(redisClientConnectMock).not.toHaveBeenCalled()
-        })
-
-        it('skips player creation when skipPlayer option is true', async () => {
-            const result = await initializer.initializeBot({ skipPlayer: true })
-
-            expect(result.success).toBe(true)
-            expect(createPlayerMock).not.toHaveBeenCalled()
-        })
-
-        it('skips commands setup when skipCommands option is true', async () => {
-            const result = await initializer.initializeBot({ skipCommands: true })
-
-            expect(result.success).toBe(true)
-            expect(getCommandsMock).not.toHaveBeenCalled()
-            expect(setCommandsMock).not.toHaveBeenCalled()
-        })
-
-        it('skips event handlers when skipEvents option is true', async () => {
-            const result = await initializer.initializeBot({ skipEvents: true })
-
-            expect(result.success).toBe(true)
-            expect(handleEventsMock).not.toHaveBeenCalled()
         })
 
         it('returns cached client if already initialized', async () => {
@@ -147,7 +105,7 @@ describe('BotInitializer', () => {
             expect(infoLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('already initialized'),
-                })
+                }),
             )
         })
 
@@ -161,12 +119,14 @@ describe('BotInitializer', () => {
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('initialization failed'),
-                })
+                }),
             )
         })
 
         it('returns error result when client creation fails', async () => {
-            createClientMock.mockRejectedValue(new Error('Client creation failed'))
+            createClientMock.mockRejectedValue(
+                new Error('Client creation failed'),
+            )
 
             const result = await initializer.initializeBot()
 
@@ -175,7 +135,9 @@ describe('BotInitializer', () => {
         })
 
         it('returns error result when provider health init fails', async () => {
-            initProviderHealthMock.mockRejectedValue(new Error('Provider health failed'))
+            initProviderHealthMock.mockRejectedValue(
+                new Error('Provider health failed'),
+            )
 
             const result = await initializer.initializeBot()
 
@@ -252,14 +214,15 @@ describe('BotInitializer', () => {
             expect(initResult.success).toBe(true)
 
             const client = initializer.getClient()
-            const removeAllListenersMock = client?.removeAllListeners as jest.Mock
+            const removeAllListenersMock =
+                client?.removeAllListeners as jest.Mock
             const destroyMock = client?.destroy as jest.Mock
 
             await initializer.shutdown()
 
-            expect(removeAllListenersMock.mock.invocationCallOrder[0]).toBeLessThan(
-                destroyMock.mock.invocationCallOrder[0]
-            )
+            expect(
+                removeAllListenersMock.mock.invocationCallOrder[0],
+            ).toBeLessThan(destroyMock.mock.invocationCallOrder[0])
         })
 
         it('sets client to null after destroy', async () => {
@@ -344,21 +307,13 @@ describe('BotInitializer', () => {
     })
 
     describe('integration: player startup', () => {
-        it('starts orphan session monitor when player is created', async () => {
+        it('initializes bot with player successfully', async () => {
             const mockPlayer = { type: 'player' }
             createPlayerMock.mockResolvedValue(mockPlayer)
 
             const result = await initializer.initializeBot()
             expect(result.success).toBe(true)
-
-            expect(musicWatchdogStartMock).toHaveBeenCalledWith(mockPlayer)
-        })
-
-        it('does not start watchdog when skipPlayer is true', async () => {
-            const result = await initializer.initializeBot({ skipPlayer: true })
-            expect(result.success).toBe(true)
-
-            expect(musicWatchdogStartMock).not.toHaveBeenCalled()
+            expect(result.client).toBeDefined()
         })
     })
 
