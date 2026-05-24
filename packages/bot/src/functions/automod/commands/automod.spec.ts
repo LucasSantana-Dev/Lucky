@@ -27,7 +27,10 @@ jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
 }))
 
-function createInteraction(subcommand: string, options: Record<string, unknown> = {}) {
+function createInteraction(
+    subcommand: string,
+    options: Record<string, unknown> = {},
+) {
     return {
         guild: { id: '123456789012345678', name: 'TestServer' },
         user: { tag: 'Admin#0001' },
@@ -103,8 +106,16 @@ describe('automod command', () => {
     describe('preset subcommand — list', () => {
         it('lists presets when no name given', async () => {
             listTemplatesMock.mockResolvedValue([
-                { id: 'balanced', name: 'Balanced', description: 'Balanced baseline.' },
-                { id: 'strict', name: 'Strict Shield', description: 'Aggressive.' },
+                {
+                    id: 'balanced',
+                    name: 'Balanced',
+                    description: 'Balanced baseline.',
+                },
+                {
+                    id: 'strict',
+                    name: 'Strict Shield',
+                    description: 'Aggressive.',
+                },
                 { id: 'light', name: 'Light', description: 'Low friction.' },
             ])
             const interaction = createInteraction('preset', { name: null })
@@ -119,11 +130,18 @@ describe('automod command', () => {
         it('applies a preset and shows result embed', async () => {
             applyTemplateMock.mockResolvedValue({
                 settings: { ...baseSettings, spamThreshold: 4 },
-                template: { id: 'strict', name: 'Strict Shield', description: 'Aggressive.' },
+                template: {
+                    id: 'strict',
+                    name: 'Strict Shield',
+                    description: 'Aggressive.',
+                },
             })
             const interaction = createInteraction('preset', { name: 'strict' })
             await automodCommand.execute({ interaction, client: {} as any })
-            expect(applyTemplateMock).toHaveBeenCalledWith('123456789012345678', 'strict')
+            expect(applyTemplateMock).toHaveBeenCalledWith(
+                '123456789012345678',
+                'strict',
+            )
             const reply = interactionReplyMock.mock.calls[0][0] as any
             expect(reply.content.embeds).toHaveLength(1)
             expect(infoLogMock).toHaveBeenCalledTimes(1)
@@ -131,7 +149,9 @@ describe('automod command', () => {
 
         it('calls errorLog on service failure', async () => {
             applyTemplateMock.mockRejectedValue(new Error('DB error'))
-            const interaction = createInteraction('preset', { name: 'balanced' })
+            const interaction = createInteraction('preset', {
+                name: 'balanced',
+            })
             await automodCommand.execute({ interaction, client: {} as any })
             expect(errorLogMock).toHaveBeenCalledTimes(1)
             const reply = interactionReplyMock.mock.calls[0][0] as any
@@ -140,43 +160,100 @@ describe('automod command', () => {
     })
 
     describe('module toggle subcommands', () => {
-        it('enables spam with threshold and timewindow', async () => {
+        it('toggles spam module on and replies with green embed', async () => {
             updateSettingsMock.mockResolvedValue(baseSettings)
-            const interaction = createInteraction('spam', { enabled: true, threshold: 4, timewindow: 5 })
-            await automodCommand.execute({ interaction, client: {} as any })
-            expect(updateSettingsMock).toHaveBeenCalledWith('123456789012345678', {
-                spamEnabled: true,
-                spamThreshold: 4,
-                spamTimeWindow: 5,
+            const interaction = createInteraction('spam', {
+                enabled: true,
+                threshold: 4,
+                timewindow: 5,
             })
+            await automodCommand.execute({ interaction, client: {} as any })
+
+            expect(updateSettingsMock).toHaveBeenCalledWith(
+                '123456789012345678',
+                {
+                    spamEnabled: true,
+                    spamThreshold: 4,
+                    spamTimeWindow: 5,
+                },
+            )
+            const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.embeds).toHaveLength(1)
+            expect(reply.content.embeds[0].data.color).toBeGreaterThan(0) // enabled (green)
         })
 
-        it('disables caps', async () => {
-            updateSettingsMock.mockResolvedValue({ ...baseSettings, capsEnabled: false })
+        it('toggles caps module off and replies with red embed', async () => {
+            updateSettingsMock.mockResolvedValue({
+                ...baseSettings,
+                capsEnabled: false,
+            })
             const interaction = createInteraction('caps', { enabled: false })
             await automodCommand.execute({ interaction, client: {} as any })
-            expect(updateSettingsMock).toHaveBeenCalledWith('123456789012345678', { capsEnabled: false })
+
+            expect(updateSettingsMock).toHaveBeenCalledWith(
+                '123456789012345678',
+                { capsEnabled: false },
+            )
+            const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.embeds).toHaveLength(1)
+            expect(reply.content.embeds[0].data.title).toContain('Disabled')
         })
 
-        it('enables links', async () => {
+        it('toggles links module on with embed confirmation', async () => {
             updateSettingsMock.mockResolvedValue(baseSettings)
             const interaction = createInteraction('links', { enabled: true })
             await automodCommand.execute({ interaction, client: {} as any })
-            expect(updateSettingsMock).toHaveBeenCalledWith('123456789012345678', { linksEnabled: true })
+
+            expect(updateSettingsMock).toHaveBeenCalledWith(
+                '123456789012345678',
+                { linksEnabled: true },
+            )
+            const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.embeds).toHaveLength(1)
+            expect(reply.content.embeds[0].data.fields).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ name: 'Module', value: 'LINKS' }),
+                ]),
+            )
         })
 
-        it('enables invites', async () => {
+        it('toggles invites module on and shows in embed', async () => {
             updateSettingsMock.mockResolvedValue(baseSettings)
             const interaction = createInteraction('invites', { enabled: true })
             await automodCommand.execute({ interaction, client: {} as any })
-            expect(updateSettingsMock).toHaveBeenCalledWith('123456789012345678', { invitesEnabled: true })
+
+            expect(updateSettingsMock).toHaveBeenCalledWith(
+                '123456789012345678',
+                { invitesEnabled: true },
+            )
+            const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.embeds).toHaveLength(1)
+            expect(reply.content.embeds[0].data.fields).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        name: 'Module',
+                        value: 'INVITES',
+                    }),
+                ]),
+            )
         })
 
-        it('enables words', async () => {
+        it('toggles words module on and confirms with embed', async () => {
             updateSettingsMock.mockResolvedValue(baseSettings)
             const interaction = createInteraction('words', { enabled: true })
             await automodCommand.execute({ interaction, client: {} as any })
-            expect(updateSettingsMock).toHaveBeenCalledWith('123456789012345678', { wordsEnabled: true })
+
+            expect(updateSettingsMock).toHaveBeenCalledWith(
+                '123456789012345678',
+                { wordsEnabled: true },
+            )
+            const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.embeds).toHaveLength(1)
+            expect(reply.content.embeds[0].data.fields).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ name: 'Module', value: 'WORDS' }),
+                ]),
+            )
         })
     })
 })
