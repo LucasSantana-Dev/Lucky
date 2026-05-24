@@ -276,7 +276,8 @@ export class GuildAutomationRepository implements IGuildAutomationRepository {
                         status: 'completed',
                         summary: toJsonValue({
                             checklistComplete: true,
-                            checklist,
+                            checklist:
+                                nextManifest.parity?.checklist ?? checklist,
                             externalBots:
                                 nextManifest.parity?.externalBots ?? [],
                         }),
