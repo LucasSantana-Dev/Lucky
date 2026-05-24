@@ -2037,6 +2037,42 @@ describe('queueManipulation — multi-user VC blend', () => {
         getSimilarTracksMock.mockResolvedValue([])
         getArtistTopTagsMock.mockResolvedValue([])
         getUserSpotifySeedsMock.mockResolvedValue(null)
+
+        // resetMocks: true clears direct jest.fn() implementations between tests;
+        // re-establish safe defaults so unrelated tests don't throw on .catch()/.length
+        const spotifyApi = jest.requireMock('../../spotify/spotifyApi') as {
+            getAudioFeatures: jest.Mock
+            searchSpotifyTrack: jest.Mock
+            getBatchAudioFeatures: jest.Mock
+            getArtistPopularity: jest.Mock
+            getArtistGenres: jest.Mock
+            getSpotifyRecommendations: jest.Mock
+        }
+        spotifyApi.getAudioFeatures.mockResolvedValue(null)
+        spotifyApi.searchSpotifyTrack.mockResolvedValue(null)
+        spotifyApi.getBatchAudioFeatures.mockResolvedValue(new Map())
+        spotifyApi.getArtistPopularity.mockResolvedValue(null)
+        spotifyApi.getArtistGenres.mockResolvedValue([])
+        spotifyApi.getSpotifyRecommendations.mockResolvedValue([])
+
+        const sharedServices = jest.requireMock('@lucky/shared/services') as {
+            spotifyLinkService: {
+                getValidAccessToken: jest.Mock
+                getByDiscordId: jest.Mock
+            }
+            premiumService: { isPremium: jest.Mock }
+            lastFmSeeds: { isLovedSeed: jest.Mock }
+        }
+        sharedServices.spotifyLinkService.getValidAccessToken.mockResolvedValue(
+            null,
+        )
+        sharedServices.spotifyLinkService.getByDiscordId.mockResolvedValue(null)
+        sharedServices.premiumService.isPremium.mockResolvedValue(false)
+
+        const lastFmSeeds = jest.requireMock('./autoplay/lastFmSeeds') as {
+            isLovedSeed: jest.Mock
+        }
+        lastFmSeeds.isLovedSeed.mockReturnValue(false)
     })
 
     afterEach(() => {
