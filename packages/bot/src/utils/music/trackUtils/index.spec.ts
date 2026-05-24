@@ -46,6 +46,34 @@ function createMockTrack(
     }
 }
 
+describe('standalone function exports', () => {
+    beforeEach(() => {
+        const { isSimilarTitle } = require('../titleComparison')
+        isSimilarTitle.mockReturnValue(false)
+    })
+
+    test('delegates to trackUtils singleton', () => {
+        const track = createMockTrack('Song A', 'Artist A', 'track-standalone')
+
+        expect(getTrackInfo(track)).toBeDefined()
+        expect(getTrackCacheKey(track)).toBeDefined()
+        expect(categorizeTracks([track])).toBeDefined()
+        expect(findSimilarTracks([track], 'query')).toEqual([])
+        expect(
+            searchTracks([track], {
+                query: 'Song',
+                limit: 10,
+                includeAutoplay: true,
+            }),
+        ).toBeDefined()
+        cacheTrackInfo(track)
+        expect(getCachedTrackInfo(track)).toBeDefined()
+        clearCache()
+        expect(getCacheSize()).toBe(0)
+        startCacheCleanup()
+    })
+})
+
 describe('TrackUtils class', () => {
     let instance: TrackUtils
 
