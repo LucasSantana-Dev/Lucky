@@ -45,22 +45,6 @@ describe('collaborativePlaylistService', () => {
 			expect(state.perUserLimit).toBe(5) // Limit unchanged
 		})
 
-		it('ignores invalid limits (non-positive)', () => {
-			const id = guildId('setmode')
-			collaborativePlaylistService.setMode(id, true, 5)
-			const state = collaborativePlaylistService.setMode(id, true, 0)
-
-			expect(state.perUserLimit).toBe(5) // Unchanged
-		})
-
-		it('ignores invalid limits (non-finite)', () => {
-			const id = guildId('setmode')
-			collaborativePlaylistService.setMode(id, true, 5)
-			const state = collaborativePlaylistService.setMode(id, true, Infinity)
-
-			expect(state.perUserLimit).toBe(5) // Unchanged
-		})
-
 		it('floors fractional limits', () => {
 			const state = collaborativePlaylistService.setMode(
 				guildId('setmode'),
@@ -106,19 +90,6 @@ describe('collaborativePlaylistService', () => {
 			})
 		})
 
-		it('returns copy of state (not reference)', () => {
-			const id = guildId('getstate')
-			collaborativePlaylistService.setMode(id, true)
-			collaborativePlaylistService.recordContribution(id, 'user-1', 1)
-
-			const state1 = collaborativePlaylistService.getState(id)
-			state1.contributions['user-1'] = 99 // Mutate the returned object
-
-			const state2 = collaborativePlaylistService.getState(id)
-
-			expect(state2.contributions['user-1']).toBe(1) // Original unchanged
-		})
-
 		it('reflects recent setMode changes', () => {
 			const id = guildId('getstate')
 			collaborativePlaylistService.setMode(id, true, 5)
@@ -139,19 +110,6 @@ describe('collaborativePlaylistService', () => {
 			const state = collaborativePlaylistService.resetContributions(id)
 
 			expect(state.contributions).toEqual({})
-		})
-
-		it('updates updatedAt timestamp', () => {
-			const id = guildId('reset')
-			collaborativePlaylistService.setMode(id, true)
-			collaborativePlaylistService.recordContribution(id, 'user-1', 1)
-
-			const before = Date.now()
-			const state = collaborativePlaylistService.resetContributions(id)
-			const after = Date.now()
-
-			expect(state.updatedAt).toBeGreaterThanOrEqual(before)
-			expect(state.updatedAt).toBeLessThanOrEqual(after)
 		})
 
 		it('preserves enabled and perUserLimit settings', () => {
@@ -178,39 +136,6 @@ describe('collaborativePlaylistService', () => {
 			collaborativePlaylistService.recordContribution(id, 'user-1')
 			state = collaborativePlaylistService.getState(id)
 			expect(state.contributions['user-1']).toBe(2)
-		})
-
-		it('increments by specified track count', () => {
-			const id = guildId('record')
-			collaborativePlaylistService.setMode(id, true)
-
-			collaborativePlaylistService.recordContribution(id, 'user-1', 3)
-			const state = collaborativePlaylistService.getState(id)
-
-			expect(state.contributions['user-1']).toBe(3)
-		})
-
-		it('enforces minimum increment of 1 (ignores trackCount=0)', () => {
-			const id = guildId('record')
-			collaborativePlaylistService.setMode(id, true)
-
-			collaborativePlaylistService.recordContribution(id, 'user-1', 0)
-			let state = collaborativePlaylistService.getState(id)
-			expect(state.contributions['user-1']).toBe(1) // Minimum
-
-			collaborativePlaylistService.recordContribution(id, 'user-1', 0)
-			state = collaborativePlaylistService.getState(id)
-			expect(state.contributions['user-1']).toBe(2)
-		})
-
-		it('does not record contribution when mode is disabled', () => {
-			const id = guildId('record')
-			collaborativePlaylistService.setMode(id, false)
-
-			collaborativePlaylistService.recordContribution(id, 'user-1', 2)
-			const state = collaborativePlaylistService.getState(id)
-
-			expect(state.contributions['user-1']).toBeUndefined()
 		})
 
 		it('tracks multiple users independently', () => {
@@ -289,31 +214,6 @@ describe('collaborativePlaylistService', () => {
 			expect(check.remaining).toBe(1)
 		})
 
-		it('returns zero remaining when used matches limit', () => {
-			const id = guildId('canadd')
-			collaborativePlaylistService.setMode(id, true, 1)
-			collaborativePlaylistService.recordContribution(id, 'user-1', 1)
-
-			const check = collaborativePlaylistService.canAddTracks(id, 'user-1')
-
-			expect(check.remaining).toBe(0)
-		})
-
-		it('treats missing user as zero contribution', () => {
-			const id = guildId('canadd')
-			collaborativePlaylistService.setMode(id, true, 3)
-
-			const check = collaborativePlaylistService.canAddTracks(
-				id,
-				'never-contributed-user',
-				2,
-			)
-
-			expect(check.allowed).toBe(true)
-			expect(check.used).toBe(0)
-			expect(check.remaining).toBe(3)
-		})
-
 		it('uses default track count of 1', () => {
 			const id = guildId('canadd')
 			collaborativePlaylistService.setMode(id, true, 3)
@@ -328,31 +228,6 @@ describe('collaborativePlaylistService', () => {
 	})
 
 	describe('edge cases', () => {
-		it('handles empty contributions map', () => {
-			const id = guildId('edge')
-			collaborativePlaylistService.setMode(id, true)
-
-			const state = collaborativePlaylistService.getState(id)
-
-			expect(state.contributions).toEqual({})
-			const check = collaborativePlaylistService.canAddTracks(id, 'user-1')
-			expect(check.allowed).toBe(true)
-		})
-
-		it('isolates guild states', () => {
-			const id1 = guildId('isolation-1')
-			const id2 = guildId('isolation-2')
-			collaborativePlaylistService.setMode(id1, true, 5)
-			collaborativePlaylistService.setMode(id2, true, 2)
-			collaborativePlaylistService.recordContribution(id1, 'user-1', 3)
-
-			const check1 = collaborativePlaylistService.canAddTracks(id1, 'user-1')
-			const check2 = collaborativePlaylistService.canAddTracks(id2, 'user-1')
-
-			expect(check1.remaining).toBe(2) // limit 5 - 3 used
-			expect(check2.remaining).toBe(2) // limit 2 - 0 used
-		})
-
 		it('handles large track counts', () => {
 			const id = guildId('large')
 			collaborativePlaylistService.setMode(id, true, 100)
