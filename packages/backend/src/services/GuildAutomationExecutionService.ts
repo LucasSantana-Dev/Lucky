@@ -1144,9 +1144,7 @@ class GuildAutomationExecutionService {
                 data: {
                     guildId,
                     errors:
-                        result.status === 'failed'
-                            ? undefined
-                            : (result as any).errors,
+                        result.status === 'partial' ? result.errors : undefined,
                 },
             })
         }
