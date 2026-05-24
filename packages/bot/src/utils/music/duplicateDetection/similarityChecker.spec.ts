@@ -19,39 +19,30 @@ function makeHistory(title: string, author: string): TrackHistoryEntry {
 }
 
 describe('calculateStringSimilarity', () => {
-    it('returns 1.0 for identical strings', () => {
-        expect(calculateStringSimilarity('hello', 'hello')).toBe(1.0)
+    it.each([
+        ['hello', 'hello', 1.0],
+        ['', '', 1.0],
+        ['abc', 'xyz', 0],
+    ])('returns expected similarity for %s vs %s', (str1, str2, expected) => {
+        expect(calculateStringSimilarity(str1, str2)).toBe(expected)
     })
 
-    it('returns 1.0 for two empty strings', () => {
-        expect(calculateStringSimilarity('', '')).toBe(1.0)
+    it('handles edit distance variations (single char, length, misspelling)', () => {
+        const singleChar = calculateStringSimilarity('hello', 'helo')
+        expect(singleChar).toBeGreaterThan(0.7)
+        expect(singleChar).toBeLessThan(1.0)
+
+        const prefixMatch = calculateStringSimilarity('abc', 'abcde')
+        expect(prefixMatch).toBeGreaterThan(0.5)
+
+        const longDiff = calculateStringSimilarity('a', 'zzzzz')
+        expect(longDiff).toBeLessThan(0.3)
+
+        const misspelling = calculateStringSimilarity('cancion', 'cancoin')
+        expect(misspelling).toBeGreaterThan(0.7)
     })
 
-    it('returns 0 for completely different strings of same length', () => {
-        expect(calculateStringSimilarity('abc', 'xyz')).toBe(0)
-    })
-
-    it('returns 1.0 when one string is empty and other is empty', () => {
-        expect(calculateStringSimilarity('', '')).toBe(1.0)
-    })
-
-    it('handles single character difference', () => {
-        const sim = calculateStringSimilarity('hello', 'helo')
-        expect(sim).toBeGreaterThan(0.7)
-        expect(sim).toBeLessThan(1.0)
-    })
-
-    it('handles prefix match (longer is denominator)', () => {
-        const sim = calculateStringSimilarity('abc', 'abcde')
-        expect(sim).toBeGreaterThan(0.5)
-    })
-
-    it('handles completely different strings of different lengths', () => {
-        const sim = calculateStringSimilarity('a', 'zzzzz')
-        expect(sim).toBeLessThan(0.3)
-    })
-
-    it('returns same result regardless of argument order (symmetric)', () => {
+    it('is symmetric regardless of argument order', () => {
         const s1 = calculateStringSimilarity(
             'bohemian rhapsody',
             'bohemian rhapsody live',
@@ -62,12 +53,6 @@ describe('calculateStringSimilarity', () => {
         )
         expect(s1).toBeCloseTo(s2, 5)
     })
-
-    it('returns high similarity for minor misspelling', () => {
-        expect(calculateStringSimilarity('cancion', 'cancoin')).toBeGreaterThan(
-            0.7,
-        )
-    })
 })
 
 describe('areTracksSimilar', () => {
@@ -77,19 +62,24 @@ describe('areTracksSimilar', () => {
         expect(areTracksSimilar(t1, t2, cfg)).toBe(true)
     })
 
-    it('returns false when title similarity below threshold', () => {
+    it('returns false when title or artist below threshold', () => {
         const t1 = makeTrack('Halo', 'Beyoncé')
-        const t2 = makeHistory('Crazy in Love', 'Beyoncé')
-        expect(areTracksSimilar(t1, t2, cfg)).toBe(false)
+        const t2Title = makeHistory('Crazy in Love', 'Beyoncé')
+        const t2Artist = makeHistory('Halo', 'Adele')
+        const t2Unrelated = makeHistory('Bohemian Rhapsody', 'Queen')
+
+        expect(areTracksSimilar(t1, t2Title, cfg)).toBe(false)
+        expect(areTracksSimilar(t1, t2Artist, cfg)).toBe(false)
+        expect(areTracksSimilar(t1, t2Unrelated, cfg)).toBe(false)
     })
 
-    it('returns false when artist similarity below threshold', () => {
-        const t1 = makeTrack('Halo', 'Beyoncé')
-        const t2 = makeHistory('Halo', 'Adele')
-        expect(areTracksSimilar(t1, t2, cfg)).toBe(false)
+    it('is case-insensitive', () => {
+        const t1 = makeTrack('HALO', 'BEYONCÉ')
+        const t2 = makeHistory('halo', 'beyoncé')
+        expect(areTracksSimilar(t1, t2, cfg)).toBe(true)
     })
 
-    it('returns true when both title and artist meet their thresholds', () => {
+    it('uses config thresholds to determine matching', () => {
         const t1 = makeTrack('Halo (Live)', 'Beyoncé')
         const t2 = makeHistory('Halo (Live)', 'Beyoncé')
         expect(
@@ -99,63 +89,45 @@ describe('areTracksSimilar', () => {
             }),
         ).toBe(true)
     })
-
-    it('is case-insensitive', () => {
-        const t1 = makeTrack('HALO', 'BEYONCÉ')
-        const t2 = makeHistory('halo', 'beyoncé')
-        expect(areTracksSimilar(t1, t2, cfg)).toBe(true)
-    })
-
-    it('returns false when titles are completely unrelated', () => {
-        const t1 = makeTrack('Bohemian Rhapsody', 'Queen')
-        const t2 = makeHistory('Stairway to Heaven', 'Led Zeppelin')
-        expect(areTracksSimilar(t1, t2, cfg)).toBe(false)
-    })
 })
 
 describe('findSimilarTracks', () => {
-    it('returns empty array when history is empty', () => {
+    it('filters history entries based on similarity thresholds', () => {
         const track = makeTrack('Halo', 'Beyoncé')
-        expect(findSimilarTracks(track, [], cfg)).toEqual([])
-    })
 
-    it('returns matching history entries', () => {
-        const track = makeTrack('Halo', 'Beyoncé')
-        const history: TrackHistoryEntry[] = [
+        // Empty history
+        expect(findSimilarTracks(track, [], cfg)).toEqual([])
+
+        // Mixed history: 2 matches (identical) + 1 mismatch (different title)
+        const mixedHistory: TrackHistoryEntry[] = [
             makeHistory('Halo', 'Beyoncé'),
             makeHistory('Crazy in Love', 'Beyoncé'),
             makeHistory('Halo', 'Beyoncé'),
         ]
-        const result = findSimilarTracks(track, history, cfg)
-        expect(result).toHaveLength(2)
-    })
+        expect(findSimilarTracks(track, mixedHistory, cfg)).toHaveLength(2)
 
-    it('returns empty array when no matches above threshold', () => {
-        const track = makeTrack('Halo', 'Beyoncé')
-        const history: TrackHistoryEntry[] = [
+        // No matches history
+        const nomatchHistory: TrackHistoryEntry[] = [
             makeHistory('Shape of You', 'Ed Sheeran'),
             makeHistory('Blinding Lights', 'The Weeknd'),
         ]
-        expect(findSimilarTracks(track, history, cfg)).toHaveLength(0)
+        expect(findSimilarTracks(track, nomatchHistory, cfg)).toHaveLength(0)
     })
 })
 
 describe('calculateSimilarityScore', () => {
-    it('returns 1.0 for identical tracks', () => {
-        const t1 = makeTrack('Halo', 'Beyoncé')
-        const t2 = makeHistory('Halo', 'Beyoncé')
-        expect(calculateSimilarityScore(t1, t2, cfg)).toBe(1.0)
+    it('returns weighted score with title 0.7 and artist 0.3', () => {
+        const t1Identical = makeTrack('Halo', 'Beyoncé')
+        const t2Identical = makeHistory('Halo', 'Beyoncé')
+        expect(calculateSimilarityScore(t1Identical, t2Identical, cfg)).toBe(1.0)
+
+        // title sim = 0 (completely different), artist sim = 1 → 0*0.7 + 1*0.3 = 0.3
+        const t1Diff = makeTrack('aaaa', 'same')
+        const t2Diff = makeHistory('bbbb', 'same')
+        expect(calculateSimilarityScore(t1Diff, t2Diff, cfg)).toBeCloseTo(0.3, 1)
     })
 
-    it('title contributes 0.7 weight and artist 0.3', () => {
-        const t1 = makeTrack('aaaa', 'same')
-        const t2 = makeHistory('bbbb', 'same')
-        const score = calculateSimilarityScore(t1, t2, cfg)
-        // title sim = 0, artist sim = 1 → 0*0.7 + 1*0.3 = 0.3
-        expect(score).toBeCloseTo(0.3, 1)
-    })
-
-    it('returns value between 0 and 1', () => {
+    it('returns value between 0 and 1 for any track pair', () => {
         const t1 = makeTrack('abc', 'xyz')
         const t2 = makeHistory('def', 'uvw')
         const score = calculateSimilarityScore(t1, t2, cfg)
@@ -163,7 +135,7 @@ describe('calculateSimilarityScore', () => {
         expect(score).toBeLessThanOrEqual(1)
     })
 
-    it('is not affected by config (config param is unused in score)', () => {
+    it('ignores config thresholds in score calculation', () => {
         const t1 = makeTrack('Song', 'Artist')
         const t2 = makeHistory('Song', 'Artist')
         const score1 = calculateSimilarityScore(t1, t2, {
