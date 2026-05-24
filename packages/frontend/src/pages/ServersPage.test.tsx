@@ -115,4 +115,24 @@ describe('ServersPage', () => {
         )
         expect(screen.getByText('TE')).toBeInTheDocument()
     })
+
+    test('shows empty state when no guilds', () => {
+        mockStores({ guilds: [] })
+        render(
+            <MemoryRouter>
+                <ServersPage />
+            </MemoryRouter>,
+        )
+        expect(screen.getByText('No servers yet')).toBeInTheDocument()
+    })
+
+    test('shows Lucky installed badge when botAdded is true', () => {
+        mockStores({ guilds: [{ id: '1', name: 'Server 1', botAdded: true }] })
+        render(
+            <MemoryRouter>
+                <ServersPage />
+            </MemoryRouter>,
+        )
+        expect(screen.getByText('Lucky installed')).toBeInTheDocument()
+    })
 })

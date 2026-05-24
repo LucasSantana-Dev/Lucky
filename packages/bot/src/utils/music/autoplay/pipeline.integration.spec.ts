@@ -24,8 +24,12 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
-    spotifyLinkService: { getValidAccessToken: jest.fn().mockResolvedValue(null) },
-    trackHistoryService: { addTrackToHistory: jest.fn().mockResolvedValue(true) },
+    spotifyLinkService: {
+        getValidAccessToken: jest.fn().mockResolvedValue(null),
+    },
+    trackHistoryService: {
+        addTrackToHistory: jest.fn().mockResolvedValue(true),
+    },
     lastFmLinkService: { getLastFmLink: jest.fn().mockResolvedValue(null) },
 }))
 
@@ -53,6 +57,7 @@ import {
     upsertScoredCandidate,
 } from './candidateCollector'
 import type { SessionMood } from './sessionMood'
+import type { AutoplayContext } from './autoplayContext'
 import {
     getArtistTopTags,
     getSimilarTracks,
@@ -97,6 +102,30 @@ function makeQueue(currentTrack?: Track): GuildQueue {
     } as unknown as GuildQueue
 }
 
+function makeAutoplayContext(
+    overrides: Partial<AutoplayContext> = {},
+): AutoplayContext {
+    const currentTrack = makeTrack()
+    return {
+        queue: makeQueue(currentTrack),
+        excludedUrls: new Set(),
+        excludedKeys: new Set(),
+        dislikedWeights: new Map(),
+        likedWeights: new Map(),
+        preferredArtistKeys: new Set(),
+        blockedArtistKeys: new Set(),
+        currentTrack,
+        recentArtists: new Set(),
+        autoplayMode: 'similar',
+        artistFrequency: new Map(),
+        implicitDislikeKeys: new Set(),
+        implicitLikeKeys: new Set(),
+        sessionMood: null,
+        genreContext: {},
+        ...overrides,
+    }
+}
+
 describe('autoplay pipeline integration', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -115,16 +144,39 @@ describe('autoplay pipeline integration', () => {
     describe('cross-locale veto via real candidateScorer', () => {
         it('drops Spanish gospel tracks when session has no Spanish history', async () => {
             const spanishGospelTracks: Track[] = [
-                makeTrack({ title: 'Aleluya a Tu Gloria', author: 'Marco Barrientos', url: 'https://open.spotify.com/track/sg1', id: 'sg1' }),
-                makeTrack({ title: 'Dios de lo Imposible', author: 'Elevation Worship Español', url: 'https://open.spotify.com/track/sg2', id: 'sg2' }),
-                makeTrack({ title: 'Bendición', author: 'Redimi2', url: 'https://open.spotify.com/track/sg3', id: 'sg3' }),
+                makeTrack({
+                    title: 'Aleluya a Tu Gloria',
+                    author: 'Marco Barrientos',
+                    url: 'https://open.spotify.com/track/sg1',
+                    id: 'sg1',
+                }),
+                makeTrack({
+                    title: 'Dios de lo Imposible',
+                    author: 'Elevation Worship Español',
+                    url: 'https://open.spotify.com/track/sg2',
+                    id: 'sg2',
+                }),
+                makeTrack({
+                    title: 'Bendición',
+                    author: 'Redimi2',
+                    url: 'https://open.spotify.com/track/sg3',
+                    id: 'sg3',
+                }),
             ]
 
-            const currentTrack = makeTrack({ title: 'Creep', author: 'Radiohead', url: 'https://open.spotify.com/track/rh1', id: 'rh1' })
+            const currentTrack = makeTrack({
+                title: 'Creep',
+                author: 'Radiohead',
+                url: 'https://open.spotify.com/track/rh1',
+                id: 'rh1',
+            })
             const queue = makeQueue(currentTrack)
 
             // All search calls return Spanish gospel tracks
-            ;(queue.player.search as jest.Mock).mockResolvedValue({ tracks: spanishGospelTracks, playlist: null })
+            ;(queue.player.search as jest.Mock).mockResolvedValue({
+                tracks: spanishGospelTracks,
+                playlist: null,
+            })
 
             // dominantLocale: null → English session → veto fires on Spanish content
             const englishSession: SessionMood = {
@@ -135,24 +187,16 @@ describe('autoplay pipeline integration', () => {
                 dominantLocale: null,
             }
 
-            const candidates = await collectRecommendationCandidates(
+            const ctx = makeAutoplayContext({
                 queue,
-                [currentTrack],
-                null, // no requestedBy → skips Spotify recommendations path
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
                 currentTrack,
-                new Set(['radiohead']),
-                0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                englishSession,
+                recentArtists: new Set(['radiohead']),
+                sessionMood: englishSession,
+            })
+            const candidates = await collectRecommendationCandidates(
+                ctx,
+                [currentTrack],
+                null,
             )
 
             // candidateScorer returns -Infinity for Spanish gospel when no Spanish session history.
@@ -162,14 +206,32 @@ describe('autoplay pipeline integration', () => {
 
         it('accepts clearly non-Spanish tracks when search returns them', async () => {
             const englishTracks: Track[] = [
-                makeTrack({ title: 'Karma Police', author: 'Radiohead', url: 'https://open.spotify.com/track/rh2', id: 'rh2' }),
-                makeTrack({ title: 'No Surprises', author: 'Radiohead', url: 'https://open.spotify.com/track/rh3', id: 'rh3' }),
+                makeTrack({
+                    title: 'Karma Police',
+                    author: 'Radiohead',
+                    url: 'https://open.spotify.com/track/rh2',
+                    id: 'rh2',
+                }),
+                makeTrack({
+                    title: 'No Surprises',
+                    author: 'Radiohead',
+                    url: 'https://open.spotify.com/track/rh3',
+                    id: 'rh3',
+                }),
             ]
 
-            const currentTrack = makeTrack({ title: 'Creep', author: 'Radiohead', url: 'https://open.spotify.com/track/rh1', id: 'rh1' })
+            const currentTrack = makeTrack({
+                title: 'Creep',
+                author: 'Radiohead',
+                url: 'https://open.spotify.com/track/rh1',
+                id: 'rh1',
+            })
             const queue = makeQueue(currentTrack)
 
-            ;(queue.player.search as jest.Mock).mockResolvedValue({ tracks: englishTracks, playlist: null })
+            ;(queue.player.search as jest.Mock).mockResolvedValue({
+                tracks: englishTracks,
+                playlist: null,
+            })
 
             const englishSession: SessionMood = {
                 deepDiveArtist: null,
@@ -179,24 +241,17 @@ describe('autoplay pipeline integration', () => {
                 dominantLocale: null,
             }
 
-            const candidates = await collectRecommendationCandidates(
+            const ctx = makeAutoplayContext({
                 queue,
+                currentTrack,
+                recentArtists: new Set(['radiohead']),
+                sessionMood: englishSession,
+            })
+
+            const candidates = await collectRecommendationCandidates(
+                ctx,
                 [currentTrack],
                 null,
-                new Set(),
-                new Set(),
-                new Map(),
-                new Map(),
-                new Set(),
-                new Set(),
-                currentTrack,
-                new Set(['radiohead']),
-                0,
-                'similar',
-                new Map(),
-                new Set(),
-                new Set(),
-                englishSession,
             )
 
             // English tracks pass the locale veto — at least one should be accepted
@@ -206,46 +261,89 @@ describe('autoplay pipeline integration', () => {
 
     describe('shouldIncludeCandidate (pure unit integration with real diversitySelector)', () => {
         it('includes tracks not in either excluded set', () => {
-            const track = makeTrack({ url: 'https://open.spotify.com/track/new1', title: 'New Song', author: 'Artist A' })
-            expect(shouldIncludeCandidate(track, new Set(), new Set())).toBe(true)
+            const track = makeTrack({
+                url: 'https://open.spotify.com/track/new1',
+                title: 'New Song',
+                author: 'Artist A',
+            })
+            expect(shouldIncludeCandidate(track, new Set(), new Set())).toBe(
+                true,
+            )
         })
 
         it('excludes tracks whose URL is in excludedUrls', () => {
             const url = 'https://open.spotify.com/track/played1'
             const track = makeTrack({ url })
-            expect(shouldIncludeCandidate(track, new Set([url]), new Set())).toBe(false)
+            expect(
+                shouldIncludeCandidate(track, new Set([url]), new Set()),
+            ).toBe(false)
         })
     })
 
     describe('upsertScoredCandidate (pure unit integration with real logic)', () => {
         it('drops -Infinity scores — the cross-locale veto gate', () => {
             const candidates = new Map()
-            const track = makeTrack({ title: 'Aleluya', author: 'Marco Barrientos' })
-            upsertScoredCandidate(candidates, track, { score: -Infinity, source: 'spotify-rec', signals: [] })
+            const track = makeTrack({
+                title: 'Aleluya',
+                author: 'Marco Barrientos',
+            })
+            upsertScoredCandidate(candidates, track, {
+                score: -Infinity,
+                source: 'spotify-rec',
+                signals: [],
+            })
             expect(candidates.size).toBe(0)
         })
 
         it('drops NaN scores defensively', () => {
             const candidates = new Map()
             const track = makeTrack()
-            upsertScoredCandidate(candidates, track, { score: NaN, source: 'spotify-rec', signals: [] })
+            upsertScoredCandidate(candidates, track, {
+                score: NaN,
+                source: 'spotify-rec',
+                signals: [],
+            })
             expect(candidates.size).toBe(0)
         })
 
         it('keeps higher score when same-key track inserted twice', () => {
             const candidates = new Map()
-            const track = makeTrack({ title: 'Rock Song', author: 'Radiohead', url: 'https://open.spotify.com/track/rh1' })
-            upsertScoredCandidate(candidates, track, { score: 0.5, source: 'spotify-rec', signals: [] })
-            upsertScoredCandidate(candidates, track, { score: 0.8, source: 'spotify-rec', signals: ['preferred artist'] })
+            const track = makeTrack({
+                title: 'Rock Song',
+                author: 'Radiohead',
+                url: 'https://open.spotify.com/track/rh1',
+            })
+            upsertScoredCandidate(candidates, track, {
+                score: 0.5,
+                source: 'spotify-rec',
+                signals: [],
+            })
+            upsertScoredCandidate(candidates, track, {
+                score: 0.8,
+                source: 'spotify-rec',
+                signals: ['preferred artist'],
+            })
             expect(candidates.size).toBe(1)
             expect([...candidates.values()][0]!.score).toBe(0.8)
         })
 
         it('retains first score when second insert is lower', () => {
             const candidates = new Map()
-            const track = makeTrack({ title: 'Rock Song', author: 'Radiohead', url: 'https://open.spotify.com/track/rh2' })
-            upsertScoredCandidate(candidates, track, { score: 0.9, source: 'spotify-rec', signals: [] })
-            upsertScoredCandidate(candidates, track, { score: 0.3, source: 'spotify-rec', signals: [] })
+            const track = makeTrack({
+                title: 'Rock Song',
+                author: 'Radiohead',
+                url: 'https://open.spotify.com/track/rh2',
+            })
+            upsertScoredCandidate(candidates, track, {
+                score: 0.9,
+                source: 'spotify-rec',
+                signals: [],
+            })
+            upsertScoredCandidate(candidates, track, {
+                score: 0.3,
+                source: 'spotify-rec',
+                signals: [],
+            })
             expect([...candidates.values()][0]!.score).toBe(0.9)
         })
     })

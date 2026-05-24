@@ -6,10 +6,13 @@ on:
     pull_request:
         branches: ['release/**', main]
 
-# Audit-only gate. Reports madge cycle counts in PR logs without
-# failing the build. Promote to a hard gate (remove `continue-on-error`
-# and add `exit 1` when count > baseline) after #871 PR 3 lands and the
-# Cluster C autoplay/queue cycles are resolved.
+# Hard gate. Blocks merges if cycle count exceeds baseline.
+# Baseline: COUNT > 1 (permits 1 known residual type-only cycle).
+#
+# 1 known residual: types/CustomClient.ts > models/Command.ts > types/CommandData.ts
+# All imports in this cycle are `import type`; breaking it requires structural
+# refactoring (moving types to shared file) that cascades into command-loader
+# consumers (help.ts). Deferred pending command-loader contract review.
 #
 # See docs/decisions/2026-05-16-next-refactor-target-bot-circular-deps.md.
 
@@ -20,11 +23,10 @@ jobs:
     circular:
         name: madge / packages/bot
         runs-on: ubuntu-latest
-        continue-on-error: true
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v6
               with:
                   node-version: '22'
 
@@ -33,7 +35,6 @@ jobs:
 
             - name: Run madge --circular on packages/bot/src
               run: |
-                  set +e
                   npx madge --circular --extensions ts packages/bot/src \
                       | tee madge-bot.txt
                   COUNT=$(grep -cE '^[0-9]+\)' madge-bot.txt || echo 0)
@@ -41,12 +42,16 @@ jobs:
                   {
                       echo "## madge circular deps — packages/bot/src"
                       echo ""
-                      echo "**Cycle count:** $COUNT"
+                      echo "**Cycle count:** $COUNT (max: 1)"
                       echo ""
                       echo '```'
                       cat madge-bot.txt
                       echo '```'
                   } >> "$GITHUB_STEP_SUMMARY"
+                  if [ "$COUNT" -gt 1 ]; then
+                      echo "❌ Cycle count exceeds baseline (> 1)" >&2
+                      exit 1
+                  fi
               id: madge
 
             - name: Upload madge report

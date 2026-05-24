@@ -60,6 +60,10 @@ Groovy, Rythm, Hydra — the biggest Discord music bots all died. YouTube API en
 - **Smart autoplay** — personalized recommendations from listening history, not just random tracks.
 - **No paywall** — every feature included, free forever. No premium tier, no upsells.
 
+### Maintenance model
+
+Lucky is a **solo personal project** — actively developed and deployed to production, but not seeking external contributors. The codebase is open-source so others can learn from it, self-host it, and adapt it. Issues and PRs are welcome but response time is best-effort.
+
 ---
 
 ## Architecture
@@ -73,6 +77,14 @@ packages/
 ```
 
 **Stack**: Node.js 22 · TypeScript 5.9 · Discord Player 7 · Prisma 7 · Redis · Docker
+
+---
+
+## Reliability
+
+- **CI** — every PR runs lint + build + ~2500 tests + SonarCloud quality gate: [![CI](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasSantana-Dev/Lucky/actions/workflows/ci.yml)
+- **Security** — Trivy image scan on every Docker publish; Dependabot with auto-merge for patches, manual triage for majors
+- **Monitoring** — Sentry error tracking + custom telemetry on production deployments
 
 ---
 
@@ -137,10 +149,16 @@ npm run test:e2e        # Playwright smoke tests
 - [CI/CD Pipeline](docs/CI_CD.md)
 - [Testing Strategy](docs/TESTING.md)
 - [Docker Setup](docs/DOCKER.md)
+- [Release Cadence](docs/RELEASE_CADENCE.md)
 - [Cloudflare Tunnel](docs/CLOUDFLARE_TUNNEL_SETUP.md)
 - [Twitch Integration](docs/TWITCH_SETUP.md)
 - [Last.fm Integration](docs/LASTFM_SETUP.md)
 - [Environment Variables](.env.example)
+- [AI Agent Contracts](docs/agents/) — behavioral contracts for agent-based workflows (issue tracker, triage labels, domain layout)
+
+### Decision Log
+
+Every non-trivial technical choice is documented as an Architecture Decision Record in [`docs/decisions/`](docs/decisions/). 20+ ADRs covering the music engine, CI/CD pipeline, database strategy, security posture, and more — each with context, alternatives considered, and revisit triggers.
 
 ### Admin Panel
 

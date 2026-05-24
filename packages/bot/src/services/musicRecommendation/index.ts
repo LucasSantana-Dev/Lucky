@@ -2,16 +2,13 @@ import type { Track } from 'discord-player'
 import type {
     RecommendationResult,
     RecommendationConfig,
-    UserPreferenceSeed,
-    RecommendationContext,
+    RecommendationInput,
 } from './types'
-import type { TrackHistoryEntry } from '@lucky/shared/services'
 import {
     generateRecommendations,
     generateUserPreferenceRecommendations,
     generateHistoryBasedRecommendations,
 } from './recommendationEngine'
-import { trackHistoryService } from '@lucky/shared/services'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 
 export class MusicRecommendationService {
@@ -33,182 +30,121 @@ export class MusicRecommendationService {
         }
     }
 
-    async getRecommendations(
-        seedTrack: Track,
-        availableTracks: Track[],
-        excludeTrackIds: string[] = [],
+    async recommendTracks(
+        input: RecommendationInput,
     ): Promise<RecommendationResult[]> {
         try {
-            debugLog({
-                message: 'Generating recommendations for track',
-                data: {
-                    trackId: seedTrack.id,
-                    availableTracks: availableTracks.length,
-                },
-            })
-
-            return generateRecommendations(
-                seedTrack,
-                availableTracks,
-                this.config,
-                excludeTrackIds,
-            )
-        } catch (error) {
-            errorLog({ message: 'Error getting recommendations:', error })
-            return []
-        }
-    }
-
-    async getUserPreferenceRecommendations(
-        preferences: UserPreferenceSeed,
-        availableTracks: Track[],
-        excludeTrackIds: string[] = [],
-    ): Promise<RecommendationResult[]> {
-        try {
-            debugLog({
-                message: 'Generating user preference recommendations',
-                data: { preferences, availableTracks: availableTracks.length },
-            })
-
-            return generateUserPreferenceRecommendations(
-                preferences,
-                availableTracks,
-                this.config,
-                excludeTrackIds,
-            )
-        } catch (error) {
-            errorLog({
-                message: 'Error getting user preference recommendations:',
-                error,
-            })
-            return []
-        }
-    }
-
-    async getRecommendationsBasedOnHistory(
-        guildId: string,
-        availableTracks: Track[],
-        limit: number = 5,
-    ): Promise<RecommendationResult[]> {
-        try {
-            const history = await trackHistoryService.getTrackHistory(
+            const {
                 guildId,
-                20,
-            )
+                seedTracks,
+                trackHistory,
+                availableTracks,
+                userPreferences,
+                strategy,
+                limit,
+            } = input
 
-            if (history.length === 0) {
+            // Exclude recently played tracks to avoid repetition
+            const excludeIds = trackHistory.slice(0, 5).map((t) => t.id)
+
+            if (strategy === 'preference') {
+                if (!userPreferences) {
+                    debugLog({
+                        message:
+                            'Preference strategy requested but no userPreferences provided',
+                        data: { guildId },
+                    })
+                    return []
+                }
+
                 debugLog({
-                    message: 'No history found for recommendations',
+                    message: 'Generating preference-based recommendations',
+                    data: {
+                        guildId,
+                        availableTracks: availableTracks.length,
+                    },
+                })
+
+                const results = await generateUserPreferenceRecommendations(
+                    userPreferences,
+                    availableTracks,
+                    this.config,
+                    excludeIds,
+                )
+                return results.slice(0, limit)
+            }
+
+            if (strategy === 'history') {
+                debugLog({
+                    message: 'Generating history-based recommendations',
+                    data: {
+                        guildId,
+                        historyLength: trackHistory.length,
+                        availableTracks: availableTracks.length,
+                    },
+                })
+
+                const results = await generateHistoryBasedRecommendations(
+                    trackHistory,
+                    availableTracks,
+                    this.config,
+                    excludeIds,
+                )
+                return results.slice(0, limit)
+            }
+
+            // For 'auto' strategy, use fallback logic
+            if (seedTracks.length > 0) {
+                debugLog({
+                    message: 'Auto strategy: using seed track',
                     data: { guildId },
                 })
-                return []
+
+                const results = await generateRecommendations(
+                    seedTracks[0],
+                    availableTracks,
+                    this.config,
+                    excludeIds,
+                )
+                return results.slice(0, limit)
             }
 
-            const recentTracks = history.map((h: TrackHistoryEntry) =>
-                historyEntryToTrack(h),
-            )
-            const excludeIds = history.slice(0, 5).map((h) => h.trackId)
+            if (trackHistory.length > 0) {
+                debugLog({
+                    message: 'Auto strategy: falling back to history',
+                    data: { guildId },
+                })
+
+                const results = await generateHistoryBasedRecommendations(
+                    trackHistory,
+                    availableTracks,
+                    this.config,
+                    excludeIds,
+                )
+                return results.slice(0, limit)
+            }
 
             debugLog({
-                message: 'Generating history-based recommendations',
-                data: {
-                    guildId,
-                    historyLength: history.length,
-                    availableTracks: availableTracks.length,
-                },
+                message:
+                    'No seed tracks or history available for recommendations',
+                data: { guildId },
             })
-
-            const results = await generateHistoryBasedRecommendations(
-                recentTracks,
-                availableTracks,
-                this.config,
-                excludeIds,
-            )
-            return results.slice(0, limit)
-        } catch (error) {
-            errorLog({
-                message: 'Error getting history-based recommendations:',
-                error,
-            })
-            return []
-        }
-    }
-
-    async getContextualRecommendations(
-        context: RecommendationContext,
-    ): Promise<RecommendationResult[]> {
-        try {
-            const { currentTrack, recentHistory, availableTracks, config } =
-                context
-
-            if (currentTrack) {
-                return await generateRecommendations(
-                    currentTrack,
-                    availableTracks,
-                    config,
-                )
-            }
-
-            if (recentHistory.length > 0) {
-                return await generateHistoryBasedRecommendations(
-                    recentHistory,
-                    availableTracks,
-                    config,
-                )
-            }
-
             return []
         } catch (error) {
-            errorLog({
-                message: 'Error getting contextual recommendations:',
-                error,
-            })
+            errorLog({ message: 'Error generating recommendations:', error })
             return []
         }
-    }
-
-    updateConfig(newConfig: Partial<RecommendationConfig>): void {
-        Object.assign(this.config, newConfig)
-        debugLog({
-            message: 'Updated recommendation config',
-            data: { config: this.config },
-        })
     }
 
     getConfig(): RecommendationConfig {
         return { ...this.config }
     }
-
-    async getPersonalizedRecommendations(
-        guildId: string,
-        availableTracks: Track[],
-        limit: number = 5,
-    ): Promise<RecommendationResult[]> {
-        return this.getRecommendationsBasedOnHistory(
-            guildId,
-            availableTracks,
-            limit,
-        )
-    }
-}
-
-function historyEntryToTrack(h: TrackHistoryEntry): Track {
-    return {
-        id: h.trackId,
-        title: h.title,
-        author: h.author,
-        duration: h.duration,
-        url: h.url,
-        requestedBy: h.playedBy ? { id: h.playedBy } : null,
-        metadata: { isAutoplay: h.isAutoplay || false },
-    } as unknown as Track
 }
 
 export type {
     RecommendationResult,
     RecommendationConfig,
-    UserPreferenceSeed,
-    RecommendationContext,
+    RecommendationInput,
 } from './types'
 
 export const musicRecommendationService = new MusicRecommendationService()

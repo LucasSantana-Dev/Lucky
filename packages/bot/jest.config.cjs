@@ -11,16 +11,16 @@ module.exports = {
     ],
     coverageDirectory: 'coverage',
     coverageReporters: ['text', 'lcov'],
-    // Floor pinned to the round-down of the post-#821 baseline
-    // (stmts 67 / branches 63 / functions 63 / lines 68). Binding without
-    // forcing emergency work; tighten 2-3 % per cleanup phase as the suite
-    // shrinks. See .agents/plans/test-cleanup-phase2.md.
+    // Floor tightened after Phase 4 cleanup (post-Phase-4 baseline: stmts 66.33 /
+    // branches 64.04 / functions 62.51 / lines 67.28). Each threshold = actual − 0.5pp.
+    // Statements/functions/lines didn't reach the 68/63/63/68 target — actual coverage
+    // didn't improve enough after Phase 4 deletions. See issue #964.
     coverageThreshold: {
         global: {
-            statements: 65,
-            branches: 60,
-            functions: 60,
-            lines: 65,
+            statements: 65.8,
+            branches: 63.5,
+            functions: 62,
+            lines: 66.7,
         },
     },
     moduleNameMapper: {

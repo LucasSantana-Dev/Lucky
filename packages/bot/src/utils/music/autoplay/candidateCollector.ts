@@ -3,6 +3,7 @@ import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { SessionMood } from './sessionMood'
+import type { AutoplayContext } from './autoplayContext'
 import {
     collectSpotifyRecommendationCandidates,
     searchSeedCandidates,
@@ -10,7 +11,10 @@ import {
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
 import { isDuplicateCandidate } from './diversitySelector'
-import { shouldIncludeCandidate, upsertScoredCandidate } from './candidateContracts'
+import {
+    shouldIncludeCandidate,
+    upsertScoredCandidate,
+} from './candidateContracts'
 import {
     createArtistTagFetcher,
     hasGenreTag,
@@ -31,7 +35,10 @@ export type {
     RecommendationSource,
     RecommendationSignal,
 } from './recommendationBasis.js'
-export { shouldIncludeCandidate, upsertScoredCandidate } from './candidateContracts'
+export {
+    shouldIncludeCandidate,
+    upsertScoredCandidate,
+} from './candidateContracts'
 
 export const SERTANEJO_TAGS = [
     'sertanejo',
@@ -46,7 +53,6 @@ export const SERTANEJO_TAGS = [
  * and isn't in the disliked set.
  */
 
-
 /**
  * Add or update a candidate in the scored pool.
  * Keeps the higher-scored version if a duplicate key exists.
@@ -59,7 +65,6 @@ export const SERTANEJO_TAGS = [
  * caller patterns too.
  */
 
-
 /**
  * Collect recommendation candidates from multiple sources:
  * - Spotify Recommendations API (based on seed tracks)
@@ -69,58 +74,27 @@ export const SERTANEJO_TAGS = [
  * Last.fm is handled separately by collectLastFmCandidates in _replenishQueue.
  */
 export async function collectRecommendationCandidates(
-    queue: GuildQueue,
+    ctx: AutoplayContext,
     seedTracks: Track[],
     requestedBy: User | null,
-    excludedUrls: Set<string>,
-    excludedKeys: Set<string>,
-    dislikedWeights: Map<string, number>,
-    likedWeights: Map<string, number>,
-    preferredArtistKeys: Set<string>,
-    blockedArtistKeys: Set<string>,
-    currentTrack: Track,
-    recentArtists: Set<string>,
     replenishCount = 0,
-    autoplayMode: 'similar' | 'discover' | 'popular' = 'similar',
-    artistFrequency: Map<string, number> = new Map(),
-    implicitDislikeKeys: Set<string> = new Set(),
-    implicitLikeKeys: Set<string> = new Set(),
-    sessionMood: SessionMood | null = null,
     currentFeatures: SpotifyAudioFeatures | null = null,
-    genreContext: {
-        getArtistTags?: ArtistTagFetcher
-        currentTrackTags?: string[]
-        sessionGenreFamilies?: Set<string>
-    } = {},
     blockSertanejo = false,
 ): Promise<Map<string, ScoredTrack>> {
     const candidates = new Map<string, ScoredTrack>()
-    const getArtistTags = genreContext.getArtistTags ?? createArtistTagFetcher()
-    const currentTrackTags = genreContext.currentTrackTags ?? []
+    const getArtistTags =
+        ctx.genreContext.getArtistTags ?? createArtistTagFetcher()
+    const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
-        genreContext.sessionGenreFamilies ?? new Set<string>()
+        ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
 
     // Collect from Spotify Recommendations API
     await collectSpotifyRecommendationCandidates(
-        queue,
+        ctx,
         seedTracks,
         requestedBy,
-        excludedUrls,
-        excludedKeys,
-        dislikedWeights,
-        likedWeights,
-        preferredArtistKeys,
-        blockedArtistKeys,
-        currentTrack,
-        recentArtists,
         candidates,
-        autoplayMode,
-        artistFrequency,
-        implicitDislikeKeys,
-        implicitLikeKeys,
-        sessionMood,
         currentFeatures,
-        { getArtistTags, currentTrackTags, sessionGenreFamilies },
     )
 
     // Collect from seed track searches (Spotify only — no YouTube fallback to
@@ -128,13 +102,17 @@ export async function collectRecommendationCandidates(
     // algorithm to surface Spanish gospel on non-Spanish sessions)
     for (const seed of seedTracks) {
         const seedCandidates = await searchSeedCandidates(
-            queue,
+            ctx.queue,
             seed,
             requestedBy,
         )
         for (const candidate of seedCandidates) {
             if (
-                !shouldIncludeCandidate(candidate, excludedUrls, excludedKeys)
+                !shouldIncludeCandidate(
+                    candidate,
+                    ctx.excludedUrls,
+                    ctx.excludedKeys,
+                )
             ) {
                 continue
             }
@@ -142,7 +120,7 @@ export async function collectRecommendationCandidates(
                 candidate.title,
                 candidate.author,
             )
-            const dislikedWeight = dislikedWeights.get(normalizedKey)
+            const dislikedWeight = ctx.dislikedWeights.get(normalizedKey)
             if (dislikedWeight !== undefined && dislikedWeight > 0.5) {
                 continue
             }
@@ -164,17 +142,17 @@ export async function collectRecommendationCandidates(
             }
             const rec = calculateRecommendationScore({
                 candidate,
-                currentTrack,
-                recentArtists,
-                likedWeights,
-                preferredArtistKeys,
-                blockedArtistKeys,
-                autoplayMode,
-                artistFrequency,
-                implicitDislikeKeys,
-                implicitLikeKeys,
-                dislikedWeights,
-                sessionMood,
+                currentTrack: ctx.currentTrack,
+                recentArtists: ctx.recentArtists,
+                likedWeights: ctx.likedWeights,
+                preferredArtistKeys: ctx.preferredArtistKeys,
+                blockedArtistKeys: ctx.blockedArtistKeys,
+                autoplayMode: ctx.autoplayMode,
+                artistFrequency: ctx.artistFrequency,
+                implicitDislikeKeys: ctx.implicitDislikeKeys,
+                implicitLikeKeys: ctx.implicitLikeKeys,
+                dislikedWeights: ctx.dislikedWeights,
+                sessionMood: ctx.sessionMood,
                 genreContext: {
                     candidateTags: tags,
                     currentTrackTags,
