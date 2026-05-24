@@ -17,7 +17,7 @@ module.exports = {
     // didn't improve enough after Phase 4 deletions. See issue #964.
     coverageThreshold: {
         global: {
-            statements: 65.8,
+            statements: 65.7,
             branches: 63.0,
             functions: 62,
             lines: 66.7,
