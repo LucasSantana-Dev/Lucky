@@ -355,6 +355,7 @@ describe('presence', () => {
 
             const result = setPresenceActivity(client, 0)
 
+            expect(setPresence).toHaveBeenCalled()
             expect(result).toBe(1)
         })
 
@@ -369,6 +370,7 @@ describe('presence', () => {
             const result1 = setPresenceActivity(client, -1)
             const result2 = setPresenceActivity(client, 100)
 
+            expect(setPresence).toHaveBeenCalledTimes(2)
             expect(result1).toBeGreaterThanOrEqual(0)
             expect(result2).toBeLessThan(5)
         })
@@ -403,20 +405,36 @@ describe('presence', () => {
         })
 
         it('should return controls with stop/pause/resume methods', () => {
+            const setPresence = jest.fn()
             const client = createMockClient({
-                user: { setPresence: jest.fn() },
+                user: { setPresence },
                 guilds: { cache: { size: 5, values: () => [] } },
                 commands: { size: 30 },
             } as any)
 
             const controls = startPresenceRotation(client)
 
-            expect(controls).toHaveProperty('stop')
-            expect(controls).toHaveProperty('pause')
-            expect(controls).toHaveProperty('resume')
-            expect(typeof controls.stop).toBe('function')
-            expect(typeof controls.pause).toBe('function')
-            expect(typeof controls.resume).toBe('function')
+            // Verify presence is set on start
+            expect(setPresence).toHaveBeenCalled()
+            const initialCallCount = setPresence.mock.calls.length
+
+            // Verify rotation occurs on interval
+            jest.advanceTimersByTime(45_000)
+            expect(setPresence.mock.calls.length).toBeGreaterThan(
+                initialCallCount,
+            )
+            const afterRotateCount = setPresence.mock.calls.length
+
+            // Verify pause stops rotation
+            controls.pause()
+            jest.advanceTimersByTime(45_000)
+            expect(setPresence.mock.calls.length).toBe(afterRotateCount)
+
+            // Verify resume restarts rotation
+            controls.resume()
+            expect(setPresence.mock.calls.length).toBeGreaterThan(
+                afterRotateCount,
+            )
 
             controls.stop()
         })
