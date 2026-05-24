@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals'
+import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import { replenishQueue } from './replenisher'
 
@@ -267,7 +267,9 @@ describe('replenishQueue', () => {
 
         await replenishQueue(queue)
 
-        expect(queue).toBeTruthy()
+        // Verify that replenishQueue executed without error (queue is still accessible)
+        expect(queue.tracks).toBeDefined()
+        expect(typeof queue.tracks.size).toBe('number')
     })
 
     it('should log debug info on start', async () => {
